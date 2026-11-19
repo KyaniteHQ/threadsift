@@ -1,9 +1,7 @@
 import { z } from "zod";
 
-import { SECRET_INPUT_MAX, SecretInputSchema } from "./secret-input.ts";
+import { SecretInputSchema } from "./secret-input.ts";
 import { WholeCount } from "./whole-count.ts";
-
-export const GITHUB_TOKEN_MAX = SECRET_INPUT_MAX;
 
 export const GithubTokenInputSchema = z.object({ token: SecretInputSchema });
 

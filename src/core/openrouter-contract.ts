@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { PROVIDERS } from "./ai-contract.ts";
+import { PROVIDERS } from "./provider-families.ts";
 
 export const CONNECT_START_PATH = "/api/settings/ai/openrouter/start";
 export const CONNECT_CALLBACK_PATH = "/api/settings/ai/openrouter/callback";

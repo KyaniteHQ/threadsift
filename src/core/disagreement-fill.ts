@@ -1,4 +1,5 @@
-import { DISAGREEMENT_INPUT_BYTES, type SentTopic } from "./disagreement-task.ts";
+import { AI_INPUT_BYTES } from "./ai-contract.ts";
+import type { SentTopic } from "./disagreement-task.ts";
 import { utf8Length } from "./encoding.ts";
 import { pairKey } from "./proposal-candidates.ts";
 
@@ -41,8 +42,7 @@ function fitted(
   for (let count = topic.items.length; count >= MIN_ITEMS; count -= 1) {
     const shortened = { ...topic, items: topic.items.slice(0, count) };
 
-    if (utf8Length(inputJson([...sent, shortened], decided)) <= DISAGREEMENT_INPUT_BYTES)
-      return shortened;
+    if (utf8Length(inputJson([...sent, shortened], decided)) <= AI_INPUT_BYTES) return shortened;
   }
 
   return null;
@@ -64,5 +64,5 @@ export function fillDisagreementInput(
 }
 
 export function hasNoRoomForAnother(input: string): boolean {
-  return utf8Length(input) + SMALLEST_TOPIC_BYTES > DISAGREEMENT_INPUT_BYTES;
+  return utf8Length(input) + SMALLEST_TOPIC_BYTES > AI_INPUT_BYTES;
 }

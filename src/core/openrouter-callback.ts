@@ -1,15 +1,14 @@
 import { z } from "zod";
 
-import { AI_KEY_MAX } from "./ai-contract.ts";
-import type { JobWrites } from "./job-outcome.ts";
 import { claim, refusalBeforeExchange } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
 import { saveConnectedKey } from "./openrouter-save.ts";
 import type { Ports } from "./ports.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
+import { SECRET_INPUT_MAX } from "./secret-input.ts";
 
 const CallbackQuerySchema = z.object({
-  code: z.tuple([z.string().min(1).max(AI_KEY_MAX)]),
+  code: z.tuple([z.string().min(1).max(SECRET_INPUT_MAX)]),
   state: z.tuple([z.string().regex(/^[\w-]{43}$/u)]),
   error: z.tuple([]),
 });
@@ -17,7 +16,6 @@ const CallbackQuerySchema = z.object({
 export async function completeOpenRouterConnect(
   ports: Ports,
   { sessionId, search }: Readonly<{ sessionId: string; search: string }>,
-  extraWrites: () => JobWrites,
 ): Promise<ConnectNotice> {
   const query = new URLSearchParams(search);
 
@@ -54,5 +52,5 @@ export async function completeOpenRouterConnect(
 
   if (exchange.kind !== "key") return "possible-orphan";
 
-  return saveConnectedKey(ports, { sessionId, claimed, key: exchange.key }, extraWrites);
+  return saveConnectedKey(ports, { sessionId, claimed, key: exchange.key });
 }

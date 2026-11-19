@@ -4,6 +4,8 @@ import { isReadableText } from "./plain-text.ts";
 
 export const SHORT_TEXT_MAX = 240;
 
+export const DIGEST_TAGS_MAX = 3;
+
 const LINE_BREAK = /\r\n|\r|\n/u;
 
 const ShortText = z.string().trim().min(1).max(SHORT_TEXT_MAX);
@@ -27,13 +29,13 @@ const ReadableSummary = Summary.refine(
 export const STORED_TEXT = {
   title: ShortText,
   topic: ShortText,
-  tags: z.array(ShortText).max(3).readonly(),
+  tags: z.array(ShortText).max(DIGEST_TAGS_MAX).readonly(),
   summary: Summary,
 };
 
 export const READABLE_TEXT = {
   title: ReadableShortText,
   topic: ReadableShortText,
-  tags: z.array(ReadableShortText).max(3).readonly(),
+  tags: z.array(ReadableShortText).max(DIGEST_TAGS_MAX).readonly(),
   summary: ReadableSummary,
 };

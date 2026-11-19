@@ -1,6 +1,6 @@
 import { type SQL, sql } from "drizzle-orm";
 
-import { AI_DEADLINE_MS } from "./ai-contract.ts";
+import { AI_DEADLINE_MS, AI_LIST_OUTPUT_TOKENS } from "./ai-contract.ts";
 import { readCatalogVersion } from "./catalog.ts";
 import type { Database } from "./database.ts";
 import type { JobWrites } from "./job-outcome.ts";
@@ -10,7 +10,6 @@ import { pairKey } from "./proposal-candidates.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
 import { type InsertedState, proposalRow } from "./proposal-lifecycle.ts";
 import {
-  PROPOSALS_OUTPUT_TOKENS,
   type ProposalsResult,
   type SentPair,
   SentPairsSchema,
@@ -97,7 +96,7 @@ function runOf(kind: MergeKind): WeeklyRun<Sent, ProposalsResult> {
     ...RUNS[kind],
     kind: proposalsTaskKind(kind),
     sent: SentPairsSchema,
-    maxOutputTokens: PROPOSALS_OUTPUT_TOKENS,
+    maxOutputTokens: AI_LIST_OUTPUT_TOKENS,
     read: async (db) => {
       const inputRevision = await readCatalogVersion(db);
       const { input, sent } = proposalsInput(await readProposalPairs(db, kind));

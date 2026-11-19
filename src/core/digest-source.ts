@@ -11,13 +11,13 @@ import {
   sql,
 } from "drizzle-orm";
 
+import { AI_INPUT_BYTES } from "./ai-contract.ts";
 import { failedAiTask } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
 import {
   type CatalogNames,
   type CommentCounts,
   type DigestPrompt,
-  DIGEST_INPUT_BYTES,
   type LinkedPage,
   digestPrompt,
 } from "./digest-prompt.ts";
@@ -48,7 +48,7 @@ export function digestInput(db: Database, id: number) {
       pendingDigest: items.pendingDigest,
       linkedUrl: candidateLink(),
       postTextKey: items.postTextKey,
-      postText: sql<string | null>`substr(${items.postText}, 1, ${DIGEST_INPUT_BYTES})`,
+      postText: sql<string | null>`substr(${items.postText}, 1, ${AI_INPUT_BYTES})`,
       hasComments: sql<boolean>`${eligibleComments()}`.mapWith(Boolean),
     })
     .from(items)

@@ -3,18 +3,6 @@ import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-cor
 
 import { sessions } from "./access-tables.ts";
 
-export const aiSettingsRevision = sqliteTable(
-  "ai_settings_revision",
-  {
-    id: integer("id").primaryKey().notNull(),
-    revision: integer("revision").notNull().default(0),
-  },
-  (table) => [
-    check("ai_settings_revision_is_one_row", sql`${table.id} = 1`),
-    check("ai_settings_revision_not_negative", sql`${table.revision} >= 0`),
-  ],
-);
-
 export const openrouterConnectTransactions = sqliteTable(
   "openrouter_connect_transactions",
   {
@@ -36,5 +24,3 @@ export const openrouterConnectTransactions = sqliteTable(
     index("openrouter_connect_session").on(table.sessionDigest),
   ],
 );
-
-export const CURRENT_REVISION = sql<number>`(select ${aiSettingsRevision.revision} from ${aiSettingsRevision} where ${aiSettingsRevision.id} = 1)`;

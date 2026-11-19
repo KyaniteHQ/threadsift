@@ -1,40 +1,27 @@
 import { z } from "zod";
 
+import { AiRefusedSchema, CliRecommendationSchema, DigestSchema } from "./ai-contract.ts";
 import {
-  AiRefusedSchema,
   CliChoiceSchema,
   CliPreferenceSchema,
   CliProviderSchema,
-  CliRecommendationSchema,
-  DigestSchema,
-  GROK_BOT_PROVIDER,
   HttpProviderSchema,
-  PROVIDERS,
   ProviderSchema,
-} from "./ai-contract.ts";
+  familiesOf,
+} from "./provider-families.ts";
 
 const [recommended, defaults, custom] = CliPreferenceSchema.options;
 const cliProvider = { provider: CliProviderSchema };
 
 export const AiSettingsInputSchema = z.union([
-  z.strictObject({
-    provider: z.literal(PROVIDERS["openai-compatible"].id),
-    ...PROVIDERS["openai-compatible"].fields,
-  }),
-  z.strictObject({ provider: z.literal(PROVIDERS.openrouter.id), ...PROVIDERS.openrouter.fields }),
-  z.strictObject({ provider: z.literal(PROVIDERS.anthropic.id), ...PROVIDERS.anthropic.fields }),
-  z.strictObject({ provider: z.literal(PROVIDERS.openai.id), ...PROVIDERS.openai.fields }),
-  z.strictObject({ provider: z.literal(PROVIDERS.xai.id), ...PROVIDERS.xai.fields }),
-  z.strictObject({
-    provider: z.literal(PROVIDERS["workers-ai"].id),
-    ...PROVIDERS["workers-ai"].fields,
-  }),
+  ...familiesOf("http").map(({ input }) => input),
+  ...familiesOf("binding").map(({ input }) => input),
   z.discriminatedUnion("choice", [
     recommended.safeExtend(cliProvider),
     defaults.safeExtend(cliProvider),
     custom.safeExtend(cliProvider),
   ]),
-  z.strictObject({ provider: z.literal(GROK_BOT_PROVIDER) }),
+  ...familiesOf("bot").map(({ input }) => input),
 ]);
 
 export type AiSettingsInput = z.infer<typeof AiSettingsInputSchema>;
@@ -48,7 +35,7 @@ const HttpSettingsViewSchema = z.object({
 });
 
 const KeylessSettingsViewSchema = z.object({
-  provider: z.enum([PROVIDERS["workers-ai"].id, GROK_BOT_PROVIDER]),
+  provider: z.enum(familiesOf("binding", "bot").map(({ id }) => id)),
   model: z.string(),
 });
 

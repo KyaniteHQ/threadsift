@@ -55,16 +55,20 @@ const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
 export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"] as const;
 
+export const GROK_BOT_WAIT = "grok-bot";
+
 export const WAIT_REASONS = [
   "github-rate-limit",
   "topic-busy",
-  "grok-bot",
+  GROK_BOT_WAIT,
   "reddit-limit",
   "x-verify",
   "x-reread",
 ] as const;
 
-export const X_READER_CHOICES = ["auto", "grok-bot", "grok-cli"] as const;
+export const X_READER_BOT = "grok-bot";
+
+export const X_READER_CHOICES = ["auto", X_READER_BOT, "grok-cli"] as const;
 
 export const X_FETCHER_STATES = ["signed-in", "signed-out", "not-proven", "unknown"] as const;
 

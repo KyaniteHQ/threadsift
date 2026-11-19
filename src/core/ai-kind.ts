@@ -9,6 +9,7 @@ import type {
 import { loadAiConfig } from "./ai-load.ts";
 import { botStep } from "./bot-step.ts";
 import { botFace, botOnlyFace } from "./bot-task-kind.ts";
+import { GROK_BOT_PROVIDER } from "./provider-families.ts";
 
 export function defineBasedAiKind<Context, Result, Basis>(
   declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
@@ -21,7 +22,7 @@ export function defineBasedAiKind<Context, Result, Basis>(
     attempt: async (ports, job) => {
       const ai = await loadAiConfig(ports);
 
-      return ai.state === "grok-bot" ? botStep(ports, job, face) : onModel(ports, job, ai);
+      return ai.state === GROK_BOT_PROVIDER ? botStep(ports, job, face) : onModel(ports, job, ai);
     },
   };
 }

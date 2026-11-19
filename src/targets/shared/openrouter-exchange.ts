@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { AI_KEY_MAX } from "../../core/ai-contract.ts";
 import type { AiRuntime } from "../../core/ai-runtime.ts";
 import { readCapped } from "../../core/capped.ts";
 import type { OpenRouterExchange } from "../../core/openrouter-contract.ts";
 import { pause } from "../../core/pause.ts";
 import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
+import { SECRET_INPUT_MAX } from "../../core/secret-input.ts";
 import { aiTransport } from "./ai-transport.ts";
 
 const EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
@@ -15,7 +15,7 @@ const ACTIVATION_POLL_MS = 1_000;
 const ANSWER_CAP_BYTES = 16 * 1024;
 const REFUSING_STATUSES: ReadonlySet<number> = new Set([400, 403]);
 
-const KeyAnswerSchema = z.object({ key: z.string().min(1).max(AI_KEY_MAX) });
+const KeyAnswerSchema = z.object({ key: z.string().min(1).max(SECRET_INPUT_MAX) });
 
 async function cappedText(body: AsyncIterable<Uint8Array>): Promise<string> {
   const { bytes, cut } = await readCapped(body, ANSWER_CAP_BYTES);

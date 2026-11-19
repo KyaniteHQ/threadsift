@@ -1,5 +1,7 @@
 export const PROPOSALS_MAX = 20;
 
+export const NAMES_PER_SUBJECT = 3;
+
 export interface Candidate {
   readonly id: number;
   readonly key: string;

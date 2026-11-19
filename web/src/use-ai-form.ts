@@ -1,17 +1,17 @@
 import { useCallback, useState, type ChangeEvent } from "react";
 
+import type { AiRefused } from "../../src/core/ai-contract.ts";
+import { AiSettingsInputSchema } from "../../src/core/ai-settings-contract.ts";
 import {
   GROK_BOT_PROVIDER,
   PROVIDERS,
   ProviderSchema,
   CliChoiceSchema,
-  type AiRefused,
   type CliChoice,
   type Provider,
   isCliProvider,
   withoutTrailingSlashes,
-} from "../../src/core/ai-contract.ts";
-import { AiSettingsInputSchema } from "../../src/core/ai-settings-contract.ts";
+} from "../../src/core/provider-families.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
@@ -109,7 +109,9 @@ function failureText(
 }
 
 function needsSecret(provider: Provider): boolean {
-  return provider !== "workers-ai" && !isCliProvider(provider);
+  const { kind } = PROVIDERS[provider];
+
+  return kind === "http" || kind === "bot";
 }
 
 function holdsUnreadableKey({ secretReady, settings }: Readonly<AiView>): boolean {
@@ -183,10 +185,8 @@ function savedKeyOf(
 
   if (holdsUnreadableKey(view)) return "unreadable";
 
-  const url =
-    form.provider === "openai-compatible"
-      ? withoutTrailingSlashes(form.baseUrl)
-      : PROVIDERS[form.provider].url;
+  const family = PROVIDERS[form.provider];
+  const url = "baseUrl" in family.fields ? withoutTrailingSlashes(form.baseUrl) : family.url;
 
   const same =
     settings.provider === form.provider &&

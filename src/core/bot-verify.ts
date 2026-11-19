@@ -1,41 +1,14 @@
-import { z } from "zod";
-
-import { VERIFY_INPUT, refusedAi } from "./ai-contract.ts";
+import { refusedAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
-import type { VerifyResultSchema } from "./ai-settings-contract.ts";
-import { botAnswering } from "./bot-task-answering.ts";
 import { sendBotTask } from "./bot-task-send.ts";
-import { type BotTaskStart, VERIFY_OWNER, startBotTask } from "./bot-task-start.ts";
-import { DIGEST_TASK } from "./digest-task.ts";
-import { parsedJson } from "./parsed-json.ts";
+import { VERIFY_OWNER, startBotTask } from "./bot-task-start.ts";
+import { VERIFY_START, verifyAnswering } from "./bot-verify-task.ts";
 import type { Ports } from "./ports.ts";
+import { GROK_BOT_PROVIDER } from "./provider-families.ts";
 import { verifyAi } from "./verify-model.ts";
-import { VERIFY_DEADLINE_MS, awaitVerifiedDigest } from "./verify-wait.ts";
-
-const VerifyContextSchema = z.strictObject({ verify: z.literal(true) }).readonly();
-
-const VERIFY_CONTEXT = JSON.stringify({ verify: true });
-
-export const verifyAnswering = botAnswering({
-  context: VerifyContextSchema,
-  task: () => DIGEST_TASK,
-});
-
-export function isVerifyContext(context: string | null): boolean {
-  return parsedJson(VerifyContextSchema, context ?? "") !== null;
-}
-
-export const VERIFY_START: BotTaskStart = {
-  kind: DIGEST_TASK.kind,
-  inputs: DIGEST_TASK.prepareInput(VERIFY_INPUT),
-  inputRevision: 1,
-  context: VERIFY_CONTEXT,
-  deadlineMs: VERIFY_DEADLINE_MS,
-};
+import { type Verified, awaitVerifiedDigest } from "./verify-wait.ts";
 
 type VerifyPorts = Pick<Ports, "db" | "ai" | "secrets" | "network" | "crypto">;
-
-type Verified = z.infer<typeof VerifyResultSchema>;
 
 async function verifiedByBot(ports: VerifyPorts, signal: AbortSignal): Promise<Verified> {
   const started = await startBotTask(ports, VERIFY_OWNER, VERIFY_START);
@@ -51,5 +24,7 @@ async function verifiedByBot(ports: VerifyPorts, signal: AbortSignal): Promise<V
 export async function verifyProvider(ports: VerifyPorts, signal: AbortSignal): Promise<Verified> {
   const ai = await loadAiConfig(ports);
 
-  return ai.state === "grok-bot" ? verifiedByBot(ports, signal) : verifyAi(ports, ai, signal);
+  return ai.state === GROK_BOT_PROVIDER
+    ? verifiedByBot(ports, signal)
+    : verifyAi(ports, ai, signal);
 }

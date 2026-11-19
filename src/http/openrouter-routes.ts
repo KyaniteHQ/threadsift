@@ -1,7 +1,6 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
-import { olderDigests } from "../core/digest-job.ts";
 import { completeOpenRouterConnect } from "../core/openrouter-callback.ts";
 import { startOpenRouterConnect } from "../core/openrouter-connect.ts";
 import {
@@ -99,11 +98,10 @@ function registerCallback(app: OpenAPIHono, ports: Ports): void {
     const notice =
       sessionId === undefined
         ? "incomplete"
-        : await completeOpenRouterConnect(
-            ports,
-            { sessionId, search: new URL(c.req.url).search },
-            () => olderDigests(ports.db),
-          );
+        : await completeOpenRouterConnect(ports, {
+            sessionId,
+            search: new URL(c.req.url).search,
+          });
 
     return c.redirect(returnAddress(notice), 303);
   });

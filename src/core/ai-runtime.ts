@@ -3,11 +3,10 @@ import type {
   AiTaskRequest,
   CliAiConnection,
   CliSelection,
-  CliProvider,
   CliRecommendation,
-  Provider,
 } from "./ai-contract.ts";
 import type { OpenRouterExchange } from "./openrouter-contract.ts";
+import type { CliProvider, Provider } from "./provider-families.ts";
 
 export interface AiRuntime {
   readonly providers: readonly Provider[];

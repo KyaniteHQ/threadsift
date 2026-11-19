@@ -6,7 +6,8 @@ import { failedAiTask } from "./ai-task-rows.ts";
 import { sentTask } from "./bot-task-rows.ts";
 import { report } from "./failure-log.ts";
 import type { GrokBotResult, WebhookBody } from "./grok-bot-contract.ts";
-import { grokBotConnection, postToGrokBot } from "./grok-bot.ts";
+import { postToGrokBot } from "./grok-bot-post.ts";
+import { grokBotConnection } from "./grok-bot-ready.ts";
 import type { JobPorts } from "./job-outcome.ts";
 
 type SendPorts = Pick<JobPorts, "db" | "secrets" | "network">;

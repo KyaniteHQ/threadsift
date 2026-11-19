@@ -29,7 +29,9 @@ export { type MediaRow, media } from "./media-tables.ts";
 
 export { type NoteRow, notes } from "./note-tables.ts";
 
-export { aiSettingsRevision, openrouterConnectTransactions } from "./openrouter-tables.ts";
+export { aiSettingsRevision } from "./ai-settings-revision.ts";
+
+export { openrouterConnectTransactions } from "./openrouter-tables.ts";
 
 export { redditAccount } from "./reddit-account-tables.ts";
 

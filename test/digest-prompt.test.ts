@@ -3,13 +3,9 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { AI_INPUT_BYTES } from "../src/core/ai-contract.ts";
 import { chooseCandidateLink } from "../src/core/candidate-link.ts";
-import {
-  type CommentCandidate,
-  DIGEST_INPUT_BYTES,
-  type LinkedPage,
-  digestPrompt,
-} from "../src/core/digest-prompt.ts";
+import { type CommentCandidate, type LinkedPage, digestPrompt } from "../src/core/digest-prompt.ts";
 import { utf8Length } from "../src/core/encoding.ts";
 
 const NO_CATALOG = { topics: [], tags: [] };
@@ -65,7 +61,7 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
   it("gives the linked text the whole unused room when the post text and comments are short", () => {
     const { bytes, linked } = readyInput(ITEM, [], NO_CATALOG, pageOf("word ".repeat(10_000)));
 
-    assert.equal(bytes, DIGEST_INPUT_BYTES);
+    assert.equal(bytes, AI_INPUT_BYTES);
     assert.equal(linked?.url, "https://example.com/page");
     assert.equal(linked?.title, "A page");
   });
@@ -74,7 +70,7 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
     const longPost = { ...ITEM, postText: "p".repeat(40_000) };
     const comments = Array.from({ length: 80 }, (_, index) => comment(index, "c".repeat(300)));
     const bare = readyInput({ ...longPost, postText: "" }, [], NO_CATALOG, pageOf(""));
-    const room = DIGEST_INPUT_BYTES - bare.bytes;
+    const room = AI_INPUT_BYTES - bare.bytes;
 
     const { bytes, linked, prompt } = readyInput(
       longPost,
@@ -84,8 +80,8 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
     );
 
     assert.equal(linked?.text.length, Math.floor(room / 3));
-    assert.ok(bytes <= DIGEST_INPUT_BYTES);
-    assert.ok(DIGEST_INPUT_BYTES - bytes < 400);
+    assert.ok(bytes <= AI_INPUT_BYTES);
+    assert.ok(AI_INPUT_BYTES - bytes < 400);
     assert.ok(prompt.submitted.length > 0);
   });
 
@@ -95,8 +91,8 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
     const controls = readyInput(ITEM, [], NO_CATALOG, pageOf("\u0001".repeat(20_000)));
 
     for (const { bytes, linked } of [quotes, emoji, controls]) {
-      assert.ok(bytes <= DIGEST_INPUT_BYTES);
-      assert.ok(DIGEST_INPUT_BYTES - bytes < 8);
+      assert.ok(bytes <= AI_INPUT_BYTES);
+      assert.ok(AI_INPUT_BYTES - bytes < 8);
       assert.equal(linked?.text.isWellFormed(), true);
     }
 
@@ -126,7 +122,7 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
       pageOf("l".repeat(30_000)),
     );
 
-    assert.ok(bytes <= DIGEST_INPUT_BYTES);
+    assert.ok(bytes <= AI_INPUT_BYTES);
     assert.ok((linked?.text.length ?? 0) > 0);
 
     assert.deepEqual(

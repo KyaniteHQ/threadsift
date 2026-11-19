@@ -3,12 +3,12 @@ import { type ChangeEvent, type ReactNode, useId } from "react";
 import {
   AI_URL_MAX,
   AI_MODEL_MAX,
-  AI_KEY_MAX,
   PROVIDERS,
   CliChoiceSchema,
   isCliProvider,
   type Provider,
-} from "../../src/core/ai-contract.ts";
+} from "../../src/core/provider-families.ts";
+import { SECRET_INPUT_MAX } from "../../src/core/secret-input.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
 import { missingCustomOverrides, type SavedKey, type useAiForm } from "./use-ai-form.ts";
@@ -35,7 +35,7 @@ const FIELD_KINDS = {
     maxLength: AI_MODEL_MAX,
   },
   effort: { name: "effort", type: "text", autoComplete: "off" },
-  key: { name: "key", type: "password", autoComplete: "new-password", maxLength: AI_KEY_MAX },
+  key: { name: "key", type: "password", autoComplete: "new-password", maxLength: SECRET_INPUT_MAX },
 } as const;
 
 const OPTIONAL_MODEL_KIND = { ...FIELD_KINDS.model, required: false } as const;

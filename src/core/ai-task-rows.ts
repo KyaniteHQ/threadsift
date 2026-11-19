@@ -1,8 +1,9 @@
 import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
-import type { AiRefusal, Provider } from "./ai-contract.ts";
+import type { AiRefusal } from "./ai-contract.ts";
 import { ANSWERED, RUNNING, mayComplete, mayExpire, mayFail } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
+import type { Provider } from "./provider-families.ts";
 import { aiTasks } from "./schema.ts";
 
 interface NewTask {

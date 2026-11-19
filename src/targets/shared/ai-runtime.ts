@@ -1,15 +1,10 @@
 import { z } from "zod";
 
-import {
-  GROK_BOT_PROVIDER,
-  PROVIDERS,
-  HttpProviderSchema,
-  type CliProvider,
-  refusedAi,
-} from "../../core/ai-contract.ts";
+import { refusedAi } from "../../core/ai-contract.ts";
 import type { AiRuntime } from "../../core/ai-runtime.ts";
 import { allowedAiUrl } from "../../core/ai-url.ts";
 import type { Ports } from "../../core/ports.ts";
+import { type CliProvider, familiesOf } from "../../core/provider-families.ts";
 import { sealedSecrets } from "../../core/sealed-secret.ts";
 import type { CliRunner, TaskRunner } from "./ai-runner.ts";
 import { openRouterActivation, openRouterExchange } from "./openrouter-exchange.ts";
@@ -23,14 +18,12 @@ interface AiRuntimeOptions {
   readonly cli?: readonly CliRunner[] | undefined;
 }
 
-const HTTP_PROVIDERS = HttpProviderSchema.options;
-
 function providersOf(cli: readonly CliRunner[], binding: AiRuntimeOptions["binding"]) {
   return [
-    ...HTTP_PROVIDERS,
-    ...(binding === undefined ? [] : [PROVIDERS["workers-ai"].id]),
+    ...familiesOf("http").map(({ id }) => id),
+    ...(binding === undefined ? [] : familiesOf("binding").map(({ id }) => id)),
     ...cli.map(({ provider }) => provider),
-    GROK_BOT_PROVIDER,
+    ...familiesOf("bot").map(({ id }) => id),
   ];
 }
 

@@ -1,6 +1,5 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { GROK_BOT_PROVIDER } from "../core/ai-contract.ts";
 import {
   AiSettingsInputSchema,
   AiSettingsViewSchema,
@@ -9,7 +8,6 @@ import {
 } from "../core/ai-settings-contract.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
 import { verifyProvider } from "../core/bot-verify.ts";
-import { olderDigests } from "../core/digest-job.ts";
 import { GROK_BOT_FIRST, GrokBotUnreadySchema } from "../core/grok-bot-contract.ts";
 import type { Ports } from "../core/ports.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
@@ -67,7 +65,7 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
     if (!ports.ai.providers.includes(input.provider))
       return c.json({ error: PROVIDER_UNAVAILABLE }, 400);
 
-    const saved = await saveAiSettings(ports, input, () => olderDigests(ports.db));
+    const saved = await saveAiSettings(ports, input);
 
     if ("kind" in saved && saved.kind === "changed")
       return c.json({ error: "settings-changed" }, 409);
@@ -75,14 +73,8 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
     if ("kind" in saved && saved.kind === "recommendation-unavailable")
       return c.json({ error: "recommendation-unavailable" }, 400);
 
-    if ("kind" in saved && saved.kind === "refused" && input.provider === GROK_BOT_PROVIDER)
-      return c.json(
-        {
-          error: GROK_BOT_FIRST,
-          code: saved.reason === "secret-missing" ? saved.reason : "not-configured",
-        } as const,
-        400,
-      );
+    if ("kind" in saved && saved.kind === "bot-first")
+      return c.json({ error: GROK_BOT_FIRST, code: saved.code } as const, 400);
 
     return c.json(saved, 200);
   });

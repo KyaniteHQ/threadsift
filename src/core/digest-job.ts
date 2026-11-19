@@ -131,7 +131,9 @@ function owedDigests(
   ] as const;
 }
 
-export function olderDigests(db: Database) {
+export function requeuedDigests(db: Database, providerActive: boolean) {
+  if (!providerActive) return [];
+
   return owedDigests(db, {
     provider: providerSet(),
     limit: undefined,

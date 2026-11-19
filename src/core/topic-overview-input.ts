@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
-import { type Digest, parseStoredDigest } from "./ai-contract.ts";
+import { AI_INPUT_BYTES, type Digest, parseStoredDigest } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
@@ -9,7 +9,6 @@ import { digests, items, topicPages, topics } from "./schema.ts";
 import { notBuiltFrom, removedItemIds } from "./topic-coverage.ts";
 import { type BuiltFrom, citedIds } from "./topic-overview-contract.ts";
 import { overviewWithout } from "./topic-overview-prune.ts";
-import { OVERVIEW_INPUT_BYTES } from "./topic-overview-task.ts";
 
 const ADDED_READ_LIMIT = 40;
 
@@ -208,7 +207,7 @@ function fitted(
   for (let count = item.keyPoints.length; count >= fewest; count -= 1) {
     const cut = { ...item, keyPoints: item.keyPoints.slice(0, count) };
 
-    if (utf8Length(promptJson(read, current, [...included, cut])) <= OVERVIEW_INPUT_BYTES) {
+    if (utf8Length(promptJson(read, current, [...included, cut])) <= AI_INPUT_BYTES) {
       return cut;
     }
   }

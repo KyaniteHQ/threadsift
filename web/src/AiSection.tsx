@@ -1,9 +1,10 @@
+import type { Digest } from "../../src/core/ai-contract.ts";
 import {
-  type Digest,
   type Provider,
   GROK_BOT_PROVIDER,
+  PROVIDERS,
   isCliProvider,
-} from "../../src/core/ai-contract.ts";
+} from "../../src/core/provider-families.ts";
 import type { AiView } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
@@ -85,9 +86,11 @@ const KEY_STATUS = {
 } as const;
 
 function keyStatus(provider: Provider, savedKey: SavedKey): string {
-  if (provider === "workers-ai") return AI_TEXT.keyNotNeeded;
+  const { kind } = PROVIDERS[provider];
 
-  if (provider === GROK_BOT_PROVIDER) return AI_TEXT.grokBotKey;
+  if (kind === "binding") return AI_TEXT.keyNotNeeded;
+
+  if (kind === "bot") return AI_TEXT.grokBotKey;
 
   if (isCliProvider(provider)) return CLI_TEXT[provider].keyNotNeeded;
 

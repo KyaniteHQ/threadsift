@@ -2,9 +2,10 @@ import { homedir } from "node:os";
 
 import { z } from "zod";
 
-import { type AiExecution, PROVIDERS, apiRefusal, refusedAi } from "../../core/ai-contract.ts";
+import { type AiExecution, apiRefusal, refusedAi } from "../../core/ai-contract.ts";
 import { readOrAssume } from "../../core/failure-log.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
+import { PROVIDERS } from "../../core/provider-families.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
 import type { RunnerTask } from "../shared/ai-runner.ts";
 import { configuredCode } from "../shared/configured-code.ts";

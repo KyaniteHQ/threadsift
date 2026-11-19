@@ -10,6 +10,9 @@ import {
 } from "drizzle-orm/sqlite-core";
 
 import { items } from "./item-tables.ts";
+import { RELATED_MAX } from "./related-contract.ts";
+
+const LAST_POSITION = sql.raw(String(RELATED_MAX - 1));
 
 export const relatedItems = sqliteTable(
   "related_items",
@@ -28,7 +31,7 @@ export const relatedItems = sqliteTable(
     uniqueIndex("related_items_position").on(table.itemId, table.position),
     index("related_items_related").on(table.relatedId),
     check("related_items_distinct", sql`${table.itemId} <> ${table.relatedId}`),
-    check("related_items_position_range", sql`${table.position} between 0 and 4`),
+    check("related_items_position_range", sql`${table.position} between 0 and ${LAST_POSITION}`),
     check("related_items_reason", sql`length(${table.reason}) > 0`),
   ],
 );
