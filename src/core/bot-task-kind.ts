@@ -1,136 +1,120 @@
-import { and, type SQLWrapper } from "drizzle-orm";
-import { z } from "zod";
+import { and, sql } from "drizzle-orm";
+import type { SQLWrapper } from "drizzle-orm";
+import type { z } from "zod";
 
-import { failedAiTask } from "./ai-task-rows.ts";
-import type { AiTaskRow } from "./ai-task-state.ts";
-import {
-  type AnsweringParts,
-  type BotAnswer,
-  type BotAnswering,
-  type BotResult,
-  answerOf,
-  botAnswering,
-} from "./bot-task-answering.ts";
-import type { BotTaskStart } from "./bot-task-start.ts";
+import type {
+  AiKindDeclaration,
+  BotOnlyDeclaration,
+  Deferral,
+  KindFace,
+  ResultFace,
+} from "./ai-kind-types.ts";
+import { botAnswering } from "./bot-task-answering.ts";
+import { appliedFor } from "./bot-task-apply.ts";
 import type { Database } from "./database.ts";
+import { lostOutcome } from "./guarded-outcome.ts";
 import { guardHolds } from "./guards.ts";
-import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
-import { holding } from "./job-rows.ts";
+import type { JobOutcome } from "./job-outcome.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { grokBotChosen } from "./provider-saved.ts";
 
-type BotPreparation =
-  | {
-      readonly kind: "ask";
-      readonly start: BotTaskStart;
-      readonly started?: (taskId: number) => void;
-    }
-  | { readonly kind: "settled"; readonly outcome: JobOutcome };
+const BUSY_RETRY_MS = 15_000;
 
-type BotParse =
-  | (Extract<BotAnswer, { readonly kind: "valid" }> & {
-      readonly apply: (
-        ports: JobPorts,
-        job: Readonly<ClaimedJob>,
-        task: Readonly<Pick<AiTaskRow, "id">>,
-      ) => Promise<JobOutcome>;
-    })
-  | Extract<BotAnswer, { readonly kind: "invalid" }>;
+function currentOf<Context>(
+  schema: z.ZodType<Context>,
+  current: (context: Context) => Readonly<SQLWrapper>,
+): KindFace["current"] {
+  return async (db, contextText) => {
+    const parsed = parsedJson(schema, contextText);
 
-export type SentTask = Readonly<Pick<AiTaskRow, "id" | "kind" | "context">>;
-
-export interface SentTaskKind {
-  readonly prepare: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<BotPreparation>;
-  readonly current: (db: Database, context: string) => Promise<boolean>;
-  readonly describe: BotAnswering["describe"];
-  readonly apply: (
-    ports: JobPorts,
-    job: Readonly<ClaimedJob>,
-    task: Readonly<AiTaskRow>,
-  ) => Promise<JobOutcome>;
-}
-
-export interface BotTaskKind extends SentTaskKind, BotAnswering {
-  readonly parse: (context: string, body: Readonly<BotResult>) => BotParse;
-}
-
-interface KindParts<Context, Result> extends AnsweringParts<Context, Result> {
-  readonly apply: (
-    ports: JobPorts,
-    job: Readonly<ClaimedJob>,
-    applied: Readonly<{ context: Context; taskId: number; result: Result }>,
-  ) => Promise<JobOutcome>;
-}
-
-function reparsed(
-  kind: Readonly<Pick<BotTaskKind, "parse">>,
-  { context, result }: Readonly<Pick<AiTaskRow, "context" | "result">>,
-): BotParse {
-  return kind.parse(context ?? "", { result: parsedJson(z.json(), result ?? "") });
-}
-
-function answerApplier(parse: BotTaskKind["parse"]): SentTaskKind["apply"] {
-  return async (ports, job, task) => {
-    const parsed = reparsed({ parse }, task);
-
-    if (parsed.kind === "valid") return parsed.apply(ports, job, task);
-
-    await failedAiTask(ports.db, task.id, { reason: "no-json", status: null }, holding(job));
-
-    throw new Error("The Grok Bot answer no longer fits its task");
+    return parsed !== null && (await guardHolds(db, current(parsed)));
   };
 }
 
-function whileChosen(prepare: BotTaskKind["prepare"]): BotTaskKind["prepare"] {
+async function deferredBy(
+  db: Database,
+  deferral: Readonly<Deferral> | null,
+): Promise<JobOutcome | null> {
+  if (deferral === null || (await guardHolds(db, sql`not ${deferral.busy}`))) return null;
+
+  return {
+    deferredUntil: Date.now() + BUSY_RETRY_MS,
+    wait: deferral.wait,
+    countsAttempt: false,
+    writes: [],
+  };
+}
+
+function preparedFor<Context, Result, Basis>(
+  declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
+): KindFace["prepare"] {
+  const { defer, holds, prepare, kind } = declaration;
+
   return async (ports, job) => {
+    const deferred = await deferredBy(ports.db, (await defer?.(ports.db, job)) ?? null);
+
+    if (deferred !== null) return { kind: "settled", outcome: deferred };
+
     const prepared = await prepare(ports, job);
 
-    if (prepared.kind !== "ask") return prepared;
+    if (prepared.kind === "settled") return prepared;
 
+    const { context } = prepared;
     const chosen = grokBotChosen();
 
     return {
-      ...prepared,
-      start: { ...prepared.start, holds: and(prepared.start.holds, chosen) ?? chosen },
+      kind: "ask",
+      start: {
+        kind,
+        inputs: prepared.input,
+        inputRevision: prepared.inputRevision,
+        context: JSON.stringify(context),
+        holds: and(holds?.(context), chosen) ?? chosen,
+      },
+      started: prepared.started,
     };
   };
 }
 
-export function botTaskKind<Context, Result>({
-  current,
-  prepare,
-  apply,
-  ...parts
-}: Readonly<
-  KindParts<Context, Result> & {
-    current: (context: Context) => Readonly<SQLWrapper>;
-    prepare: BotTaskKind["prepare"];
-  }
->): BotTaskKind {
-  const { describe } = botAnswering(parts);
-
-  const parse: BotTaskKind["parse"] = (contextText, body) => {
-    const answer = answerOf(parts, contextText, body);
-
-    if (answer.kind === "invalid") return answer;
-
-    return {
-      kind: "valid",
-      normalized: answer.normalized,
-      apply: (ports, job, { id }) =>
-        apply(ports, job, { context: answer.context, taskId: id, result: answer.result }),
-    };
-  };
+export function botFace<Context, Result, Basis>(
+  declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
+): ResultFace {
+  const { describe, parse } = botAnswering(declaration);
 
   return {
-    prepare: whileChosen(prepare),
-    current: async (db, contextText) => {
-      const parsed = parsedJson(parts.context, contextText);
-
-      return parsed !== null && (await guardHolds(db, current(parsed)));
-    },
+    prepare: preparedFor(declaration),
+    current: currentOf(declaration.context, declaration.current),
     describe,
     parse,
-    apply: answerApplier(parse),
+    apply: appliedFor(declaration),
+  };
+}
+
+export function botOnlyFace<Context>(declaration: Readonly<BotOnlyDeclaration<Context>>): KindFace {
+  const { context, current, describe, kind, prepare } = declaration;
+
+  return {
+    prepare: async (ports, job) => {
+      const prepared = await prepare(ports, job);
+
+      if (prepared.kind === "settled") return prepared;
+
+      return {
+        kind: "ask",
+        start: {
+          kind,
+          inputs: prepared.input,
+          inputRevision: prepared.inputRevision,
+          context: JSON.stringify(prepared.context),
+        },
+      };
+    },
+    current: currentOf(context, current),
+    describe: (contextText) => {
+      const parsed = parsedJson(context, contextText);
+
+      return parsed === null ? null : describe(parsed);
+    },
+    apply: ({ db }, _job, task) => Promise.resolve(lostOutcome(db, { taskId: task.id })),
   };
 }

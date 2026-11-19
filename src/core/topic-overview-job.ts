@@ -1,73 +1,11 @@
-import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
-import { runAiTask } from "./ai-tasks.ts";
-import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
-import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
-import type { ModelDeclaration } from "./job-spec.ts";
-import { type OverviewPrepared, preparedOverview } from "./topic-overview-prepare.ts";
-import { overviewGaveUp, overviewRefused } from "./topic-overview-run.ts";
-import { OVERVIEW_OUTPUT_TOKENS, topicOverviewTask } from "./topic-overview-task.ts";
-import { currentInputs, revisedOutcome } from "./topic-overview-write.ts";
+import { AI_DEADLINE_MS } from "./ai-contract.ts";
+import { defineJob } from "./job-spec.ts";
+import { topicOverviewKind } from "./topic-overview-kind.ts";
+import { overviewGaveUp } from "./topic-overview-run.ts";
 
-type Asked = Extract<OverviewPrepared, { kind: "ask" }>;
-
-async function reviseOverview(
-  ports: JobPorts,
-  job: Readonly<ClaimedJob>,
-  { ai, ...asked }: Readonly<{ ai: ModelAi } & Asked>,
-): Promise<JobOutcome> {
-  const { db } = ports;
-
-  const { topicId, read, prompt } = asked;
-
-  const result = await runAiTask(
-    ports,
-    ai,
-    topicOverviewTask(prompt),
-    {
-      text: prompt.input,
-      inputRevision: read.page?.revision ?? 0,
-      attempts: job.attempts + 1,
-      maxOutputTokens: OVERVIEW_OUTPUT_TOKENS,
-    },
-    job,
-  );
-
-  if (result.kind === "claim-lost") {
-    return lostOutcome(db);
-  }
-
-  if (result.kind !== "done") {
-    return refusalOutcome(db, job, {
-      result,
-      current: currentInputs(topicId, read, prompt.included),
-      label: "Overview",
-      writes: [overviewRefused(db, topicId, result.reason)],
-    });
-  }
-
-  return revisedOutcome(db, topicId, {
-    read,
-    prompt,
-    taskId: result.taskId,
-    result: result.result,
-  });
-}
-
-async function attemptOverview(
-  ports: JobPorts,
-  job: Readonly<ClaimedJob>,
-  ai: ModelAi,
-): Promise<JobOutcome> {
-  const prepared = await preparedOverview(ports.db, job);
-
-  if (prepared.kind === "settled") return prepared.outcome;
-
-  return reviseOverview(ports, job, { ...prepared, ai });
-}
-
-export const topicOverviewHandler: ModelDeclaration = {
+export const topicOverviewHandler = defineJob("topic_overview", {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["digest"],
-  attempt: attemptOverview,
+  attempt: topicOverviewKind.attempt,
   exhausted: (db, job) => overviewGaveUp(db, job),
-};
+});

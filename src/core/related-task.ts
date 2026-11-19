@@ -22,11 +22,13 @@ const PickSchema = z
   })
   .readonly();
 
+export const RELATED_TASK_KIND = "related_pick";
+
 export function relatedPickTask(sent: readonly number[]): AiTaskDefinition<RelatedResult> {
   const allowed = new Set(sent);
 
   return {
-    kind: "related_pick",
+    kind: RELATED_TASK_KIND,
     instructions: RELATED_INSTRUCTIONS,
     prepareInput: (input) => input,
     schema: z

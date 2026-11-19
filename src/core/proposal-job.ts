@@ -1,9 +1,11 @@
 import { type SQL, sql } from "drizzle-orm";
 
+import { AI_DEADLINE_MS } from "./ai-contract.ts";
 import { readCatalogVersion } from "./catalog.ts";
 import type { Database } from "./database.ts";
 import type { JobWrites } from "./job-outcome.ts";
-import { type MergeKind, WEEKLY_TASK } from "./kinds.ts";
+import { defineJob } from "./job-spec.ts";
+import type { MergeKind } from "./kinds.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
 import { type InsertedState, proposalRow } from "./proposal-lifecycle.ts";
@@ -13,9 +15,10 @@ import {
   type SentPair,
   SentPairsSchema,
   proposalsTask,
+  proposalsTaskKind,
 } from "./proposal-task.ts";
 import { proposals, tags, topics } from "./schema.ts";
-import { type WeeklyModelRun, storedField, weeklyModelHandler } from "./weekly-model-run.ts";
+import { type WeeklyRun, storedField, weeklyKind } from "./weekly-kind.ts";
 
 interface StoredRow {
   readonly from: number;
@@ -89,10 +92,10 @@ function storedRows(
   ];
 }
 
-export function runOf(kind: MergeKind): WeeklyModelRun<Sent, ProposalsResult> {
+function runOf(kind: MergeKind): WeeklyRun<Sent, ProposalsResult> {
   return {
     ...RUNS[kind],
-    kind: WEEKLY_TASK[kind],
+    kind: proposalsTaskKind(kind),
     sent: SentPairsSchema,
     maxOutputTokens: PROPOSALS_OUTPUT_TOKENS,
     read: async (db) => {
@@ -107,6 +110,16 @@ export function runOf(kind: MergeKind): WeeklyModelRun<Sent, ProposalsResult> {
   };
 }
 
-export const proposalsHandler = weeklyModelHandler(runOf("tag-merge"));
+export const proposalsKind = weeklyKind(runOf("tag-merge"));
 
-export const topicProposalsHandler = weeklyModelHandler(runOf("topic-merge"));
+export const topicProposalsKind = weeklyKind(runOf("topic-merge"));
+
+export const proposalsHandler = defineJob("proposals", {
+  deadlineMs: AI_DEADLINE_MS,
+  attempt: proposalsKind.attempt,
+});
+
+export const topicProposalsHandler = defineJob("topic_proposals", {
+  deadlineMs: AI_DEADLINE_MS,
+  attempt: topicProposalsKind.attempt,
+});

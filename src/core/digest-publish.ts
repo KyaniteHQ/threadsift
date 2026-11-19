@@ -1,10 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { Digest } from "./ai-contract.ts";
-import { aiTaskRunning } from "./ai-task-state.ts";
+import type { Digest, ModelDigest } from "./ai-contract.ts";
+import { storedOutcome } from "./ai-kind-publish.ts";
+import type { Stored } from "./ai-kind-types.ts";
 import { catalogCurrent, pinnedCatalog } from "./catalog.ts";
 import type { Database } from "./database.ts";
-import { type DigestInput, currency, digestInput, generationCurrent } from "./digest-source.ts";
+import { type DigestInput, digestInput, generationCurrent } from "./digest-source.ts";
 import { digestWrites } from "./digest-writes.ts";
 import {
   type AnchorSnapshot,
@@ -89,14 +90,16 @@ function keptCommentsPublication(
   };
 }
 
-export async function publishing(
+export async function digestStored(
   db: Database,
   item: PublishedItem,
   digest: Readonly<Digest>,
-  taskId: number,
-  source: DigestSource,
-  anchors?: Readonly<AnchorSnapshot>,
-): Promise<JobOutcome> {
+  {
+    taskId,
+    source,
+    anchors,
+  }: Readonly<{ taskId: number; source: DigestSource; anchors?: Readonly<AnchorSnapshot> }>,
+): Promise<Stored<ModelDigest>> {
   const { pinned, entries } = await pinnedCatalog(db, digest);
   const snapshot = { itemId: item.id, generation: item.generation };
 
@@ -107,21 +110,33 @@ export async function publishing(
 
   const origin = digestOrigin(source, digest, entries, submitted);
   const { published } = origin;
-  const current = sql`${generationCurrent(item)} and ${aiTaskRunning(taskId)} and ${origin.catalog} and ${pinned.current}`;
   const ids = published.keptComments ?? [];
   const kept = { ids, bodies: ids.length === 0 ? [] : await selectedBodies(db, snapshot, ids) };
 
   const stored = storedDigest(item, digest, taskId, origin, pinned);
 
-  return anchoredOutcome(
-    db,
-    {
-      currency: currency(db, current, taskId),
-      writes: digestWrites(db, { current, stored, entries, published, kept }),
-    },
-    keptCommentsPublication(db, snapshot),
+  return {
+    also: sql`${origin.catalog} and ${pinned.current}`,
+    writes: digestWrites(db, { stored, entries, kept }),
+    result: published,
+    settle: (outcome) =>
+      anchoredOutcome(db, outcome, keptCommentsPublication(db, snapshot), anchors),
+  };
+}
+
+export async function publishedByCaller(
+  db: Database,
+  item: PublishedItem,
+  digest: Readonly<Digest>,
+  { taskId, anchors }: Readonly<{ taskId: number; anchors: Readonly<AnchorSnapshot> }>,
+): Promise<JobOutcome> {
+  const stored = await digestStored(db, item, digest, {
+    taskId,
+    source: { executor: "caller" },
     anchors,
-  );
+  });
+
+  return storedOutcome(db, { current: generationCurrent(item), taskId, answer: digest }, stored);
 }
 
 function catalogGuard(rule: CatalogRule, entries: Parameters<typeof catalogCurrent>[1]) {
@@ -146,7 +161,7 @@ function digestOrigin(
   entries: Parameters<typeof catalogCurrent>[1],
   submitted: readonly string[],
 ) {
-  const published: Digest = {
+  const published = {
     ...digest,
     keptComments: submittedAmong(digest.keptComments ?? [], submitted),
   };

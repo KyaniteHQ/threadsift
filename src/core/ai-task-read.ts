@@ -1,11 +1,9 @@
 import { z } from "zod";
 
 import { type AiTaskRow, acceptsAnswer } from "./ai-task-state.ts";
-import { botKindOf } from "./bot-task-kinds.ts";
+import { describerOf } from "./bot-task-kinds.ts";
 import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
-import { X_INTAKE_TASK } from "./x-intake-contract.ts";
-import { xIntakeKind } from "./x-intake.ts";
 
 export const TaskReadSchema = z.strictObject({
   taskId: z.number().int().positive(),
@@ -23,9 +21,7 @@ type TaskReading =
   | { readonly kind: "closed" };
 
 function describedTask(task: Readonly<Pick<AiTaskRow, "kind" | "context">>) {
-  const kind = task.kind === X_INTAKE_TASK ? xIntakeKind : botKindOf(task);
-
-  return kind?.describe(task.context ?? "") ?? null;
+  return describerOf(task)?.describe(task.context ?? "") ?? null;
 }
 
 export async function readableTask(db: Database, task: Readonly<AiTaskRow>): Promise<TaskReading> {

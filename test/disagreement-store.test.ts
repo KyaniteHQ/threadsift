@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { refusedByGuard } from "../src/core/guards.ts";
+import { applyAnswer } from "./disagreement-apply.ts";
 import {
-  applyAnswer,
   checksOf,
   disagreementRows,
   membersText,
@@ -131,7 +131,7 @@ describe("the guard of the store of a disagreement run", () => {
 
   it("writes nothing and refuses the batch when the AI task is no longer running", async () => {
     const { instance } = reading;
-    const fresh = { db: reading.db, sent: await sentTopics(reading.db) };
+    const fresh = { instance, db: reading.db, sent: await sentTopics(reading.db) };
     const taskId = runningTask(instance, "failed");
 
     await assert.rejects(applyAnswer(fresh, taskId, [{ a: 1, b: 2, reason: REASON }]), (error) =>
@@ -159,7 +159,9 @@ describe("the store of a disagreement run next to a row that a new Digest made s
 
     const sent = await sentTopics(db);
 
-    await applyAnswer({ db, sent }, runningTask(instance), [{ a: 1, b: 2, reason: REASON }]);
+    await applyAnswer({ instance, db, sent }, runningTask(instance), [
+      { a: 1, b: 2, reason: REASON },
+    ]);
 
     const stored = disagreementRows(instance);
 

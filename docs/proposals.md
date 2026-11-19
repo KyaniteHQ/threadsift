@@ -9,9 +9,9 @@ Start from these four modules:
 - `src/core/proposal-lifecycle.ts` holds the states.
 - `src/core/proposal-decision.ts` holds Accept's dispatch and Reject.
 - `src/core/proposal-week.ts` holds the weekly stages.
-- `src/core/weekly-model-run.ts` holds the job that every weekly model check shares.
+- `src/core/weekly-kind.ts` holds `weeklyKind`, the AI task kind that every weekly model check shares.
 
-With Grok Bot as the Provider, the Tag, Topic, and disagreement runs run as bot tasks through `weeklyBotKind` (`src/core/weekly-bot.ts`). `weeklyBotKind` keeps each run's `current` guard, so a guard that moved fails the task as `stale` and requeues the job.
+With Grok Bot as the Provider, the Tag, Topic, and disagreement runs run as bot tasks through the same `weeklyKind` (`src/core/weekly-kind.ts`). `weeklyKind` keeps each run's `current` guard, so a guard that moved fails the task as `stale` and requeues the job.
 
 ## The lifecycle
 
@@ -93,7 +93,7 @@ The guard makes the insert certain. An open job owned by the chosen owner is an 
 
 ### Cost of an overview update
 
-One run reads at most 40 uncovered Items (`ADDED_READ_LIMIT`). It reads fewer when the 14,000-byte cap or an unparsable stored Digest leaves some out. After a success the run starts the next run itself, until every Item is covered (`continuingOverview`). When all 40 newest are unparsable, the run reads every remaining uncovered Item and keeps the first 40 that parse (`addedFrom` in `src/core/topic-overview-input.ts`). A failed run takes the refusal path (`reviseOverview` in `src/core/topic-overview-job.ts`) and does not continue. A Provider removed mid-chain stops the chain.
+One run reads at most 40 uncovered Items (`ADDED_READ_LIMIT`). It reads fewer when the 14,000-byte cap or an unparsable stored Digest leaves some out. After a success the run starts the next run itself, until every Item is covered (`continuingOverview`). When all 40 newest are unparsable, the run reads every remaining uncovered Item and keeps the first 40 that parse (`addedFrom` in `src/core/topic-overview-input.ts`). A failed run takes the refusal path (`refused` in `src/core/topic-overview-kind.ts`) and does not continue. A Provider removed mid-chain stops the chain.
 
 Covering N uncovered Items therefore needs at least ceil(N / 40) successful model calls. Three numbers stay apart: the calls attempted, the calls that succeeded, and whether coverage completed. The row shows N, so the owner sees the size before the press.
 
@@ -172,7 +172,7 @@ A Topic unit runs 3 reads (`readRow` and the two reads of `TOPIC_KIND.linked`) a
 
 A merge Pin records an accepted merge. It holds the merged-away name's `from_key` and `from_name`, and the target's id in `into_tag_id` or `into_topic_id`. Neither target column has a delete action, so no target can be deleted while pinned. One Pin exists for a name in each kind (a unique index on `kind` and `from_key`), so a Tag and a Topic can share a key.
 
-`publishing` in `src/core/digest-publish.ts` reads the Pins for the Digest's Tag keys and its Topic key. It reads them for a model result, a caller-sent Digest, and `items.pending_digest` alike. A name whose key is pinned becomes the target's name before `catalogEntries` runs. The Item links to the target, the stored Digest names the target, and no `tags` or `topics` row with the pinned key is inserted. The AI task's own result keeps the names the model returned.
+`digestStored` in `src/core/digest-publish.ts` reads the Pins for the Digest's Tag keys and its Topic key. It reads them for a model result, a caller-sent Digest, and `items.pending_digest` alike. A name whose key is pinned becomes the target's name before `catalogEntries` runs. The Item links to the target, the stored Digest names the target, and no `tags` or `topics` row with the pinned key is inserted. The AI task's own result keeps the names the model returned.
 
 Publication guards its batch on the exact resolution it used (`pinnedDigest` in `src/core/pins.ts`). For each key, the resolution is the Pin it found and its target (the token `id:target`), or that no Pin existed. The Pin guard is separate from the catalog guard, because the model path drops its catalog guard after `MAX_STALE_REQUEUES` and the caller path has no catalog guard. The Pin guard inherits neither gap. `test/topic-pins-wiring.test.ts` shows publication refusing its batch when a Pin appears after the read. A publication that loses the guard is stale and requeues under the existing stale rules.
 

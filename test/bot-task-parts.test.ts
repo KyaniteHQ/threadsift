@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { type BotStep, stepOf } from "../src/core/ai-task-state.ts";
 import { BotAnswerSchema } from "../src/core/bot-answer.ts";
-import { relatedBotKind } from "../src/core/related-bot.ts";
+import { relatedKind } from "../src/core/related-kind.ts";
 import type { Json } from "./instance.ts";
 
 const NOW = 1_000_000;
@@ -109,7 +109,7 @@ describe("the Related pick reads its own persisted context and result", () => {
     ],
   });
 
-  const parse = (result: Json) => relatedBotKind.parse(context, { result }).kind;
+  const parse = (result: Json) => relatedKind.parse(context, { result }).kind;
 
   it("accepts picks of sent ids and refuses an id that was not sent, a duplicate and a bad shape", () => {
     assert.deepEqual(
@@ -137,12 +137,12 @@ describe("the Related pick reads its own persisted context and result", () => {
   });
 
   it("reads no context that is not its own", () => {
-    assert.equal(relatedBotKind.parse("{}", { result: {} }).kind, "invalid");
-    assert.equal(relatedBotKind.describe("{}"), null);
+    assert.equal(relatedKind.parse("{}", { result: {} }).kind, "invalid");
+    assert.equal(relatedKind.describe("{}"), null);
   });
 
   it("describes the task with its instructions and the JSON schema of its picks", () => {
-    const described = relatedBotKind.describe(context);
+    const described = relatedKind.describe(context);
 
     assert.ok(described !== null);
     assert.deepEqual(Object.keys(described.schema.properties ?? {}), ["picks"]);

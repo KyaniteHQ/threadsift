@@ -5,7 +5,7 @@ import { applyOutcome } from "../src/core/job-finish.ts";
 import { HANDLERS } from "../src/core/job-handlers.ts";
 import type { JobOutcome } from "../src/core/job-outcome.ts";
 import { holding } from "../src/core/job-rows.ts";
-import { relatedBotKind } from "../src/core/related-bot.ts";
+import { relatedKind } from "../src/core/related-kind.ts";
 import { openJob, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, until } from "./related-fixtures.ts";
@@ -19,7 +19,7 @@ export async function startedTask(
   await selectGrokBot(instance);
 
   const prepared = await until(
-    () => relatedBotKind.prepare(instance.core, job),
+    () => relatedKind.prepare(instance.core, job),
     ({ kind }) => kind === "ask",
   );
 
@@ -39,7 +39,7 @@ export async function taskAfterStart(instance: Instance, itemId: number) {
 }
 
 export function step(instance: Instance, job: Readonly<ClaimedJob>) {
-  return botStep(instance.core, job, relatedBotKind);
+  return botStep(instance.core, job, relatedKind);
 }
 
 export function applied(
@@ -68,7 +68,7 @@ export function sendFor(
     { job: Readonly<ClaimedJob> } & Pick<Parameters<typeof sendBotTask>[1], "task" | "token">
   >,
 ) {
-  return sendBotTask(instance.core, { kind: relatedBotKind, claim: holding(job), task, token });
+  return sendBotTask(instance.core, { kind: relatedKind, claim: holding(job), task, token });
 }
 
 export function reclaimed(instance: Instance, job: Readonly<ClaimedJob>): void {

@@ -4,7 +4,7 @@ import type { FileHandle } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import { AI_DEADLINE_MS } from "../src/core/ai-contract.ts";
-import { TASKS } from "../src/core/ai-tasks.ts";
+import { DIGEST_TASK } from "../src/core/digest-task.ts";
 import { withCleanup } from "../src/core/failure-log.ts";
 import { submittedAmong } from "../src/core/reddit-thread.ts";
 import {
@@ -90,8 +90,8 @@ async function outcome(item: Readonly<ComparisonItem>, provider: PreparedProvide
     const result = await provider.run(
       {
         config: provider.config,
-        instructions: TASKS.digest.instructions,
-        schema: TASKS.digest.schema,
+        instructions: DIGEST_TASK.instructions,
+        schema: DIGEST_TASK.schema,
         input: item.input,
         maxOutputTokens: item.maxOutputTokens,
       },

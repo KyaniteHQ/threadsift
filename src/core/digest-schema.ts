@@ -21,6 +21,8 @@ export const ModelDigestSchema = DigestSchema.extend({
 
 export type Digest = z.infer<typeof DigestSchema>;
 
+export type ModelDigest = z.infer<typeof ModelDigestSchema>;
+
 export function parseStoredDigest(stored: string): Digest {
   return StoredDigestSchema.parse(JSON.parse(stored));
 }

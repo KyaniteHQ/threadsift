@@ -40,6 +40,8 @@ export function overviewText({ lines }: Readonly<Pick<OverviewResult, "lines">>)
     .join("\n");
 }
 
+export const TOPIC_OVERVIEW_TASK = "topic_overview";
+
 export function topicOverviewTask({
   citable,
   mustChange,
@@ -47,7 +49,7 @@ export function topicOverviewTask({
   const allowed = new Set(citable);
 
   return {
-    kind: "topic_overview",
+    kind: TOPIC_OVERVIEW_TASK,
     instructions: OVERVIEW_INSTRUCTIONS,
     prepareInput: (input) => input,
     schema: z

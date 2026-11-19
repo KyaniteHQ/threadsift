@@ -1,11 +1,11 @@
 import { sql } from "drizzle-orm";
 
-import { completedAiTask } from "./ai-task-rows.ts";
-import { aiTaskRunning } from "./ai-task-state.ts";
+import type { Stored } from "./ai-kind-types.ts";
 import type { Database } from "./database.ts";
 import { guardedOutcome } from "./guarded-outcome.ts";
 import type { SettledOutcome } from "./job-outcome.ts";
 import { inputsHold, removedItemIds, uncoveredCount } from "./topic-coverage.ts";
+import type { OverviewContext } from "./topic-overview-context.ts";
 import type { OverviewBasis, OverviewSent } from "./topic-overview-input.ts";
 import { type OverviewResult, overviewText } from "./topic-overview-task.ts";
 import { storedPage } from "./topic-page-store.ts";
@@ -53,31 +53,22 @@ export async function keptOutcome(
   };
 }
 
-export async function revisedOutcome(
+export async function revisedStored(
   db: Database,
-  topicId: number,
-  {
-    read,
-    prompt,
-    taskId,
-    result,
-  }: Readonly<{
-    read: Readonly<OverviewBasis>;
-    prompt: Readonly<OverviewSent>;
-    taskId: number;
-    result: Readonly<OverviewResult>;
-  }>,
-): Promise<SettledOutcome> {
-  const overview = result.unchanged ? prompt.current : overviewText(result);
-  const stored = await storedPage(db, { topicId, read, prompt, overview });
+  { context, result }: Readonly<{ context: OverviewContext; result: Readonly<OverviewResult> }>,
+): Promise<Stored> {
+  const overview = result.unchanged ? context.current : overviewText(result);
 
-  const current = sql`${currentInputs(topicId, read, prompt.included)} and ${aiTaskRunning(taskId)}`;
+  const stored = await storedPage(db, {
+    topicId: context.topicId,
+    read: {
+      page: { revision: context.revision, builtFrom: context.builtFrom },
+      removed: context.removed,
+      removedTotal: context.removedTotal,
+    },
+    prompt: { current: context.current, included: context.included },
+    overview,
+  });
 
-  return {
-    ...guardedOutcome(db, current, {
-      taskId,
-      writes: [...stored.writes, completedAiTask(db, { taskId, result })],
-    }),
-    continuation: stored.continuation,
-  };
+  return { writes: stored.writes, continuation: stored.continuation };
 }

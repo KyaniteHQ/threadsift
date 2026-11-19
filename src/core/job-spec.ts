@@ -1,7 +1,6 @@
 import { type SQLWrapper, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import type { ModelAi } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import type {
   Closing,
@@ -34,14 +33,6 @@ export interface ItemDeclaration {
     job: Readonly<ClaimedJob>,
     closed: boolean,
   ) => Promise<void>;
-}
-
-export interface ModelDeclaration extends Omit<ItemDeclaration, "attempt"> {
-  readonly attempt: (
-    ports: JobPorts,
-    job: Readonly<ClaimedJob>,
-    ai: ModelAi,
-  ) => Promise<JobOutcome>;
 }
 
 export interface UnownedDeclaration<Kind extends UnownedJobKind> {
