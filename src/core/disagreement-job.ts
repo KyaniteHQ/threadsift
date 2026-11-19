@@ -1,21 +1,22 @@
 import { type SQL, sql } from "drizzle-orm";
 
+import { AI_DEADLINE_MS } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import { membersOf, readDisagreementInput } from "./disagreement-input.ts";
 import { pairPinned } from "./disagreement-pins.ts";
 import { clearedStaleDisagreements } from "./disagreement-rows.ts";
 import {
   DISAGREEMENT_OUTPUT_TOKENS,
-  DISAGREEMENT_TASK_KIND,
   type DisagreementsResult,
   type SentTopic,
   SentTopicsSchema,
   disagreementTask,
 } from "./disagreement-task.ts";
 import type { JobWrites } from "./job-outcome.ts";
+import { defineJob } from "./job-spec.ts";
 import { proposalRow } from "./proposal-lifecycle.ts";
 import { proposals, topicChecks } from "./schema.ts";
-import { type WeeklyModelRun, storedField, weeklyModelHandler } from "./weekly-model-run.ts";
+import { type WeeklyRun, storedField, weeklyKind } from "./weekly-kind.ts";
 
 type Sent = readonly Readonly<SentTopic>[];
 
@@ -97,8 +98,7 @@ function checkedTopics(db: Database, sent: Sent): JobWrites {
   ];
 }
 
-export const disagreementRun: WeeklyModelRun<Sent, DisagreementsResult> = {
-  kind: DISAGREEMENT_TASK_KIND,
+const disagreementRun: WeeklyRun<Sent, DisagreementsResult> = {
   sent: SentTopicsSchema,
   label: "Disagreement proposals run",
   event: "disagreement-proposals-run-failed",
@@ -113,4 +113,9 @@ export const disagreementRun: WeeklyModelRun<Sent, DisagreementsResult> = {
   ],
 };
 
-export const disagreementProposalsHandler = weeklyModelHandler(disagreementRun);
+export const disagreementKind = weeklyKind(disagreementRun);
+
+export const disagreementProposalsHandler = defineJob("disagreement_proposals", {
+  deadlineMs: AI_DEADLINE_MS,
+  attempt: disagreementKind.attempt,
+});

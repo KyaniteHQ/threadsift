@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { sql } from "drizzle-orm";
 
-import { publishing, readForPublishing } from "../src/core/digest-publish.ts";
+import { publishedByCaller, readForPublishing } from "../src/core/digest-publish.ts";
 import { guardedBatch } from "../src/core/guards.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
@@ -34,14 +34,7 @@ describe("each publication path refuses its batch when a Topic Pin appeared afte
 
     assert.ok(input);
 
-    const outcome = await publishing(
-      database.db,
-      input,
-      published,
-      taskId,
-      { executor: "caller" },
-      anchors,
-    );
+    const outcome = await publishedByCaller(database.db, input, published, { taskId, anchors });
 
     assert.ok("writes" in outcome);
 

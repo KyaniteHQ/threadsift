@@ -1,7 +1,5 @@
-import type { ModelAi } from "./ai-contract.ts";
-import { loadAiConfig } from "./ai-load.ts";
+import type { SentTaskKind } from "./ai-kind-types.ts";
 import { type BotStep, type AiTaskRow, stepOf } from "./ai-task-state.ts";
-import type { SentTaskKind } from "./bot-task-kind.ts";
 import { chargedReport, latestTask, renewedCredential, timedOutTask } from "./bot-task-rows.ts";
 import { sendBotTask } from "./bot-task-send.ts";
 import { type BotTaskStart, ownerOf, startBotTask } from "./bot-task-start.ts";
@@ -9,8 +7,6 @@ import { newCallbackCredential } from "./callback-credential.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, DeferredOutcome, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
-import { type JobSpec, type ModelDeclaration, defineJob } from "./job-spec.ts";
-import type { IntakeJobKind, OwnedJobKind } from "./kinds.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
 
@@ -165,7 +161,9 @@ export async function botStep(
     case "wait":
       return waiting(task);
     case "apply":
-      return kind.apply(ports, job, task);
+      return kind.answers === "result"
+        ? kind.apply(ports, job, task)
+        : lostOutcome(ports.db, { taskId: task.id });
     case "expire":
       return expireStep(ports, job, { kind, task });
     case "charge":
@@ -178,28 +176,4 @@ export async function botStep(
       return exhaustive;
     }
   }
-}
-
-export function onGrokBot<Rest extends readonly unknown[]>(
-  attempt: (
-    ports: JobPorts,
-    job: Readonly<ClaimedJob>,
-    ai: ModelAi,
-    ...rest: Rest
-  ) => Promise<JobOutcome>,
-  kind: SentTaskKind,
-) {
-  return async (ports: JobPorts, job: Readonly<ClaimedJob>, ...rest: Rest): Promise<JobOutcome> => {
-    const ai = await loadAiConfig(ports);
-
-    return ai.state === "grok-bot" ? botStep(ports, job, kind) : attempt(ports, job, ai, ...rest);
-  };
-}
-
-export function routedJob<Kind extends Exclude<OwnedJobKind, IntakeJobKind>>(
-  kind: Kind,
-  model: Readonly<ModelDeclaration>,
-  task: SentTaskKind,
-): JobSpec<Kind> {
-  return defineJob(kind, { ...model, attempt: onGrokBot(model.attempt, task) });
 }

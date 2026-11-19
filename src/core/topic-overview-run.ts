@@ -1,12 +1,14 @@
 import { type SQL, type SQLWrapper, and, eq, isNotNull, sql } from "drizzle-orm";
 import type { SubqueryWithSelection } from "drizzle-orm/sqlite-core";
 
+import { contextField } from "./context-field.ts";
 import type { Database } from "./database.ts";
 import type { ClaimedJob } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
 import { providerSet } from "./provider-saved.ts";
 import { aiTasks, items, jobs, topicPages, topics } from "./schema.ts";
 import { coverageGaps } from "./topic-coverage.ts";
+import { ContextSchema } from "./topic-overview-context.ts";
 import type { BuiltFrom, OverviewFailure } from "./topic-overview-contract.ts";
 
 export function openingOverview(db: Database, itemId: number | Readonly<SQLWrapper>) {
@@ -119,9 +121,9 @@ function markTopicOverviewFailed(db: Database, jobId: number, failure: OverviewF
   const sent = db
     .select({ topicId: sql<number>`${topics.id}`.as("topic_id") })
     .from(aiTasks)
-    .innerJoin(topics, sql`${topics.id} = json_extract(${aiTasks.context}, '$.topicId')`)
+    .innerJoin(topics, sql`${topics.id} = ${contextField(ContextSchema, "topicId")}`)
     .where(
-      sql`${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.job_id = ${jobId} and latest.kind = 'topic_overview') and not exists (select 1 from ${topicPages} where ${topicPages.topicId} = ${topics.id} and ${topicPages.revision} > json_extract(${aiTasks.context}, '$.revision'))`,
+      sql`${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.job_id = ${jobId} and latest.kind = 'topic_overview') and not exists (select 1 from ${topicPages} where ${topicPages.topicId} = ${topics.id} and ${topicPages.revision} > ${contextField(ContextSchema, "revision")})`,
     )
     .as("failing");
 

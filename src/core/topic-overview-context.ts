@@ -2,12 +2,11 @@ import { type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { GROK_BOT_EXECUTOR, RUNNING, answeredOrBefore } from "./ai-task-state.ts";
-import type { Database } from "./database.ts";
-import { guardHolds } from "./guards.ts";
+import { contextField } from "./context-field.ts";
 import { aiTasks } from "./schema.ts";
 import { BuiltFromSchema } from "./topic-overview-contract.ts";
 
-export const TOPIC_OVERVIEW_TASK = "topic_overview";
+const TOPIC_OVERVIEW_TASK = "topic_overview";
 
 const IdSchema = z.number().int().positive();
 
@@ -25,10 +24,8 @@ export const ContextSchema = z
   })
   .readonly();
 
-export function overviewAtBotHolds(topicId: number): SQL {
-  return sql`not exists (select 1 from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.kind} = ${TOPIC_OVERVIEW_TASK} and ${RUNNING} and json_extract(${aiTasks.context}, '$.topicId') = ${topicId} and ${answeredOrBefore(Date.now())})`;
-}
+export type OverviewContext = z.output<typeof ContextSchema>;
 
-export async function overviewAtBot(db: Database, topicId: number): Promise<boolean> {
-  return !(await guardHolds(db, overviewAtBotHolds(topicId)));
+export function overviewAtBot(topicId: number): SQL {
+  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.kind} = ${TOPIC_OVERVIEW_TASK} and ${RUNNING} and ${contextField(ContextSchema, "topicId")} = ${topicId} and ${answeredOrBefore(Date.now())})`;
 }

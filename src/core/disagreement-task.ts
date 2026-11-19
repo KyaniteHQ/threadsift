@@ -70,7 +70,7 @@ function pairsOfOneTopic(
   return new Set(named).size === named.length && named.every((key) => allowed.has(key));
 }
 
-export const DISAGREEMENT_TASK_KIND = WEEKLY_TASK["items-disagree"];
+const DISAGREEMENT_TASK_KIND = WEEKLY_TASK["items-disagree"];
 
 export function disagreementTask(
   sent: readonly Readonly<SentTopic>[],

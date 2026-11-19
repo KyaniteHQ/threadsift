@@ -13,7 +13,7 @@ interface Guarded {
   readonly cleanup?: JobWrites;
 }
 
-type GuardedOutcome = SettledOutcome & { readonly currency: JobCurrency };
+export type GuardedOutcome = SettledOutcome & { readonly currency: JobCurrency };
 
 export function guardedOutcome(
   db: Database,

@@ -3,30 +3,31 @@ import { z } from "zod";
 import { VERIFY_INPUT, refusedAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
 import type { VerifyResultSchema } from "./ai-settings-contract.ts";
-import { TASKS, verifyAi } from "./ai-tasks.ts";
 import { botAnswering } from "./bot-task-answering.ts";
 import { sendBotTask } from "./bot-task-send.ts";
 import { type BotTaskStart, VERIFY_OWNER, startBotTask } from "./bot-task-start.ts";
+import { DIGEST_TASK } from "./digest-task.ts";
 import { parsedJson } from "./parsed-json.ts";
 import type { Ports } from "./ports.ts";
+import { verifyAi } from "./verify-model.ts";
 import { VERIFY_DEADLINE_MS, awaitVerifiedDigest } from "./verify-wait.ts";
 
 const VerifyContextSchema = z.strictObject({ verify: z.literal(true) }).readonly();
 
 const VERIFY_CONTEXT = JSON.stringify({ verify: true });
 
-export const verifyAnswering = botAnswering({
-  context: VerifyContextSchema,
-  task: () => TASKS.digest,
-});
+export const verifyAnswering = {
+  answers: "result",
+  ...botAnswering({ context: VerifyContextSchema, task: () => DIGEST_TASK }),
+} as const;
 
 export function isVerifyContext(context: string | null): boolean {
   return parsedJson(VerifyContextSchema, context ?? "") !== null;
 }
 
 export const VERIFY_START: BotTaskStart = {
-  kind: TASKS.digest.kind,
-  inputs: TASKS.digest.prepareInput(VERIFY_INPUT),
+  kind: DIGEST_TASK.kind,
+  inputs: DIGEST_TASK.prepareInput(VERIFY_INPUT),
   inputRevision: 1,
   context: VERIFY_CONTEXT,
   deadlineMs: VERIFY_DEADLINE_MS,

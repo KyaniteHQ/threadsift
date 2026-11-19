@@ -40,7 +40,9 @@ function intakeOf(
 ): Intake {
   const kind = botKindOf(task);
 
-  if (task.executor !== GROK_BOT_EXECUTOR || kind === null) return { kind: "unsupported" };
+  if (task.executor !== GROK_BOT_EXECUTOR || kind === null || kind.answers === "intake") {
+    return { kind: "unsupported" };
+  }
 
   if (!awaitsAnswer(task, now)) return CLOSED;
 

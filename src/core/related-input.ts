@@ -1,4 +1,5 @@
 import { type SQL, type SQLWrapper, eq, inArray, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import { parseStoredDigest } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
@@ -19,11 +20,23 @@ export interface PickItem {
   readonly storedTags: string | null;
 }
 
-export type Version = Readonly<Pick<PickItem, "id" | "digest" | "storedTags">>;
+export const VersionSchema = z
+  .object({
+    id: z.number().int().positive(),
+    digest: z.number().int().positive(),
+    storedTags: z.string().nullable(),
+  })
+  .readonly();
+
+export type Version = z.output<typeof VersionSchema>;
 
 export interface Versions {
   readonly source: Version;
   readonly sent: readonly Version[];
+}
+
+export function versionOf(item: Readonly<PickItem>): Version {
+  return { id: item.id, digest: item.digest, storedTags: item.storedTags };
 }
 
 export function versionsHold({ source, sent }: Readonly<Versions>): SQL {

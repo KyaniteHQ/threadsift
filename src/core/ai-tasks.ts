@@ -7,28 +7,15 @@ import {
   type AiRefused,
   type AiTaskDefinition,
   AI_DEADLINE_MS,
-  BASE_OUTPUT_TOKENS,
   modelOf,
-  VERIFY_INPUT,
-  ModelDigestSchema,
   refusedAi,
 } from "./ai-contract.ts";
-import { completedAiTask, failedAiTask, insertTask } from "./ai-task-rows.ts";
+import { failedAiTask, insertTask } from "./ai-task-rows.ts";
 import { within } from "./deadline.ts";
-import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
 import { bestEffort } from "./failure-log.ts";
 import { holding } from "./job-rows.ts";
 import type { AiPorts } from "./ports.ts";
 import type { JobRow } from "./schema.ts";
-
-export const TASKS = {
-  digest: {
-    kind: "digest",
-    instructions: DIGEST_INSTRUCTIONS,
-    schema: ModelDigestSchema,
-    prepareInput: cutDigestInput,
-  },
-} as const;
 
 interface DoneTask<Result> {
   readonly kind: "done";
@@ -82,35 +69,6 @@ function startTask(
     },
     owner === null ? sql`1` : holding(owner),
   );
-}
-
-export async function verifyAi(ports: AiPorts, ai: ModelAi, attempt: AbortSignal) {
-  const result = await runAiTask(
-    ports,
-    ai,
-    TASKS.digest,
-    { text: VERIFY_INPUT, inputRevision: 1, attempts: 1, maxOutputTokens: BASE_OUTPUT_TOKENS },
-    null,
-    attempt,
-  );
-
-  if (result.kind !== "done")
-    return {
-      kind: result.kind,
-      reason: result.reason,
-      status: result.status,
-      levels: result.levels,
-    };
-
-  const digest = { ...result.result, keptComments: [] };
-
-  try {
-    await completedAiTask(ports.db, { taskId: result.taskId, result: digest });
-  } catch {
-    return failTask(ports, result.taskId);
-  }
-
-  return { kind: result.kind, digest, taskId: result.taskId };
 }
 
 interface TaskInput {
@@ -226,7 +184,7 @@ async function execute<Result>(
   }
 }
 
-async function failTask(
+export async function failTask(
   ports: AiPorts,
   taskId: number,
   reason: "unreachable" | "provider-unavailable" = "unreachable",
@@ -244,9 +202,10 @@ const CALLER_ORIGIN: TaskOrigin = { executor: "caller", provider: null, model: n
 
 export async function startCallerTask(
   ports: AiPorts,
+  kind: string,
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
   owner: TaskOwner,
 ) {
-  return (await startTask(ports, "digest", text, input, CALLER_ORIGIN, owner))?.id ?? null;
+  return (await startTask(ports, kind, text, input, CALLER_ORIGIN, owner))?.id ?? null;
 }

@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
-import { TASKS } from "../src/core/ai-tasks.ts";
+import { DIGEST_TASK } from "../src/core/digest-task.ts";
 
 const CONTRACT_FILES = [
   ":(top)src/core/digest-schema.ts",
@@ -34,9 +34,9 @@ export function comparisonSource() {
   return {
     revision: git(["rev-parse", "HEAD"]),
     worktreeDirty: git(["status", "--porcelain"]) !== "",
-    instructions: TASKS.digest.instructions,
+    instructions: DIGEST_TASK.instructions,
     schemaHash: createHash("sha256")
-      .update(JSON.stringify(z.toJSONSchema(TASKS.digest.schema)))
+      .update(JSON.stringify(z.toJSONSchema(DIGEST_TASK.schema)))
       .digest("hex"),
   };
 }

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { applyAnswer } from "./disagreement-apply.ts";
 import {
-  applyAnswer,
   disagreementRows,
   proposeDisagreement,
   runningTask,
@@ -22,7 +22,11 @@ type Pair = Readonly<{ a: number; b: number; reason: string }>;
 async function storeAnswer(instance: Instance, disagreements: readonly Pair[]): Promise<void> {
   const db = interrupted(instance.databaseFile, () => false, {});
 
-  await applyAnswer({ db, sent: await sentTopics(db) }, runningTask(instance), disagreements);
+  await applyAnswer(
+    { instance, db, sent: await sentTopics(db) },
+    runningTask(instance),
+    disagreements,
+  );
 }
 
 describe("the guarded store of a weekly disagreement answer, applied to the outcome the production handler builds", () => {

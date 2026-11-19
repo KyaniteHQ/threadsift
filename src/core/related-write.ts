@@ -1,13 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 
-import type { AiRefused } from "./ai-contract.ts";
-import { completedAiTask } from "./ai-task-rows.ts";
-import { aiTaskRunning } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
-import { guardedOutcome, refusalOutcome } from "./guarded-outcome.ts";
-import type { ClaimedJob, JobWrites, SettledOutcome } from "./job-outcome.ts";
+import { guardedOutcome } from "./guarded-outcome.ts";
+import type { JobWrites, SettledOutcome } from "./job-outcome.ts";
 import { loggedRelated } from "./log-writes.ts";
-import { type Version, type Versions, versionsHold } from "./related-input.ts";
+import { type Version, versionsHold } from "./related-input.ts";
 import type { RelatedResult } from "./related-task.ts";
 import { digests, items, relatedItems } from "./schema.ts";
 import { queueVaultItems } from "./vault-queue.ts";
@@ -49,40 +46,13 @@ export function emptyOutcome(db: Database, source: Version): SettledOutcome {
   });
 }
 
-export function pickedOutcome(
+export function pickedWrites(
   db: Database,
-  {
-    versions,
-    taskId,
-    result,
-  }: Readonly<{ versions: Versions; taskId: number; result: Readonly<RelatedResult> }>,
-): SettledOutcome {
-  return guardedOutcome(db, sql`${versionsHold(versions)} and ${aiTaskRunning(taskId)}`, {
-    taskId,
-    writes: [
-      ...replacedSet(db, versions.source.id, result.picks),
-      ...(result.picks.length === 0
-        ? []
-        : loggedRelated(db, versions.source.id, result.picks.length)),
-      completedAiTask(db, { taskId, result }),
-    ],
-  });
-}
-
-export function refusedOutcome(
-  db: Database,
-  job: Readonly<ClaimedJob>,
-  {
-    result,
-    versions,
-  }: Readonly<{
-    result: Readonly<AiRefused & { readonly taskId: number | null }>;
-    versions: Versions;
-  }>,
-): Promise<SettledOutcome> {
-  return refusalOutcome(db, job, {
-    result,
-    current: versionsHold(versions),
-    label: "Related pick",
-  });
+  sourceId: number,
+  picks: RelatedResult["picks"],
+): JobWrites {
+  return [
+    ...replacedSet(db, sourceId, picks),
+    ...(picks.length === 0 ? [] : loggedRelated(db, sourceId, picks.length)),
+  ];
 }
