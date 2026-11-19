@@ -6,6 +6,7 @@ import { redditRefOf } from "../../src/core/links.ts";
 import { hiddenRepliesOf, unfilledStubsOf } from "../../src/core/reddit-tree.ts";
 import { REQUEST_DEADLINE_MS } from "../../src/core/request-waits.ts";
 import { THREAD_QUERY, fillAnswers, permalinkPath } from "../../src/core/thread-fill.ts";
+import { logFailure } from "./log.ts";
 import { resultInTab } from "./tab-result.ts";
 import { type ThreadBody, fitThreadBody } from "./thread-body.ts";
 
@@ -15,11 +16,12 @@ const TabAnswerSchema = z.object({
   status: z.number(),
   text: z.string(),
   remaining: z.string().nullable(),
+  failure: z.string().nullable(),
 });
 
 type TabAnswer = z.infer<typeof TabAnswerSchema>;
 
-const NO_ANSWER: TabAnswer = { status: 0, text: "", remaining: null };
+const NO_ANSWER: TabAnswer = { status: 0, text: "", remaining: null, failure: null };
 
 export interface ThreadTab {
   readonly id: number;
@@ -50,32 +52,35 @@ async function readInTab(
     remaining = response.headers.get("x-ratelimit-remaining");
 
     if (response.status !== 200 || response.body === null) {
-      return { status: response.status, text: "", remaining };
+      return { status: response.status, text: "", remaining, failure: null };
     }
 
     if (Number(response.headers.get("content-length")) > maxBytes) {
-      return { status: 0, text: "", remaining };
+      return { status: 0, text: "", remaining, failure: null };
     }
 
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
     let received = 0;
+    let text = "";
 
-    const limited = new TransformStream<Uint8Array, Uint8Array>({
-      transform(chunk, controller) {
-        received += chunk.byteLength;
+    for (;;) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- The byte cap is checked before reading the next chunk.
+      const { done, value } = await reader.read();
 
-        if (received > maxBytes) {
-          controller.error(new RangeError("the answer is longer than the limit"));
-        } else {
-          controller.enqueue(chunk);
-        }
-      },
-    });
+      if (done) return { status: 200, text: text + decoder.decode(), remaining, failure: null };
 
-    const text = await new Response(response.body.pipeThrough(limited)).text();
+      received += value.byteLength;
 
-    return { status: 200, text, remaining };
-  } catch {
-    return { status: 0, text: "", remaining };
+      if (received > maxBytes) return { status: 0, text: "", remaining, failure: null };
+
+      text += decoder.decode(value, { stream: true });
+    }
+  } catch (cause) {
+    const failure =
+      cause instanceof Error || cause instanceof DOMException ? cause.name : "UnknownError";
+
+    return { status: 0, text: "", remaining, failure };
   } finally {
     cancelled.abort();
   }
@@ -118,7 +123,13 @@ async function answerFor(
       TabAnswerSchema,
     );
 
-    return answer ?? NO_ANSWER;
+    if (answer === null) return NO_ANSWER;
+
+    if (answer.failure !== null) {
+      logFailure("reddit-thread-read-failed", new Error(answer.failure));
+    }
+
+    return answer;
   } finally {
     signal?.removeEventListener("abort", cancel);
   }
