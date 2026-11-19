@@ -3,9 +3,9 @@ import { eq, sql } from "drizzle-orm";
 import type { Digest } from "./ai-contract.ts";
 import { aiTaskRunning } from "./ai-tasks.ts";
 import { catalogCurrent, pinnedCatalog } from "./catalog.ts";
+import type { Database } from "./database.ts";
 import { type DigestInput, currency, digestInput, generationCurrent } from "./digest-source.ts";
 import { digestWrites } from "./digest-writes.ts";
-import { insertGuard } from "./guards.ts";
 import {
   type AnchorSnapshot,
   anchorReads,
@@ -14,7 +14,7 @@ import {
   commentIdsOf,
   snapshotOf,
 } from "./highlight-publish.ts";
-import { MAX_STALE_REQUEUES, type JobOutcome, type JobPorts } from "./job-outcome.ts";
+import { MAX_STALE_REQUEUES, type JobOutcome } from "./job-outcome.ts";
 import {
   eligibleAmong,
   highlightedComments,
@@ -37,7 +37,7 @@ type DigestSource =
       readonly submitted: readonly string[];
     };
 
-export async function readForPublishing(db: JobPorts["db"], itemId: number) {
+export async function readForPublishing(db: Database, itemId: number) {
   const [[item], ...reads] = await db.batch([
     digestInput(db, itemId),
     ...anchorReads(db, eq(items.id, itemId)),
@@ -77,7 +77,7 @@ function storedDigest(
 }
 
 function keptCommentsPublication(
-  db: JobPorts["db"],
+  db: Database,
   snapshot: Readonly<{ itemId: number; generation: number }>,
 ): Publication {
   return {
@@ -89,7 +89,7 @@ function keptCommentsPublication(
 }
 
 export async function publishing(
-  db: JobPorts["db"],
+  db: Database,
   item: PublishedItem,
   digest: Readonly<Digest>,
   taskId: number,
@@ -107,8 +107,8 @@ export async function publishing(
   const origin = digestOrigin(source, digest, entries, submitted);
   const { published } = origin;
   const current = sql`${generationCurrent(item)} and ${aiTaskRunning(taskId)} and ${origin.catalog} and ${pinned.current}`;
-  const kept = published.keptComments ?? [];
-  const bodies = kept.length === 0 ? [] : await selectedBodies(db, snapshot, kept);
+  const ids = published.keptComments ?? [];
+  const kept = { ids, bodies: ids.length === 0 ? [] : await selectedBodies(db, snapshot, ids) };
 
   const stored = storedDigest(item, digest, taskId, origin, pinned);
 
@@ -116,10 +116,7 @@ export async function publishing(
     db,
     {
       currency: currency(db, current, taskId),
-      writes: [
-        insertGuard(db, current),
-        ...digestWrites(db, { stored, entries, published, taskId, bodies }),
-      ],
+      writes: digestWrites(db, { current, stored, entries, published, kept }),
     },
     keptCommentsPublication(db, snapshot),
     anchors,

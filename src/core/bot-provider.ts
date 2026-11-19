@@ -3,6 +3,7 @@ import { eq, sql } from "drizzle-orm";
 import { refusedAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
 import { abandonedTasks } from "./bot-task-states.ts";
+import type { Database } from "./database.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import { grokBotConnection } from "./grok-bot.ts";
 import type { JobWrites } from "./job-outcome.ts";
@@ -10,7 +11,7 @@ import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { SettingsPorts } from "./ports.ts";
 import { aiSettingsRevision } from "./schema.ts";
 
-function selectGrokBotWrites(db: SettingsPorts["db"]): JobWrites {
+function selectGrokBotWrites(db: Database): JobWrites {
   return [
     db.update(grokBotSettings).set({ useAsProvider: true }).where(eq(grokBotSettings.id, 1)),
     db
@@ -20,7 +21,7 @@ function selectGrokBotWrites(db: SettingsPorts["db"]): JobWrites {
   ];
 }
 
-export function leaveGrokBotWrites(db: SettingsPorts["db"], now: number): JobWrites {
+export function leaveGrokBotWrites(db: Database, now: number): JobWrites {
   return [
     db.update(grokBotSettings).set({ useAsProvider: false }).where(eq(grokBotSettings.id, 1)),
     ...abandonedTasks(db, now),

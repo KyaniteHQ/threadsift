@@ -10,6 +10,7 @@ import {
   reportedWrites,
   stateOf,
 } from "./bot-task-states.ts";
+import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
 import type { JobPorts, JobWrites } from "./job-outcome.ts";
@@ -39,7 +40,7 @@ type Intake = Exclude<AnswerOutcome, { kind: "accepted" }> | { kind: "write"; wr
 const CLOSED: Intake = { kind: "closed" };
 
 function intakeOf(
-  db: JobPorts["db"],
+  db: Database,
   task: Readonly<BotTaskRow>,
   { answer, now }: Readonly<{ answer: StoredAnswer; now: number }>,
 ): Intake {

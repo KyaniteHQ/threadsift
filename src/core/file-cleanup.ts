@@ -54,7 +54,7 @@ async function protectedKeys(db: Database, keys: readonly string[]): Promise<Rea
 
 async function deleteUnclaimed(
   db: Database,
-  files: JobPorts["files"],
+  files: FileStore,
   stray: readonly string[],
 ): Promise<void> {
   if (await restoreHoldsLibrary(db)) return;

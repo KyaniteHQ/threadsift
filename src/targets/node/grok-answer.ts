@@ -2,12 +2,8 @@ import { z } from "zod";
 
 import { errnoCodeOf, errorClassOf, report } from "../../core/failure-log.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
-import {
-  NOTE_OF_REFUSAL,
-  type XFetch,
-  type XFetchFailure,
-  type XRefusalCategory,
-} from "../../core/x-fetcher-port.ts";
+import type { XFetch, XFetchFailure } from "../../core/x-fetcher-port.ts";
+import { NOTE_OF_REFUSAL, type XRefusalCategory } from "../../core/x-fetcher.ts";
 import type { XCliThreadValue } from "../../core/x-wire.ts";
 import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
 import { XFetchAnswerSchema } from "./grok-surface.ts";

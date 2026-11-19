@@ -1,3 +1,4 @@
+import type { Database } from "./database.ts";
 import type { Fetched } from "./details.ts";
 import { settledFetch } from "./fetch-settle.ts";
 import { type ClaimedJob, type JobOutcome, type JobPorts, isLastAttempt } from "./job-outcome.ts";
@@ -5,12 +6,12 @@ import { failedFetch } from "./settle.ts";
 import type { ToVerify } from "./x-fetcher.ts";
 import { queuedVerification } from "./x-verify-store.ts";
 
-function rateLimitGaveUp(db: JobPorts["db"], job: Readonly<ClaimedJob>): JobOutcome {
+function rateLimitGaveUp(db: Database, job: Readonly<ClaimedJob>): JobOutcome {
   return { writes: [failedFetch(db, job.itemId, "rate-limited", null)], failedAttempt: true };
 }
 
 function waitingOutcome(
-  db: JobPorts["db"],
+  db: Database,
   job: Readonly<ClaimedJob>,
   { until, limited, wait }: Readonly<Extract<Fetched, { status: "waiting" }>>,
 ): JobOutcome {
