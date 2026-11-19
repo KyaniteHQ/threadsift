@@ -45,7 +45,7 @@ export function registerAddTool(server: McpServer, ports: Ports, tokenId: number
       if (saved.kind !== "saved") {
         const refusal = refusalOf(saved);
 
-        return refusal.status === 429
+        return refusal.kind === "budget-spent"
           ? refused(refusal.body.error, { code: refusal.body.code, retryAfter: refusal.retryAfter })
           : refused(refusal.body.error);
       }

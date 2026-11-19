@@ -26,29 +26,7 @@ export interface Paste {
   readonly addedByToken: number | null;
 }
 
-interface Written {
-  readonly created: boolean;
-  readonly opened: readonly Readonly<{ id: number }>[];
-  readonly item: ListedItemRow | undefined;
-}
-
-type Statements = readonly BatchItem<"sqlite">[];
-
-type Frame =
-  | { readonly kind: "open" }
-  | {
-      readonly kind: "guarded";
-      readonly guard: Readonly<SQLWrapper>;
-      readonly after: Statements;
-    }
-  | {
-      readonly kind: "promoting";
-      readonly guard: Readonly<SQLWrapper>;
-      readonly promote: BatchItem<"sqlite">;
-      readonly alias: BatchItem<"sqlite">;
-    };
-
-export function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
+function foundItem(item: ListedItemRow | undefined, normalizedUrl: string): ListedItemRow {
   if (item === undefined) {
     throw new Error(`Item ${normalizedUrl} was neither inserted nor found`);
   }
@@ -56,12 +34,19 @@ export function foundItem(item: ListedItemRow | undefined, normalizedUrl: string
   return item;
 }
 
-export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
+export async function itemFound(
+  db: Database,
+  normalizedUrl: string,
+): Promise<ListedItemRow | undefined> {
   const [item] = await selectItems(db, LISTED_COLUMNS).where(
     eq(items.normalizedUrl, normalizedUrl),
   );
 
-  return foundItem(item, normalizedUrl);
+  return item;
+}
+
+export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
+  return foundItem(await itemFound(db, normalizedUrl), normalizedUrl);
 }
 
 export function holdsNoItem(db: Database, normalizedUrl: string) {
@@ -100,67 +85,66 @@ export function queuedRows(
   ] as const;
 }
 
+type Statements = readonly BatchItem<"sqlite">[];
+
+export interface Around {
+  readonly guard: Readonly<SQLWrapper>;
+  readonly before: readonly [] | readonly [BatchItem<"sqlite">];
+  readonly after: Statements;
+}
+
+type RowResults = readonly [
+  readonly Readonly<{ id: number }>[],
+  unknown,
+  readonly Readonly<{ id: number }>[],
+  readonly Readonly<ListedItemRow>[],
+  ...unknown[],
+];
+
+function settled([inserted, , opened, [item]]: RowResults) {
+  return { created: inserted.length > 0, opened, item };
+}
+
 async function written(
   db: Database,
   paste: Readonly<Paste>,
   link: Readonly<Link>,
-  frame: Readonly<Frame>,
-): Promise<Written> {
+  around: Readonly<Around> | undefined,
+) {
   const rows = queuedRows(db, paste, link);
 
-  switch (frame.kind) {
-    case "open": {
-      const [inserted, , opened, [item]] = await db.batch(rows);
+  if (around === undefined) return settled(await db.batch(rows));
 
-      return { created: inserted.length > 0, opened, item };
-    }
+  const { guard, before, after } = around;
+  const checked = insertGuard(db, guard);
 
-    case "guarded": {
-      const [, inserted, , opened, [item]] = await db.batch([
-        insertGuard(db, frame.guard),
-        ...rows,
-        ...frame.after,
-        db.delete(guards),
-      ]);
+  if (before.length === 0) {
+    const [, ...results] = await db.batch([checked, ...rows, ...after, db.delete(guards)]);
 
-      return { created: inserted.length > 0, opened, item };
-    }
-
-    case "promoting": {
-      const [, , inserted, , opened, [item]] = await db.batch([
-        insertGuard(db, frame.guard),
-        frame.promote,
-        ...rows,
-        frame.alias,
-        db.delete(guards),
-      ]);
-
-      return { created: inserted.length > 0, opened, item };
-    }
-
-    default: {
-      const exhaustive: never = frame;
-
-      return exhaustive;
-    }
+    return settled(results);
   }
+
+  const [promote] = before;
+  const [, , ...results] = await db.batch([checked, promote, ...rows, ...after, db.delete(guards)]);
+
+  return settled(results);
 }
 
 export function writeQueued(
   ports: Ports,
   paste: Readonly<Paste>,
   link: Readonly<Link>,
-  frame: Readonly<Frame>,
+  around?: Readonly<Around>,
 ): Promise<Saved | null> {
   const { db } = ports;
 
   const write = async (): Promise<Saved> => {
-    const { created, opened, item } = await written(db, paste, link, frame);
+    const { created, opened, item } = await written(db, paste, link, around);
 
     await enqueueRows(ports, opened);
 
     return { kind: "saved", item: foundItem(item, link.normalizedUrl), created };
   };
 
-  return frame.kind === "open" ? write() : unlessRefused(db, frame.guard, write);
+  return around === undefined ? write() : unlessRefused(db, around.guard, write);
 }

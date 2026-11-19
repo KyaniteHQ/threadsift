@@ -33,23 +33,45 @@ type Unsaved =
   | ThreadKept;
 
 export type Refusal =
-  | { readonly status: 401; readonly body: { readonly error: string } }
   | {
+      readonly kind: "unknown-token";
+      readonly status: 401;
+      readonly body: { readonly error: string };
+    }
+  | {
+      readonly kind: "budget-spent";
       readonly status: 429;
       readonly body: { readonly error: string; readonly code: typeof BUDGET_SPENT };
       readonly retryAfter: number;
     }
   | {
+      readonly kind: "restoring";
       readonly status: 503;
       readonly body: { readonly error: string; readonly code: typeof RESTORING_CODE };
     }
   | {
+      readonly kind: "refused";
       readonly status: 400;
-      readonly body:
-        | { readonly error: string; readonly fetch: "refused" }
-        | { readonly error: string; readonly code?: typeof UNSUPPORTED_PAGE_LINK | undefined };
+      readonly body: { readonly error: string; readonly fetch: "refused" };
     }
-  | { readonly status: 409 | 413; readonly body: { readonly error: string } };
+  | {
+      readonly kind: "invalid";
+      readonly status: 400;
+      readonly body: {
+        readonly error: string;
+        readonly code?: typeof UNSUPPORTED_PAGE_LINK | undefined;
+      };
+    }
+  | {
+      readonly kind: "too-large";
+      readonly status: 413;
+      readonly body: { readonly error: string };
+    }
+  | {
+      readonly kind: "not-waiting" | "thread-kept";
+      readonly status: 409;
+      readonly body: { readonly error: string };
+    };
 
 export type AdmissionRefusal = Extract<Refusal, { readonly status: 401 | 429 | 503 }>;
 
@@ -58,11 +80,12 @@ export function refusalOf(outcome: Readonly<Unsaved>): Refusal;
 export function refusalOf(outcome: Readonly<Unsaved>): Refusal {
   switch (outcome.kind) {
     case "unknown-token": {
-      return { status: 401, body: { error: UNKNOWN_TOKEN } };
+      return { kind: outcome.kind, status: 401, body: { error: UNKNOWN_TOKEN } };
     }
 
     case "budget-spent": {
       return {
+        kind: outcome.kind,
         status: 429,
         body: { error: BUDGET_SPENT_MESSAGE, code: BUDGET_SPENT },
         retryAfter: retryAfterSeconds(outcome, Date.now()),
@@ -70,30 +93,31 @@ export function refusalOf(outcome: Readonly<Unsaved>): Refusal {
     }
 
     case "restoring": {
-      return { status: 503, body: { error: RESTORING, code: RESTORING_CODE } };
+      return { kind: outcome.kind, status: 503, body: { error: RESTORING, code: RESTORING_CODE } };
     }
 
     case "refused": {
-      return { status: 400, body: { error: REFUSED_HOST, fetch: "refused" } };
+      return { kind: outcome.kind, status: 400, body: { error: REFUSED_HOST, fetch: "refused" } };
     }
 
     case "too-large": {
-      return { status: 413, body: { error: TOO_LARGE[outcome.field] } };
+      return { kind: outcome.kind, status: 413, body: { error: TOO_LARGE[outcome.field] } };
     }
 
     case "invalid": {
       return {
+        kind: outcome.kind,
         status: 400,
         body: { error: `${outcome.field}: ${outcome.reason}`, code: outcome.code },
       };
     }
 
     case "not-waiting": {
-      return { status: 409, body: { error: NOT_WAITING } };
+      return { kind: outcome.kind, status: 409, body: { error: NOT_WAITING } };
     }
 
     case "thread-kept": {
-      return { status: 409, body: { error: THREAD_KEPT } };
+      return { kind: outcome.kind, status: 409, body: { error: THREAD_KEPT } };
     }
 
     default: {

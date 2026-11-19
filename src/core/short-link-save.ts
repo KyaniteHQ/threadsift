@@ -4,15 +4,15 @@ import type { Database } from "./database.ts";
 import type { Concluded } from "./details.ts";
 import { guardHolds, guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import {
+  type Around,
   type Existing,
   type Paste,
   type Saved,
-  foundItem,
   holdsNoItem,
   itemAt,
+  itemFound,
   writeQueued,
 } from "./item-rows.ts";
-import { LISTED_COLUMNS, selectItems } from "./item-selection.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Ports } from "./ports.ts";
@@ -37,7 +37,7 @@ export interface Resolved {
 }
 
 export interface Unresolved {
-  readonly paste: Readonly<Paste>;
+  readonly paste: Readonly<Pick<Paste, "address" | "addedByToken">>;
   readonly link: Readonly<Link>;
   readonly fetched: Readonly<FailedFetch>;
   readonly existing: Existing;
@@ -51,28 +51,31 @@ interface Failure {
   readonly addedByToken: Paste["addedByToken"];
 }
 
-function promotedAndKept(
+async function promotedAndKept(
   ports: Ports,
   { shortLink, paste, link }: Readonly<Resolved>,
 ): Promise<Saved | null> {
   const { db } = ports;
   const noRival = holdsNoRival(db, shortLink, link);
 
-  return unlessRefused(db, noRival, async () => {
+  const promoted = await unlessRefused(db, noRival, () => {
     const promotable = promotableFailedItem(db, shortLink, link.normalizedUrl);
     const changed = sql`(${items.source}, ${items.kind}) is not (${link.source}, ${link.kind})`;
 
-    const [, , , , [item]] = await db.batch([
+    return db.batch([
       insertGuard(db, noRival),
       queueVaultItems(db, sql`${promotable} and ${changed}`),
       promoteFailedItem(db, shortLink, link),
       recordAlias(db, shortLink, paste.address, link),
-      selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, link.normalizedUrl)),
       db.delete(guards),
     ]);
-
-    return item === undefined ? null : { kind: "saved", item, created: false };
   });
+
+  if (promoted === null) return null;
+
+  const item = await itemFound(db, link.normalizedUrl);
+
+  return item === undefined ? null : { kind: "saved", item, created: false };
 }
 
 export async function saveResolved(
@@ -82,40 +85,33 @@ export async function saveResolved(
   const { db } = ports;
   const { shortLink, paste, link, existing } = resolved;
   const noRival = holdsNoRival(db, shortLink, link);
-  const alias = recordAlias(db, shortLink, paste.address, link);
+  const after = [recordAlias(db, shortLink, paste.address, link)];
 
-  if (existing === "refresh") {
-    return writeQueued(ports, paste, link, {
-      kind: "promoting",
-      guard: noRival,
-      promote: promoteFailedItem(db, shortLink, link),
-      alias,
-    });
-  }
+  const around: Around =
+    existing === "refresh"
+      ? { guard: noRival, before: [promoteFailedItem(db, shortLink, link)], after }
+      : {
+          guard: sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, shortLink)}`,
+          before: [],
+          after,
+        };
 
-  const bothHold = sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, shortLink)}`;
+  const added = await writeQueued(ports, paste, link, around);
 
-  const added = await writeQueued(ports, paste, link, {
-    kind: "guarded",
-    guard: bothHold,
-    after: [alias],
-  });
-
-  if (added !== null || !(await guardHolds(db, noRival))) return added;
+  if (added !== null || existing === "refresh" || !(await guardHolds(db, noRival))) return added;
 
   return promotedAndKept(ports, resolved);
 }
 
-function insertedFailure(
+async function insertedFailure(
   db: Database,
   noAlias: Readonly<SQLWrapper>,
   { address, link: { normalizedUrl, kind, source }, fetched, now, addedByToken }: Readonly<Failure>,
 ): Promise<Saved | null> {
   const missing = holdsNoItem(db, normalizedUrl);
-  const itemKey = eq(items.normalizedUrl, normalizedUrl);
 
-  return unlessRefused(db, missing, async () => {
-    const [, , , [item]] = await db.batch([
+  const inserted = await unlessRefused(db, missing, () =>
+    db.batch([
       insertGuard(db, noAlias),
       insertGuard(db, missing),
       db.insert(items).values({
@@ -127,13 +123,14 @@ function insertedFailure(
         addedByToken,
         ...settle(fetched, null, now),
       }),
-      selectItems(db, LISTED_COLUMNS).where(itemKey),
-      queueVaultItems(db, itemKey),
+      queueVaultItems(db, eq(items.normalizedUrl, normalizedUrl)),
       db.delete(guards),
-    ]);
+    ]),
+  );
 
-    return { kind: "saved", item: foundItem(item, normalizedUrl), created: true };
-  });
+  return inserted === null
+    ? null
+    : { kind: "saved", item: await itemAt(db, normalizedUrl), created: true };
 }
 
 async function refreshedFailure(
@@ -143,7 +140,7 @@ async function refreshedFailure(
 ): Promise<Saved> {
   const known = await itemAt(db, normalizedUrl);
 
-  const [, , , [item]] = await db.batch([
+  await db.batch([
     insertGuard(db, noAlias),
     db
       .update(items)
@@ -153,11 +150,10 @@ async function refreshedFailure(
       .update(items)
       .set(settle(fetched, known.title, now))
       .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
-    selectItems(db, LISTED_COLUMNS).where(eq(items.id, known.id)),
     db.delete(guards),
   ]);
 
-  return { kind: "saved", item: foundItem(item, normalizedUrl), created: false };
+  return { kind: "saved", item: await itemAt(db, normalizedUrl), created: false };
 }
 
 export function saveUnresolved(

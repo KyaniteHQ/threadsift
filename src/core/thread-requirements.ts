@@ -28,7 +28,7 @@ export function requirementOf(
 ): Requirement | undefined {
   if (fillOnly) return { holds: awaitsThread(place.normalizedUrl), refusal: NOT_WAITING };
 
-  if (place.thread.kind !== "x") return undefined;
+  if (place.kind !== "x-post") return undefined;
 
   return {
     holds: holdsAtLeastStored(ownerOf(place.normalizedUrl).id, repliesOf(thread)),

@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { writeItem } from "../src/core/item-save.ts";
+import { saveUnresolved } from "../src/core/item-save.ts";
 import { parseLink } from "../src/core/links.ts";
 import { BudgetRefusalSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
@@ -75,9 +75,8 @@ describe("every way a token adds an Item draws on the same daily budget", () => 
     const token = await makeToken(instance, 1);
     const short = "https://t.co/failedfirst";
 
-    const first = await writeItem(instance.core, {
-      kind: "unresolved",
-      paste: { originalUrl: short, address: short, digest: undefined, addedByToken: token.id },
+    const first = await saveUnresolved(instance.core, {
+      paste: { address: short, addedByToken: token.id },
       link: parseLink(short),
       fetched: { status: "unresolved" },
       existing: "refresh",

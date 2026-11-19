@@ -2,8 +2,13 @@ import { refusedHost } from "./admission.ts";
 import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
 import { resolveShortLink } from "./fetch-link.ts";
-import type { Existing, Saved } from "./item-rows.ts";
-import { writeItem } from "./item-save.ts";
+import {
+  type Existing,
+  type Saved,
+  saveLinked,
+  saveResolved,
+  saveUnresolved,
+} from "./item-save.ts";
 import { isRedditShareLink, isShortLink, parseLink } from "./links.ts";
 import type { Refused } from "./paste-outcome.ts";
 import type { Ports } from "./ports.ts";
@@ -23,12 +28,12 @@ async function saveShortLink(
   const known = await aliasedItem(ports.db, shortLink.normalizedUrl);
 
   if (known !== undefined) {
-    return writeItem(ports, {
-      kind: "link",
-      paste: { originalUrl: pasted, address: known.address, digest, addedByToken },
-      link: known,
+    return saveLinked(
+      ports,
+      { originalUrl: pasted, address: known.address, digest, addedByToken },
+      known,
       existing,
-    });
+    );
   }
 
   const resolution = await resolveShortLink(
@@ -39,15 +44,13 @@ async function saveShortLink(
 
   const saved =
     resolution.kind === "failed"
-      ? await writeItem(ports, {
-          kind: "unresolved",
-          paste: { originalUrl: pasted, address: pasted, digest: undefined, addedByToken },
+      ? await saveUnresolved(ports, {
+          paste: { address: pasted, addedByToken },
           link: shortLink,
           fetched: resolution.fetched,
           existing,
         })
-      : await writeItem(ports, {
-          kind: "resolved",
+      : await saveResolved(ports, {
           shortLink: shortLink.normalizedUrl,
           paste: { originalUrl: pasted, address: resolution.address, digest, addedByToken },
           link: parseLink(resolution.address),
@@ -72,10 +75,10 @@ export function saveItem(
 
   return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)
     ? saveShortLink(ports, absoluteUrl, digest, existing, addedByToken)
-    : writeItem(ports, {
-        kind: "link",
-        paste: { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
-        link: parseLink(absoluteUrl),
+    : saveLinked(
+        ports,
+        { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
+        parseLink(absoluteUrl),
         existing,
-      });
+      );
 }

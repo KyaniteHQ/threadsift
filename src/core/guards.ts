@@ -91,26 +91,12 @@ async function rethrowUnlessRefused(
   if (!refusedByGuard(cause) || (await guardHeldOrUnread(db, condition))) throw cause;
 }
 
-export async function unlessGuardRefused<Written>(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  write: () => Promise<Written>,
-): Promise<Written | null> {
-  try {
-    return await write();
-  } catch (error) {
-    await rethrowUnlessRefused(db, condition, error);
-
-    return null;
-  }
-}
-
-export function guardedResults(
+export async function guardedResults(
   db: Database,
   condition: Readonly<SQLWrapper>,
   writes: readonly BatchItem<"sqlite">[],
 ): Promise<readonly unknown[] | null> {
-  return unlessGuardRefused(db, condition, async () => {
+  try {
     const [, ...results] = await db.batch([
       insertGuard(db, condition),
       ...writes,
@@ -120,7 +106,11 @@ export function guardedResults(
     const written: readonly unknown[] = results.slice(0, writes.length);
 
     return written;
-  });
+  } catch (error) {
+    await rethrowUnlessRefused(db, condition, error);
+
+    return null;
+  }
 }
 
 export async function guardedBatch(
@@ -131,13 +121,13 @@ export async function guardedBatch(
   return (await guardedResults(db, condition, writes)) !== null;
 }
 
-export function guardedWrite<Write extends BatchItem<"sqlite">>(
+export async function guardedWrite<Write extends BatchItem<"sqlite">>(
   db: Database,
   condition: Readonly<SQLWrapper>,
   write: Write,
   rest: readonly BatchItem<"sqlite">[],
 ): Promise<Write["_"]["result"] | null> {
-  return unlessGuardRefused(db, condition, async () => {
+  try {
     const [, result] = await db.batch([
       insertGuard(db, condition),
       write,
@@ -146,5 +136,9 @@ export function guardedWrite<Write extends BatchItem<"sqlite">>(
     ]);
 
     return result;
-  });
+  } catch (error) {
+    await rethrowUnlessRefused(db, condition, error);
+
+    return null;
+  }
 }

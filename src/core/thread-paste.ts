@@ -1,7 +1,6 @@
 import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
-import type { Saved } from "./item-rows.ts";
-import { savedItem } from "./item-save.ts";
+import { type Saved, savedItem } from "./item-save.ts";
 import { parseLink } from "./links.ts";
 import type { Invalid, NotWaiting, TooLarge } from "./paste-outcome.ts";
 import type { Ports } from "./ports.ts";
@@ -61,7 +60,6 @@ export async function saveThread(
     ...parseLink(absoluteUrl),
     address: absoluteUrl,
     addedByToken: tokenIdOf(caller),
-    thread: source,
   };
 
   const published = await publishThread(db, place, parsed.thread, {

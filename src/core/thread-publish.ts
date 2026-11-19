@@ -8,14 +8,12 @@ import { type Owner, ownerOf, threadWrites } from "./reddit-thread.ts";
 import { items, media } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import type { StoredThread } from "./stored-thread.ts";
-import type { ThreadSource } from "./thread-source.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 import { queueVaultFetchedTitle } from "./vault-wiki-writes.ts";
 
 export interface ThreadPlace extends Link {
   readonly address: string;
   readonly addedByToken: number | null;
-  readonly thread: ThreadSource;
 }
 
 export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {

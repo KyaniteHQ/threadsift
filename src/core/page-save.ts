@@ -1,9 +1,8 @@
 import { refusedHost } from "./admission.ts";
 import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
-import type { Saved } from "./item-rows.ts";
-import { writeItem } from "./item-save.ts";
-import { isRedditShareLink, isShortLink, parseLink, redditRefOf, takesPage } from "./links.ts";
+import { type Saved, savePaged } from "./item-save.ts";
+import { isRedditShareLink, isShortLink, parseLink, takesPage } from "./links.ts";
 import type { Invalid, Refused, ThreadKept, TooLarge } from "./paste-outcome.ts";
 import type { Ports } from "./ports.ts";
 import {
@@ -47,18 +46,12 @@ export async function savePage(
 
   if (pageBytes(page) > PAGE_BYTES) return { kind: "too-large", field: "page" };
 
-  const saved = await writeItem(ports, {
-    kind: "page",
-    paste: {
-      originalUrl: absoluteUrl,
-      address: absoluteUrl,
-      digest,
-      addedByToken: tokenIdOf(caller),
-    },
-    link: parseLink(absoluteUrl),
+  const saved = await savePaged(
+    ports,
+    { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken: tokenIdOf(caller) },
+    parseLink(absoluteUrl),
     page,
-    keepsThread: redditRefOf(absoluteUrl) !== null,
-  });
+  );
 
   return saved ?? { kind: "thread-kept" };
 }

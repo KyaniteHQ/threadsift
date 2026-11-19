@@ -1,4 +1,5 @@
-import type { Context } from "hono";
+import type { Context, TypedResponse } from "hono";
+import type { JSONParsed } from "hono/utils/types";
 
 import { groupedNumber } from "../core/format.ts";
 import type { ResetResult } from "../core/owner-password.ts";
@@ -41,65 +42,40 @@ export function locked(c: Context, retryAfter: number) {
   return c.json({ error: MESSAGES.locked, code: "locked" } as const, 429);
 }
 
-function unauthorized(c: Context, { body }: Readonly<Extract<Refusal, { status: 401 }>>) {
-  return c.json(body, 401, { "WWW-Authenticate": 'Bearer error="invalid_token"' });
-}
-
-function overBudget(c: Context, { body, retryAfter }: Readonly<Extract<Refusal, { status: 429 }>>) {
-  c.header("Retry-After", String(retryAfter));
-
-  return c.json(body, 429);
-}
-
-function restoring(c: Context, { body }: Readonly<Extract<Refusal, { status: 503 }>>) {
-  return c.json(body, 503);
-}
-
-function rejected(c: Context, { body }: Readonly<Extract<Refusal, { status: 400 }>>) {
-  return c.json(body, 400);
-}
-
-function conflicting(
-  c: Context,
-  { body, status }: Readonly<Extract<Refusal, { status: 409 | 413 }>>,
-) {
-  return c.json(body, status);
-}
+type Answer<Status extends Refusal["status"]> = Response &
+  TypedResponse<JSONParsed<Extract<Refusal, { readonly status: Status }>["body"]>, Status, "json">;
 
 export function refusing(
   c: Context,
   refusal: Readonly<AdmissionRefusal>,
-): ReturnType<typeof unauthorized> | ReturnType<typeof overBudget> | ReturnType<typeof restoring>;
+): Answer<401> | Answer<429> | Answer<503>;
 export function refusing(
   c: Context,
   refusal: Readonly<Refusal>,
-):
-  | ReturnType<typeof unauthorized>
-  | ReturnType<typeof overBudget>
-  | ReturnType<typeof restoring>
-  | ReturnType<typeof rejected>
-  | ReturnType<typeof conflicting>;
+): Answer<401> | Answer<429> | Answer<503> | Answer<400> | Answer<409 | 413>;
 export function refusing(c: Context, refusal: Readonly<Refusal>) {
   switch (refusal.status) {
     case 401: {
-      return unauthorized(c, refusal);
+      return c.json(refusal.body, 401, { "WWW-Authenticate": 'Bearer error="invalid_token"' });
     }
 
     case 429: {
-      return overBudget(c, refusal);
+      c.header("Retry-After", String(refusal.retryAfter));
+
+      return c.json(refusal.body, 429);
     }
 
     case 503: {
-      return restoring(c, refusal);
+      return c.json(refusal.body, 503);
     }
 
     case 400: {
-      return rejected(c, refusal);
+      return c.json(refusal.body, 400);
     }
 
     case 409:
     case 413: {
-      return conflicting(c, refusal);
+      return c.json(refusal.body, refusal.status);
     }
 
     default: {
