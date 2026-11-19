@@ -154,8 +154,8 @@ describe("a verification job asks for as many posts as 40 requests allow, under 
     const quoted = { ...value, post: { ...value.post, quoted: [quote] } };
     const roles = [...sliceOf(quoted, {}), ...sliceOf(quoted, { [ROOT]: "verified" })];
     assert.deepEqual(
-      roles.map(({ recipientsMayBeOmitted }) => recipientsMayBeOmitted),
-      [false, false, false, true, true],
+      roles.map(({ role }) => (role.kind === "reply" ? role.recipientsMayBeOmitted : role.kind)),
+      ["root", "quote", false, true, true],
     );
 
     const progress = progressOf(quoted, {

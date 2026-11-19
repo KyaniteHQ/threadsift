@@ -40,13 +40,17 @@ export type OembedAnswer =
   | { readonly kind: "unusable" }
   | { readonly kind: "unavailable" };
 
+type PostRole =
+  | { readonly kind: "root"; readonly next: string | null }
+  | { readonly kind: "quote"; readonly next: string | null }
+  | { readonly kind: "reply"; readonly recipientsMayBeOmitted: boolean };
+
 export interface StoredPost {
   readonly id: string;
   readonly author: string;
   readonly text: string;
-  readonly recipientsMayBeOmitted: boolean;
-  readonly chain?: { readonly next: string | null };
-  readonly photos?: boolean;
+  readonly photos: boolean;
+  readonly role: PostRole;
 }
 
 export interface Checked {
@@ -57,6 +61,12 @@ export interface Checked {
 }
 
 export type Resolved = ReadonlyMap<string, string>;
+
+const STRICT_REPLY = { kind: "reply", recipientsMayBeOmitted: false } as const;
+
+function mayOmitRecipients({ role }: Readonly<StoredPost>): boolean {
+  return role.kind === "reply" && role.recipientsMayBeOmitted;
+}
 
 function handleOf(authorUrl: string): string | null {
   if (!URL.canParse(authorUrl)) return null;
@@ -186,7 +196,7 @@ function matchingText(
   matches: typeof wholeMatches,
 ): string | null {
   if (matches(normalized, shown, 0)) return stored.text;
-  if (!stored.recipientsMayBeOmitted || normalized === "") return null;
+  if (!mayOmitRecipients(stored) || normalized === "") return null;
 
   const mention = /@[A-Za-z0-9_]{1,15}\s+/uy;
   mention.lastIndex = stored.text.length - stored.text.trimStart().length;
@@ -249,12 +259,15 @@ function checkText(
 
   return {
     ...match,
-    photoless: stored.photos === true && post.media.length === 0,
-    rejects: rejectedQuotes(
-      stored.chain?.next,
-      quote?.target ?? null,
-      post.cut === null && post.links.length === 0,
-    ),
+    photoless: stored.photos && post.media.length === 0,
+    rejects:
+      stored.role.kind === "reply"
+        ? []
+        : rejectedQuotes(
+            stored.role.next,
+            quote?.target ?? null,
+            post.cut === null && post.links.length === 0,
+          ),
   };
 }
 
@@ -263,9 +276,14 @@ export function checked(
   post: Readonly<OembedPost>,
   resolved: Readonly<Resolved>,
 ): Checked {
-  const strict = checkText({ ...stored, recipientsMayBeOmitted: false }, post, resolved);
+  const strict = checkText(
+    mayOmitRecipients(stored) ? { ...stored, role: STRICT_REPLY } : stored,
+    post,
+    resolved,
+  );
+
   return strict.judgement === "rejected" &&
-    stored.recipientsMayBeOmitted &&
+    mayOmitRecipients(stored) &&
     stored.text.trimStart().startsWith("@")
     ? checkText(stored, post, resolved)
     : strict;

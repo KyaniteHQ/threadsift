@@ -15,6 +15,7 @@ import {
   mediaOnly,
   NOTHING_RESOLVED,
   REPLY_LONG,
+  replyPost,
   REPLY_SHORT,
   SHORT,
   WHOLE_LINKS,
@@ -77,11 +78,7 @@ describe("a stored post must be what X shows for the id and the author, characte
 
       assert.ok(answer.kind === "post");
       const { id, handle } = answer.post;
-      const result = checked(
-        { id, author: handle, text, recipientsMayBeOmitted: true },
-        answer.post,
-        NOTHING_RESOLVED,
-      );
+      const result = checked(replyPost(id, handle, text, true), answer.post, NOTHING_RESOLVED);
 
       assert.equal(result.judgement, expected === null ? "rejected" : expectedVerdict, text);
       if (expected !== null) assert.equal(result.keptText, expected);

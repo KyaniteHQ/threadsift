@@ -18,9 +18,8 @@ import type { Database } from "./database.ts";
 import { CLAIM_MARGIN_MS, type Closing, type JobPorts } from "./job-outcome.ts";
 import { enqueueQuietly, holding } from "./job-rows.ts";
 import { ACCOUNT_ROW, type AccountRow, redditAccount } from "./reddit-account-tables.ts";
+import { FILL_DEADLINE_MS } from "./request-waits.ts";
 import { type JobRow, jobs } from "./schema.ts";
-
-export const FILL_DEADLINE_MS = 90_000;
 
 export const WAIT_CHECK_MS = 300_000;
 
