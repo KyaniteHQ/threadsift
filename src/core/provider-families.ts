@@ -59,7 +59,7 @@ type Family = HttpFamily | BindingFamily | CliFamily | BotFamily;
 type Fields = Readonly<Record<string, z.ZodType>>;
 
 function namesOf<const FieldSet extends Fields>(fields: FieldSet) {
-  return Object.keys(fields).filter((name): name is keyof FieldSet & string => name in fields);
+  return z.strictObject(fields).keyof().options;
 }
 
 function httpFamily<
