@@ -3,6 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
+import { HANDLERS } from "../src/core/job-handlers.ts";
 import { KIND_CASES } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, selectGrokBot } from "./bot-kinds-fixtures.ts";
 import { outcomeOf } from "./bot-kinds-steps.ts";
@@ -30,7 +31,8 @@ describe("what a kind does when there is nothing to ask the bot", () => {
 
     assert.equal(prepared.kind, "settled");
 
-    if (prepared.kind === "settled") await applyOutcome(instance.core, job, prepared.outcome);
+    if (prepared.kind === "settled")
+      await applyOutcome(instance.core, job, prepared.outcome, HANDLERS[job.kind]);
 
     assert.equal(jobRow(instance, job.id).state, "done");
     assert.equal(rowCount(instance, "ai_tasks"), 0);

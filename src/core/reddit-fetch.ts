@@ -1,7 +1,7 @@
 import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import type { Concluded, Fetched } from "./details.ts";
 import { fetchLink } from "./fetch-link.ts";
-import { isLastAttempt } from "./job-outcome.ts";
+import { isLastAttempt } from "./job-retry.ts";
 import { redditRefOf } from "./links.ts";
 import type { RedditRef } from "./links.ts";
 import type { Ports } from "./ports.ts";

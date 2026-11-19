@@ -2,6 +2,7 @@ import { botStep } from "../src/core/bot-step.ts";
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
 import { latestTask } from "../src/core/bot-task-states.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
+import { HANDLERS } from "../src/core/job-handlers.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import type { BotKindName } from "./bot-kinds-cases.ts";
 import { reclaimed } from "./bot-task-lifecycle.ts";
@@ -16,7 +17,7 @@ export async function settled(
   kind: BotKindName,
   job: Readonly<ClaimedJob>,
 ): Promise<void> {
-  await applyOutcome(instance.core, job, await outcomeOf(instance, kind, job));
+  await applyOutcome(instance.core, job, await outcomeOf(instance, kind, job), HANDLERS[kind]);
 }
 
 export async function appliedAgain(
@@ -33,5 +34,6 @@ export async function appliedAgain(
     instance.core,
     job,
     await BOT_TASK_KINDS[kind].apply(instance.core, job, task),
+    HANDLERS[kind],
   );
 }

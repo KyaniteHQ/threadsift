@@ -96,7 +96,11 @@ export const X_READ_NOTES = [
   "x-post-absent",
 ] as const;
 
-export const ITEM_JOB_KINDS = ["fetch", "digest", "x_verify"] as const;
+export const INTAKE_JOB_KINDS = ["fetch", "x_verify"] as const;
+
+const [FETCH_JOB_KIND, X_VERIFY_JOB_KIND] = INTAKE_JOB_KINDS;
+
+export const ITEM_JOB_KINDS = [FETCH_JOB_KIND, "digest", X_VERIFY_JOB_KIND] as const;
 
 export const OWNED_JOB_KINDS = [
   ...ITEM_JOB_KINDS,
@@ -197,9 +201,15 @@ export type XReadNote = (typeof X_READ_NOTES)[number];
 
 export type JobKind = (typeof JOB_KINDS)[number];
 
+export type IntakeJobKind = (typeof INTAKE_JOB_KINDS)[number];
+
 export type OwnedJobKind = (typeof OWNED_JOB_KINDS)[number];
 
 export type UnownedJobKind = (typeof UNOWNED_JOB_KINDS)[number];
+
+export function isUnownedJobKind(kind: JobKind): kind is UnownedJobKind {
+  return UNOWNED_JOB_KINDS.some((unowned) => unowned === kind);
+}
 
 export const WEEKLY_TASK = {
   "tag-merge": "proposals",

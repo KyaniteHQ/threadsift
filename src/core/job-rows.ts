@@ -1,4 +1,4 @@
-import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, ne, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
@@ -209,6 +209,19 @@ export function enqueueRows(
     ports,
     rows.map(({ id }) => id),
     0,
+  );
+}
+
+export async function enqueueRunJobs(
+  ports: JobPorts,
+  { kind, address }: Readonly<Pick<JobRow, "kind" | "address">>,
+): Promise<void> {
+  await enqueueRows(
+    ports,
+    await ports.db
+      .select({ id: jobs.id })
+      .from(jobs)
+      .where(and(eq(jobs.kind, kind), eq(jobs.address, address), ne(jobs.state, "done"))),
   );
 }
 

@@ -2,6 +2,8 @@ import { botStep } from "../src/core/bot-step.ts";
 import { sendBotTask } from "../src/core/bot-task-send.ts";
 import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
+import { HANDLERS } from "../src/core/job-handlers.ts";
+import type { JobOutcome } from "../src/core/job-outcome.ts";
 import { holding } from "../src/core/job-rows.ts";
 import { relatedBotKind } from "../src/core/related-bot.ts";
 import { openJob, selectGrokBot } from "./bot-task-fixtures.ts";
@@ -40,12 +42,20 @@ export function step(instance: Instance, job: Readonly<ClaimedJob>) {
   return botStep(instance.core, job, relatedBotKind);
 }
 
+export function applied(
+  instance: Instance,
+  job: Readonly<ClaimedJob>,
+  outcome: JobOutcome,
+): Promise<void> {
+  return applyOutcome(instance.core, job, outcome, HANDLERS[job.kind]);
+}
+
 export async function settle(
   instance: Instance,
   job: Readonly<ClaimedJob>,
   holder: Readonly<ClaimedJob> = job,
 ): Promise<void> {
-  await applyOutcome(instance.core, holder, await step(instance, job));
+  await applied(instance, holder, await step(instance, job));
 }
 
 export function sendFor(

@@ -1,6 +1,6 @@
 import type { Fetched } from "./details.ts";
 import { report } from "./failure-log.ts";
-import { RETRY_DELAYS_MS, isLastAttempt } from "./job-outcome.ts";
+import { isLastAttempt, retryDelayMs } from "./job-retry.ts";
 import type { XReadNote } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Network } from "./network.ts";
@@ -55,7 +55,7 @@ const POST_ABSENT = { status: "status", note: "x-post-absent" } as const;
 function readAgain({ attempts }: Readonly<XSource>): Fetched {
   return {
     status: "waiting",
-    until: Date.now() + (RETRY_DELAYS_MS[attempts] ?? 0),
+    until: Date.now() + (retryDelayMs(attempts) ?? 0),
     limited: true,
     wait: "x-reread",
   };

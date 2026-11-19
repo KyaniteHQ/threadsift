@@ -3,6 +3,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { GROK_BOT_IN_FLIGHT, ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
+import { HANDLERS } from "../src/core/job-handlers.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import {
   type BotLibrary,
@@ -88,7 +89,7 @@ describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap"
     const job = await openJob(instance, library.source, 1);
     const asked = Date.now();
 
-    await applyOutcome(instance.core, job, await step(instance, job));
+    await applyOutcome(instance.core, job, await step(instance, job), HANDLERS[job.kind]);
 
     const row = jobRow(instance, job.id);
 

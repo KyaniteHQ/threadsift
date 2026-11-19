@@ -1,25 +1,29 @@
-import { routedHandler } from "./bot-step.ts";
+import { routedJob } from "./bot-step.ts";
 import { BOT_TASK_KINDS } from "./bot-task-kinds.ts";
 import { digestHandler } from "./digest-attempt.ts";
 import { disagreementProposalsHandler } from "./disagreement-job.ts";
 import { exportHandler } from "./export-job.ts";
 import { FETCH_HANDLERS } from "./fetch-job.ts";
+import type { ModelDeclaration, Specs } from "./job-spec.ts";
 import { proposalsHandler, topicProposalsHandler } from "./proposal-job.ts";
 import { relatedPickHandler } from "./related-job.ts";
 import { restoreHandler } from "./restore-job.ts";
 import { topicOverviewHandler } from "./topic-overview-job.ts";
 
+type RoutedKind = Exclude<keyof typeof BOT_TASK_KINDS, "digest">;
+
+function routed<Kind extends RoutedKind>(kind: Kind, model: Readonly<ModelDeclaration>) {
+  return routedJob(kind, model, BOT_TASK_KINDS[kind]);
+}
+
 export const HANDLERS = {
+  ...FETCH_HANDLERS,
   digest: digestHandler,
-  disagreement_proposals: routedHandler(
-    disagreementProposalsHandler,
-    BOT_TASK_KINDS.disagreement_proposals,
-  ),
+  topic_overview: routed("topic_overview", topicOverviewHandler),
+  related_pick: routed("related_pick", relatedPickHandler),
+  proposals: routed("proposals", proposalsHandler),
+  topic_proposals: routed("topic_proposals", topicProposalsHandler),
+  disagreement_proposals: routed("disagreement_proposals", disagreementProposalsHandler),
   export: exportHandler,
   restore: restoreHandler,
-  ...FETCH_HANDLERS,
-  proposals: routedHandler(proposalsHandler, BOT_TASK_KINDS.proposals),
-  related_pick: routedHandler(relatedPickHandler, BOT_TASK_KINDS.related_pick),
-  topic_overview: routedHandler(topicOverviewHandler, BOT_TASK_KINDS.topic_overview),
-  topic_proposals: routedHandler(topicProposalsHandler, BOT_TASK_KINDS.topic_proposals),
-};
+} satisfies Specs;

@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { applyOutcome } from "../src/core/job-finish.ts";
 import { dueIds, claimNextDue } from "../src/core/jobs.ts";
 import {
   type BotLibrary,
@@ -14,7 +13,7 @@ import {
   unblock,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { step, taskAfterStart } from "./bot-task-lifecycle.ts";
+import { applied, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { exec, pairsOf } from "./related-fixtures.ts";
@@ -60,7 +59,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
 
     const committed = Date.now();
 
-    await applyOutcome(instance.core, task.job, deferral);
+    await applied(instance, task.job, deferral);
 
     const job = jobRow(instance, task.job.id);
 
@@ -79,7 +78,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
       unlessOpen: task.id,
     } as const;
 
-    await applyOutcome(instance.core, task.job, deferral);
+    await applied(instance, task.job, deferral);
 
     assert.equal(jobRow(instance, task.job.id).next_attempt_at, deferral.deferredUntil);
   });
@@ -87,7 +86,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
   it("finds the answered job through the sweep's due query when the wake reached no claimable job, and a claim applies the answer", async () => {
     const task = await taskAfterStart(instance, library.source);
 
-    await applyOutcome(instance.core, task.job, {
+    await applied(instance, task.job, {
       deferredUntil: taskRow(instance, task.id).deadline,
       wait: "grok-bot",
       countsAttempt: false,
@@ -105,7 +104,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
     assert.ok(claimed !== null && claimed.kind !== "export" && claimed.kind !== "restore");
     assert.equal(claimed.id, task.job.id);
 
-    await applyOutcome(instance.core, claimed, await step(instance, claimed));
+    await applied(instance, claimed, await step(instance, claimed));
 
     assert.deepEqual(
       pairsOf(instance, library.source).map(({ related_id: id }) => id),

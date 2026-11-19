@@ -1,7 +1,8 @@
 import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
 import { lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
-import type { ClaimedJob, JobOutcome, JobPorts, ModelHandler } from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import type { ModelDeclaration } from "./job-spec.ts";
 import { type OverviewPrepared, preparedOverview } from "./topic-overview-prepare.ts";
 import { overviewGaveUp, overviewRefused } from "./topic-overview-run.ts";
 import { OVERVIEW_OUTPUT_TOKENS, topicOverviewTask } from "./topic-overview-task.ts";
@@ -64,7 +65,7 @@ async function attemptOverview(
   return reviseOverview(ports, job, { ...prepared, ai });
 }
 
-export const topicOverviewHandler: ModelHandler = {
+export const topicOverviewHandler: ModelDeclaration = {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["digest"],
   attempt: attemptOverview,

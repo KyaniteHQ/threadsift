@@ -1,10 +1,13 @@
-import type { ClaimedRestore, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { and, eq } from "drizzle-orm";
+
+import type { ClaimedRestore, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { unownedRun } from "./job-rows.ts";
-import { restoreClosing } from "./restore-closing.ts";
+import { defineUnownedJob } from "./job-spec.ts";
 import { RESTORE_UNIT_DEADLINE_MS } from "./restore-contract.ts";
 import { phaseUnit } from "./restore-phase.ts";
 import { partSource } from "./restore-source.ts";
 import { restoreById } from "./restore-state.ts";
+import { restoreRuns } from "./schema.ts";
 
 async function attemptUnit(ports: JobPorts, job: Readonly<ClaimedRestore>): Promise<JobOutcome> {
   const run = await unownedRun("restore", job.address, (id) => restoreById(ports.db, id));
@@ -14,9 +17,13 @@ async function attemptUnit(ports: JobPorts, job: Readonly<ClaimedRestore>): Prom
     : { writes: [] };
 }
 
-export const restoreHandler: JobHandler<ClaimedRestore> = {
+export const restoreHandler = defineUnownedJob("restore", {
   deadlineMs: RESTORE_UNIT_DEADLINE_MS,
-  blockedBy: [],
   attempt: attemptUnit,
-  ...restoreClosing,
-};
+  exhausted: (db, restoreId) => [
+    db
+      .update(restoreRuns)
+      .set({ state: "failed", failure: "gave-up", updatedAt: Date.now() })
+      .where(and(eq(restoreRuns.id, restoreId), eq(restoreRuns.state, "running"))),
+  ],
+});

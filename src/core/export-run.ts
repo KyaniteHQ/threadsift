@@ -10,13 +10,13 @@ import {
   exportRootName,
   exportTailName,
 } from "./export-contract.ts";
-import { exportAddress, openingExportJob } from "./export-job.ts";
+import { openingExportJob } from "./export-job.ts";
 import { exportFileKey } from "./file-keys.ts";
 import { refusedBy } from "./guards.ts";
-import { CLOSED_JOB } from "./job-close.ts";
+import { closeRunJobs } from "./job-close.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
-import { type ExportRow, exportRuns, jobs } from "./schema.ts";
+import { type ExportRow, exportRuns } from "./schema.ts";
 
 const ONE_LIVE_EXPORT = /UNIQUE constraint failed: (?:index 'exports_one_live'|exports\.)/u;
 
@@ -138,10 +138,7 @@ export async function deleteExport(ports: JobPorts): Promise<DeletedExport> {
         .set({ state: "failed", failure: "cancelled", updatedAt: Date.now() })
         .where(and(eq(exportRuns.id, run.id), eq(exportRuns.state, "running")))
         .returning({ id: exportRuns.id }),
-      db
-        .update(jobs)
-        .set(CLOSED_JOB)
-        .where(and(eq(jobs.kind, "export"), eq(jobs.address, exportAddress(run.id)))),
+      closeRunJobs(db, "export", run.id),
     ]);
 
     if (stopped.length > 0) return "deleted";

@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, exists, ne, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, exists, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import {
@@ -10,20 +10,11 @@ import {
 import { type BuiltSlice, buildSlice } from "./export-slice.ts";
 import { report } from "./failure-log.ts";
 import { exportFileKey } from "./file-keys.ts";
-import type { ClaimedExport, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
-import {
-  enqueueRows,
-  openingUnowned,
-  unownedAddress,
-  unownedOwnerId,
-  unownedRun,
-} from "./job-rows.ts";
-import { type ExportRow, exportRuns, jobs } from "./schema.ts";
+import type { ClaimedExport, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { openingUnowned, unownedRun } from "./job-rows.ts";
+import { defineUnownedJob } from "./job-spec.ts";
+import { type ExportRow, exportRuns } from "./schema.ts";
 import { dosTimeOf, endOfArchive, packFiles } from "./zip.ts";
-
-export function exportAddress(exportId: number): string {
-  return unownedAddress("export", exportId);
-}
 
 export function openingExportJob(db: Database, scope: Readonly<SQLWrapper>) {
   return openingUnowned(db, "export", exportRuns, scope);
@@ -175,24 +166,8 @@ async function attemptSlice(ports: JobPorts, job: Readonly<ClaimedExport>): Prom
   };
 }
 
-export const exportHandler: JobHandler<ClaimedExport> = {
+export const exportHandler = defineUnownedJob("export", {
   deadlineMs: EXPORT_SLICE_DEADLINE_MS,
-  blockedBy: [],
   attempt: attemptSlice,
-  exhausted: (db, job) => {
-    const exportId = unownedOwnerId("export", job.address);
-
-    return exportId === null ? [] : [failure(db, exportId, "gave-up")];
-  },
-  afterClosed: async (ports, job, closed) => {
-    if (!closed) return;
-
-    await enqueueRows(
-      ports,
-      await ports.db
-        .select({ id: jobs.id })
-        .from(jobs)
-        .where(and(eq(jobs.kind, "export"), eq(jobs.address, job.address), ne(jobs.state, "done"))),
-    );
-  },
-};
+  exhausted: (db, exportId) => [failure(db, exportId, "gave-up")],
+});

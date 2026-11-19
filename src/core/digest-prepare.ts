@@ -12,13 +12,8 @@ import {
 } from "./digest-source.ts";
 import { logFailure, report } from "./failure-log.ts";
 import { guardedOutcome } from "./guarded-outcome.ts";
-import {
-  type ClaimedJob,
-  type JobOutcome,
-  type JobPorts,
-  isLastAttempt,
-  settled,
-} from "./job-outcome.ts";
+import { type ClaimedJob, type JobOutcome, type JobPorts, settled } from "./job-outcome.ts";
+import { isLastAttempt } from "./job-retry.ts";
 import { readPostText } from "./post-text.ts";
 
 type ReadyPrompt = Extract<DigestPrompt, { kind: "ready" }>;

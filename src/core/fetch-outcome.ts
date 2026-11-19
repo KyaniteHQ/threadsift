@@ -1,7 +1,8 @@
 import type { Database } from "./database.ts";
 import type { Fetched } from "./details.ts";
 import { settledFetch } from "./fetch-settle.ts";
-import { type ClaimedJob, type JobOutcome, type JobPorts, isLastAttempt } from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { isLastAttempt } from "./job-retry.ts";
 import { failedFetch } from "./settle.ts";
 import type { ToVerify } from "./x-fetcher.ts";
 import { queuedVerification } from "./x-verify-store.ts";

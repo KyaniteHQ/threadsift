@@ -1,13 +1,14 @@
-import { type SQLWrapper, and, eq, inArray, isNotNull, ne, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { givenUpTasks, supersededTasks } from "./ai-tasks.ts";
 import type { Database } from "./database.ts";
-import { openingDigest } from "./digest-job.ts";
 import type { JobCurrency } from "./job-outcome.ts";
-import { type JobRow, aiTasks, items, jobs, xVerifications } from "./schema.ts";
+import { unownedAddress } from "./job-rows.ts";
+import { INTAKE_JOB_KINDS, type UnownedJobKind } from "./kinds.ts";
+import { type JobRow, aiTasks, jobs, xVerifications } from "./schema.ts";
 
-export const CLOSED_JOB = {
+const CLOSED_JOB = {
   state: "done",
   claimExpires: null,
   waitReason: null,
@@ -17,22 +18,9 @@ export const CLOSED_JOB = {
   page: null,
 } as const;
 
-function owedDigest(db: Database, job: Readonly<Pick<JobRow, "itemId" | "attemptPending">>) {
-  return openingDigest(db, {
-    scope:
-      and(
-        eq(items.id, sql`${job.itemId}`),
-        isNotNull(items.pendingDigest),
-        sql`${items.pendingDigest} is not ${job.attemptPending}`,
-      ) ?? sql`0`,
-    address: items.originalUrl,
-    now: Date.now(),
-  });
-}
-
 export function closeJob(
   db: Database,
-  job: Readonly<Pick<JobRow, "id" | "kind" | "itemId" | "attemptPending">>,
+  job: Readonly<Pick<JobRow, "id">>,
   attempts: number,
 ): readonly BatchItem<"sqlite">[] {
   return [
@@ -41,8 +29,18 @@ export function closeJob(
       .set({ ...CLOSED_JOB, attempts })
       .where(eq(jobs.id, job.id)),
     ...givenUpTasks(db, eq(aiTasks.jobId, job.id)),
-    ...(job.kind === "digest" && job.itemId !== null ? [owedDigest(db, job)] : []),
   ];
+}
+
+function closeJobs(db: Database, which: Readonly<SQLWrapper> | undefined) {
+  return db
+    .update(jobs)
+    .set(CLOSED_JOB)
+    .where(and(which, ne(jobs.state, "done")));
+}
+
+export function closeRunJobs(db: Database, kind: UnownedJobKind, runId: number) {
+  return closeJobs(db, and(eq(jobs.kind, kind), eq(jobs.address, unownedAddress(kind, runId))));
 }
 
 export function closeItemJobs(
@@ -50,7 +48,7 @@ export function closeItemJobs(
   itemId: Readonly<SQLWrapper>,
   { answering }: Readonly<{ answering?: number }> = {},
 ) {
-  const ofItem = and(eq(jobs.itemId, sql`${itemId}`), inArray(jobs.kind, ["fetch", "x_verify"]));
+  const ofItem = and(eq(jobs.itemId, sql`${itemId}`), inArray(jobs.kind, INTAKE_JOB_KINDS));
   const itemJobs = db.select({ id: jobs.id }).from(jobs).where(ofItem);
 
   return [
@@ -58,10 +56,7 @@ export function closeItemJobs(
       db,
       sql`${inArray(aiTasks.jobId, itemJobs)} and ${aiTasks.id} is not ${answering ?? null}`,
     ),
-    db
-      .update(jobs)
-      .set(CLOSED_JOB)
-      .where(and(ofItem, ne(jobs.state, "done"))),
+    closeJobs(db, ofItem),
     db.delete(xVerifications).where(eq(xVerifications.itemId, sql`${itemId}`)),
   ] as const;
 }

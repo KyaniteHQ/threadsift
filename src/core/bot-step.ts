@@ -14,15 +14,10 @@ import {
 } from "./bot-task-states.ts";
 import { newCallbackCredential } from "./callback-credential.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
-import type {
-  ClaimedJob,
-  DeferredOutcome,
-  JobHandler,
-  JobOutcome,
-  JobPorts,
-  ModelHandler,
-} from "./job-outcome.ts";
+import type { ClaimedJob, DeferredOutcome, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
+import { type JobSpec, type ModelDeclaration, defineJob } from "./job-spec.ts";
+import type { IntakeJobKind, OwnedJobKind } from "./kinds.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
 
@@ -208,6 +203,10 @@ export function onGrokBot<Rest extends readonly unknown[]>(
   };
 }
 
-export function routedHandler(handler: ModelHandler, kind: SentTaskKind): JobHandler {
-  return { ...handler, attempt: onGrokBot(handler.attempt, kind) };
+export function routedJob<Kind extends Exclude<OwnedJobKind, IntakeJobKind>>(
+  kind: Kind,
+  model: Readonly<ModelDeclaration>,
+  task: SentTaskKind,
+): JobSpec<Kind> {
+  return defineJob(kind, { ...model, attempt: onGrokBot(model.attempt, task) });
 }
