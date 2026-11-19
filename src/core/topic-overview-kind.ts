@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import { defineAiKind } from "./ai-kind.ts";
 import { inputsHold } from "./topic-coverage.ts";
-import { ContextSchema, overviewAtBot } from "./topic-overview-context.ts";
+import { type OverviewContext, ContextSchema, overviewAtBot } from "./topic-overview-context.ts";
 import { topicOfItem } from "./topic-overview-input.ts";
 import { preparedOverview } from "./topic-overview-prepare.ts";
 import { overviewRefused } from "./topic-overview-run.ts";
@@ -13,14 +13,17 @@ import {
 } from "./topic-overview-task.ts";
 import { revisedStored } from "./topic-overview-write.ts";
 
+function overviewCurrent({ topicId, revision, included, removed, removedTotal }: OverviewContext) {
+  return inputsHold(topicId, { revision, included, removed, removedTotal });
+}
+
 export const topicOverviewKind = defineAiKind({
   kind: TOPIC_OVERVIEW_TASK,
   context: ContextSchema,
   label: "Overview",
   task: topicOverviewTask,
-  current: ({ topicId, revision, included, removed, removedTotal }) =>
-    inputsHold(topicId, { revision, included, removed, removedTotal }),
-  holds: ({ topicId }) => sql`not ${overviewAtBot(topicId)}`,
+  current: overviewCurrent,
+  holds: (context) => sql`not ${overviewAtBot(context.topicId)} and ${overviewCurrent(context)}`,
   defer: async (db, job) => {
     const topicId = await topicOfItem(db, job.itemId);
 

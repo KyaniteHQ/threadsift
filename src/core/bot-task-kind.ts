@@ -48,7 +48,7 @@ async function deferredBy(
 function preparedFor<Context, Result, Basis>(
   declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
 ): KindFace["prepare"] {
-  const { defer, holds, prepare, current, kind } = declaration;
+  const { defer, holds, prepare, kind } = declaration;
 
   return async (ports, job) => {
     const deferred = await deferredBy(ports.db, (await defer?.(ports.db, job)) ?? null);
@@ -69,7 +69,7 @@ function preparedFor<Context, Result, Basis>(
         inputs: prepared.input,
         inputRevision: prepared.inputRevision,
         context: JSON.stringify(context),
-        holds: and(holds?.(context), current(context), chosen) ?? chosen,
+        holds: and(holds?.(context), chosen) ?? chosen,
       },
       started: prepared.started,
     };
