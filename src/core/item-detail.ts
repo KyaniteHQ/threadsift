@@ -1,5 +1,6 @@
-import { type ReaderDigest, parseStoredDigest } from "./ai-contract.ts";
 import { detailReads } from "./detail-reads.ts";
+import type { ReaderDigest } from "./digest-schema.ts";
+import { readStoredDigest } from "./digest-stored.ts";
 import { logFailure } from "./failure-log.ts";
 import { highlightsViewOf } from "./highlights.ts";
 import { noteViewOf } from "./notes.ts";
@@ -14,15 +15,17 @@ function readerDigest(
 ): ReaderDigest | null {
   if (stored === undefined) return null;
 
-  try {
-    const { summary, keyPoints } = parseStoredDigest(stored);
+  const read = readStoredDigest(stored);
 
-    return { summary, keyPoints, tags: tagRows.map((tag) => tag.name) };
-  } catch (error) {
-    logFailure("item-digest-unreadable", { itemId: id }, error);
+  if (read.kind === "unreadable") {
+    logFailure("item-digest-unreadable", { itemId: id }, read.cause);
 
     return null;
   }
+
+  const { summary, keyPoints } = read.digest;
+
+  return { summary, keyPoints, tags: tagRows.map((tag) => tag.name) };
 }
 
 export async function getItem(ports: Readonly<Pick<Ports, "db" | "files">>, id: number) {

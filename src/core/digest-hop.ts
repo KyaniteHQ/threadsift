@@ -1,8 +1,8 @@
 import { AI_DEADLINE_MS } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
 import type { Fetched } from "./details.ts";
+import { type DigestInput, staleOutcome } from "./digest-input.ts";
 import { type LinkedPage, cutDigestInput } from "./digest-prompt.ts";
-import { type DigestInput, staleOutcome } from "./digest-source.ts";
 import { report } from "./failure-log.ts";
 import { fetchLink } from "./fetch-link.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";

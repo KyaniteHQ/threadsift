@@ -1,5 +1,5 @@
-import { parseStoredDigest } from "./ai-contract.ts";
 import { type AiTaskRow, acceptsAnswer } from "./ai-task-state.ts";
+import { parseStoredDigest } from "./digest-schema.ts";
 import { logFailure, report } from "./failure-log.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";

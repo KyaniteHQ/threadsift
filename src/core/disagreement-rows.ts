@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./database.ts";
+import { storedTaskIs } from "./digest-stored.ts";
 import { pairPinned } from "./disagreement-pins.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
 import { removedOpen } from "./proposal-lifecycle.ts";
@@ -19,7 +20,7 @@ export const secondDigest = alias(digests, "second_digest");
 function judged(sameTopic: boolean) {
   const together = sameTopic ? sql` and held_second.topic_id = held_first.topic_id` : sql``;
 
-  return sql`exists (select 1 from ${items} as held_first join ${digests} as held_first_digest on held_first_digest.item_id = held_first.id and held_first_digest.task_id = ${proposals.fromDigest} join ${items} as held_second on held_second.id = ${proposals.intoItemId}${together} join ${digests} as held_second_digest on held_second_digest.item_id = held_second.id and held_second_digest.task_id = ${proposals.intoDigest} where held_first.id = ${proposals.fromItemId})`;
+  return sql`exists (select 1 from ${items} as held_first join ${items} as held_second on held_second.id = ${proposals.intoItemId}${together} where held_first.id = ${proposals.fromItemId} and ${storedTaskIs(proposals.fromItemId, proposals.fromDigest)} and ${storedTaskIs(proposals.intoItemId, proposals.intoDigest)})`;
 }
 
 const pinned = pairPinned(proposals.fromItemId, proposals.intoItemId);

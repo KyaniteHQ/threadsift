@@ -1,4 +1,4 @@
-import type { Digest } from "../../src/core/ai-contract.ts";
+import type { Digest } from "../../src/core/digest-schema.ts";
 import {
   type Provider,
   GROK_BOT_PROVIDER,

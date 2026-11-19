@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DigestSchema } from "./ai-contract.ts";
+import { DigestSchema } from "./digest-schema.ts";
 import { fieldNamesOf, issueCodesOf, reasonsOf } from "./zod-reasons.ts";
 
 export const X_INTAKE_TASK = "x_intake";

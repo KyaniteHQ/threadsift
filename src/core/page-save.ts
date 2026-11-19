@@ -1,6 +1,6 @@
 import { refusedHost } from "./admission.ts";
-import type { Digest } from "./ai-contract.ts";
 import { type Caller, tokenIdOf } from "./caller.ts";
+import type { Digest } from "./digest-schema.ts";
 import { type Saved, savePaged } from "./item-save.ts";
 import { isRedditShareLink, isShortLink, parseLink, takesPage } from "./links.ts";
 import type { Invalid, Refused, ThreadKept, TooLarge } from "./paste-outcome.ts";

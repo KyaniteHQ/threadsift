@@ -1,8 +1,8 @@
 import { type SQL, type SQLWrapper, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import type { Digest } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
+import type { Digest } from "./digest-schema.ts";
 import { guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
 import { enqueueRows, openingJob } from "./job-rows.ts";

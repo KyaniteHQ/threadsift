@@ -8,7 +8,7 @@ import {
   providerWrites,
   storedSettings,
 } from "./ai-settings.ts";
-import { requeuedDigests } from "./digest-job.ts";
+import { requeuedDigests } from "./digest-opening.ts";
 import { logFailure } from "./failure-log.ts";
 import { DATABASE_NOW, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";

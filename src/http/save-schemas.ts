@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { DigestSchema } from "../core/ai-contract.ts";
+import { DigestSchema } from "../core/digest-schema.ts";
 import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../core/supplied-page.ts";
 import { ThreadAnswersSchema } from "../core/thread-answers.ts";
 import { ErrorResponseSchema, HttpUrlSchema } from "./schemas.ts";

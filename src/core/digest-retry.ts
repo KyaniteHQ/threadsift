@@ -1,7 +1,7 @@
 import { and, eq, notExists, sql } from "drizzle-orm";
 
-import { openingDigest } from "./digest-job.ts";
-import { markDigest } from "./digest-source.ts";
+import { markDigest } from "./digest-marker.ts";
+import { openingDigest } from "./digest-opening.ts";
 import {
   LISTED_COLUMNS,
   type ListedItemRow,

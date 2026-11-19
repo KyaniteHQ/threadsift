@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useReducer } from "react";
 import { flushSync } from "react-dom";
 
-import type { Digest } from "../../src/core/ai-contract.ts";
+import type { Digest } from "../../src/core/digest-schema.ts";
 import {
   ConnectNoticeSchema,
   NOTICE_PARAMETER,

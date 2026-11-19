@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { DigestSchema } from "../src/core/ai-contract.ts";
 import { TaskReadSchema } from "../src/core/ai-task-read.ts";
+import { DigestSchema } from "../src/core/digest-schema.ts";
 import { WebhookBodySchema } from "../src/core/grok-bot-contract.ts";
 import { TopicIndexSchema } from "../src/core/topic-index-contract.ts";
 import { IntakeAnswerSchema, IntakeInputSchema } from "../src/core/x-intake-contract.ts";

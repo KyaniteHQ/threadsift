@@ -2,6 +2,7 @@ import { type SQL, type SQLWrapper, and, asc, eq, notExists, sql } from "drizzle
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Database } from "./database.ts";
+import { storedWithTopic } from "./digest-stored.ts";
 import { among } from "./guards.ts";
 import {
   catalogVersion,
@@ -80,7 +81,7 @@ export function topicMoves(
       .update(digests)
       .set({
         topic: survivorName,
-        digest: sql`case when json_valid(${digests.digest}) then json_set(${digests.digest}, '$.topic', ${survivorName}) else ${digests.digest} end`,
+        digest: storedWithTopic(survivorName),
       })
       .where(
         and(

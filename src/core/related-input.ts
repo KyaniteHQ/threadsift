@@ -1,13 +1,18 @@
-import { type SQL, type SQLWrapper, eq, inArray, sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { AI_INPUT_BYTES, parseStoredDigest } from "./ai-contract.ts";
+import { AI_INPUT_BYTES } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
-import { storedTags, unchangedDigests } from "./digest-state.ts";
+import type { Digest } from "./digest-schema.ts";
+import {
+  type StoredDigest,
+  readStoredDigest,
+  storedDigests,
+  unchangedDigests,
+} from "./digest-stored.ts";
 import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import { candidateIds, relatedTerms } from "./related-candidates.ts";
-import { digests } from "./schema.ts";
 
 export interface PickItem {
   readonly id: number;
@@ -48,18 +53,6 @@ export function versionsHold({ source, sent }: Readonly<Versions>): SQL {
   return sql`(select count(*) from (${unchangedDigests(reads)})) = ${reads.length}`;
 }
 
-function digestRows(db: Database, where: Readonly<SQLWrapper>) {
-  return db
-    .select({
-      id: digests.itemId,
-      digest: digests.taskId,
-      stored: digests.digest,
-      storedTags,
-    })
-    .from(digests)
-    .where(sql`${where}`);
-}
-
 export type PickRead =
   | { readonly kind: "absent" }
   | {
@@ -77,60 +70,53 @@ type PickPrompt =
   | { readonly kind: "refused"; readonly reason: "source-over-cap" | "none-fit" }
   | { readonly kind: "ask"; readonly input: string; readonly sent: readonly PickItem[] };
 
-interface DigestRow {
-  readonly id: number;
-  readonly digest: number;
-  readonly stored: string;
-  readonly storedTags: string | null;
-}
-
-function pickItem(row: Readonly<DigestRow>): PickItem {
-  const { title, topic, summary, tags } = parseStoredDigest(row.stored);
+function pickItem(row: Readonly<StoredDigest>, digest: Readonly<Digest>): PickItem {
+  const { title, topic, summary, tags } = digest;
 
   return {
-    id: row.id,
-    digest: row.digest,
+    id: row.itemId,
+    digest: row.taskId,
     title,
     topic,
     summary,
     tags,
-    storedTags: row.storedTags,
+    storedTags: row.tags,
   };
 }
 
-function readableCandidate(row: Readonly<DigestRow>) {
-  try {
-    return [pickItem(row)];
-  } catch (error) {
-    logFailure("related-candidate-unreadable", { itemId: row.id }, error);
+function readableCandidate(row: Readonly<StoredDigest>) {
+  const read = readStoredDigest(row.digest);
 
-    return [];
-  }
+  if (read.kind === "readable") return [pickItem(row, read.digest)];
+
+  logFailure("related-candidate-unreadable", { itemId: row.itemId }, read.cause);
+
+  return [];
 }
 
 export async function readPick(db: Database, itemId: number): Promise<PickRead> {
-  const [row] = await digestRows(db, eq(digests.itemId, itemId));
+  const [row] = await storedDigests(db, [itemId]);
 
   if (row === undefined) return { kind: "absent" };
 
-  let source: PickItem;
+  const read = readStoredDigest(row.digest);
 
-  try {
-    source = pickItem(row);
-  } catch (error) {
-    logFailure("related-digest-unreadable", { itemId }, error);
+  if (read.kind === "unreadable") {
+    logFailure("related-digest-unreadable", { itemId }, read.cause);
 
     return {
       kind: "unreadable",
-      source: { id: itemId, digest: row.digest, storedTags: row.storedTags },
+      source: { id: itemId, digest: row.taskId, storedTags: row.tags },
     };
   }
 
+  const source = pickItem(row, read.digest);
+
   const ids = await candidateIds(db, itemId, relatedTerms(source));
 
-  const rows = ids.length === 0 ? [] : await digestRows(db, inArray(digests.itemId, ids));
+  const rows = ids.length === 0 ? [] : await storedDigests(db, ids);
 
-  const byId = new Map(rows.map((each) => [each.id, each]));
+  const byId = new Map(rows.map((each) => [each.itemId, each]));
 
   return {
     kind: "read",

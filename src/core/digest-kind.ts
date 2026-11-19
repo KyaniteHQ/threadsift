@@ -1,16 +1,12 @@
 import { z } from "zod";
 
 import { defineBasedAiKind } from "./ai-kind.ts";
+import { digestInput, generationCurrent } from "./digest-input.ts";
+import { keptNotUpdated, markDigest } from "./digest-marker.ts";
 import { preparedDigest } from "./digest-prepare.ts";
 import { digestStored } from "./digest-publish.ts";
-import {
-  digestInput,
-  generationCurrent,
-  keptNotUpdated,
-  logSubmission,
-  markDigest,
-} from "./digest-source.ts";
 import { DIGEST_TASK } from "./digest-task.ts";
+import { report } from "./failure-log.ts";
 import { settled } from "./job-outcome.ts";
 
 const ContextSchema = z
@@ -47,7 +43,12 @@ export const digestKind = defineBasedAiKind({
       maxOutputTokens: prompt.maxOutputTokens,
       basis: { version: catalog.version, staleRequeues: job.staleRequeues },
       started: (taskId) => {
-        logSubmission(taskId, item, prompt.counts);
+        report("digest-comments-submitted", {
+          taskId,
+          itemId: item.id,
+          generation: item.generation,
+          ...prompt.counts,
+        });
       },
     };
   },

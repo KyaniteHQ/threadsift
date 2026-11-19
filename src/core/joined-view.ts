@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { COMMENT_COUNT_COLUMNS } from "./comment-counts.ts";
-import { hasDigestSource } from "./digest-source.ts";
+import { hasDigestSource } from "./digest-input.ts";
 import { STATUS_VIEW_COLUMNS } from "./item-status.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { DigestOutcome, WaitReason } from "./kinds.ts";

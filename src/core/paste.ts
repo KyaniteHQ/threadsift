@@ -1,7 +1,7 @@
 import { admitted } from "./admission.ts";
 import type { Budgeted } from "./agent-token-budget.ts";
-import type { Digest } from "./ai-contract.ts";
 import type { Caller } from "./caller.ts";
+import type { Digest } from "./digest-schema.ts";
 import type { Closed } from "./library-gate.ts";
 import { type PageSaveResult, savePage } from "./page-save.ts";
 import type { Ports } from "./ports.ts";

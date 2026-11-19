@@ -6,7 +6,7 @@ import type { AiSettingsInput, AiSettingsView, AiSaveResponse } from "./ai-setti
 import { CURRENT_REVISION } from "./ai-settings-revision.ts";
 import { type BotFirst, leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
 import type { Database } from "./database.ts";
-import { requeuedDigests } from "./digest-job.ts";
+import { requeuedDigests } from "./digest-opening.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { SettingsPorts } from "./ports.ts";

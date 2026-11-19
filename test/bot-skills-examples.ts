@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
-import { DigestSchema } from "../src/core/ai-contract.ts";
 import { storedCommentId } from "../src/core/comment-id.ts";
+import { DigestSchema } from "../src/core/digest-schema.ts";
 import { IntakeAnswerSchema } from "../src/core/x-intake-contract.ts";
 import { parseXThread, parseXThreadValue, readXBotThreadValue } from "../src/core/x-thread.ts";
 import { XBotThreadSchema } from "../src/core/x-wire.ts";
