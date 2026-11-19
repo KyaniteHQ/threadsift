@@ -1,9 +1,8 @@
-import { utf8Length } from "./encoding.ts";
 import { X_QUOTES_MAX } from "./limits.ts";
 import { type JoinedAuthorThread, joinedAuthorThread } from "./x-author-thread.ts";
 import { LINE_BREAK, closedBlocks } from "./x-blocks.ts";
 import { isImageLine, withImages } from "./x-images.ts";
-import { PART_SEPARATOR, roomAfter } from "./x-inline-room.ts";
+import { PART_SEPARATOR, partBytes, roomAfter } from "./x-inline-room.ts";
 import {
   type Judged,
   judgementOn,
@@ -104,7 +103,7 @@ function fittingQuotes(
   for (let count = leading.length; count > 0; count -= 1) {
     const chain = leading.slice(0, count);
 
-    if (utf8Length(`${PART_SEPARATOR}${blockOf(chain, false)}`) <= room) return chain;
+    if (partBytes(blockOf(chain, false)) <= room) return chain;
   }
 
   return [];
@@ -152,8 +151,10 @@ export function joinedPost(
   const block = blockOf(quotes, notSaved);
 
   const author = joinedAuthorThread(
-    { ...thread, post: { ...post, quoted: [] } },
-    block === "" ? root : `${root}${PART_SEPARATOR}${block}`,
+    {
+      ...thread,
+      post: { ...post, text: block === "" ? root : `${root}${PART_SEPARATOR}${block}`, quoted: [] },
+    },
     keptReplies,
     new Set([...keptReplies].filter((id) => !recipientsOmittedOn(judged, id))),
   );

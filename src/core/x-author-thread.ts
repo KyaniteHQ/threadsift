@@ -1,7 +1,6 @@
-import { utf8Length } from "./encoding.ts";
 import { closedBlocks } from "./x-blocks.ts";
 import { withImages } from "./x-images.ts";
-import { PART_SEPARATOR, roomAfter } from "./x-inline-room.ts";
+import { PART_SEPARATOR, partBytes, roomAfter } from "./x-inline-room.ts";
 import type { XReply, XThreadValue } from "./x-wire.ts";
 
 const NOT_SAVED_NOTE = "Author follow-up posts that X did not confirm were not saved.";
@@ -115,7 +114,7 @@ function fittingText(lead: string, followUps: readonly Readonly<XReply>[]): XRep
   let used = 0;
 
   for (const followUp of followUps) {
-    used += utf8Length(`${PART_SEPARATOR}${partText(followUp)}`);
+    used += partBytes(partText(followUp));
 
     if (used > room) break;
 
@@ -133,14 +132,13 @@ export function authorPartsOf(thread: Readonly<XThreadValue>): readonly Readonly
 
 export function joinedAuthorThread(
   thread: Readonly<XThreadValue>,
-  lead: string,
   kept: Ids,
   strict: Ids,
 ): JoinedAuthorThread {
   const { post, replies } = thread;
   const byId = new Map(replies.map((reply) => [reply.id, reply]));
   const shown = authorThreadOf(thread, byId, strict);
-  const fitting = fittingText(lead, shown);
+  const fitting = fittingText(post.text, shown);
 
   const refused = authorThreadOf(thread, byId, new Set(byId.keys())).filter(
     ({ id }) => !kept.has(id),
@@ -153,7 +151,7 @@ export function joinedAuthorThread(
   const reported = post.replies === null ? null : Math.max(0, post.replies - parts.size);
 
   const text = [
-    lead,
+    post.text,
     ...fitting.flatMap((followUp) => {
       const part = partText(followUp);
 

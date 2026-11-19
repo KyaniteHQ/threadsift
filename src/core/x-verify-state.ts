@@ -63,11 +63,14 @@ export function sliceOf(
   let planned = 0;
 
   for (const post of pending) {
-    planned += costOf(post);
+    if (planned >= SLICE_REQUESTS) break;
 
-    if (planned > SLICE_REQUESTS && chosen.length > 0) break;
+    const total = planned + costOf(post);
+
+    if (total > SLICE_REQUESTS && chosen.length > 0) break;
 
     chosen.push(post);
+    planned = total;
   }
 
   return chosen;

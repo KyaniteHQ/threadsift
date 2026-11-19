@@ -40,7 +40,7 @@ export type OembedAnswer =
   | { readonly kind: "unusable" }
   | { readonly kind: "unavailable" };
 
-export type PostRole =
+type PostRole =
   | { readonly kind: "root"; readonly next: string | null }
   | { readonly kind: "quote"; readonly next: string | null }
   | { readonly kind: "reply"; readonly recipientsMayBeOmitted: boolean };
