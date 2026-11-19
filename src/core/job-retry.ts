@@ -1,4 +1,4 @@
-export const RETRY_DELAYS_MS = [30_000, 120_000] as const;
+const RETRY_DELAYS_MS = [30_000, 120_000] as const;
 
 const EARLY_STALE_DELAYS_MS = [0, 0] as const;
 
@@ -15,7 +15,7 @@ export function isLastAttempt(attempts: number): boolean {
 }
 
 export function isSpent(attempts: number): boolean {
-  return attempts > RETRY_DELAYS_MS.length;
+  return attempts >= RETRY_DELAYS_MS.length + 1;
 }
 
 export function staleDelayMs(staleRequeues: number): number {

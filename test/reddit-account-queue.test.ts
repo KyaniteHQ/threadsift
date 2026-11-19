@@ -4,9 +4,10 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import { eq } from "drizzle-orm";
 
 import { fetchHandler } from "../src/core/fetch-job.ts";
-import { type Closing, ownedClaim } from "../src/core/job-outcome.ts";
+import type { Closing } from "../src/core/job-outcome.ts";
 import { takeTurn } from "../src/core/reddit-account-queue.ts";
 import { type JobRow, jobs as jobsTable } from "../src/core/schema.ts";
+import { claimedOf } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
   LATER,
@@ -27,8 +28,7 @@ const OTHER_LINK = "https://github.com/KyaniteHQ/threadsift";
 
 const WAIT_FOR_REDDIT: Closing = { kind: "deferred", wait: "reddit-limit" };
 
-const fetching = (row: Readonly<JobRow>, address: string) =>
-  ownedClaim({ ...row, address, attemptKey: "", imagePrefix: "" });
+const fetching = (row: Readonly<JobRow>, address: string) => claimedOf({ ...row, address });
 
 describe("one fill takes the Reddit account at a time, oldest first", () => {
   let instance: Instance;

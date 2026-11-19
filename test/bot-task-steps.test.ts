@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { applyOutcome } from "../src/core/job-finish.ts";
 import { executeClaimed } from "../src/core/jobs.ts";
 import {
   type BotLibrary,
@@ -16,7 +15,7 @@ import {
   selectGrokBot,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { reclaimed, startedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
+import { applied, reclaimed, startedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { exec, pairsOf, paste } from "./related-fixtures.ts";
@@ -99,7 +98,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
     const task = await taskAfterStart(instance, library.source);
 
     exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
-    await applyOutcome(instance.core, task.job, await step(instance, task.job));
+    await applied(instance, task.job, await step(instance, task.job));
 
     const job = jobRow(instance, task.job.id);
 
@@ -163,7 +162,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
       204,
     );
 
-    await applyOutcome(instance.core, third, await step(instance, third));
+    await applied(instance, third, await step(instance, third));
 
     assert.deepEqual(
       pairsOf(instance, library.source).map(({ related_id: id }) => id),
@@ -227,7 +226,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
     const { task, job } = await answeredTask([candidate]);
 
     await change();
-    await applyOutcome(instance.core, job, await step(instance, job));
+    await applied(instance, job, await step(instance, job));
 
     const row = jobRow(instance, job.id);
 

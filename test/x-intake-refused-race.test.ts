@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
 import { latestTask } from "../src/core/bot-task-states.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
+import { HANDLERS } from "../src/core/job-handlers.ts";
 import { refusedAnswer } from "../src/core/x-intake-writes.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { jobRow, taskRow } from "./bot-task-rows.ts";
@@ -28,13 +29,18 @@ describe("a refusal that lands while the job's send is still being recorded or a
     taskId: number,
     job: Awaited<ReturnType<typeof sentIntake>>["job"],
   ) {
-    return applyOutcome(instance.core, job, {
-      deferredUntil,
-      wait: "grok-bot",
-      countsAttempt: false,
-      unlessOpen: taskId,
-      writes: [],
-    });
+    return applyOutcome(
+      instance.core,
+      job,
+      {
+        deferredUntil,
+        wait: "grok-bot",
+        countsAttempt: false,
+        unlessOpen: taskId,
+        writes: [],
+      },
+      HANDLERS[job.kind],
+    );
   }
 
   it("wakes the job at once when both refusals land before the deferral is written", async () => {

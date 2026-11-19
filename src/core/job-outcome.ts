@@ -46,14 +46,18 @@ export type ClaimedExport = ClaimedUnowned<"export">;
 
 export type ClaimedRestore = ClaimedUnowned<"restore">;
 
-export type ClaimedRow = ClaimedJob | ClaimedExport | ClaimedRestore;
+type ClaimedUnownedOf<Kind extends UnownedJobKind> = Kind extends UnownedJobKind
+  ? ClaimedUnowned<Kind>
+  : never;
 
-export interface ClaimedColumns extends JobRow {
+export type ClaimedRow = ClaimedJob | ClaimedUnownedOf<UnownedJobKind>;
+
+interface ClaimedColumns extends JobRow {
   readonly attemptKey: string | null;
   readonly imagePrefix: string | null;
 }
 
-export function ownedClaim(row: Readonly<ClaimedColumns>): ClaimedJob {
+function ownedClaim(row: Readonly<ClaimedColumns>): ClaimedJob {
   const { attemptKey, imagePrefix, ...columns } = row;
 
   if (
@@ -130,8 +134,6 @@ export interface JobClosing {
     | ((ports: JobPorts, job: Readonly<ClaimedRow>, closed: boolean) => Promise<void>)
     | undefined;
 }
-
-export const NO_CLOSING: JobClosing = {};
 
 export const CLAIM_MARGIN_MS = 120_000;
 

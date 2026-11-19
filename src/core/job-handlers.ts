@@ -4,28 +4,26 @@ import { digestHandler } from "./digest-attempt.ts";
 import { disagreementProposalsHandler } from "./disagreement-job.ts";
 import { exportHandler } from "./export-job.ts";
 import { FETCH_HANDLERS } from "./fetch-job.ts";
-import type { Specs } from "./job-spec.ts";
+import type { ModelDeclaration, Specs } from "./job-spec.ts";
 import { proposalsHandler, topicProposalsHandler } from "./proposal-job.ts";
 import { relatedPickHandler } from "./related-job.ts";
 import { restoreHandler } from "./restore-job.ts";
 import { topicOverviewHandler } from "./topic-overview-job.ts";
 
+type RoutedKind = Exclude<keyof typeof BOT_TASK_KINDS, "digest">;
+
+function routed<Kind extends RoutedKind>(kind: Kind, model: Readonly<ModelDeclaration>) {
+  return routedJob(kind, model, BOT_TASK_KINDS[kind]);
+}
+
 export const HANDLERS = {
   ...FETCH_HANDLERS,
   digest: digestHandler,
-  topic_overview: routedJob("topic_overview", topicOverviewHandler, BOT_TASK_KINDS.topic_overview),
-  related_pick: routedJob("related_pick", relatedPickHandler, BOT_TASK_KINDS.related_pick),
-  proposals: routedJob("proposals", proposalsHandler, BOT_TASK_KINDS.proposals),
-  topic_proposals: routedJob(
-    "topic_proposals",
-    topicProposalsHandler,
-    BOT_TASK_KINDS.topic_proposals,
-  ),
-  disagreement_proposals: routedJob(
-    "disagreement_proposals",
-    disagreementProposalsHandler,
-    BOT_TASK_KINDS.disagreement_proposals,
-  ),
+  topic_overview: routed("topic_overview", topicOverviewHandler),
+  related_pick: routed("related_pick", relatedPickHandler),
+  proposals: routed("proposals", proposalsHandler),
+  topic_proposals: routed("topic_proposals", topicProposalsHandler),
+  disagreement_proposals: routed("disagreement_proposals", disagreementProposalsHandler),
   export: exportHandler,
   restore: restoreHandler,
 } satisfies Specs;

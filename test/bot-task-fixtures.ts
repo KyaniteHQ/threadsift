@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { asc, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 
-import { type ClaimedJob, ownedClaim } from "../src/core/job-outcome.ts";
+import { type ClaimedJob, claimedRow } from "../src/core/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/schema.ts";
 import { KEY, PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
@@ -61,8 +61,12 @@ export function unblock(instance: Instance, itemId: number): void {
   exec(instance, "delete from jobs where kind = 'digest' and item_id = ?", itemId);
 }
 
-function claimedOf(job: Readonly<JobRow>): ClaimedJob {
-  return ownedClaim({ ...job, attemptKey: "", imagePrefix: "" });
+export function claimedOf(job: Readonly<JobRow>): ClaimedJob {
+  const claimed = claimedRow({ ...job, attemptKey: "", imagePrefix: "" });
+
+  if (claimed.itemId === null) throw new Error(`job ${String(job.id)} has no Item`);
+
+  return claimed;
 }
 
 export async function bulkJobs(

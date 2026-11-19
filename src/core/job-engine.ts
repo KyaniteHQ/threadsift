@@ -32,16 +32,16 @@ function inputValue(input: Readonly<InputFact>, column: SQLiteColumn): SQL {
 }
 
 function inputCase(specs: Specs, pick: (input: Readonly<InputFact>) => SQLiteColumn | undefined) {
-  return caseOnKind(
-    JOB_KINDS.flatMap((kind) => {
-      const { input } = specs[kind];
-      const column = input === undefined ? undefined : pick(input);
+  const whens = JOB_KINDS.flatMap((kind) => {
+    const { input } = specs[kind];
+    const column = input === undefined ? undefined : pick(input);
 
-      return input === undefined || column === undefined
-        ? []
-        : [sql`when ${kind} then ${inputValue(input, column)}`];
-    }),
-  );
+    return input === undefined || column === undefined
+      ? []
+      : [sql`when ${kind} then ${inputValue(input, column)}`];
+  });
+
+  return whens.length === 0 ? sql`null` : caseOnKind(whens);
 }
 
 interface Fragments {

@@ -4,7 +4,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
 import type { JobWrites, SettledOutcome } from "./job-outcome.ts";
-import { RETRY_DELAYS_MS, isLastAttempt } from "./job-retry.ts";
+import { isLastAttempt, retryDelayMs } from "./job-retry.ts";
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
 import { items, jobs, xVerifications } from "./schema.ts";
@@ -122,7 +122,7 @@ export function afterRefusedRoot(
       kind: "fetch",
       address,
       where: eq(items.id, itemId),
-      now: Date.now() + (RETRY_DELAYS_MS[cliAttempts] ?? 0),
+      now: Date.now() + (retryDelayMs(cliAttempts) ?? 0),
       attempts: cliAttempts + 1,
       waitReason: "x-reread",
     }),

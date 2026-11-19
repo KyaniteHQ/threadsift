@@ -13,7 +13,6 @@ import {
   type JobOutcome,
   type JobPorts,
   type JobWrites,
-  NO_CLOSING,
   NO_FILES,
   type Precondition,
   type SettledOutcome,
@@ -46,14 +45,14 @@ export async function finish(
     files = NO_FILES,
     precondition,
     continuation = [],
-    closing = NO_CLOSING,
+    closing,
   }: Readonly<{
     writes: readonly BatchItem<"sqlite">[];
     attempts: number;
     files?: JobFiles | undefined;
     precondition?: Readonly<Precondition> | undefined;
     continuation?: readonly BatchItem<"sqlite">[] | undefined;
-    closing?: JobClosing | undefined;
+    closing: JobClosing;
   }>,
 ): Promise<"done" | "lost" | Readonly<Precondition>> {
   const { db } = ports;
@@ -100,16 +99,16 @@ async function afterClose(
 export async function exhaust(
   ports: JobPorts,
   job: Readonly<ClaimedRow>,
-  handler: Readonly<Pick<JobSpec, "exhausted" | "inputCurrent" | "closing" | "afterClosed">>,
+  spec: Readonly<Pick<JobSpec, "exhausted" | "inputCurrent" | "closing" | "afterClosed">>,
   attempts: number,
 ): Promise<void> {
   const { db } = ports;
-  const sameInput = handler.inputCurrent?.(job);
+  const sameInput = spec.inputCurrent?.(job);
 
   const wrote = await guardedBatch(db, and(holding(job), sameInput) ?? holding(job), [
-    ...(handler.exhausted?.(db, job) ?? []),
+    ...(spec.exhausted?.(db, job) ?? []),
     ...closeJob(db, job, attempts),
-    ...(handler.closing?.(db, job, { kind: "closed" }) ?? []),
+    ...(spec.closing?.(db, job, { kind: "closed" }) ?? []),
   ]);
 
   if (!wrote && sameInput !== undefined && (await guardHolds(db, holding(job)))) {
@@ -118,13 +117,13 @@ export async function exhaust(
       attempts: job.attempts,
       staleRequeues: 0,
       wait: null,
-      closing: handler,
+      closing: spec,
     });
 
     return;
   }
 
-  await afterClose(ports, job, wrote, NO_FILES, handler);
+  await afterClose(ports, job, wrote, NO_FILES, spec);
 }
 
 function dueAt(until: number, closedTask: number | undefined): number | SQL {
@@ -145,7 +144,7 @@ export async function queueLater(
     wait,
     unlessOpen,
     writes = [],
-    closing = NO_CLOSING,
+    closing,
   }: Readonly<{
     until: number;
     attempts: number;
@@ -153,7 +152,7 @@ export async function queueLater(
     wait: WaitReason | null;
     unlessOpen?: number | undefined;
     writes?: JobWrites | undefined;
-    closing?: JobClosing | undefined;
+    closing: JobClosing;
   }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
@@ -271,7 +270,7 @@ export async function applyOutcome(
   ports: JobPorts,
   job: Readonly<ClaimedRow>,
   outcome: JobOutcome,
-  closing: JobClosing = NO_CLOSING,
+  closing: JobClosing,
 ): Promise<void> {
   if ("deferredUntil" in outcome) {
     await queueLater(ports, job, {

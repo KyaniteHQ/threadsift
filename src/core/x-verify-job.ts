@@ -1,6 +1,6 @@
 import { report } from "./failure-log.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
-import { RETRY_DELAYS_MS, isLastAttempt } from "./job-retry.ts";
+import { isLastAttempt, retryDelayMs } from "./job-retry.ts";
 import { defineJob } from "./job-spec.ts";
 import { xVerifications } from "./schema.ts";
 import { ended, withdrawn } from "./x-verify-publish.ts";
@@ -39,7 +39,7 @@ async function slice(
   }
 
   return {
-    deferredUntil: Date.now() + (asked.unavailable ? (RETRY_DELAYS_MS[job.attempts] ?? 0) : 0),
+    deferredUntil: Date.now() + (asked.unavailable ? (retryDelayMs(job.attempts) ?? 0) : 0),
     wait: asked.unavailable ? "x-verify" : null,
     countsAttempt: asked.unavailable,
     writes: [savedProgress(ports.db, job.itemId, row.revision, judged, asked.thread)],
