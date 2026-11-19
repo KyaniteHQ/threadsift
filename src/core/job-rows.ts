@@ -2,11 +2,11 @@ import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
+import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
 import { ITEM_FILES_ROOT } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ITEM_JOB_KINDS, type JobKind, type UnownedJobKind, type WaitReason } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { type JobRow, exportRuns, items, jobs, restoreRuns } from "./schema.ts";
 
 interface AttemptColumns {

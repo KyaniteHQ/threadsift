@@ -1,16 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
-import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
-import { catalogCurrent, pinnedCatalog, publishedLinks } from "./catalog.ts";
-import {
-  type DigestInput,
-  currency,
-  digestInput,
-  generationCurrent,
-  markDigest,
-  openingPick,
-} from "./digest-source.ts";
+import { aiTaskRunning } from "./ai-tasks.ts";
+import { catalogCurrent, pinnedCatalog } from "./catalog.ts";
+import { type DigestInput, currency, digestInput, generationCurrent } from "./digest-source.ts";
+import { digestWrites } from "./digest-writes.ts";
+import { insertGuard } from "./guards.ts";
 import {
   type AnchorSnapshot,
   anchorReads,
@@ -24,12 +19,9 @@ import {
   eligibleAmong,
   highlightedComments,
   selectedBodies,
-  selectionWrites,
   submittedAmong,
 } from "./reddit-thread.ts";
-import { digests, insertGuard, items } from "./schema.ts";
-import { commentPartWrites, digestPartWrites } from "./search.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { items } from "./schema.ts";
 
 type CatalogRule =
   | { readonly kind: "checked"; readonly version: number; readonly staleRequeues: number }
@@ -126,19 +118,7 @@ export async function publishing(
       currency: currency(db, current, taskId),
       writes: [
         insertGuard(db, current),
-        ...publishedLinks(db, item.id, entries, digest.title),
-        db
-          .insert(digests)
-          .values(stored)
-          .onConflictDoUpdate({ target: digests.itemId, set: stored }),
-        openingPick(db, item.id),
-        ...selectionWrites(db, snapshot, kept),
-        ...digestPartWrites(db, eq(items.id, item.id)),
-        ...commentPartWrites(db, eq(items.id, item.id), bodies),
-        completedAiTask(db, { taskId, result: published }),
-        db.update(items).set({ pendingDigest: null }).where(eq(items.id, item.id)),
-        markDigest(db, item.id, "cleared"),
-        queueVaultItems(db, eq(items.id, item.id)),
+        ...digestWrites(db, { stored, entries, published, taskId, bodies }),
       ],
     },
     keptCommentsPublication(db, snapshot),

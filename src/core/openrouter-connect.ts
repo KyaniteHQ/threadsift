@@ -1,5 +1,6 @@
 import { and, eq, gt, lte, notExists, or, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { base64url, digestOf, randomSecret } from "./encoding.ts";
 import { DATABASE_NOW, guardedBatch } from "./guards.ts";
 import {
@@ -8,7 +9,7 @@ import {
   type ConnectStartInput,
 } from "./openrouter-contract.ts";
 import { CURRENT_REVISION } from "./openrouter-tables.ts";
-import type { Database, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { openrouterConnectTransactions, sessions } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
 

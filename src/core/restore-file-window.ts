@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { isSweptKey } from "./file-keys.ts";
 import { IMAGE_MAX_BYTES, ITEM_REQUEST_BYTES } from "./limits.ts";
 import { NAMED_FILES } from "./named-files.ts";
-import type { Database } from "./ports.ts";
 import { RESTORE_FILE_BYTES, RESTORE_FILE_ENTRIES } from "./restore-contract.ts";
 import { LOCAL_HEADER_ROOM, type ZipDirectory, type ZipEntry } from "./zip-read.ts";
 

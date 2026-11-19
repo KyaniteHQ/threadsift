@@ -3,8 +3,8 @@ import { parseHTML } from "linkedom";
 import { z } from "zod";
 
 import { baseOf, replaceMedia, retainedVideos } from "./article-media.ts";
-import { MIN_ARTICLE_WORDS } from "./details.ts";
 import { collapsed } from "./format.ts";
+import { MIN_ARTICLE_WORDS } from "./limits.ts";
 import { MarkdownImageSchema, NOTHING_SCANNED, scanMarkdown } from "./markdown-images.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
 import { projectText } from "./text-projection.ts";

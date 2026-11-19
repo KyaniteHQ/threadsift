@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { Database } from "./database.ts";
 import type { Fetched, Repository } from "./details.ts";
-import type { Database } from "./ports.ts";
 import { githubRepos, items } from "./schema.ts";
 import { repositoryPartWrites } from "./search.ts";
 

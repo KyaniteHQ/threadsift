@@ -1,7 +1,7 @@
 import { asc, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import type { SearchPartKind } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { digests, searchParts } from "./schema.ts";
 import { searchTerms } from "./search-terms.ts";
 

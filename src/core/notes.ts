@@ -1,8 +1,8 @@
 import { type SQL, eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
 import { type NoteView, type SaveNoteRequest, storedNoteBody } from "./note-contract.ts";
-import type { Database } from "./ports.ts";
 import { items, notes } from "./schema.ts";
 import { notePartWrites } from "./search.ts";
 import { queueVaultItems } from "./vault-queue.ts";

@@ -2,9 +2,10 @@ import { eq } from "drizzle-orm";
 
 import type { ModelAi } from "./ai-contract.ts";
 import { type Keyless, type Stored, StoredSettingsSchema } from "./ai-next-settings.ts";
+import type { Database } from "./database.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import { connectionOf, openedGrokBot } from "./grok-bot.ts";
-import type { AiPorts, Database } from "./ports.ts";
+import type { AiPorts } from "./ports.ts";
 import { UninitializedDatabase, aiSettingsRevision, settings } from "./schema.ts";
 
 export interface Snapshot {

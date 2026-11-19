@@ -1,6 +1,6 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { items } from "./schema.ts";
+import { items } from "./item-tables.ts";
 import type { Judged } from "./x-verify-state.ts";
 
 export const xVerifications = sqliteTable("x_verifications", {

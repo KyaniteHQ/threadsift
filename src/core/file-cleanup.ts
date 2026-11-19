@@ -1,11 +1,12 @@
 import { and, eq, exists, or, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
 import { FILE_LIST_LIMIT, ITEM_FILES_ROOT, finalKeyOf, isSweptKey } from "./file-keys.ts";
+import type { FileStore } from "./file-store.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ATTEMPT_FILES } from "./job-rows.ts";
 import { NAMED_FILES } from "./named-files.ts";
-import type { Database, FileStore } from "./ports.ts";
 import { restoreHoldsLibrary } from "./restore-state.ts";
 import { fileCleaning, jobs } from "./schema.ts";
 

@@ -1,9 +1,9 @@
 import { type SQL, sql } from "drizzle-orm";
 
 import { readCatalogVersion } from "./catalog.ts";
+import type { Database } from "./database.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import { type MergeKind, WEEKLY_TASK } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
 import { type InsertedState, proposalRow } from "./proposal-lifecycle.ts";

@@ -2,9 +2,9 @@ import { type SQL, type SQLWrapper, and, asc, eq, isNotNull, sql } from "drizzle
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { StoredCommentId } from "./comment-id.ts";
+import type { Database } from "./database.ts";
 import type { CommentCandidate } from "./digest-prompt.ts";
 import { among, guardHolds } from "./guards.ts";
-import type { Database } from "./ports.ts";
 import { digests, highlights, items, redditComments, redditThreads } from "./schema.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import { jsonArrays, rowJson } from "./thread-rows.ts";

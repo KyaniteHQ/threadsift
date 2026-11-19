@@ -1,6 +1,6 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { topics } from "./schema.ts";
+import { topics } from "./catalog-tables.ts";
 import { type BuiltFrom, OVERVIEW_FAILURES } from "./topic-overview-contract.ts";
 
 export const topicPages = sqliteTable("topic_pages", {

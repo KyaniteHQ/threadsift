@@ -1,8 +1,8 @@
 import { eq } from "drizzle-orm";
 import { z } from "zod";
 
+import type { Database } from "./database.ts";
 import { parsedJson } from "./parsed-json.ts";
-import type { Database } from "./ports.ts";
 import { xVerifications } from "./schema.ts";
 import type { Judged, StoredJudgement } from "./x-verify-state.ts";
 import { type XThreadValue, StoredXThreadSchema } from "./x-wire.ts";

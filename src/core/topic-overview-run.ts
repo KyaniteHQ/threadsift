@@ -1,9 +1,9 @@
 import { type SQL, type SQLWrapper, and, eq, isNotNull, sql } from "drizzle-orm";
 import type { SubqueryWithSelection } from "drizzle-orm/sqlite-core";
 
+import type { Database } from "./database.ts";
 import type { ClaimedJob } from "./job-outcome.ts";
 import { opening } from "./job-rows.ts";
-import type { Database } from "./ports.ts";
 import { providerSet } from "./provider-saved.ts";
 import { aiTasks, items, jobs, topicPages, topics } from "./schema.ts";
 import { coverageGaps } from "./topic-coverage.ts";

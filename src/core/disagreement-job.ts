@@ -1,5 +1,6 @@
 import { type SQL, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { membersOf, readDisagreementInput } from "./disagreement-input.ts";
 import { pairPinned } from "./disagreement-pins.ts";
 import { clearedStaleDisagreements } from "./disagreement-rows.ts";
@@ -12,7 +13,6 @@ import {
   disagreementTask,
 } from "./disagreement-task.ts";
 import type { JobWrites } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { proposalRow } from "./proposal-lifecycle.ts";
 import { proposals, topicChecks } from "./schema.ts";
 import { type WeeklyModelRun, storedField, weeklyModelHandler } from "./weekly-model-run.ts";

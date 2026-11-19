@@ -1,10 +1,10 @@
 import { and, eq } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { restorePartKey } from "./file-keys.ts";
 import { refusedBy } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
-import type { Database } from "./ports.ts";
 import { partLength, partsOf } from "./restore-contract.ts";
 import { libraryIsEmpty, restoreById, resumable } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";

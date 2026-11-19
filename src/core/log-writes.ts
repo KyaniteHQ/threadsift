@@ -1,8 +1,8 @@
 import { type SQL, type SQLWrapper, eq, sql } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
+import type { Database } from "./database.ts";
 import type { LogAction } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { digests, logEntries, proposals, topics } from "./schema.ts";
 import { logMonthAt } from "./vault-log-month.ts";
 import { queueVaultNotes } from "./vault-queue.ts";

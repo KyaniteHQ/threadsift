@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { FILE_LIST_LIMIT, ITEM_FILES_ROOT } from "./file-keys.ts";
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { CountsSchema, RESTORE_UNIT_LINES, UndoCursorSchema } from "./restore-contract.ts";
 import { RESTORE_ORDER, type TableSpec, tableSpec } from "./restore-registry.ts";
 import { endedUnit, steppedUnit } from "./restore-unit.ts";

@@ -1,8 +1,10 @@
 import { type SQL, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { Database } from "./database.ts";
 import { bestEffort, databaseCodeOf, logFailure, readOrAssume, report } from "./failure-log.ts";
 import { deleteQuietly, unnamed } from "./file-cleanup.ts";
+import { guardHolds, guardedBatch } from "./guards.ts";
 import { closeJob, discardTask } from "./job-close.ts";
 import {
   MAX_STALE_REQUEUES,
@@ -21,8 +23,7 @@ import {
 } from "./job-outcome.ts";
 import { enqueueItemJobs, enqueueQuietly, holding } from "./job-rows.ts";
 import type { WaitReason } from "./kinds.ts";
-import type { Database } from "./ports.ts";
-import { type JobRow, aiTasks, guardHolds, guardedBatch, jobs } from "./schema.ts";
+import { type JobRow, aiTasks, jobs } from "./schema.ts";
 
 function writeWhileHolding(
   db: Database,

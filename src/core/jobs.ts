@@ -12,6 +12,7 @@ import {
   sql,
 } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 import { HANDLERS } from "./job-handlers.ts";
@@ -26,7 +27,6 @@ import {
 } from "./job-outcome.ts";
 import { ATTEMPT_FILES, enqueueRows, hasOpenJob } from "./job-rows.ts";
 import { JOB_KINDS } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { items, jobs, xVerifications } from "./schema.ts";
 
 const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;

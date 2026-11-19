@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { limitedUntil, rateLimitOf } from "./github-rate-limit.ts";
-import type { Network, NetworkResponse } from "./ports.ts";
+import type { Network, NetworkResponse } from "./network.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
 import type { GithubVaultInput, VaultRefusal } from "./vault-contract.ts";
 

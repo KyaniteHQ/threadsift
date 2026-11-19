@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 
 import { BACKUP_TABLES } from "./backup-tables.ts";
+import type { Database } from "./database.ts";
 import { EXPORT_FORMAT, type ExportTally, exportRootName } from "./export-contract.ts";
-import type { Database } from "./ports.ts";
 import type { ZipDirectory } from "./zip-read.ts";
 import type { ZipFile } from "./zip.ts";
 

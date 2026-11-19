@@ -4,8 +4,8 @@ import { DatabaseSync } from "node:sqlite";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
+import type { Database } from "../src/core/database.ts";
 import { HighlightResponseSchema } from "../src/core/highlight-contract.ts";
-import type { Database } from "../src/core/ports.ts";
 import {
   type MergeProposal,
   type Proposal,

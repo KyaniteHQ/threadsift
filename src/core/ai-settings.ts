@@ -5,10 +5,11 @@ import { type LoadedAi, type Snapshot, loadAiConfig } from "./ai-load.ts";
 import { type ModelSettingsInput, nextSettings } from "./ai-next-settings.ts";
 import type { AiSettingsInput, AiSettingsView, AiSaveResponse } from "./ai-settings-contract.ts";
 import { leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
+import type { Database } from "./database.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import { CURRENT_REVISION } from "./openrouter-tables.ts";
-import type { Database, SettingsPorts } from "./ports.ts";
+import type { SettingsPorts } from "./ports.ts";
 import { settings } from "./schema.ts";
 
 async function aiView(loaded: LoadedAi, ports: SettingsPorts): Promise<AiSettingsView> {

@@ -1,4 +1,4 @@
-import type { Crypto } from "./ports.ts";
+import type { Crypto } from "./crypto.ts";
 
 const encoder = new TextEncoder();
 

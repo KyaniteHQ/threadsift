@@ -1,7 +1,7 @@
 import { type SQLWrapper, eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { statusIdOf } from "./links.ts";
-import type { Database } from "./ports.ts";
 import type { Owner } from "./reddit-thread.ts";
 import { items, redditComments, redditThreads } from "./schema.ts";
 import type { StoredThread } from "./stored-thread.ts";

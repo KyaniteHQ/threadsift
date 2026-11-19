@@ -7,7 +7,7 @@ import {
   type XFetch,
   type XFetchFailure,
   type XRefusalCategory,
-} from "../../core/x-fetcher.ts";
+} from "../../core/x-fetcher-port.ts";
 import type { XCliThreadValue } from "../../core/x-wire.ts";
 import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
 import { XFetchAnswerSchema } from "./grok-surface.ts";

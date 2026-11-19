@@ -1,8 +1,9 @@
 import { desc, eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { FILE_LIST_LIMIT, restoreFilesPrefix } from "./file-keys.ts";
+import type { FileStore } from "./file-store.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import type { Database, FileStore } from "./ports.ts";
 import {
   CountsSchema,
   KEPT_HIGHLIGHTS,

@@ -2,8 +2,9 @@ import type { SQLWrapper } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { ModelAi } from "./ai-contract.ts";
+import type { Database } from "./database.ts";
 import type { JobKind, OwnedJobKind, WaitReason } from "./kinds.ts";
-import type { Database, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import type { JobRow } from "./schema.ts";
 
 export type JobPorts = Pick<

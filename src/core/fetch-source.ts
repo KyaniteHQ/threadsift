@@ -1,8 +1,9 @@
 import { type Concluded, type Fetched, detailsOfSuppliedPage } from "./details.ts";
 import { readOrTimeOut } from "./fetch-link.ts";
 import { redditRefOf, takesPage } from "./links.ts";
+import type { PageReader } from "./page-reader.ts";
 import { pluginPage } from "./plugin-fetch.ts";
-import type { PageReader, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { fetchedWithThread } from "./reddit-fetch.ts";
 import { holdsNoThread } from "./reddit-thread.ts";
 import { type SuppliedPage, SuppliedPageSchema } from "./supplied-page.ts";

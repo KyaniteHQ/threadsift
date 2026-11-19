@@ -7,7 +7,7 @@ import {
   type ThreadReport,
   commentsViewOf,
 } from "./comment-view.ts";
-import type { Database } from "./ports.ts";
+import type { Database } from "./database.ts";
 import { providerSet } from "./provider-saved.ts";
 import { commentReadable, readGeneration } from "./reddit-thread.ts";
 import { digests, redditComments, redditThreads } from "./schema.ts";

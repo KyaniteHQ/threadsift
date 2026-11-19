@@ -1,8 +1,8 @@
 import { type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { currentDisagreementPin } from "./disagreement-pins.ts";
 import { firstDigest, firstItem, secondDigest, secondItem } from "./disagreement-rows.ts";
-import type { Database } from "./ports.ts";
 import { items, pins } from "./schema.ts";
 
 const DISAGREEMENTS_SHOWN = 20;

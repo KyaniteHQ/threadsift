@@ -1,10 +1,10 @@
 import { and, asc, eq, isNotNull, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { highlightRows } from "./highlights.ts";
 import { DETAIL_COLUMNS, selectItems } from "./item-selection.ts";
 import { itemTitle } from "./item-title.ts";
 import { noteRows } from "./notes.ts";
-import type { Database } from "./ports.ts";
 import { sizedImageRows } from "./post-text.ts";
 import { REPOSITORY_COLUMNS } from "./repositories.ts";
 import { digests, githubRepos, itemTags, items, media, relatedItems, tags } from "./schema.ts";

@@ -1,6 +1,7 @@
 import { type SQL, type SQLWrapper, and, count, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { unionAll } from "drizzle-orm/sqlite-core";
 
+import type { Database } from "./database.ts";
 import {
   type Entry,
   type EntryKind,
@@ -12,7 +13,6 @@ import { type ItemFilters, facetCounts, facetQueries, itemConditions } from "./i
 import { itemTitle } from "./item-title.ts";
 import type { Source } from "./kinds.ts";
 import { pageTail } from "./page-tail.ts";
-import type { Database } from "./ports.ts";
 import { digests, highlights, items, notes, searchParts } from "./schema.ts";
 import { partMatching } from "./search.ts";
 

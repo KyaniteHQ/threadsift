@@ -3,9 +3,9 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { Digest } from "./ai-contract.ts";
 import { catalogKey } from "./catalog-key.ts";
+import type { Database } from "./database.ts";
 import { among } from "./guards.ts";
 import type { MergeKind } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { pins, tags, topics } from "./schema.ts";
 
 interface Resolution {

@@ -1,6 +1,6 @@
 import { logFailure } from "./failure-log.ts";
 import { type LoadedFetcher, type PluginPage, PluginPageSchema } from "./fetcher.ts";
-import { NetworkFailure } from "./ports.ts";
+import { NetworkFailure } from "./network.ts";
 import { PAGE_BYTES, pageBytes } from "./supplied-page.ts";
 
 type PluginFailure = {

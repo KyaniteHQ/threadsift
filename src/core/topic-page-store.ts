@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { loggedOverview } from "./log-writes.ts";
-import type { Database } from "./ports.ts";
 import { topicPages, topics } from "./schema.ts";
 import { overviewLine } from "./topic-overview-contract.ts";
 import type { OverviewBasis, OverviewSent } from "./topic-overview-input.ts";

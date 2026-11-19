@@ -13,7 +13,7 @@
 - [Catalog keys](#catalog-keys)
 - [Deleting an Item](#deleting-an-item)
 
-The Drizzle schema (`src/core/schema.ts` and the `src/core/*-tables.ts` files) lists every column. The table below holds what the schema does not say. A table described as one row has a `CHECK` on `id = 1`.
+The Drizzle schema (the `src/core/*-tables.ts` files, which `src/core/schema.ts` re-exports for `drizzle.config.ts` and its importers) lists every column. A table module imports only the table modules it references, never `src/core/schema.ts`, so the table modules form no import cycle. The table below holds what the schema does not say. A table described as one row has a `CHECK` on `id = 1`.
 
 | Table | Holds |
 |---|---|

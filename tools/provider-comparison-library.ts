@@ -1,9 +1,9 @@
 import { readCatalog } from "../src/core/catalog.ts";
+import type { Database } from "../src/core/database.ts";
 import { readLinkedPage } from "../src/core/digest-hop.ts";
 import { hasContent } from "../src/core/digest-prepare.ts";
 import { cutDigestInput } from "../src/core/digest-prompt.ts";
 import { digestInput, modelInput } from "../src/core/digest-source.ts";
-import type { Database } from "../src/core/ports.ts";
 import { postTextOf } from "../src/core/post-text.ts";
 import { sealedSecrets } from "../src/core/sealed-secret.ts";
 import { dataFileStore } from "../src/targets/node/file-store.ts";

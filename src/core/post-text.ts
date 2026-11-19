@@ -1,7 +1,8 @@
 import { and, asc, eq, isNotNull } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { FileRefused, fileRouteOf, parseFileKey } from "./file-keys.ts";
-import type { Database, FileStore } from "./ports.ts";
+import type { FileStore } from "./file-store.ts";
 import { readerUrl } from "./reader-url.ts";
 import { media } from "./schema.ts";
 

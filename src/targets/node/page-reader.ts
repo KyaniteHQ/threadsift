@@ -2,7 +2,7 @@ import { Worker } from "node:worker_threads";
 
 import type { ArticleReading } from "../../core/article.ts";
 import { PageReadTimeout } from "../../core/page-read-timeout.ts";
-import type { PageReader } from "../../core/ports.ts";
+import type { PageReader } from "../../core/page-reader.ts";
 import type { SuppliedPage } from "../../core/supplied-page.ts";
 import type { PageRequest, Reply } from "./page-reader-protocol.ts";
 

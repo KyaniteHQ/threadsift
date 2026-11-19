@@ -1,6 +1,7 @@
 import { type SQLWrapper, and, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import type { Database } from "./database.ts";
 import {
   DISAGREEMENT,
   firstDigest,
@@ -11,7 +12,6 @@ import {
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { itemTitle } from "./item-title.ts";
 import { PROPOSAL_KINDS, type ProposalKind } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { ListedStateSchema } from "./proposal-contract.ts";
 import { digests, highlights, itemTags, items, proposals, tags, topics } from "./schema.ts";
 import { overviewGap, digestedCount, uncoveredCount } from "./topic-coverage.ts";

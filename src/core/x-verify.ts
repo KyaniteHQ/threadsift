@@ -1,6 +1,6 @@
 import { guardedFetch } from "./fetch-guard.ts";
 import { SMALL_POLICY } from "./fetch-link.ts";
-import type { Network } from "./ports.ts";
+import type { Network } from "./network.ts";
 import { noPhotosKey } from "./x-images.ts";
 import {
   MAX_LINKS,

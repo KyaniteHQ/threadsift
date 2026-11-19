@@ -1,9 +1,9 @@
 import { ZodError } from "zod";
 
+import type { Database } from "./database.ts";
 import { plainMarkdown } from "./item-note.ts";
 import type { LogEntry } from "./log-contract.ts";
 import { readLogEntries } from "./log-page.ts";
-import type { Database } from "./ports.ts";
 import { logMonthName, logMonthRange } from "./vault-log-month.ts";
 import { WIKI_PAGE_ROWS, linesOf, wikiLink } from "./vault-markdown.ts";
 import { VaultNoteFailure } from "./vault-queue.ts";

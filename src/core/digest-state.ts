@@ -1,7 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { among } from "./guards.ts";
-import type { Database } from "./ports.ts";
 import { digests } from "./schema.ts";
 
 export interface DigestRead {

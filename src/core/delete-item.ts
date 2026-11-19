@@ -2,7 +2,8 @@ import { eq, or } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
 import { FILE_LIST_LIMIT, itemFilesPrefix } from "./file-keys.ts";
-import type { FileStore, Ports } from "./ports.ts";
+import type { FileStore } from "./file-store.ts";
+import type { Ports } from "./ports.ts";
 import { goneWithItem } from "./proposal-lifecycle.ts";
 import {
   aiTasks,

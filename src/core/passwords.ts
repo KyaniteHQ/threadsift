@@ -1,5 +1,5 @@
+import type { Crypto, ScryptCost } from "./crypto.ts";
 import { base64url, fromBase64url } from "./encoding.ts";
-import type { Crypto, ScryptCost } from "./ports.ts";
 
 export const PASSWORD_MIN = 15;
 export const PASSWORD_MAX = 1024;

@@ -12,7 +12,8 @@ import {
 } from "./grok-bot-contract.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import { guardedBatch, holdsNoRow } from "./guards.ts";
-import { type Network, NetworkFailure, type NetworkFailureReason, type Ports } from "./ports.ts";
+import { type Network, NetworkFailure, type NetworkFailureReason } from "./network.ts";
+import type { Ports } from "./ports.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
 
 type GrokBotPorts = Pick<Ports, "db" | "secrets">;

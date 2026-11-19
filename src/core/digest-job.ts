@@ -12,10 +12,10 @@ import {
 } from "drizzle-orm";
 
 import { expireAiTasks } from "./ai-tasks.ts";
+import type { Database } from "./database.ts";
 import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
 import { NOT_FAILED } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
-import type { Database } from "./ports.ts";
 import { grokBotChosen, providerSet } from "./provider-saved.ts";
 import { aiTasks, digests, items } from "./schema.ts";
 

@@ -1,7 +1,7 @@
 import { connect } from "cloudflare:sockets";
 
 import { bestEffort } from "../../core/failure-log.ts";
-import type { RedditSession } from "../../core/ports.ts";
+import type { RedditSession } from "../../core/network.ts";
 import {
   REDDIT_HOST,
   boundedBody,

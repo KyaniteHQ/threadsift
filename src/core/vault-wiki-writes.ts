@@ -1,8 +1,8 @@
 import { type SQLWrapper, eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { itemTitle } from "./item-title.ts";
 import { disagreementInTopic } from "./known-disagreements.ts";
-import type { Database } from "./ports.ts";
 import { digests, items, logEntries, pins, relatedItems, topics } from "./schema.ts";
 import {
   queueVaultIndex,

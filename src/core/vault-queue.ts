@@ -13,9 +13,9 @@ import {
 } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
+import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { hasOpenJob } from "./job-rows.ts";
-import type { Database } from "./ports.ts";
 import { items, logEntries, topics } from "./schema.ts";
 import { logMonthColumn } from "./vault-log-month.ts";
 import { mirrorNotes, vaultSettings, type VaultKind } from "./vault-tables.ts";

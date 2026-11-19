@@ -1,69 +1,21 @@
 import type { Fetched } from "./details.ts";
 import { report } from "./failure-log.ts";
-import type { FetchFailure } from "./fetch-results.ts";
 import { RETRY_DELAYS_MS, isLastAttempt } from "./job-outcome.ts";
-import type { XFetcherState, XReadNote } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
+import {
+  NOTE_OF_REFUSAL,
+  type UnreadableResult,
+  type XFetcher,
+  type XRefusalCategory,
+} from "./x-fetcher-port.ts";
 import { readFetchedThread } from "./x-replies-ranked.ts";
 import { shownOnX } from "./x-verify.ts";
-import { StatusIdSchema, type XCliThreadValue, type XThreadValue } from "./x-wire.ts";
-
-export interface XFetcherStatus {
-  readonly state: XFetcherState;
-  readonly version: string | null;
-}
-
-export type XFetchFailure = Extract<FetchFailure, "unreadable" | "timeout" | "network" | "status">;
+import { StatusIdSchema, type XThreadValue } from "./x-wire.ts";
 
 export interface ToVerify {
   readonly status: "to-verify";
   readonly thread: XThreadValue;
-}
-
-export interface UnreadableResult {
-  readonly status: XFetchFailure;
-  readonly note: XReadNote;
-}
-
-export type XFetch =
-  | { readonly kind: "thread"; readonly thread: XCliThreadValue }
-  | { readonly kind: "unanswered"; readonly ends: UnreadableResult }
-  | { readonly kind: "failed"; readonly status: XFetchFailure; readonly note?: XReadNote };
-
-export type XRefusalCategory =
-  | "signed-out"
-  | "usage-limit"
-  | "unreachable"
-  | "deadline"
-  | "cli-error"
-  | "no-answer"
-  | "over-size"
-  | "spawn-failed"
-  | "surface-unproven"
-  | "answer-refused"
-  | "fewer-replies"
-  | "internal";
-
-export const NOTE_OF_REFUSAL = {
-  "signed-out": "cli-signed-out",
-  "usage-limit": "cli-usage-limit",
-  unreachable: "cli-unreachable",
-  deadline: null,
-  "cli-error": "cli-failed",
-  "no-answer": "cli-failed",
-  "over-size": "cli-failed",
-  "spawn-failed": "cli-not-installed",
-  "surface-unproven": "cli-not-proven",
-  "answer-refused": "x-answer-refused",
-  "fewer-replies": "x-fewer-replies",
-  internal: "cli-failed",
-} as const satisfies Readonly<Record<XRefusalCategory, XReadNote | null>>;
-
-export interface XFetcher {
-  readonly id: "grok-cli";
-  readonly fetch: (statusId: string, signal: AbortSignal) => Promise<XFetch>;
-  readonly status: () => Promise<XFetcherStatus>;
 }
 
 interface XSource {

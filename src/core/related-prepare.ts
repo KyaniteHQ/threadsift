@@ -1,6 +1,6 @@
+import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { type SettledOutcome, settled } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { type PickItem, type PickRead, pickPrompt, readPick } from "./related-input.ts";
 import { closedOutcome, emptyOutcome, noDigestOutcome } from "./related-write.ts";
 

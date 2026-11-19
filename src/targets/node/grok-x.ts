@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import type { XFetch, XFetcher, XFetcherStatus } from "../../core/x-fetcher.ts";
+import type { XFetch, XFetcher, XFetcherStatus } from "../../core/x-fetcher-port.ts";
 import { Slots, inTimedSlot } from "./cli-slots.ts";
 import { findBinary } from "./cli-support.ts";
 import {

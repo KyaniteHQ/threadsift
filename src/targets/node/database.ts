@@ -6,7 +6,7 @@ import type { AsyncBatchRemoteCallback, RemoteCallback } from "drizzle-orm/sqlit
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
-import type { Database } from "../../core/ports.ts";
+import type { Database } from "../../core/database.ts";
 
 const SqlParamsSchema = z.array(
   z.union([z.null(), z.number(), z.bigint(), z.string(), z.instanceof(Uint8Array)]),

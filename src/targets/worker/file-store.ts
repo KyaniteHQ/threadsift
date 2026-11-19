@@ -6,7 +6,7 @@ import {
   requireFilePrefix,
   requireListLimit,
 } from "../../core/file-keys.ts";
-import type { FilePage, FileStore } from "../../core/ports.ts";
+import type { FilePage, FileStore } from "../../core/file-store.ts";
 
 interface BucketObject {
   readonly key: string;

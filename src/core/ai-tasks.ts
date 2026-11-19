@@ -16,10 +16,11 @@ import {
 } from "./ai-contract.ts";
 import { type TaskOrigin, type TaskOwner, originOf, startTask } from "./ai-task-start.ts";
 import { mayComplete, mayExpire, mayFail } from "./bot-task-states.ts";
+import type { Database } from "./database.ts";
 import { within } from "./deadline.ts";
 import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
 import { bestEffort } from "./failure-log.ts";
-import type { AiPorts, Database } from "./ports.ts";
+import type { AiPorts } from "./ports.ts";
 import { aiTasks } from "./schema.ts";
 
 export const TASKS = {

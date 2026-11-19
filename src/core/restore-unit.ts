@@ -1,10 +1,10 @@
 import { type SQL, type SQLWrapper, and, eq, exists, ne, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { restorePartKey } from "./file-keys.ts";
 import { CLOSED_JOB } from "./job-close.ts";
 import type { JobOutcome, JobWrites, SettledOutcome } from "./job-outcome.ts";
 import { openingUnowned, unownedAddress } from "./job-rows.ts";
-import type { Database } from "./ports.ts";
 import type { RestoreFailure } from "./restore-contract.ts";
 import { restoreById } from "./restore-state.ts";
 import { type RestoreRow, jobs, restoreRuns } from "./schema.ts";

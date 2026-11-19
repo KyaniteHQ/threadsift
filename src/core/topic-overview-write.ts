@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 
 import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
+import type { Database } from "./database.ts";
 import { guardedOutcome } from "./guarded-outcome.ts";
 import type { SettledOutcome } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { inputsHold, removedItemIds, uncoveredCount } from "./topic-coverage.ts";
 import type { OverviewBasis, OverviewSent } from "./topic-overview-input.ts";
 import { type OverviewResult, overviewText } from "./topic-overview-task.ts";

@@ -3,7 +3,7 @@ import {
   type NetworkResponse,
   REQUEST_HEADERS,
   rateLimitHeadersOf,
-} from "../../core/ports.ts";
+} from "../../core/network.ts";
 import { assertPublicHost } from "../../core/public-host.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;

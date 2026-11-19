@@ -1,5 +1,5 @@
 import { isRefusedHost } from "./addresses.ts";
-import { NetworkFailure } from "./ports.ts";
+import { NetworkFailure } from "./network.ts";
 
 export function assertPublicHost(url: string): void {
   if (isRefusedHost(new URL(url).hostname)) {

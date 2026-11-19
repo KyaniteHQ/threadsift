@@ -1,6 +1,6 @@
+import type { Database } from "../../core/database.ts";
 import { randomSecret } from "../../core/encoding.ts";
 import { hasOwner } from "../../core/owner.ts";
-import type { Database } from "../../core/ports.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 
 const GENERATED_CODE_BYTES = 32;

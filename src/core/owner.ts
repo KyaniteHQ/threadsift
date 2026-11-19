@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
 import {
   type PasswordProblem,
@@ -7,7 +8,7 @@ import {
   passwordLength,
   passwordMatches,
 } from "./passwords.ts";
-import type { Database, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { owner } from "./schema.ts";
 import { type StartedSession, prepareSession, sessionWrites } from "./sessions.ts";
 import {

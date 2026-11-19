@@ -1,4 +1,4 @@
-import type { FileStore } from "./ports.ts";
+import type { FileStore } from "./file-store.ts";
 
 type Controller = ReadableStreamDefaultController<Uint8Array>;
 

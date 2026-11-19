@@ -1,7 +1,7 @@
 import { and, eq } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import type { ImportCursor, ImportState, ImportWrite } from "./import-contract.ts";
-import type { Database } from "./ports.ts";
 import { imports } from "./schema.ts";
 
 export async function readImport(db: Database, name: string): Promise<ImportState | undefined> {

@@ -1,5 +1,5 @@
+import type { Database } from "./database.ts";
 import { type ClaimedJob, type DeferredOutcome, type JobOutcome, settled } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import {
   type OverviewPrompt,
   type OverviewRead,

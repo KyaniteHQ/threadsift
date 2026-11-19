@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+import { topics } from "./catalog-tables.ts";
+import { items } from "./item-tables.ts";
 import { LOG_ACTIONS } from "./kinds.ts";
 import { listed } from "./schema-checks.ts";
-import { items, topics } from "./schema.ts";
 
 export const logEntries = sqliteTable(
   "log_entries",

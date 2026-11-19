@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { among } from "./guards.ts";
-import type { Database } from "./ports.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { digests, pins, proposals } from "./schema.ts";
 

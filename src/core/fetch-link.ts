@@ -18,9 +18,11 @@ import {
   parseLink,
   redditRefOf,
 } from "./links.ts";
+import type { Network } from "./network.ts";
 import { detailsOfOembed } from "./oembed-details.ts";
 import { PageReadTimeout } from "./page-read-timeout.ts";
-import type { Network, PageReader, Ports } from "./ports.ts";
+import type { PageReader } from "./page-reader.ts";
+import type { Ports } from "./ports.ts";
 import { repositoryRef } from "./repository-ref.ts";
 
 type ShortLinkResolution =

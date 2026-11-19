@@ -1,10 +1,11 @@
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 
 import type { Caller } from "./caller.ts";
+import type { Database } from "./database.ts";
 import { among } from "./guards.ts";
 import { BUDGET_SPENT, type BudgetSpent, type TokenBudget } from "./kinds.ts";
 import { isRefusedLink, parseLink } from "./links.ts";
-import type { Database, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import { agentTokens, itemAliases, items } from "./schema.ts";
 
 const DAY_MS = 86_400_000;

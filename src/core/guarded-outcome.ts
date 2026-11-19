@@ -1,6 +1,7 @@
 import { type SQLWrapper, sql } from "drizzle-orm";
 
 import { type AiRefused, retriesAi } from "./ai-contract.ts";
+import type { Database } from "./database.ts";
 import { currency } from "./digest-source.ts";
 import { insertGuard } from "./guards.ts";
 import {
@@ -10,7 +11,6 @@ import {
   type SettledOutcome,
   isLastAttempt,
 } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 
 interface Guarded {
   readonly taskId?: number | null;

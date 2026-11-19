@@ -1,6 +1,6 @@
 import { createHash, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 
-import type { Crypto } from "../../core/ports.ts";
+import type { Crypto } from "../../core/crypto.ts";
 
 const SCRYPT_KEY_BYTES = 32;
 const SCRYPT_MAXMEM = 64 * 1024 * 1024;

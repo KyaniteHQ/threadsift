@@ -1,8 +1,8 @@
 import { type SQLWrapper, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import type { Database } from "./database.ts";
 import { WEEKLY_TASK } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 import { proposalRow, removedOpen } from "./proposal-lifecycle.ts";
 import { claimedAt, claimingWeek } from "./scheduled-claim.ts";
 import { proposals } from "./schema.ts";

@@ -1,9 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import { guardHolds, guardedWrite } from "./guards.ts";
 import { anchoredOutcome, displayedBesideThread } from "./highlight-publish.ts";
 import type { AnchoredOutcome } from "./job-outcome.ts";
-import type { Database } from "./ports.ts";
 import { items } from "./schema.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import { type ThreadPlace, threadItemInsert, threadPublication } from "./thread-publish.ts";

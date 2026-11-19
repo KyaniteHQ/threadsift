@@ -15,7 +15,7 @@ container:  node:sqlite  folder     loop       timer      HTTP, CLI, Grok Bot  p
 Cloudflare: D1           R2         Queues     Cron       HTTP, Workers AI, Grok Bot  none        cloudflare:sockets
 ```
 
-The `ports:` row names fields of `Ports` in `src/core/ports.ts`, except `tick`, which the target's timer or Cron Trigger calls.
+The `ports:` row names fields of `Ports` in `src/core/ports.ts`, except `tick`, which the target's timer or Cron Trigger calls. `ports.ts` holds only the aggregate `Ports` and the types picked from it. Each port interface has its own module in `src/core/` (`database.ts`, `network.ts`, `file-store.ts`, `job-queue.ts`, `crypto.ts`, `page-reader.ts`, `ai-runtime.ts`, `x-fetcher-port.ts`), and an importer takes a type from the module that defines it, so no module that `ports.ts` names imports `ports.ts` back.
 
 - The core imports no runtime module (`node:*`, `cloudflare:*`). Only the two target entry files and their adapters do, so a core change runs on both targets by construction.
 - The `Crypto` port has one adapter, `nodeCrypto` in `src/targets/shared/`, and both targets pass it, because the Worker runs `node:crypto` through `nodejs_compat`. This is the accepted exception to the two-adapter rule. The port exists because the lint bans `node:` imports in `src/core` and `src/http`.

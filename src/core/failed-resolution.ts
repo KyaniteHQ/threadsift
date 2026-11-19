@@ -1,5 +1,6 @@
 import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
 
+import type { Database } from "./database.ts";
 import type { Concluded } from "./details.ts";
 import { guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { LISTED_COLUMNS, selectItems } from "./item-selection.ts";
@@ -13,7 +14,6 @@ import {
 } from "./items.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
-import type { Database } from "./ports.ts";
 import { itemAliases, items } from "./schema.ts";
 import { settle } from "./settle.ts";
 import { queueVaultItems } from "./vault-queue.ts";

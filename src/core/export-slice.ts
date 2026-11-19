@@ -1,3 +1,4 @@
+import type { Database } from "./database.ts";
 import {
   EXPORT_ENTRY_BYTES,
   EXPORT_PAGE_ROWS,
@@ -18,7 +19,7 @@ import {
   openItemCount,
   tablePage,
 } from "./export-records.ts";
-import type { Database, Ports } from "./ports.ts";
+import type { Ports } from "./ports.ts";
 import type { ExportRow } from "./schema.ts";
 import { type ZipFile, joined } from "./zip.ts";
 

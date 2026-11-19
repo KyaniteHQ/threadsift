@@ -11,7 +11,8 @@ import { cooldownUntil, startCooldown } from "./github-cooldown.ts";
 import type { GithubAuth } from "./github-credential.ts";
 import { limitedUntil } from "./github-rate-limit.ts";
 import { isRedditOrXLink } from "./links.ts";
-import type { Network, Ports, RequestHeaders } from "./ports.ts";
+import type { Network, RequestHeaders } from "./network.ts";
+import type { Ports } from "./ports.ts";
 
 const API_ORIGIN = "https://api.github.com";
 

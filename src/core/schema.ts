@@ -1,20 +1,3 @@
-import { sql } from "drizzle-orm";
-import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
-
-import { FETCH_RESULTS } from "./fetch-results.ts";
-import {
-  FAILURE_REASONS,
-  JOB_KINDS,
-  JOB_STATES,
-  KINDS,
-  READ_STATES,
-  SOURCES,
-  WAIT_REASONS,
-  X_READ_NOTES,
-  UNOWNED_JOB_KINDS,
-} from "./kinds.ts";
-import { listed } from "./schema-checks.ts";
-
 export {
   type AgentTokenRow,
   agentTokens,
@@ -28,15 +11,7 @@ export { settings } from "./ai-settings-tables.ts";
 
 export { itemAliases } from "./alias-tables.ts";
 
-export {
-  DATABASE_NOW,
-  guardHolds,
-  guardedBatch,
-  guardedWrite,
-  guards,
-  holdsNoRow,
-  insertGuard,
-} from "./guards.ts";
+export { guards } from "./guards.ts";
 
 export { githubCooldown, githubSettings } from "./github-tables.ts";
 
@@ -80,188 +55,12 @@ export { xSettings } from "./x-settings-tables.ts";
 
 export { xVerifications } from "./x-verification-tables.ts";
 
-export const items = sqliteTable(
-  "items",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    source: text("source", { enum: SOURCES }).notNull(),
-    kind: text("kind", { enum: KINDS }).notNull(),
-    normalizedUrl: text("normalized_url").notNull().unique(),
-    originalUrl: text("original_url").notNull(),
-    savedAt: integer("saved_at").notNull(),
-    title: text("title"),
-    author: text("author"),
-    community: text("community"),
-    postText: text("post_text"),
-    postTextKey: text("post_text_key"),
-    postedAt: integer("posted_at"),
-    fetchedAt: integer("fetched_at"),
-    pendingDigest: text("pending_digest"),
-    topicId: integer("topic_id").references(() => topics.id),
-    generation: integer("generation").notNull().default(0),
-    digestFailed: integer("digest_failed", { mode: "boolean" }).notNull().default(false),
-    readState: text("read_state", { enum: READ_STATES }).notNull().default("unread"),
-    reason: text("reason", { enum: FAILURE_REASONS }),
-    fetch: text("fetch_result", { enum: FETCH_RESULTS }),
-    xNote: text("x_note", { enum: X_READ_NOTES }),
-    addedByToken: integer("added_by_token"),
-  },
-  (table) => [
-    check("items_post_text_check", sql`${table.postText} is null or ${table.postTextKey} is null`),
-    check("items_reason_check", sql`${table.reason} in (${listed(FAILURE_REASONS)})`),
-    check(
-      "items_source_kind_check",
-      sql`${table.source} is (case ${table.kind} when 'reddit-post' then 'reddit' when 'reddit-comment' then 'reddit' when 'x-post' then 'x' when 'github-repo' then 'github' when 'article' then 'article' when 'link' then 'other' end)`,
-    ),
-    index("items_saved_at_id").on(table.savedAt, table.id),
-    index("items_topic").on(table.topicId),
-    index("items_post_text_key").on(table.postTextKey),
-  ],
-);
+export { aiTasks } from "./ai-task-tables.ts";
 
-export const githubRepos = sqliteTable("github_repos", {
-  itemId: integer("item_id")
-    .primaryKey()
-    .references(() => items.id, { onDelete: "cascade" }),
-  description: text("description"),
-  stars: integer("stars").notNull(),
-  language: text("language"),
-  license: text("license"),
-  topics: text("topics", { mode: "json" }).$type<readonly string[]>().notNull(),
-  pushedAt: integer("pushed_at"),
-});
+export { catalogVersion, tags, topics } from "./catalog-tables.ts";
 
-export const jobs = sqliteTable(
-  "jobs",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    kind: text("kind", { enum: JOB_KINDS }).notNull(),
-    itemId: integer("item_id").references(() => items.id, { onDelete: "cascade" }),
-    address: text("address").notNull(),
-    state: text("state", { enum: JOB_STATES }).notNull(),
-    attempts: integer("attempts").notNull().default(0),
-    staleRequeues: integer("stale_requeues").notNull().default(0),
-    attemptGeneration: integer("attempt_generation"),
-    attemptPending: text("attempt_pending"),
-    nextAttemptAt: integer("next_attempt_at").notNull(),
-    claimExpires: integer("claim_expires"),
-    waitReason: text("wait_reason", { enum: WAIT_REASONS }),
-    page: text("page"),
-  },
-  (table) => [
-    check(
-      "jobs_owner_check",
-      sql`${table.kind} in (${listed(UNOWNED_JOB_KINDS)}) or ${table.itemId} is not null`,
-    ),
-    check(
-      "jobs_values_check",
-      sql`${table.kind} in (${listed(JOB_KINDS)}) and ${table.state} in (${listed(JOB_STATES)})`,
-    ),
-    uniqueIndex("jobs_one_open_per_item_kind")
-      .on(table.itemId, table.kind)
-      .where(sql`${table.state} <> 'done'`),
-    index("jobs_state_next_attempt").on(table.state, table.nextAttemptAt),
-  ],
-);
+export { digests } from "./digest-tables.ts";
 
-export const scheduledRuns = sqliteTable("scheduled_runs", {
-  task: text("task").primaryKey(),
-  lastRunAt: integer("last_run_at").notNull(),
-});
+export { type ItemRow, githubRepos, itemTags, items } from "./item-tables.ts";
 
-export const fileCleaning = sqliteTable(
-  "file_cleaning",
-  {
-    id: integer("id").primaryKey(),
-    cursor: text("cursor"),
-  },
-  (table) => [check("file_cleaning_is_one_row", sql`${table.id} = 1`)],
-);
-
-export type ItemRow = typeof items.$inferSelect;
-
-export type JobRow = typeof jobs.$inferSelect;
-
-export const aiTasks = sqliteTable(
-  "ai_tasks",
-  {
-    id: integer("id").primaryKey({ autoIncrement: true }),
-    kind: text("kind").notNull(),
-    inputs: text("inputs").notNull(),
-    inputRevision: integer("input_revision").notNull(),
-    executor: text("executor").notNull(),
-    provider: text("provider"),
-    model: text("model"),
-    attempts: integer("attempts").notNull(),
-    deadline: integer("deadline").notNull(),
-    state: text("state", { enum: ["running", "done", "failed"] }).notNull(),
-    result: text("result"),
-    refusal: text("refusal"),
-    status: integer("status"),
-    itemId: integer("item_id").references(() => items.id, { onDelete: "cascade" }),
-    callbackHash: text("callback_hash"),
-    jobId: integer("job_id"),
-    context: text("context"),
-    sentAt: integer("sent_at"),
-    answeredAt: integer("answered_at"),
-    answerRefusals: integer("answer_refusals").notNull().default(0),
-  },
-  (table) => [
-    index("ai_tasks_item").on(table.itemId),
-    index("ai_tasks_job").on(table.jobId),
-    index("ai_tasks_executor_state").on(table.executor, table.state),
-  ],
-);
-
-export const digests = sqliteTable("digests", {
-  itemId: integer("item_id")
-    .primaryKey()
-    .references(() => items.id, { onDelete: "cascade" }),
-  digest: text("digest").notNull(),
-  title: text("title").notNull(),
-  topic: text("topic").notNull(),
-  taskId: integer("task_id")
-    .notNull()
-    .references(() => aiTasks.id),
-  provider: text("provider"),
-  model: text("model"),
-  generation: integer("generation").notNull(),
-  createdAt: integer("created_at").notNull(),
-});
-
-export const topics = sqliteTable("topics", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  key: text("key").notNull().unique(),
-  name: text("name").notNull(),
-});
-
-export const tags = sqliteTable("tags", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  key: text("key").notNull().unique(),
-  name: text("name").notNull(),
-});
-
-export const itemTags = sqliteTable(
-  "item_tags",
-  {
-    itemId: integer("item_id")
-      .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
-    tagId: integer("tag_id")
-      .notNull()
-      .references(() => tags.id),
-  },
-  (table) => [
-    uniqueIndex("item_tags_item_tag").on(table.itemId, table.tagId),
-    index("item_tags_tag").on(table.tagId),
-  ],
-);
-
-export const catalogVersion = sqliteTable(
-  "catalog_version",
-  {
-    id: integer("id").primaryKey(),
-    version: integer("version").notNull().default(0),
-  },
-  (table) => [check("catalog_is_one_row", sql`${table.id} = 1`)],
-);
+export { type JobRow, fileCleaning, jobs, scheduledRuns } from "./job-tables.ts";

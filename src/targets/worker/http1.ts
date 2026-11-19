@@ -1,4 +1,8 @@
-import { type NetworkResponse, type RequestHeaders, rateLimitHeadersOf } from "../../core/ports.ts";
+import {
+  type NetworkResponse,
+  type RequestHeaders,
+  rateLimitHeadersOf,
+} from "../../core/network.ts";
 
 const HEAD_LIMIT_BYTES = 16 * 1024;
 

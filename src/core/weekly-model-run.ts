@@ -3,6 +3,7 @@ import type { z } from "zod";
 
 import { AI_DEADLINE_MS, type AiTaskDefinition, type ModelAi } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask, runAiTask } from "./ai-tasks.ts";
+import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { guardedOutcome, lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type {
@@ -14,7 +15,6 @@ import type {
   SettledOutcome,
 } from "./job-outcome.ts";
 import type { WeeklyTask } from "./kinds.ts";
-import type { Database } from "./ports.ts";
 
 interface ModelRead<Sent> {
   readonly input: string;

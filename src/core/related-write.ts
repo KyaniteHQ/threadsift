@@ -2,10 +2,10 @@ import { eq, sql } from "drizzle-orm";
 
 import type { AiRefused } from "./ai-contract.ts";
 import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
+import type { Database } from "./database.ts";
 import { guardedOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobWrites, SettledOutcome } from "./job-outcome.ts";
 import { loggedRelated } from "./log-writes.ts";
-import type { Database } from "./ports.ts";
 import { type Version, type Versions, versionsHold } from "./related-input.ts";
 import type { RelatedResult } from "./related-task.ts";
 import { digests, items, relatedItems } from "./schema.ts";
