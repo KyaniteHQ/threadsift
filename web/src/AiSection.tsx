@@ -1,9 +1,9 @@
+import type { Digest } from "../../src/core/ai-contract.ts";
 import {
-  type Digest,
   type Provider,
   GROK_BOT_PROVIDER,
   isCliProvider,
-} from "../../src/core/ai-contract.ts";
+} from "../../src/core/provider-families.ts";
 import type { AiView } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";

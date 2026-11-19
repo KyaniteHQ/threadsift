@@ -1,12 +1,11 @@
 import { type SQL, sql } from "drizzle-orm";
 
-import { AI_DEADLINE_MS } from "./ai-contract.ts";
+import { AI_DEADLINE_MS, AI_LIST_OUTPUT_TOKENS } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import { membersOf, readDisagreementInput } from "./disagreement-input.ts";
 import { pairPinned } from "./disagreement-pins.ts";
 import { clearedStaleDisagreements } from "./disagreement-rows.ts";
 import {
-  DISAGREEMENT_OUTPUT_TOKENS,
   DISAGREEMENT_TASK_KIND,
   type DisagreementsResult,
   type SentTopic,
@@ -104,7 +103,7 @@ const disagreementRun: WeeklyRun<Sent, DisagreementsResult> = {
   sent: SentTopicsSchema,
   label: "Disagreement proposals run",
   event: "disagreement-proposals-run-failed",
-  maxOutputTokens: DISAGREEMENT_OUTPUT_TOKENS,
+  maxOutputTokens: AI_LIST_OUTPUT_TOKENS,
   read: readDisagreementInput,
   task: disagreementTask,
   current: membersStill,

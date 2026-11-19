@@ -1,10 +1,6 @@
-import type {
-  AiExecution,
-  AiTaskRequest,
-  CliProvider,
-  CliRecommendation,
-} from "../../core/ai-contract.ts";
+import type { AiExecution, AiTaskRequest, CliRecommendation } from "../../core/ai-contract.ts";
 import type { AiRuntime } from "../../core/ai-runtime.ts";
+import type { CliProvider } from "../../core/provider-families.ts";
 
 export type RunnerTask<Result, Kind extends AiTaskRequest<Result>["config"]["kind"]> = Omit<
   AiTaskRequest<Result>,

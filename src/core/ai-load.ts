@@ -1,12 +1,14 @@
 import { eq } from "drizzle-orm";
 
 import type { ModelAi } from "./ai-contract.ts";
-import { type Keyless, type Stored, StoredSettingsSchema } from "./ai-next-settings.ts";
-import type { Database } from "./database.ts";
+import { readRevision } from "./ai-settings-revision.ts";
+import { connectionOf, unreadyAsProvider } from "./grok-bot-ready.ts";
+import { openedGrokBot } from "./grok-bot-settings.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
-import { connectionOf, openedGrokBot } from "./grok-bot.ts";
 import type { AiPorts } from "./ports.ts";
-import { UninitializedDatabase, aiSettingsRevision, settings } from "./schema.ts";
+import { GROK_BOT_PROVIDER } from "./provider-families.ts";
+import { type Stored, StoredSettingsSchema } from "./provider-row.ts";
+import { UninitializedDatabase, settings } from "./schema.ts";
 
 export interface Snapshot {
   readonly sealer: AiPorts["secrets"];
@@ -15,14 +17,9 @@ export interface Snapshot {
   readonly botSelected: boolean;
 }
 
-export type LoadedAi = (Snapshot & ModelAi) | (Snapshot & { readonly state: "grok-bot" });
-
-export function readRevision(db: Database) {
-  return db
-    .select({ revision: aiSettingsRevision.revision })
-    .from(aiSettingsRevision)
-    .where(eq(aiSettingsRevision.id, 1));
-}
+export type LoadedAi =
+  | (Snapshot & ModelAi)
+  | (Snapshot & { readonly state: typeof GROK_BOT_PROVIDER });
 
 export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
   const [[row], [counter], [bot]] = await ports.db.batch([
@@ -31,7 +28,8 @@ export async function loadAiConfig(ports: AiPorts): Promise<LoadedAi> {
     ports.db.select().from(grokBotSettings).where(eq(grokBotSettings.id, 1)),
   ]);
 
-  if (counter === undefined) throw new UninitializedDatabase("ai_settings_revision");
+  if (counter === undefined || counter.revision === null)
+    throw new UninitializedDatabase("ai_settings_revision");
 
   const snapshot = {
     sealer: ports.secrets,
@@ -54,13 +52,10 @@ function botLoaded(
   connection: ReturnType<typeof connectionOf>,
 ): LoadedAi {
   if (connection.kind === "ready") {
-    return { ...snapshot, state: "grok-bot" };
+    return { ...snapshot, state: GROK_BOT_PROVIDER };
   }
 
-  return {
-    ...snapshot,
-    state: connection.reason === "secret-missing" ? "secret-missing" : "not-configured",
-  };
+  return { ...snapshot, state: unreadyAsProvider(connection.reason) };
 }
 
 async function modelLoaded(snapshot: Readonly<Snapshot>): Promise<Snapshot & ModelAi> {
@@ -68,34 +63,5 @@ async function modelLoaded(snapshot: Readonly<Snapshot>): Promise<Snapshot & Mod
 
   if (saved === undefined) return { ...snapshot, state: "not-configured" };
 
-  if (saved.sealedKey === null)
-    return { ...snapshot, state: "ready", config: keylessConnection(saved) };
-
-  const key = sealer === null ? null : await sealer.open(saved.sealedKey);
-
-  return key === null
-    ? { ...snapshot, state: "secret-missing" }
-    : {
-        ...snapshot,
-        state: "ready",
-        config: {
-          kind: "http",
-          provider: saved.provider,
-          baseUrl: saved.baseUrl,
-          model: saved.model,
-          key,
-        },
-      };
-}
-
-function keylessConnection(
-  saved: Readonly<Keyless>,
-): Extract<ModelAi, { state: "ready" }>["config"] {
-  return saved.provider === "workers-ai"
-    ? { kind: "binding", provider: saved.provider, model: saved.model }
-    : {
-        kind: "cli",
-        provider: saved.provider,
-        ...saved.preference,
-      };
+  return { ...snapshot, ...(await saved.connect(sealer)) };
 }

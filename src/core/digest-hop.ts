@@ -7,6 +7,7 @@ import { report } from "./failure-log.ts";
 import { fetchLink } from "./fetch-link.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 import type { Ports } from "./ports.ts";
+import { GROK_BOT_PROVIDER } from "./provider-families.ts";
 import { FETCH_DEADLINE_MS } from "./request-waits.ts";
 
 type HopPage = LinkedPage | null;
@@ -109,7 +110,7 @@ export async function readLinkedPage(ports: HopPorts, url: string) {
 async function aiCanRun(ports: JobPorts): Promise<boolean> {
   const { state } = await loadAiConfig(ports);
 
-  return state === "ready" || state === "grok-bot";
+  return state === "ready" || state === GROK_BOT_PROVIDER;
 }
 
 export async function hoppedPage(

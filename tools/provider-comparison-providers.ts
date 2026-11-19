@@ -1,13 +1,9 @@
 import { z } from "zod";
 
-import {
-  type AiConnection,
-  AI_MODEL_MAX,
-  PROVIDERS,
-  isCliProvider,
-} from "../src/core/ai-contract.ts";
+import type { AiConnection } from "../src/core/ai-contract.ts";
 import type { AiRuntime } from "../src/core/ai-runtime.ts";
 import { bestEffort } from "../src/core/failure-log.ts";
+import { AI_MODEL_MAX, PROVIDERS, isCliProvider } from "../src/core/provider-families.ts";
 import { claudeCode } from "../src/targets/node/claude-code.ts";
 import { Slots } from "../src/targets/node/cli-slots.ts";
 import { findBinary } from "../src/targets/node/cli-support.ts";

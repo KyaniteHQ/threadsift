@@ -8,14 +8,11 @@ import type { Database } from "./database.ts";
 import { VERIFY_WAIT_MS } from "./grok-bot-contract.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { pause } from "./pause.ts";
-import { HOP_DEADLINE_MS } from "./request-waits.ts";
 import { aiTasks } from "./schema.ts";
-
-export const VERIFY_DEADLINE_MS = VERIFY_WAIT_MS + HOP_DEADLINE_MS;
 
 const VERIFY_POLL_MS = 1000;
 
-type Verified = import("zod").infer<typeof VerifyResultSchema>;
+export type Verified = import("zod").infer<typeof VerifyResultSchema>;
 
 type VerifyStage =
   | { readonly kind: "waiting" }

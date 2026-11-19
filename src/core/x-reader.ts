@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 
 import type { Fetched } from "./details.ts";
-import { grokBotConnection } from "./grok-bot.ts";
+import { grokBotConnection } from "./grok-bot-ready.ts";
 import { X_READER_CHOICES, type XReadNote, type XReaderChoice } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";

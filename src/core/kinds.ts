@@ -55,10 +55,12 @@ const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
 export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"] as const;
 
+export const GROK_BOT_WAIT = "grok-bot";
+
 export const WAIT_REASONS = [
   "github-rate-limit",
   "topic-busy",
-  "grok-bot",
+  GROK_BOT_WAIT,
   "reddit-limit",
   "x-verify",
   "x-reread",

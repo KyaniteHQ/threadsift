@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import { type CliProvider, isCliProvider } from "../../src/core/ai-contract.ts";
+import { type CliProvider, isCliProvider } from "../../src/core/provider-families.ts";
 import { type AiView, fetchAiSettings } from "./ai-api.ts";
 
 export type ProviderNotice =

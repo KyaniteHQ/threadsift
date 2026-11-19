@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 
+import { CURRENT_REVISION } from "./ai-settings-revision.ts";
 import {
   type PreparedSave,
   holdsSettings,
@@ -7,12 +8,12 @@ import {
   providerWrites,
   storedSettings,
 } from "./ai-settings.ts";
+import { olderDigests } from "./digest-job.ts";
 import { logFailure } from "./failure-log.ts";
 import { DATABASE_NOW, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
-import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { Ports } from "./ports.ts";
 import { sessionIsLive } from "./sessions.ts";
 
@@ -73,11 +74,12 @@ async function stillStored(
 async function afterActivation(
   ports: Ports,
   { row }: Readonly<PreparedSave>,
-  { key, extraWrites }: Readonly<{ key: string; extraWrites: () => JobWrites }>,
+  key: string,
 ): Promise<ConnectNotice> {
   const active = await ports.ai.awaitOpenRouterActivation(key);
 
-  if (!(await stillStored(ports, row, active ? extraWrites() : []))) return "settings-changed";
+  if (!(await stillStored(ports, row, active ? olderDigests(ports.db) : [])))
+    return "settings-changed";
 
   return active ? "connected" : "activation-pending";
 }
@@ -85,7 +87,6 @@ async function afterActivation(
 export async function saveConnectedKey(
   ports: Ports,
   { sessionId, claimed, key }: Readonly<{ sessionId: string; claimed: Claimed; key: string }>,
-  extraWrites: () => JobWrites,
 ): Promise<ConnectNotice> {
   const prepared = await prepareOrNull(ports, { claimed, key });
 
@@ -95,7 +96,7 @@ export async function saveConnectedKey(
     (await committed(ports, { sessionId, claimed, prepared })) ||
     (await holdsSettings(ports.db, prepared.row))
   ) {
-    return afterActivation(ports, prepared, { key, extraWrites });
+    return afterActivation(ports, prepared, key);
   }
 
   return "possible-orphan";

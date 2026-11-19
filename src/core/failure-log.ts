@@ -56,7 +56,7 @@ export function databaseCodeOf(cause: unknown, depth = 0): string {
 
 export function report(
   event: string,
-  fields: Readonly<Record<string, number | string | readonly number[]>>,
+  fields: Readonly<Record<string, number | string | null | readonly number[]>>,
 ): void {
   console.warn(JSON.stringify({ event, ...fields }));
 }

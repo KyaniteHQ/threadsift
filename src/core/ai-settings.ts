@@ -1,15 +1,17 @@
 import { type SQL, sql } from "drizzle-orm";
 
-import { GROK_BOT_PROVIDER } from "./ai-contract.ts";
 import { type LoadedAi, type Snapshot, loadAiConfig } from "./ai-load.ts";
 import { type ModelSettingsInput, nextSettings } from "./ai-next-settings.ts";
 import type { AiSettingsInput, AiSettingsView, AiSaveResponse } from "./ai-settings-contract.ts";
-import { leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
+import { CURRENT_REVISION } from "./ai-settings-revision.ts";
+import { type BotFirst, leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
 import type { Database } from "./database.ts";
+import { olderDigests } from "./digest-job.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
-import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { SettingsPorts } from "./ports.ts";
+import { GROK_BOT_PROVIDER } from "./provider-families.ts";
+import { hasKind } from "./provider-families.ts";
 import { settings } from "./schema.ts";
 
 async function aiView(loaded: LoadedAi, ports: SettingsPorts): Promise<AiSettingsView> {
@@ -31,24 +33,7 @@ function viewOf(
 ): AiSettingsView["settings"] {
   if (botSelected) return { provider: GROK_BOT_PROVIDER, model: "" };
 
-  if (saved === undefined) return null;
-
-  if (saved.sealedKey === null) {
-    const { provider } = saved;
-    if (provider === "workers-ai") return { provider, model: saved.model };
-    const { preference } = saved;
-    return preference.choice === "custom"
-      ? { provider, ...preference, effort: preference.effort ?? "" }
-      : { provider, ...preference, model: "", effort: "" };
-  }
-
-  return {
-    provider: saved.provider,
-    baseUrl: saved.baseUrl,
-    model: saved.model,
-    keySet: true,
-    keyReadable,
-  };
+  return saved?.view(keyReadable) ?? null;
 }
 
 export async function readAiSettings(ports: SettingsPorts): Promise<AiSettingsView> {
@@ -102,7 +87,7 @@ export async function holdsSettings(
 }
 
 async function preparedSave(ports: SettingsPorts, input: Readonly<AiSettingsInput>) {
-  if (input.provider === GROK_BOT_PROVIDER) return preparedBot(ports);
+  if (hasKind("bot", input)) return preparedBot(ports);
 
   const prepared = await prepareAiSettings(ports, input);
 
@@ -117,9 +102,11 @@ async function preparedSave(ports: SettingsPorts, input: Readonly<AiSettingsInpu
 export async function saveAiSettings(
   ports: SettingsPorts,
   input: Readonly<AiSettingsInput>,
-  extraWrites: () => JobWrites,
 ): Promise<
-  AiSaveResponse | { readonly kind: "changed" } | { readonly kind: "recommendation-unavailable" }
+  | AiSaveResponse
+  | { readonly kind: "changed" }
+  | { readonly kind: "recommendation-unavailable" }
+  | BotFirst
 > {
   const prepared = await preparedSave(ports, input);
 
@@ -127,7 +114,7 @@ export async function saveAiSettings(
 
   const written = await guardedBatch(ports.db, prepared.guard, [
     ...prepared.writes,
-    ...extraWrites(),
+    ...olderDigests(ports.db),
   ]);
 
   if (written) return readAiSettings(ports);

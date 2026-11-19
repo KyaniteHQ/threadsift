@@ -1,63 +1,19 @@
-import { z } from "zod";
-
-import {
-  PROVIDERS,
-  CliChoiceSchema,
-  CliPreferenceSchema,
-  CliProviderSchema,
-  HttpProviderSchema,
-  type AiRefused,
-  type CliAiConnection,
-  refusedAi,
-  withoutTrailingSlashes,
-} from "./ai-contract.ts";
+import { type AiRefused, type CliAiConnection, refusedAi } from "./ai-contract.ts";
 import type { AiSettingsInput } from "./ai-settings-contract.ts";
 import type { settings } from "./ai-settings-tables.ts";
 import type { AiPorts } from "./ports.ts";
+import {
+  PROVIDERS,
+  type ProviderOf,
+  hasKind,
+  withoutTrailingSlashes,
+} from "./provider-families.ts";
+import type { Stored } from "./provider-row.ts";
 import type { Sealer } from "./sealed-secret.ts";
 
-export type ModelSettingsInput = Exclude<AiSettingsInput, { readonly provider: "grok-bot" }>;
+export type ModelSettingsInput = Exclude<AiSettingsInput, { readonly provider: ProviderOf<"bot"> }>;
 type SettingsRow = Readonly<Omit<typeof settings.$inferSelect, "id">>;
 type SettingsRefusal = AiRefused | { readonly kind: "recommendation-unavailable" };
-
-export const StoredSettingsSchema = z.union([
-  z.object({
-    provider: z.literal(PROVIDERS["workers-ai"].id),
-    model: z.string(),
-    baseUrl: z.null(),
-    sealedKey: z.null(),
-  }),
-  z
-    .object({
-      provider: CliProviderSchema,
-      model: z.string(),
-      baseUrl: z.null(),
-      sealedKey: z.null(),
-      effort: z.string().nullable(),
-      cliChoice: CliChoiceSchema,
-    })
-    .transform(
-      ({ provider, model, baseUrl, sealedKey, effort, cliChoice: choice }) =>
-        ({
-          provider,
-          baseUrl,
-          sealedKey,
-          preference: CliPreferenceSchema.parse(
-            choice === "custom" ? { choice, model, effort: effort ?? undefined } : { choice },
-          ),
-        }) as const,
-    ),
-  z.object({
-    provider: HttpProviderSchema,
-    model: z.string(),
-    baseUrl: z.string(),
-    sealedKey: z.string(),
-  }),
-]);
-
-export type Stored = z.infer<typeof StoredSettingsSchema>;
-
-export type Keyless = Extract<Stored, { readonly sealedKey: null }>;
 
 async function nextCliSettings(
   ports: AiPorts,
@@ -91,10 +47,10 @@ export async function nextSettings(
   { sealer, saved }: Readonly<{ sealer: Sealer | null; saved: Stored | undefined }>,
   input: Readonly<ModelSettingsInput>,
 ): Promise<SettingsRow | SettingsRefusal> {
-  if (input.provider === "workers-ai")
+  if (hasKind("binding", input))
     return { ...input, effort: null, cliChoice: "custom", baseUrl: null, sealedKey: null } as const;
 
-  if ("choice" in input) return nextCliSettings(ports, { ...input, kind: "cli" }, saved);
+  if (hasKind("cli", input)) return nextCliSettings(ports, { ...input, kind: "cli" }, saved);
 
   if (sealer === null) return refusedAi("secret-missing");
 

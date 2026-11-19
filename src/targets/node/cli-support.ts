@@ -7,13 +7,13 @@ import { z } from "zod";
 import {
   type AiExecution,
   type AiTaskRequest,
-  type CliProvider,
   type CliAiConnection,
   type CliSelection,
   type ResolvedCliConnection,
   refusedAi,
 } from "../../core/ai-contract.ts";
 import { withCleanup } from "../../core/failure-log.ts";
+import type { CliProvider } from "../../core/provider-families.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
 import type { CliRunner, RunnerTask } from "../shared/ai-runner.ts";
 import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";

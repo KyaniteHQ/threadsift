@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { AI_INPUT_BYTES } from "../src/core/ai-contract.ts";
 import { catalogKey } from "../src/core/catalog-key.ts";
 import {
   type Candidate,
@@ -11,7 +12,7 @@ import {
   pairKey,
 } from "../src/core/proposal-candidates.ts";
 import { proposalsInput } from "../src/core/proposal-input.ts";
-import { PROPOSALS_INPUT_BYTES, type SentPair, proposalsTask } from "../src/core/proposal-task.ts";
+import { type SentPair, proposalsTask } from "../src/core/proposal-task.ts";
 
 function tag(id: number, name: string, items = 1): Candidate {
   return { id, key: catalogKey(name), items };
@@ -106,7 +107,7 @@ function sent(id: number, name: string): SentPair {
 describe("the input of a weekly run holds whole pairs within 14,000 bytes", () => {
   it("adds each pair whole in order and skips one that does not fit", () => {
     const small = sent(1, "a");
-    const big = sent(3, "b".repeat(PROPOSALS_INPUT_BYTES));
+    const big = sent(3, "b".repeat(AI_INPUT_BYTES));
     const last = sent(5, "c");
     const { input, sent: kept } = proposalsInput([small, big, last]);
 
@@ -120,7 +121,7 @@ describe("the input of a weekly run holds whole pairs within 14,000 bytes", () =
         ],
       }),
     );
-    assert.ok(new TextEncoder().encode(input).length <= PROPOSALS_INPUT_BYTES);
+    assert.ok(new TextEncoder().encode(input).length <= AI_INPUT_BYTES);
   });
 });
 

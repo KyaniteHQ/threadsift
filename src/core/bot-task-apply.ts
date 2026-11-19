@@ -7,6 +7,7 @@ import { GROK_BOT_EXECUTOR } from "./ai-task-state.ts";
 import { answerOf } from "./bot-task-answering.ts";
 import { holding } from "./job-rows.ts";
 import { parsedJson } from "./parsed-json.ts";
+import { GROK_BOT_PROVIDER } from "./provider-families.ts";
 
 export function appliedFor<Context, Result, Basis>(
   declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
@@ -26,7 +27,7 @@ export function appliedFor<Context, Result, Basis>(
       context: answer.context,
       result: answer.result,
       taskId: task.id,
-      by: { provider: GROK_BOT_EXECUTOR, model: null },
+      by: { provider: GROK_BOT_PROVIDER, model: null },
       executor: GROK_BOT_EXECUTOR,
     });
   };

@@ -7,6 +7,7 @@ import { newCallbackCredential } from "./callback-credential.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, DeferredOutcome, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
+import { GROK_BOT_WAIT } from "./kinds.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
 
@@ -19,7 +20,7 @@ type SentTask = Readonly<Pick<AiTaskRow, "id" | "kind" | "inputs" | "context" | 
 function waiting(task: Waiting): DeferredOutcome {
   return {
     deferredUntil: task.deadline,
-    wait: "grok-bot",
+    wait: GROK_BOT_WAIT,
     countsAttempt: false,
     unlessOpen: task.id,
     writes: [],
@@ -72,7 +73,7 @@ async function startedOutcome(
     case "lease-lost":
       return {
         deferredUntil: Date.now() + FULL_CAP_DEFER_MS,
-        wait: "grok-bot",
+        wait: GROK_BOT_WAIT,
         countsAttempt: false,
         writes: [],
       };

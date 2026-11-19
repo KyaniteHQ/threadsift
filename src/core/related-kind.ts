@@ -1,9 +1,10 @@
 import { z } from "zod";
 
+import { AI_LIST_OUTPUT_TOKENS } from "./ai-contract.ts";
 import { defineAiKind } from "./ai-kind.ts";
 import { VersionSchema, versionOf, versionsHold } from "./related-input.ts";
 import { preparedRelated } from "./related-prepare.ts";
-import { RELATED_OUTPUT_TOKENS, RELATED_TASK_KIND, relatedPickTask } from "./related-task.ts";
+import { RELATED_TASK_KIND, relatedPickTask } from "./related-task.ts";
 import { pickedWrites } from "./related-write.ts";
 
 const ContextSchema = z
@@ -28,7 +29,7 @@ export const relatedKind = defineAiKind({
       context: { source: versionOf(source), sent: sent.map((item) => versionOf(item)) },
       input,
       inputRevision: source.digest,
-      maxOutputTokens: RELATED_OUTPUT_TOKENS,
+      maxOutputTokens: AI_LIST_OUTPUT_TOKENS,
     };
   },
   publish: (db, { context, result }) => ({

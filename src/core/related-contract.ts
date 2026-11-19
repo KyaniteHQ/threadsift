@@ -4,8 +4,6 @@ import { SOURCES } from "./kinds.ts";
 
 export const RELATED_MAX = 5;
 
-export const RELATED_REASON_MAX = 160;
-
 const RelatedEntrySchema = z.object({
   id: z.number().int(),
   title: z.string().nullable(),

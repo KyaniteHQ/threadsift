@@ -1,13 +1,12 @@
 import { type SQL, type SQLWrapper, eq, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { parseStoredDigest } from "./ai-contract.ts";
+import { AI_INPUT_BYTES, parseStoredDigest } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import { storedTags, unchangedDigests } from "./digest-state.ts";
 import { utf8Length } from "./encoding.ts";
 import { logFailure } from "./failure-log.ts";
 import { candidateIds, relatedTerms } from "./related-candidates.ts";
-import { RELATED_INPUT_BYTES } from "./related-task.ts";
 import { digests } from "./schema.ts";
 
 export interface PickItem {
@@ -163,14 +162,14 @@ export function pickPrompt({
 }: Readonly<Extract<PickRead, { kind: "read" }>>): PickPrompt {
   if (candidates.length === 0) return { kind: "empty" };
 
-  if (utf8Length(promptJson(source, [])) > RELATED_INPUT_BYTES) {
+  if (utf8Length(promptJson(source, [])) > AI_INPUT_BYTES) {
     return { kind: "refused", reason: "source-over-cap" };
   }
 
   const sent: PickItem[] = [];
 
   for (const candidate of candidates) {
-    if (utf8Length(promptJson(source, [...sent, candidate])) <= RELATED_INPUT_BYTES) {
+    if (utf8Length(promptJson(source, [...sent, candidate])) <= AI_INPUT_BYTES) {
       sent.push(candidate);
     }
   }

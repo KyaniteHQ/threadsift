@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { resolveUrl } from "./addresses.ts";
 import { allowedAiUrl } from "./ai-url.ts";
+import { HOP_DEADLINE_MS } from "./request-waits.ts";
 import { SECRET_INPUT_MAX } from "./secret-input.ts";
 
 export const GROK_BOT_KEY_MAX = SECRET_INPUT_MAX;
@@ -34,7 +35,9 @@ export const GrokBotInputSchema = z.object({
   key: z
     .string()
     .max(GROK_BOT_KEY_MAX)
-    .regex(HEADER_SAFE_KEY, { error: "must be 1 to 4,096 printable ASCII characters, no space" })
+    .regex(HEADER_SAFE_KEY, {
+      error: `must be 1 to ${GROK_BOT_KEY_MAX.toLocaleString("en-US")} printable ASCII characters, no space`,
+    })
     .optional(),
 });
 
@@ -84,6 +87,8 @@ export const KEY_NEEDED =
   "key: a key is needed when the address is new or the saved key cannot be opened";
 
 export const VERIFY_WAIT_MS = 60_000;
+
+export const VERIFY_DEADLINE_MS = VERIFY_WAIT_MS + HOP_DEADLINE_MS;
 
 export const GROK_BOT_FIRST = "Save a Grok Bot address and key first.";
 

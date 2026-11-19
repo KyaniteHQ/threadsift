@@ -9,7 +9,8 @@ import {
   GrokBotViewSchema,
   KEY_NEEDED,
 } from "../core/grok-bot-contract.ts";
-import { pingGrokBot, readGrokBot, removeGrokBot, saveGrokBot } from "../core/grok-bot.ts";
+import { pingGrokBot } from "../core/grok-bot-ping.ts";
+import { readGrokBot, removeGrokBot, saveGrokBot } from "../core/grok-bot-settings.ts";
 import type { Ports } from "../core/ports.ts";
 import { registerAiTaskRoutes } from "./ai-task-routes.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
