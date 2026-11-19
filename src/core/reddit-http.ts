@@ -1,13 +1,44 @@
 import { REDDIT_WINDOW_REQUESTS } from "./limits.ts";
 import { pause } from "./pause.ts";
 
+export const OK = 200;
+
+export const LOGGED_OUT = 401;
+
+export const FORBIDDEN = 403;
+
+export const RATE_LIMITED = 429;
+
+const SIGNED_OUT_STATUSES: ReadonlySet<number> = new Set([LOGGED_OUT, FORBIDDEN]);
+
 const DECIMAL = /^\d+(?:\.\d+)?$/u;
+
+const WHOLE = /^\d+$/u;
 
 const MS_PER_SECOND = 1000;
 
 const REQUEST_SPACING_MS = 500;
 
-export const RATE_LIMITED = 429;
+export interface FillAnswer {
+  readonly status: number;
+  readonly text: string;
+  readonly remaining: string | null;
+  readonly reset?: string | null | undefined;
+  readonly retryAfter?: string | null | undefined;
+}
+
+export interface RedditAnswer extends FillAnswer {
+  readonly reset: string | null;
+  readonly retryAfter: string | null;
+}
+
+export const NO_ANSWER: RedditAnswer = {
+  status: 0,
+  text: "",
+  remaining: null,
+  reset: null,
+  retryAfter: null,
+};
 
 export interface RequestWindow {
   readonly sent: number;
@@ -15,6 +46,14 @@ export interface RequestWindow {
 }
 
 export const NEW_WINDOW: RequestWindow = { sent: 0, left: null };
+
+export function isSignedOut(status: number): boolean {
+  return SIGNED_OUT_STATUSES.has(status);
+}
+
+export function millisecondsFrom(seconds: number): number {
+  return Math.round(seconds * MS_PER_SECOND);
+}
 
 export function leftOf(header: string | null): number | null {
   const text = header?.trim() ?? "";
@@ -25,7 +64,13 @@ export function leftOf(header: string | null): number | null {
 export function millisecondsOf(seconds: string | null): number | null {
   const whole = leftOf(seconds);
 
-  return whole === null ? null : Math.round(whole * MS_PER_SECOND);
+  return whole === null ? null : millisecondsFrom(whole);
+}
+
+export function wholeMillisecondsOf(seconds: string | null): number | null {
+  const text = seconds?.trim() ?? "";
+
+  return WHOLE.test(text) ? millisecondsFrom(Number(text)) : null;
 }
 
 export function spacingWaitMs(lastRequestAt: number): number {

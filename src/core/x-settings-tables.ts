@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { X_READER_CHOICES } from "./kinds.ts";
+import { listed } from "./schema-checks.ts";
 
 export const xSettings = sqliteTable(
   "x_settings",
@@ -11,9 +12,6 @@ export const xSettings = sqliteTable(
   },
   (table) => [
     check("x_settings_is_one_row", sql`${table.id} = 1`),
-    check(
-      "x_settings_reader",
-      sql`${table.reader} in (${sql.raw(X_READER_CHOICES.map((choice) => `'${choice}'`).join(", "))})`,
-    ),
+    check("x_settings_reader", sql`${table.reader} in (${listed(X_READER_CHOICES)})`),
   ],
 );

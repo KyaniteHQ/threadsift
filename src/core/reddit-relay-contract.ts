@@ -1,10 +1,8 @@
+import { REDDIT_ACCOUNT_VIEW_STATES } from "./reddit-account-state-names.ts";
+
 export const REDDIT_CONNECT_STATES = [
   "unavailable",
-  "none",
-  "connected",
-  "expired",
-  "unreadable",
-  "missing",
+  ...REDDIT_ACCOUNT_VIEW_STATES,
   "no-access",
   "signed-out",
   "scope-refused",

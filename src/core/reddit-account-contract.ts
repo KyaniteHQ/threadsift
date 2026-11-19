@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { REDDIT_ACCOUNT_VIEW_STATES } from "./reddit-account-state-names.ts";
+
 export const REDDIT_SESSION_MAX = 4096;
 
 const SESSION_PREFIX = "reddit_session=";
@@ -13,14 +15,6 @@ export function redditSessionOf(text: string): string | null {
 }
 
 export const RedditSessionInputSchema = z.object({ session: z.string() });
-
-export const REDDIT_ACCOUNT_VIEW_STATES = [
-  "none",
-  "connected",
-  "expired",
-  "unreadable",
-  "missing",
-] as const;
 
 export const RedditAccountViewSchema = z.object({
   state: z.enum(REDDIT_ACCOUNT_VIEW_STATES),

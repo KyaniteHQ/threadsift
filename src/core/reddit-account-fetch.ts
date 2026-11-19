@@ -12,16 +12,20 @@ import {
   windowRecordOf,
 } from "./reddit-account-states.ts";
 import { checkSession } from "./reddit-account.ts";
-import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
-import { type RedditAnswer, answerOf } from "./reddit-session.ts";
 import {
+  FORBIDDEN,
   NEW_WINDOW,
+  NO_ANSWER,
   RATE_LIMITED,
+  type RedditAnswer,
   afterRequest,
+  isSignedOut,
   mayAsk,
   pauseForSpacing,
   windowFits,
-} from "./reddit-window.ts";
+} from "./reddit-http.ts";
+import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
+import { answerOf } from "./reddit-session.ts";
 import { FILL_DEADLINE_MS, REQUEST_DEADLINE_MS } from "./request-waits.ts";
 import { THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "./thread-fill.ts";
 
@@ -50,18 +54,6 @@ interface Run {
   readonly startedAt: number;
   readonly answerFor: (path: string, deadlineMs: number) => Promise<RedditAnswer>;
 }
-
-const NO_ANSWER: RedditAnswer = {
-  status: 0,
-  text: "",
-  remaining: null,
-  reset: null,
-  retryAfter: null,
-};
-
-const SIGNED_OUT_STATUSES: ReadonlySet<number> = new Set([401, 403]);
-
-const FORBIDDEN = 403;
 
 const FALLBACK: AccountThread = { kind: "fallback" };
 
@@ -230,7 +222,7 @@ async function afterFirst(
 
   if (first.status === RATE_LIMITED) return limitedAtFirst(run, first);
 
-  if (SIGNED_OUT_STATUSES.has(first.status)) return refusedAtFirst(run, first);
+  if (isSignedOut(first.status)) return refusedAtFirst(run, first);
 
   const hidden = hiddenIn(first, run.ref.postId);
 

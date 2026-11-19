@@ -3,9 +3,9 @@ import { z } from "zod";
 
 import { THREAD_CONTENT_BYTES } from "../../src/core/limits.ts";
 import { redditRefOf } from "../../src/core/links.ts";
-import { hiddenRepliesOf, unfilledStubsOf } from "../../src/core/reddit-tree.ts";
+import { unfilledStubsOf } from "../../src/core/reddit-tree.ts";
 import { REQUEST_DEADLINE_MS } from "../../src/core/request-waits.ts";
-import { THREAD_QUERY, fillAnswers, permalinkPath } from "../../src/core/thread-fill.ts";
+import { THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "../../src/core/thread-fill.ts";
 import { logFailure } from "./log.ts";
 import { resultInTab } from "./tab-result.ts";
 import { type ThreadBody, fitThreadBody } from "./thread-body.ts";
@@ -166,7 +166,7 @@ export async function fetchThread(
   if (ref === null) return null;
 
   const first = await answerFor(tab.id, threadAddress(tab), REQUEST_DEADLINE_MS, signal);
-  const hidden = first.status === 200 ? hiddenRepliesOf(first.text, ref.postId) : null;
+  const hidden = hiddenIn(first, ref.postId);
 
   if (hidden === null || stopped(signal)) return null;
 
