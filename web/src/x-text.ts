@@ -121,7 +121,7 @@ export const X_NOTICES: Readonly<
     kind: "save-note",
   },
   "x-post-absent": {
-    text: "X doesn't show this post. It may have been deleted or may not exist.",
+    text: "X doesn’t show this post. It may have been deleted or may not exist.",
     kind: "save-note",
   },
   "x-unreadable": { text: "This post couldn’t be read.", kind: "save-note" },

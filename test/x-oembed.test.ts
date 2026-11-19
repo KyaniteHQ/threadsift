@@ -35,6 +35,10 @@ describe("a post is read from the oEmbed answer X gave for its id", () => {
         oembedAnswerOf(404, recorded("status-404.html")).kind,
         oembedAnswerOf(410, "").kind,
         oembedAnswerOf(403, recorded("status-403.json")).kind,
+        oembedAnswerOf(
+          403,
+          JSON.stringify({ error: "Sorry, you are not authorized to use the embed service." }),
+        ).kind,
         oembedAnswerOf(403, html403).kind,
         oembedAnswerOf(403, "").kind,
         oembedAnswerOf(429, "").kind,
@@ -46,6 +50,7 @@ describe("a post is read from the oEmbed answer X gave for its id", () => {
         "absent",
         "absent",
         "absent",
+        "unavailable",
         "unavailable",
         "unavailable",
         "unavailable",
