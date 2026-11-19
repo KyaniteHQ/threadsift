@@ -1,5 +1,5 @@
 import { parseStoredDigest } from "./ai-contract.ts";
-import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
+import { type BotTaskRow, acceptsAnswer } from "./ai-task-state.ts";
 import { logFailure, report } from "./failure-log.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -8,7 +8,6 @@ import { statusIdOf } from "./links.ts";
 import { X_INTAKE_TASK, type IntakeAnswer } from "./x-intake-contract.ts";
 import {
   type IntakeTask,
-  REFUSALS_BEFORE_RESEND,
   intakeItem,
   intakeLive,
   refusedAnswer,
@@ -119,7 +118,7 @@ export async function refusedIntake(
 
   if (intake === null) return;
 
-  const refusals = await refusedAnswer(ports.db, intake, Date.now()).catch(
+  const counted = await refusedAnswer(ports.db, intake, Date.now()).catch(
     (error: Readonly<Error>) => {
       logFailure("grok-bot-answer-refusal-not-counted", { taskId: intake.id }, error);
 
@@ -127,14 +126,14 @@ export async function refusedIntake(
     },
   );
 
-  if (refusals === null) return;
+  if (counted === null) return;
 
   report("grok-bot-answer-refused", {
     taskId: intake.id,
     itemId: intake.itemId,
-    refusals,
+    refusals: counted.refusals,
     issues: logged.slice(0, REFUSAL_LOGGED_MAX),
   });
 
-  if (refusals >= REFUSALS_BEFORE_RESEND) await enqueueQuietly(ports, [intake.jobId], 0);
+  if (counted.resend) await enqueueQuietly(ports, [intake.jobId], 0);
 }

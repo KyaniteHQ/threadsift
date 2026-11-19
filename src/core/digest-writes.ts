@@ -1,7 +1,7 @@
 import { type SQLWrapper, eq } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
-import { completedAiTask } from "./ai-tasks.ts";
+import { completedAiTask } from "./ai-task-rows.ts";
 import { type CatalogEntries, publishedLinks } from "./catalog.ts";
 import type { Database } from "./database.ts";
 import { markDigest, openingPick } from "./digest-source.ts";

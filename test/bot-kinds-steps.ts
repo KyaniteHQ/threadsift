@@ -1,6 +1,6 @@
 import { botStep } from "../src/core/bot-step.ts";
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
-import { latestTask } from "../src/core/bot-task-states.ts";
+import { latestTask } from "../src/core/bot-task-rows.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
 import { HANDLERS } from "../src/core/job-handlers.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";

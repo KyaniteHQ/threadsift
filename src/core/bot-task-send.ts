@@ -1,9 +1,9 @@
 import type { SQL } from "drizzle-orm";
 
 import type { AiRefusal } from "./ai-contract.ts";
-import { failedAiTask } from "./ai-tasks.ts";
+import { failedAiTask } from "./ai-task-rows.ts";
 import type { SentTask, SentTaskKind } from "./bot-task-kind.ts";
-import { sentTask } from "./bot-task-states.ts";
+import { sentTask } from "./bot-task-rows.ts";
 import { report } from "./failure-log.ts";
 import type { GrokBotResult, WebhookBody } from "./grok-bot-contract.ts";
 import { grokBotConnection, postToGrokBot } from "./grok-bot.ts";

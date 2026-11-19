@@ -1,12 +1,13 @@
 import { and, eq, ne, sql } from "drizzle-orm";
 
-import { completedAiTask, failedAiTask } from "./ai-tasks.ts";
-import { type BotTaskRow, acceptsAnswer } from "./bot-task-states.ts";
+import { completedAiTask, failedAiTask } from "./ai-task-rows.ts";
+import { type BotTaskRow, acceptsAnswer } from "./ai-task-state.ts";
+import { answeredTask, countedRefusal } from "./bot-task-rows.ts";
 import type { Database } from "./database.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { JobPorts, JobWrites } from "./job-outcome.ts";
 import { enqueueQuietly } from "./job-rows.ts";
-import { aiTasks, items, jobs } from "./schema.ts";
+import { items, jobs } from "./schema.ts";
 import { queuedVerification } from "./x-verify-store.ts";
 import type { XThreadValue } from "./x-wire.ts";
 
@@ -16,8 +17,6 @@ export type IntakeTask = Readonly<
     itemId: number;
   }
 >;
-
-export const REFUSALS_BEFORE_RESEND = 2;
 
 export function intakeLive(task: IntakeTask) {
   return sql`${acceptsAnswer(task)} and exists (select 1 from ${jobs} where ${jobs.id} = ${task.jobId} and ${jobs.state} <> 'done') and exists (select 1 from ${items} where ${items.id} = ${task.itemId} and ${items.generation} = ${task.inputRevision})`;
@@ -41,13 +40,7 @@ export function answeredIntake(
   { id }: Readonly<Pick<IntakeTask, "id">>,
   result: Readonly<{ unavailable: boolean }>,
 ): JobWrites {
-  return [
-    db
-      .update(aiTasks)
-      .set({ answeredAt: Date.now() })
-      .where(and(eq(aiTasks.id, id), eq(aiTasks.state, "running"))),
-    completedAiTask(db, { taskId: id, result }),
-  ];
+  return [answeredTask(db, id, Date.now()), completedAiTask(db, { taskId: id, result })];
 }
 
 export function storedIntake(
@@ -99,33 +92,6 @@ export async function staleIntake(
   if (woken !== undefined) await enqueueQuietly(ports, [woken.id], 0);
 }
 
-export async function refusedAnswer(
-  db: Database,
-  task: IntakeTask,
-  now: number,
-): Promise<number | null> {
-  const refused = sql`${aiTasks.answerRefusals} + 1`;
-
-  const [counted] = await db.batch([
-    db
-      .update(aiTasks)
-      .set({
-        answerRefusals: refused,
-        deadline: sql`case when ${refused} >= ${REFUSALS_BEFORE_RESEND} then ${now} else ${aiTasks.deadline} end`,
-      })
-      .where(and(eq(aiTasks.id, task.id), intakeLive(task)))
-      .returning({ refusals: aiTasks.answerRefusals }),
-    db
-      .update(jobs)
-      .set({ nextAttemptAt: now })
-      .where(
-        and(
-          eq(jobs.id, task.jobId),
-          ne(jobs.state, "done"),
-          sql`exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${task.id} and ${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null and ${aiTasks.deadline} = ${now} and ${aiTasks.answerRefusals} >= ${REFUSALS_BEFORE_RESEND})`,
-        ),
-      ),
-  ]);
-
-  return counted[0]?.refusals ?? null;
+export function refusedAnswer(db: Database, task: IntakeTask, now: number) {
+  return countedRefusal(db, task, intakeLive(task), now);
 }

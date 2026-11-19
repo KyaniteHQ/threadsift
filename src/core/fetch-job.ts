@@ -1,10 +1,10 @@
-import { botFailureNote } from "./bot-task-states.ts";
 import { attemptFetch } from "./fetch-attempt.ts";
 import { defineJob } from "./job-spec.ts";
 import { redditRefOf } from "./links.ts";
 import { redditClosed, redditClosing } from "./reddit-account-queue.ts";
 import { X_RUN_DEADLINE_MS, X_SLOT_WAIT_MS } from "./request-waits.ts";
 import { failedFetch } from "./settle.ts";
+import { botFailureNote } from "./x-intake-state.ts";
 import { xVerifyHandler } from "./x-verify-job.ts";
 
 export const fetchHandler = defineJob("fetch", {

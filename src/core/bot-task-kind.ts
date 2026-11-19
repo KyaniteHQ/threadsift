@@ -1,7 +1,8 @@
 import { and, type SQLWrapper } from "drizzle-orm";
 import { z } from "zod";
 
-import { failedAiTask } from "./ai-tasks.ts";
+import { failedAiTask } from "./ai-task-rows.ts";
+import type { BotTaskRow } from "./ai-task-state.ts";
 import {
   type AnsweringParts,
   type BotAnswer,
@@ -11,7 +12,6 @@ import {
   botAnswering,
 } from "./bot-task-answering.ts";
 import type { BotTaskStart } from "./bot-task-start.ts";
-import type { BotTaskRow } from "./bot-task-states.ts";
 import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";

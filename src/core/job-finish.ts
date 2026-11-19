@@ -1,6 +1,7 @@
 import { type SQL, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { answeredOrClosed } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { bestEffort, databaseCodeOf, logFailure, readOrAssume, report } from "./failure-log.ts";
 import { deleteQuietly, unnamed } from "./file-cleanup.ts";
@@ -131,7 +132,7 @@ function dueAt(until: number, closedTask: number | undefined): number | SQL {
 
   const now = Date.now();
 
-  return sql`case when exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${closedTask} and (${aiTasks.answeredAt} is not null or ${aiTasks.state} <> 'running')) then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${closedTask}), ${until})) end`;
+  return sql`case when ${answeredOrClosed(closedTask)} then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${closedTask}), ${until})) end`;
 }
 
 export async function queueLater(

@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { expireAiTasks } from "./ai-tasks.ts";
+import { expireAiTasks } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
 import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
 import { NOT_FAILED } from "./item-status.ts";

@@ -2,7 +2,9 @@ import { type SQL, sql } from "drizzle-orm";
 import type { z } from "zod";
 
 import { AI_DEADLINE_MS, type AiTaskDefinition, type ModelAi } from "./ai-contract.ts";
-import { aiTaskRunning, completedAiTask, runAiTask } from "./ai-tasks.ts";
+import { completedAiTask } from "./ai-task-rows.ts";
+import { aiTaskRunning } from "./ai-task-state.ts";
+import { runAiTask } from "./ai-tasks.ts";
 import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { guardedOutcome, lostOutcome, refusalOutcome } from "./guarded-outcome.ts";

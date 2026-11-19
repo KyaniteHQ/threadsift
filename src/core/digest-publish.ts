@@ -1,7 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { Digest } from "./ai-contract.ts";
-import { aiTaskRunning } from "./ai-tasks.ts";
+import { aiTaskRunning } from "./ai-task-state.ts";
 import { catalogCurrent, pinnedCatalog } from "./catalog.ts";
 import type { Database } from "./database.ts";
 import { type DigestInput, currency, digestInput, generationCurrent } from "./digest-source.ts";

@@ -1,15 +1,14 @@
 import { z } from "zod";
 
-import type { BotResult } from "./bot-task-answering.ts";
-import { botKindOf } from "./bot-task-kinds.ts";
 import {
   type BotTaskRow,
   GROK_BOT_EXECUTOR,
   acceptsAnswer,
-  answeredWrites,
-  reportedWrites,
-  stateOf,
-} from "./bot-task-states.ts";
+  awaitsAnswer,
+} from "./ai-task-state.ts";
+import type { BotResult } from "./bot-task-answering.ts";
+import { botKindOf } from "./bot-task-kinds.ts";
+import { answeredWrites, reportedWrites } from "./bot-task-rows.ts";
 import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
@@ -48,9 +47,7 @@ function intakeOf(
 
   if (task.executor !== GROK_BOT_EXECUTOR || kind === null) return { kind: "unsupported" };
 
-  const state = stateOf(task);
-
-  if ((state !== "unsent" && state !== "sent") || task.deadline <= now) return CLOSED;
+  if (!awaitsAnswer(task, now)) return CLOSED;
 
   if (answer.kind === "error") {
     report("grok-bot-error", { taskId: task.id, jobId: task.jobId ?? 0 });

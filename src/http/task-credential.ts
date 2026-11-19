@@ -1,6 +1,6 @@
 import type { Context, MiddlewareHandler } from "hono";
 
-import type { BotTaskRow } from "../core/bot-task-states.ts";
+import type { BotTaskRow } from "../core/ai-task-state.ts";
 import { BEARER_CALLBACK, callbackTaskOf } from "../core/callback-credential.ts";
 import type { Ports } from "../core/ports.ts";
 import { verifyToken } from "../core/tokens.ts";

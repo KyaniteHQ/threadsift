@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
-import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
+import { completedAiTask } from "./ai-task-rows.ts";
+import { aiTaskRunning } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { guardedOutcome } from "./guarded-outcome.ts";
 import type { SettledOutcome } from "./job-outcome.ts";
