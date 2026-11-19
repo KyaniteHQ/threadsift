@@ -27,7 +27,7 @@ type BotPreparation =
     }
   | { readonly kind: "settled"; readonly outcome: JobOutcome };
 
-export type BotParse =
+type BotParse =
   | (Extract<BotAnswer, { readonly kind: "valid" }> & {
       readonly apply: (
         ports: JobPorts,
@@ -62,7 +62,7 @@ interface KindParts<Context, Result> extends AnsweringParts<Context, Result> {
   ) => Promise<JobOutcome>;
 }
 
-export function reparsed(
+function reparsed(
   kind: Readonly<Pick<BotTaskKind, "parse">>,
   { context, result }: Readonly<Pick<BotTaskRow, "context" | "result">>,
 ): BotParse {

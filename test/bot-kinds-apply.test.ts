@@ -36,7 +36,7 @@ describe("an answered bot task of each kind applies once under the guard its exe
 
         const written = libraryDump(instance);
 
-        await appliedAgain(instance, kindCase.kind, { job, task: taskRow(instance, sent.id) });
+        await appliedAgain(instance, kindCase.kind, job);
 
         assert.equal(libraryDump(instance), written);
       });

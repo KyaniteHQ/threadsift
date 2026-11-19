@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { z } from "zod";
 
-import { type Resolved, judged, oembedAnswerOf } from "../src/core/x-oembed.ts";
+import { type Resolved, checked, oembedAnswerOf } from "../src/core/x-oembed.ts";
 import type { Judgement } from "../src/core/x-verdict.ts";
 
 const AnswerSchema = z.looseObject({ url: z.string(), author_url: z.string(), html: z.string() });
@@ -36,7 +36,8 @@ export const verdict = (
   author: string,
   text: string,
   resolved: Resolved = NOTHING_RESOLVED,
-): Judgement => judged({ id, author, text, recipientsMayBeOmitted: false }, postOf(name), resolved);
+): Judgement =>
+  checked({ id, author, text, recipientsMayBeOmitted: false }, postOf(name), resolved).judgement;
 
 export const CUT_BARE_HEAD =
   "Libraries should always be open to the whole neighbourhood.\n\nThe committee is against the notion that it would be acceptable for readers to be reduced to a role of doing things that “the schedule thinks makes sense to reward in members”.\n\nPeople should not cede control of the reading room to";
@@ -98,7 +99,8 @@ export const verdictOf = (body: string, id: string, author: string, text: string
 
   if (answer.kind !== "post") throw new Error(answer.kind);
 
-  return judged({ id, author, text, recipientsMayBeOmitted: false }, answer.post, NOTHING_RESOLVED);
+  return checked({ id, author, text, recipientsMayBeOmitted: false }, answer.post, NOTHING_RESOLVED)
+    .judgement;
 };
 
 export const mediaOnly = (text: string) =>

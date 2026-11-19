@@ -1,6 +1,6 @@
 import { botStep } from "../src/core/bot-step.ts";
-import { reparsed } from "../src/core/bot-task-kind.ts";
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
+import { latestTask } from "../src/core/bot-task-states.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
 import type { ClaimedJob } from "../src/core/job-outcome.ts";
 import type { BotKindName } from "./bot-kinds-cases.ts";
@@ -22,19 +22,16 @@ export async function settled(
 export async function appliedAgain(
   instance: Instance,
   kind: BotKindName,
-  {
-    job,
-    task,
-  }: Readonly<{
-    job: Readonly<ClaimedJob>;
-    task: Readonly<{ id: number; context: string | null; result: string | null }>;
-  }>,
+  job: Readonly<ClaimedJob>,
 ): Promise<void> {
-  const parsed = reparsed(BOT_TASK_KINDS[kind], task);
+  const task = await latestTask(instance.core.db, job.id);
 
-  if (parsed.kind !== "valid")
-    throw new Error(`the stored answer no longer fits: ${parsed.reasons}`);
+  if (task === null) throw new Error(`no task of job ${String(job.id)}`);
 
   reclaimed(instance, job);
-  await applyOutcome(instance.core, job, await parsed.apply(instance.core, job, task));
+  await applyOutcome(
+    instance.core,
+    job,
+    await BOT_TASK_KINDS[kind].apply(instance.core, job, task),
+  );
 }

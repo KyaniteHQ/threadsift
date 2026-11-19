@@ -270,11 +270,3 @@ export function checked(
     ? checkText(stored, post, resolved)
     : strict;
 }
-
-export function judged(
-  stored: Readonly<StoredPost>,
-  post: Readonly<OembedPost>,
-  resolved: Readonly<Resolved>,
-): Judgement {
-  return checked(stored, post, resolved).judgement;
-}
