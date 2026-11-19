@@ -78,8 +78,9 @@ async function afterActivation(
 ): Promise<ConnectNotice> {
   const active = await ports.ai.awaitOpenRouterActivation(key);
 
-  if (!(await stillStored(ports, row, requeuedDigests(ports.db, active))))
-    return "settings-changed";
+  const requeued = active ? requeuedDigests(ports.db) : [];
+
+  if (!(await stillStored(ports, row, requeued))) return "settings-changed";
 
   return active ? "connected" : "activation-pending";
 }

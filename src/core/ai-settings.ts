@@ -113,7 +113,7 @@ export async function saveAiSettings(
 
   const written = await guardedBatch(ports.db, prepared.guard, [
     ...prepared.writes,
-    ...requeuedDigests(ports.db, true),
+    ...requeuedDigests(ports.db),
   ]);
 
   if (written) return readAiSettings(ports);
