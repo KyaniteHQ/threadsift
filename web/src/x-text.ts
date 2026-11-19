@@ -11,8 +11,7 @@ export const X_TEXT = {
   versionLabel: "Version",
   saving: "Saving setting…",
   failed: "Couldn’t save the setting. Try again.",
-  noteSignedOut:
-    "The grok CLI is signed out, so it cannot read X links; sign in on this server with:",
+  noteSignedOut: "Sign in with the command below to read X links with the grok CLI.",
   noteNotProven:
     "This version of the grok CLI, or a tool it offers, is not one Threadsift has checked, so it cannot read X links; after updating or replacing the CLI, restart the Instance so the check runs again:",
   noteUnknown:
@@ -36,7 +35,7 @@ export const READER_LABELS = {
 } as const satisfies Readonly<Record<XReaderChoice, string>>;
 
 export const READER_HELP = {
-  auto: "The Grok Bot reads X links when it is set up and its key opens, otherwise the grok CLI reads them when installed, otherwise the link stays Link-only.",
+  auto: "When you paste an X link, Auto uses Grok Bot only when its webhook address is saved, Threadsift allows that address, and the saved key can be opened. Otherwise it tries the grok CLI when installed. Without the CLI, the link stays Link-only.",
   "grok-bot":
     "Only the Grok Bot reads X links; if it can’t be used, the link stays Link-only and the grok CLI is not tried.",
   "grok-cli":
