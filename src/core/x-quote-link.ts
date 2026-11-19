@@ -39,12 +39,10 @@ export function withoutQuoteLink(
 }
 
 export function rejectedQuotes(
-  next: string | null | undefined,
+  next: string | null,
   quoted: string | null,
   showsNoQuote: boolean,
 ): readonly string[] {
-  if (next === undefined) return [];
-
   if (quoted !== null) return quoted === next ? [] : [quoted, ...(next === null ? [] : [next])];
 
   return showsNoQuote && next !== null ? [next] : [];

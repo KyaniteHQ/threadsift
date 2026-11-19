@@ -1,10 +1,9 @@
 import { eq } from "drizzle-orm";
-import { z } from "zod";
 
 import type { Database } from "./database.ts";
 import { parsedJson } from "./parsed-json.ts";
 import { xVerifications } from "./schema.ts";
-import type { Judged, StoredJudgement } from "./x-verdict.ts";
+import { type Judged, StoredJudgedSchema } from "./x-verdict.ts";
 import { type XThreadValue, StoredXThreadSchema } from "./x-wire.ts";
 
 export interface Verification {
@@ -19,17 +18,6 @@ export type StoredVerification =
   | { readonly kind: "missing" }
   | { readonly kind: "unreadable"; readonly revision: number }
   | { readonly kind: "readable"; readonly verification: Verification };
-
-const StoredJudgedSchema = z.record(
-  z.string(),
-  z.enum([
-    "verified",
-    "tail-unverified",
-    "rejected",
-    "verified-without-recipients",
-    "tail-unverified-without-recipients",
-  ] satisfies readonly StoredJudgement[]),
-);
 
 export async function verificationOf(db: Database, itemId: number): Promise<StoredVerification> {
   const [row] = await db.select().from(xVerifications).where(eq(xVerifications.itemId, itemId));

@@ -36,12 +36,6 @@ export function isImageLine(line: string): boolean {
   return line.startsWith("![](<") && line.endsWith(">)") && isXImageUrl(line.slice(5, -2));
 }
 
-export const NO_PHOTOS_PREFIX = "no-photos:";
-
-export function noPhotosKey(postId: string): string {
-  return `${NO_PHOTOS_PREFIX}${postId}`;
-}
-
 export function withImages(text: string, images: readonly string[]): string {
   return [
     ...(text.trim() === "" ? [] : [text]),

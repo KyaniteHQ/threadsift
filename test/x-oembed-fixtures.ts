@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 
 import { z } from "zod";
 
-import { type Resolved, checked, oembedAnswerOf } from "../src/core/x-oembed.ts";
+import { type Resolved, type StoredPost, checked, oembedAnswerOf } from "../src/core/x-oembed.ts";
 import type { Judgement } from "../src/core/x-verdict.ts";
 
 const AnswerSchema = z.looseObject({ url: z.string(), author_url: z.string(), html: z.string() });
@@ -30,14 +30,26 @@ export const withParagraph = (name: string, html: string): string =>
 
 export const NOTHING_RESOLVED: Resolved = new Map();
 
+export const replyPost = (
+  id: string,
+  author: string,
+  text: string,
+  recipientsMayBeOmitted = false,
+): StoredPost => ({
+  id,
+  author,
+  text,
+  photos: false,
+  role: { kind: "reply", recipientsMayBeOmitted },
+});
+
 export const verdict = (
   name: string,
   id: string,
   author: string,
   text: string,
   resolved: Resolved = NOTHING_RESOLVED,
-): Judgement =>
-  checked({ id, author, text, recipientsMayBeOmitted: false }, postOf(name), resolved).judgement;
+): Judgement => checked(replyPost(id, author, text), postOf(name), resolved).judgement;
 
 export const CUT_BARE_HEAD =
   "Libraries should always be open to the whole neighbourhood.\n\nThe committee is against the notion that it would be acceptable for readers to be reduced to a role of doing things that “the schedule thinks makes sense to reward in members”.\n\nPeople should not cede control of the reading room to";
@@ -99,8 +111,7 @@ export const verdictOf = (body: string, id: string, author: string, text: string
 
   if (answer.kind !== "post") throw new Error(answer.kind);
 
-  return checked({ id, author, text, recipientsMayBeOmitted: false }, answer.post, NOTHING_RESOLVED)
-    .judgement;
+  return checked(replyPost(id, author, text), answer.post, NOTHING_RESOLVED).judgement;
 };
 
 export const mediaOnly = (text: string) =>

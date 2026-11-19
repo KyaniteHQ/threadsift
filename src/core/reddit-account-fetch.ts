@@ -1,11 +1,6 @@
 import { report } from "./failure-log.ts";
 import type { Ports } from "./ports.ts";
-import {
-  FILL_DEADLINE_MS,
-  type TurnRun,
-  WAIT_CHECK_MS,
-  holdsTurn,
-} from "./reddit-account-queue.ts";
+import { type TurnRun, WAIT_CHECK_MS, holdsTurn } from "./reddit-account-queue.ts";
 import {
   clearRefusals,
   countRefusal,
@@ -27,7 +22,7 @@ import {
   pauseForSpacing,
   windowFits,
 } from "./reddit-window.ts";
-import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
+import { FILL_DEADLINE_MS, REQUEST_DEADLINE_MS } from "./request-waits.ts";
 import { THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "./thread-fill.ts";
 
 type RedditRef = import("./links.ts").RedditRef;

@@ -2,14 +2,13 @@ import { report } from "./failure-log.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { isLastAttempt, retryDelayMs } from "./job-retry.ts";
 import { defineJob } from "./job-spec.ts";
+import { X_VERIFY_DEADLINE_MS } from "./request-waits.ts";
 import { xVerifications } from "./schema.ts";
 import { ended, withdrawn } from "./x-verify-publish.ts";
 import { type Verification, verificationOf } from "./x-verify-read.ts";
 import { progressOf } from "./x-verify-state.ts";
 import { savedProgress, unreadableWrites } from "./x-verify-store.ts";
 import { askedSlice } from "./x-verify.ts";
-
-const SLICE_DEADLINE_MS = 90_000;
 
 async function slice(
   ports: JobPorts,
@@ -20,7 +19,7 @@ async function slice(
     ports.network,
     row.thread,
     row.judged,
-    AbortSignal.timeout(SLICE_DEADLINE_MS),
+    AbortSignal.timeout(X_VERIFY_DEADLINE_MS),
   );
 
   const judged = { ...row.judged, ...asked.added };
@@ -69,7 +68,7 @@ async function attemptVerification(
 }
 
 export const xVerifyHandler = defineJob("x_verify", {
-  deadlineMs: SLICE_DEADLINE_MS,
+  deadlineMs: X_VERIFY_DEADLINE_MS,
   input: { key: xVerifications.itemId, version: xVerifications.revision },
   attempt: attemptVerification,
   exhausted: (db, job) => unreadableWrites(db, job.itemId, job.attemptGeneration, "x-unconfirmed"),

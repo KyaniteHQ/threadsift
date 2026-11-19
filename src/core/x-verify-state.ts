@@ -1,8 +1,7 @@
 import { authorPartsOf } from "./x-author-thread.ts";
-import { noPhotosKey } from "./x-images.ts";
 import { joinedPost, leadingQuotes } from "./x-joined-post.ts";
 import { MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
-import type { Judged } from "./x-verdict.ts";
+import { type Judged, judgementOn, photosRejectedOn, rejectedJudged } from "./x-verdict.ts";
 import type { XReply, XThreadValue } from "./x-wire.ts";
 
 const SLICE_REQUESTS = 40;
@@ -25,13 +24,12 @@ function postsOf(
   judgedSoFar: Judged,
 ): readonly StoredPost[] {
   const chain = [post, ...leadingQuotes(post.quoted, judgedSoFar)].map(
-    ({ id, author, text, images }, index) => ({
+    ({ id, author, text, images }, index): StoredPost => ({
       id,
       author,
       text,
       photos: images.length > 0,
-      recipientsMayBeOmitted: false,
-      chain: { next: post.quoted[index]?.id ?? null },
+      role: { kind: index === 0 ? "root" : "quote", next: post.quoted[index]?.id ?? null },
     }),
   );
 
@@ -39,30 +37,27 @@ function postsOf(
 
   return [
     ...chain,
-    ...replies.map(({ id, author, text, images }) => ({
-      recipientsMayBeOmitted: !authorParts.has(id),
+    ...replies.map(({ id, author, text, images }): StoredPost => ({
       id,
       author,
       text,
       photos: images.length > 0,
+      role: { kind: "reply", recipientsMayBeOmitted: !authorParts.has(id) },
     })),
   ];
 }
 
-function costOf({ text }: Readonly<StoredPost>): number {
-  return 2 + Math.min(linkCount(text), MAX_LINKS);
+function costOf({ text, role }: Readonly<StoredPost>): number {
+  return role.kind === "root" ? SLICE_REQUESTS : 2 + Math.min(linkCount(text), MAX_LINKS);
 }
 
 export function sliceOf(
   thread: Readonly<XThreadValue>,
   judgedSoFar: Judged,
 ): readonly StoredPost[] {
-  const pending = postsOf(thread, judgedSoFar).filter(({ id }) => judgedSoFar[id] === undefined);
-  const [first] = pending;
-
-  if (first === undefined) return [];
-
-  if (first.id === thread.post.id) return [first];
+  const pending = postsOf(thread, judgedSoFar).filter(
+    ({ id }) => judgementOn(judgedSoFar, id) === undefined,
+  );
 
   const chosen: StoredPost[] = [];
   let planned = 0;
@@ -85,23 +80,23 @@ export function hasPossibleParent({ id, parentId }: Readonly<XReply>, rootId: st
 }
 
 export function startingJudged({ post, replies }: Readonly<XThreadValue>): Judged {
-  return Object.fromEntries(
-    replies
-      .filter((reply) => !hasPossibleParent(reply, post.id))
-      .map(({ id }) => [id, "rejected"] as const),
+  return rejectedJudged(
+    replies.filter((reply) => !hasPossibleParent(reply, post.id)).map(({ id }) => id),
   );
 }
 
 export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged): Progress {
-  if (judgedSoFar[thread.post.id] === "rejected") return { kind: "refused" };
+  if (judgementOn(judgedSoFar, thread.post.id) === "rejected") return { kind: "refused" };
 
   const posts = postsOf(thread, judgedSoFar);
-  const pending = posts.filter(({ id }) => judgedSoFar[id] === undefined);
+  const pending = posts.filter(({ id }) => judgementOn(judgedSoFar, id) === undefined);
 
   if (pending.length > 0) return { kind: "asking", pending };
 
   const kept = new Set(
-    thread.replies.filter(({ id }) => judgedSoFar[id] !== "rejected").map(({ id }) => id),
+    thread.replies
+      .filter(({ id }) => judgementOn(judgedSoFar, id) !== "rejected")
+      .map(({ id }) => id),
   );
 
   const { thread: joined, followUps, quotes } = joinedPost(thread, kept, judgedSoFar);
@@ -114,14 +109,10 @@ export function progressOf(thread: Readonly<XThreadValue>, judgedSoFar: Judged):
     quoted: quotes.length,
     dropped: thread.replies.length - kept.size,
     unverifiedTails: posts.filter(
-      ({ id }) =>
-        (judgedSoFar[id] === "tail-unverified" ||
-          judgedSoFar[id] === "tail-unverified-without-recipients") &&
-        shown.has(id),
+      ({ id }) => judgementOn(judgedSoFar, id) === "tail-unverified" && shown.has(id),
     ).length,
     photoless: posts.filter(
-      ({ id, photos }) =>
-        photos === true && judgedSoFar[noPhotosKey(id)] === "rejected" && shown.has(id),
+      ({ id, photos }) => photos && photosRejectedOn(judgedSoFar, id) && shown.has(id),
     ).length,
   };
 }

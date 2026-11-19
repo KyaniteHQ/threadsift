@@ -4,6 +4,7 @@ import { report } from "./failure-log.ts";
 import { settledFetch } from "./fetch-settle.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";
 import { ownerOfItem } from "./reddit-thread.ts";
+import { X_VERIFY_DEADLINE_MS } from "./request-waits.ts";
 import { NOTE_OF_REFUSAL } from "./x-fetcher.ts";
 import { fewerThanStored, holdsAtLeastStored, publishableThread, repliesOf } from "./x-partial.ts";
 import { type Verification, verificationOf } from "./x-verify-read.ts";
@@ -16,8 +17,6 @@ import {
   revisionHolds,
   unreadableWrites,
 } from "./x-verify-store.ts";
-
-const PUBLISH_DEADLINE_MS = 90_000;
 
 type Ending = Exclude<Progress, { kind: "asking" }> | { readonly kind: "gave-up" };
 
@@ -106,7 +105,7 @@ async function published(
         content: { kind: "thread", thread, archivedAt: null },
       },
     },
-    AbortSignal.timeout(PUBLISH_DEADLINE_MS),
+    AbortSignal.timeout(X_VERIFY_DEADLINE_MS),
     row.digest,
   );
 

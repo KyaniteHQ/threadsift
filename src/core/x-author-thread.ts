@@ -1,12 +1,10 @@
 import { utf8Length } from "./encoding.ts";
-import { INLINE_TEXT_BYTES } from "./limits.ts";
 import { closedBlocks } from "./x-blocks.ts";
 import { withImages } from "./x-images.ts";
+import { PART_SEPARATOR, roomAfter } from "./x-inline-room.ts";
 import type { XReply, XThreadValue } from "./x-wire.ts";
 
 const NOT_SAVED_NOTE = "Author follow-up posts that X did not confirm were not saved.";
-
-export const PART_SEPARATOR = "\n\n";
 
 type RepliesById = Readonly<ReadonlyMap<string, Readonly<XReply>>>;
 
@@ -40,6 +38,10 @@ function survivingParent(
   }
 
   return postId;
+}
+
+function withParent(reply: Readonly<XReply>, parentId: string): XReply {
+  return { ...reply, parentId };
 }
 
 function partParent(
@@ -106,9 +108,8 @@ function partText({ text, images }: Readonly<XReply>): string {
   return withImages(closedBlocks(text), images);
 }
 
-function fittingText(text: string, followUps: readonly Readonly<XReply>[]): XReply[] {
-  const room =
-    INLINE_TEXT_BYTES - utf8Length(text) - utf8Length(`${PART_SEPARATOR}${NOT_SAVED_NOTE}`);
+function fittingText(lead: string, followUps: readonly Readonly<XReply>[]): XReply[] {
+  const room = roomAfter(lead, NOT_SAVED_NOTE);
 
   const fitting: XReply[] = [];
   let used = 0;
@@ -132,13 +133,14 @@ export function authorPartsOf(thread: Readonly<XThreadValue>): readonly Readonly
 
 export function joinedAuthorThread(
   thread: Readonly<XThreadValue>,
+  lead: string,
   kept: Ids,
   strict: Ids,
 ): JoinedAuthorThread {
   const { post, replies } = thread;
   const byId = new Map(replies.map((reply) => [reply.id, reply]));
   const shown = authorThreadOf(thread, byId, strict);
-  const fitting = fittingText(post.text, shown);
+  const fitting = fittingText(lead, shown);
 
   const refused = authorThreadOf(thread, byId, new Set(byId.keys())).filter(
     ({ id }) => !kept.has(id),
@@ -151,7 +153,7 @@ export function joinedAuthorThread(
   const reported = post.replies === null ? null : Math.max(0, post.replies - parts.size);
 
   const text = [
-    post.text,
+    lead,
     ...fitting.flatMap((followUp) => {
       const part = partText(followUp);
 
@@ -170,9 +172,7 @@ export function joinedAuthorThread(
       },
       replies: others
         .filter(({ id }) => keptOthers.has(id))
-        .map((reply) =>
-          Object.assign(reply, { parentId: survivingParent(reply, byId, keptOthers, post.id) }),
-        ),
+        .map((reply) => withParent(reply, survivingParent(reply, byId, keptOthers, post.id))),
     },
     followUps: fitting.length,
   };
