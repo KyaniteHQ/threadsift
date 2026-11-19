@@ -1,5 +1,5 @@
+import type { AiTaskRow } from "./ai-task-state.ts";
 import type { BotTaskKind } from "./bot-task-kind.ts";
-import type { BotTaskRow } from "./bot-task-states.ts";
 import { isVerifyContext, verifyAnswering } from "./bot-verify.ts";
 import { digestBotKind } from "./digest-bot.ts";
 import { disagreementRun } from "./disagreement-job.ts";
@@ -22,7 +22,7 @@ function isBotTaskKind(kind: string): kind is keyof typeof BOT_TASK_KINDS {
   return Object.hasOwn(BOT_TASK_KINDS, kind);
 }
 
-export function botKindOf({ kind, context }: Readonly<Pick<BotTaskRow, "kind" | "context">>) {
+export function botKindOf({ kind, context }: Readonly<Pick<AiTaskRow, "kind" | "context">>) {
   if (isVerifyContext(context)) return verifyAnswering;
 
   return isBotTaskKind(kind) ? BOT_TASK_KINDS[kind] : null;

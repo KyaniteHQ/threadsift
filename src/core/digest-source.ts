@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { failedAiTask } from "./ai-tasks.ts";
+import { failedAiTask } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
 import {
   type CatalogNames,

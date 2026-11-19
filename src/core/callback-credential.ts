@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
-import type { BotTaskRow } from "./bot-task-states.ts";
+import type { AiTaskRow } from "./ai-task-state.ts";
 import type { Crypto } from "./crypto.ts";
 import type { Database } from "./database.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
@@ -26,7 +26,7 @@ export function newCallbackCredential(crypto: Crypto): CallbackCredential {
 export async function callbackTaskOf(
   { db, crypto }: Readonly<{ db: Database; crypto: Crypto }>,
   { id, value }: Readonly<{ id: number; value: string }>,
-): Promise<BotTaskRow | null> {
+): Promise<AiTaskRow | null> {
   const [task] = await db
     .select()
     .from(aiTasks)

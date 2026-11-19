@@ -1,15 +1,9 @@
 import { z } from "zod";
 
+import { type AiTaskRow, GROK_BOT_EXECUTOR, acceptsAnswer, awaitsAnswer } from "./ai-task-state.ts";
 import type { BotResult } from "./bot-task-answering.ts";
 import { botKindOf } from "./bot-task-kinds.ts";
-import {
-  type BotTaskRow,
-  GROK_BOT_EXECUTOR,
-  acceptsAnswer,
-  answeredWrites,
-  reportedWrites,
-  stateOf,
-} from "./bot-task-states.ts";
+import { answeredWrites, reportedWrites } from "./bot-task-rows.ts";
 import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { guardedBatch } from "./guards.ts";
@@ -41,16 +35,14 @@ const CLOSED: Intake = { kind: "closed" };
 
 function intakeOf(
   db: Database,
-  task: Readonly<BotTaskRow>,
+  task: Readonly<AiTaskRow>,
   { answer, now }: Readonly<{ answer: StoredAnswer; now: number }>,
 ): Intake {
   const kind = botKindOf(task);
 
   if (task.executor !== GROK_BOT_EXECUTOR || kind === null) return { kind: "unsupported" };
 
-  const state = stateOf(task);
-
-  if ((state !== "unsent" && state !== "sent") || task.deadline <= now) return CLOSED;
+  if (!awaitsAnswer(task, now)) return CLOSED;
 
   if (answer.kind === "error") {
     report("grok-bot-error", { taskId: task.id, jobId: task.jobId ?? 0 });
@@ -70,7 +62,7 @@ function intakeOf(
 
 async function committed(
   ports: JobPorts,
-  task: Readonly<BotTaskRow>,
+  task: Readonly<AiTaskRow>,
   writes: JobWrites,
 ): Promise<AnswerOutcome> {
   if (!(await guardedBatch(ports.db, acceptsAnswer(task), writes))) {
@@ -84,7 +76,7 @@ async function committed(
 
 export function acceptBotAnswer(
   ports: JobPorts,
-  task: Readonly<BotTaskRow>,
+  task: Readonly<AiTaskRow>,
   answer: StoredAnswer,
 ): Promise<AnswerOutcome> {
   const now = Date.now();

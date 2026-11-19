@@ -1,11 +1,10 @@
-import { type SQLWrapper, and, eq, isNotNull, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import {
   type AiConnection,
   type ModelAi,
   type Provider,
   type AiRefused,
-  type AiRefusal,
   type AiTaskDefinition,
   AI_DEADLINE_MS,
   BASE_OUTPUT_TOKENS,
@@ -14,14 +13,13 @@ import {
   ModelDigestSchema,
   refusedAi,
 } from "./ai-contract.ts";
-import { type TaskOrigin, type TaskOwner, originOf, startTask } from "./ai-task-start.ts";
-import { mayComplete, mayExpire, mayFail } from "./bot-task-states.ts";
-import type { Database } from "./database.ts";
+import { completedAiTask, failedAiTask, insertTask } from "./ai-task-rows.ts";
 import { within } from "./deadline.ts";
 import { DIGEST_INSTRUCTIONS, cutDigestInput } from "./digest-prompt.ts";
 import { bestEffort } from "./failure-log.ts";
+import { holding } from "./job-rows.ts";
 import type { AiPorts } from "./ports.ts";
-import { aiTasks } from "./schema.ts";
+import type { JobRow } from "./schema.ts";
 
 export const TASKS = {
   digest: {
@@ -48,65 +46,41 @@ interface ClaimLost {
 
 const CLAIM_LOST: ClaimLost = { kind: "claim-lost" };
 
-export function completedAiTask<Result>(
-  db: Database,
-  task: Readonly<Pick<DoneTask<Result>, "taskId" | "result">>,
+type TaskOwner = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration" | "itemId">>;
+
+interface TaskOrigin {
+  readonly executor: string;
+  readonly provider: Provider | null;
+  readonly model: string | null;
+}
+
+function originOf(config: Readonly<AiConnection>): TaskOrigin {
+  return { executor: config.kind, provider: config.provider, model: modelOf(config) };
+}
+
+function startTask(
+  ports: AiPorts,
+  kind: string,
+  text: string,
+  input: Readonly<{ inputRevision: number; attempts: number }>,
+  origin: Readonly<TaskOrigin>,
+  owner: TaskOwner | null,
 ) {
-  return db
-    .update(aiTasks)
-    .set({ state: "done", result: JSON.stringify(task.result), refusal: null, status: null })
-    .where(and(eq(aiTasks.id, task.taskId), eq(aiTasks.state, "running"), mayComplete()));
-}
-
-export function aiTaskRunning(taskId: number) {
-  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${taskId} and ${aiTasks.state} = 'running')`;
-}
-
-export function failedAiTask(
-  db: Database,
-  taskId: number,
-  failure: Readonly<{ reason: AiRefusal | "stale" | "lease-lost"; status: number | null }>,
-  claim?: Readonly<SQLWrapper>,
-) {
-  return failingAiTask(db, failure).where(
-    and(
-      eq(aiTasks.id, taskId),
-      eq(aiTasks.state, "running"),
-      mayFail(failure.reason),
-      claim && sql`${claim}`,
-    ),
-  );
-}
-
-function failingAiTask(
-  db: Database,
-  failure: Readonly<{ reason: AiRefusal | "stale" | "lease-lost"; status: number | null }>,
-) {
-  return db
-    .update(aiTasks)
-    .set({ state: "failed", result: null, refusal: failure.reason, status: failure.status });
-}
-
-export function givenUpTasks(db: Database, tasks: Readonly<SQLWrapper>) {
-  const running = and(sql`${tasks}`, eq(aiTasks.state, "running"));
-
-  return [
-    failingAiTask(db, { reason: "timeout", status: null }).where(and(running, mayFail("timeout"))),
-    failingAiTask(db, { reason: "stale", status: null }).where(
-      and(running, isNotNull(aiTasks.answeredAt)),
-    ),
-  ] as const;
-}
-
-export function supersededTasks(db: Database, tasks: Readonly<SQLWrapper>) {
-  return failingAiTask(db, { reason: "stale", status: null }).where(
-    and(sql`${tasks}`, eq(aiTasks.state, "running"), mayFail("stale")),
-  );
-}
-
-export function expireAiTasks(db: Database, now: number) {
-  return failingAiTask(db, { reason: "timeout", status: null }).where(
-    and(eq(aiTasks.state, "running"), mayExpire(now)),
+  return insertTask(
+    ports.db,
+    {
+      kind,
+      inputs: text,
+      inputRevision: input.inputRevision,
+      attempts: input.attempts,
+      deadline: Date.now() + AI_DEADLINE_MS,
+      ...origin,
+      itemId: owner?.itemId ?? null,
+      jobId: null,
+      callbackHash: null,
+      context: null,
+    },
+    owner === null ? sql`1` : holding(owner),
   );
 }
 

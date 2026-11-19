@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
-import { latestTask } from "../src/core/bot-task-states.ts";
+import { latestTask } from "../src/core/bot-task-rows.ts";
 import { applyOutcome } from "../src/core/job-finish.ts";
 import { HANDLERS } from "../src/core/job-handlers.ts";
 import { refusedAnswer } from "../src/core/x-intake-writes.ts";

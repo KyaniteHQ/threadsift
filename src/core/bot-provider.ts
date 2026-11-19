@@ -1,15 +1,16 @@
-import { eq, sql } from "drizzle-orm";
+import { and, eq, ne, sql } from "drizzle-orm";
 
 import { refusedAi } from "./ai-contract.ts";
 import { loadAiConfig } from "./ai-load.ts";
-import { abandonedTasks } from "./bot-task-states.ts";
+import { abandonedTasks } from "./bot-task-rows.ts";
 import type { Database } from "./database.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import { grokBotConnection } from "./grok-bot.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import { CURRENT_REVISION } from "./openrouter-tables.ts";
 import type { SettingsPorts } from "./ports.ts";
-import { aiSettingsRevision } from "./schema.ts";
+import { aiSettingsRevision, jobs } from "./schema.ts";
+import { X_INTAKE_TASK } from "./x-intake-contract.ts";
 
 function selectGrokBotWrites(db: Database): JobWrites {
   return [
@@ -24,7 +25,13 @@ function selectGrokBotWrites(db: Database): JobWrites {
 export function leaveGrokBotWrites(db: Database, now: number): JobWrites {
   return [
     db.update(grokBotSettings).set({ useAsProvider: false }).where(eq(grokBotSettings.id, 1)),
-    ...abandonedTasks(db, now),
+    abandonedTasks(db, X_INTAKE_TASK),
+    db
+      .update(jobs)
+      .set({ nextAttemptAt: now })
+      .where(
+        and(eq(jobs.state, "queued"), eq(jobs.waitReason, "grok-bot"), ne(jobs.kind, "fetch")),
+      ),
   ];
 }
 

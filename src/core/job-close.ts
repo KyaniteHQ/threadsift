@@ -1,7 +1,7 @@
 import { type SQLWrapper, and, eq, inArray, ne, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { givenUpTasks, supersededTasks } from "./ai-tasks.ts";
+import { givenUpTasks, supersededTasks } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
 import type { JobCurrency } from "./job-outcome.ts";
 import { unownedAddress } from "./job-rows.ts";

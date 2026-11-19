@@ -1,7 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { AiRefused } from "./ai-contract.ts";
-import { aiTaskRunning, completedAiTask } from "./ai-tasks.ts";
+import { completedAiTask } from "./ai-task-rows.ts";
+import { aiTaskRunning } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { guardedOutcome, refusalOutcome } from "./guarded-outcome.ts";
 import type { ClaimedJob, JobWrites, SettledOutcome } from "./job-outcome.ts";

@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, and, sql } from "drizzle-orm";
 
-import { insertTask } from "./ai-task-start.ts";
-import { type BotTaskRow, GROK_BOT_EXECUTOR } from "./bot-task-states.ts";
+import { insertTask } from "./ai-task-rows.ts";
+import { type AiTaskRow, GROK_BOT_EXECUTOR, awaitsAnswerBy } from "./ai-task-state.ts";
 import { newCallbackCredential } from "./callback-credential.ts";
 import { guardHolds } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -45,7 +45,7 @@ export const VERIFY_OWNER: BotOwner = {
 type BotStarted =
   | {
       readonly kind: "started";
-      readonly task: Readonly<Pick<BotTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;
+      readonly task: Readonly<Pick<AiTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;
       readonly token: string;
     }
   | { readonly kind: "full" }
@@ -53,7 +53,7 @@ type BotStarted =
   | { readonly kind: "claim-lost" };
 
 function underCap(now: number) {
-  return sql`(select count(*) from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${aiTasks.state} = 'running' and ${aiTasks.answeredAt} is null and ${aiTasks.deadline} > ${now}) < ${GROK_BOT_IN_FLIGHT}`;
+  return sql`(select count(*) from ${aiTasks} where ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${awaitsAnswerBy(now)}) < ${GROK_BOT_IN_FLIGHT}`;
 }
 
 export async function startBotTask(
@@ -75,9 +75,13 @@ export async function startBotTask(
       inputRevision: start.inputRevision,
       attempts: owner.attempts,
       deadline,
-      origin: { executor: GROK_BOT_EXECUTOR, provider: null, model: null },
+      executor: GROK_BOT_EXECUTOR,
+      provider: null,
+      model: null,
       itemId: owner.itemId,
-      bot: { jobId: owner.jobId, callbackHash: credential.hash, context: start.context },
+      jobId: owner.jobId,
+      callbackHash: credential.hash,
+      context: start.context,
     },
     and(claim, start.holds, cap) ?? cap,
   );

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { acceptBotAnswer } from "../src/core/bot-answer.ts";
-import { latestTask, renewedCredential, timedOutTask } from "../src/core/bot-task-states.ts";
+import { latestTask, renewedCredential, timedOutTask } from "../src/core/bot-task-rows.ts";
 import {
   type BotLibrary,
   SECRET_KEY,

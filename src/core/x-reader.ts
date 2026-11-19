@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 
-import { hasOpenIntakeTask } from "./bot-task-states.ts";
 import type { Fetched } from "./details.ts";
 import { grokBotConnection } from "./grok-bot.ts";
 import { X_READER_CHOICES, type XReadNote, type XReaderChoice } from "./kinds.ts";
@@ -8,6 +7,7 @@ import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { xSettings } from "./schema.ts";
 import type { XFetcher } from "./x-fetcher-port.ts";
+import { hasOpenIntakeTask } from "./x-intake-state.ts";
 import type { XBotState } from "./x-settings-contract.ts";
 
 type ChoicePorts = Pick<Ports, "db" | "xFetcher" | "ai">;
