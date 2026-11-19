@@ -1,6 +1,6 @@
 # Run Threadsift on your own server
 
-Start a container Instance with the [README's container instructions](../../README.md#try-it-on-your-machine), or deploy a Worker with the steps below.
+Start a container Instance with the [README's container instructions](../../README.md#try-it-on-your-machine), or deploy a Worker with the [Cloudflare button](#deploy-with-the-cloudflare-button) or [the CLI](#deploy-on-cloudflare-with-the-cli).
 
 ## Pick an image tag
 
@@ -42,7 +42,25 @@ Use these options with rootless Podman. The user namespace maps your host user t
 
 Open **Settings**, then **Obsidian**. Choose **Folder** and enter `/vault`. Use **Verify** to check write access, then **Save**. Keep the vault on a filesystem that supports hard links. If the vault is a checkout of the GitHub mirror, move the existing `Threadsift/` files out of the way before switching. Settings names the file that blocks a note. Move that file so the next retry can write the note. If a sync tool moves files between machines, exclude the `.written` directory under `Threadsift/` from sync so the container keeps its local ownership records.
 
-## Deploy on Cloudflare
+## Deploy with the Cloudflare button
+
+Use a GitHub account, `openssl`, and a Cloudflare account on the Workers Paid plan with R2 turned on.
+
+1. Open [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release) and choose your GitHub account.
+2. Choose a project name and names for the D1 database, R2 bucket, and Queue. Use names that are new to your account for a fresh Instance.
+3. Select **Create private Git repository**.
+4. Run `openssl rand -hex 32` and paste the result into `THREADSIFT_SECRET_KEY`. Keep a private backup of the key for the lifetime of the Instance.
+5. Run `openssl rand -hex 16` and paste the result into `SETUP_CODE`.
+6. Keep the build command `pnpm run build` and the deploy command `pnpm run deploy`. Choose **Deploy**. When the build finishes, open the Worker URL. Enter the code on the setup page and choose an owner password.
+7. [Set up updates](#update-a-cloudflare-copy).
+
+### Fix an expired GitHub authorization
+
+If the form says "Your GitHub authorization has expired", uninstall **Cloudflare Workers and Pages** in GitHub's **Installed GitHub Apps** settings. Return to the deploy form and choose **New GitHub connection**. Under **Repository access**, choose **All repositories**, then **Install & Authorize**. If other Workers use the same installation, restore the app's access to their repositories and check their Build settings after reinstalling. [GitHub's installed app settings](https://docs.github.com/en/apps/using-github-apps/reviewing-and-modifying-installed-github-apps)
+
+On 2026-11-19, revoking and granting authorization again failed. Giving the existing installation access to all repositories also failed. [Live run](../architecture/cloudflare-deploy-button.md#live-run-on-2026-11-19)
+
+## Deploy on Cloudflare with the CLI
 
 Use a Cloudflare account on the Workers Paid plan, Node 26 or later, pnpm, and `openssl`.
 
@@ -84,6 +102,10 @@ The [Cloudflare architecture notes](../architecture/cloudflare-deploy-button.md)
 
 ## Update a Cloudflare copy
 
-Enable Actions and Issues in your copy. Create a fine-grained GitHub personal access token scoped to that repository with read and write access to Contents, Pull requests and Workflows. Save it as a repository Actions secret named `UPDATE_TOKEN`.
+1. With preview builds on, update pull requests run `npx wrangler preview`. The command fails because the copy lacks a `previews` block. An empty block satisfies that requirement. A working Threadsift Preview also needs D1, R2, and Queue bindings. Cloudflare recommends staging resources for those bindings. [Preview configuration](https://developers.cloudflare.com/workers/previews/configuration/)
 
-The **Update from upstream** workflow runs weekly. To check sooner, select it in Actions and choose **Run workflow**. In a public repository, GitHub disables scheduled runs after 60 days without repository activity. To resume them, select the workflow in Actions and choose **Enable workflow**. Review any local edits the update would remove and provision the bindings listed for provisioning before merging. Workers Builds deploys the merge.
+   In Cloudflare, open your Worker's **Settings**, then **Build**, then **Branch control**. Turn off **Builds for non-production branches** (also labeled **Enable Preview Builds**). Confirm the production branch matches your copy's default branch, which can be `master`. [Cloudflare branch build settings](https://developers.cloudflare.com/workers/ci-cd/builds/build-branches/)
+2. Enable Actions and Issues in your GitHub copy. Create a fine-grained personal access token scoped to that repository. Give it read and write access to **Contents**, **Pull requests**, and **Workflows**, and read access to **Metadata**. Save it as a repository Actions secret named `UPDATE_TOKEN`. See how to [create a fine-grained token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens#creating-a-fine-grained-personal-access-token) and [add a repository Actions secret](https://docs.github.com/en/actions/how-tos/write-workflows/choose-what-workflows-do/use-secrets#creating-secrets-for-a-repository).
+3. If the copy has no update workflow, copy [`.github/workflows/update-from-upstream.yml` from the `release` branch](https://github.com/kyanitehq/threadsift/blob/release/.github/workflows/update-from-upstream.yml). Commit the file at the same path on your copy's default branch. On 2026-11-19, the button made a copy with no workflow files. [Live run](../architecture/cloudflare-deploy-button.md#live-run-on-2026-11-19)
+
+The **Update from upstream** workflow runs weekly. To check sooner, select it in Actions and choose **Run workflow**. In a public repository, GitHub disables scheduled runs after 60 days without repository activity. To resume them, select the workflow in Actions and choose **Enable workflow**. Before merging an update, review any local edits it would remove and provision any new bindings listed in the pull request. Workers Builds deploys the merge.
