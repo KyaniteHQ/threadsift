@@ -1,7 +1,7 @@
 import { readCapped } from "./capped.ts";
 import { THREAD_CONTENT_BYTES } from "./limits.ts";
 import { type NetworkResponse, REQUEST_HEADERS, type RequestHeaders } from "./network.ts";
-import type { FillAnswer } from "./thread-fill.ts";
+import { OK, type RedditAnswer } from "./reddit-http.ts";
 
 export const REDDIT_HOST = "www.reddit.com";
 
@@ -35,24 +35,17 @@ export async function* boundedBody(
   }
 }
 
-export interface RedditAnswer extends FillAnswer {
-  readonly reset: string | null;
-  readonly retryAfter: string | null;
-}
-
 export async function answerOf(response: NetworkResponse): Promise<RedditAnswer> {
   const { remaining, reset, retryAfter } = response.rateLimit;
   const { status } = response;
+  const answered = status === OK;
 
   try {
-    const { bytes, cut } = await readCapped(
-      response.body,
-      status === 200 ? THREAD_CONTENT_BYTES : 0,
-    );
+    const { bytes, cut } = await readCapped(response.body, answered ? THREAD_CONTENT_BYTES : 0);
 
-    return status === 200 && !cut
+    return answered && !cut
       ? { status, text: new TextDecoder().decode(bytes), remaining, reset, retryAfter }
-      : { status: status === 200 ? 0 : status, text: "", remaining, reset, retryAfter };
+      : { status: answered ? 0 : status, text: "", remaining, reset, retryAfter };
   } catch {
     return { status: 0, text: "", remaining, reset, retryAfter };
   }

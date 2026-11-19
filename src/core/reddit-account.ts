@@ -19,8 +19,8 @@ import {
   windowRecordOf,
 } from "./reddit-account-states.ts";
 import type { AccountRow } from "./reddit-account-tables.ts";
-import { type RedditAnswer, answerOf } from "./reddit-session.ts";
-import { RATE_LIMITED } from "./reddit-window.ts";
+import { LOGGED_OUT, OK, RATE_LIMITED, type RedditAnswer } from "./reddit-http.ts";
+import { answerOf } from "./reddit-session.ts";
 import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
 
 type AccountPorts = Pick<Ports, "db" | "secrets">;
@@ -45,8 +45,6 @@ export interface SessionCheck {
 }
 
 const ME_PATH = "/api/me.json";
-
-const LOGGED_OUT = 401;
 
 const MeSchema = z.object({ kind: z.literal("t2"), data: z.object({ name: z.string() }) });
 
@@ -131,7 +129,7 @@ export function verdictOf(answer: Readonly<Pick<RedditAnswer, "status" | "text">
 
   if (answer.status === LOGGED_OUT) return "logged-out";
 
-  if (answer.status !== 200) return "blocked";
+  if (answer.status !== OK) return "blocked";
 
   try {
     return MeSchema.safeParse(JSON.parse(answer.text)).success ? "ok" : "logged-out";

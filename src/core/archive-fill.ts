@@ -5,10 +5,10 @@ import type { RedditRef } from "./links.ts";
 import type { Network } from "./network.ts";
 import { pause } from "./pause.ts";
 import type { Ports } from "./ports.ts";
+import { RATE_LIMITED, wholeMillisecondsOf } from "./reddit-http.ts";
 import { type ParsedThread, parseArchiveThread } from "./reddit-json.ts";
 import { archiveFillIsOn } from "./reddit-settings.ts";
 import { holdsNoThread } from "./reddit-thread.ts";
-import { RATE_LIMITED } from "./reddit-window.ts";
 
 export interface ArchivedThread {
   readonly thread: ParsedThread;
@@ -18,10 +18,6 @@ export interface ArchivedThread {
 const ARCHIVE_ORIGIN = "https://arctic-shift.photon-reddit.com";
 
 const MAX_RESET_WAIT_MS = 10_000;
-
-const WHOLE_SECONDS = /^\d+$/u;
-
-const MS_PER_SECOND = 1000;
 
 const ARCHIVE_POLICY: FetchPolicy = {
   stopAt: () => true,
@@ -37,16 +33,14 @@ function resetWaitOf(outcome: Readonly<GuardOutcome>): number | null {
   if (
     outcome.kind !== "failed" ||
     outcome.reason !== "status" ||
-    outcome.httpStatus !== RATE_LIMITED ||
-    outcome.reset === null ||
-    !WHOLE_SECONDS.test(outcome.reset.trim())
+    outcome.httpStatus !== RATE_LIMITED
   ) {
     return null;
   }
 
-  const wait = Number(outcome.reset) * MS_PER_SECOND;
+  const wait = wholeMillisecondsOf(outcome.reset);
 
-  return wait <= MAX_RESET_WAIT_MS ? wait : null;
+  return wait !== null && wait <= MAX_RESET_WAIT_MS ? wait : null;
 }
 
 async function requested(

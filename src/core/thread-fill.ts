@@ -1,26 +1,20 @@
 import { ITEM_REQUEST_BYTES } from "./limits.ts";
 import { pause } from "./pause.ts";
-import { hiddenRepliesOf } from "./reddit-tree.ts";
 import {
+  type FillAnswer,
   NEW_WINDOW,
-  type RequestWindow,
+  OK,
   RATE_LIMITED,
+  type RequestWindow,
   afterRequest,
   mayAsk,
   spacingWaitMs,
-} from "./reddit-window.ts";
+} from "./reddit-http.ts";
+import { hiddenRepliesOf } from "./reddit-tree.ts";
 import { REQUEST_DEADLINE_MS } from "./request-waits.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
 
 export const THREAD_QUERY = "limit=500&raw_json=1";
-
-export interface FillAnswer {
-  readonly status: number;
-  readonly text: string;
-  readonly remaining: string | null;
-  readonly reset?: string | null | undefined;
-  readonly retryAfter?: string | null | undefined;
-}
 
 export type AnswerFor = (address: string, deadlineMs: number) => Promise<FillAnswer>;
 
@@ -49,7 +43,7 @@ export function permalinkPath(postId: string, commentId: string): string {
 }
 
 export function hiddenIn(first: Readonly<FillAnswer>, postId: string): readonly string[] | null {
-  return first.status === 200 ? hiddenRepliesOf(first.text, postId) : null;
+  return first.status === OK ? hiddenRepliesOf(first.text, postId) : null;
 }
 
 function stopped(signal: AbortSignal | undefined): boolean {

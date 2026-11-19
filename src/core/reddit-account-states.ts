@@ -10,8 +10,7 @@ import {
   releaseWaitingWhen,
 } from "./reddit-account-queue.ts";
 import { ACCOUNT_ROW, type AccountRow, redditAccount } from "./reddit-account-tables.ts";
-import type { RedditAnswer } from "./reddit-session.ts";
-import { RATE_LIMITED, leftOf, millisecondsOf } from "./reddit-window.ts";
+import { RATE_LIMITED, type RedditAnswer, leftOf, millisecondsOf } from "./reddit-http.ts";
 
 export const REFUSALS_TO_EXPIRE = 3;
 

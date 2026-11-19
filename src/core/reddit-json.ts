@@ -2,6 +2,7 @@ import { chooseCandidateLink, shownLinkOf } from "./candidate-link.ts";
 import { isPlainCodeDrop, isRemovedBody } from "./comment-filter.ts";
 import { storedCommentId } from "./comment-id.ts";
 import { type RedditRef, redditRefOf } from "./links.ts";
+import { millisecondsFrom } from "./reddit-http.ts";
 import {
   type Answer,
   type Walked,
@@ -36,10 +37,6 @@ export type ThreadParse =
   | { readonly kind: "thread"; readonly thread: ParsedThread }
   | { readonly kind: "refused"; readonly reason: string };
 
-function milliseconds(seconds: number): number {
-  return Math.round(seconds * 1000);
-}
-
 function nodeOf(
   entry: Readonly<Walked>,
   position: number,
@@ -62,7 +59,7 @@ function nodeOf(
     author: comment.author,
     body: eligible ? comment.body : null,
     score: comment.score ?? null,
-    postedAt: milliseconds(comment.created_utc),
+    postedAt: millisecondsFrom(comment.created_utc),
     eligible,
   };
 }
@@ -97,7 +94,7 @@ function ofPost(post: Readonly<WirePost>, walked: readonly Walked[]): ParsedThre
     author: post.author,
     community: post.subreddit,
     postText,
-    postedAt: milliseconds(post.created_utc),
+    postedAt: millisecondsFrom(post.created_utc),
     reported: post.num_comments ?? null,
     linkedUrl: chooseCandidateLink({ url: post.url ?? null, text: postText }),
     postLink: postLinkOf(post),
@@ -135,7 +132,7 @@ function ofComment(
     author: comment.author,
     community: post.subreddit,
     postText: comment.body,
-    postedAt: milliseconds(comment.created_utc),
+    postedAt: millisecondsFrom(comment.created_utc),
     reported: null,
     linkedUrl: null,
     postLink: null,

@@ -1,9 +1,10 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-export const ACCOUNT_ROW = 1;
+import { REDDIT_ACCOUNT_STATES } from "./reddit-account-state-names.ts";
+import { listed } from "./schema-checks.ts";
 
-export const REDDIT_ACCOUNT_STATES = ["connected", "expired"] as const;
+export const ACCOUNT_ROW = 1;
 
 export const redditAccount = sqliteTable(
   "reddit_account",
@@ -27,7 +28,7 @@ export const redditAccount = sqliteTable(
   },
   (table) => [
     check("reddit_account_is_one_row", sql`${table.id} = 1`),
-    check("reddit_account_state", sql`${table.state} in ('connected', 'expired')`),
+    check("reddit_account_state", sql`${table.state} in (${listed(REDDIT_ACCOUNT_STATES)})`),
     check("reddit_account_refused_count", sql`${table.refusedCount} >= 0`),
   ],
 );

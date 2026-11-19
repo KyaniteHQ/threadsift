@@ -1,16 +1,11 @@
-import { eq } from "drizzle-orm";
-
 import type { Fetched } from "./details.ts";
-import { grokBotConnection } from "./grok-bot-ready.ts";
-import { X_READER_BOT, X_READER_CHOICES, type XReadNote, type XReaderChoice } from "./kinds.ts";
+import { X_READER_BOT, type XReadNote, type XReaderChoice } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
-import { xSettings } from "./schema.ts";
 import type { XFetcher } from "./x-fetcher-port.ts";
 import { hasOpenIntakeTask } from "./x-intake-state.ts";
 import type { XBotState } from "./x-settings-contract.ts";
-
-type ChoicePorts = Pick<Ports, "db" | "xFetcher" | "ai">;
+import { chosenXReader, xBotState } from "./x-settings.ts";
 
 type ReaderPorts = Pick<Ports, "db" | "secrets" | "xFetcher" | "ai">;
 
@@ -34,49 +29,11 @@ const NOTE_OF_BOT_STATE = {
   refused: "bot-address-refused",
 } as const satisfies Readonly<Record<Exclude<XBotState, "ready">, XReadNote>>;
 
-export function offeredReaders({
-  xFetcher,
-  ai,
-}: Readonly<Pick<Ports, "xFetcher" | "ai">>): readonly XReaderChoice[] {
-  return xFetcher === null && ai.publicOnly
-    ? X_READER_CHOICES.filter((choice) => choice !== "grok-cli")
-    : X_READER_CHOICES;
-}
-
-export async function chosenXReader(ports: Readonly<ChoicePorts>): Promise<XReaderChoice> {
-  const [row] = await ports.db
-    .select({ reader: xSettings.reader })
-    .from(xSettings)
-    .where(eq(xSettings.id, 1));
-
-  const saved = row?.reader ?? "auto";
-
-  return offeredReaders(ports).includes(saved) ? saved : "auto";
-}
-
-export async function saveXReader(
-  { db }: Readonly<Pick<Ports, "db">>,
-  reader: XReaderChoice,
-): Promise<void> {
-  await db
-    .insert(xSettings)
-    .values({ id: 1, reader })
-    .onConflictDoUpdate({ target: xSettings.id, set: { reader } });
-}
-
-export async function xBotState(
-  ports: Readonly<Pick<Ports, "db" | "secrets">>,
-): Promise<XBotState> {
-  const connection = await grokBotConnection(ports);
-
-  return connection.kind === "ready" ? "ready" : connection.reason;
-}
-
 function cliRoute(cli: XFetcher | null, missing: XReadNote | null): XRoute {
   return cli === null ? { kind: "none", note: missing } : { kind: "grok-cli", fetcher: cli };
 }
 
-export function routeOf(choice: XReaderChoice, { bot, cli }: Readonly<XReaders>): XRoute {
+function routeOf(choice: XReaderChoice, { bot, cli }: Readonly<XReaders>): XRoute {
   switch (choice) {
     case "auto":
       return bot === "ready" ? BOT : cliRoute(cli, null);

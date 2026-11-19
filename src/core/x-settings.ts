@@ -1,9 +1,57 @@
-import type { XReaderChoice } from "./kinds.ts";
+import { eq } from "drizzle-orm";
+
+import { grokBotConnection } from "./grok-bot-ready.ts";
+import { X_READER_CHOICES, type XReaderChoice } from "./kinds.ts";
 import type { Ports } from "./ports.ts";
-import { chosenXReader, offeredReaders, saveXReader, xBotState } from "./x-reader.ts";
-import { STATE_NOT_INSTALLED, STATE_WORKER, type XSettingsView } from "./x-settings-contract.ts";
+import { xSettings } from "./schema.ts";
+import {
+  STATE_NOT_INSTALLED,
+  STATE_WORKER,
+  type XBotState,
+  type XSettingsView,
+} from "./x-settings-contract.ts";
+
+type ChoicePorts = Pick<Ports, "db" | "xFetcher" | "ai">;
 
 type SettingsPorts = Pick<Ports, "db" | "secrets" | "xFetcher" | "ai">;
+
+function offeredReaders({
+  xFetcher,
+  ai,
+}: Readonly<Pick<Ports, "xFetcher" | "ai">>): readonly XReaderChoice[] {
+  return xFetcher === null && ai.publicOnly
+    ? X_READER_CHOICES.filter((choice) => choice !== "grok-cli")
+    : X_READER_CHOICES;
+}
+
+export async function chosenXReader(ports: Readonly<ChoicePorts>): Promise<XReaderChoice> {
+  const [row] = await ports.db
+    .select({ reader: xSettings.reader })
+    .from(xSettings)
+    .where(eq(xSettings.id, 1));
+
+  const saved = row?.reader ?? "auto";
+
+  return offeredReaders(ports).includes(saved) ? saved : "auto";
+}
+
+async function saveXReader(
+  { db }: Readonly<Pick<Ports, "db">>,
+  reader: XReaderChoice,
+): Promise<void> {
+  await db
+    .insert(xSettings)
+    .values({ id: 1, reader })
+    .onConflictDoUpdate({ target: xSettings.id, set: { reader } });
+}
+
+export async function xBotState(
+  ports: Readonly<Pick<Ports, "db" | "secrets">>,
+): Promise<XBotState> {
+  const connection = await grokBotConnection(ports);
+
+  return connection.kind === "ready" ? "ready" : connection.reason;
+}
 
 async function cliView({ xFetcher, ai }: Readonly<Pick<Ports, "xFetcher" | "ai">>) {
   if (xFetcher === null) {
