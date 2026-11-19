@@ -10,6 +10,17 @@ export interface Reading {
   readonly signedIn: SignInLine;
 }
 
+async function readSignIn(cli: GrokCli, limit: AbortSignal): Promise<SignInLine> {
+  const probe = () => inRunFolders((folders) => cli.signIn(folders, limit));
+  const first = await probe();
+
+  if (first !== "signed-out") return first;
+
+  limit.throwIfAborted();
+
+  return probe();
+}
+
 async function readOnce(cli: GrokCli, stop: AbortSignal): Promise<Reading> {
   const [version, signedIn] = await Promise.all([
     answerWithin(
@@ -17,11 +28,7 @@ async function readOnce(cli: GrokCli, stop: AbortSignal): Promise<Reading> {
       async (limit) => (await inRunFolders((folders) => cli.version(folders, limit))).version,
       null,
     ),
-    answerWithin(
-      stop,
-      (limit) => inRunFolders((folders) => cli.signIn(folders, limit)),
-      "unknown" as const,
-    ),
+    answerWithin(stop, (limit) => readSignIn(cli, limit), "unknown" as const),
   ]);
 
   return { version, signedIn };
