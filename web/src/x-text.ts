@@ -120,6 +120,10 @@ export const X_NOTICES: Readonly<
     text: "The thread that was read has fewer replies than the saved copy, so the saved copy was kept. A refresh with fewer replies than the saved one is never saved.",
     kind: "save-note",
   },
+  "x-post-absent": {
+    text: "X doesn't show this post. It may have been deleted or may not exist.",
+    kind: "save-note",
+  },
   "x-unreadable": { text: "This post couldn’t be read.", kind: "save-note" },
   "x-kept": { text: "This post couldn’t be read, so the saved copy was kept.", kind: "save-note" },
 };
