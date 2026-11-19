@@ -3,7 +3,7 @@ import type { BotTaskRow } from "./bot-task-states.ts";
 import { isVerifyContext, verifyAnswering } from "./bot-verify.ts";
 import { digestBotKind } from "./digest-bot.ts";
 import { disagreementRun } from "./disagreement-job.ts";
-import type { OwnedJobKind } from "./kinds.ts";
+import type { IntakeJobKind, OwnedJobKind } from "./kinds.ts";
 import { runOf } from "./proposal-job.ts";
 import { relatedBotKind } from "./related-bot.ts";
 import { topicOverviewBotKind } from "./topic-overview-bot.ts";
@@ -16,7 +16,7 @@ export const BOT_TASK_KINDS = {
   proposals: weeklyBotKind(runOf("tag-merge")),
   topic_proposals: weeklyBotKind(runOf("topic-merge")),
   disagreement_proposals: weeklyBotKind(disagreementRun),
-} as const satisfies Readonly<Record<Exclude<OwnedJobKind, "fetch" | "x_verify">, BotTaskKind>>;
+} as const satisfies Readonly<Record<Exclude<OwnedJobKind, IntakeJobKind>, BotTaskKind>>;
 
 function isBotTaskKind(kind: string): kind is keyof typeof BOT_TASK_KINDS {
   return Object.hasOwn(BOT_TASK_KINDS, kind);

@@ -14,7 +14,8 @@ import {
   commentIdsOf,
   snapshotOf,
 } from "./highlight-publish.ts";
-import { MAX_STALE_REQUEUES, type JobOutcome } from "./job-outcome.ts";
+import type { JobOutcome } from "./job-outcome.ts";
+import { MAX_STALE_REQUEUES } from "./job-retry.ts";
 import {
   eligibleAmong,
   highlightedComments,

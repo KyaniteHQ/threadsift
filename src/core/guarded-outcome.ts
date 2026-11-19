@@ -4,13 +4,8 @@ import { type AiRefused, retriesAi } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import { currency } from "./digest-source.ts";
 import { insertGuard } from "./guards.ts";
-import {
-  type ClaimedJob,
-  type JobCurrency,
-  type JobWrites,
-  type SettledOutcome,
-  isLastAttempt,
-} from "./job-outcome.ts";
+import type { ClaimedJob, JobCurrency, JobWrites, SettledOutcome } from "./job-outcome.ts";
+import { isLastAttempt } from "./job-retry.ts";
 
 interface Guarded {
   readonly taskId?: number | null;

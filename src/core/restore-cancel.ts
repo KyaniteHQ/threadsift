@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { removeUnder } from "./file-cleanup.ts";
 import { restoreFilesPrefix } from "./file-keys.ts";
 import { guardedResults, guardedWrite } from "./guards.ts";
+import { closeRunJobs } from "./job-close.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
 import { START_UNDO } from "./restore-contract.ts";
@@ -14,7 +15,7 @@ import {
   restoreById,
   resumable,
 } from "./restore-state.ts";
-import { closingRestoreJobs, openingRestoreJob } from "./restore-unit.ts";
+import { openingRestoreJob } from "./restore-unit.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 
 export type CancelledRestore =
@@ -66,7 +67,7 @@ async function undoing(ports: JobPorts, id: number): Promise<boolean> {
           updatedAt: Date.now(),
         })
         .where(waiting),
-      closingRestoreJobs(db, id),
+      closeRunJobs(db, "restore", id),
       openingRestoreJob(
         db,
         sql`${restoreRuns.id} = ${id} and ${RUNNING_AGAIN} and ${restoreRuns.phase} = 'undoing'`,

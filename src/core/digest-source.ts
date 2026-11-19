@@ -227,11 +227,11 @@ export function logSubmission(
   });
 }
 
-export function attemptGenerationCurrent(
-  job: Readonly<Pick<JobRow, "itemId" | "attemptGeneration">>,
-) {
-  return sql`exists (select 1 from ${items} where ${items.id} = ${job.itemId} and ${items.generation} is ${job.attemptGeneration})`;
-}
+export const DIGEST_INPUT = {
+  key: items.id,
+  version: items.generation,
+  pending: items.pendingDigest,
+};
 
 export function lostClaim(db: Database): JobOutcome {
   return { writes: [insertGuard(db, sql`0`)] };

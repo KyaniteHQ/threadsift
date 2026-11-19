@@ -1,16 +1,12 @@
 import { report } from "./failure-log.ts";
-import {
-  type ClaimedJob,
-  type JobHandler,
-  type JobOutcome,
-  type JobPorts,
-  RETRY_DELAYS_MS,
-  isLastAttempt,
-} from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { RETRY_DELAYS_MS, isLastAttempt } from "./job-retry.ts";
+import { defineJob } from "./job-spec.ts";
+import { xVerifications } from "./schema.ts";
 import { ended, withdrawn } from "./x-verify-publish.ts";
 import { type Verification, verificationOf } from "./x-verify-read.ts";
 import { progressOf } from "./x-verify-state.ts";
-import { revisionHolds, savedProgress, unreadableWrites } from "./x-verify-store.ts";
+import { savedProgress, unreadableWrites } from "./x-verify-store.ts";
 import { askedSlice } from "./x-verify.ts";
 
 const SLICE_DEADLINE_MS = 90_000;
@@ -72,10 +68,9 @@ async function attemptVerification(
     : ended(ports, job, verification, progress);
 }
 
-export const xVerifyHandler: JobHandler = {
+export const xVerifyHandler = defineJob("x_verify", {
   deadlineMs: SLICE_DEADLINE_MS,
-  blockedBy: [],
+  input: { key: xVerifications.itemId, version: xVerifications.revision },
   attempt: attemptVerification,
   exhausted: (db, job) => unreadableWrites(db, job.itemId, job.attemptGeneration, "x-unconfirmed"),
-  inputCurrent: ({ itemId, attemptGeneration }) => revisionHolds(itemId, attemptGeneration),
-};
+});

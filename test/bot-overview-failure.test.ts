@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { exhaust } from "../src/core/job-finish.ts";
-import { topicOverviewHandler } from "../src/core/topic-overview-job.ts";
+import { HANDLERS } from "../src/core/job-handlers.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { insertedTask, taskRow, topicFailures } from "./bot-task-rows.ts";
@@ -47,7 +47,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
 
     exec(instance, "update items set topic_id = 2 where id = 101");
 
-    await exhaust(instance.core, job, topicOverviewHandler, THIRD_SEND + 1);
+    await exhaust(instance.core, job, HANDLERS.topic_overview, THIRD_SEND + 1);
 
     assert.deepEqual(topicFailures(instance), [{ topic_id: 1, failure: "gave-up" }]);
     assert.equal(taskRow(instance, sent.id).state, "failed");
@@ -62,7 +62,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
       attempts: THIRD_SEND,
     });
 
-    await exhaust(instance.core, job, topicOverviewHandler, THIRD_SEND + 1);
+    await exhaust(instance.core, job, HANDLERS.topic_overview, THIRD_SEND + 1);
 
     assert.deepEqual(topicFailures(instance), [{ topic_id: 1, failure: "gave-up" }]);
   });
@@ -83,7 +83,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
       "insert into topic_pages (topic_id, overview, revision, built_from, updated_at) values (1, 'Newer text', 3, '[]', 1)",
     );
 
-    await exhaust(instance.core, job, topicOverviewHandler, THIRD_SEND + 1);
+    await exhaust(instance.core, job, HANDLERS.topic_overview, THIRD_SEND + 1);
 
     assert.deepEqual(topicFailures(instance), [{ topic_id: 1, failure: null }]);
   });

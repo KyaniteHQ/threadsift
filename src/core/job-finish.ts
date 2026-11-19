@@ -7,21 +7,20 @@ import { deleteQuietly, unnamed } from "./file-cleanup.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import { closeJob, discardTask } from "./job-close.ts";
 import {
-  MAX_STALE_REQUEUES,
-  STALE_DELAYS_MS,
+  type ClaimedRow,
   type JobClosing,
   type JobFiles,
-  type ClaimedRow,
-  type JobHandler,
+  type JobOutcome,
+  type JobPorts,
   type JobWrites,
   NO_CLOSING,
   NO_FILES,
-  type JobOutcome,
-  type JobPorts,
   type Precondition,
   type SettledOutcome,
 } from "./job-outcome.ts";
+import { nextStaleRequeues, staleDelayMs } from "./job-retry.ts";
 import { enqueueItemJobs, enqueueQuietly, holding } from "./job-rows.ts";
+import type { JobSpec } from "./job-spec.ts";
 import type { WaitReason } from "./kinds.ts";
 import { type JobRow, aiTasks, jobs } from "./schema.ts";
 
@@ -38,9 +37,9 @@ function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
   report("job-claim-lost", { jobId: job.id, attempt: job.attempts });
 }
 
-export async function finish<Claimed extends ClaimedRow>(
+export async function finish(
   ports: JobPorts,
-  job: Readonly<Claimed>,
+  job: Readonly<ClaimedRow>,
   {
     writes,
     attempts,
@@ -54,7 +53,7 @@ export async function finish<Claimed extends ClaimedRow>(
     files?: JobFiles | undefined;
     precondition?: Readonly<Precondition> | undefined;
     continuation?: readonly BatchItem<"sqlite">[] | undefined;
-    closing?: JobClosing<Claimed> | undefined;
+    closing?: JobClosing | undefined;
   }>,
 ): Promise<"done" | "lost" | Readonly<Precondition>> {
   const { db } = ports;
@@ -80,12 +79,12 @@ export async function finish<Claimed extends ClaimedRow>(
   return wrote ? "done" : "lost";
 }
 
-async function afterClose<Claimed extends ClaimedRow>(
+async function afterClose(
   ports: JobPorts,
-  job: Readonly<Claimed>,
+  job: Readonly<ClaimedRow>,
   wrote: boolean,
   files: JobFiles,
-  closing: JobClosing<Claimed>,
+  closing: JobClosing,
 ): Promise<void> {
   if (job.itemId !== null) await enqueueItemJobs(ports, job.itemId);
 
@@ -98,10 +97,10 @@ async function afterClose<Claimed extends ClaimedRow>(
   if (!wrote) logClaimLost(job);
 }
 
-export async function exhaust<Claimed extends ClaimedRow>(
+export async function exhaust(
   ports: JobPorts,
-  job: Readonly<Claimed>,
-  handler: Pick<JobHandler<Claimed>, "exhausted" | "inputCurrent" | "closing" | "afterClosed">,
+  job: Readonly<ClaimedRow>,
+  handler: Readonly<Pick<JobSpec, "exhausted" | "inputCurrent" | "closing" | "afterClosed">>,
   attempts: number,
 ): Promise<void> {
   const { db } = ports;
@@ -136,9 +135,9 @@ function dueAt(until: number, closedTask: number | undefined): number | SQL {
   return sql`case when exists (select 1 from ${aiTasks} where ${aiTasks.id} = ${closedTask} and (${aiTasks.answeredAt} is not null or ${aiTasks.state} <> 'running')) then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${closedTask}), ${until})) end`;
 }
 
-export async function queueLater<Claimed extends ClaimedRow>(
+export async function queueLater(
   ports: JobPorts,
-  job: Readonly<Claimed>,
+  job: Readonly<ClaimedRow>,
   {
     until,
     attempts,
@@ -154,7 +153,7 @@ export async function queueLater<Claimed extends ClaimedRow>(
     wait: WaitReason | null;
     unlessOpen?: number | undefined;
     writes?: JobWrites | undefined;
-    closing?: JobClosing<Claimed> | undefined;
+    closing?: JobClosing | undefined;
   }>,
 ): Promise<void> {
   const wrote = await writeWhileHolding(ports.db, job, [
@@ -186,11 +185,11 @@ export async function queueLater<Claimed extends ClaimedRow>(
   }
 }
 
-async function writeOutcome<Claimed extends ClaimedRow>(
+async function writeOutcome(
   ports: JobPorts,
-  job: Readonly<Claimed>,
+  job: Readonly<ClaimedRow>,
   outcome: SettledOutcome,
-  closing: JobClosing<Claimed>,
+  closing: JobClosing,
 ): Promise<"done" | "lost" | "stale"> {
   let result: Awaited<ReturnType<typeof finish>>;
 
@@ -220,11 +219,11 @@ async function writeOutcome<Claimed extends ClaimedRow>(
   return writeOutcome(ports, job, await result.rebuild(), closing);
 }
 
-async function applySettled<Claimed extends ClaimedRow>(
+async function applySettled(
   ports: JobPorts,
-  job: Readonly<Claimed>,
+  job: Readonly<ClaimedRow>,
   outcome: SettledOutcome,
-  closing: JobClosing<Claimed>,
+  closing: JobClosing,
 ): Promise<void> {
   let result: Awaited<ReturnType<typeof writeOutcome>>;
 
@@ -251,11 +250,10 @@ async function applySettled<Claimed extends ClaimedRow>(
       break;
     case "stale": {
       await discardTask(ports.db, outcome.currency, "stale");
-      const staleRequeues = Math.min(job.staleRequeues + 1, MAX_STALE_REQUEUES);
       await queueLater(ports, job, {
-        until: Date.now() + (STALE_DELAYS_MS[job.staleRequeues] ?? STALE_DELAYS_MS[2]),
+        until: Date.now() + staleDelayMs(job.staleRequeues),
         attempts: job.attempts,
-        staleRequeues,
+        staleRequeues: nextStaleRequeues(job.staleRequeues),
         wait: null,
         closing,
       });
@@ -269,11 +267,11 @@ async function applySettled<Claimed extends ClaimedRow>(
   }
 }
 
-export async function applyOutcome<Claimed extends ClaimedRow>(
+export async function applyOutcome(
   ports: JobPorts,
-  job: Readonly<Claimed>,
+  job: Readonly<ClaimedRow>,
   outcome: JobOutcome,
-  closing: JobClosing<Claimed> = NO_CLOSING,
+  closing: JobClosing = NO_CLOSING,
 ): Promise<void> {
   if ("deferredUntil" in outcome) {
     await queueLater(ports, job, {

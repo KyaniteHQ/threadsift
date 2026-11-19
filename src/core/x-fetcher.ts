@@ -1,6 +1,6 @@
 import type { Fetched } from "./details.ts";
 import { report } from "./failure-log.ts";
-import { RETRY_DELAYS_MS, isLastAttempt } from "./job-outcome.ts";
+import { RETRY_DELAYS_MS, isLastAttempt } from "./job-retry.ts";
 import type { XReadNote } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Network } from "./network.ts";

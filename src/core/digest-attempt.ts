@@ -1,17 +1,20 @@
 import { parseStoredDigest } from "./ai-contract.ts";
 import { startCallerTask } from "./ai-tasks.ts";
 import { DIGEST_DEADLINE_MS } from "./digest-hop.ts";
+import { owedDigest } from "./digest-job.ts";
 import { attemptModel } from "./digest-model.ts";
 import { emptyInput, hasContent } from "./digest-prepare.ts";
 import { publishing, readForPublishing } from "./digest-publish.ts";
 import {
+  DIGEST_INPUT,
   type DigestInput,
-  attemptGenerationCurrent,
   keptNotUpdated,
   lostClaim,
   markAttemptsSpent,
 } from "./digest-source.ts";
-import type { ClaimedJob, JobHandler, JobOutcome, JobPorts } from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import { defineJob } from "./job-spec.ts";
+import { INTAKE_JOB_KINDS } from "./kinds.ts";
 
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const { item, anchors } = await readForPublishing(ports.db, job.itemId);
@@ -46,10 +49,11 @@ async function attemptCaller(
   return publishing(ports.db, item, digest, taskId, { executor: "caller" }, anchors);
 }
 
-export const digestHandler: JobHandler = {
+export const digestHandler = defineJob("digest", {
   deadlineMs: DIGEST_DEADLINE_MS,
-  blockedBy: ["fetch", "x_verify"],
+  blockedBy: INTAKE_JOB_KINDS,
+  input: DIGEST_INPUT,
   attempt: attemptDigest,
   exhausted: (db, job) => [markAttemptsSpent(db, job)],
-  inputCurrent: attemptGenerationCurrent,
-};
+  closing: (db, job, how) => (how.kind === "closed" ? [owedDigest(db, job)] : []),
+});

@@ -1,13 +1,12 @@
-import { type SQL, type SQLWrapper, and, eq, exists, ne, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, exists, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { restorePartKey } from "./file-keys.ts";
-import { CLOSED_JOB } from "./job-close.ts";
 import type { JobOutcome, JobWrites, SettledOutcome } from "./job-outcome.ts";
-import { openingUnowned, unownedAddress } from "./job-rows.ts";
+import { openingUnowned } from "./job-rows.ts";
 import type { RestoreFailure } from "./restore-contract.ts";
 import { restoreById } from "./restore-state.ts";
-import { type RestoreRow, jobs, restoreRuns } from "./schema.ts";
+import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { queueVaultLibrary } from "./vault-queue.ts";
 
 function partKeysOf(run: Readonly<Pick<RestoreRow, "id" | "parts">>): readonly string[] {
@@ -16,19 +15,6 @@ function partKeysOf(run: Readonly<Pick<RestoreRow, "id" | "parts">>): readonly s
 
 export function openingRestoreJob(db: Database, scope: Readonly<SQLWrapper>) {
   return openingUnowned(db, "restore", restoreRuns, scope);
-}
-
-export function closingRestoreJobs(db: Database, id: number) {
-  return db
-    .update(jobs)
-    .set(CLOSED_JOB)
-    .where(
-      and(
-        eq(jobs.kind, "restore"),
-        eq(jobs.address, unownedAddress("restore", id)),
-        ne(jobs.state, "done"),
-      ),
-    );
 }
 
 function stillAt(db: Database, run: Readonly<RestoreRow>) {

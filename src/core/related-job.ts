@@ -1,7 +1,8 @@
 import { AI_DEADLINE_MS, type ModelAi } from "./ai-contract.ts";
 import { runAiTask } from "./ai-tasks.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
-import type { ClaimedJob, JobOutcome, JobPorts, ModelHandler } from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
+import type { ModelDeclaration } from "./job-spec.ts";
 import type { PickItem } from "./related-input.ts";
 import { preparedRelated } from "./related-prepare.ts";
 import { RELATED_OUTPUT_TOKENS, relatedPickTask } from "./related-task.ts";
@@ -55,7 +56,7 @@ async function attemptPick(
   return prepared.kind === "settled" ? prepared.outcome : asking(ports, job, { ...prepared, ai });
 }
 
-export const relatedPickHandler: ModelHandler = {
+export const relatedPickHandler: ModelDeclaration = {
   deadlineMs: AI_DEADLINE_MS,
   blockedBy: ["digest"],
   attempt: attemptPick,

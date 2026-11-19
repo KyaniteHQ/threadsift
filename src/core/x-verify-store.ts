@@ -3,12 +3,8 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
-import {
-  RETRY_DELAYS_MS,
-  isLastAttempt,
-  type JobWrites,
-  type SettledOutcome,
-} from "./job-outcome.ts";
+import type { JobWrites, SettledOutcome } from "./job-outcome.ts";
+import { RETRY_DELAYS_MS, isLastAttempt } from "./job-retry.ts";
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
 import { items, jobs, xVerifications } from "./schema.ts";

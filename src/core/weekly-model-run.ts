@@ -6,14 +6,8 @@ import { aiTaskRunning, completedAiTask, runAiTask } from "./ai-tasks.ts";
 import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { guardedOutcome, lostOutcome, refusalOutcome } from "./guarded-outcome.ts";
-import type {
-  ClaimedJob,
-  JobOutcome,
-  JobPorts,
-  JobWrites,
-  ModelHandler,
-  SettledOutcome,
-} from "./job-outcome.ts";
+import type { ClaimedJob, JobOutcome, JobPorts, JobWrites, SettledOutcome } from "./job-outcome.ts";
+import type { ModelDeclaration } from "./job-spec.ts";
 import type { WeeklyTask } from "./kinds.ts";
 
 interface ModelRead<Sent> {
@@ -94,10 +88,9 @@ async function attemptRun<Sent, Result>(
 
 export function weeklyModelHandler<Sent, Result>(
   run: Readonly<WeeklyModelRun<Sent, Result>>,
-): ModelHandler {
+): ModelDeclaration {
   return {
     deadlineMs: AI_DEADLINE_MS,
-    blockedBy: [],
     attempt: (ports, job, ai) => attemptRun(run, ports, job, ai),
   };
 }

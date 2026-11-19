@@ -17,7 +17,7 @@ import { hasDigestSource, keptNotUpdated } from "./digest-source.ts";
 import { NOT_FAILED } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { grokBotChosen, providerSet } from "./provider-saved.ts";
-import { aiTasks, digests, items } from "./schema.ts";
+import { type JobRow, aiTasks, digests, items } from "./schema.ts";
 
 const OWED_DIGESTS_PER_SWEEP = 20;
 
@@ -34,6 +34,19 @@ export function openingDigest(
   }: Readonly<{ scope: Readonly<SQLWrapper>; address: string | Readonly<SQLWrapper>; now: number }>,
 ) {
   return opening(db, { kind: "digest", address, now, where: eligibleDigest(scope) });
+}
+
+export function owedDigest(db: Database, job: Readonly<Pick<JobRow, "itemId" | "attemptPending">>) {
+  return openingDigest(db, {
+    scope:
+      and(
+        eq(items.id, sql`${job.itemId}`),
+        isNotNull(items.pendingDigest),
+        sql`${items.pendingDigest} is not ${job.attemptPending}`,
+      ) ?? sql`0`,
+    address: items.originalUrl,
+    now: Date.now(),
+  });
 }
 
 export async function sweepDigests(db: Database, now: number): Promise<void> {
