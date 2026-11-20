@@ -28,10 +28,12 @@ export function readStoredDigest(stored: string): StoredDigestRead {
 
 const STORED_IS_JSON = sql`json_valid(${digests.digest})`;
 
-export function digestField(field: "title" | "summary" | "tags"): SQL<string | null> {
+export function digestField(field: "title" | "summary"): SQL<string | null> {
+  const path = sql.raw(`'$.${field}'`);
+
   return sql<
     string | null
-  >`case when ${STORED_IS_JSON} then json_extract(${digests.digest}, ${sql.raw(`'$.${field}'`)}) end`;
+  >`case when ${STORED_IS_JSON} and json_type(${digests.digest}, ${path}) = 'text' then json_extract(${digests.digest}, ${path}) end`;
 }
 
 export function storedWithTopic(name: Readonly<SQLWrapper>): SQL {
@@ -46,7 +48,9 @@ export function storedTaskIs(itemId: Readonly<SQLWrapper>, taskId: Readonly<SQLW
   return sql`${taskId} = (select ${digests.taskId} from ${digests} where ${digests.itemId} = ${itemId})`;
 }
 
-export const storedTags = digestField("tags");
+export const storedTags = sql<
+  string | null
+>`case when ${STORED_IS_JSON} then ${digests.digest} -> '$.tags' end`;
 
 export function unchangedDigests(reads: readonly DigestRead[]): SQL {
   return sql`select json_extract(seen.value, '$.id') from json_each(${JSON.stringify(reads)}) as seen where (select ${digests.taskId} from ${digests} where ${digests.itemId} = json_extract(seen.value, '$.id')) is json_extract(seen.value, '$.task') and (select ${storedTags} from ${digests} where ${digests.itemId} = json_extract(seen.value, '$.id')) is json_extract(seen.value, '$.tags')`;
