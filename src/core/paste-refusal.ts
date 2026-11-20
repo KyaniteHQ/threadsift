@@ -1,9 +1,11 @@
 import { type UnknownToken, retryAfterSeconds } from "./agent-token-budget.ts";
-import { BUDGET_SPENT, type BudgetSpent, RESTORING_CODE } from "./kinds.ts";
+import { BUDGET_SPENT, type BudgetSpent, UNKNOWN_TOKEN } from "./agent-token-contract.ts";
+import { byteSize } from "./format.ts";
+import { THREAD_CONTENT_BYTES } from "./limits.ts";
 import type { Invalid, NotWaiting, Refused, ThreadKept, TooLarge } from "./paste-outcome.ts";
+import { RESTORING_CODE } from "./restore-contract.ts";
 import type { Closed } from "./restore-hold.ts";
-import type { UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
-import { UNKNOWN_TOKEN } from "./tokens.ts";
+import { PAGE_BYTES, type UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
 
 const REFUSED_HOST = "url: the host is not globally reachable";
 
@@ -14,8 +16,8 @@ const BUDGET_SPENT_MESSAGE =
   "This agent token has added its daily budget of Items, so nothing was saved. The budget starts again at 00:00 UTC.";
 
 const TOO_LARGE = {
-  content: "content: longer than 4 MiB",
-  page: "page: longer than 1,000,000 bytes",
+  content: `content: longer than ${byteSize(THREAD_CONTENT_BYTES)}`,
+  page: `page: longer than ${byteSize(PAGE_BYTES)}`,
 } as const;
 
 const THREAD_KEPT = "page: the saved thread stays";

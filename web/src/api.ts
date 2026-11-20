@@ -1,5 +1,5 @@
 import { refreshedOf } from "../../src/core/fetch-results.ts";
-import type { ReadState } from "../../src/core/kinds.ts";
+import type { ReadState } from "../../src/core/item-contract.ts";
 import {
   OverviewRetryResponseSchema,
   type Overview,

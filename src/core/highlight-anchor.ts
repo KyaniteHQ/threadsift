@@ -1,4 +1,6 @@
-const CONTEXT_CODE_POINTS = 32;
+import { codePointCount, unitIndexAt } from "./code-points.ts";
+
+export const CONTEXT_CODE_POINTS = 32;
 
 interface Selector {
   readonly exact: string;
@@ -14,32 +16,6 @@ export type Anchor =
   | { readonly status: "attached"; readonly start: number }
   | { readonly status: "gone" }
   | { readonly status: "ambiguous" };
-
-const BASIC_PLANE_END = 0xff_ff;
-
-function pairAt(text: string, at: number): boolean {
-  return (text.codePointAt(at) ?? 0) > BASIC_PLANE_END;
-}
-
-export function codePointCount(text: string, end = text.length): number {
-  let count = 0;
-
-  for (let at = 0; at < end; at += pairAt(text, at) ? 2 : 1) count += 1;
-
-  return count;
-}
-
-export function unitIndexAt(text: string, codePoints: number, from = 0): number | null {
-  let at = from;
-
-  for (let seen = 0; seen < codePoints; seen += 1) {
-    if (at >= text.length) return null;
-
-    at += pairAt(text, at) ? 2 : 1;
-  }
-
-  return at;
-}
 
 function contextBefore(text: string, end: number): string {
   const window = text.slice(Math.max(0, end - (2 * CONTEXT_CODE_POINTS + 1)), end);

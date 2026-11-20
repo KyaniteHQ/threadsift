@@ -2,7 +2,20 @@ import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqli
 
 import { highlights } from "./highlight-tables.ts";
 import { items } from "./item-tables.ts";
-import { SEARCH_PART_KINDS } from "./kinds.ts";
+
+const SEARCH_PART_KINDS = [
+  "title",
+  "post-text",
+  "digest-title",
+  "summary",
+  "tags",
+  "repository",
+  "comment",
+  "highlight",
+  "note",
+] as const;
+
+export type SearchPartKind = (typeof SEARCH_PART_KINDS)[number];
 
 export const searchParts = sqliteTable(
   "search_parts",

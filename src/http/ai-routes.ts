@@ -9,8 +9,9 @@ import {
 } from "../core/ai-settings-contract.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
 import { verifyProvider } from "../core/bot-verify.ts";
-import { GROK_BOT_FIRST, GrokBotUnreadySchema } from "../core/grok-bot-contract.ts";
+import { VERIFY_WAIT_MS, GROK_BOT_FIRST, GrokBotUnreadySchema } from "../core/grok-bot-contract.ts";
 import type { Ports } from "../core/ports.ts";
+import { SECOND_MS } from "../core/time-units.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
@@ -57,7 +58,7 @@ const verifyRoute = createRoute({
   responses: {
     200: jsonBody(
       VerifyResultSchema,
-      "The verified Digest or a safe refusal category. With `grok-bot` as the Provider the request waits for the bot's answer for up to 60 seconds (`VERIFY_WAIT_MS` in `src/core/grok-bot-contract.ts`), then answers `timeout` and closes the task.",
+      `The verified Digest or a safe refusal category. With \`grok-bot\` as the Provider the request waits for the bot's answer for up to ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds (\`VERIFY_WAIT_MS\` in \`src/core/grok-bot-contract.ts\`), then answers \`timeout\` and closes the task.`,
     ),
   },
 });

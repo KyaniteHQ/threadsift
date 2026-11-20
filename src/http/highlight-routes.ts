@@ -1,12 +1,13 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { CONTEXT_CODE_POINTS } from "../core/highlight-anchor.ts";
 import {
   CreateHighlightRequestSchema,
   HighlightResponseSchema,
 } from "../core/highlight-contract.ts";
 import { createHighlight, removeHighlight } from "../core/highlights.ts";
 import type { Ports } from "../core/ports.ts";
-import { access } from "./access.ts";
+import { DEFAULT_CAP, access, tooLarge } from "./access.ts";
 import { registerHighlightsPageRoute } from "./highlights-page-route.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
@@ -37,7 +38,7 @@ const createHighlightRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      "The body is not a target, a revision and a selector, the quote is empty or not well-formed Unicode, or the selector does not match the text of that revision: `exact` must stand at `hint` (counted in code points) in the text of the target, with the up to 32 code points before it as `prefix` and the up to 32 after it as `suffix`. Nothing is saved.",
+      `The body is not a target, a revision and a selector, the quote is empty or not well-formed Unicode, or the selector does not match the text of that revision: \`exact\` must stand at \`hint\` (counted in code points) in the text of the target, with the up to ${String(CONTEXT_CODE_POINTS)} code points before it as \`prefix\` and the up to ${String(CONTEXT_CODE_POINTS)} after it as \`suffix\`. Nothing is saved.`,
     ),
     403: jsonBody(ErrorResponseSchema, `An agent token called this. ${OWNER_ONLY}`),
     404: jsonBody(
@@ -48,7 +49,7 @@ const createHighlightRoute = createRoute({
       ErrorResponseSchema,
       "`revision` is not the revision of the target any more, because a refresh or a new Digest changed the text. Nothing is saved. Read `GET /api/items/{id}`, take `highlights.revisions.post` (or `.comments` for a comment) and the text it shows, and select the passage again.",
     ),
-    413: jsonBody(ErrorResponseSchema, "The request body is larger than 64 KiB."),
+    413: jsonBody(ErrorResponseSchema, `${tooLarge(DEFAULT_CAP)}.`),
   },
 });
 

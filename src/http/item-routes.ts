@@ -1,8 +1,8 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import { retryDigest } from "../core/digest-retry.ts";
-import { ITEMS_PAGE_SIZE } from "../core/item-page.ts";
 import { getListedItem } from "../core/item-selection.ts";
+import { PAGE_SIZE } from "../core/paging.ts";
 import type { Ports } from "../core/ports.ts";
 import { access } from "./access.ts";
 import { readItemPage } from "./item-read.ts";
@@ -15,6 +15,7 @@ import {
   ItemQuerySchema,
   ItemReadResponseSchema,
   ItemResponseSchema,
+  SEARCH_MAX,
 } from "./schemas.ts";
 
 const listItemsRoute = createRoute({
@@ -25,11 +26,11 @@ const listItemsRoute = createRoute({
   responses: {
     200: jsonBody(
       ItemReadResponseSchema,
-      `One page of at most ${String(ITEMS_PAGE_SIZE)} Items that match every filter given, newest saved first, with the highest \`id\` first among Items saved at the same time, without their post text. Read \`GET /api/items/{id}\` for the text. \`image\` is the Item's first stored image, as its file-route path and alt text, or null. \`q\` matches Items that hold every word it contains, as the start of a word, in the title, post text, Summary or Tags; \`topic\` and \`tag\` match a Topic or Tag name with case and spacing ignored. \`url\` keeps only the Item whose normalized URL is the one of the link given, so another form of the same link finds it. \`fillable\` is true for a Reddit post or comment Item that holds no saved thread. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged, with the same filters. The cursor names a position, not a record, so an Item saved or deleted between two page reads moves no later page: a new Item is newer than every cursor. \`counts\` is present only when the request has no \`cursor\`; it holds the library totals, and for each Source, Read state, Topic and Tag the number of Items a choice leaves given the other filters, over the whole library and not the page.`,
+      `One page of at most ${String(PAGE_SIZE)} Items that match every filter given, newest saved first, with the highest \`id\` first among Items saved at the same time, without their post text. Read \`GET /api/items/{id}\` for the text. \`image\` is the Item's first stored image, as its file-route path and alt text, or null. \`q\` matches Items that hold every word it contains, as the start of a word, in the title, post text, Summary or Tags; \`topic\` and \`tag\` match a Topic or Tag name with case and spacing ignored. \`url\` keeps only the Item whose normalized URL is the one of the link given, so another form of the same link finds it. \`fillable\` is true for a Reddit post or comment Item that holds no saved thread. \`next\` is the \`cursor\` of the following page, or null on the last page; send it unchanged, with the same filters. The cursor names a position, not a record, so an Item saved or deleted between two page reads moves no later page: a new Item is newer than every cursor. \`counts\` is present only when the request has no \`cursor\`; it holds the library totals, and for each Source, Read state, Topic and Tag the number of Items a choice leaves given the other filters, over the whole library and not the page.`,
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      "`source` or `read` is not one of the listed values, `url` is not an absolute http or https link, `q` is longer than 200 characters, or `cursor` is malformed: not `<saved date>.<id>`, or a number in it above 9007199254740991 (the largest safe integer). A well-formed cursor that no page gave is accepted and answers the Items after that position.",
+      `\`source\` or \`read\` is not one of the listed values, \`url\` is not an absolute http or https link, \`q\` is longer than ${String(SEARCH_MAX)} characters, or \`cursor\` is malformed: not \`<saved date>.<id>\`, or a number in it above ${String(Number.MAX_SAFE_INTEGER)} (the largest safe integer). A well-formed cursor that no page gave is accepted and answers the Items after that position.`,
     ),
   },
 });

@@ -1,9 +1,11 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { BlankEnv } from "hono/types";
 
-import type { Scope } from "../core/kinds.ts";
+import type { Scope } from "../core/agent-token-contract.ts";
+import { groupedNumber } from "../core/format.ts";
 import type { Ports } from "../core/ports.ts";
 import {
+  REDDIT_SESSION_MAX,
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
   RedditSessionInputSchema,
@@ -81,7 +83,7 @@ const saveRoute = (path: string, gate: AccountGate) =>
       ),
       400: jsonBody(
         ErrorResponseSchema,
-        "The session is not 1 to 4,096 characters of letters, digits and `. _ ~ + / = % -`, with at most one leading `reddit_session=`. Nothing is saved.",
+        `The session is not 1 to ${groupedNumber(REDDIT_SESSION_MAX)} characters of letters, digits and \`. _ ~ + / = % -\`, with at most one leading \`reddit_session=\`. Nothing is saved.`,
       ),
     },
   });

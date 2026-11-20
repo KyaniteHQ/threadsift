@@ -13,7 +13,7 @@ import { CLAIM_MARGIN_MS, type JobPorts } from "./job-outcome.ts";
 import { exportRuns } from "./schema.ts";
 import { among } from "./sql-expressions.ts";
 
-const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
+export const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 type CleanupPorts = Pick<JobPorts, "db" | "files">;
 

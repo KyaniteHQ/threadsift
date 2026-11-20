@@ -4,7 +4,7 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 import { tags, topics } from "./catalog-tables.ts";
 import { highlights } from "./highlight-tables.ts";
 import { items } from "./item-tables.ts";
-import { MERGE_KINDS, PROPOSAL_KINDS, PROPOSAL_STATES } from "./kinds.ts";
+import { MERGE_KINDS, PROPOSAL_KINDS, PROPOSAL_STATES } from "./proposal-contract.ts";
 import { listed, subjectsForKind } from "./schema-checks.ts";
 
 export const SUBJECTS = {

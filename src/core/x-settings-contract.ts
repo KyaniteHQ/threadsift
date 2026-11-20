@@ -1,7 +1,16 @@
 import { z } from "zod";
 
 import { GROK_BOT_UNREADY } from "./grok-bot-contract.ts";
-import { X_FETCHER_STATES, X_READER_CHOICES } from "./kinds.ts";
+
+export const X_READER_BOT = "grok-bot";
+
+export const X_READER_CHOICES = ["auto", X_READER_BOT, "grok-cli"] as const;
+
+const X_FETCHER_STATES = ["signed-in", "signed-out", "not-proven", "unknown"] as const;
+
+export type XReaderChoice = (typeof X_READER_CHOICES)[number];
+
+export type XFetcherState = (typeof X_FETCHER_STATES)[number];
 
 export const STATE_NOT_INSTALLED = "not-installed";
 

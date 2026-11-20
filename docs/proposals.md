@@ -7,7 +7,7 @@ A Proposal is a change the agent suggests once a week, and the owner accepts or 
 Start from these modules:
 
 - `src/core/proposal-kinds.ts` holds `PROPOSAL`, which says for each kind how it is accepted, when its row is listed, how the page shows it, and how its weekly check runs (`ProposalKindSpec` in `src/core/proposal-kind.ts`), and the weekly stages built from it. The compiler refuses an entry under another kind's key. The entries sit beside the code of their kind: `merge-proposal.ts`, `highlight-proposals.ts`, `overview-proposals.ts`, `disagreement-proposal.ts`. A merge kind also has a record in `MERGE` (`src/core/merge-kinds.ts`), and a model check has its AI run (`weeklyKind`).
-- `src/core/proposal-lifecycle.ts` holds the moves between states and the writes of a row. The state list is `PROPOSAL_STATES` in `src/core/kinds.ts`.
+- `src/core/proposal-lifecycle.ts` holds the moves between states and the writes of a row. The state list is `PROPOSAL_STATES` in `src/core/proposal-contract.ts`.
 - `src/core/proposal-decision.ts` holds Accept's dispatch and Reject.
 - `src/core/weekly-check.ts` holds the two weekly checks that a declaration chooses from, `plainCheck` and `modelCheck`.
 - `src/core/weekly-kind.ts` holds `weeklyKind`, the AI task kind that every weekly model check shares.

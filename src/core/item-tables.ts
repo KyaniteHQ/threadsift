@@ -3,8 +3,9 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 
 import { tags, topics } from "./catalog-tables.ts";
 import { FETCH_RESULTS } from "./fetch-results.ts";
-import { FAILURE_REASONS, KINDS, READ_STATES, SOURCES, X_READ_NOTES } from "./kinds.ts";
-import { listed } from "./schema-checks.ts";
+import { FAILURE_REASONS, KINDS, READ_STATES, SOURCES, SOURCE_OF_KIND } from "./item-contract.ts";
+import { caseOf, listed } from "./schema-checks.ts";
+import { X_READ_NOTES } from "./x-read-note.ts";
 
 export const items = sqliteTable(
   "items",
@@ -37,7 +38,7 @@ export const items = sqliteTable(
     check("items_reason_check", sql`${table.reason} in (${listed(FAILURE_REASONS)})`),
     check(
       "items_source_kind_check",
-      sql`${table.source} is (case ${table.kind} when 'reddit-post' then 'reddit' when 'reddit-comment' then 'reddit' when 'x-post' then 'x' when 'github-repo' then 'github' when 'article' then 'article' when 'link' then 'other' end)`,
+      sql`${table.source} is (${caseOf(table.kind, SOURCE_OF_KIND)})`,
     ),
     index("items_saved_at_id").on(table.savedAt, table.id),
     index("items_topic").on(table.topicId),

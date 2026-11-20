@@ -1,6 +1,6 @@
 import { webUrlOf } from "./addresses.ts";
+import { type EmbedLink, embedLinkOf } from "./article-embed-links.ts";
 import type { Crypto } from "./crypto.ts";
-import { type EmbedLink, embedLinkOf } from "./embed-links.ts";
 import { digestOf } from "./encoding.ts";
 import { fileRouteOf, imageKey } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";

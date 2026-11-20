@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, and, eq, ne, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { INTAKE_JOB_KINDS, type WaitReason } from "./kinds.ts";
+import { INTAKE_JOB_KINDS, type WaitReason } from "./job-contract.ts";
 import { listed } from "./schema-checks.ts";
 import { items, jobs } from "./schema.ts";
 

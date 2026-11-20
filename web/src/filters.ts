@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import type { ReadState, Source } from "../../src/core/kinds.ts";
+import type { ReadState, Source } from "../../src/core/item-contract.ts";
 import { searchTerms } from "../../src/core/search-terms.ts";
 
 export interface Filters {

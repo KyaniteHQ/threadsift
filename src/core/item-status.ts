@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
+import type { FailureReason, ItemStatus } from "./item-contract.ts";
 import { hasOpenJob } from "./job-rows.ts";
-import type { FailureReason, ItemStatus } from "./kinds.ts";
 import { items } from "./schema.ts";
 
 export const IS_FAILED = sql`${items.reason} is not null`;

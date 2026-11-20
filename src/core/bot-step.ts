@@ -5,9 +5,9 @@ import { sendBotTask } from "./bot-task-send.ts";
 import { type BotTaskStart, ownerOf, startBotTask } from "./bot-task-start.ts";
 import { newCallbackCredential } from "./callback-credential.ts";
 import { lostOutcome } from "./guarded-outcome.ts";
+import { GROK_BOT_WAIT } from "./job-contract.ts";
 import type { ClaimedJob, DeferredOutcome, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { holding } from "./job-rows.ts";
-import { GROK_BOT_WAIT } from "./kinds.ts";
 
 const FULL_CAP_DEFER_MS = 60_000;
 

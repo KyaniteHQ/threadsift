@@ -1,8 +1,8 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
+import type { ReadState } from "./item-contract.ts";
 import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
-import type { ReadState } from "./kinds.ts";
 import { items } from "./schema.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 

@@ -3,8 +3,7 @@ import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { z } from "zod";
 
 import type { Database } from "./database.ts";
-import type { LogAction } from "./kinds.ts";
-import type { FieldOf, LOG } from "./log-actions.ts";
+import type { LogAction, FieldOf, LOG } from "./log-actions.ts";
 import type { LogEntry } from "./log-contract.ts";
 import { digests, logEntries, proposals, topics } from "./schema.ts";
 import { logMonthAt } from "./vault-log-month.ts";

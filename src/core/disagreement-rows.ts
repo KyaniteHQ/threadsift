@@ -4,7 +4,7 @@ import { alias } from "drizzle-orm/sqlite-core";
 import type { Database } from "./database.ts";
 import { storedTaskIs } from "./digest-stored.ts";
 import { pairPinned } from "./disagreement-pins.ts";
-import { WEEKLY_TASK } from "./kinds.ts";
+import { WEEKLY_TASK } from "./proposal-contract.ts";
 import { removedOpen } from "./proposal-lifecycle.ts";
 import { claimedAt } from "./scheduled-claim.ts";
 import { digests, items, proposals } from "./schema.ts";

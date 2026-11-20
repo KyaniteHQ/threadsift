@@ -1,8 +1,8 @@
 import { asc, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import type { SearchPartKind } from "./kinds.ts";
 import { digests, searchParts } from "./schema.ts";
+import type { SearchPartKind } from "./search-tables.ts";
 import { searchTerms } from "./search-terms.ts";
 
 const TERMS_MAX = 12;

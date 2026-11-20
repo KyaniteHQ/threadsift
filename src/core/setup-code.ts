@@ -1,5 +1,5 @@
+import type { SetupCodeStatus } from "./access-contract.ts";
 import type { Crypto } from "./crypto.ts";
-import type { SetupCodeStatus } from "./kinds.ts";
 
 export const SETUP_CODE_MIN = 16;
 

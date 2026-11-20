@@ -1,8 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-import { RESTORE_PHASES, RESTORE_STATES } from "./kinds.ts";
-import { RESTORE_FAILURES } from "./restore-contract.ts";
+import { RESTORE_FAILURES, RESTORE_PHASES, RESTORE_STATES } from "./restore-contract.ts";
 import { listed } from "./schema-checks.ts";
 
 export const restoreRuns = sqliteTable(

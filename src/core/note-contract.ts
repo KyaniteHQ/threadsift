@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { codePointCount } from "./code-points.ts";
 import { WholeCount } from "./whole-count.ts";
 
 export const NOTE_MAX_CODE_POINTS = 10_000;
@@ -8,7 +9,7 @@ const BodySchema = z
   .string()
   .refine((body) => body.isWellFormed(), "a Note is well-formed Unicode")
   .refine(
-    (body) => Array.from(body).length <= NOTE_MAX_CODE_POINTS,
+    (body) => codePointCount(body) <= NOTE_MAX_CODE_POINTS,
     `a Note holds at most ${String(NOTE_MAX_CODE_POINTS)} code points`,
   );
 

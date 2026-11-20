@@ -2,9 +2,9 @@ import { type SQL, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import type { JobWrites } from "./job-outcome.ts";
-import type { MergeKind, ProposalState } from "./kinds.ts";
 import { MERGE } from "./merge-kinds.ts";
 import { pairKey } from "./proposal-candidates.ts";
+import type { MergeKind, ProposalState } from "./proposal-contract.ts";
 import { proposalRow } from "./proposal-lifecycle.ts";
 import type { Sent } from "./proposal-sent.ts";
 import type { ProposalsResult } from "./proposal-task.ts";

@@ -1,11 +1,10 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import type { WeeklyTask } from "./kinds.ts";
+import type { WeeklyTask } from "./proposal-contract.ts";
 import { providerSet } from "./provider-saved.ts";
 import { digests, scheduledRuns } from "./schema.ts";
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+import { WEEK_MS } from "./time-units.ts";
 
 export const NEWEST_DIGESTED_ITEM = sql`(select max(${digests.itemId}) from ${digests})`;
 

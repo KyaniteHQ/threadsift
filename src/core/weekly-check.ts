@@ -2,9 +2,10 @@ import { type SQLWrapper, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Database } from "./database.ts";
+import type { OwnedJobKind } from "./job-contract.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows, opening } from "./job-rows.ts";
-import { type OwnedJobKind, type ProposalKind, WEEKLY_TASK } from "./kinds.ts";
+import { type ProposalKind, WEEKLY_TASK } from "./proposal-contract.ts";
 import { type OwnSubjects, proposalRow, removedOpen } from "./proposal-lifecycle.ts";
 import { NEWEST_DIGESTED_ITEM, claimedAt, claimingWeek } from "./scheduled-claim.ts";
 import { items, proposals } from "./schema.ts";

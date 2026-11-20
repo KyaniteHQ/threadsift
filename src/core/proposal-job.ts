@@ -1,8 +1,8 @@
 import { AI_DEADLINE_MS, AI_LIST_OUTPUT_TOKENS } from "./ai-contract.ts";
 import { readCatalogVersion } from "./catalog.ts";
 import { defineJob } from "./job-spec.ts";
-import { type MergeKind, WEEKLY_TASK } from "./kinds.ts";
 import { MERGE } from "./merge-kinds.ts";
+import { type MergeKind, WEEKLY_TASK } from "./proposal-contract.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
 import { type Sent, SentPairsSchema } from "./proposal-sent.ts";
 import { sentExist, storedMerges } from "./proposal-stored.ts";

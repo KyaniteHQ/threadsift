@@ -5,10 +5,8 @@ import {
   FAILURE_REASONS,
   type FailureReason,
   type ItemStatus,
-  type XReadNote,
-  XFetchRetryNoteSchema,
-  isXFetchRetryNote,
-} from "./kinds.ts";
+} from "./item-contract.ts";
+import { type XReadNote, XFetchRetryNoteSchema, isXFetchRetryNote } from "./x-read-note.ts";
 
 export function withShownStatus<Fields extends Readonly<Record<string, z.ZodType>>>(
   base: z.ZodObject<Fields>,

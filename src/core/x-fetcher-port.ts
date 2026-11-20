@@ -1,5 +1,6 @@
 import type { FetchFailure } from "./fetch-results.ts";
-import type { XFetcherState, XReadNote } from "./kinds.ts";
+import type { XReadNote } from "./x-read-note.ts";
+import type { XFetcherState } from "./x-settings-contract.ts";
 import type { XCliThreadValue } from "./x-wire.ts";
 
 export interface XFetcherStatus {

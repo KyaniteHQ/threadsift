@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { DigestOutcome } from "./kinds.ts";
+import type { DigestOutcome } from "./item-contract.ts";
 import type { COMMENT_KINDS } from "./reddit-tables.ts";
 import { WholeCount } from "./whole-count.ts";
 

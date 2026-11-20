@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 
+import { UNKNOWN_TOKEN } from "../core/agent-token-contract.ts";
 import type { PresentedToken } from "../core/bearer.ts";
-import { UNKNOWN_TOKEN } from "../core/tokens.ts";
 
 const NOT_BEARER = "Authorization header is not a bearer token";
 

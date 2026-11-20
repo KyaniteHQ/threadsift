@@ -1,8 +1,8 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
 import { AI_REASON_MAX } from "./ai-contract.ts";
-import { MERGE_KINDS } from "./kinds.ts";
 import type { MergeKindSpec, MergeSpecs } from "./merge-unit.ts";
+import { MERGE_KINDS } from "./proposal-contract.ts";
 import { NAMES_PER_SUBJECT, TAGS_OF_TOPIC, TOPICS_OF_TAG } from "./proposal-names.ts";
 import { itemTags, items, logEntries, pins, proposals, tags, topics } from "./schema.ts";
 import { planTagUnit } from "./tag-merge.ts";

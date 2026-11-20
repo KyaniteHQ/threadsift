@@ -3,7 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Database } from "./database.ts";
 import { guardHolds } from "./guards.ts";
-import { REDDIT_KINDS } from "./kinds.ts";
+import { REDDIT_KINDS } from "./item-contract.ts";
 import { listed } from "./schema-checks.ts";
 import { digests, highlights, items, redditComments, redditThreads } from "./schema.ts";
 import type { StoredThread } from "./stored-thread.ts";

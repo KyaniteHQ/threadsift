@@ -3,9 +3,9 @@ import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./database.ts";
 import { firstDigest, firstItem, secondDigest, secondItem } from "./disagreement-rows.ts";
-import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { itemTitle } from "./item-title.ts";
 import { acrossKinds } from "./merge-kinds.ts";
+import { PAGE_SIZE } from "./paging.ts";
 import { ListedStateSchema } from "./proposal-contract.ts";
 import { digests, highlights, items, proposals, topics } from "./schema.ts";
 import { digestedCount, uncoveredCount } from "./topic-coverage.ts";
@@ -109,5 +109,5 @@ export function pageQuery(
       ),
     )
     .orderBy(desc(proposals.id))
-    .limit(ITEMS_PAGE_SIZE + 1);
+    .limit(PAGE_SIZE + 1);
 }

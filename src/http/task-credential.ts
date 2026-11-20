@@ -4,11 +4,13 @@ import type { AiTaskRow } from "../core/ai-task-state.ts";
 import { presentedToken } from "../core/bearer.ts";
 import { callbackTaskOf } from "../core/callback-credential.ts";
 import type { Ports } from "../core/ports.ts";
+import { jsonBody } from "./openapi.ts";
+import { ErrorResponseSchema } from "./schemas.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 
-export const CREDENTIAL_REQUIRED = "A credential for this task is required";
+const CREDENTIAL_REQUIRED = "A credential for this task is required";
 
-export const CREDENTIAL_ONLY = "Only the task's own credential may use this route";
+const CREDENTIAL_ONLY = "Only the task's own credential may use this route";
 
 async function carriesOtherAccess(c: Context, ports: Ports): Promise<boolean> {
   const authorization = c.req.header("authorization");
@@ -40,3 +42,16 @@ export async function callbackTask(c: Context): Promise<AiTaskRow | Response> {
     ? credentialOnly(c)
     : c.json({ error: CREDENTIAL_REQUIRED }, 401);
 }
+
+export const UNSUPPORTED_TASK = "unsupported-task";
+
+export const CREDENTIAL_REFUSALS = {
+  401: jsonBody(
+    ErrorResponseSchema,
+    `${CREDENTIAL_REQUIRED}: the header is missing or malformed, the task does not exist, or the credential belongs to another task or to an earlier send of this task. The answer is the same for all of them.`,
+  ),
+  403: jsonBody(
+    ErrorResponseSchema,
+    `${CREDENTIAL_ONLY}: the call carries the owner's session or an agent token and no matching task credential.`,
+  ),
+};

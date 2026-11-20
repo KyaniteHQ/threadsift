@@ -7,13 +7,13 @@ import { restoreFilesPrefix } from "./file-keys.ts";
 import { listedKeys } from "./file-pages.ts";
 import type { FileStore } from "./file-store.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { COPY_RESTORE_PHASES } from "./kinds.ts";
 import {
   CountsSchema,
   KEPT_HIGHLIGHTS,
   MISSING_FILES,
   RESTORED_FILES,
   type RestoreStatus,
+  COPY_RESTORE_PHASES,
 } from "./restore-contract.ts";
 import { cancelling, resumable, undoFailed } from "./restore-hold.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
@@ -51,7 +51,7 @@ export async function restoreById(db: Database, id: number): Promise<RestoreRow 
   return run ?? null;
 }
 
-export async function receivedParts(
+async function receivedParts(
   files: Pick<FileStore, "list">,
   id: number,
 ): Promise<readonly number[]> {

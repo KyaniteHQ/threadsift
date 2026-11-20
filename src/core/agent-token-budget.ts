@@ -1,14 +1,13 @@
 import { and, eq, gte, lt, sql } from "drizzle-orm";
 
+import { BUDGET_SPENT, type BudgetSpent, type TokenBudget } from "./agent-token-contract.ts";
 import type { Caller } from "./caller.ts";
 import type { Database } from "./database.ts";
-import { BUDGET_SPENT, type BudgetSpent, type TokenBudget } from "./kinds.ts";
 import { isRefusedLink, parseLink } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { agentTokens, itemAliases, items } from "./schema.ts";
 import { among } from "./sql-expressions.ts";
-
-const DAY_MS = 86_400_000;
+import { DAY_MS } from "./time-units.ts";
 
 function nextUtcMidnight(now: number): number {
   return (Math.floor(now / DAY_MS) + 1) * DAY_MS;

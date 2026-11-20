@@ -1,5 +1,5 @@
 import { webUrlOf } from "./addresses.ts";
-import { type EmbedLink, embedLinkOf } from "./embed-links.ts";
+import { type EmbedLink, embedLinkOf } from "./article-embed-links.ts";
 
 export function baseOf(document: Document, url: string): string {
   const declared = document.querySelector("base[href]")?.getAttribute("href");

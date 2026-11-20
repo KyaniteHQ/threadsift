@@ -1,10 +1,9 @@
 import { and, desc, eq, gte, lt } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import type { FieldOf } from "./log-actions.ts";
 import { type LogEntry, type LogPage, LogEntrySchema } from "./log-contract.ts";
-import { pageTail } from "./page-tail.ts";
+import { PAGE_SIZE, pageTail } from "./paging.ts";
 import { logEntries, logStart, topics } from "./schema.ts";
 
 type Row = Readonly<Awaited<ReturnType<typeof logRows>>[number]>;
@@ -88,11 +87,11 @@ export async function readLogEntries(
 
 export async function readLog(db: Database, cursor: number | null): Promise<LogPage> {
   const [rows, [start]] = await db.batch([
-    logRows(db, cursor, ITEMS_PAGE_SIZE + 1),
+    logRows(db, cursor, PAGE_SIZE + 1),
     db.select({ startedAt: logStart.startedAt }).from(logStart).where(eq(logStart.id, 1)),
   ]);
 
-  const { items, next } = pageTail(rows, ITEMS_PAGE_SIZE, ({ id }) => String(id));
+  const { items, next } = pageTail(rows, PAGE_SIZE, ({ id }) => String(id));
 
   return {
     startedAt: start?.startedAt ?? 0,

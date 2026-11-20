@@ -5,7 +5,7 @@ import { currentDisagreementPin } from "./disagreement-pins.ts";
 import { firstDigest, firstItem, secondDigest, secondItem } from "./disagreement-rows.ts";
 import { items, pins } from "./schema.ts";
 
-const DISAGREEMENTS_SHOWN = 20;
+export const DISAGREEMENTS_SHOWN = 20;
 
 interface Cursor {
   readonly at: number;

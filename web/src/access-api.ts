@@ -1,6 +1,7 @@
 import { z } from "zod";
 
-import type { RefusalCode, Scope } from "../../src/core/kinds.ts";
+import type { RefusalCode } from "../../src/core/access-contract.ts";
+import type { Scope } from "../../src/core/agent-token-contract.ts";
 import type { PasswordProblem } from "../../src/core/passwords.ts";
 import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
 import {

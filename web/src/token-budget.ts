@@ -1,4 +1,4 @@
-import { DailyBudgetSchema } from "../../src/core/kinds.ts";
+import { DailyBudgetSchema } from "../../src/core/agent-token-contract.ts";
 
 type BudgetInput =
   | { readonly kind: "none" }

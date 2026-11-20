@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 
+import type { SetupCodeStatus } from "./access-contract.ts";
 import { type LockedOut, type Refused, badPassword, refused } from "./access-refusal.ts";
 import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
-import type { SetupCodeStatus } from "./kinds.ts";
 import { hashPassword, passwordLength, passwordMatches } from "./passwords.ts";
 import type { Ports } from "./ports.ts";
 import { owner } from "./schema.ts";

@@ -1,4 +1,4 @@
-import type { ReadState, Source } from "./kinds.ts";
+import type { ReadState, Source } from "./item-contract.ts";
 
 export interface CountedName {
   readonly key: string;

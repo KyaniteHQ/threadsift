@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { X_READER_CHOICES } from "./kinds.ts";
 import { listed } from "./schema-checks.ts";
+import { X_READER_CHOICES } from "./x-settings-contract.ts";
 
 export const xSettings = sqliteTable(
   "x_settings",

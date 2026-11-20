@@ -1,10 +1,10 @@
 import type { Fetched } from "./details.ts";
-import { X_READER_BOT, type XReadNote, type XReaderChoice } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import type { XFetcher } from "./x-fetcher-port.ts";
 import { hasOpenIntakeTask } from "./x-intake-state.ts";
-import type { XBotState } from "./x-settings-contract.ts";
+import type { XReadNote } from "./x-read-note.ts";
+import { X_READER_BOT, type XReaderChoice, type XBotState } from "./x-settings-contract.ts";
 import { chosenXReader, xBotState } from "./x-settings.ts";
 
 type ReaderPorts = Pick<Ports, "db" | "secrets" | "xFetcher" | "ai">;

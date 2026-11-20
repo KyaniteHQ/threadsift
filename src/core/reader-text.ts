@@ -1,4 +1,4 @@
-import type { Kind, Source } from "./kinds.ts";
+import type { Kind, Source } from "./item-contract.ts";
 
 export const SUMMARY_LABEL = "Summary";
 export const KEY_POINTS_LABEL = "Key points";

@@ -3,9 +3,9 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { givenUpTasks, supersededTasks } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
+import { INTAKE_JOB_KINDS, type UnownedJobKind } from "./job-contract.ts";
 import type { JobCurrency } from "./job-outcome.ts";
 import { unownedAddress } from "./job-rows.ts";
-import { INTAKE_JOB_KINDS, type UnownedJobKind } from "./kinds.ts";
 import { type JobRow, aiTasks, jobs, xVerifications } from "./schema.ts";
 
 const CLOSED_JOB = {

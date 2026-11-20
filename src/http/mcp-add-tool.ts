@@ -5,10 +5,10 @@ import {
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
+import { pasteScopes } from "../core/agent-token-contract.ts";
 import { refusalOf } from "../core/paste-refusal.ts";
 import { pasteLink } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
-import { pasteScopes } from "../core/scopes.ts";
 import { savedView } from "./item-view.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";

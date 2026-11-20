@@ -29,5 +29,3 @@ export const X_REPLIES_MIN = 20;
 export const X_REPLIES_KEPT_MAX = 40;
 
 export const X_REPLIES_LIKES_PERCENT = 80;
-
-export const DEFAULT_TOKEN_BUDGET = 200;

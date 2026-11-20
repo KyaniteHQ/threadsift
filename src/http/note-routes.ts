@@ -1,13 +1,15 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { groupedNumber } from "../core/format.ts";
 import {
   NoteConflictSchema,
   NoteResponseSchema,
   SaveNoteRequestSchema,
+  NOTE_MAX_CODE_POINTS,
 } from "../core/note-contract.ts";
 import { saveNote } from "../core/notes.ts";
 import type { Ports } from "../core/ports.ts";
-import { access } from "./access.ts";
+import { DEFAULT_CAP, access, tooLarge } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
@@ -27,7 +29,7 @@ const saveNoteRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      "The body is not a `body` string and a `revision`, the `body` is longer than 10,000 code points or is not well-formed Unicode, or `id` is not a positive integer. Nothing is saved.",
+      `The body is not a \`body\` string and a \`revision\`, the \`body\` is longer than ${groupedNumber(NOTE_MAX_CODE_POINTS)} code points or is not well-formed Unicode, or \`id\` is not a positive integer. Nothing is saved.`,
     ),
     403: jsonBody(
       ErrorResponseSchema,
@@ -38,7 +40,7 @@ const saveNoteRoute = createRoute({
       NoteConflictSchema,
       "`revision` is not the Note's revision any more. Nothing is saved. `note` holds the current Note and revision: send the text again with that revision to replace it. A Note that was never saved has revision 0.",
     ),
-    413: jsonBody(ErrorResponseSchema, "The request body is larger than 64 KiB."),
+    413: jsonBody(ErrorResponseSchema, `${tooLarge(DEFAULT_CAP)}.`),
   },
 });
 

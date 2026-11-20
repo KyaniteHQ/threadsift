@@ -1,18 +1,35 @@
 import { z } from "zod";
 
-import { COPY_RESTORE_PHASES, RUNNING_RESTORE_PHASES } from "./kinds.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
+import { DAY_MS } from "./time-units.ts";
 import { WholeCount } from "./whole-count.ts";
+
+export const RESTORE_STATES = ["uploading", "running", "done", "failed", "cancelled"] as const;
+
+export const COPY_RESTORE_PHASES = [
+  "check",
+  "tables",
+  "files",
+  "search",
+  "highlights",
+  "finish",
+] as const;
+
+export const RUNNING_RESTORE_PHASES = [...COPY_RESTORE_PHASES, "undoing"] as const;
+
+export const RESTORE_PHASES = ["upload", ...RUNNING_RESTORE_PHASES] as const;
+
+export const RESTORING_CODE = "restoring";
 
 export type RunningPhase = (typeof COPY_RESTORE_PHASES)[number];
 
 export const RESTORE_MAX_BYTES = 50_000_000_000;
 
-export const RESTORE_MAX_PARTS = Math.ceil(RESTORE_MAX_BYTES / RESTORE_PART_BYTES);
+const RESTORE_MAX_PARTS = Math.ceil(RESTORE_MAX_BYTES / RESTORE_PART_BYTES);
 
 export const RESTORE_UNIT_DEADLINE_MS = 600_000;
 
-export const RESTORE_PARTS_KEEP_MS = 24 * 60 * 60 * 1000;
+export const RESTORE_PARTS_KEEP_MS = DAY_MS;
 
 export const RESTORE_UNIT_LINES = 500;
 
@@ -44,7 +61,7 @@ export const RESTORE_MANIFEST_BYTES = 4 * 1024 * 1024;
 
 export const RESTORE_DIRECTORY_BYTES = 256 * 1024 * 1024;
 
-export const RESTORE_REFUSALS = [
+const RESTORE_REFUSALS = [
   "incomplete-upload",
   "not-a-zip",
   "unsupported-compression",
@@ -60,7 +77,7 @@ export const RESTORE_REFUSALS = [
 
 export type RestoreRefusal = (typeof RESTORE_REFUSALS)[number];
 
-export const RESTORE_ERROR_CODES = [
+const RESTORE_ERROR_CODES = [
   ...RESTORE_REFUSALS,
   "library-not-empty",
   "restore-open",
@@ -99,7 +116,7 @@ const START_CURSOR: Cursor = { file: 0, entry: null, offset: 0, line: 0 };
 
 export const UndoCursorSchema = z.object({ units: WholeCount }).readonly();
 
-export type UndoCursor = z.infer<typeof UndoCursorSchema>;
+type UndoCursor = z.infer<typeof UndoCursorSchema>;
 
 const START_UNDO: UndoCursor = { units: 0 };
 

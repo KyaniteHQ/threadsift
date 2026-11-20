@@ -1,4 +1,5 @@
-import { type PlacedSelector, selectorAt, unitIndexAt } from "../../src/core/highlight-anchor.ts";
+import { unitIndexAt } from "../../src/core/code-points.ts";
+import { type PlacedSelector, selectorAt } from "../../src/core/highlight-anchor.ts";
 import type { HighlightTarget } from "../../src/core/highlight-contract.ts";
 import { projectDom } from "./dom-projection.ts";
 import { BODY_SELECTOR, targetOfKey } from "./highlight-target.ts";

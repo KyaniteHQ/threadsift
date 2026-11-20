@@ -1,7 +1,7 @@
 import type { PluggableList } from "unified";
 
+import { unitIndexAt } from "../../src/core/code-points.ts";
 import { isImageRouteOf } from "../../src/core/file-keys.ts";
-import { unitIndexAt } from "../../src/core/highlight-anchor.ts";
 import {
   type HastNode,
   TEXT,

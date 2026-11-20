@@ -3,7 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./database.ts";
-import type { MergeKind, ProposalState } from "./kinds.ts";
+import type { MergeKind, ProposalState } from "./proposal-contract.ts";
 import type { SentNames } from "./proposal-names.ts";
 import type { TagSubject, TopicSubject } from "./proposal-sent.ts";
 import type { SUBJECTS } from "./proposal-tables.ts";

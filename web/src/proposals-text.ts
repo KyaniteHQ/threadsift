@@ -1,6 +1,10 @@
 import { collapsed } from "../../src/core/format.ts";
-import type { MergeKind, ProposalKind } from "../../src/core/kinds.ts";
-import type { MergeProposal, Proposal } from "../../src/core/proposal-contract.ts";
+import type {
+  MergeKind,
+  ProposalKind,
+  MergeProposal,
+  Proposal,
+} from "../../src/core/proposal-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { plural } from "./plural.ts";
 import { NEWEST_FIRST, filled } from "./text.ts";

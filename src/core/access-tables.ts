@@ -1,7 +1,11 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import { THROTTLE_KINDS } from "./kinds.ts";
+import { STORED_DEFAULT_SCOPES } from "./agent-token-contract.ts";
+
+const THROTTLE_KINDS = ["setup", "login", "reset"] as const;
+
+export type ThrottleKind = (typeof THROTTLE_KINDS)[number];
 
 export const owner = sqliteTable(
   "owner",
@@ -32,7 +36,7 @@ export const agentTokens = sqliteTable("agent_tokens", {
   scopes: text("scopes", { mode: "json" })
     .$type<readonly string[]>()
     .notNull()
-    .default(["read", "add", "digest", "delete"]),
+    .default([...STORED_DEFAULT_SCOPES]),
   dailyBudget: integer("daily_budget"),
 });
 

@@ -1,13 +1,9 @@
 import type { FetchFailure } from "../../src/core/fetch-results.ts";
 import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
 import { groupedNumber } from "../../src/core/format.ts";
-import type {
-  FailureReason,
-  ReadState,
-  Source,
-  WaitReason,
-  XReadNote,
-} from "../../src/core/kinds.ts";
+import type { FailureReason, ReadState, Source } from "../../src/core/item-contract.ts";
+import type { WaitReason } from "../../src/core/job-contract.ts";
+import type { XReadNote } from "../../src/core/x-read-note.ts";
 import { ITEM_HEAD, headLabel as filledHeadLabel } from "./head-label.ts";
 import { type XNoticeKey, X_NOTICES } from "./x-text.ts";
 

@@ -3,7 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { MediaRowValue } from "./article-images.ts";
 import type { Database } from "./database.ts";
-import type { MediaKind, MediaOutcome } from "./kinds.ts";
+import type { MediaKind, MediaOutcome } from "./media-tables.ts";
 import { media } from "./schema.ts";
 
 const FIELD = (name: string) => sql.raw(`json_extract(value, '$.${name}')`);

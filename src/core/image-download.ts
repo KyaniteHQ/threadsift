@@ -2,8 +2,8 @@ import { fromBase64 } from "./encoding.ts";
 import { type Failed, guardedFetchBytes } from "./fetch-guard.ts";
 import { fits } from "./image-rules.ts";
 import { type ImageType, declaredImageType, sniffImageType } from "./image-type.ts";
-import type { MediaFailure } from "./kinds.ts";
 import { IMAGE_MAX_BYTES } from "./limits.ts";
+import type { MediaFailure } from "./media-tables.ts";
 import type { Network } from "./network.ts";
 
 const BASE64_CHARACTERS = Math.ceil((IMAGE_MAX_BYTES * 4) / 3) + 4;

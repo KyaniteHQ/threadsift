@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import type { ProposalState } from "../../src/core/kinds.ts";
 import {
+  type ProposalState,
   type ProposalPage,
   ProposalPageSchema,
   ProposalStateSchema,

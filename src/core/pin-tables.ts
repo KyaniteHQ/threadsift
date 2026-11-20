@@ -3,7 +3,7 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 
 import { tags, topics } from "./catalog-tables.ts";
 import { items } from "./item-tables.ts";
-import { PIN_KINDS } from "./kinds.ts";
+import { PIN_KINDS } from "./proposal-contract.ts";
 import { listed, subjectsForKind } from "./schema-checks.ts";
 
 export const pins = sqliteTable(

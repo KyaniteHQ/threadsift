@@ -5,9 +5,9 @@ import type { Database } from "./database.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
 import type { Ports } from "./ports.ts";
 import { sessions } from "./schema.ts";
+import { DAY_MS } from "./time-units.ts";
 
 const SESSION_BYTES = 32;
-export const DAY_MS = 86_400_000;
 const SESSION_DAYS = 30;
 const SESSION_MS = SESSION_DAYS * DAY_MS;
 export const SESSION_MAX_AGE_SECONDS = SESSION_MS / 1000;

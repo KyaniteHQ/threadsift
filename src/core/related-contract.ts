@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { SOURCES } from "./kinds.ts";
+import { SOURCES } from "./item-contract.ts";
 
 export const RELATED_MAX = 5;
 

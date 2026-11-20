@@ -1,10 +1,11 @@
 import { eq } from "drizzle-orm";
 
 import { grokBotConnection } from "./grok-bot-ready.ts";
-import { X_READER_CHOICES, type XReaderChoice } from "./kinds.ts";
 import type { Ports } from "./ports.ts";
 import { xSettings } from "./schema.ts";
 import {
+  X_READER_CHOICES,
+  type XReaderChoice,
   STATE_NOT_INSTALLED,
   STATE_WORKER,
   type XBotState,

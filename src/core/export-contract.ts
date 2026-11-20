@@ -1,6 +1,9 @@
 import { z } from "zod";
 
+import { DAY_MS } from "./time-units.ts";
 import { WholeCount } from "./whole-count.ts";
+
+export const EXPORT_STATES = ["running", "ready", "failed", "removing", "expired"] as const;
 
 export const EXPORT_DOWNLOAD_PATH = "/api/export/{id}/download";
 
@@ -16,7 +19,7 @@ export const ITEM_FILES_STREAM = "item-files";
 
 export const EXPORT_ENTRY_BYTES = 8 * 1024 * 1024;
 
-export const EXPORT_KEEP_MS = 24 * 60 * 60 * 1000;
+export const EXPORT_KEEP_MS = DAY_MS;
 
 export const EXPORT_CLEANUP_BATCH = 5;
 
@@ -30,7 +33,7 @@ const PartialItemSchema = z
 
 export type PartialItem = z.infer<typeof PartialItemSchema>;
 
-export const ExportTallySchema = z
+const ExportTallySchema = z
   .object({
     tables: z
       .record(z.string(), z.object({ files: WholeCount, rows: WholeCount }).readonly())

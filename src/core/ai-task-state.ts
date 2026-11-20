@@ -13,6 +13,7 @@ import {
 
 import { aiTasks } from "./schema.ts";
 import { DATABASE_NOW } from "./sql-expressions.ts";
+import { DAY_MS } from "./time-units.ts";
 
 export const GROK_BOT_EXECUTOR = "grok-bot";
 
@@ -24,7 +25,7 @@ type BotTaskState = "unsent" | "sent" | "answered" | "applied" | "failed";
 
 export type BotStep = "start" | "charge" | "apply" | "expire" | "resend" | "wait";
 
-const ABANDONED_AFTER_MS = 24 * 60 * 60 * 1000;
+const ABANDONED_AFTER_MS = DAY_MS;
 
 const KEEPS_ANSWER_UNLESS = new Set<string>(["stale", "no-json"]);
 

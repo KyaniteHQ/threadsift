@@ -2,7 +2,28 @@ import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { items } from "./item-tables.ts";
-import { MEDIA_FAILURES, MEDIA_KINDS, MEDIA_OUTCOMES } from "./kinds.ts";
+
+const MEDIA_KINDS = ["image", "video"] as const;
+
+const MEDIA_OUTCOMES = ["stored", "failed", "linked"] as const;
+
+const MEDIA_FAILURES = [
+  "timeout",
+  "network",
+  "refused",
+  "unsupported",
+  "redirect-limit",
+  "status",
+  "too-large",
+  "not-an-image",
+  "type-mismatch",
+] as const;
+
+export type MediaKind = (typeof MEDIA_KINDS)[number];
+
+export type MediaOutcome = (typeof MEDIA_OUTCOMES)[number];
+
+export type MediaFailure = (typeof MEDIA_FAILURES)[number];
 
 export const media = sqliteTable(
   "media",

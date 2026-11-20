@@ -1,4 +1,4 @@
-import { codePointCount } from "../../src/core/highlight-anchor.ts";
+import { codePointCount } from "../../src/core/code-points.ts";
 import { FOOTNOTE_LABEL_ID } from "../../src/core/reader-url.ts";
 import { type HastNode, projectTree } from "../../src/core/text-projection.ts";
 

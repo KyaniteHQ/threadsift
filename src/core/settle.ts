@@ -3,10 +3,10 @@ import { type SQL, eq } from "drizzle-orm";
 import type { Database } from "./database.ts";
 import type { Concluded, Content } from "./details.ts";
 import type { FetchResult } from "./fetch-results.ts";
-import type { XReadNote } from "./kinds.ts";
-import { sourceOf } from "./links.ts";
+import { SOURCE_OF_KIND } from "./item-contract.ts";
 import { type ItemRow, items } from "./schema.ts";
 import type { StoredThread } from "./stored-thread.ts";
+import type { XReadNote } from "./x-read-note.ts";
 
 export type Settled = Pick<ItemRow, "fetch" | "xNote" | "reason"> &
   Partial<
@@ -47,7 +47,7 @@ function contentFields(content: Readonly<Content>) {
     case "article":
     case "github-repo":
     case "link":
-      return { source: sourceOf(content.kind), kind: content.kind, ...textFields(content) };
+      return { source: SOURCE_OF_KIND[content.kind], kind: content.kind, ...textFields(content) };
     default: {
       const exhaustive: never = content;
 
