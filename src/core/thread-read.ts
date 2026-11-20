@@ -109,3 +109,12 @@ export function commentsOf(
     digest: { ...digest, provider },
   });
 }
+
+export function keptNodesOf(...args: Readonly<Parameters<typeof commentsOf>>) {
+  const [rows, ...rest] = args;
+
+  return commentsOf(
+    rows.map((row) => Object.assign(row, { readable: row.kept })),
+    ...rest,
+  ).nodes;
+}

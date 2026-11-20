@@ -1,12 +1,11 @@
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { guardHolds, guardedWrite } from "./guards.ts";
-import { anchoredOutcome, displayedBesideThread } from "./highlight-publish.ts";
+import { publishSupplied } from "./item-publish.ts";
 import type { AnchoredOutcome } from "./job-outcome.ts";
-import { items } from "./schema.ts";
 import type { StoredThread } from "./stored-thread.ts";
-import { type ThreadPlace, threadItemInsert, threadPublication } from "./thread-publish.ts";
+import { type ThreadPlace, threadItemInsert } from "./thread-publish.ts";
 import { type Refusal, type Requirement, requirementOf } from "./thread-requirements.ts";
 
 export type Published = { readonly kind: "published"; readonly created: boolean } | Refusal;
@@ -39,14 +38,7 @@ export async function publishThread(
   thread: Readonly<StoredThread>,
   { pendingDigest, fillOnly }: Readonly<{ pendingDigest: string | null; fillOnly: boolean }>,
 ): Promise<Published> {
-  const publication = await anchoredOutcome(
-    db,
-    { writes: threadPublication(db, place, thread, pendingDigest) },
-    {
-      owner: eq(items.normalizedUrl, place.normalizedUrl),
-      displayed: displayedBesideThread({ post: thread.postText, comments: thread.nodes }),
-    },
-  );
+  const publication = await publishSupplied(db, place, thread, pendingDigest);
 
   return commit(db, place, requirementOf(place, thread, fillOnly), publication);
 }

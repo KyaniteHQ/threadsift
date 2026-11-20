@@ -1,7 +1,7 @@
-import { readItem } from "./item-detail.ts";
 import { itemFilePlan } from "./item-files.ts";
 import { itemNote } from "./item-note.ts";
 import type { JobPorts } from "./job-outcome.ts";
+import { readPlanSource } from "./plan-source.ts";
 import { GITHUB_FILE_BYTES } from "./vault-contract.ts";
 import { itemWikiSections } from "./vault-markdown.ts";
 import { VaultNoteFailure } from "./vault-note-failure.ts";
@@ -32,7 +32,7 @@ function withoutOversized(files: readonly VaultFile[]) {
 
 async function itemFiles(reader: Reader, subjectId: number): Promise<SubjectFiles> {
   reader.signal.throwIfAborted();
-  const read = await readItem(reader.ports, subjectId);
+  const read = await readPlanSource(reader.ports, subjectId);
   reader.signal.throwIfAborted();
   if (read === undefined) return { files: [], oversized: [] };
   const planned = itemFilePlan(read);

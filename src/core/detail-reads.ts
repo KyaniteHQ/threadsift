@@ -33,13 +33,16 @@ function storedFileRows(db: Database, itemId: number) {
     .orderBy(asc(media.position));
 }
 
-export function detailReads(db: Database, id: number) {
-  return db.batch([
-    selectItems(db, {
-      ...DETAIL_COLUMNS,
-      topicId: items.topicId,
-      revision: sql<number>`${items.generation}`.as("post_revision"),
-    }).where(eq(items.id, id)),
+function itemRead(db: Database, id: number) {
+  return selectItems(db, {
+    ...DETAIL_COLUMNS,
+    topicId: items.topicId,
+    revision: sql<number>`${items.generation}`.as("post_revision"),
+  }).where(eq(items.id, id));
+}
+
+function readerReads(db: Database, id: number) {
+  return [
     db.select({ digest: digests.digest }).from(digests).where(eq(digests.itemId, id)),
     db
       .select({ name: tags.name })
@@ -53,6 +56,13 @@ export function detailReads(db: Database, id: number) {
     noteRows(db, id),
     sizedImageRows(db, id),
     relatedRows(db, id),
-    storedFileRows(db, id),
-  ]);
+  ] as const;
+}
+
+export function detailReads(db: Database, id: number) {
+  return db.batch([itemRead(db, id), ...readerReads(db, id)] as const);
+}
+
+export function planReads(db: Database, id: number) {
+  return db.batch([itemRead(db, id), ...readerReads(db, id), storedFileRows(db, id)] as const);
 }

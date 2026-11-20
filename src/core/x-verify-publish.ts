@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { report } from "./failure-log.ts";
-import { settledFetch } from "./fetch-settle.ts";
+import { settledThread } from "./fetch-settle.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";
 import { X_VERIFY_DEADLINE_MS } from "./request-waits.ts";
 import { fewerThanStored, holdsAtLeastStored, ownerOfItem, repliesOf } from "./thread-store.ts";
@@ -93,18 +93,10 @@ async function published(
 
   reportVerified(ready);
 
-  const outcome = await settledFetch(
+  const outcome = await settledThread(
     ports,
     job,
-    {
-      status: "ok",
-      found: {
-        title: thread.title,
-        author: thread.author,
-        community: null,
-        content: { kind: "thread", thread, archivedAt: null },
-      },
-    },
+    thread,
     AbortSignal.timeout(X_VERIFY_DEADLINE_MS),
     row.digest,
   );

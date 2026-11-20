@@ -1,17 +1,14 @@
-import { eq, sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import type { Concluded, Fetched } from "./details.ts";
-import { digestAfterFetch } from "./digest-opening.ts";
 import { settledContent } from "./fetch-content.ts";
-import { anchoredOutcome, displayedBesideThread } from "./highlight-publish.ts";
-import type { ClaimedJob, JobOutcome, JobPorts, SettledOutcome } from "./job-outcome.ts";
+import { publishFetched } from "./item-publish.ts";
+import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { isLastAttempt } from "./job-retry.ts";
 import { items } from "./schema.ts";
-import { fetchedPartWrites } from "./search.ts";
-import { failedFetch, isRetryable } from "./settle.ts";
-import { queueVaultItems } from "./vault-queue.ts";
-import { queueVaultFetchedTitle } from "./vault-wiki-writes.ts";
+import { failedFetch, fetchedThread, isRetryable } from "./settle.ts";
+import type { StoredThread } from "./stored-thread.ts";
 
 async function titleOf(db: Database, itemId: number): Promise<string | null> {
   const [item] = await db.select({ title: items.title }).from(items).where(eq(items.id, itemId));
@@ -27,42 +24,22 @@ export async function settledFetch(
   suppliedDigest: string | null,
 ) {
   const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
-  const item = eq(items.id, job.itemId);
 
-  const { postText, replaces, thread, fields, publication, files } = await settledContent(
-    ports,
+  return publishFetched(
+    ports.db,
     job,
-    fetched,
-    title,
-    deadline,
+    await settledContent(ports, job, fetched, title, deadline, suppliedDigest),
   );
+}
 
-  const storesText = (postText !== undefined && postText !== null) || thread !== null;
-
-  const columns = {
-    ...fields,
-    pendingDigest: storesText ? (suppliedDigest ?? items.pendingDigest) : null,
-    generation: replaces ? sql`${items.generation} + 1` : items.generation,
-  };
-
-  const outcome: SettledOutcome = {
-    writes: [
-      ...(fields.title === undefined ? [] : queueVaultFetchedTitle(ports.db, item, fields.title)),
-      ports.db.update(items).set(columns).where(item),
-      ...(fields.title === undefined ? [] : fetchedPartWrites(ports.db, item, postText)),
-      ...publication,
-      ...(replaces ? digestAfterFetch(ports.db, job) : []),
-      ...(fetched.status === "ok" ? [queueVaultItems(ports.db, item)] : []),
-    ],
-    files,
-  };
-
-  return replaces
-    ? anchoredOutcome(ports.db, outcome, {
-        owner: item,
-        displayed: displayedBesideThread({ post: postText, comments: thread?.nodes }),
-      })
-    : outcome;
+export function settledThread(
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+  thread: Readonly<StoredThread>,
+  deadline: AbortSignal,
+  suppliedDigest: string | null,
+) {
+  return settledFetch(ports, job, fetchedThread(thread), deadline, suppliedDigest);
 }
 
 function rateLimitGaveUp(db: Database, job: Readonly<ClaimedJob>): JobOutcome {
