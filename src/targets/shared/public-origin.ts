@@ -8,10 +8,6 @@ class PublicOriginInvalid extends Error {
   }
 }
 
-export function configuredCode(value: string | undefined): string | undefined {
-  return value === "" ? undefined : value;
-}
-
 function isOriginOnly(
   url: Readonly<Pick<URL, "href" | "origin" | "protocol" | "hostname">>,
 ): boolean {
@@ -20,10 +16,10 @@ function isOriginOnly(
   return url.protocol === "https:" || (url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname));
 }
 
-export function configuredOrigin(value: string | undefined): string | null {
-  if (value === undefined || value === "") return null;
+export function publicOriginOf(configured: string | undefined): string | null {
+  if (configured === undefined) return null;
 
-  const url = URL.canParse(value) ? new URL(value) : null;
+  const url = URL.canParse(configured) ? new URL(configured) : null;
 
   if (url === null || !isOriginOnly(url)) throw new PublicOriginInvalid();
 

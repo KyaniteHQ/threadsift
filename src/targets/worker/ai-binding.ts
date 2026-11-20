@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 import { type AiExecution, refusedAi } from "../../core/ai-contract.ts";
+import type { RunnerTask } from "../../core/ai-runtime.ts";
 import { logFailure } from "../../core/failure-log.ts";
-import type { RunnerTask } from "../shared/ai-runner.ts";
 
 type Json = string | number | boolean | null | readonly Json[] | { readonly [key: string]: Json };
 

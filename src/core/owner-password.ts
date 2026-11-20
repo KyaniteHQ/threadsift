@@ -117,7 +117,7 @@ export async function resetPassword(
     return refused("no-owner");
   }
 
-  const configured = checkConfiguredCode(ports.resetCode, RESET_CODE_MIN);
+  const configured = checkConfiguredCode(ports.config.resetCode, RESET_CODE_MIN);
 
   if (configured.status !== "set") {
     return refused(`reset-${configured.status}`);

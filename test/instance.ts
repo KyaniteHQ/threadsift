@@ -9,6 +9,7 @@ import { tick } from "../src/core/tick.ts";
 import { createApp } from "../src/http/app.ts";
 import { ItemDetailResponseSchema, ItemResponseSchema } from "../src/http/schemas.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
+import { nodeEnvironment } from "../src/targets/node/environment.ts";
 import { startNode } from "../src/targets/node/ports.ts";
 
 export const SETUP_CODE = "a-setup-code-of-sixteen-or-more";
@@ -115,17 +116,15 @@ export class Instance {
       await rm(folder, { recursive: true });
     };
 
-    const node = await startNode(database.db, {
-      dataDir: join(folder, "data"),
-      setupCode: SETUP_CODE,
-      secretKey,
-      resetCode: undefined,
-      publicOrigin,
-      fetchers,
-      claude: { path: "", configDir: undefined, token: undefined },
-      codex: { path: "", home: undefined, dataDir: join(folder, "data") },
-      grok: { path: "", home: undefined, dataDir: join(folder, "data") },
-    }).catch(async (error: Error) => {
+    const environment = nodeEnvironment({
+      DATA_DIR: join(folder, "data"),
+      SETUP_CODE,
+      THREADSIFT_SECRET_KEY: secretKey,
+      THREADSIFT_PUBLIC_ORIGIN: publicOrigin,
+      THREADSIFT_FETCHERS: fetchers,
+    });
+
+    const node = await startNode(database.db, environment).catch(async (error: Error) => {
       await stop();
 
       throw error;

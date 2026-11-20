@@ -2,6 +2,7 @@ import { type SQL, sql } from "drizzle-orm";
 
 import { type LoadedAi, type Snapshot, loadAiConfig } from "./ai-load.ts";
 import { type ModelSettingsInput, nextSettings } from "./ai-next-settings.ts";
+import { providersOf, recommendationsOf, signedIn } from "./ai-run.ts";
 import type { AiSettingsInput, AiSettingsView, AiSaveResponse } from "./ai-settings-contract.ts";
 import { CURRENT_REVISION } from "./ai-settings-revision.ts";
 import { type BotFirst, leaveGrokBotWrites, preparedBot } from "./bot-provider.ts";
@@ -16,13 +17,13 @@ import { settings } from "./schema.ts";
 async function aiView(loaded: LoadedAi, ports: SettingsPorts): Promise<AiSettingsView> {
   return {
     settings: viewOf(loaded, loaded.state !== "secret-missing"),
-    providers: ports.ai.providers,
-    signedIn: await ports.ai.signedIn(),
-    recommendations: ports.ai.recommendations,
+    providers: providersOf(ports.ai),
+    signedIn: await signedIn(ports.ai),
+    recommendations: recommendationsOf(ports.ai),
     secretReady: ports.secrets !== null,
     publicOnly: ports.ai.publicOnly,
     revision: loaded.revision,
-    connect: ports.publicOrigin !== null,
+    connect: ports.config.publicOrigin !== null,
   };
 }
 

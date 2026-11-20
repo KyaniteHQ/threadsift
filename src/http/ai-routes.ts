@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { providersOf } from "../core/ai-run.ts";
 import {
   AiSettingsInputSchema,
   AiSettingsViewSchema,
@@ -66,7 +67,7 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(saveRoute, async (c) => {
     const input = c.req.valid("json");
 
-    if (!ports.ai.providers.includes(input.provider))
+    if (!providersOf(ports.ai).includes(input.provider))
       return c.json({ error: PROVIDER_UNAVAILABLE }, 400);
 
     const saved = await saveAiSettings(ports, input);

@@ -30,42 +30,25 @@ export class JobLoop {
   private ticking = false;
   private draining = false;
   private woken = false;
+  private readonly ports: () => JobPorts;
   private readonly timers: NodeJS.Timeout[] = [];
   private readonly runs = new Set<Promise<void>>();
   private readonly inFlight = new Set<Promise<void>>();
-  private wake = (): void => {};
 
-  async start(ports: JobPorts): Promise<void> {
-    await abandonRunning(ports.db);
+  constructor(ports: () => JobPorts) {
+    this.ports = ports;
+  }
+
+  async start(): Promise<void> {
+    await abandonRunning(this.ports().db);
     this.running = true;
-    this.wake = () => {
-      if (!this.running) return;
-
-      if (this.draining) {
-        this.woken = true;
-
-        return;
-      }
-
-      this.woken = false;
-      this.draining = true;
-      this.track(() =>
-        this.startJobs(ports)
-          .catch((error: Readonly<Error>) => {
-            reportFailure("The job loop could not read the next job", error);
-          })
-          .finally(() => {
-            this.draining = false;
-
-            if (this.woken) this.wake();
-          }),
-      );
-    };
 
     this.timers.push(
-      setInterval(this.wake, LOOP_POLL_MS),
       setInterval(() => {
-        this.tick(ports);
+        this.wake();
+      }, LOOP_POLL_MS),
+      setInterval(() => {
+        this.tick();
       }, TICK_MS),
     );
     this.wake();
@@ -107,13 +90,37 @@ export class JobLoop {
     this.inFlight.add(tracked);
   }
 
-  private tick(ports: JobPorts): void {
+  private wake(): void {
+    if (!this.running) return;
+
+    if (this.draining) {
+      this.woken = true;
+
+      return;
+    }
+
+    this.woken = false;
+    this.draining = true;
+    this.track(() =>
+      this.startJobs(this.ports())
+        .catch((error: Readonly<Error>) => {
+          reportFailure("The job loop could not read the next job", error);
+        })
+        .finally(() => {
+          this.draining = false;
+
+          if (this.woken) this.wake();
+        }),
+    );
+  }
+
+  private tick(): void {
     if (this.ticking) return;
 
     this.ticking = true;
 
     this.track(() =>
-      tick(ports)
+      tick(this.ports())
         .catch((error: Readonly<Error>) => {
           reportFailure("The minute tick failed", error);
         })

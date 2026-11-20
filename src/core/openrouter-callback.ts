@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { claim, refusalBeforeExchange } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
+import { exchangeOpenRouterCode } from "./openrouter-exchange.ts";
 import { saveConnectedKey } from "./openrouter-save.ts";
 import type { Ports } from "./ports.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
@@ -25,7 +26,7 @@ export async function completeOpenRouterConnect(
     error: query.getAll("error"),
   });
 
-  const { publicOrigin: origin } = ports;
+  const { publicOrigin: origin } = ports.config;
   const sealer = ports.secrets;
 
   if (!parameters.success || origin === null || sealer === null) return "incomplete";
@@ -43,7 +44,8 @@ export async function completeOpenRouterConnect(
 
   if (verifier === null) return "incomplete";
 
-  const exchange = await ports.ai.exchangeOpenRouterCode(
+  const exchange = await exchangeOpenRouterCode(
+    ports.ai,
     { code, verifier },
     AbortSignal.timeout(HOP_DEADLINE_MS),
   );

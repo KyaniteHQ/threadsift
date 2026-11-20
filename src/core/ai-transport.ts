@@ -1,4 +1,4 @@
-import { AiAddressRefused } from "../../core/ai-url.ts";
+import { AiAddressRefused } from "./ai-url.ts";
 
 export function aiTransport(request: typeof fetch): typeof fetch {
   return async (input, init) => {

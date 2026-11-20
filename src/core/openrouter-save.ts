@@ -14,6 +14,7 @@ import { guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
+import { awaitOpenRouterActivation } from "./openrouter-exchange.ts";
 import type { Ports } from "./ports.ts";
 import { sessionIsLive } from "./sessions.ts";
 import { DATABASE_NOW } from "./sql-expressions.ts";
@@ -77,7 +78,7 @@ async function afterActivation(
   { row }: Readonly<PreparedSave>,
   key: string,
 ): Promise<ConnectNotice> {
-  const active = await ports.ai.awaitOpenRouterActivation(key);
+  const active = await awaitOpenRouterActivation(ports.ai, key);
 
   const requeued = active ? requeuedDigests(ports.db) : [];
 

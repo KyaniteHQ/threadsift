@@ -47,7 +47,7 @@ export async function anonymousState(
 > {
   return (await hasOwner(ports.db))
     ? { state: "signed-out" }
-    : { state: "setup", code: checkConfiguredCode(ports.setupCode, SETUP_CODE_MIN).status };
+    : { state: "setup", code: checkConfiguredCode(ports.config.setupCode, SETUP_CODE_MIN).status };
 }
 
 export async function checkSetupCode(ports: Ports, code: string): Promise<SetupRefusal | null> {
@@ -55,7 +55,7 @@ export async function checkSetupCode(ports: Ports, code: string): Promise<SetupR
     return refused("owner-exists");
   }
 
-  const configured = checkConfiguredCode(ports.setupCode, SETUP_CODE_MIN);
+  const configured = checkConfiguredCode(ports.config.setupCode, SETUP_CODE_MIN);
 
   if (configured.status !== "set") {
     return refused(`setup-${configured.status}`);
