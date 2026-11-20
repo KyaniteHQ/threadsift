@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { TaskReadSchema } from "../src/core/ai-task-read.ts";
-import { X_INTAKE_INSTRUCTIONS } from "../src/core/x-intake-contract.ts";
+import { TaskReadSchema } from "../src/core/bot/ai-task-read.ts";
+import { X_INTAKE_INSTRUCTIONS } from "../src/core/contract/x-intake-contract.ts";
 import { type ReadWorld, readOf, readWorld } from "./ai-task-read-http.ts";
 import { pastDeadline, picksFor, retireTasks } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";

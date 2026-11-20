@@ -3,8 +3,8 @@ import assert from "node:assert/strict";
 import { asc, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 
-import { type ClaimedJob, claimedRow } from "../src/core/job-outcome.ts";
-import { type JobRow, jobs } from "../src/core/schema.ts";
+import { type ClaimedJob, claimedRow } from "../src/core/kernel/job-outcome.ts";
+import { type JobRow, jobs } from "../src/core/kernel/schema.ts";
 import { KEY, PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";

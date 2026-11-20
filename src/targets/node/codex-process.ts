@@ -1,6 +1,6 @@
 import { join } from "node:path";
 
-import type { ResolvedCliConnection } from "../../core/ai-contract.ts";
+import type { ResolvedCliConnection } from "../../core/contract/ai-contract.ts";
 import { type ChildFolders, inChildFolders, runProcess } from "./cli-process.ts";
 import { SURFACE_PROMPT, toollessCatalog } from "./codex-protocol.ts";
 

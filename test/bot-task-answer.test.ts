@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { dueIds, claimNextDue } from "../src/core/jobs.ts";
+import { dueIds, claimNextDue } from "../src/core/compose/jobs.ts";
 import {
   type BotLibrary,
   SECRET_KEY,

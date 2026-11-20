@@ -1,4 +1,4 @@
-import { DAY_MS } from "../../src/core/time-units.ts";
+import { DAY_MS } from "../../src/core/contract/time-units.ts";
 
 const WEEK_DAYS = 7;
 const MONTH_AND_DAY = { month: "short", day: "numeric" } as const;

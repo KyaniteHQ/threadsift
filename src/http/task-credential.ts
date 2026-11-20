@@ -1,9 +1,9 @@
 import type { Context } from "hono";
 
-import type { AiTaskRow } from "../core/ai-task-state.ts";
-import { presentedToken } from "../core/bearer.ts";
-import { callbackTaskOf } from "../core/callback-credential.ts";
-import type { Ports } from "../core/ports.ts";
+import { presentedToken } from "../core/access/bearer.ts";
+import { callbackTaskOf } from "../core/ai/callback-credential.ts";
+import type { AiTaskRow } from "../core/kernel/ai-task-state.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { jsonBody } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 import { ownerHasSession } from "./session-cookie.ts";

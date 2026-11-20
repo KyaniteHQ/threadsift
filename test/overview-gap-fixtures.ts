@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
-import type { OverviewGapProposal, ProposalPage } from "../src/core/proposal-contract.ts";
+import type { OverviewGapProposal, ProposalPage } from "../src/core/contract/proposal-contract.ts";
 import type { Instance } from "./instance.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";

@@ -1,16 +1,16 @@
 import { z } from "zod";
 
-import { REFUSAL_CODES, SETUP_CODE_STATUSES } from "../core/access-contract.ts";
+import { REFUSAL_CODES, SETUP_CODE_STATUSES } from "../core/contract/access-contract.ts";
 import {
   BUDGET_SPENT,
   DEFAULT_SCOPES,
   DailyBudgetSchema,
   ScopeListSchema,
   TokenBudgetSchema,
-} from "../core/agent-token-contract.ts";
-import { READ_STATES, SOURCES } from "../core/item-contract.ts";
-import { parseCursor } from "../core/item-cursor.ts";
-import { RESTORING_CODE } from "../core/restore-contract.ts";
+} from "../core/contract/agent-token-contract.ts";
+import { READ_STATES, SOURCES } from "../core/contract/item-contract.ts";
+import { parseCursor } from "../core/contract/item-cursor.ts";
+import { RESTORING_CODE } from "../core/contract/restore-contract.ts";
 import { ItemDetailSchema } from "./item-detail-wire.ts";
 import { HttpUrlSchema, ItemSchema } from "./item-wire.ts";
 

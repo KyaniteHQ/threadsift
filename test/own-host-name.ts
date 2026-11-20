@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { lookup } from "node:dns/promises";
 import { hostname } from "node:os";
 
-import { isGlobalAddress, isRefusedHost } from "../src/core/addresses.ts";
+import { isGlobalAddress, isRefusedHost } from "../src/core/contract/addresses.ts";
 
 export async function ownPrivateHostName(): Promise<string> {
   const name = hostname();

@@ -1,4 +1,4 @@
-import { ExportStatusSchema } from "../../src/core/export-contract.ts";
+import { ExportStatusSchema } from "../../src/core/contract/export-contract.ts";
 import { callOk, del, parsedFrom, post } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

@@ -1,4 +1,7 @@
-import { RedditSettingsSchema, type RedditSettings } from "../../src/core/reddit-contract.ts";
+import {
+  RedditSettingsSchema,
+  type RedditSettings,
+} from "../../src/core/contract/reddit-contract.ts";
 import { parsedFrom, put } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

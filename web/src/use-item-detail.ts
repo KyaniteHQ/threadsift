@@ -8,7 +8,7 @@ import {
   useState,
 } from "react";
 
-import type { HighlightsView } from "../../src/core/highlight-contract.ts";
+import type { HighlightsView } from "../../src/core/contract/highlight-contract.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { fetchItemDetail } from "./api.ts";
 

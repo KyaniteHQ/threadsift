@@ -5,14 +5,14 @@ import {
   GithubSettingsViewSchema,
   GithubTokenInputSchema,
   GithubVerifyResultSchema,
-} from "../core/github-contract.ts";
+} from "../core/contract/github-contract.ts";
 import {
   readGithubSettings,
   removeGithubToken,
   saveGithubToken,
   verifyGithubToken,
-} from "../core/github-token.ts";
-import type { Ports } from "../core/ports.ts";
+} from "../core/github/github-token.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 

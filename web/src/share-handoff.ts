@@ -8,8 +8,8 @@ import {
   useState,
 } from "react";
 
-import { NOTHING } from "../../src/core/nothing.ts";
-import { type ShareArrival, arrivalOf } from "../../src/core/share-address.ts";
+import { NOTHING } from "../../src/core/contract/nothing.ts";
+import { type ShareArrival, arrivalOf } from "../../src/core/contract/share-address.ts";
 
 export interface ShareHandoff {
   readonly arrival: ShareArrival | null;

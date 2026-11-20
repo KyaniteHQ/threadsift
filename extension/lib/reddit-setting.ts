@@ -1,6 +1,6 @@
 import { browser } from "wxt/browser";
 
-import type { RedditConnectState } from "../../src/core/reddit-relay-contract.ts";
+import type { RedditConnectState } from "../../src/core/contract/reddit-relay-contract.ts";
 import {
   REDDIT_DEADLINE_MS,
   REDDIT_PERMISSIONS,

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { VerifyResultSchema } from "../src/core/ai-settings-contract.ts";
+import { VerifyResultSchema } from "../src/core/contract/ai-settings-contract.ts";
 import { botInstance, pastDeadline } from "./bot-task-fixtures.ts";
 import { answered, errorOf } from "./bot-task-http.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";

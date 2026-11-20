@@ -1,6 +1,6 @@
 import type { Context } from "hono";
 
-import type { Sender } from "../core/own-origin.ts";
+import type { Sender } from "../core/access/own-origin.ts";
 
 export function senderOf(c: Context): Sender {
   return {

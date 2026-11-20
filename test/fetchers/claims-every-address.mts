@@ -1,4 +1,4 @@
-import type { Fetcher } from "../../src/core/fetcher.ts";
+import type { Fetcher } from "../../src/core/kernel/fetcher.ts";
 import { words } from "./words.mts";
 
 export const asked: string[] = [];

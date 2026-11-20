@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { type BotStep, stepOf } from "../src/core/ai-task-state.ts";
-import { BotAnswerSchema } from "../src/core/bot-answer.ts";
-import { relatedKind } from "../src/core/related-kind.ts";
+import { BotAnswerSchema } from "../src/core/bot/bot-answer.ts";
+import { type BotStep, stepOf } from "../src/core/kernel/ai-task-state.ts";
+import { relatedKind } from "../src/core/related/related-kind.ts";
 import type { Json } from "./instance.ts";
 
 const NOW = 1_000_000;

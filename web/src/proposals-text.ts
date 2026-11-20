@@ -1,10 +1,10 @@
-import { collapsed } from "../../src/core/format.ts";
+import { collapsed } from "../../src/core/contract/format.ts";
 import type {
   MergeKind,
   ProposalKind,
   MergeProposal,
   Proposal,
-} from "../../src/core/proposal-contract.ts";
+} from "../../src/core/contract/proposal-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { plural } from "./plural.ts";
 import { NEWEST_FIRST, filled } from "./text.ts";

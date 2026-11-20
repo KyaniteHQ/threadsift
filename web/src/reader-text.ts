@@ -1,8 +1,8 @@
-import type { CommentCount, UnfilteredCause } from "../../src/core/comment-view.ts";
-import { collapsed, groupedNumber } from "../../src/core/format.ts";
-import type { Source } from "../../src/core/item-contract.ts";
-import { UNTITLED } from "../../src/core/reader-text.ts";
-import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
+import type { CommentCount, UnfilteredCause } from "../../src/core/contract/comment-view.ts";
+import { collapsed, groupedNumber } from "../../src/core/contract/format.ts";
+import type { Source } from "../../src/core/contract/item-contract.ts";
+import { UNTITLED } from "../../src/core/contract/reader-text.ts";
+import { STORED_PICTURE_TEXT } from "../../src/core/contract/reader-url.ts";
 import { plural } from "./plural.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
 import { CLOSE_LABEL, filled } from "./text.ts";

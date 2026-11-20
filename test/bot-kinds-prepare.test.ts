@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
-import { applyOutcome } from "../src/core/job-finish.ts";
-import { HANDLERS } from "../src/core/job-handlers.ts";
+import { BOT_TASK_KINDS } from "../src/core/bot/bot-task-kinds.ts";
+import { applyOutcome } from "../src/core/compose/job-finish.ts";
+import { HANDLERS } from "../src/core/compose/job-handlers.ts";
 import { KIND_CASES } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, selectGrokBot } from "./bot-kinds-fixtures.ts";
 import { outcomeOf } from "./bot-kinds-steps.ts";

@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { runJob } from "../src/core/jobs.ts";
+import { runJob } from "../src/core/compose/jobs.ts";
 import { SECRET_KEY, saveBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { exec, rows, until } from "./related-fixtures.ts";

@@ -1,0 +1,25 @@
+import { sql } from "drizzle-orm";
+
+import { items } from "../kernel/schema.ts";
+import { among } from "../kernel/sql-expressions.ts";
+import { STALE } from "../kernel/vault-stale.ts";
+import type { UnitContext, UnitPlan } from "./merge-unit.ts";
+import { topicLinked, topicMoves } from "./topic-moves.ts";
+import { continuingOverview, overviewRemoved } from "./topic-overview-run.ts";
+
+export async function planTopicUnit({
+  db,
+  from,
+  into,
+  gone,
+}: Readonly<UnitContext>): Promise<UnitPlan> {
+  const linked = await topicLinked(db, from.id);
+
+  return {
+    moving: sql`(select count(*) from ${items} where ${items.topicId} = ${from.id} and ${among(items.id, linked.itemIds)})`,
+    moves: [...topicMoves(db, from.id, into.id, linked), overviewRemoved(db, from.id, gone)],
+    cursor: null,
+    before: STALE.topicMerged(db, { from: from.id, gone }),
+    wakes: [continuingOverview(db, into.id, gone)],
+  };
+}

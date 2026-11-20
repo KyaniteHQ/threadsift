@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
+import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import { writingAfterTheFirstRead } from "./interrupted-database.ts";
 import {

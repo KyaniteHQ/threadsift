@@ -1,5 +1,5 @@
-import { StoredCommentId } from "../../src/core/comment-id.ts";
-import type { Highlight, HighlightTarget } from "../../src/core/highlight-contract.ts";
+import { StoredCommentId } from "../../src/core/contract/comment-id.ts";
+import type { Highlight, HighlightTarget } from "../../src/core/contract/highlight-contract.ts";
 import type { MarkSpan } from "./highlight-marks.ts";
 
 export const BODY_SELECTOR = ".md[data-target]";

@@ -2,7 +2,7 @@ import {
   NOTE_MAX_CODE_POINTS,
   type NoteView,
   storedNoteBody,
-} from "../../src/core/note-contract.ts";
+} from "../../src/core/contract/note-contract.ts";
 import type { NoteSaveResult } from "./keeping-api.ts";
 import type { NoteDraft } from "./note-draft.ts";
 

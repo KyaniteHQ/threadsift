@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { HighlightResponseSchema } from "../src/core/highlight-contract.ts";
-import { NoteResponseSchema } from "../src/core/note-contract.ts";
+import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
+import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import {
   ErrorResponseSchema,
   ItemReadResponseSchema,

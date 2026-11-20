@@ -1,4 +1,4 @@
-import type { Fetcher } from "../../src/core/fetcher.ts";
+import type { Fetcher } from "../../src/core/kernel/fetcher.ts";
 
 export default {
   matches: () => {

@@ -1,5 +1,5 @@
-import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
-import { topicKeyOf } from "../../src/core/topic-path.ts";
+import type { SetupCodeProblem } from "../../src/core/contract/setup-code.ts";
+import { topicKeyOf } from "../../src/core/contract/topic-path.ts";
 import { OBSIDIAN_TEXT } from "./obsidian-text.ts";
 import {
   HIGHLIGHTS_PATH,

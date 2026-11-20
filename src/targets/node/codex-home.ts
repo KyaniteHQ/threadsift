@@ -1,7 +1,7 @@
 import { chmod, lstat, mkdir, open, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
-import { errnoCodeOf } from "../../core/failure-log.ts";
+import { errnoCodeOf } from "../../core/kernel/failure-log.ts";
 
 type Entry = "missing" | "empty" | "owned";
 

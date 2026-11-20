@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { X_QUOTES_MAX, X_REPLIES_MAX } from "../../core/limits.ts";
-import { parsedJson } from "../../core/parsed-json.ts";
-import { XCliThreadSchema } from "../../core/x-wire.ts";
+import { X_QUOTES_MAX, X_REPLIES_MAX } from "../../core/contract/limits.ts";
+import { XCliThreadSchema } from "../../core/contract/x-wire.ts";
+import { parsedJson } from "../../core/kernel/parsed-json.ts";
 
 export const PROVEN_VERSION = "grok 1.0.77 (50ca579fa996)";
 

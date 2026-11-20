@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AI_INPUT_BYTES } from "../src/core/ai-contract.ts";
-import { catalogKey } from "../src/core/catalog-key.ts";
+import { AI_INPUT_BYTES } from "../src/core/contract/ai-contract.ts";
+import { catalogKey } from "../src/core/contract/catalog-key.ts";
 import {
   type Candidate,
   MERGE_PAIRS_PER_RUN,
@@ -10,10 +10,10 @@ import {
   disjointPairs,
   looseKey,
   pairKey,
-} from "../src/core/proposal-candidates.ts";
-import { proposalsInput } from "../src/core/proposal-input.ts";
-import type { SentPair } from "../src/core/proposal-sent.ts";
-import { proposalsTask } from "../src/core/proposal-task.ts";
+} from "../src/core/wiki/proposal-candidates.ts";
+import { proposalsInput } from "../src/core/wiki/proposal-input.ts";
+import type { SentPair } from "../src/core/wiki/proposal-sent.ts";
+import { proposalsTask } from "../src/core/wiki/proposal-task.ts";
 
 function tag(id: number, name: string, items = 1): Candidate {
   return { id, key: catalogKey(name), items };

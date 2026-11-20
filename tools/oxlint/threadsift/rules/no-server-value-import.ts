@@ -24,9 +24,7 @@ function chainOf(context: Context, found: Found, specifier: string): string | nu
 
   if (reach === null && !isForbidden(found.forbidden, specifier)) return null;
 
-  const files = [context.filename, ...(reach?.files ?? [])].map((file) =>
-    repositoryPath(context.cwd, file),
-  );
+  const files = [context.filename, ...(reach?.files ?? [])].map((file) => repositoryPath(file));
 
   return [...files, module].join(" imports ");
 }

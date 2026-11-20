@@ -1,5 +1,5 @@
-import { answerPage } from "../../core/page-answer.ts";
-import { type PageReader, pageReaderOver } from "../../core/page-reader.ts";
+import { answerPage } from "../../core/fetch/page-answer.ts";
+import { type PageReader, pageReaderOver } from "../../core/kernel/page-reader.ts";
 
 const MAX_HTML_BYTES = 900 * 1024;
 

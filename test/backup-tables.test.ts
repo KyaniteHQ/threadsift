@@ -7,7 +7,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { BACKUP_TABLES, type BackupTable } from "../src/core/backup-tables.ts";
+import { BACKUP_TABLES, type BackupTable } from "../src/core/kernel/backup-tables.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 
 type ExclusionReason =

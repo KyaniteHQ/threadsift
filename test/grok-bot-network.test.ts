@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { NetworkFailure } from "../src/core/network.ts";
+import { NetworkFailure } from "../src/core/kernel/network.ts";
 import { nodeNetwork } from "../src/targets/node/network.ts";
 import { workerNetwork } from "../src/targets/worker/network.ts";
 import { ownPrivateHostName } from "./own-host-name.ts";

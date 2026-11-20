@@ -1,9 +1,9 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { GROK_BOT_IN_USE, KEY_NEEDED } from "../core/grok-bot-contract.ts";
-import { pingGrokBot } from "../core/grok-bot-ping.ts";
-import { readGrokBot, removeGrokBot, saveGrokBot } from "../core/grok-bot-settings.ts";
-import type { Ports } from "../core/ports.ts";
+import { readGrokBot, removeGrokBot, saveGrokBot } from "../core/ai/grok-bot-settings.ts";
+import { pingGrokBot } from "../core/bot/grok-bot-ping.ts";
+import { GROK_BOT_IN_USE, KEY_NEEDED } from "../core/contract/grok-bot-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { readRoute, removeRoute, saveRoute, testRoute } from "./grok-bot-route-spec.ts";
 
 export function registerGrokBotRoutes(app: OpenAPIHono, ports: Ports): void {

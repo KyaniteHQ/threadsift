@@ -3,8 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { HighlightResponseSchema } from "../src/core/highlight-contract.ts";
-import { NoteResponseSchema } from "../src/core/note-contract.ts";
+import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
+import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { ItemReadResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
 import { Instance, type Json } from "./instance.ts";

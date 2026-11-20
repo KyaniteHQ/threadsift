@@ -1,6 +1,6 @@
 import { useId, useState } from "react";
 
-import { VAULT_FOLDER_MAX, type VaultView } from "../../src/core/vault-contract.ts";
+import { VAULT_FOLDER_MAX, type VaultView } from "../../src/core/contract/vault-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { FormField } from "./FormField.tsx";
 import { fetchObsidian } from "./obsidian-api.ts";

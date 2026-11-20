@@ -1,7 +1,7 @@
 import { z } from "zod";
 
-import { collapsed } from "../../src/core/format.ts";
-import { WholeCount } from "../../src/core/whole-count.ts";
+import { collapsed } from "../../src/core/contract/format.ts";
+import { WholeCount } from "../../src/core/contract/whole-count.ts";
 
 const STORAGE_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { parseLink } from "../src/core/links.ts";
+import { parseLink } from "../src/core/contract/links.ts";
 import { BatchResponseSchema } from "../src/http/batch-schemas.ts";
 import { BudgetRefusalSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";

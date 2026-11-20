@@ -1,9 +1,9 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { anonymousState, checkSetupCode, login, setUpOwner } from "../core/owner.ts";
-import type { Ports } from "../core/ports.ts";
-import { endSession } from "../core/sessions.ts";
-import { changeBudget, createToken, listTokens, revokeToken } from "../core/tokens.ts";
+import { anonymousState, checkSetupCode, login, setUpOwner } from "../core/access/owner.ts";
+import { endSession } from "../core/access/sessions.ts";
+import { changeBudget, createToken, listTokens, revokeToken } from "../core/access/tokens.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import {
   changeBudgetRoute,
   createTokenRoute,

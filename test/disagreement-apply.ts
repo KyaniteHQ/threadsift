@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 
 import { eq } from "drizzle-orm";
 
-import { GROK_BOT_EXECUTOR } from "../src/core/ai-task-state.ts";
-import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
-import { aiTasks } from "../src/core/schema.ts";
+import { BOT_TASK_KINDS } from "../src/core/bot/bot-task-kinds.ts";
+import { GROK_BOT_EXECUTOR } from "../src/core/kernel/ai-task-state.ts";
+import { aiTasks } from "../src/core/kernel/schema.ts";
 import { openJobOfKind } from "./bot-task-fixtures.ts";
 import type { ReadingDatabase, sentTopics } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";

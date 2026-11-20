@@ -1,7 +1,7 @@
 import { useCallback, useId } from "react";
 
-import type { FilterCounts } from "../../src/core/filter-counts-contract.ts";
-import type { ReadState, Source } from "../../src/core/item-contract.ts";
+import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
+import type { ReadState, Source } from "../../src/core/contract/item-contract.ts";
 import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";

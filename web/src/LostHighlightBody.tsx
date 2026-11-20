@@ -1,7 +1,7 @@
 import { useCallback, useId } from "react";
 
-import type { LostHighlightProposal } from "../../src/core/proposal-contract.ts";
-import { NOT_FOUND } from "../../src/core/reader-text.ts";
+import type { LostHighlightProposal } from "../../src/core/contract/proposal-contract.ts";
+import { NOT_FOUND } from "../../src/core/contract/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { placePath } from "./place.ts";
 import { LOST_HIGHLIGHT_EFFECT } from "./proposals-text.ts";

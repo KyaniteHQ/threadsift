@@ -4,7 +4,7 @@ import {
   GrokBotSaveResponseSchema,
   GrokBotTestSchema,
   GrokBotViewSchema,
-} from "../../src/core/grok-bot-contract.ts";
+} from "../../src/core/contract/grok-bot-contract.ts";
 import { callOk, del, parsedBody, parsedFrom, post, put } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS, HOP_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

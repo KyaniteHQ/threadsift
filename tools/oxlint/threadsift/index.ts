@@ -1,5 +1,6 @@
 import { eslintCompatPlugin } from "@oxlint/plugins";
 
+import { layerImportsRule } from "./rules/layer-imports.ts";
 import { noAwaitBeforeRethrowRule } from "./rules/no-await-before-rethrow.ts";
 import { noCommentsRule } from "./rules/no-comments.ts";
 import { noServerValueImportRule } from "./rules/no-server-value-import.ts";
@@ -8,6 +9,7 @@ import { staticImportSourceRule } from "./rules/static-import-source.ts";
 export default eslintCompatPlugin({
   meta: { name: "threadsift" },
   rules: {
+    "layer-imports": layerImportsRule,
     "no-await-before-rethrow": noAwaitBeforeRethrowRule,
     "no-comments": noCommentsRule,
     "no-server-value-import": noServerValueImportRule,

@@ -11,7 +11,7 @@ import {
   requestIdOf,
   workerAnswerState,
   workerIsWorking,
-} from "../../src/core/reddit-relay-contract.ts";
+} from "../../src/core/contract/reddit-relay-contract.ts";
 import { REDDIT_DEADLINE_MS } from "../lib/config.ts";
 
 function askWorker(working: () => void): Promise<RedditConnectState | null> {

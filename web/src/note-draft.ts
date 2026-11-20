@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { WholeCount } from "../../src/core/whole-count.ts";
+import { WholeCount } from "../../src/core/contract/whole-count.ts";
 
 const DraftSchema = z.object({ body: z.string(), revision: WholeCount });
 

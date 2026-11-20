@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
-import { redditRefOf } from "../../src/core/links.ts";
-import type { RedditAccountView } from "../../src/core/reddit-account-contract.ts";
+import { redditRefOf } from "../../src/core/contract/links.ts";
+import type { RedditAccountView } from "../../src/core/contract/reddit-account-contract.ts";
 import { fetchRedditAccount } from "./reddit-account-api.ts";
 import { fetchRedditSettings } from "./reddit-api.ts";
 

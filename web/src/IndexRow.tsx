@@ -1,7 +1,7 @@
 import { memo, useCallback, useId } from "react";
 
-import type { IndexTopic } from "../../src/core/topic-index-contract.ts";
-import { topicPath } from "../../src/core/topic-path.ts";
+import type { IndexTopic } from "../../src/core/contract/topic-index-contract.ts";
+import { topicPath } from "../../src/core/contract/topic-path.ts";
 import { useInternalLink } from "./routing.ts";
 import { itemsLabel, topicLinkLabel } from "./topic-text.ts";
 

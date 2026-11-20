@@ -129,7 +129,7 @@ Threadsift shows a thread only after it checks each post against X's public embe
 
 The app makes one test run before the first fetch after it starts, and again whenever the installed binary changes. It refuses the fetch unless the tool is the checked version, 1.0.77. A newer version stays refused. Restarting the Instance with `podman restart <container>` only repeats the test run, so you need either the checked version or an app release that checks the newer one. The Item stays Link-only, the log shows `x-fetch-refused` with the category `surface-unproven`, and Settings shows "Not proven" with the version. The app never reads or copies the login file.
 
-The run asks the model to make at most 6 reply searches, besides the reads of the post's thread and quoted posts. That is a request, not a limit the app enforces; the 3-minute run deadline (`X_RUN_DEADLINE_MS` in `src/core/request-waits.ts`) is the limit. A post with very many replies stores only the replies the first lookups return, the Reader then shows that further replies were not saved, and a later fetch never replaces a stored thread with one that has fewer replies.
+The run asks the model to make at most 6 reply searches, besides the reads of the post's thread and quoted posts. That is a request, not a limit the app enforces; the 3-minute run deadline (`X_RUN_DEADLINE_MS` in `src/core/contract/request-waits.ts`) is the limit. A post with very many replies stores only the replies the first lookups return, the Reader then shows that further replies were not saved, and a later fetch never replaces a stored thread with one that has fewer replies.
 
 A signed-out CLI leaves a Link-only Item with no Try again button. Sign in, then paste the link again.
 

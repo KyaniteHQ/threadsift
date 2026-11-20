@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { ShareArrival } from "../../src/core/share-address.ts";
+import type { ShareArrival } from "../../src/core/contract/share-address.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import type { Shown } from "./PasteCard.tsx";
 import type { ShareHandoff } from "./share-handoff.ts";

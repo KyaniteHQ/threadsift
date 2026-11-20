@@ -1,12 +1,12 @@
-import { refreshedOf } from "../../src/core/fetch-results.ts";
-import type { ReadState } from "../../src/core/item-contract.ts";
+import { refreshedOf } from "../../src/core/contract/fetch-results.ts";
+import type { ReadState } from "../../src/core/contract/item-contract.ts";
 import {
   OverviewRetryResponseSchema,
   type Overview,
   TopicPageSchema,
   type TopicPage,
-} from "../../src/core/topic-overview-contract.ts";
-import { topicApiPath } from "../../src/core/topic-path.ts";
+} from "../../src/core/contract/topic-overview-contract.ts";
+import { topicApiPath } from "../../src/core/contract/topic-path.ts";
 import {
   HighlightsPageResponseSchema,
   type HighlightsPage,

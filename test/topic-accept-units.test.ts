@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
+import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { script, seedTopicItems } from "./pin-fixtures.ts";

@@ -1,4 +1,4 @@
-import type { Resume } from "../../src/core/import-list.ts";
+import type { Resume } from "../../src/core/contract/import-list.ts";
 import { Alert } from "./Alert.tsx";
 import type { Outcome, Progress } from "./import-run.ts";
 import {

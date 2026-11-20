@@ -1,5 +1,5 @@
-import { type ImportState, ImportStateSchema } from "../../src/core/import-contract.ts";
-import type { ImportRequest } from "../../src/core/import-list.ts";
+import { type ImportState, ImportStateSchema } from "../../src/core/contract/import-contract.ts";
+import type { ImportRequest } from "../../src/core/contract/import-list.ts";
 import { BatchResponseSchema } from "../../src/http/batch-schemas.ts";
 import { call, parsedBody, parsedOrNull, post } from "./calls.ts";
 import { isRestoring } from "./unavailable.ts";

@@ -1,7 +1,7 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import type { Ports } from "../core/ports.ts";
-import { setReadState } from "../core/read-state.ts";
+import { setReadState } from "../core/item/read-state.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { itemView } from "./item-view.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";

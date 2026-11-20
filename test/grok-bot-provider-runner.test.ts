@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { executeClaimed } from "../src/core/jobs.ts";
+import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { KIND_CASES, type KindCase } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
 import { answered } from "./bot-task-http.ts";

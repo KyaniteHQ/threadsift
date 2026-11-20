@@ -1,8 +1,8 @@
 import { type MouseEvent, useCallback, useEffect, useMemo, useRef } from "react";
 import { z } from "zod";
 
-import { itemIdOf, itemPath } from "../../src/core/item-path.ts";
-import { topicPath } from "../../src/core/topic-path.ts";
+import { itemIdOf, itemPath } from "../../src/core/contract/item-path.ts";
+import { topicPath } from "../../src/core/contract/topic-path.ts";
 import { placePath } from "./place.ts";
 import { useScreenState } from "./use-screen-state.ts";
 

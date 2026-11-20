@@ -7,7 +7,7 @@ const SOURCE_URL = `https://www.unicode.org/Public/${UNICODE_VERSION}/ucd/CaseFo
 const SOURCE_SHA256 = "a004797658a457bec4dc11683e39f69249ea3b595b752dbea6721c4c9f587b0d";
 const COPYRIGHT_YEAR = 2026;
 
-const output = resolve(import.meta.dirname, "../../src/core/case-folding-table.ts");
+const output = resolve(import.meta.dirname, "../../src/core/contract/case-folding-table.ts");
 
 interface Mapping {
   readonly from: number;

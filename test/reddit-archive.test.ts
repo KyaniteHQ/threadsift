@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { RedditSettingsSchema } from "../src/core/reddit-contract.ts";
+import { RedditSettingsSchema } from "../src/core/contract/reddit-contract.ts";
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 

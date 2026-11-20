@@ -1,14 +1,14 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { groupedNumber } from "../core/format.ts";
+import { groupedNumber } from "../core/contract/format.ts";
 import {
   NoteConflictSchema,
   NoteResponseSchema,
   SaveNoteRequestSchema,
   NOTE_MAX_CODE_POINTS,
-} from "../core/note-contract.ts";
-import { saveNote } from "../core/notes.ts";
-import type { Ports } from "../core/ports.ts";
+} from "../core/contract/note-contract.ts";
+import { saveNote } from "../core/item/notes.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { DEFAULT_CAP, access, tooLarge } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { notFound } from "./refusals.ts";

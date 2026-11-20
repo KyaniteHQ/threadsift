@@ -1,7 +1,7 @@
 import type { Context } from "hono";
 
-import { sentByOwnPage } from "../core/own-origin.ts";
-import type { Ports } from "../core/ports.ts";
+import { sentByOwnPage } from "../core/access/own-origin.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { senderOf } from "./sender.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 

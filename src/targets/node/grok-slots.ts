@@ -1,4 +1,4 @@
-import { X_RUN_DEADLINE_MS, X_SLOT_WAIT_MS } from "../../core/request-waits.ts";
+import { X_RUN_DEADLINE_MS, X_SLOT_WAIT_MS } from "../../core/contract/request-waits.ts";
 import { CAPACITY } from "./capacity.ts";
 import { Slots, inSlot } from "./cli-slots.ts";
 

@@ -1,6 +1,6 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import type { Ports } from "../core/ports.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { registerAccessRoutes } from "./access-routes.ts";
 import { registerFileRoutes } from "./file-routes.ts";
 import { registerItemRoutes } from "./item-routes.ts";

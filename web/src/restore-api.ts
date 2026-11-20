@@ -3,7 +3,7 @@ import {
   RestoreErrorSchema,
   RestoreStatusSchema,
   StartedRestoreSchema,
-} from "../../src/core/restore-contract.ts";
+} from "../../src/core/contract/restore-contract.ts";
 import { NO_DEADLINE, call, callOk, del, parsedBody, parsedFrom, post, put } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

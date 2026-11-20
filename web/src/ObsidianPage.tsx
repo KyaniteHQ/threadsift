@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { VaultView } from "../../src/core/vault-contract.ts";
+import type { VaultView } from "../../src/core/contract/vault-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { fetchObsidian } from "./obsidian-api.ts";
 import { OBSIDIAN_TEXT as TEXT } from "./obsidian-text.ts";

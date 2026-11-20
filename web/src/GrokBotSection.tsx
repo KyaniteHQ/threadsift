@@ -1,5 +1,5 @@
-import type { GrokBotView } from "../../src/core/grok-bot-contract.ts";
-import { SECRET_INPUT_MAX } from "../../src/core/secret-input.ts";
+import type { GrokBotView } from "../../src/core/contract/grok-bot-contract.ts";
+import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
 import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
 import { GROK_BOT_TEXT, KEY_STATES } from "./grok-bot-text.ts";
 import type { SectionSpec } from "./LoadedSection.tsx";

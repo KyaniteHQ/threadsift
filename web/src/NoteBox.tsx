@@ -1,7 +1,7 @@
 import { type ChangeEvent, type KeyboardEvent, useCallback, useId, useRef } from "react";
 
-import type { NoteView } from "../../src/core/note-contract.ts";
-import { NOTE_TITLE } from "../../src/core/reader-text.ts";
+import type { NoteView } from "../../src/core/contract/note-contract.ts";
+import { NOTE_TITLE } from "../../src/core/contract/reader-text.ts";
 import { useNoteArrival } from "./place-arrival.ts";
 import {
   NOTE_CHANGED,

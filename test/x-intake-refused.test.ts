@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import { runJob } from "../src/core/jobs.ts";
+import { runJob } from "../src/core/compose/jobs.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { insertedTask, jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";

@@ -1,4 +1,4 @@
-import { SECTION_TITLES } from "../../src/core/reader-text.ts";
+import { SECTION_TITLES } from "../../src/core/contract/reader-text.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { Comments } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";

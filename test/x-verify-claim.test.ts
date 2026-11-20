@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { executeClaimed } from "../src/core/jobs.ts";
+import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { Instance } from "./instance.ts";
 import { insertedXItem } from "./x-intake-fixtures.ts";
 import { commentCount, itemRow, verificationRow } from "./x-intake-rows.ts";

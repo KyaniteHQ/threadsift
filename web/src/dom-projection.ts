@@ -1,6 +1,6 @@
-import { codePointCount } from "../../src/core/code-points.ts";
-import { FOOTNOTE_LABEL_ID } from "../../src/core/reader-url.ts";
-import { type HastNode, projectTree } from "../../src/core/text-projection.ts";
+import { codePointCount } from "../../src/core/contract/code-points.ts";
+import { FOOTNOTE_LABEL_ID } from "../../src/core/contract/reader-url.ts";
+import { type HastNode, projectTree } from "../../src/core/contract/text-projection.ts";
 
 interface DomProjection {
   readonly text: string;

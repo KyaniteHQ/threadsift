@@ -2,7 +2,7 @@ import {
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
   RedditVerifySchema,
-} from "../../src/core/reddit-account-contract.ts";
+} from "../../src/core/contract/reddit-account-contract.ts";
 import { del, parsedFrom, post, put } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS, REDDIT_VERIFY_DEADLINE_MS } from "./write-deadlines.ts";
 

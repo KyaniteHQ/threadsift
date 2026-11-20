@@ -2,7 +2,7 @@ import { type ComponentProps, memo, useEffect, useId, useMemo, useRef } from "re
 import Markdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
-import { readerUrl } from "../../src/core/reader-url.ts";
+import { readerUrl } from "../../src/core/contract/reader-url.ts";
 import { type MarkSpan, markPlugins } from "./highlight-marks.ts";
 import { POST_TEXT_COMPONENTS } from "./PostTextComponents.tsx";
 import { FOOTNOTES_LABEL, footnoteBackLabel } from "./reader-text.ts";

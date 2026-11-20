@@ -1,4 +1,4 @@
-import type { ExportStatus } from "../../src/core/export-contract.ts";
+import type { ExportStatus } from "../../src/core/contract/export-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { exportDownloadAddress } from "./export-api.ts";
 import { EXPORT_TEXT, failureLabel, progressLabel, readyDetailLabel } from "./export-text.ts";

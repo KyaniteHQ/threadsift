@@ -1,8 +1,8 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { zipStream } from "../core/export-download.ts";
-import { deleteExport, exportStatus, readyExport, startExport } from "../core/export-run.ts";
-import type { Ports } from "../core/ports.ts";
+import { zipStream } from "../core/export/export-download.ts";
+import { deleteExport, exportStatus, readyExport, startExport } from "../core/export/export-run.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { deleteRoute, downloadRoute, startRoute, statusRoute } from "./export-route-spec.ts";
 import { notFound } from "./refusals.ts";
 

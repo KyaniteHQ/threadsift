@@ -1,7 +1,7 @@
 import type { CallToolResult } from "@modelcontextprotocol/server";
 import type { z } from "zod";
 
-import { logFailure } from "../core/failure-log.ts";
+import { logFailure } from "../core/kernel/failure-log.ts";
 import type {
   ItemDetailResponseSchema,
   ItemReadResponseSchema,

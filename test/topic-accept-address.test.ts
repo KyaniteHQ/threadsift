@@ -6,7 +6,7 @@ import { z } from "zod";
 import {
   OverviewRetryResponseSchema,
   TopicPageSchema,
-} from "../src/core/topic-overview-contract.ts";
+} from "../src/core/contract/topic-overview-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider } from "./related-fixtures.ts";

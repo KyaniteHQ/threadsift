@@ -4,7 +4,7 @@ import {
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
   RedditVerifySchema,
-} from "../src/core/reddit-account-contract.ts";
+} from "../src/core/contract/reddit-account-contract.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 

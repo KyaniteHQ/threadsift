@@ -3,7 +3,6 @@ import { constants } from "node:fs";
 import { type FileHandle, lstat, mkdir, open, readdir, rename, rm } from "node:fs/promises";
 import { join, sep } from "node:path";
 
-import { bestEffort, errnoCodeOf } from "../../core/failure-log.ts";
 import {
   FileRefused,
   type StoreKey,
@@ -13,8 +12,9 @@ import {
   parseStoredKey,
   storePrefixText,
   temporaryPrefix,
-} from "../../core/file-keys.ts";
-import { type FilePage, type FileStore, checkedFileStore } from "../../core/file-store.ts";
+} from "../../core/contract/file-keys.ts";
+import { bestEffort, errnoCodeOf } from "../../core/kernel/failure-log.ts";
+import { type FilePage, type FileStore, checkedFileStore } from "../../core/kernel/file-store.ts";
 
 const CHUNK_BYTES = 65_536;
 

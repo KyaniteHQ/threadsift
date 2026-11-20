@@ -1,4 +1,5 @@
 import { dirname, posix, relative, resolve, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import type { Context, Definition, ESTree, Scope } from "@oxlint/plugins";
 
@@ -6,8 +7,10 @@ export type Trusted = ReadonlyMap<string, ReadonlySet<string>>;
 
 const MAX_ALIAS_DEPTH = 4;
 
-export function repositoryPath(cwd: string, file: string): string {
-  return relative(cwd, file).split(sep).join(posix.sep);
+export const REPOSITORY_ROOT = fileURLToPath(new URL("../../../../", import.meta.url));
+
+export function repositoryPath(file: string): string {
+  return relative(REPOSITORY_ROOT, file).split(sep).join(posix.sep);
 }
 
 function definitionOf(context: Context, identifier: ESTree.IdentifierReference): Definition | null {
@@ -56,7 +59,7 @@ export function isTrusted(
   const definition = definitionOf(context, callee);
 
   if (definition?.type === "FunctionName") {
-    return trusted.get(repositoryPath(context.cwd, context.filename))?.has(callee.name) === true;
+    return trusted.get(repositoryPath(context.filename))?.has(callee.name) === true;
   }
 
   if (definition?.type !== "ImportBinding") return false;
@@ -69,7 +72,7 @@ export function isTrusted(
 
   if (!from.startsWith(".") || node.imported.type !== "Identifier") return false;
 
-  const module = repositoryPath(context.cwd, resolve(dirname(context.filename), from));
+  const module = repositoryPath(resolve(dirname(context.filename), from));
 
   return trusted.get(module)?.has(node.imported.name) === true;
 }

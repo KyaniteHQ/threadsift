@@ -1,16 +1,16 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { DISAGREEMENTS_SHOWN } from "../core/known-disagreements.ts";
-import { PAGE_SIZE } from "../core/paging.ts";
-import type { Ports } from "../core/ports.ts";
+import { PAGE_SIZE } from "../core/contract/paging.ts";
 import {
   OVERVIEW_LINES_MAX,
   OverviewRetryResponseSchema,
   TopicKeyParamSchema,
   TopicPageSchema,
-} from "../core/topic-overview-contract.ts";
-import { readTopicPage } from "../core/topic-page.ts";
-import { retryOverview } from "../core/topic-retry.ts";
+} from "../core/contract/topic-overview-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { DISAGREEMENTS_SHOWN } from "../core/wiki/known-disagreements.ts";
+import { readTopicPage } from "../core/wiki/topic-page.ts";
+import { retryOverview } from "../core/wiki/topic-retry.ts";
 import { access } from "./access.ts";
 import { jsonBody, scopeNote, scopeRefusal } from "./openapi.ts";
 import { notFound } from "./refusals.ts";

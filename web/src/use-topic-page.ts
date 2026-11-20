@@ -1,6 +1,10 @@
 import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from "react";
 
-import type { Overview, TopicItem, TopicPage } from "../../src/core/topic-overview-contract.ts";
+import type {
+  Overview,
+  TopicItem,
+  TopicPage,
+} from "../../src/core/contract/topic-overview-contract.ts";
 import { fetchTopicPage, retryTopicOverview } from "./api.ts";
 import { type More, newer } from "./list-paging.ts";
 import type { Route } from "./routing.ts";

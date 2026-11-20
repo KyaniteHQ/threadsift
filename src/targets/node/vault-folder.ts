@@ -1,20 +1,20 @@
 import { fsyncSync, rmdirSync, unlinkSync } from "node:fs";
 
-import { errnoCodeOf } from "../../core/failure-log.ts";
-import { VaultFailure, vaultFailure } from "../../core/vault-failure.ts";
+import { errnoCodeOf } from "../../core/kernel/failure-log.ts";
+import {
+  VaultFileConflict,
+  type VaultChange,
+  type VaultFolder,
+  type VaultWrite,
+} from "../../core/kernel/vault-target.ts";
+import { VaultFailure, vaultFailure } from "../../core/vault/vault-failure.ts";
 import {
   ITEMS_FOLDER,
   vaultLogMonths,
   vaultPathParts,
   vaultSubjects,
   vaultTreeFiles,
-} from "../../core/vault-paths.ts";
-import {
-  VaultFileConflict,
-  type VaultChange,
-  type VaultFolder,
-  type VaultWrite,
-} from "../../core/vault-target.ts";
+} from "../../core/vault/vault-paths.ts";
 import {
   INVALID_DIRECTORY,
   type VaultDirectory,

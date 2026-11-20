@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
-import type { ClaimedJob } from "../src/core/job-outcome.ts";
-import { claimNextDue } from "../src/core/jobs.ts";
+import { claimNextDue } from "../src/core/compose/jobs.ts";
+import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import type { KindCase } from "./bot-kinds-cases.ts";
 import { sentTask } from "./bot-kinds-fixtures.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";

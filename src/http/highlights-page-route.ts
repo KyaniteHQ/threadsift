@@ -1,9 +1,9 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { highlightsPage } from "../core/highlights-page.ts";
-import { itemFilters } from "../core/item-filters.ts";
-import { PAGE_SIZE } from "../core/paging.ts";
-import type { Ports } from "../core/ports.ts";
+import { PAGE_SIZE } from "../core/contract/paging.ts";
+import { highlightsPage } from "../core/item/highlights-page.ts";
+import { itemFilters } from "../core/item/item-filters.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { HighlightsPageResponseSchema, HighlightsQuerySchema } from "./highlights-page-schemas.ts";
 import { jsonBody } from "./openapi.ts";

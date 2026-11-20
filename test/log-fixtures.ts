@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { type LogEntry, LogPageSchema } from "../src/core/log-contract.ts";
+import { type LogEntry, LogPageSchema } from "../src/core/contract/log-contract.ts";
 import type { Instance } from "./instance.ts";
 import { type Fixture, exec, paste, rows } from "./related-fixtures.ts";
 

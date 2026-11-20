@@ -3,8 +3,8 @@ import { readFileSync } from "node:fs";
 
 import { z } from "zod";
 
-import { type Resolved, type StoredPost, checked, oembedAnswerOf } from "../src/core/x-oembed.ts";
-import type { Judgement } from "../src/core/x-verdict.ts";
+import type { Judgement } from "../src/core/contract/x-verdict.ts";
+import { type Resolved, type StoredPost, checked, oembedAnswerOf } from "../src/core/x/x-oembed.ts";
 
 const AnswerSchema = z.looseObject({ url: z.string(), author_url: z.string(), html: z.string() });
 

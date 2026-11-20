@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
-import { LogPageSchema } from "../src/core/log-contract.ts";
+import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";

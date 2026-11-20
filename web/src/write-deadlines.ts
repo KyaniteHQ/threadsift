@@ -1,11 +1,11 @@
-import { AI_DEADLINE_MS } from "../../src/core/ai-contract.ts";
-import { VERIFY_DEADLINE_MS } from "../../src/core/grok-bot-contract.ts";
+import { AI_DEADLINE_MS } from "../../src/core/contract/ai-contract.ts";
+import { VERIFY_DEADLINE_MS } from "../../src/core/contract/grok-bot-contract.ts";
 import {
   FETCH_DEADLINE_MS,
   HOP_DEADLINE_MS,
   PROBE_MS,
   REQUEST_DEADLINE_MS,
-} from "../../src/core/request-waits.ts";
+} from "../../src/core/contract/request-waits.ts";
 import { READ_DEADLINE_MS } from "./calls.ts";
 
 const MARGIN_MS = READ_DEADLINE_MS;

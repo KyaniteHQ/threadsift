@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { INLINE_TEXT_BYTES } from "../src/core/limits.ts";
+import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
 import { Instance, type Json } from "./instance.ts";
 import { SECRET_KEY } from "./related-fixtures.ts";
 import { xClient } from "./x-thread-client.ts";

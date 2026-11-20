@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { REDDIT_CONNECT_STATES } from "../../src/core/reddit-relay-contract.ts";
+import { REDDIT_CONNECT_STATES } from "../../src/core/contract/reddit-relay-contract.ts";
 import { TEXT } from "./text.ts";
 
 export const SaveStateSchema = z.discriminatedUnion("kind", [

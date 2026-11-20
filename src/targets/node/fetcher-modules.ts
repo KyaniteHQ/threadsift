@@ -5,10 +5,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { z } from "zod";
 
-import { errorClassOf, report } from "../../core/failure-log.ts";
-import { type Fetcher, type LoadedFetcher, isFetcher } from "../../core/fetcher.ts";
-import { NetworkFailure } from "../../core/network.ts";
-import { publicAddressesOf } from "../../core/public-host.ts";
+import { errorClassOf, report } from "../../core/kernel/failure-log.ts";
+import { type Fetcher, type LoadedFetcher, isFetcher } from "../../core/kernel/fetcher.ts";
+import { NetworkFailure } from "../../core/kernel/network.ts";
+import { publicAddressesOf } from "../../core/kernel/public-host.ts";
 
 function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly LookupAddress[] | null> {
   return new Promise((resolve) => {

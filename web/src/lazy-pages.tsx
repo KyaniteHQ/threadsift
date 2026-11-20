@@ -1,6 +1,6 @@
 import { type ComponentType, lazy } from "react";
 
-import { NOTHING } from "../../src/core/nothing.ts";
+import { NOTHING } from "../../src/core/contract/nothing.ts";
 import { unavailable } from "./module-unavailable.ts";
 import { IMPORT_PATH, LOG_PATH, PROPOSALS_PATH, SETTINGS_PATH, OBSIDIAN_PATH } from "./routing.ts";
 

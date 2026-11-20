@@ -1,4 +1,4 @@
-import { type LogPage, LogPageSchema } from "../../src/core/log-contract.ts";
+import { type LogPage, LogPageSchema } from "../../src/core/contract/log-contract.ts";
 import { parsedFrom, withCursor } from "./calls.ts";
 import { usePagedRead } from "./use-paged-read.ts";
 

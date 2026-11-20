@@ -16,12 +16,12 @@ Each route states in its own declaration who may call it, how large its body may
 
 `POST /api/items` takes `url` and, optionally, a `digest`, `fill`, and at most one of `content` and `page`.
 
-- `content` is the `.json` of a Reddit thread (one text, or 1 to 101 with the answers behind its `more` stubs, each up to 4 MiB) or, for an X link, exactly one JSON text of the post and its replies (`XThreadSchema`, `src/core/x-wire.ts`, at most 500 replies). A `content` that does not parse as a thread of the link answers 400, and so does an X thread with fewer replies than the one saved, because the saved thread stays.
+- `content` is the `.json` of a Reddit thread (one text, or 1 to 101 with the answers behind its `more` stubs, each up to 4 MiB) or, for an X link, exactly one JSON text of the post and its replies (`XThreadSchema`, `src/core/contract/x-wire.ts`, at most 500 replies). A `content` that does not parse as a thread of the link answers 400, and so does an X thread with fewer replies than the one saved, because the saved thread stays.
 - `fill: true` saves a Reddit thread only into the Item with that link while it holds no saved thread.
 - `page` is the Extension's own-tab read, up to 1,000,000 bytes. It takes no X or GitHub link, no short link or Reddit share link (a page is saved at the address a short link leads to, so the caller sends it there, or sends the short link alone and the Paste resolves it) and no Reddit link that is not a post or comment (400 with `code: unsupported-link`).
 - A link whose host is not globally reachable answers 400.
 - The answer is 201 for a new Item and 200 for a known one it refreshed, 409 when a `page` meets a Reddit thread already saved, and 503 while a Restore holds the library.
-- `refusalOf` in `src/core/paste-refusal.ts` gives the status, code and text of every refusal that `paste`, `pasteLink` and the whole-call refusals of a batch (unknown token, spent budget, Restore) answer with; the routes render it with `refusing` in `src/http/refusals.ts` and the MCP `add` tool reads its `kind`. A refused host inside a batch is an entry of its results, and a request that fails validation or scope answers before a Paste runs. `pasteLink` takes a link alone and answers only the kinds a link can meet, and `paste` takes `content`, `page` and `fill` as well.
+- `refusalOf` in `src/core/paste/paste-refusal.ts` gives the status, code and text of every refusal that `paste`, `pasteLink` and the whole-call refusals of a batch (unknown token, spent budget, Restore) answer with; the routes render it with `refusing` in `src/http/refusals.ts` and the MCP `add` tool reads its `kind`. A refused host inside a batch is an entry of its results, and a request that fails validation or scope answers before a Paste runs. `pasteLink` takes a link alone and answers only the kinds a link can meet, and `paste` takes `content`, `page` and `fill` as well.
 
 ## Batches and the import cursor
 

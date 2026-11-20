@@ -1,5 +1,5 @@
-import type { XReadNote } from "../../src/core/x-read-note.ts";
-import type { XReaderChoice, XBotState } from "../../src/core/x-settings-contract.ts";
+import type { XReadNote } from "../../src/core/contract/x-read-note.ts";
+import type { XReaderChoice, XBotState } from "../../src/core/contract/x-settings-contract.ts";
 
 export const X_TEXT = {
   sectionTitle: "X posts",

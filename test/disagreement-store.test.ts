@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { refusedByGuard } from "../src/core/guards.ts";
+import { refusedByGuard } from "../src/core/kernel/guards.ts";
 import { applyAnswer } from "./disagreement-apply.ts";
 import {
   checksOf,

@@ -1,8 +1,11 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { BUDGET_SPENT } from "../../src/core/agent-token-contract.ts";
-import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../../src/core/supplied-page.ts";
+import { BUDGET_SPENT } from "../../src/core/contract/agent-token-contract.ts";
+import {
+  SuppliedPageSchema,
+  UNSUPPORTED_PAGE_LINK,
+} from "../../src/core/contract/supplied-page.ts";
 import { type Config, holdsInstanceAccess, instanceRequest } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
 import {

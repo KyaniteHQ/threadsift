@@ -1,7 +1,7 @@
 import { createElement, useCallback, useMemo, useState } from "react";
 
-import type { GrokBotView } from "../../src/core/grok-bot-contract.ts";
-import type { XSettingsView } from "../../src/core/x-settings-contract.ts";
+import type { GrokBotView } from "../../src/core/contract/grok-bot-contract.ts";
+import type { XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
 import { GROK_BOT_SECTION } from "./GrokBotSection.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import type { Loaded } from "./settings-load-types.ts";

@@ -1,6 +1,6 @@
-import { groupedNumber } from "../../src/core/format.ts";
-import type { SkipReason } from "../../src/core/import-list.ts";
-import type { CliProvider } from "../../src/core/provider-families.ts";
+import { groupedNumber } from "../../src/core/contract/format.ts";
+import type { SkipReason } from "../../src/core/contract/import-list.ts";
+import type { CliProvider } from "../../src/core/contract/provider-families.ts";
 import { RETRY_LABEL, filled } from "./text.ts";
 
 export const IMPORT = {

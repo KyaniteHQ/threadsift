@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { whereOf } from "../../src/core/link-place.ts";
+import { whereOf } from "../../src/core/contract/link-place.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { offersFetchRetry } from "./paste-card.ts";

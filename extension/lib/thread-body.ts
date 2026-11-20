@@ -1,5 +1,5 @@
-import { ITEM_REQUEST_BYTES } from "../../src/core/limits.ts";
-import type { ThreadAnswers } from "../../src/core/thread-answers.ts";
+import { ITEM_REQUEST_BYTES } from "../../src/core/contract/limits.ts";
+import type { ThreadAnswers } from "../../src/core/contract/thread-answers.ts";
 
 export interface ThreadBody {
   readonly url: string;

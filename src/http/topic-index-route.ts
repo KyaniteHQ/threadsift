@@ -1,11 +1,11 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
-import { CATALOG_KEY_MAX } from "../core/catalog-key-limit.ts";
-import { PAGE_SIZE } from "../core/paging.ts";
-import type { Ports } from "../core/ports.ts";
-import { TopicIndexSchema } from "../core/topic-index-contract.ts";
-import { readTopicIndex } from "../core/topic-index.ts";
+import { CATALOG_KEY_MAX } from "../core/contract/catalog-key-limit.ts";
+import { PAGE_SIZE } from "../core/contract/paging.ts";
+import { TopicIndexSchema } from "../core/contract/topic-index-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { readTopicIndex } from "../core/wiki/topic-index.ts";
 import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";

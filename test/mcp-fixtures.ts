@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
-import { HighlightResponseSchema } from "../src/core/highlight-contract.ts";
-import { NoteResponseSchema } from "../src/core/note-contract.ts";
+import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
+import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import type { Instance, Json } from "./instance.ts";
 

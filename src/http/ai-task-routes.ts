@@ -1,11 +1,11 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
-import { readableTask } from "../core/ai-task-read.ts";
-import { type AnswerOutcome, acceptBotAnswer } from "../core/bot-answer.ts";
-import type { Ports } from "../core/ports.ts";
-import { acceptIntake } from "../core/x-intake-answer.ts";
-import { refusedBodyOf } from "../core/x-intake-contract.ts";
+import { readableTask } from "../core/bot/ai-task-read.ts";
+import { type AnswerOutcome, acceptBotAnswer } from "../core/bot/bot-answer.ts";
+import { refusedBodyOf } from "../core/contract/x-intake-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { acceptIntake } from "../core/x/x-intake-answer.ts";
 import { intakeRoute } from "./ai-intake-spec.ts";
 import { readRoute, resultRoute } from "./ai-task-route-spec.ts";
 import { refusedBody } from "./intake-body.ts";

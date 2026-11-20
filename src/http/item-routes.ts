@@ -1,9 +1,9 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { retryDigest } from "../core/digest-retry.ts";
-import { getListedItem } from "../core/item-selection.ts";
-import { PAGE_SIZE } from "../core/paging.ts";
-import type { Ports } from "../core/ports.ts";
+import { PAGE_SIZE } from "../core/contract/paging.ts";
+import { retryDigest } from "../core/digest/digest-retry.ts";
+import { getListedItem } from "../core/item/item-selection.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { readItemPage } from "./item-read.ts";
 import { itemView } from "./item-view.ts";

@@ -1,14 +1,14 @@
 import { Worker } from "node:worker_threads";
 
-import type { ArticleReading } from "../../core/article.ts";
-import { PageReadTimeout } from "../../core/page-read-timeout.ts";
+import type { ArticleReading } from "../../core/kernel/article.ts";
+import { PageReadTimeout } from "../../core/kernel/page-read-timeout.ts";
 import {
   type PageReader,
   type PageRequest,
   type PageSource,
   type RequestsAnswering,
   pageReaderOver,
-} from "../../core/page-reader.ts";
+} from "../../core/kernel/page-reader.ts";
 import type { Reply } from "./page-reader-protocol.ts";
 
 const WORKER_FILE = new URL("./page-reader-worker.ts", import.meta.url);

@@ -51,7 +51,7 @@ Write one JSON object per comment, one per line (JSON Lines), to the report path
 
 ```json
 {"file":"src/core/export.ts","line":42,"verdict":"move-to-docs","reason":"measured zip slice sizes; docs/architecture/export-backup-and-restore.md owns them","symbol":"","refactor":""}
-{"file":"src/core/jobs.ts","line":88,"verdict":"must-kill","reason":"explains why the claim runs twice","symbol":"claimJob","refactor":"split into claimQueuedJob and reclaimExpiredJob, each with one WHERE clause"}
+{"file":"src/core/compose/jobs.ts","line":88,"verdict":"must-kill","reason":"explains why the claim runs twice","symbol":"claimJob","refactor":"split into claimQueuedJob and reclaimExpiredJob, each with one WHERE clause"}
 ```
 
 A run of consecutive comment lines that form one comment is one object; `line` is its first line and `reason` gives the line count when it is more than one. End the final message with at most five lines: the report path, the number of files read, and the count per verdict.

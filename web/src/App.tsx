@@ -1,6 +1,6 @@
 import { Suspense, useMemo, useState } from "react";
 
-import { itemIdOf } from "../../src/core/item-path.ts";
+import { itemIdOf } from "../../src/core/contract/item-path.ts";
 import { usePath } from "./routing.ts";
 import { Screen } from "./Screen.tsx";
 import { screenOf, titleOf } from "./screens.ts";

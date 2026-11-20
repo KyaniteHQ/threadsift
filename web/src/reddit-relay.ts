@@ -5,7 +5,7 @@ import {
   type RedditConnectState,
   relayRequest,
   replyTo,
-} from "../../src/core/reddit-relay-contract.ts";
+} from "../../src/core/contract/reddit-relay-contract.ts";
 
 export function askExtension(): Promise<RedditConnectState | null> {
   const id = crypto.randomUUID();

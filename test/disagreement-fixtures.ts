@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
-import { readDisagreementInput } from "../src/core/disagreement-input.ts";
+import { readDisagreementInput } from "../src/core/wiki/disagreement-input.ts";
 import type { Instance } from "./instance.ts";
 import type { interrupted } from "./interrupted-database.ts";
 import { script } from "./pin-fixtures.ts";

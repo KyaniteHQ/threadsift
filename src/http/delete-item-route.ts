@@ -1,7 +1,7 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { deleteItem } from "../core/delete-item.ts";
-import type { Ports } from "../core/ports.ts";
+import { deleteItem } from "../core/compose/delete-item.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, noContent, scopeNote, scopeRefusal } from "./openapi.ts";
 import { notFound } from "./refusals.ts";

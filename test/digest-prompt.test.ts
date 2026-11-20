@@ -3,11 +3,11 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { AI_INPUT_BYTES } from "../src/core/ai-contract.ts";
-import { chooseCandidateLink } from "../src/core/candidate-link.ts";
-import { type LinkedPage, digestPrompt } from "../src/core/digest-prompt.ts";
-import { utf8Length } from "../src/core/encoding.ts";
-import type { CommentCandidate } from "../src/core/thread-selection.ts";
+import { AI_INPUT_BYTES } from "../src/core/contract/ai-contract.ts";
+import { utf8Length } from "../src/core/contract/encoding.ts";
+import { type LinkedPage, digestPrompt } from "../src/core/digest/digest-prompt.ts";
+import { chooseCandidateLink } from "../src/core/media/candidate-link.ts";
+import type { CommentCandidate } from "../src/core/thread/thread-selection.ts";
 
 const NO_CATALOG = { topics: [], tags: [] };
 

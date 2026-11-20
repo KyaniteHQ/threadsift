@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useReducer } from "react";
 import { flushSync } from "react-dom";
 
-import type { Digest } from "../../src/core/digest-schema.ts";
+import type { Digest } from "../../src/core/contract/digest-schema.ts";
 import {
   ConnectNoticeSchema,
   NOTICE_PARAMETER,
   type ConnectNotice,
-} from "../../src/core/openrouter-contract.ts";
+} from "../../src/core/contract/openrouter-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { useGuard } from "./use-form.ts";
 

@@ -1,6 +1,6 @@
 import { useCallback, useMemo } from "react";
 
-import type { ExportStatus } from "../../src/core/export-contract.ts";
+import type { ExportStatus } from "../../src/core/contract/export-contract.ts";
 import { deleteExport, fetchExportStatus, startExport } from "./export-api.ts";
 import { EXPORT_TEXT } from "./export-text.ts";
 import { usePolling } from "./use-polling.ts";

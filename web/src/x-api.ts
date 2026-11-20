@@ -1,4 +1,7 @@
-import { type XReaderChoice, XSettingsViewSchema } from "../../src/core/x-settings-contract.ts";
+import {
+  type XReaderChoice,
+  XSettingsViewSchema,
+} from "../../src/core/contract/x-settings-contract.ts";
 import { parsedFrom, put } from "./calls.ts";
 import { PROBED_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

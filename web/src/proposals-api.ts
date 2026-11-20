@@ -5,7 +5,7 @@ import {
   type ProposalPage,
   ProposalPageSchema,
   ProposalStateSchema,
-} from "../../src/core/proposal-contract.ts";
+} from "../../src/core/contract/proposal-contract.ts";
 import { call, parsedFrom, parsedOrGone, post, withCursor } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

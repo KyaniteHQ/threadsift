@@ -1,12 +1,15 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { parseArchiveThread } from "../src/core/archive-thread.ts";
-import { readArticle } from "../src/core/article.ts";
-import { CATALOG_KEY_EXPANSION_MAX, CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
-import { catalogKey } from "../src/core/catalog-key.ts";
-import { relatedPickTask } from "../src/core/related-task.ts";
-import { overviewLine } from "../src/core/topic-overview-contract.ts";
+import {
+  CATALOG_KEY_EXPANSION_MAX,
+  CATALOG_KEY_MAX,
+} from "../src/core/contract/catalog-key-limit.ts";
+import { catalogKey } from "../src/core/contract/catalog-key.ts";
+import { overviewLine } from "../src/core/contract/topic-overview-contract.ts";
+import { readArticle } from "../src/core/kernel/article.ts";
+import { parseArchiveThread } from "../src/core/reddit/archive-thread.ts";
+import { relatedPickTask } from "../src/core/related/related-task.ts";
 
 const PARAGRAPH =
   "A tear in the middle of a page is what a plain file copy risks when a writer is busy, so the safe route is the online backup command followed by a check that the copy opens.";

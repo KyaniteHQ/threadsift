@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
+import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import {

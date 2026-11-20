@@ -1,0 +1,85 @@
+import { z } from "zod";
+
+import type { OpenRouterExchange } from "../contract/openrouter-contract.ts";
+import { pause } from "../contract/pause.ts";
+import { HOP_DEADLINE_MS } from "../contract/request-waits.ts";
+import { SECRET_INPUT_MAX } from "../contract/secret-input.ts";
+import type { AiRuntime } from "../kernel/ai-runtime.ts";
+import { readCapped } from "../kernel/capped.ts";
+import { aiTransport } from "./ai-transport.ts";
+
+const EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
+const KEY_URL = "https://openrouter.ai/api/v1/key";
+const ACTIVATION_WAIT_MS = 45_000;
+const ACTIVATION_POLL_MS = 1_000;
+const ANSWER_CAP_BYTES = 16 * 1024;
+const REFUSING_STATUSES: ReadonlySet<number> = new Set([400, 403]);
+
+const KeyAnswerSchema = z.object({ key: z.string().min(1).max(SECRET_INPUT_MAX) });
+
+async function cappedText(body: AsyncIterable<Uint8Array>): Promise<string> {
+  const { bytes, cut } = await readCapped(body, ANSWER_CAP_BYTES);
+
+  if (cut) throw new RangeError("answer too long");
+
+  return new TextDecoder().decode(bytes);
+}
+
+async function activated(send: typeof fetch, key: string, deadline: number): Promise<boolean> {
+  try {
+    const response = await send(KEY_URL, {
+      headers: { authorization: `Bearer ${key}` },
+      signal: AbortSignal.timeout(HOP_DEADLINE_MS),
+    });
+
+    await response.body?.cancel();
+
+    if (response.status === 200) return true;
+
+    if (response.status !== 401 || Date.now() + ACTIVATION_POLL_MS >= deadline) return false;
+  } catch {
+    return false;
+  }
+
+  await pause(ACTIVATION_POLL_MS);
+
+  return activated(send, key, deadline);
+}
+
+async function keyOf(body: AsyncIterable<Uint8Array> | null): Promise<OpenRouterExchange> {
+  const answer = KeyAnswerSchema.safeParse(
+    body === null ? null : JSON.parse(await cappedText(body)),
+  );
+
+  return answer.success ? { kind: "key", key: answer.data.key } : { kind: "uncertain" };
+}
+
+export function awaitOpenRouterActivation(
+  { request }: Readonly<Pick<AiRuntime, "request">>,
+  key: string,
+): Promise<boolean> {
+  return activated(aiTransport(request), key, Date.now() + ACTIVATION_WAIT_MS);
+}
+
+export async function exchangeOpenRouterCode(
+  { request }: Readonly<Pick<AiRuntime, "request">>,
+  { code, verifier }: Readonly<{ code: string; verifier: string }>,
+  signal: AbortSignal,
+): Promise<OpenRouterExchange> {
+  try {
+    const response = await aiTransport(request)(EXCHANGE_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: "S256" }),
+      signal,
+    });
+
+    if (response.status === 200) return await keyOf(response.body);
+
+    await response.body?.cancel();
+
+    return REFUSING_STATUSES.has(response.status) ? { kind: "refused" } : { kind: "uncertain" };
+  } catch {
+    return { kind: "uncertain" };
+  }
+}

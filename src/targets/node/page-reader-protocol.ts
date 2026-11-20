@@ -1,5 +1,5 @@
-import type { ArticleReading } from "../../core/article.ts";
-import type { PageRequest } from "../../core/page-reader.ts";
+import type { ArticleReading } from "../../core/kernel/article.ts";
+import type { PageRequest } from "../../core/kernel/page-reader.ts";
 
 export type RequestMessage = PageRequest & { readonly id: number };
 

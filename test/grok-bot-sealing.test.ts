@@ -5,7 +5,7 @@ import {
   GrokBotSaveResponseSchema,
   GrokBotTestSchema,
   GrokBotViewSchema,
-} from "../src/core/grok-bot-contract.ts";
+} from "../src/core/contract/grok-bot-contract.ts";
 import {
   ADDRESS,
   KEY,

@@ -1,6 +1,6 @@
-import { groupedNumber } from "../../src/core/format.ts";
-import { spellingOf } from "../../src/core/link-place.ts";
-import { repositoryRef } from "../../src/core/repository-ref.ts";
+import { groupedNumber } from "../../src/core/contract/format.ts";
+import { spellingOf } from "../../src/core/contract/link-place.ts";
+import { repositoryRef } from "../../src/core/contract/repository-ref.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { GITHUB_TOPICS_LABEL, NONE_STATED, REPOSITORY_LABELS } from "./reader-text.ts";
 import { ageLabel } from "./saved-label.ts";

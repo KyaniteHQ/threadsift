@@ -1,4 +1,4 @@
-import type { ConnectNotice as Notice } from "../../src/core/openrouter-contract.ts";
+import type { ConnectNotice as Notice } from "../../src/core/contract/openrouter-contract.ts";
 import type { AiView } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { Alert } from "./Alert.tsx";

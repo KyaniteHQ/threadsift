@@ -1,5 +1,5 @@
-import { groupedNumber } from "../../src/core/format.ts";
-import type { GithubRefused } from "../../src/core/github-contract.ts";
+import { groupedNumber } from "../../src/core/contract/format.ts";
+import type { GithubRefused } from "../../src/core/contract/github-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { filled } from "./text.ts";
 

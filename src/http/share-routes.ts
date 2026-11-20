@@ -1,10 +1,15 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { refreshedOf } from "../core/fetch-results.ts";
-import { pasteLink } from "../core/paste.ts";
-import type { Ports } from "../core/ports.ts";
-import { SHARE_PATH, type ShareArrival, prefillOf, shareAddress } from "../core/share-address.ts";
-import { type SharedContent, sharedContentOf } from "../core/shared-link.ts";
+import { refreshedOf } from "../core/contract/fetch-results.ts";
+import {
+  SHARE_PATH,
+  type ShareArrival,
+  prefillOf,
+  shareAddress,
+} from "../core/contract/share-address.ts";
+import { type SharedContent, sharedContentOf } from "../core/contract/shared-link.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { pasteLink } from "../core/paste/paste.ts";
 import { access } from "./access.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { fieldsOf } from "./share-fields.ts";

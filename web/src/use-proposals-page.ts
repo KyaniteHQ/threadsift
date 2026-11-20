@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import type { ProposalPage } from "../../src/core/proposal-contract.ts";
+import type { ProposalPage } from "../../src/core/contract/proposal-contract.ts";
 import { fetchProposals } from "./proposals-api.ts";
 import { usePagedRead } from "./use-paged-read.ts";
 import { usePolling } from "./use-polling.ts";

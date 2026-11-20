@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { continueMerges } from "../src/core/merge-accept.ts";
+import { continueMerges } from "../src/core/wiki/merge-accept.ts";
 import { count } from "./accept-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { interrupted } from "./interrupted-database.ts";

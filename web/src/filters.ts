@@ -1,7 +1,7 @@
 import { useCallback, useState } from "react";
 
-import type { ReadState, Source } from "../../src/core/item-contract.ts";
-import { searchTerms } from "../../src/core/search-terms.ts";
+import type { ReadState, Source } from "../../src/core/contract/item-contract.ts";
+import { searchTerms } from "../../src/core/contract/search-terms.ts";
 
 export interface Filters {
   readonly q: string;

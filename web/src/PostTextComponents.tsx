@@ -1,7 +1,7 @@
 import { type ReactNode, use } from "react";
 import type { Components } from "react-markdown";
 
-import { type HastNode, TEXT } from "../../src/core/text-projection.ts";
+import { type HastNode, TEXT } from "../../src/core/contract/text-projection.ts";
 import { type CodePart, CodeBlock } from "./CodeBlock.tsx";
 import { Mark } from "./Mark.tsx";
 import { tableName } from "./reader-text.ts";

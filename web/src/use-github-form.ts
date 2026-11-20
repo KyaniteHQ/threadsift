@@ -1,6 +1,9 @@
 import { useCallback } from "react";
 
-import { type GithubSettingsView, GithubTokenInputSchema } from "../../src/core/github-contract.ts";
+import {
+  type GithubSettingsView,
+  GithubTokenInputSchema,
+} from "../../src/core/contract/github-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { removeGithubToken, saveGithubToken, verifyGithubToken } from "./github-api.ts";
 import { GITHUB_TEXT, TOKEN_STATES, refusalText, verifiedText } from "./github-text.ts";

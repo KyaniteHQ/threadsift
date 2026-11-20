@@ -4,7 +4,7 @@ import {
   GrokBotInputSchema,
   type GrokBotView,
   grokBotAddressOf,
-} from "../../src/core/grok-bot-contract.ts";
+} from "../../src/core/contract/grok-bot-contract.ts";
 import { removeGrokBot, saveGrokBot, testGrokBot } from "./grok-bot-api.ts";
 import { GROK_BOT_TEXT, KEY_STATES, RESULT_TEXT } from "./grok-bot-text.ts";
 import { type FieldState, useField } from "./use-form.ts";

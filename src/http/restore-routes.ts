@@ -1,10 +1,10 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import type { Ports } from "../core/ports.ts";
-import { cancelRestore } from "../core/restore-cancel.ts";
-import { resumeRestore, startRestore } from "../core/restore-start.ts";
-import { restoreStatus } from "../core/restore-state.ts";
-import { createRestore, storePart } from "../core/restore-upload.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { cancelRestore } from "../core/restore/restore-cancel.ts";
+import { resumeRestore, startRestore } from "../core/restore/restore-start.ts";
+import { restoreStatus } from "../core/restore/restore-state.ts";
+import { createRestore, storePart } from "../core/restore/restore-upload.ts";
 import { notFound } from "./refusals.ts";
 import {
   LIBRARY_NOT_EMPTY,
