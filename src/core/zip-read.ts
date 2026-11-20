@@ -136,11 +136,13 @@ export function spanIn(
 ): ZipSpan | null {
   const header = consumed === 0 ? localDataStart(bytes, entry.headerOffset - base, entry) : 0;
 
-  if (header === null || header > bytes.length) return null;
+  if (header === null) return null;
 
   checkedEnd(directory.offset, base + header, entry.size - consumed);
 
-  return { start: base + header, end: base + header + entry.size - consumed };
+  return header > bytes.length
+    ? null
+    : { start: base + header, end: base + header + entry.size - consumed };
 }
 
 export async function entryBytes(
