@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
 
+import { goneWithItem } from "../../features/wiki/core/proposal-lifecycle.ts";
 import { itemFilesPrefix } from "../contract/file-keys.ts";
 import { logFailure } from "../kernel/failure-log.ts";
 import { listedKeys } from "../kernel/file-pages.ts";
@@ -7,7 +8,6 @@ import type { FileStore } from "../kernel/file-store.ts";
 import type { Ports } from "../kernel/ports.ts";
 import { items } from "../kernel/schema.ts";
 import { STALE } from "../kernel/vault-stale.ts";
-import { goneWithItem } from "../wiki/proposal-lifecycle.ts";
 
 async function deleteFilesQuietly(files: FileStore, itemId: number): Promise<void> {
   try {

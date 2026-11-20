@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { webhookBodyOf } from "../src/core/ai/bot-task-send.ts";
-import { xIntakeKind } from "../src/core/x/x-intake.ts";
+import { webhookBodyOf } from "../src/features/ai/core/bot-task-send.ts";
+import { xIntakeKind } from "../src/features/x/core/x-intake.ts";
 
 const CONTEXT = JSON.stringify({
   itemId: 3,

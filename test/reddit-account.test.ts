@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { RedditAccountViewSchema } from "../src/core/contract/reddit-account-contract.ts";
-import { verdictOf } from "../src/core/reddit/reddit-account.ts";
+import { verdictOf } from "../src/features/reddit/core/reddit-account.ts";
 import { Instance } from "./instance.ts";
 import {
   LATER,

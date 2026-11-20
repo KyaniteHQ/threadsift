@@ -1,0 +1,75 @@
+import { X_VERIFY_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
+import { report } from "../../../core/kernel/failure-log.ts";
+import type { ClaimedJob, JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
+import { isLastAttempt, retryDelayMs } from "../../../core/kernel/job-retry.ts";
+import { defineJob } from "../../../core/kernel/job-spec.ts";
+import { xVerifications } from "../../../core/kernel/schema.ts";
+import { ended, withdrawn } from "./x-verify-publish.ts";
+import { type Verification, verificationOf } from "./x-verify-read.ts";
+import { progressOf } from "./x-verify-state.ts";
+import { savedProgress, unreadableWrites } from "./x-verify-store.ts";
+import { askedSlice } from "./x-verify.ts";
+
+async function slice(
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+  row: Readonly<Verification>,
+): Promise<JobOutcome> {
+  const asked = await askedSlice(
+    ports.network,
+    row.thread,
+    row.judged,
+    AbortSignal.timeout(X_VERIFY_DEADLINE_MS),
+  );
+
+  const judged = { ...row.judged, ...asked.added };
+  const next = progressOf(asked.thread, judged);
+
+  report("x-verify-slice", {
+    requests: asked.requests,
+    judged: Object.keys(asked.added).length,
+    unavailable: asked.unavailable ? 1 : 0,
+  });
+
+  if (next.kind !== "asking") return ended(ports, job, { ...row, judged }, next);
+
+  if (asked.unavailable && isLastAttempt(job.attempts)) {
+    return ended(ports, job, { ...row, judged }, { kind: "gave-up" });
+  }
+
+  return {
+    deferredUntil: Date.now() + (asked.unavailable ? (retryDelayMs(job.attempts) ?? 0) : 0),
+    wait: asked.unavailable ? "x-verify" : null,
+    countsAttempt: asked.unavailable,
+    writes: [savedProgress(ports.db, job.itemId, row.revision, judged, asked.thread)],
+  };
+}
+
+async function attemptVerification(
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+): Promise<JobOutcome> {
+  const stored = await verificationOf(ports.db, job.itemId);
+
+  if (stored.kind === "missing") return { writes: [] };
+
+  if (stored.kind === "unreadable") {
+    report("x-verify-refused", { reason: "stored-unreadable" });
+
+    return withdrawn(ports, job, stored.revision);
+  }
+
+  const { verification } = stored;
+  const progress = progressOf(verification.thread, verification.judged);
+
+  return progress.kind === "asking"
+    ? slice(ports, job, verification)
+    : ended(ports, job, verification, progress);
+}
+
+export const xVerifyHandler = defineJob("x_verify", {
+  deadlineMs: X_VERIFY_DEADLINE_MS,
+  input: { key: xVerifications.itemId, version: xVerifications.revision },
+  attempt: attemptVerification,
+  exhausted: (db, job) => unreadableWrites(db, job.itemId, job.attemptGeneration, "x-unconfirmed"),
+});

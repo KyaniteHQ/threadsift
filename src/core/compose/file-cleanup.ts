@@ -1,5 +1,6 @@
 import { and, eq, exists, or, sql } from "drizzle-orm";
 
+import { NAMED_FILES } from "../../features/restore/core/named-files.ts";
 import { ITEM_FILES_ROOT, finalKeyOf, isSweptKey } from "../contract/file-keys.ts";
 import type { Database } from "../kernel/database.ts";
 import { logFailure } from "../kernel/failure-log.ts";
@@ -9,7 +10,6 @@ import { ATTEMPT_FILES } from "../kernel/job-rows.ts";
 import { jobIs } from "../kernel/job-tables.ts";
 import { restoreHoldsLibrary } from "../kernel/restore-hold.ts";
 import { fileCleaning, jobs } from "../kernel/schema.ts";
-import { NAMED_FILES } from "../restore/named-files.ts";
 
 const CLEANUP_PAGE_KEYS = 100;
 

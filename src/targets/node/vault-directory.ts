@@ -9,7 +9,7 @@ import {
 } from "node:fs";
 
 import { errnoCodeOf, reportFailure } from "../../core/kernel/failure-log.ts";
-import { vaultFailure } from "../../core/vault/vault-failure.ts";
+import { vaultFailure } from "../../features/vault/core/vault-failure.ts";
 import { mirrorFolder } from "./vault-folders.ts";
 
 const DIRECTORY = constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW;

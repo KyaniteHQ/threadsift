@@ -16,7 +16,7 @@ import {
   wireResponseOf,
 } from "../../core/kernel/network.ts";
 import { publicAddressesOf } from "../../core/kernel/public-host.ts";
-import { redditSessionOver } from "../../core/reddit/reddit-session.ts";
+import { redditSessionOver } from "../../features/reddit/core/reddit-session.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
 const IDENTITY = "identity";

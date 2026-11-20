@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
-import { saveUnresolved } from "../src/core/paste/item-save.ts";
+import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
 import { callBoth, connectBoth, type Agents } from "./mcp-client.ts";
 import {

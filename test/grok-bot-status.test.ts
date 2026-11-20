@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { resultOfStatus } from "../src/core/ai/grok-bot-post.ts";
+import { resultOfStatus } from "../src/features/ai/core/grok-bot-post.ts";
 
 describe("the status of the bot's answer maps to one result", () => {
   it("maps 200 to ok, 401 and 403 to wrong-key, 404 to not-found, and every other status to bot-error", () => {

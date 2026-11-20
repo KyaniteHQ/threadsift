@@ -1,9 +1,9 @@
 import type { MiddlewareHandler } from "hono";
 import { csrf } from "hono/csrf";
 
-import { presentedToken } from "../core/access/bearer.ts";
 import type { Scope } from "../core/contract/agent-token-contract.ts";
 import type { AiTaskRow } from "../core/kernel/ai-task-state.ts";
+import { presentedToken } from "../features/access/core/bearer.ts";
 import { refusedBearer } from "./bearer.ts";
 import type { CacheKind } from "./response-headers.ts";
 import { ownerHasSession } from "./session-cookie.ts";

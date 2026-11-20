@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { GROK_BOT_IN_FLIGHT, ownerOf, startBotTask } from "../src/core/ai/bot-task-start.ts";
 import { applyOutcome } from "../src/core/compose/job-finish.ts";
 import { HANDLERS } from "../src/core/compose/job-handlers.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
+import {
+  GROK_BOT_IN_FLIGHT,
+  ownerOf,
+  startBotTask,
+} from "../src/features/ai/core/bot-task-start.ts";
 import {
   type BotLibrary,
   SECRET_KEY,

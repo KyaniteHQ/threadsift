@@ -1,10 +1,10 @@
 import type { Context } from "hono";
 
-import { presentedToken } from "../core/access/bearer.ts";
-import { callbackTaskOf } from "../core/ai/callback-credential.ts";
 import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import type { AiTaskRow } from "../core/kernel/ai-task-state.ts";
 import type { Ports } from "../core/kernel/ports.ts";
+import { presentedToken } from "../features/access/core/bearer.ts";
+import { callbackTaskOf } from "../features/ai/core/callback-credential.ts";
 import { jsonBody } from "./openapi.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 

@@ -4,7 +4,7 @@ import type { XCliThreadValue } from "../../core/contract/x-wire.ts";
 import { errnoCodeOf, errorClassOf, report } from "../../core/kernel/failure-log.ts";
 import { parsedJson } from "../../core/kernel/parsed-json.ts";
 import type { XFetch, XFetchFailure } from "../../core/kernel/x-fetcher-port.ts";
-import { NOTE_OF_REFUSAL, type XRefusalCategory } from "../../core/x/x-fetcher.ts";
+import { NOTE_OF_REFUSAL, type XRefusalCategory } from "../../features/x/core/x-fetcher.ts";
 import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
 import { XFetchAnswerSchema } from "./grok-surface.ts";
 

@@ -2,7 +2,7 @@ import { connect } from "cloudflare:sockets";
 
 import { bestEffort } from "../../core/kernel/failure-log.ts";
 import type { RedditSession } from "../../core/kernel/network.ts";
-import { redditSessionOver } from "../../core/reddit/reddit-session.ts";
+import { redditSessionOver } from "../../features/reddit/core/reddit-session.ts";
 import { readResponse, requestBytes } from "./http1.ts";
 
 const TLS_PORT = 443;

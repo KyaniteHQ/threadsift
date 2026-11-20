@@ -10,10 +10,10 @@ import {
   disjointPairs,
   looseKey,
   pairKey,
-} from "../src/core/wiki/proposal-candidates.ts";
-import { proposalsInput } from "../src/core/wiki/proposal-input.ts";
-import type { SentPair } from "../src/core/wiki/proposal-sent.ts";
-import { proposalsTask } from "../src/core/wiki/proposal-task.ts";
+} from "../src/features/wiki/core/proposal-candidates.ts";
+import { proposalsInput } from "../src/features/wiki/core/proposal-input.ts";
+import type { SentPair } from "../src/features/wiki/core/proposal-sent.ts";
+import { proposalsTask } from "../src/features/wiki/core/proposal-task.ts";
 
 function tag(id: number, name: string, items = 1): Candidate {
   return { id, key: catalogKey(name), items };

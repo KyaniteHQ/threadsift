@@ -1,12 +1,12 @@
-import { digestHandler } from "../digest/digest-job.ts";
-import { exportHandler } from "../export/export-job.ts";
-import { FETCH_HANDLERS } from "../fetch/fetch-job.ts";
+import { digestHandler } from "../../features/digest/core/digest-job.ts";
+import { exportHandler } from "../../features/export/core/export-job.ts";
+import { FETCH_HANDLERS } from "../../features/fetch/core/fetch-job.ts";
+import { relatedPickHandler } from "../../features/related/core/related-job.ts";
+import { restoreHandler } from "../../features/restore/core/restore-job.ts";
+import { disagreementProposalsHandler } from "../../features/wiki/core/disagreement-job.ts";
+import { proposalsHandler, topicProposalsHandler } from "../../features/wiki/core/proposal-job.ts";
+import { topicOverviewHandler } from "../../features/wiki/core/topic-overview-job.ts";
 import type { Specs } from "../kernel/job-spec.ts";
-import { relatedPickHandler } from "../related/related-job.ts";
-import { restoreHandler } from "../restore/restore-job.ts";
-import { disagreementProposalsHandler } from "../wiki/disagreement-job.ts";
-import { proposalsHandler, topicProposalsHandler } from "../wiki/proposal-job.ts";
-import { topicOverviewHandler } from "../wiki/topic-overview-job.ts";
 
 export const HANDLERS = {
   ...FETCH_HANDLERS,

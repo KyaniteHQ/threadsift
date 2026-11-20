@@ -1,9 +1,9 @@
-import { botStep } from "../src/core/ai/bot-step.ts";
-import { latestTask } from "../src/core/ai/bot-task-rows.ts";
-import { BOT_TASK_KINDS } from "../src/core/bot/bot-task-kinds.ts";
 import { applyOutcome } from "../src/core/compose/job-finish.ts";
 import { HANDLERS } from "../src/core/compose/job-handlers.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
+import { botStep } from "../src/features/ai/core/bot-step.ts";
+import { latestTask } from "../src/features/ai/core/bot-task-rows.ts";
+import { BOT_TASK_KINDS } from "../src/features/bot/core/bot-task-kinds.ts";
 import type { BotKindName } from "./bot-kinds-cases.ts";
 import { reclaimed } from "./bot-task-lifecycle.ts";
 import type { Instance } from "./instance.ts";

@@ -1,4 +1,4 @@
-import { VAULT_ROOT, WIKI_FOLDERS } from "../../core/vault/vault-paths.ts";
+import { VAULT_ROOT, WIKI_FOLDERS } from "../../features/vault/core/vault-paths.ts";
 
 export const WRITTEN = ".written";
 const STAGING = ".staging";

@@ -5,8 +5,8 @@ import { after, before, describe, it } from "node:test";
 import { sql } from "drizzle-orm";
 
 import { guardedBatch } from "../src/core/kernel/guards.ts";
-import { readRewrite } from "../src/core/wiki/tag-rewrite.ts";
-import { topicLinked, topicMoves } from "../src/core/wiki/topic-moves.ts";
+import { readRewrite } from "../src/features/wiki/core/tag-rewrite.ts";
+import { topicLinked, topicMoves } from "../src/features/wiki/core/topic-moves.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
 import { dump, item, script } from "./pin-fixtures.ts";

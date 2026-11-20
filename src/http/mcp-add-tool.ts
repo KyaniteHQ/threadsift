@@ -9,8 +9,8 @@ import { pasteScopes } from "../core/contract/agent-token-contract.ts";
 import { SavedItemResponseSchema } from "../core/contract/item-route-wire.ts";
 import { SaveItemRequestSchema } from "../core/contract/save-wire.ts";
 import type { Ports } from "../core/kernel/ports.ts";
-import { refusalOf } from "../core/paste/paste-refusal.ts";
-import { pasteLink } from "../core/paste/paste.ts";
+import { refusalOf } from "../features/paste/core/paste-refusal.ts";
+import { pasteLink } from "../features/paste/core/paste.ts";
 import { savedView } from "./item-view.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
 

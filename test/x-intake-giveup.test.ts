@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { exhaust } from "../src/core/compose/job-finish.ts";
-import { fetchHandler } from "../src/core/fetch/fetch-job.ts";
+import { fetchHandler } from "../src/features/fetch/core/fetch-job.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";

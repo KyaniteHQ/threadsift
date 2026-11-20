@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { type AiRunner, runAi } from "../src/core/ai/ai-run.ts";
 import type { AiConnection } from "../src/core/contract/ai-contract.ts";
 import { AI_MODEL_MAX, PROVIDERS, isCliProvider } from "../src/core/contract/provider-families.ts";
 import type { AiRuntime, CliRunner } from "../src/core/kernel/ai-runtime.ts";
 import { bestEffort } from "../src/core/kernel/failure-log.ts";
+import { type AiRunner, runAi } from "../src/features/ai/core/ai-run.ts";
 import { claudeCode } from "../src/targets/node/claude-code.ts";
 import { findBinary } from "../src/targets/node/cli-process.ts";
 import { Slots } from "../src/targets/node/cli-slots.ts";

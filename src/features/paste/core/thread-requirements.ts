@@ -1,0 +1,46 @@
+import type { SQLWrapper } from "drizzle-orm";
+
+import type { Link } from "../../../core/contract/links.ts";
+import type { Invalid, NotWaiting } from "../../../core/kernel/paste-outcome.ts";
+import type { StoredThread } from "../../thread/core/stored-thread.ts";
+import {
+  awaitsThread,
+  holdsAtLeastStored,
+  ownerOf,
+  repliesOf,
+} from "../../thread/core/thread-store.ts";
+
+export interface ThreadPlace extends Link {
+  readonly address: string;
+  readonly addedByToken: number | null;
+}
+
+export type Refusal = NotWaiting | Invalid<"content">;
+
+export interface Requirement {
+  readonly holds: Readonly<SQLWrapper>;
+  readonly refusal: Refusal;
+}
+
+const NOT_WAITING: NotWaiting = { kind: "not-waiting" };
+
+const FEWER_REPLIES: Invalid<"content"> = {
+  kind: "invalid",
+  field: "content",
+  reason: "the thread has fewer replies than the saved one, so the saved one was kept",
+};
+
+export function requirementOf(
+  place: Readonly<ThreadPlace>,
+  thread: Readonly<StoredThread>,
+  fillOnly: boolean,
+): Requirement | undefined {
+  if (fillOnly) return { holds: awaitsThread(place.normalizedUrl), refusal: NOT_WAITING };
+
+  if (place.kind !== "x-post") return undefined;
+
+  return {
+    holds: holdsAtLeastStored(ownerOf(place.normalizedUrl).id, repliesOf(thread)),
+    refusal: FEWER_REPLIES,
+  };
+}

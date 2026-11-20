@@ -1,11 +1,11 @@
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { botStep } from "../src/core/ai/bot-step.ts";
-import { ownerOf, startBotTask } from "../src/core/ai/bot-task-start.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { jobs } from "../src/core/kernel/schema.ts";
-import { xIntakeKind } from "../src/core/x/x-intake.ts";
+import { botStep } from "../src/features/ai/core/bot-step.ts";
+import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts";
+import { xIntakeKind } from "../src/features/x/core/x-intake.ts";
 import { claimedOf } from "./bot-task-fixtures.ts";
 import type { Credential } from "./bot-task-http.ts";
 import type { Instance, Json } from "./instance.ts";

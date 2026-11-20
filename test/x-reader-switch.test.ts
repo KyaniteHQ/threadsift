@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { fetchHandler } from "../src/core/fetch/fetch-job.ts";
 import type { JobOutcome } from "../src/core/kernel/job-outcome.ts";
+import { fetchHandler } from "../src/features/fetch/core/fetch-job.ts";
 import { botInstance, pastDeadline } from "./bot-task-fixtures.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
