@@ -12,10 +12,8 @@ export type SettingVariables = Readonly<
   Partial<Record<(typeof SETTING_NAMES)[number], string | undefined>>
 >;
 
-export function settingVariablesOf(
-  source: Readonly<Record<string, string | undefined>>,
-): SettingVariables {
-  return Object.fromEntries(SETTING_NAMES.map((name) => [name, source[name]]));
+export function settingVariablesOf(source: Readonly<SettingVariables>): SettingVariables {
+  return Object.fromEntries(SETTING_NAMES.map((name) => [name, unsetWhenEmpty(source[name])]));
 }
 
 export interface Settings {
@@ -38,9 +36,9 @@ export function settingsOf(variables: SettingVariables): Settings {
       .parse(variables.THREADSIFT_OPENROUTER_MAX_PRICE_ZERO) === "true";
 
   return {
-    setupCode: unsetWhenEmpty(variables.SETUP_CODE),
-    resetCode: unsetWhenEmpty(variables.PASSWORD_RESET_CODE),
-    publicOrigin: unsetWhenEmpty(variables.THREADSIFT_PUBLIC_ORIGIN),
+    setupCode: variables.SETUP_CODE,
+    resetCode: variables.PASSWORD_RESET_CODE,
+    publicOrigin: variables.THREADSIFT_PUBLIC_ORIGIN,
     secretKey: variables.THREADSIFT_SECRET_KEY,
     zeroOpenRouterPrice,
   };

@@ -2,7 +2,7 @@ import { join, resolve } from "node:path";
 
 import { z } from "zod";
 
-import { type SettingVariables, settingVariablesOf, unsetWhenEmpty } from "../shared/settings.ts";
+import { type SettingVariables, settingVariablesOf } from "../shared/settings.ts";
 import type { OperatorCodeOptions } from "./operator-code.ts";
 
 export const REPOSITORY_ROOT = resolve(import.meta.dirname, "../../..");
@@ -20,21 +20,26 @@ export interface NodeEnvironment {
   readonly operator: OperatorCodeOptions;
 }
 
-export function nodeEnvironment(source: Readonly<NodeJS.ProcessEnv>): NodeEnvironment {
+function withoutEmpty(source: Readonly<NodeJS.ProcessEnv>): Readonly<NodeJS.ProcessEnv> {
+  return Object.fromEntries(Object.entries(source).filter(([, value]) => value !== ""));
+}
+
+export function nodeEnvironment(environment: Readonly<NodeJS.ProcessEnv>): NodeEnvironment {
+  const source = withoutEmpty(environment);
   const { PORT: port, DATA_DIR: dataDir, PATH: path } = ProcessSchema.parse(source);
 
   return {
     port,
     dataDir,
-    variables: settingVariablesOf(source),
+    variables: settingVariablesOf(environment),
     operator: {
       fetchers: source["THREADSIFT_FETCHERS"],
       claude: {
         path,
-        configDir: unsetWhenEmpty(source["CLAUDE_CONFIG_DIR"]),
-        token: unsetWhenEmpty(source["CLAUDE_CODE_OAUTH_TOKEN"]),
+        configDir: source["CLAUDE_CONFIG_DIR"],
+        token: source["CLAUDE_CODE_OAUTH_TOKEN"],
       },
-      codex: { path, home: unsetWhenEmpty(source["CODEX_HOME"]), dataDir },
+      codex: { path, home: source["CODEX_HOME"], dataDir },
       grok: { path, home: source["GROK_HOME"], dataDir },
     },
   };

@@ -6,7 +6,7 @@ import type { Ports } from "../../core/kernel/ports.ts";
 import { createApp } from "../../http/app.ts";
 import { isDocumentPath, isServerPath } from "../../http/document-path.ts";
 import { portsOf } from "../shared/ports.ts";
-import { settingsOf, unsetWhenEmpty } from "../shared/settings.ts";
+import { settingVariablesOf, settingsOf } from "../shared/settings.ts";
 import { type Env, workerAdapters } from "./ports.ts";
 
 interface JobMessage {
@@ -30,7 +30,7 @@ let api: ApiApp | undefined;
 
 async function build(env: Env): Promise<Ports> {
   const adapters = workerAdapters(env);
-  const built = await portsOf(settingsOf(env), adapters);
+  const built = await portsOf(settingsOf(settingVariablesOf(env)), adapters);
 
   return built;
 }
@@ -50,7 +50,7 @@ function isolatePorts(env: Env): Promise<Ports> {
 }
 
 async function apiApp(env: Env): Promise<ReturnType<typeof createApp>> {
-  const resetCode = unsetWhenEmpty(env.PASSWORD_RESET_CODE);
+  const resetCode = settingVariablesOf(env).PASSWORD_RESET_CODE;
   const cached = api;
 
   if (cached !== undefined && cached.resetCode === resetCode) {
