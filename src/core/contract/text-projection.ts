@@ -1,9 +1,9 @@
-import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import remarkRehype from "remark-rehype";
 import { unified } from "unified";
 import { z } from "zod";
 
+import { GFM_PLUGINS } from "./gfm-markdown.ts";
 import { FOOTNOTE_LABEL_ID, pictureText } from "./reader-url.ts";
 
 interface HastProperties {
@@ -58,7 +58,7 @@ interface Projection {
 
 const PROCESSOR = unified()
   .use(remarkParse)
-  .use(remarkGfm)
+  .use(GFM_PLUGINS)
   .use(remarkRehype, { allowDangerousHtml: true });
 
 const FLOW = new Set([

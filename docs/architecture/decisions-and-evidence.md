@@ -72,3 +72,30 @@ The wiki follows the LLM wiki idea (https://gist.github.com/karpathy/442a6bf5559
 - A wrong merge becoming a permanent error: overviews cite their Items, and changes go through Proposals.
 - Human corrections lost to regeneration: Pins.
 - Near-duplicate pages from parallel updates: overview revisions are accepted only while the Topic's inputs are still the ones the run read, with a second run refused and queued again, and Grok Bot starts one overview task per Topic at a time.
+
+## Parse time of a page
+
+`projectText`, `scanMarkdown` and the Reader parse a page's Markdown with `GFM_PLUGINS` (`src/core/contract/gfm-markdown.ts`). One paragraph of many short lines of plain words used to take seconds to parse. `projectText` on about 1 MB of one paragraph (Node 26.13.1, 2026-11-20, load average 5 to 17):
+
+| Page | `main` | `GFM_PLUGINS` |
+|---|---|---|
+| 20 characters a line, 999,998 bytes | 25.7 s | 1.4 s |
+| 80 characters a line, 999,944 bytes | 6.0 s | 0.7 s |
+| 200 characters a line, 999,974 bytes | 2.9 s | 0.7 s |
+| 1,000 characters a line, 999,998 bytes | 1.0 s | 0.6 s |
+| 80 characters a line, 599,966 bytes | 2.8 s | 0.6 s |
+
+The 20-character row: `node --input-type=module -e 'import { projectText } from "./src/core/contract/text-projection.ts"; const t = Array.from({length: 47619}, () => "lorem ipsum dolor si").join("\n"); console.time("projectText"); projectText(t); console.timeEnd("projectText")'`.
+
+The cause is `micromark-extension-gfm-autolink-literal` 2.1.0, which tries its construct at every word start. Each failed try leaves a new `data` token next to the one before, and `resolveAllText` (`micromark/lib/initialize/text.js`, micromark 4.0.3) merges each such run with `events.splice`, which moves every later event of the paragraph. A counter around `Array.prototype.splice` saw 4,000 splices move 80,004,000 events for 4,000 lines of 20 characters, so the cost grew with the square of the lines. `DATA_RUN` takes the text of a failed try into the `data` token before it, so no run is left to merge. It ends a token where `initializeText` does, by calling the `previous` check of every construct that `this.parser.constructs.text` lists for the next code, so a micromark update that changes that rule is not noticed by any test.
+
+Four costs remain. Each grows with the square of the paragraph, and none is touched by `DATA_RUN`, which acts while the text is tokenized and not after it. CPU milliseconds of one `parse` at 31,250, 62,500 and 125,000 bytes, one paragraph, at load averages of 9 to 26:
+
+| Shape | 31,250 | 62,500 | 125,000 | Where the time goes |
+|---|---|---|---|---|
+| `a* ` repeated (closers with no opener) | 1,101 | 3,599 | 16,073 | `resolveAllAttention`, which scans back once for each closer |
+| `a] b` lines (stray `]`) | 991 | 3,099 | 8,903 | `tokenizePotentialGfmFootnoteCall`, which walks the events back for each `]` |
+| `*a* ` repeated on one line (emphasis pairs) | 455 | 1,175 | 4,493 | `splice` of `micromark-util-chunked`, once for each pair |
+| `~~ab~~ cd ef ~~gh~~ ij` lines (strikethrough pairs) | 170 | 419 | 2,289 | `resolveAllStrikethrough`, once for each pair |
+
+A re-run of the `a* ` shape on the same code gave 1,605 ms at 31,250 bytes and 13,285 ms at 62,500, so the growth holds on a quieter machine. A page of about 1 MB with one `*emphasis*` pair on each 80-character line took 2.4 s with `projectText`.

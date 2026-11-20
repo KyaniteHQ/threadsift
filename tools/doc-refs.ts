@@ -16,6 +16,7 @@ const OTHER_PROJECT_SPANS: ReadonlyMap<string, readonly string[]> = new Map([
   ["docs/architecture/access-owner-login-agent-tokens-mcp.md", ["tools/list"]],
   ["docs/architecture/ci-releases-and-rollback.md", ["src/libfetchers/github.cc"]],
   ["docs/architecture/data-model-outline.md", ["src/annotator/anchoring/"]],
+  ["docs/architecture/decisions-and-evidence.md", ["micromark/lib/initialize/text.js"]],
   ["docs/architecture/fetchers.md", ["src/extractors/c2-wiki.ts", "lib/util/date.js"]],
   ["docs/architecture/files.md", ["items/1/", "items/10/"]],
 ]);

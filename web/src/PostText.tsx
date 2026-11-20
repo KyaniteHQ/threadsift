@@ -1,7 +1,7 @@
 import { type ComponentProps, memo, useEffect, useId, useMemo, useRef } from "react";
 import Markdown from "react-markdown";
-import remarkGfm from "remark-gfm";
 
+import { GFM_PLUGINS } from "../../src/core/contract/gfm-markdown.ts";
 import { readerUrl } from "../../src/core/contract/reader-url.ts";
 import { type MarkSpan, markPlugins } from "./highlight-marks.ts";
 import { POST_TEXT_COMPONENTS } from "./PostTextComponents.tsx";
@@ -9,8 +9,6 @@ import { FOOTNOTES_LABEL, footnoteBackLabel } from "./reader-text.ts";
 import { FootnoteScope } from "./ReaderLink.tsx";
 import { watchFades } from "./scroll-fades.ts";
 import { NO_IMAGES, PictureScope, type SizedImages, usePictures } from "./StoredPicture.tsx";
-
-const PLUGINS = [remarkGfm];
 
 const FOOTNOTES: NonNullable<ComponentProps<typeof Markdown>["remarkRehypeOptions"]> = {
   footnoteLabel: FOOTNOTES_LABEL,
@@ -46,7 +44,7 @@ export const PostText = memo(function PostText({
       <FootnoteScope value={scope}>
         <PictureScope value={pictures}>
           <Markdown
-            remarkPlugins={PLUGINS}
+            remarkPlugins={GFM_PLUGINS}
             rehypePlugins={rehype}
             remarkRehypeOptions={options}
             components={POST_TEXT_COMPONENTS}

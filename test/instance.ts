@@ -25,7 +25,7 @@ type Ports = Parameters<typeof createApp>[0];
 
 const POLL_MS = 25;
 
-const SETTLE_DEADLINE_MS = 20_000;
+export const SETTLE_DEADLINE_MS = 20_000;
 
 const ORIGIN = "http://localhost";
 
