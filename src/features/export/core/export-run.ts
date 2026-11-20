@@ -1,6 +1,10 @@
 import { and, desc, eq } from "drizzle-orm";
 
-import { type ExportStatus, NO_TALLY } from "../../../core/contract/export-contract.ts";
+import {
+  type ExportStatus,
+  NO_TALLY,
+  isShownFailure,
+} from "../../../core/contract/export-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { refusedBy } from "../../../core/kernel/guards.ts";
 import { closeRunJobs } from "../../../core/kernel/job-close.ts";
@@ -28,7 +32,7 @@ function shown(run: Readonly<ExportRow>): boolean {
   return (
     run.state === "running" ||
     run.state === "ready" ||
-    (run.state === "failed" && run.failure !== "cancelled")
+    (run.state === "failed" && isShownFailure(run.failure))
   );
 }
 
@@ -109,7 +113,9 @@ export async function exportStatus(db: Database): Promise<ExportStatus> {
     }
 
     case "failed": {
-      if (run.failure === null) throw new Error(`Export ${String(id)} failed with no reason`);
+      if (!isShownFailure(run.failure)) {
+        throw new Error(`Export ${String(id)} failed with a reason the status never shows`);
+      }
 
       return { state: "failed", id, createdAt, failure: run.failure };
     }

@@ -7,8 +7,8 @@ import { ERROR_TEXT_MAX } from "../../../core/contract/grok-bot-contract.ts";
 import { MAX_ROW_BYTES } from "../../../core/contract/limits.ts";
 import { IntakeAnswerSchema, refusedBodyOf } from "../../../core/contract/x-intake-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { access, RESULT_CAP, tooLarge, ITEM_CAP } from "../../../http/access.ts";
-import { jsonBody, jsonRequest, noContent } from "../../../http/openapi.ts";
+import { access, RESULT_CAP, ITEM_CAP } from "../../../http/access.ts";
+import { cacheHeaderList, jsonBody, jsonRequest, noContent } from "../../../http/openapi.ts";
 import { IdParamSchema } from "../../../http/route-input.ts";
 import { CREDENTIAL_REFUSALS, UNSUPPORTED_TASK } from "../../../http/task-credential.ts";
 import { TaskReadSchema, readableTask } from "../../bot/core/ai-task-read.ts";
@@ -24,7 +24,7 @@ const readRoute = createRoute({
   responses: {
     200: jsonBody(
       TaskReadSchema,
-      "What the bot is asked to do: the task's `kind`, its `instructions`, its `input` as the text Threadsift stored and the JSON Schema its answer has to fit. Reading changes nothing, so the bot can read again. Every answer of this route carries `Cache-Control: no-store`.",
+      `What the bot is asked to do: the task's \`kind\`, its \`instructions\`, its \`input\` as the text Threadsift stored and the JSON Schema its answer has to fit. Reading changes nothing, so the bot can read again. Every answer of this route carries ${cacheHeaderList("no-store")}.`,
     ),
     400: jsonBody(
       ErrorResponseSchema,
@@ -59,7 +59,7 @@ const resultRoute = createRoute({
       ErrorResponseSchema,
       "The task is not running, is past its deadline, or already holds an answer. Nothing changes. A repeated call lands here, so the bot treats 409 as done.",
     ),
-    413: jsonBody(ErrorResponseSchema, `${tooLarge(RESULT_CAP)}. Nothing changes.`),
+    413: jsonBody(ErrorResponseSchema, "Nothing changes."),
   },
 });
 
@@ -84,7 +84,7 @@ const intakeRoute = createRoute({
       ErrorResponseSchema,
       "The task is not running, is past its deadline, or already holds an answer, or the Item's content changed or its fetch job closed since the task was sent. Nothing is published. In the last case the task fails and its fetch job is due again. A repeated call lands here, so the bot treats 409 as done.",
     ),
-    413: jsonBody(ErrorResponseSchema, `${tooLarge(ITEM_CAP)}. Nothing changes.`),
+    413: jsonBody(ErrorResponseSchema, "Nothing changes."),
   },
 });
 

@@ -8,22 +8,25 @@ import {
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
 import { itemView } from "../../../http/item-view.ts";
-import { jsonBody, jsonRequest } from "../../../http/openapi.ts";
+import { accessNote, accessRefusals, jsonBody, jsonRequest } from "../../../http/openapi.ts";
 import { notFound } from "../../../http/refusals.ts";
 import { IdParamSchema } from "../../../http/route-input.ts";
 import { setReadState } from "../core/read-state.ts";
 
+const OWNER = access("owner");
+
 const setReadStateRoute = createRoute({
   method: "put",
   path: "/api/items/{id}/read-state",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   request: { params: IdParamSchema, body: jsonRequest(ReadStateRequestSchema) },
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       ItemResponseSchema,
-      "The Item as the list shows it, with the Read state the owner set. Setting the state an Item already has changes nothing. Only the owner's session may call this; an agent token gets 403.",
+      "The Item as the list shows it, with the Read state the owner set. Setting the state an Item already has changes nothing.",
     ),
-    400: jsonBody(ErrorResponseSchema, "`readState` is not `read` or `unread`."),
     404: jsonBody(ErrorResponseSchema, "No Item has this id."),
   },
 });

@@ -13,7 +13,7 @@ import {
 } from "../../../core/contract/reddit-account-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { type Gate, access } from "../../../http/access.ts";
-import { jsonBody, jsonRequest, scopeNote, scopeRefusal } from "../../../http/openapi.ts";
+import { accessNote, accessRefusals, jsonBody, jsonRequest } from "../../../http/openapi.ts";
 import {
   connectRedditAccount,
   disconnectRedditAccount,
@@ -26,8 +26,7 @@ const SETTINGS_PATH = "/api/settings/reddit-account";
 
 const TOKEN_PATH = "/api/reddit-account";
 
-const OWNER_ONLY_TEXT =
-  "The caller is an agent token, which this route refuses. It is for the signed-in owner.";
+const OWNER = access("owner");
 
 type AccountGate = Gate<BlankEnv, "owner"> | Gate<BlankEnv, Scope>;
 
@@ -37,13 +36,6 @@ interface Account {
   readonly put: AccountGate;
   readonly delete: AccountGate;
 }
-
-const noteOf = (gate: AccountGate): string => (gate.who === "owner" ? "" : scopeNote(gate));
-
-const refusalOf = (gate: AccountGate) =>
-  gate.who === "owner"
-    ? { 403: jsonBody(ErrorResponseSchema, OWNER_ONLY_TEXT) }
-    : scopeRefusal(gate);
 
 const READ_TEXT =
   "Whether a Reddit account is connected (`connected`), no longer accepted by Reddit (`expired`), saved but sealed under another key (`unreadable`), not set (`none`), or whether this Instance has no sealing key (`missing`), and `secretReady`, whether it has one. The session is never returned.";
@@ -61,9 +53,9 @@ const viewRoute = (
     method,
     path,
     middleware: gate,
-    description: `${summary}${noteOf(gate)}`,
+    description: `${summary} ${accessNote(gate)}`,
     responses: {
-      ...refusalOf(gate),
+      ...accessRefusals(gate),
       200: jsonBody(RedditAccountViewSchema, text),
     },
   });
@@ -73,10 +65,10 @@ const saveRoute = (path: string, gate: AccountGate) =>
     method: "put",
     path,
     middleware: gate,
-    description: `Connect the Reddit account with a session.${noteOf(gate)}`,
+    description: `Connect the Reddit account with a session. ${accessNote(gate)}`,
     request: { body: jsonRequest(RedditSessionInputSchema) },
     responses: {
-      ...refusalOf(gate),
+      ...accessRefusals(gate),
       200: jsonBody(
         RedditAccountSaveResponseSchema,
         "The state after the save, `connected`, or the refusal `secret-missing` when this Instance has no sealing key. Nothing is sent to Reddit.",
@@ -91,8 +83,10 @@ const saveRoute = (path: string, gate: AccountGate) =>
 const verifyRoute = createRoute({
   method: "post",
   path: `${SETTINGS_PATH}/verify`,
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       RedditVerifySchema,
       "What one request to Reddit's `me.json` got back with the saved session: `ok`, `logged-out` (HTTP 401, or an answer that names no account), `blocked` (any other status), `limited` (429), `unreachable`, `timeout`, `not-configured`, `secret-missing` or `unreadable`. Reddit's own 401 is a result inside this 200, so it never signs the owner out. `logged-out` sets the state `expired` and `ok` sets it `connected`.",
@@ -123,8 +117,6 @@ function registerAccountRoutes(app: OpenAPIHono, ports: Ports, account: Readonly
     async (c) => c.json(await disconnectRedditAccount(ports), 200),
   );
 }
-
-const OWNER = access("owner");
 
 const OWNER_ACCOUNT: Account = { path: SETTINGS_PATH, get: OWNER, put: OWNER, delete: OWNER };
 

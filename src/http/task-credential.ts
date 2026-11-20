@@ -5,7 +5,7 @@ import type { AiTaskRow } from "../core/kernel/ai-task-state.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { bearerOf, presentedToken } from "../features/access/core/bearer.ts";
 import { callbackTaskOf } from "../features/ai/core/callback-credential.ts";
-import { challengeOf } from "./bearer.ts";
+import { CHALLENGES, challengeOf } from "./bearer.ts";
 import { jsonBody } from "./openapi.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 
@@ -59,7 +59,7 @@ export const UNSUPPORTED_TASK = "unsupported-task";
 export const CREDENTIAL_REFUSALS = {
   401: jsonBody(
     ErrorResponseSchema,
-    `${CREDENTIAL_REQUIRED}: the header is missing or malformed, the task does not exist (an \`id\` that is not a whole number counts), or the credential belongs to another task or to an earlier send of this task. The body is the same for all of them. \`WWW-Authenticate\` is \`Bearer\` when the call sent no bearer credential (no \`Authorization\` header, another scheme or an empty one) and \`Bearer error="invalid_token"\` when it sent a bearer credential that matches no task.`,
+    `${CREDENTIAL_REQUIRED}: the header is missing or malformed, the task does not exist (an \`id\` that is not a whole number counts), or the credential belongs to another task or to an earlier send of this task. The body is the same for all of them. \`WWW-Authenticate\` is \`${CHALLENGES.missing}\` when the call sent no bearer credential (no \`Authorization\` header, another scheme or an empty one) and \`${CHALLENGES.unknown}\` when it sent a bearer credential that matches no task.`,
   ),
   403: jsonBody(
     ErrorResponseSchema,

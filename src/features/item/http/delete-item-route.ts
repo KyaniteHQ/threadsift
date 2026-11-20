@@ -4,7 +4,7 @@ import { deleteItem } from "../../../core/compose/delete-item.ts";
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { jsonBody, noContent, scopeNote, scopeRefusal } from "../../../http/openapi.ts";
+import { accessNote, accessRefusals, jsonBody, noContent } from "../../../http/openapi.ts";
 import { notFound } from "../../../http/refusals.ts";
 import { IdParamSchema } from "../../../http/route-input.ts";
 
@@ -14,16 +14,12 @@ const deleteItemRoute = createRoute({
   method: "delete",
   path: "/api/items/{id}",
   middleware: DELETE_ITEM,
-  description: `Delete an Item.${scopeNote(DELETE_ITEM)}`,
+  description: `Delete an Item. ${accessNote(DELETE_ITEM)}`,
   request: { params: IdParamSchema },
   responses: {
-    ...scopeRefusal(DELETE_ITEM),
+    ...accessRefusals(DELETE_ITEM),
     204: noContent(
       "The Item is deleted with its Digest, Tag links, search entries, jobs, AI tasks and files. Topics and Tags stay in the lists. A file that could not be removed is left to the cleanup, and the answer is still 204.",
-    ),
-    400: jsonBody(
-      ErrorResponseSchema,
-      "`id` breaks the rule its parameter states. Nothing is deleted.",
     ),
     404: jsonBody(ErrorResponseSchema, "No Item has this id."),
   },

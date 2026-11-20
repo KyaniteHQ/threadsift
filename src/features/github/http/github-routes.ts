@@ -8,7 +8,7 @@ import {
 } from "../../../core/contract/github-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { jsonBody, jsonRequest } from "../../../http/openapi.ts";
+import { jsonBody, jsonRequest, accessNote, accessRefusals } from "../../../http/openapi.ts";
 import {
   readGithubSettings,
   removeGithubToken,
@@ -16,11 +16,15 @@ import {
   verifyGithubToken,
 } from "../core/github-token.ts";
 
+const OWNER = access("owner");
+
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/github",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       GithubSettingsViewSchema,
       "Whether a GitHub token is saved, missing or unreadable, and whether this Instance has a usable sealing key. No token is returned.",
@@ -31,9 +35,11 @@ const readRoute = createRoute({
 const saveRoute = createRoute({
   method: "put",
   path: "/api/settings/github",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   request: { body: jsonRequest(GithubTokenInputSchema) },
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       GithubSaveResponseSchema,
       "The settings after the token is saved or replaced, or a safe refusal when the Instance has no usable sealing key. A saved token that cannot be read does not block a replacement.",
@@ -44,8 +50,10 @@ const saveRoute = createRoute({
 const removeRoute = createRoute({
   method: "delete",
   path: "/api/settings/github",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       GithubSettingsViewSchema,
       "The settings after the token is removed. Removing when none is saved, or when the saved one is unreadable, also succeeds.",
@@ -56,8 +64,10 @@ const removeRoute = createRoute({
 const verifyRoute = createRoute({
   method: "post",
   path: "/api/settings/github/verify",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       GithubVerifyResultSchema,
       "The hourly limit and what is left, or a safe refusal. GitHub's own 401 is a refusal inside this 200, so it never signs the owner out.",

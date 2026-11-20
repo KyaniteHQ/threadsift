@@ -9,12 +9,12 @@ export const WIRE_ID_MAX = MAX_BYTES - PREFIX.length;
 export const StoredCommentId = z
   .string()
   .max(MAX_BYTES)
-  .regex(/^t1_[a-z\d]+$/iu);
+  .regex(/^[tT]1_[A-Za-z\d]+$/u);
 
 export const WireCommentId = z
   .string()
   .max(WIRE_ID_MAX)
-  .regex(/^[a-z\d]+$/iu);
+  .regex(/^[A-Za-z\d]+$/u);
 
 export function storedCommentId(wireId: string): string {
   return `${PREFIX}${wireId}`;

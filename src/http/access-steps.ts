@@ -17,9 +17,11 @@ export type Ctx = Parameters<MiddlewareHandler>[0];
 
 type Needs = "owner" | "any" | Scope;
 
+export type OriginCheck = "none" | "always" | "unless-authorization";
+
 export interface Plan {
   readonly credentials: Needs | null;
-  readonly csrf: boolean;
+  readonly csrf: OriginCheck;
   readonly after: "next" | "credential";
   readonly cache: CacheKind | null;
 }
@@ -27,6 +29,15 @@ export interface Plan {
 const NOT_FOR_TOKENS = "Agent tokens cannot use this route";
 
 const cross = csrf();
+
+export const CSRF_SAFE_METHODS: readonly string[] = ["get", "head", "options"];
+
+export const CSRF_FORM_TYPES = [
+  "application/x-www-form-urlencoded",
+  "multipart/form-data",
+  "text/plain",
+  "text/ping",
+] as const;
 
 async function credentials(c: Ctx, needs: Needs): Promise<Response | undefined> {
   const authorization = c.req.header("authorization");
@@ -62,9 +73,10 @@ export async function admit(
 ): Promise<Response | undefined> {
   const refusal = needs === null ? undefined : await credentials(c, needs);
 
-  const carriesToken = needs !== null && c.req.header("authorization") !== undefined;
+  const skipped =
+    checksOrigin === "unless-authorization" && c.req.header("authorization") !== undefined;
 
-  if (refusal === undefined && checksOrigin && !carriesToken) {
+  if (refusal === undefined && checksOrigin !== "none" && !skipped) {
     await cross(c, async () => {});
   }
 

@@ -11,11 +11,11 @@ import { ITEM_CAP, access } from "../../../http/access.ts";
 import { savedView } from "../../../http/item-view.ts";
 import {
   PASTE_DIGEST_SCOPE,
+  accessNote,
+  accessRefusals,
   budgetRefusal,
   jsonBody,
   jsonRequest,
-  scopeNote,
-  scopeRefusal,
 } from "../../../http/openapi.ts";
 import { refusing } from "../../../http/refusals.ts";
 import { callerOf, requirePasteScopes } from "../../../http/token-scopes.ts";
@@ -33,11 +33,10 @@ const saveItemRoute = createRoute({
   method: "post",
   path: "/api/items",
   middleware: SAVE_ITEM,
-  description: SAVE_ITEM_DESCRIPTION + scopeNote(SAVE_ITEM, PASTE_DIGEST_SCOPE),
+  description: `${SAVE_ITEM_DESCRIPTION} ${accessNote(SAVE_ITEM, PASTE_DIGEST_SCOPE)}`,
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
-    401: jsonBody(ErrorResponseSchema, "The agent token is unknown or revoked."),
-    ...scopeRefusal(SAVE_ITEM, PASTE_DIGEST_SCOPE),
+    ...accessRefusals(SAVE_ITEM, PASTE_DIGEST_SCOPE),
     ...budgetRefusal("Nothing is saved."),
     201: jsonBody(
       SavedItemResponseSchema,

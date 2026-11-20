@@ -36,7 +36,7 @@ const UNROUTED_PATHS: readonly PathRule[] = [
 export function unroutedPlan(c: Ctx): Plan {
   return {
     credentials: "any",
-    csrf: false,
+    csrf: "none",
     after: "next",
     cache: UNROUTED_PATHS.find(({ path }) => path.test(c.req.path))?.cache ?? null,
   };

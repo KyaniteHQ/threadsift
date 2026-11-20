@@ -11,24 +11,34 @@ import {
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
 import { getOnly } from "../../../http/method-refusals.ts";
-import { jsonBody, jsonRequest } from "../../../http/openapi.ts";
+import { accessNote, accessRefusals, jsonBody, jsonRequest } from "../../../http/openapi.ts";
 import { senderOf } from "../../../http/sender.ts";
 import { sessionIdOf } from "../../../http/session-cookie.ts";
 import { completeOpenRouterConnect } from "../core/openrouter-callback.ts";
 import { startOpenRouterConnect } from "../core/openrouter-connect.ts";
 
+const START = access("owner", { cache: "private" });
+
+const CALLBACK = access("owner", {
+  cache: "private",
+  signedOutNavigation: returnAddress(null),
+});
+
 const startRoute = createRoute({
   method: "post",
   path: CONNECT_START_PATH,
-  middleware: access("owner", { cache: "private" }),
+  middleware: START,
+  description: accessNote(START),
   request: { body: jsonRequest(ConnectStartInputSchema) },
   responses: {
+    ...accessRefusals(
+      START,
+      " The request is also refused when it did not come from this Instance's own page.",
+    ),
     201: jsonBody(
       ConnectStartResponseSchema,
       "The OpenRouter authorization address to send the browser to, and when this attempt expires. Only the owner's page on this Instance's own public origin may call it: the `Origin` header must equal `THREADSIFT_PUBLIC_ORIGIN` and `Sec-Fetch-Site` must be `same-origin`.",
     ),
-    400: jsonBody(ErrorResponseSchema, "The body is not JSON with a model and a revision."),
-    403: jsonBody(ErrorResponseSchema, "The request did not come from this Instance's own page."),
     409: jsonBody(
       ErrorResponseSchema,
       "The AI settings changed since the revision the page showed, or the session ended. No attempt was recorded.",
@@ -43,18 +53,17 @@ const startRoute = createRoute({
 const callbackRoute = createRoute({
   method: "get",
   path: CONNECT_CALLBACK_PATH,
-  middleware: [
-    access("owner", {
-      cache: "private",
-      signedOutNavigation: returnAddress(null),
-    }),
-    getOnly,
-  ],
+  middleware: [CALLBACK, getOnly],
+  description: accessNote(CALLBACK),
   responses: {
-    303: { description: "Always a redirect to Settings with a closed notice." },
+    ...accessRefusals(CALLBACK),
+    303: {
+      description:
+        "A redirect to Settings with a closed notice. A browser navigation with no owner session is redirected to Settings without a notice, and the callback does not run.",
+    },
     405: {
       description:
-        "Any method but GET answers 405 with `Allow: GET`, and a HEAD completes no attempt. Only GET may complete an attempt.",
+        "With the owner's session, any method but GET answers 405 with `Allow: GET`, and a HEAD completes no attempt. Only GET may complete an attempt.",
     },
   },
 });

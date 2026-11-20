@@ -30,6 +30,17 @@ export const EXPORT_FAILURES = ["gave-up", "cancelled", "replaced", "list-change
 
 export type ExportFailure = (typeof EXPORT_FAILURES)[number];
 
+export const SHOWN_EXPORT_FAILURES = [
+  "gave-up",
+  "list-changed",
+] as const satisfies readonly ExportFailure[];
+
+export type ShownExportFailure = (typeof SHOWN_EXPORT_FAILURES)[number];
+
+export function isShownFailure(failure: ExportFailure | null): failure is ShownExportFailure {
+  return SHOWN_EXPORT_FAILURES.some((shown) => shown === failure);
+}
+
 const PartialItemSchema = z
   .object({ id: z.number().int().positive(), entries: WholeCount })
   .readonly();
@@ -86,7 +97,7 @@ const FailedExportSchema = z.object({
   state: z.literal("failed"),
   id: z.number().int().positive(),
   createdAt: z.number().int(),
-  failure: z.enum(EXPORT_FAILURES),
+  failure: z.enum(SHOWN_EXPORT_FAILURES),
 });
 
 export const ExportStatusSchema = z.discriminatedUnion("state", [

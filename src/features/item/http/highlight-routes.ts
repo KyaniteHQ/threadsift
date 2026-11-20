@@ -7,8 +7,14 @@ import {
   HighlightResponseSchema,
 } from "../../../core/contract/highlight-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { DEFAULT_CAP, access, tooLarge } from "../../../http/access.ts";
-import { jsonBody, jsonRequest, noContent } from "../../../http/openapi.ts";
+import { access } from "../../../http/access.ts";
+import {
+  accessNote,
+  accessRefusals,
+  jsonBody,
+  jsonRequest,
+  noContent,
+} from "../../../http/openapi.ts";
 import { notFound } from "../../../http/refusals.ts";
 import { HighlightParamsSchema, IdParamSchema } from "../../../http/route-input.ts";
 import { createHighlight, removeHighlight } from "../core/highlights.ts";
@@ -21,17 +27,19 @@ const STALE =
 
 const MISMATCH = "selector: it does not match the text of that revision";
 
-const OWNER_ONLY = "Only the owner's session may call this; an agent token gets 403.";
+const OWNER = access("owner");
 
 const createHighlightRoute = createRoute({
   method: "post",
   path: "/api/items/{id}/highlights",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   request: { params: IdParamSchema, body: jsonRequest(CreateHighlightRequestSchema) },
   responses: {
+    ...accessRefusals(OWNER),
     201: jsonBody(
       HighlightResponseSchema,
-      `The Highlight is saved and \`attached\`, with the id the server chose. ${OWNER_ONLY}`,
+      `The Highlight is saved and \`attached\`, with the id the server chose.`,
     ),
     200: jsonBody(
       HighlightResponseSchema,
@@ -39,9 +47,8 @@ const createHighlightRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      `The body is not a target, a revision and a selector, the quote is empty or not well-formed Unicode, or the selector does not match the text of that revision: \`exact\` must stand at \`hint\` (counted in code points) in the text of the target, with the up to ${String(CONTEXT_CODE_POINTS)} code points before it as \`prefix\` and the up to ${String(CONTEXT_CODE_POINTS)} after it as \`suffix\`. Nothing is saved.`,
+      `The selector does not match the text of that revision: \`exact\` must stand at \`hint\` (counted in code points) in the text of the target, with the up to ${String(CONTEXT_CODE_POINTS)} code points before it as \`prefix\` and the up to ${String(CONTEXT_CODE_POINTS)} after it as \`suffix\`. Nothing is saved.`,
     ),
-    403: jsonBody(ErrorResponseSchema, `An agent token called this. ${OWNER_ONLY}`),
     404: jsonBody(
       ErrorResponseSchema,
       "No Item has this id, or the thread the Reader shows has no comment with the target's `commentId`.",
@@ -50,24 +57,20 @@ const createHighlightRoute = createRoute({
       ErrorResponseSchema,
       "`revision` is not the revision of the target any more, because a refresh or a new Digest changed the text. Nothing is saved. Read `GET /api/items/{id}`, take `highlights.revisions.post` (or `.comments` for a comment) and the text it shows, and select the passage again.",
     ),
-    413: jsonBody(ErrorResponseSchema, `${tooLarge(DEFAULT_CAP)}.`),
   },
 });
 
 const removeHighlightRoute = createRoute({
   method: "delete",
   path: "/api/items/{id}/highlights/{highlightId}",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   request: { params: HighlightParamsSchema },
   responses: {
+    ...accessRefusals(OWNER),
     204: noContent(
-      `The Highlight and its search entry are removed. ${OWNER_ONLY} A second delete of the same ids answers 404.`,
+      `The Highlight and its search entry are removed. A second delete of the same ids answers 404.`,
     ),
-    400: jsonBody(
-      ErrorResponseSchema,
-      "`id` or `highlightId` breaks the rule its parameter states.",
-    ),
-    403: jsonBody(ErrorResponseSchema, `An agent token called this. ${OWNER_ONLY}`),
     404: jsonBody(
       ErrorResponseSchema,
       "No Highlight with this `highlightId` belongs to the Item with this `id`.",

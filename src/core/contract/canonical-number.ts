@@ -17,5 +17,4 @@ export const CanonicalNumberTextSchema = z
   .pipe(CanonicalNumberSchema)
   .meta({
     description: `The value must be ${CANONICAL_NUMBER_RULE}. A caller that passes the access check and sends any other text gets 400.`,
-    pattern: CANONICAL_NUMBER.source,
   });

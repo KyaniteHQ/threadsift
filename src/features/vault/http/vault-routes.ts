@@ -8,7 +8,7 @@ import {
 } from "../../../core/contract/vault-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { jsonBody, jsonRequest } from "../../../http/openapi.ts";
+import { jsonBody, jsonRequest, accessNote, accessRefusals } from "../../../http/openapi.ts";
 import {
   readVaultSettings,
   removeVaultSettings,
@@ -16,11 +16,15 @@ import {
   verifyVaultSettings,
 } from "../core/vault-settings.ts";
 
+const OWNER = access("owner");
+
 const read = createRoute({
   method: "get",
   path: "/api/settings/obsidian",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       VaultViewSchema,
       "Vault target and its configuration state. No token is returned.",
@@ -30,24 +34,32 @@ const read = createRoute({
 const save = createRoute({
   method: "put",
   path: "/api/settings/obsidian",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   request: { body: jsonRequest(VaultInputSchema) },
-  responses: { 200: jsonBody(VaultResultSchema, "Save a vault target and queue the library.") },
+  responses: {
+    ...accessRefusals(OWNER),
+    200: jsonBody(VaultResultSchema, "Save a vault target and queue the library."),
+  },
 });
 const remove = createRoute({
   method: "delete",
   path: "/api/settings/obsidian",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(VaultResultSchema, "Disconnect the vault without deleting its files."),
   },
 });
 const verify = createRoute({
   method: "post",
   path: "/api/settings/obsidian/verify",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   request: { body: jsonRequest(VaultVerifyInputSchema) },
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       VaultResultSchema,
       "Check if a branch is reachable or a mounted folder is writable. Saves no setting.",

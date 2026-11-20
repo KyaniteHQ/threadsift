@@ -1,18 +1,12 @@
 import { z } from "zod";
 
 import { CanonicalNumberTextSchema } from "../core/contract/canonical-number.ts";
-import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { parseCursor as parseHighlightsCursor } from "../core/contract/highlights-page-contract.ts";
 import { READ_STATES, SEARCH_MAX, SOURCES } from "../core/contract/item-contract.ts";
 import { parseCursor as parseItemCursor } from "../core/contract/item-cursor.ts";
 import { HttpUrlSchema } from "../core/contract/item-wire.ts";
-import { jsonBody } from "./openapi.ts";
 
 export const IdParamSchema = z.object({ id: CanonicalNumberTextSchema });
-
-export const ID_REFUSAL = {
-  400: jsonBody(ErrorResponseSchema, "An id in the path breaks the rule its parameter states."),
-};
 
 export const HighlightParamsSchema = IdParamSchema.extend({
   highlightId: CanonicalNumberTextSchema,
