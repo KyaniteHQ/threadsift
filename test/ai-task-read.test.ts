@@ -77,7 +77,7 @@ describe("the task read answers what the bot has to do to the task's own credent
     assert.ok(Array.isArray(read.schema["anyOf"]));
   });
 
-  it("answers 401 with one body for a missing, wrong, foreign or unknown credential and 403 for a session or an agent token", async () => {
+  it("answers 401 with one body and a Bearer challenge for a missing, wrong, foreign or unknown credential and 403 for a session or an agent token", async () => {
     const task = await taskAfterStart(world.instance, world.library.source);
     const other = await sentIntake(world.instance);
 
@@ -93,17 +93,35 @@ describe("the task read answers what the bot has to do to the task's own credent
       attempts.map(async ([id, token]) => {
         const response = await readOf(world.instance, id, token);
 
-        return [response.status, await response.text(), response.headers.get("cache-control")];
+        return [
+          response.status,
+          await response.text(),
+          response.headers.get("cache-control"),
+          response.headers.get("www-authenticate"),
+        ];
       }),
     );
 
     assert.deepEqual([...new Set(refused.map(([status]) => status))], [401]);
     assert.deepEqual([...new Set(refused.map(([, , cache]) => cache))], ["no-store"]);
+    assert.deepEqual(
+      refused.map(([, , , challenge]) => challenge),
+      ["Bearer", ...Array.from({ length: 4 }, () => 'Bearer error="invalid_token"')],
+    );
     assert.equal(new Set(refused.map(([, body]) => body)).size, 1);
-    assert.equal((await readOf(world.instance, task.id, world.agentToken)).status, 403);
-    assert.equal(
-      (await readOf(world.instance, task.id, null, world.instance.sessionCookie ?? "")).status,
-      403,
+
+    const forbidden = await Promise.all([
+      readOf(world.instance, task.id, world.agentToken),
+      readOf(world.instance, task.id, null, world.instance.sessionCookie ?? ""),
+    ]);
+
+    assert.deepEqual(
+      forbidden.map(({ status }) => status),
+      [403, 403],
+    );
+    assert.deepEqual(
+      forbidden.map(({ headers }) => headers.get("www-authenticate")),
+      [null, null],
     );
   });
 
