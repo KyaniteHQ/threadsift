@@ -6,7 +6,7 @@ import { jobs } from "../src/core/kernel/schema.ts";
 import { botStep } from "../src/features/ai/core/bot-step.ts";
 import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts";
 import { xIntakeKind } from "../src/features/x/core/x-intake.ts";
-import { claimedOf } from "./bot-task-fixtures.ts";
+import { claimedNew } from "./bot-task-fixtures.ts";
 import type { Credential } from "./bot-task-http.ts";
 import type { Instance, Json } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
@@ -19,30 +19,16 @@ export interface IntakeTask {
   readonly statusId: string;
 }
 
-const HOUR_MS = 3_600_000;
-
 let nextStatus = 2_000_000_000_000_000_000n;
 
 export const addressOf = (statusId: string) => `https://x.com/someone/status/${statusId}`;
 
-export function insertedFetchJob(instance: Instance, itemId: number, address: string): void {
-  exec(
-    instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values ('fetch', ?, ?, 'running', 0, 0, 0, ?)",
-    itemId,
-    address,
-    Date.now() + HOUR_MS,
-  );
-}
-
-export function keptOffTheNetwork(instance: Instance, itemId: number, address: string): void {
-  exec(
-    instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values ('x_verify', ?, ?, 'running', 0, 0, 0, ?)",
-    itemId,
-    address,
-    Date.now() + HOUR_MS,
-  );
+export function claimedFetchJob(
+  instance: Instance,
+  itemId: number,
+  address: string,
+): Promise<ClaimedJob> {
+  return claimedNew(instance, { kind: "fetch", itemId, address });
 }
 
 export function insertedXItem(instance: Instance, statusId: string): number {
@@ -65,7 +51,7 @@ export function insertedXItem(instance: Instance, statusId: string): number {
   return row.id;
 }
 
-export async function openFetchJob(instance: Instance, itemId: number): Promise<ClaimedJob> {
+export async function latestFetchJob(instance: Instance, itemId: number) {
   const [job] = await instance.core.db
     .select()
     .from(jobs)
@@ -75,7 +61,7 @@ export async function openFetchJob(instance: Instance, itemId: number): Promise<
 
   if (job === undefined) throw new Error("the job was not stored");
 
-  return claimedOf(job);
+  return job;
 }
 
 export async function sentIntake(instance: Instance): Promise<IntakeTask> {
@@ -83,10 +69,7 @@ export async function sentIntake(instance: Instance): Promise<IntakeTask> {
 
   const statusId = String(nextStatus);
   const itemId = insertedXItem(instance, statusId);
-
-  insertedFetchJob(instance, itemId, addressOf(statusId));
-
-  const job = await openFetchJob(instance, itemId);
+  const job = await claimedFetchJob(instance, itemId, addressOf(statusId));
   const prepared = await xIntakeKind.prepare(instance.core, job);
 
   if (prepared.kind !== "ask") throw new Error("the intake task has nothing to ask");
@@ -135,14 +118,6 @@ export function openJobIds(instance: Instance, itemId: number): readonly number[
 
 export function stepOf(instance: Instance, job: Readonly<ClaimedJob>) {
   return botStep(instance.core, job, xIntakeKind);
-}
-
-export async function sentIntakeForContent(instance: Instance): Promise<IntakeTask> {
-  const task = await sentIntake(instance);
-
-  keptOffTheNetwork(instance, task.itemId, addressOf(task.statusId));
-
-  return task;
 }
 
 export async function waitingIntake(instance: Instance): Promise<IntakeTask> {

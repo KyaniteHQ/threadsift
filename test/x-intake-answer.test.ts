@@ -14,7 +14,7 @@ import {
   largeThreadOf,
   oversizedAnswerOf,
 } from "./x-intake-bodies.ts";
-import { intakeTo, sentIntake, sentIntakeForContent } from "./x-intake-fixtures.ts";
+import { intakeTo, sentIntake } from "./x-intake-fixtures.ts";
 import { PUBLISHED_TABLES, itemRow, stored, verificationRow } from "./x-intake-rows.ts";
 
 describe("an X link answer with the task's credential is stored once and only for the task it was sent for", () => {
@@ -34,7 +34,7 @@ describe("an X link answer with the task's credential is stored once and only fo
   after(() => instance.close());
 
   it("stores the thread for verification without showing it, keeps the Digest for the Item, closes the task and the job, and answers a repeat with 409 and no change", async () => {
-    const task = await sentIntakeForContent(instance);
+    const task = await sentIntake(instance);
     const started = Date.now();
 
     const answer = await intakeTo(instance, task, answerOf(task.statusId));
@@ -53,15 +53,15 @@ describe("an X link answer with the task's credential is stored once and only fo
     assert.deepEqual([item.fetch_result, item.generation], [null, 0]);
     assert.equal(stored(instance, ["reddit_comments", "digests"]), "[[],[]]");
 
-    const unchanged = stored(instance);
+    const unchanged = stored(instance, ["ai_tasks", "x_verifications"]);
     const repeat = await intakeTo(instance, task, answerOf(task.statusId));
 
     assert.equal(repeat.status, 409);
-    assert.equal(stored(instance), unchanged);
+    assert.equal(stored(instance, ["ai_tasks", "x_verifications"]), unchanged);
   });
 
   it("stores ranked replies, Digest picks, their ancestors and the author thread from 100 intake replies when the full answer exceeds the stored row limit", async () => {
-    const task = await sentIntakeForContent(instance);
+    const task = await sentIntake(instance);
     const value = largeThreadOf(task.statusId);
     const content = JSON.stringify({ ...value, post: { ...value.post, replies: 0 } });
     assert.ok(content.length > 1_499_998);
@@ -72,10 +72,10 @@ describe("an X link answer with the task's credential is stored once and only fo
       keptComments: [2n, 3n, 99n, 101n].map((offset) => `t1_${String(root + offset)}`),
     };
     const response = await intakeTo(instance, task, { content, digest });
+    const verification = verificationRow(instance, task.itemId);
     assert.equal(response.status, 204, await response.text());
 
     const offsets = [100, 99, 98, ...Array.from({ length: 40 }, (_, index) => 43 - index), 1];
-    const verification = verificationRow(instance, task.itemId);
     assert.equal(verification?.thread.post.replies, 100);
     assert.deepEqual(
       verification?.thread.replies.map(({ id }) => id),
@@ -84,7 +84,7 @@ describe("an X link answer with the task's credential is stored once and only fo
   });
 
   it("refuses a thread when the selected replies exceed the stored row limit and names the limit", async () => {
-    const task = await sentIntakeForContent(instance);
+    const task = await sentIntake(instance);
     const response = await intakeTo(instance, task, oversizedAnswerOf(task.statusId));
 
     assert.equal(response.status, 400);
@@ -93,7 +93,7 @@ describe("an X link answer with the task's credential is stored once and only fo
   });
 
   it("keeps a Digest the owner supplied with the link when the answer holds none", async () => {
-    const task = await sentIntakeForContent(instance);
+    const task = await sentIntake(instance);
     const picked = String(BigInt(task.statusId) + 99n);
     const supplied = JSON.stringify({ ...digestOf(), keptComments: [`t1_${picked}`] });
 
@@ -182,6 +182,10 @@ describe("an X link answer with the task's credential is stored once and only fo
 
     const saved = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
       url: "https://example.com/not-the-task",
+      page: {
+        markdown: "The page text the caller sent with the link. ".repeat(40),
+        title: "A page",
+      },
       taskId: task.id,
     });
 

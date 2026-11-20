@@ -21,7 +21,7 @@ const WRONG_KEY_STATUSES: ReadonlySet<number> = new Set([401, 403]);
 
 const NOT_FOUND = 404;
 
-export function resultOfStatus(status: number): GrokBotResult {
+function resultOfStatus(status: number): GrokBotResult {
   if (status === OK) return "ok";
 
   if (WRONG_KEY_STATUSES.has(status)) return "wrong-key";

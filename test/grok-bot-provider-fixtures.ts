@@ -3,21 +3,15 @@ import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
 
-import {
-  GROK_BOT_IN_FLIGHT,
-  VERIFY_OWNER,
-  startBotTask,
-} from "../src/features/ai/core/bot-task-start.ts";
-import { VERIFY_START } from "../src/features/bot/core/bot-verify-task.ts";
 import { awaitVerifiedDigest } from "../src/features/bot/core/bot-verify-wait.ts";
-import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
+import { acceptedByBot, botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 import { sentIntake } from "./x-intake-fixtures.ts";
 
-export { GROK_BOT_IN_FLIGHT };
+export const VERIFY_PATH = "/api/settings/ai/verify";
 
-export { AI_PATH, chooseGrokBot, selectGrokBot } from "./bot-task-fixtures.ts";
+export { AI_PATH, GROK_BOT_IN_FLIGHT, chooseGrokBot, selectGrokBot } from "./bot-task-fixtures.ts";
 
 export async function botProviderInstance(): Promise<Instance> {
   const instance = await botInstance();
@@ -58,14 +52,24 @@ export function generationOf(instance: Instance, itemId: number): number {
   return item?.generation ?? 0;
 }
 
+const VerifyTask = z.object({ id: z.number() });
+
 export async function sentVerifyTask(instance: Instance) {
-  const started = await startBotTask(instance.core, VERIFY_OWNER, VERIFY_START);
+  await selectGrokBot(instance);
 
-  if (started.kind !== "started") throw new Error("the Verify task did not start");
+  const verified = await instance.send("POST", VERIFY_PATH);
 
-  exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), started.task.id);
+  assert.equal(verified.status, 200, verified.body);
 
-  return { id: started.task.id, token: started.token };
+  const [started] = rows(
+    instance,
+    VerifyTask,
+    `select id from ai_tasks where kind = 'digest' and context = '{"verify":true}' order by id desc limit 1`,
+  );
+
+  assert.ok(started !== undefined, "Verify started no task");
+
+  return acceptedByBot(instance, started.id);
 }
 
 const SETTLE_MS = 300;

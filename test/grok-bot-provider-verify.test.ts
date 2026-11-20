@@ -7,14 +7,13 @@ import { answered, errorOf } from "./bot-task-http.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";
 import {
   GROK_BOT_IN_FLIGHT,
+  VERIFY_PATH,
   chooseGrokBot,
   occupyBot,
   sentVerifyTask,
   verifyingTask,
 } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-
-const VERIFY_PATH = "/api/settings/ai/verify";
 
 const ANSWER = {
   title: "Quasar lattice",

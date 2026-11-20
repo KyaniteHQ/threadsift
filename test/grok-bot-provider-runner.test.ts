@@ -56,9 +56,10 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
           attemptGeneration: generationOf(instance, owner),
         });
 
-        const first = await unansweredClaim(instance, { kindCase, job });
+        const first = await unansweredClaim(instance, job);
 
-        await executeClaimed(instance.core, job);
+        assert.equal(taskRow(instance, first.id).attempts, 1);
+        await executeClaimed(instance.core, first.job);
 
         const afterFirst = jobRow(instance, job.id);
 
@@ -69,9 +70,10 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
         assert.equal(taskRow(instance, first.id).refusal, "timeout");
 
         const secondClaim = await claimedAgain(instance, job);
-        const second = await unansweredClaim(instance, { kindCase, job: secondClaim });
+        const second = await unansweredClaim(instance, secondClaim);
 
-        await executeClaimed(instance.core, secondClaim);
+        assert.equal(taskRow(instance, second.id).attempts, 2);
+        await executeClaimed(instance.core, second.job);
 
         const afterSecond = jobRow(instance, job.id);
 
@@ -82,9 +84,10 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
         assert.equal(taskRow(instance, second.id).refusal, "timeout");
 
         const thirdClaim = await claimedAgain(instance, job);
-        const third = await unansweredClaim(instance, { kindCase, job: thirdClaim });
+        const third = await unansweredClaim(instance, thirdClaim);
 
-        await executeClaimed(instance.core, thirdClaim);
+        assert.equal(taskRow(instance, third.id).attempts, 3);
+        await executeClaimed(instance.core, third.job);
 
         const gaveUp = jobRow(instance, job.id);
 
@@ -125,7 +128,7 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
 
         const sent = await answeredAs(instance, { kindCase, job });
 
-        await executeClaimed(instance.core, job);
+        await executeClaimed(instance.core, sent.job);
 
         const done = jobRow(instance, job.id);
 

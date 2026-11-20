@@ -3,16 +3,17 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { DIGEST_ANSWER, KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
-import { appliedAgain, settled } from "./bot-kinds-steps.ts";
 import { jobRow, libraryDump, rowCount, taskRow, topicPage } from "./bot-task-rows.ts";
 import { seedDigested } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { lockedWriter } from "./locked-writer.ts";
 
 const KeptSchema = z.object({ keptComments: z.array(z.string()) });
 
-describe("an answered bot task of each kind applies once under the guard its executor keeps", () => {
+describe("an answered bot task of each kind applies once, and a run of the finished job writes nothing", () => {
   for (const kindCase of KIND_CASES) {
     describe(kindCase.kind, () => {
       let instance: Instance;
@@ -23,23 +24,52 @@ describe("an answered bot task of each kind applies once under the guard its exe
 
       after(() => instance.close());
 
-      it("writes the answer, completes the task and closes the job, and a second apply of the same answer writes nothing", async () => {
+      it("writes the answer, completes the task and closes the job, and a second run of that job writes nothing", async () => {
         const owner = await kindCase.library(instance);
         const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
         const sent = await answeredAs(instance, { kindCase, job });
 
-        await settled(instance, kindCase.kind, job);
+        await executeClaimed(instance.core, sent.job);
 
         assert.equal(taskRow(instance, sent.id).state, "done");
         assert.equal(jobRow(instance, job.id).state, "done");
         assert.ok(kindCase.wrote(instance, owner));
 
-        const written = libraryDump(instance);
+        const written = libraryDump(instance, job.id);
 
-        await appliedAgain(instance, kindCase.kind, job);
+        await executeClaimed(instance.core, sent.job);
 
-        assert.equal(libraryDump(instance), written);
+        assert.equal(libraryDump(instance, job.id), written);
       });
+    });
+  }
+});
+
+describe("a Provider switch that abandons an answered task while the job applies it leaves the library as it was", () => {
+  for (const kindCase of KIND_CASES) {
+    it(kindCase.kind, async () => {
+      const instance = await botInstance();
+
+      try {
+        const owner = await kindCase.library(instance);
+        const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
+        const sent = await answeredAs(instance, { kindCase, job });
+
+        const writer = await lockedWriter(instance, [
+          `update ai_tasks set state = 'failed', result = null, refusal = 'abandoned', status = null where id = ${String(sent.id)}`,
+        ]);
+
+        await executeClaimed(instance.core, sent.job);
+        await writer.committed;
+
+        const task = taskRow(instance, sent.id);
+
+        assert.deepEqual([task.state, task.refusal], ["failed", "abandoned"]);
+        assert.equal(kindCase.wrote(instance, owner), false);
+        assert.notEqual(jobRow(instance, job.id).state, "done");
+      } finally {
+        await instance.close();
+      }
     });
   }
 });
@@ -54,7 +84,7 @@ describe("an empty answer to a weekly run applies and completes the task", () =>
         const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
         const sent = await answeredAs(instance, { kindCase, job, empty: true });
 
-        await settled(instance, kindCase.kind, job);
+        await executeClaimed(instance.core, sent.job);
 
         assert.deepEqual(
           [
@@ -80,8 +110,9 @@ describe("a Topic overview that comes back unchanged", () => {
       const owner = await overview.library(instance);
       const first = await openJobOf(instance, { kind: "topic_overview", itemId: owner });
 
-      await answeredAs(instance, { kindCase: overview, job: first });
-      await settled(instance, "topic_overview", first);
+      const answeredFirst = await answeredAs(instance, { kindCase: overview, job: first });
+
+      await executeClaimed(instance.core, answeredFirst.job);
 
       const text = topicPage(instance, 1)?.overview;
 
@@ -91,7 +122,7 @@ describe("a Topic overview that comes back unchanged", () => {
       const unchanged = { ...overview, fits: () => ({ lines: [], unchanged: true }) };
       const sent = await answeredAs(instance, { kindCase: unchanged, job });
 
-      await settled(instance, "topic_overview", job);
+      await executeClaimed(instance.core, sent.job);
 
       const page = topicPage(instance, 1);
 
@@ -121,7 +152,7 @@ describe("a Digest that keeps a comment id the bot was not sent", () => {
 
       const sent = await answeredAs(instance, { kindCase: lenient, job });
 
-      await settled(instance, "digest", job);
+      await executeClaimed(instance.core, sent.job);
 
       const published = KeptSchema.parse(JSON.parse(taskRow(instance, sent.id).result ?? "null"));
 

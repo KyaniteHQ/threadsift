@@ -12,7 +12,7 @@ import { holding } from "../../../core/kernel/job-rows.ts";
 import { type JobRow, aiTasks } from "../../../core/kernel/schema.ts";
 import { newCallbackCredential } from "./callback-credential.ts";
 
-export const GROK_BOT_IN_FLIGHT = 10;
+const GROK_BOT_IN_FLIGHT = 10;
 
 const BOT_TASK_DEADLINE_MS = 60 * 60 * 1000;
 

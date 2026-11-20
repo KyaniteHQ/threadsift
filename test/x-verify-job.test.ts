@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { Instance } from "./instance.ts";
 import { until } from "./related-fixtures.ts";
 import { digestOf } from "./x-intake-bodies.ts";
-import { addressOf, insertedXItem, openFetchJob } from "./x-intake-fixtures.ts";
+import { addressOf, insertedXItem, latestFetchJob } from "./x-intake-fixtures.ts";
 import { commentCount, itemRow, verificationRow, verifyJobStates } from "./x-intake-rows.ts";
 import { xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
@@ -110,7 +110,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
         } else {
           assert.equal(item.status, "processing");
           assert.equal(item.wait?.reason, "x-reread");
-          const fetch = await openFetchJob(instance, itemId);
+          const fetch = await latestFetchJob(instance, itemId);
           assert.equal(fetch.state, "queued");
           assert.equal(fetch.attempts, attempts + 1);
           assert.ok(

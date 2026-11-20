@@ -1,19 +1,21 @@
 import assert from "node:assert/strict";
 
-import { asc, desc, eq, gte } from "drizzle-orm";
 import { z } from "zod";
 
-import { type ClaimedJob, claimedRow } from "../src/core/kernel/job-outcome.ts";
+import { claimNextDue } from "../src/core/compose/jobs.ts";
+import type { JobKind } from "../src/core/contract/job-contract.ts";
+import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/kernel/schema.ts";
-import { KEY, PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
+import { newCallbackCredential } from "../src/features/ai/core/callback-credential.ts";
+import { KEY, PATH, SECRET_KEY, inOrder } from "./grok-bot-fixtures.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 export { SECRET_KEY };
 
-export const UNREACHABLE_ADDRESS = "https://no-such-host.invalid/automations/webhook/none";
+export const GROK_BOT_IN_FLIGHT = 10;
 
-const YEAR_MS = 365 * 24 * 3_600_000;
+export const UNREACHABLE_ADDRESS = "https://no-such-host.invalid/automations/webhook/none";
 
 export interface BotLibrary {
   readonly source: number;
@@ -47,112 +49,164 @@ export async function relatedLibrary(instance: Instance): Promise<BotLibrary> {
     tags: ["quasar"],
   });
 
-  exec(
-    instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values ('digest', ?, 'https://example.com/x', 'running', 0, 0, 0, ?)",
-    source,
-    Date.now() + YEAR_MS,
-  );
+  await claimedNew(instance, { kind: "digest", itemId: source });
 
   return { source, candidates: [first, second] };
 }
 
 export function unblock(instance: Instance, itemId: number): void {
-  exec(instance, "delete from jobs where kind = 'digest' and item_id = ?", itemId);
+  exec(
+    instance,
+    "update jobs set state = 'done', claim_expires = null where kind = 'digest' and item_id = ? and state = 'running'",
+    itemId,
+  );
 }
 
-export function claimedOf(job: Readonly<JobRow>): ClaimedJob {
-  const claimed = claimedRow({ ...job, attemptKey: "", imagePrefix: "" });
+export async function claimedJob(instance: Instance, id: number): Promise<ClaimedJob> {
+  const claimed = await claimNextDue(instance.core.db);
 
-  if (claimed.itemId === null) throw new Error(`job ${String(job.id)} has no Item`);
+  assert.ok(
+    claimed !== null && claimed.kind !== "export" && claimed.kind !== "restore",
+    `the claim found ${claimed === null ? "no job" : claimed.kind}, not job ${String(id)}`,
+  );
+  assert.equal(claimed.id, id);
 
   return claimed;
+}
+
+export function reclaimedJob(
+  instance: Instance,
+  job: Readonly<Pick<JobRow, "id">>,
+): Promise<ClaimedJob> {
+  exec(instance, "update jobs set next_attempt_at = 0, claim_expires = null where id = ?", job.id);
+
+  return claimedJob(instance, job.id);
+}
+
+export function acceptedByBot(instance: Instance, taskId: number) {
+  const credential = newCallbackCredential(instance.core.crypto);
+
+  exec(
+    instance,
+    "update ai_tasks set state = 'running', refusal = null, status = null, sent_at = ?, callback_hash = ? where id = ?",
+    Date.now(),
+    credential.hash,
+    taskId,
+  );
+
+  return { id: taskId, token: credential.value };
+}
+
+interface QueuedJob {
+  readonly kind: JobKind;
+  readonly itemId: number;
+  readonly address?: string;
+  readonly attempts?: number;
+  readonly staleRequeues?: number;
+  readonly attemptGeneration?: number | null;
+}
+
+async function queuedJob(
+  instance: Instance,
+  {
+    kind,
+    itemId,
+    address = "https://example.com/x",
+    attempts = 0,
+    staleRequeues = 0,
+    attemptGeneration = null,
+  }: Readonly<QueuedJob>,
+): Promise<number> {
+  const [inserted] = await instance.core.db
+    .insert(jobs)
+    .values({
+      kind,
+      itemId,
+      address,
+      state: "queued",
+      attempts,
+      staleRequeues,
+      attemptGeneration,
+      nextAttemptAt: 0,
+    })
+    .returning({ id: jobs.id });
+
+  if (inserted === undefined) throw new Error("the job was not stored");
+
+  return inserted.id;
 }
 
 export async function bulkJobs(
   instance: Instance,
   count: number,
-  kind = "related_pick",
+  kind: JobKind = "related_pick",
 ): Promise<readonly ClaimedJob[]> {
   const first =
     (rows(instance, z.object({ id: z.number().nullable() }), "select max(id) as id from items")[0]
       ?.id ?? 0) + 1;
 
-  for (const offset of Array.from({ length: count }, (_, index) => index)) {
-    const id = first + offset;
+  const claims: ClaimedJob[] = [];
 
-    exec(
-      instance,
-      "insert into items (id, source, kind, normalized_url, original_url, saved_at) values (?, 'article', 'article', ?, ?, 1)",
-      id,
-      `https://example.com/bulk/${String(id)}`,
-      `https://example.com/bulk/${String(id)}`,
-    );
-    exec(
-      instance,
-      "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', 0, 0, 0, ?)",
-      kind,
-      id,
-      Date.now() + YEAR_MS,
-    );
-  }
+  await inOrder(
+    Array.from({ length: count }, (_, offset) => first + offset),
+    async (id) => {
+      exec(
+        instance,
+        "insert into items (id, source, kind, normalized_url, original_url, saved_at) values (?, 'article', 'article', ?, ?, 1)",
+        id,
+        `https://example.com/bulk/${String(id)}`,
+        `https://example.com/bulk/${String(id)}`,
+      );
 
-  const found = await instance.core.db
-    .select()
-    .from(jobs)
-    .where(gte(jobs.itemId, first))
-    .orderBy(asc(jobs.id));
+      claims.push(await claimedNew(instance, { kind, itemId: id }));
+    },
+  );
 
-  return found.map((job) => claimedOf(job));
+  return claims;
 }
 
-export async function openJobOfKind(
+export async function claimedNew(
   instance: Instance,
-  {
-    kind,
-    itemId,
-    attempts = 0,
-    staleRequeues = 0,
-    attemptGeneration = null,
-  }: Readonly<{
-    kind: string;
-    itemId: number;
-    attempts?: number;
-    staleRequeues?: number;
-    attemptGeneration?: number | null;
-  }>,
+  options: Readonly<QueuedJob>,
 ): Promise<ClaimedJob> {
+  return claimedJob(instance, await queuedJob(instance, options));
+}
+
+export function openJobOfKind(
+  instance: Instance,
+  options: Readonly<QueuedJob>,
+): Promise<ClaimedJob> {
+  const { kind, itemId } = options;
+
   exec(
     instance,
     "update jobs set state = 'done', claim_expires = null where kind = ? and item_id = ?",
     kind,
     itemId,
   );
-  exec(
-    instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, attempt_generation, next_attempt_at, claim_expires) values (?, ?, 'https://example.com/x', 'running', ?, ?, ?, 0, ?)",
-    kind,
-    itemId,
-    attempts,
-    staleRequeues,
-    attemptGeneration,
-    Date.now() + 3_600_000,
-  );
 
-  const [job] = await instance.core.db
-    .select()
-    .from(jobs)
-    .where(eq(jobs.itemId, itemId))
-    .orderBy(desc(jobs.id))
-    .limit(1);
-
-  if (job === undefined) throw new Error("the job was not stored");
-
-  return claimedOf(job);
+  return claimedNew(instance, options);
 }
 
-export function openJob(instance: Instance, itemId: number, attempts = 0): Promise<ClaimedJob> {
-  return openJobOfKind(instance, { kind: "related_pick", itemId, attempts });
+export async function openJob(
+  instance: Instance,
+  itemId: number,
+  attempts = 0,
+): Promise<ClaimedJob> {
+  const [held] = rows(
+    instance,
+    z.object({ n: z.number() }),
+    "select count(*) as n from jobs where kind = 'digest' and item_id = ? and state = 'running'",
+    itemId,
+  );
+
+  unblock(instance, itemId);
+
+  const job = await openJobOfKind(instance, { kind: "related_pick", itemId, attempts });
+
+  if (held?.n === 1) await claimedNew(instance, { kind: "digest", itemId });
+
+  return job;
 }
 
 export async function botInstance(): Promise<Instance> {

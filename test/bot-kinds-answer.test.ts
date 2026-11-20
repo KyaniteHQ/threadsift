@@ -33,7 +33,6 @@ describe("a bot task of each kind stores the context its answer is checked and a
 
         sent = await sentTask(
           instance,
-          kindCase.kind,
           await openJobOf(instance, { kind: kindCase.kind, itemId: owner }),
         );
       });

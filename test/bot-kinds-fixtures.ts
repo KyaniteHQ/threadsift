@@ -1,21 +1,34 @@
+import assert from "node:assert/strict";
+
+import { executeClaimed } from "../src/core/compose/jobs.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
-import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts";
-import { BOT_TASK_KINDS } from "../src/features/bot/core/bot-task-kinds.ts";
+import { isLastAttempt } from "../src/core/kernel/job-retry.ts";
 import type { BotKindName, KindCase } from "./bot-kinds-cases.ts";
-import { openJobOfKind, selectGrokBot } from "./bot-task-fixtures.ts";
+import {
+  acceptedByBot,
+  claimedJob,
+  openJobOfKind,
+  reclaimedJob,
+  selectGrokBot,
+} from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { taskRow } from "./bot-task-rows.ts";
+import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 
-export { BOT_TASK_KINDS, ownerOf, startBotTask, taskRow };
-
 export { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
+
+export { jobRow, taskRow };
 
 export interface Sent {
   readonly id: number;
   readonly token: string;
   readonly context: string;
+  readonly job: ClaimedJob;
+}
+
+interface Counters {
+  readonly staleRequeues: number;
 }
 
 export function openJobOf(
@@ -27,25 +40,43 @@ export function openJobOf(
 
 export async function sentTask(
   instance: Instance,
-  kind: BotKindName,
   job: Readonly<ClaimedJob>,
+  counters: Readonly<Partial<Counters>> = {},
 ): Promise<Sent> {
+  const lastAttempt = isLastAttempt(job.attempts);
+
   await selectGrokBot(instance);
+  exec(
+    instance,
+    "update jobs set state = 'queued', attempts = ?, next_attempt_at = 0, claim_expires = null where id = ?",
+    lastAttempt ? 0 : job.attempts,
+    job.id,
+  );
+  await executeClaimed(instance.core, await claimedJob(instance, job.id));
 
-  const prepared = await BOT_TASK_KINDS[kind].prepare(instance.core, job);
+  const task = taskRows(instance, "job_id = ?", job.id).at(-1);
 
-  if (prepared.kind !== "ask") throw new Error("the kind has nothing to ask");
+  assert.ok(task !== undefined, `the run of job ${String(job.id)} started no task`);
 
-  const started = await startBotTask(instance.core, ownerOf(job), prepared.start);
+  const { token } = acceptedByBot(instance, task.id);
 
-  if (started.kind !== "started") throw new Error(`the task did not start: ${started.kind}`);
+  if (lastAttempt) {
+    exec(instance, "update ai_tasks set attempts = ? where id = ?", job.attempts + 1, task.id);
+  }
 
-  exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), started.task.id);
+  exec(
+    instance,
+    "update jobs set attempts = ?, stale_requeues = ? where id = ?",
+    job.attempts,
+    counters.staleRequeues ?? job.staleRequeues,
+    job.id,
+  );
 
   return {
-    id: started.task.id,
-    token: started.token,
-    context: taskRow(instance, started.task.id).context ?? "",
+    id: task.id,
+    token,
+    context: task.context ?? "",
+    job: await reclaimedJob(instance, job),
   };
 }
 
@@ -54,16 +85,18 @@ export async function answeredAs(
   {
     kindCase,
     job,
+    counters,
     empty = false,
     between,
   }: Readonly<{
     kindCase: KindCase;
     job: Readonly<ClaimedJob>;
+    counters?: Readonly<Partial<Counters>>;
     empty?: boolean;
     between?: (context: string) => void;
   }>,
 ): Promise<Sent> {
-  const sent = await sentTask(instance, kindCase.kind, job);
+  const sent = await sentTask(instance, job, counters);
 
   between?.(sent.context);
 

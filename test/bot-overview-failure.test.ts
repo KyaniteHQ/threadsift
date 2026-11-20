@@ -24,7 +24,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
   after(() => instance.close());
 
   it("writes the marker by the Topic id of the task while the owner Item sits in another Topic", async () => {
-    const job = await openJobOf(instance, {
+    const opened = await openJobOf(instance, {
       kind: "topic_overview",
       itemId: 101,
       attempts: THIRD_SEND,
@@ -39,11 +39,11 @@ describe("a Topic overview that gave up after the third unanswered send marks th
     exec(
       instance,
       "update ai_tasks set job_id = ?, state = 'failed', refusal = 'stale', context = '{\"topicId\":2,\"revision\":0}' where id = ?",
-      job.id,
+      opened.id,
       earlier,
     );
 
-    const sent = await sentTask(instance, "topic_overview", job);
+    const { job, ...sent } = await sentTask(instance, opened);
 
     exec(instance, "update items set topic_id = 2 where id = 101");
 
@@ -71,13 +71,13 @@ describe("a Topic overview that gave up after the third unanswered send marks th
     exec(instance, "delete from topic_pages");
     exec(instance, "update items set topic_id = 1 where id = 101");
 
-    const job = await openJobOf(instance, {
+    const opened = await openJobOf(instance, {
       kind: "topic_overview",
       itemId: 101,
       attempts: THIRD_SEND,
     });
+    const { job } = await sentTask(instance, opened);
 
-    await sentTask(instance, "topic_overview", job);
     exec(
       instance,
       "insert into topic_pages (topic_id, overview, revision, built_from, updated_at) values (1, 'Newer text', 3, '[]', 1)",

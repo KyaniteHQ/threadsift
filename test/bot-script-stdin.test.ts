@@ -142,7 +142,7 @@ describe("the script prints the same word, reasons and exit code with standard i
       code: 0,
       args: async () => [
         "save",
-        await world.folder.made("link", `https://example.com/stdin-${String(unique())}`, "txt"),
+        await world.folder.made("link", `https://first.test/stdin-${String(unique())}`, "txt"),
       ],
     },
     {

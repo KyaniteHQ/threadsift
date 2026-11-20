@@ -114,7 +114,7 @@ describe("the script checks the connection, saves, searches and lists topics, an
   });
 
   it("saves a new link as ok with the Item's id and its path in the library, and no part of THREADSIFT_URL, answers duplicate with the same id and path for the same link, invalid with the reasons for a link the Instance refuses and bad-input for text that is not a link, and deletes every file it was given", async () => {
-    const saved = "https://example.com/threadsift-script";
+    const saved = "https://first.test/threadsift-script";
     const first = await world.folder.made("link", saved, "txt");
 
     const refused = await world.folder.run(

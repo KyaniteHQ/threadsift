@@ -11,7 +11,7 @@ import { topicOverviewKind } from "../../wiki/core/topic-overview-kind.ts";
 import { xIntakeKind } from "../../x/core/x-intake.ts";
 import { isVerifyContext, verifyAnswering } from "./bot-verify-task.ts";
 
-export const BOT_TASK_KINDS = {
+const BOT_TASK_KINDS = {
   digest: digestKind,
   topic_overview: topicOverviewKind,
   related_pick: relatedKind,

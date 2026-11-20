@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { DigestSchema } from "../src/core/contract/digest-schema.ts";
-import { WebhookBodySchema } from "../src/core/contract/grok-bot-contract.ts";
+import type { WebhookBody } from "../src/core/contract/grok-bot-contract.ts";
 import { ItemPageResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { SaveItemRequestSchema } from "../src/core/contract/save-wire.ts";
 import { TopicIndexSchema } from "../src/core/contract/topic-index-contract.ts";
@@ -44,16 +44,26 @@ function fieldsOf(schema: z.ZodType): string[] {
   );
 }
 
+const WEBHOOK_BODY = {
+  taskId: true,
+  kind: true,
+  callbackToken: true,
+} satisfies Record<keyof WebhookBody, true>;
+
+export const WEBHOOK_FIELDS: readonly string[] = Object.keys(WEBHOOK_BODY);
+
 export function schemaFields(): readonly string[] {
   return [
-    DigestSchema,
-    XThreadSchema,
-    IntakeAnswerSchema,
-    IntakeInputSchema,
-    TaskReadSchema,
-    WebhookBodySchema,
-    SaveItemRequestSchema,
-    ItemPageResponseSchema,
-    TopicIndexSchema,
-  ].flatMap((schema) => fieldsOf(schema));
+    ...[
+      DigestSchema,
+      XThreadSchema,
+      IntakeAnswerSchema,
+      IntakeInputSchema,
+      TaskReadSchema,
+      SaveItemRequestSchema,
+      ItemPageResponseSchema,
+      TopicIndexSchema,
+    ].flatMap((schema) => fieldsOf(schema)),
+    ...WEBHOOK_FIELDS,
+  ];
 }
