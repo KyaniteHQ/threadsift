@@ -14,6 +14,7 @@ import {
   type AccountRow,
   redditAccount,
 } from "../../../core/kernel/reddit-account-tables.ts";
+import { retryAfterMs } from "../../../core/kernel/retry-after.ts";
 import {
   WAIT_CHECK_MS,
   enqueueWaiting,
@@ -35,7 +36,7 @@ export function limitedUntilOf(
 ): number {
   const wait = Math.max(
     millisecondsOf(reset) ?? 0,
-    millisecondsOf(retryAfter) ?? 0,
+    retryAfterMs(retryAfter, now) ?? 0,
     LIMIT_FLOOR_MS,
   );
 
