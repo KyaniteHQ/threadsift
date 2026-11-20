@@ -4,10 +4,10 @@ import { parseLink } from "../contract/links.ts";
 import { type ThreadAnswers, fitsContentLimit } from "../contract/thread-answers.ts";
 import type { Invalid, NotWaiting, TooLarge } from "../kernel/paste-outcome.ts";
 import type { Ports } from "../kernel/ports.ts";
-import { threadSourceOf } from "../thread/thread-source.ts";
 import { type Saved, savedItem } from "./item-save.ts";
 import { parsedThread } from "./thread-input.ts";
 import { publishThread } from "./thread-save.ts";
+import { threadSourceOf } from "./thread-source.ts";
 
 export type ThreadPasteResult =
   | Saved

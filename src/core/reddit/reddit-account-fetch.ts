@@ -32,7 +32,7 @@ import { answerOf } from "./reddit-session.ts";
 
 type RedditRef = import("../contract/links.ts").RedditRef;
 
-export type AccountThread =
+type AccountThread =
   | { readonly kind: "thread"; readonly thread: ParsedThread }
   | { readonly kind: "waiting"; readonly until: number; readonly limited: boolean }
   | { readonly kind: "fallback" };

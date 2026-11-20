@@ -7,9 +7,7 @@ import {
   parsedLinkOf,
   redditRefOf,
 } from "../contract/links.ts";
-import { repositoryRef } from "../contract/repository-ref.ts";
 import type { SuppliedPage } from "../contract/supplied-page.ts";
-import { withCurrentCredential } from "../github/github-credential.ts";
 import { fetchedOfRepository } from "../github/github-fetch.ts";
 import { type FetchPolicy, guardedFetch, loggedFailureOf } from "../kernel/fetch-guard.ts";
 import { SMALL_POLICY, followingShortLinks } from "../kernel/fetch-policies.ts";
@@ -100,13 +98,7 @@ export function fetchedOfRoute(
     case "unrequested":
       return Promise.resolve(NOT_REQUESTED);
     case "github":
-      return withCurrentCredential(ports, (auth) =>
-        fetchedOfRepository(
-          { ports, attempts, auth },
-          repositoryRef(route.link.normalizedUrl),
-          deadline,
-        ),
-      );
+      return fetchedOfRepository(ports, attempts, route.link.normalizedUrl, deadline);
     case "page":
       return fetchedOfPage(ports, address, route.link, deadline);
     default: {

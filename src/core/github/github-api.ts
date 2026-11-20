@@ -5,11 +5,10 @@ import { report } from "../kernel/failure-log.ts";
 import { type FetchPolicy, type GuardOutcome, guardedFetch } from "../kernel/fetch-guard.ts";
 import type { NetworkResponse, RequestHeaders } from "../kernel/network.ts";
 import type { Ports } from "../kernel/ports.ts";
+import { GITHUB_API_HEADERS, GITHUB_API_ORIGIN } from "./github-api-wire.ts";
 import { cooldownUntil, startCooldown } from "./github-cooldown.ts";
 import type { GithubAuth } from "./github-credential.ts";
 import { type RateLimit, isLimitStatus, limitedUntil, rateLimitOf } from "./github-rate-limit.ts";
-
-const API_ORIGIN = "https://api.github.com";
 
 const UNAUTHORIZED = 401;
 
@@ -27,15 +26,13 @@ export interface Waiting {
 
 type ApiOutcome = GuardOutcome<RateLimit> | Waiting;
 
-const API_HEADERS: RequestHeaders = {
-  accept: "application/vnd.github+json",
-  "x-github-api-version": "2022-11-28",
-};
-
 function headersFor(token: string | null): (url: string) => RequestHeaders {
-  const sent = token === null ? API_HEADERS : { ...API_HEADERS, authorization: `Bearer ${token}` };
+  const sent =
+    token === null
+      ? GITHUB_API_HEADERS
+      : { ...GITHUB_API_HEADERS, authorization: `Bearer ${token}` };
 
-  return (url) => (new URL(url).origin === API_ORIGIN ? sent : {});
+  return (url) => (new URL(url).origin === GITHUB_API_ORIGIN ? sent : {});
 }
 
 async function limitOf(
@@ -44,7 +41,7 @@ async function limitOf(
 ): Promise<RateLimit | null> {
   const { status, rateLimit } = response;
 
-  if (!isLimitStatus(status) || new URL(url).origin !== API_ORIGIN) return null;
+  if (!isLimitStatus(status) || new URL(url).origin !== GITHUB_API_ORIGIN) return null;
 
   const byHeaders = rateLimitOf({ status, headers: rateLimit, body: "" }, Date.now());
 
@@ -78,7 +75,7 @@ export async function requestApi(
 
   if (cooling !== null) return { kind: "waiting", until: cooling, limited: false };
 
-  const outcome = await guardedFetch(network, `${API_ORIGIN}${path}`, policy, deadline);
+  const outcome = await guardedFetch(network, `${GITHUB_API_ORIGIN}${path}`, policy, deadline);
 
   if (outcome.kind !== "failed" || outcome.reason !== "status" || outcome.answer === null) {
     return outcome;

@@ -63,10 +63,7 @@ function stillLost(db: Database, id: number) {
   );
 }
 
-export async function acceptLostHighlight(
-  db: Database,
-  id: number,
-): Promise<LostHighlightAcceptance> {
+async function acceptLostHighlight(db: Database, id: number): Promise<LostHighlightAcceptance> {
   const [row] = await db
     .select({
       state: proposals.state,

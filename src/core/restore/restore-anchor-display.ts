@@ -11,7 +11,7 @@ import { commentReadable, readGeneration } from "../thread/thread-store.ts";
 
 export type Note = (kept: number, read: number) => void;
 
-export type Display = Readonly<{
+type Display = Readonly<{
   post?: string | null;
   comments?: readonly Readonly<{ id: string; body: string | null }>[];
 }>;

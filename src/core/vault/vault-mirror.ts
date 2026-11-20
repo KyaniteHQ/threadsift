@@ -1,3 +1,4 @@
+import { pause } from "../contract/pause.ts";
 import { VAULT_DEADLINE_MS, VAULT_NOTE_LIMIT } from "../contract/vault-contract.ts";
 import { bestEffort, logFailure, report } from "../kernel/failure-log.ts";
 import type { JobPorts } from "../kernel/job-outcome.ts";
@@ -139,9 +140,7 @@ async function rebuildingDrain(
   } catch (error) {
     if (!(error instanceof VaultFailure) || error.reason !== "branch-moved" || attempt >= 2)
       throw error;
-    await new Promise<void>((resolve) => {
-      setTimeout(resolve, REBUILD_WAIT_MS);
-    });
+    await pause(REBUILD_WAIT_MS);
     await rebuildingDrain(ports, lease, signal, attempt + 1);
   }
 }

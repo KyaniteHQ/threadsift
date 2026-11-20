@@ -7,9 +7,9 @@ import type { Rewrite } from "../kernel/restore-rewrites.ts";
 import * as schema from "../kernel/schema.ts";
 import type { Row } from "./restore-lines.ts";
 
-export type LeftOutColumnDefault = string | number | null;
+type LeftOutColumnDefault = string | number | null;
 
-export interface ColumnSpec {
+interface ColumnSpec {
   readonly name: string;
   readonly cell: z.ZodType;
 }
@@ -201,7 +201,7 @@ export function tableSpec(name: string): TableSpec | undefined {
   return REGISTRY.specs.get(name);
 }
 
-export type LineVerdict = "valid" | "unknown-column" | "missing-column" | "format";
+type LineVerdict = "valid" | "unknown-column" | "missing-column" | "format";
 
 function columnsVerdict(spec: Readonly<TableSpec>, row: Readonly<Row>): LineVerdict {
   const held = new Set(spec.columns.map(({ name }) => name));

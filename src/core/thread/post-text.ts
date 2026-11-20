@@ -7,7 +7,7 @@ function escaped(character: string): string {
   return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
 }
 
-export type PostTextRead =
+type PostTextRead =
   | { readonly kind: "text"; readonly text: string }
   | { readonly kind: "over" }
   | { readonly kind: "lost" };

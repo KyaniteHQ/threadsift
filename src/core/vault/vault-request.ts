@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+import { pause } from "../contract/pause.ts";
 import { HOP_DEADLINE_MS } from "../contract/request-waits.ts";
 import type { GithubVaultInput, VaultRefusal } from "../contract/vault-contract.ts";
+import { GITHUB_API_HEADERS, GITHUB_API_ORIGIN } from "../github/github-api-wire.ts";
 import { rateLimitWait } from "../github/github-rate-limit.ts";
 import { readWithin } from "../kernel/capped.ts";
 import type { Network, NetworkResponse } from "../kernel/network.ts";
@@ -63,7 +65,7 @@ type Mutation<Output> = Readonly<{
 
 type Exchange =
   | Readonly<{ method: "get"; path: string }>
-  | Readonly<{ method: "post"; path: string; body: string }>;
+  | Readonly<{ method: "post"; body: string }>;
 
 function parsed<Output>(schema: z.ZodType<Output>, text: string): Output {
   try {
@@ -78,8 +80,7 @@ function parsed<Output>(schema: z.ZodType<Output>, text: string): Output {
 function vaultHeaders(token: string) {
   return {
     authorization: `Bearer ${token}`,
-    accept: "application/vnd.github+json",
-    "x-github-api-version": "2022-11-28",
+    ...GITHUB_API_HEADERS,
     "content-type": "application/json",
   };
 }
@@ -89,7 +90,7 @@ export function vaultRequest(
   input: Readonly<GithubVaultInput>,
   signal: AbortSignal,
 ) {
-  const root = `https://api.github.com/repos/${input.repository}`;
+  const root = `${GITHUB_API_ORIGIN}/repos/${input.repository}`;
   const headers = vaultHeaders(input.token);
   let lastWrite = 0;
 
@@ -100,7 +101,7 @@ export function vaultRequest(
     try {
       response = await (request.method === "get"
         ? network.get(root + request.path, deadline, headers)
-        : network.post("https://api.github.com/graphql", request.body, deadline, headers));
+        : network.post(`${GITHUB_API_ORIGIN}/graphql`, request.body, deadline, headers));
       text = await responseText(response);
     } catch (error) {
       if (error instanceof VaultFailure) throw error;
@@ -116,17 +117,11 @@ export function vaultRequest(
       parsed(schema, await exchange({ method: "get", path })),
     mutate: async <Output>(request: Mutation<Output>): Promise<Output> => {
       const delay = Math.max(0, lastWrite + MUTATION_GAP_MS - Date.now());
-      if (delay > 0)
-        await new Promise<void>((resolve) => {
-          setTimeout(resolve, delay);
-        });
+      if (delay > 0) await pause(delay);
       signal.throwIfAborted();
       if (request.current !== null && !(await request.current())) throw vaultFailure("stale");
       lastWrite = Date.now();
-      return parsed(
-        request.schema,
-        await exchange({ method: "post", path: "/graphql", body: request.body }),
-      );
+      return parsed(request.schema, await exchange({ method: "post", body: request.body }));
     },
   };
 }

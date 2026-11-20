@@ -56,7 +56,7 @@ function sizeOf(columns: readonly string[]): SQL {
   );
 }
 
-export interface TablePage {
+interface TablePage {
   readonly rows: readonly RecordRow[];
   readonly first: number;
   readonly last: number;

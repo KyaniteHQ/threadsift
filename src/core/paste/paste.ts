@@ -10,7 +10,7 @@ import { type PageSaveResult, savePage } from "./page-save.ts";
 import { type SaveResult, saveItem } from "./save-link.ts";
 import { FILL_NEEDS_CONTENT, type ThreadPasteResult, saveThread } from "./thread-paste.ts";
 
-export interface Supplied {
+interface Supplied {
   readonly digest?: Digest | undefined;
   readonly content?: ThreadAnswers | undefined;
   readonly page?: SuppliedPage | undefined;

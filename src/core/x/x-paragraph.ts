@@ -68,7 +68,7 @@ function followsDroppedBreak(node: Readonly<ParagraphNode>, previous: Item | und
   );
 }
 
-export function itemsOf(
+function itemsOf(
   paragraph: Readonly<{ childNodes: Readonly<Iterable<Readonly<ParagraphNode>>> }>,
 ): Item[] | null {
   const items: Item[] = [];

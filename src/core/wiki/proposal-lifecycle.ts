@@ -18,7 +18,7 @@ const MOVES = {
   >
 >;
 
-export function anyAccepting(): SQL {
+function anyAccepting(): SQL {
   return sql`exists (select 1 from ${proposals} where ${eq(proposals.state, MOVES.apply.to)})`;
 }
 

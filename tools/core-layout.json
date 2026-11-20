@@ -156,6 +156,7 @@
     "filter-counts-contract.ts": "contract",
     "format.ts": "contract",
     "github-api.ts": "github",
+    "github-api-wire.ts": "github",
     "github-contract.ts": "contract",
     "github-cooldown.ts": "github",
     "github-credential.ts": "github",
@@ -274,7 +275,7 @@
     "pins.ts": "wiki",
     "plain-text.ts": "contract",
     "plan-source.ts": "item",
-    "plugin-fetch.ts": "ai",
+    "plugin-fetch.ts": "fetch",
     "ports.ts": "kernel",
     "post-text.ts": "thread",
     "post-text-files.ts": "thread",
@@ -390,14 +391,13 @@
     "thread-input.ts": "paste",
     "thread-parse.ts": "thread",
     "thread-paste.ts": "paste",
-    "thread-publish.ts": "thread",
     "thread-read.ts": "thread",
     "thread-refusal.ts": "contract",
-    "thread-requirements.ts": "thread",
+    "thread-requirements.ts": "paste",
     "thread-rows.ts": "thread",
     "thread-save.ts": "paste",
     "thread-selection.ts": "thread",
-    "thread-source.ts": "thread",
+    "thread-source.ts": "paste",
     "thread-store.ts": "thread",
     "throttle.ts": "access",
     "tick.ts": "compose",
@@ -517,8 +517,7 @@
       "grok-bot-ready.ts",
       "grok-bot-settings.ts",
       "openrouter-callback.ts",
-      "openrouter-connect.ts",
-      "plugin-fetch.ts"
+      "openrouter-connect.ts"
     ],
     "thread": [
       "comment-filter.ts",
@@ -526,12 +525,9 @@
       "post-text.ts",
       "stored-thread.ts",
       "thread-parse.ts",
-      "thread-publish.ts",
       "thread-read.ts",
-      "thread-requirements.ts",
       "thread-rows.ts",
       "thread-selection.ts",
-      "thread-source.ts",
       "thread-store.ts"
     ],
     "media": [
@@ -584,12 +580,7 @@
       "topic-page.ts",
       "topic-retry.ts"
     ],
-    "github": [
-      "github-credential.ts",
-      "github-fetch.ts",
-      "github-rate-limit.ts",
-      "github-token.ts"
-    ],
+    "github": ["github-api-wire.ts", "github-fetch.ts", "github-rate-limit.ts", "github-token.ts"],
     "vault": [
       "vault-failure.ts",
       "vault-mirror.ts",
@@ -663,7 +654,7 @@
     "vault": [],
     "x": ["x-intake-writes.ts", "x-oembed.ts", "x-verify-state.ts"],
     "reddit": ["archive-thread.ts", "reddit-account-states.ts"],
-    "fetch": [],
+    "fetch": ["plugin-fetch.ts"],
     "digest": [
       "digest-hop.ts",
       "digest-input.ts",

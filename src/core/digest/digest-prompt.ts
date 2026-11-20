@@ -28,7 +28,7 @@ export interface LinkedPage {
   readonly text: string;
 }
 
-export interface CommentCounts {
+interface CommentCounts {
   readonly eligible: number;
   readonly submitted: number;
   readonly omitted: number;

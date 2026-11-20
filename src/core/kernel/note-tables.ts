@@ -11,5 +11,3 @@ export const notes = sqliteTable("notes", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
-
-export type NoteRow = typeof notes.$inferSelect;

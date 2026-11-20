@@ -1,4 +1,3 @@
-import { pluginPage } from "../ai/plugin-fetch.ts";
 import { type LinkRoute, takesPage } from "../contract/links.ts";
 import { FETCH_DEADLINE_MS, X_FETCH_DEADLINE_MS } from "../contract/request-waits.ts";
 import { SuppliedPageSchema } from "../contract/supplied-page.ts";
@@ -10,6 +9,7 @@ import { holdsNoThread } from "../thread/thread-store.ts";
 import { type ToVerify, fetchedByX } from "../x/x-fetcher.ts";
 import { type XRoute, noted, xRouteOf } from "../x/x-reader.ts";
 import { fetchedOfRoute, linkRouteOf, suppliedDetails } from "./fetch-link.ts";
+import { pluginPage } from "./plugin-fetch.ts";
 
 type JobRead =
   | { readonly kind: "bot" }

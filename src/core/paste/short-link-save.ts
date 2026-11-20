@@ -9,9 +9,9 @@ import {
   holdsNoItem,
   foundItem,
   itemAt,
-  itemRead,
   writeQueued,
 } from "../item/item-rows.ts";
+import { itemRead } from "../item/item-selection.ts";
 import { settle } from "../item/settle.ts";
 import type { Database } from "../kernel/database.ts";
 import { guardHolds, guards, holdsNoRow, insertGuard, unlessRefused } from "../kernel/guards.ts";
@@ -37,7 +37,7 @@ export interface Resolved {
   readonly existing: Existing;
 }
 
-export interface Unresolved {
+interface Unresolved {
   readonly paste: Readonly<Pick<Paste, "address" | "addedByToken">>;
   readonly link: Readonly<Link>;
   readonly fetched: Readonly<FailedFetch>;

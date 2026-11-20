@@ -31,7 +31,7 @@ export type VaultLease = Readonly<{
 const REPEATED_LIMIT_DOUBLINGS = 5;
 
 export const VAULT_CLOCK = sql`cast(unixepoch('subsec') * 1000 as integer)`;
-export const VAULT_AVAILABLE = sql`not exists (select 1 from ${restoreRuns} where ${HOLDS_LIBRARY})`;
+const VAULT_AVAILABLE = sql`not exists (select 1 from ${restoreRuns} where ${HOLDS_LIBRARY})`;
 
 function leaseLiveAt(at: number | Readonly<SQLWrapper>) {
   return sql`${vaultSettings.leaseUntil} > ${at}`;
@@ -58,7 +58,7 @@ function sameVaultTarget({ target }: VaultLease) {
     : sql`${vaultSettings.mode} = 'github' and ${vaultSettings.sealedToken} = ${target.sealedToken}`;
 }
 
-export function vaultHolding(lease: Readonly<VaultLease>) {
+function vaultHolding(lease: Readonly<VaultLease>) {
   return and(
     eq(vaultSettings.generation, lease.generation),
     sameVaultTarget(lease),
