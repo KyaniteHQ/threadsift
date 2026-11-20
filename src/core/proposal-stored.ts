@@ -1,12 +1,13 @@
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import type { JobWrites } from "./job-outcome.ts";
-import type { MergeKind } from "./kinds.ts";
+import type { MergeKind, ProposalState } from "./kinds.ts";
 import { MERGE } from "./merge-kinds.ts";
 import { pairKey } from "./proposal-candidates.ts";
-import { type InsertedState, proposalRow } from "./proposal-lifecycle.ts";
-import type { ProposalsResult, Sent } from "./proposal-task.ts";
+import { proposalRow } from "./proposal-lifecycle.ts";
+import type { Sent } from "./proposal-sent.ts";
+import type { ProposalsResult } from "./proposal-task.ts";
 import { proposals } from "./schema.ts";
 import { storedField } from "./weekly-kind.ts";
 
@@ -14,7 +15,7 @@ interface StoredRow {
   readonly from: number;
   readonly into: number;
   readonly reason: string | null;
-  readonly state: InsertedState<MergeKind>;
+  readonly state: Extract<ProposalState, "open" | "declined">;
 }
 
 function rowsOf(sent: Sent, merges: ProposalsResult["merges"]): readonly StoredRow[] {
@@ -28,6 +29,13 @@ function rowsOf(sent: Sent, merges: ProposalsResult["merges"]): readonly StoredR
         : [{ from: low.id, into: high.id, reason: null, state: "declined" as const }],
     ),
   ];
+}
+
+export function sentExist(kind: MergeKind, sent: Sent): SQL {
+  const ids = JSON.stringify(sent.flatMap(({ low, high }) => [low.id, high.id]));
+  const { table } = MERGE[kind];
+
+  return sql`not exists (select 1 from json_each(${ids}) as wanted where not exists (select 1 from ${table} where ${table.id} = wanted.value))`;
 }
 
 export function storedMerges(

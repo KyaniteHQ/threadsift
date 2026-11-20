@@ -7,7 +7,7 @@ import { items } from "./item-tables.ts";
 import { MERGE_KINDS, PROPOSAL_KINDS, PROPOSAL_STATES } from "./kinds.ts";
 import { listed, subjectsForKind } from "./schema-checks.ts";
 
-const SUBJECTS = {
+export const SUBJECTS = {
   "tag-merge": ["fromTagId", "intoTagId"],
   "topic-merge": ["fromTopicId", "intoTopicId"],
   "highlight-lost": ["highlightId"],

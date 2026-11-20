@@ -1,13 +1,18 @@
-import { and, asc, desc, eq, exists, inArray, ne, notExists, sql } from "drizzle-orm";
+import { and, asc, desc, eq, exists, inArray, ne, not, notExists, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { guardedResults } from "./guards.ts";
 import { removalWrites } from "./highlights.ts";
-import { plainCheckRow, plainCheckWeek } from "./plain-check-week.ts";
-import { PROPOSALS_MAX } from "./proposal-candidates.ts";
+import type { ProposalKindSpec } from "./proposal-kind.ts";
+import type { PageRow } from "./proposal-rows.ts";
 import { highlights, proposals } from "./schema.ts";
+import { type PlainRow, plainCheck } from "./weekly-check.ts";
 
 type LostHighlightAcceptance = "done" | "unknown" | "not-open" | "not-current";
+
+const LOST_HIGHLIGHTS_PER_WEEK = 20;
+
+const LOST = ne(highlights.status, "attached");
 
 function newestWithoutRow(db: Database) {
   return db
@@ -15,7 +20,7 @@ function newestWithoutRow(db: Database) {
     .from(highlights)
     .where(
       and(
-        ne(highlights.status, "attached"),
+        LOST,
         notExists(
           db
             .select({ one: sql`1` })
@@ -25,17 +30,15 @@ function newestWithoutRow(db: Database) {
       ),
     )
     .orderBy(desc(highlights.id))
-    .limit(PROPOSALS_MAX);
+    .limit(LOST_HIGHLIGHTS_PER_WEEK);
 }
 
-function insertedRows(db: Database, now: number) {
+function insertedRows(db: Database, row: PlainRow<"highlight-lost">) {
   return db
     .insert(proposals)
     .select(
       db
-        .select(
-          plainCheckRow("highlight-lost", now, { highlightId: sql<number>`${highlights.id}` }),
-        )
+        .select(row({ highlightId: sql<number>`${highlights.id}` }))
         .from(highlights)
         .where(and(inArray(highlights.id, newestWithoutRow(db)), sql`changes() > 0`))
         .orderBy(asc(highlights.id)),
@@ -46,15 +49,8 @@ function insertedRows(db: Database, now: number) {
 function attachedAgain(db: Database) {
   return inArray(
     proposals.highlightId,
-    db.select({ id: highlights.id }).from(highlights).where(eq(highlights.status, "attached")),
+    db.select({ id: highlights.id }).from(highlights).where(not(LOST)),
   );
-}
-
-export async function proposeLostHighlights(db: Database, now: number): Promise<void> {
-  await plainCheckWeek(db, now, "highlight-lost", {
-    inserted: insertedRows(db, now),
-    closedWhen: attachedAgain(db),
-  });
 }
 
 function stillLost(db: Database, id: number) {
@@ -63,9 +59,7 @@ function stillLost(db: Database, id: number) {
       .select({ one: sql`1` })
       .from(proposals)
       .innerJoin(highlights, eq(highlights.id, proposals.highlightId))
-      .where(
-        and(eq(proposals.id, id), eq(proposals.state, "open"), ne(highlights.status, "attached")),
-      ),
+      .where(and(eq(proposals.id, id), eq(proposals.state, "open"), LOST)),
   );
 }
 
@@ -78,7 +72,7 @@ export async function acceptLostHighlight(
       state: proposals.state,
       highlightId: highlights.id,
       itemId: highlights.itemId,
-      status: highlights.status,
+      lost: sql<number>`${LOST}`,
     })
     .from(proposals)
     .innerJoin(highlights, eq(highlights.id, proposals.highlightId))
@@ -88,7 +82,7 @@ export async function acceptLostHighlight(
 
   if (row.state !== "open") return "not-open";
 
-  if (row.status === "attached") return "not-current";
+  if (row.lost === 0) return "not-current";
 
   const removed = await guardedResults(
     db,
@@ -98,3 +92,24 @@ export async function acceptLostHighlight(
 
   return removed === null ? "not-current" : "done";
 }
+
+function lostOf(row: Readonly<PageRow>) {
+  return {
+    id: row.id,
+    kind: row.kind,
+    state: row.state,
+    highlight: {
+      id: row.highlightId,
+      quote: row.quote,
+      item: { id: row.itemId, source: row.source, title: row.title },
+    },
+  };
+}
+
+export const LOST_HIGHLIGHT: ProposalKindSpec<"highlight-lost"> = {
+  stage: "highlight-proposals",
+  accept: ({ db }, id) => acceptLostHighlight(db, id),
+  listedWhile: LOST,
+  pageEntry: lostOf,
+  weekly: plainCheck("highlight-lost", { inserted: insertedRows, closedWhen: attachedAgain }),
+};

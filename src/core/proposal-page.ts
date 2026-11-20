@@ -1,77 +1,21 @@
-import { eq, inArray, max, sql } from "drizzle-orm";
+import { and, eq, inArray, max, or, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
-import { type ProposalState, WEEKLY_TASK } from "./kinds.ts";
+import { PROPOSAL_KINDS, type ProposalState, WEEKLY_TASK } from "./kinds.ts";
 import { pageTail } from "./page-tail.ts";
+import { PROPOSAL } from "./proposal-kinds.ts";
 import { pageQuery } from "./proposal-rows.ts";
 import { providerSet } from "./provider-saved.ts";
 import { proposals, scheduledRuns } from "./schema.ts";
 
-type Row = Awaited<ReturnType<typeof pageQuery>>[number];
-
-function mergeOf(row: Readonly<Row>) {
-  return {
-    id: row.id,
-    kind: row.kind,
-    state: row.state,
-    reason: row.reason ?? "",
-    failedRuns: row.failedRuns,
-    from: { id: row.fromId, name: row.fromName, items: row.fromItems },
-    into: { id: row.intoId, name: row.intoName, items: row.intoItems },
-  };
-}
-
-function lostOf(row: Readonly<Row>) {
-  return {
-    id: row.id,
-    kind: row.kind,
-    state: row.state,
-    highlight: {
-      id: row.highlightId,
-      quote: row.quote,
-      item: { id: row.itemId, source: row.source, title: row.title },
-    },
-  };
-}
-
-function gapOf(row: Readonly<Row>) {
-  return {
-    id: row.id,
-    kind: row.kind,
-    state: row.state,
-    topic: {
-      key: row.topicKey,
-      name: row.topicName,
-      uncovered: row.uncovered,
-      items: row.digested,
-    },
-  };
-}
-
-function disagreeOf(row: Readonly<Row>) {
-  return {
-    id: row.id,
-    kind: row.kind,
-    state: row.state,
-    reason: row.reason ?? "",
-    topic: { key: row.topicKey, name: row.topicName },
-    first: row.first,
-    second: row.second,
-  };
-}
-
-const PROPOSAL_OF = {
-  "tag-merge": mergeOf,
-  "topic-merge": mergeOf,
-  "highlight-lost": lostOf,
-  "overview-gap": gapOf,
-  "items-disagree": disagreeOf,
-} as const;
+const LISTABLE = or(
+  ...PROPOSAL_KINDS.map((kind) => and(eq(proposals.kind, kind), PROPOSAL[kind].listedWhile)),
+);
 
 export async function readProposalPage(db: Database, cursor: number | null) {
   const [rows, [run], [provider]] = await db.batch([
-    pageQuery(db, cursor),
+    pageQuery(db, cursor, LISTABLE),
     db
       .select({ at: max(scheduledRuns.lastRunAt) })
       .from(scheduledRuns)
@@ -82,7 +26,7 @@ export async function readProposalPage(db: Database, cursor: number | null) {
   const { items, next } = pageTail(rows, ITEMS_PAGE_SIZE, ({ id }) => String(id));
 
   return {
-    proposals: items.map((row) => PROPOSAL_OF[row.kind](row)),
+    proposals: items.map((row) => PROPOSAL[row.kind].pageEntry(row)),
     checkedAt: run?.at ?? null,
     provider: provider?.set === 1,
     next,

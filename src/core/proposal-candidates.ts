@@ -1,6 +1,4 @@
-export const PROPOSALS_MAX = 20;
-
-export const NAMES_PER_SUBJECT = 3;
+export const MERGE_PAIRS_PER_RUN = 20;
 
 export interface Candidate {
   readonly id: number;
@@ -107,15 +105,12 @@ export function candidatePairs(
   return [...found.values()].toSorted(byWeightThenIds);
 }
 
-export function disjointPairs(
-  pairs: readonly Readonly<CandidatePair>[],
-  max: number = PROPOSALS_MAX,
-): readonly CandidatePair[] {
+export function disjointPairs(pairs: readonly Readonly<CandidatePair>[]): readonly CandidatePair[] {
   const taken = new Set<number>();
   const chosen: CandidatePair[] = [];
 
   for (const pair of pairs) {
-    if (chosen.length < max && !taken.has(pair.low) && !taken.has(pair.high)) {
+    if (chosen.length < MERGE_PAIRS_PER_RUN && !taken.has(pair.low) && !taken.has(pair.high)) {
       taken.add(pair.low);
       taken.add(pair.high);
       chosen.push(pair);

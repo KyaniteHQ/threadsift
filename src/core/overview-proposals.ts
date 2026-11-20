@@ -1,10 +1,16 @@
 import { and, asc, desc, eq, notExists, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { plainCheckRow, plainCheckWeek } from "./plain-check-week.ts";
-import { PROPOSALS_MAX } from "./proposal-candidates.ts";
+import { acceptOverviewGap } from "./overview-accept.ts";
+import type { ProposalKindSpec } from "./proposal-kind.ts";
+import type { PageRow } from "./proposal-rows.ts";
 import { proposals, topics } from "./schema.ts";
 import { overviewGap, uncoveredCount } from "./topic-coverage.ts";
+import { type PlainRow, plainCheck } from "./weekly-check.ts";
+
+const OVERVIEW_GAPS_PER_WEEK = 20;
+
+const GAP = overviewGap(proposals.topicId);
 
 function mostBehind(db: Database) {
   return db
@@ -22,18 +28,18 @@ function mostBehind(db: Database) {
       ),
     )
     .orderBy(desc(sql`uncovered`), asc(topics.id))
-    .limit(PROPOSALS_MAX)
+    .limit(OVERVIEW_GAPS_PER_WEEK)
     .as("most_behind");
 }
 
-function insertedRows(db: Database, now: number) {
+function insertedRows(db: Database, row: PlainRow<"overview-gap">) {
   const picked = mostBehind(db);
 
   return db
     .insert(proposals)
     .select(
       db
-        .select(plainCheckRow("overview-gap", now, { topicId: sql<number>`${picked.id}` }))
+        .select(row({ topicId: sql<number>`${picked.id}` }))
         .from(picked)
         .where(sql`changes() > 0`)
         .orderBy(asc(picked.uncovered), desc(picked.id)),
@@ -41,9 +47,27 @@ function insertedRows(db: Database, now: number) {
     .onConflictDoNothing();
 }
 
-export async function proposeOverviewGaps(db: Database, now: number): Promise<void> {
-  await plainCheckWeek(db, now, "overview-gap", {
-    inserted: insertedRows(db, now),
-    closedWhen: sql`not (${overviewGap(proposals.topicId)})`,
-  });
+function gapOf(row: Readonly<PageRow>) {
+  return {
+    id: row.id,
+    kind: row.kind,
+    state: row.state,
+    topic: {
+      key: row.topicKey,
+      name: row.topicName,
+      uncovered: row.uncovered,
+      items: row.digested,
+    },
+  };
 }
+
+export const OVERVIEW_GAP: ProposalKindSpec<"overview-gap"> = {
+  stage: "overview-proposals",
+  accept: acceptOverviewGap,
+  listedWhile: GAP,
+  pageEntry: gapOf,
+  weekly: plainCheck("overview-gap", {
+    inserted: insertedRows,
+    closedWhen: () => sql`not (${GAP})`,
+  }),
+};

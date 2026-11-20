@@ -2,9 +2,11 @@ import type { SQL, SQLWrapper } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import type { CatalogTable } from "./catalog-tables.ts";
 import type { Database } from "./database.ts";
 import type { MergeKind, ProposalState } from "./kinds.ts";
+import type { SentNames } from "./proposal-names.ts";
+import type { TagSubject, TopicSubject } from "./proposal-sent.ts";
+import type { SUBJECTS } from "./proposal-tables.ts";
 import type { pins, proposals, tags, topics } from "./schema.ts";
 
 export interface Side {
@@ -45,34 +47,48 @@ export interface UnitPlan {
   readonly wakes: Writes;
 }
 
-interface Spec<
-  Table extends CatalogTable,
-  From extends "fromTagId" | "fromTopicId",
-  Into extends "intoTagId" | "intoTopicId",
-  Log extends "merge" | "merge-topic",
-> {
-  readonly table: Table;
-  readonly from: (typeof proposals)[From];
-  readonly into: (typeof proposals)[Into];
+interface MergeTables {
+  readonly "tag-merge": typeof tags;
+  readonly "topic-merge": typeof topics;
+}
+
+interface MergeSubjects {
+  readonly "tag-merge": TagSubject;
+  readonly "topic-merge": TopicSubject;
+}
+
+interface MergeLogs {
+  readonly "tag-merge": "merge";
+  readonly "topic-merge": "merge-topic";
+}
+
+type Ends<Kind extends MergeKind> = (typeof SUBJECTS)[Kind];
+
+type Subject = Readonly<SQLWrapper>;
+
+interface Spec<Kind extends MergeKind> {
+  readonly table: MergeTables[Kind];
+  readonly from: (typeof proposals)[Ends<Kind>[0]];
+  readonly into: (typeof proposals)[Ends<Kind>[1]];
   readonly subjects: (
-    from: Readonly<SQLWrapper>,
-    into: Readonly<SQLWrapper>,
-  ) => { readonly [Key in From]: Readonly<SQLWrapper> } & {
-    readonly [Key in Into]: Readonly<SQLWrapper>;
-  };
+    from: Subject,
+    into: Subject,
+  ) => { readonly [Key in Ends<Kind>[number]]: Subject };
   readonly pin: {
-    readonly column: (typeof pins)[Into];
-    readonly set: (id: number) => { readonly [Key in Into]: number };
+    readonly column: (typeof pins)[Ends<Kind>[1]];
+    readonly set: (id: number) => { readonly [Key in Ends<Kind>[1]]: number };
   };
   readonly itemLink: Link;
   readonly alsoLinked: readonly SQLiteColumn[];
-  readonly log: Log;
+  readonly log: MergeLogs[Kind];
   readonly plan: (context: Readonly<UnitContext>) => Promise<UnitPlan>;
+  readonly stage: string;
+  readonly label: string;
+  readonly event: string;
+  readonly instructions: string;
+  readonly names: SentNames<MergeSubjects[Kind]>;
 }
 
-export interface MergeSpecs {
-  readonly "tag-merge": Spec<typeof tags, "fromTagId", "intoTagId", "merge">;
-  readonly "topic-merge": Spec<typeof topics, "fromTopicId", "intoTopicId", "merge-topic">;
-}
+export type MergeSpecs = { readonly [Kind in MergeKind]: Spec<Kind> };
 
 export type MergeKindSpec = MergeSpecs[MergeKind];
