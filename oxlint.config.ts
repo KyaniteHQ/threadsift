@@ -203,7 +203,7 @@ export default defineConfig({
       rules: { "typescript/prefer-readonly-parameter-types": "off" },
     },
     {
-      files: ["src/http/**"],
+      files: ["src/http/**", "src/features/*/http/**"],
       rules: { "import/max-dependencies": ["error", { max: 14, ignoreTypeImports: true }] },
     },
     {
