@@ -17,9 +17,9 @@ Cloudflare: D1           R2         Queues     Cron       HTTP, Workers AI, Grok
 
 The `ports:` row names fields of `Ports` in `src/core/kernel/ports.ts`, except `tick`, which the target's timer or Cron Trigger calls. `ports.ts` holds only the aggregate `Ports` and the types picked from it. Each port interface lives in a module named for its group: `database.ts`, `network.ts` (`Network` and `RedditSession`), `file-store.ts`, `job-queue.ts`, `page-reader.ts`, `sealed-secret.ts` (`Sealer`), `vault-target.ts` (`VaultFolder` and the Vault writers it returns) and `x-fetcher-port.ts` in `src/core/kernel/`, and `crypto.ts` in `src/core/contract/`. Three more modules hold data and not ports: `ai-runtime.ts` in `src/core/kernel/` (what `Ports.ai` holds, and the runner types), `fetcher.ts` in `src/core/kernel/` (`LoadedFetcher`, what `Ports.fetchers` lists) and `instance-config.ts` in `src/core/contract/` (`Ports.config`). An importer takes a type from the module that defines it, so no module that `ports.ts` names imports `ports.ts` back.
 
-- A port's contract rules live in `src/core/`, and an adapter supplies only what its runtime alone can do. `networkOver` (`src/core/kernel/network-transport.ts`), `redditSessionOver` (`src/features/reddit/core/reddit-session.ts`), `checkedFileStore` (`src/core/kernel/file-store.ts`) and `pageReaderOver` (`src/core/kernel/page-reader.ts`) each take the adapter's transport and return the port, and the two network ones build the `NetworkResponse` from the status, header reader and body that the transport returns. The differences between the targets that stay are named fields of that transport: the request headers of each method (`Transport.headers`: the Worker's POST sends no `accept`), the connect-time DNS check (`Transport.lookup`: `globalAddressesOnly` on the container, `null` on the Worker because Cloudflare resolves the name, and the type checker refuses a transport that leaves the field out), and `maxHtmlBytes` of the page reader.
+- A port's contract rules live in `src/core/` or in the core half of the feature that owns the port, and an adapter supplies only what its runtime alone can do. `networkOver` (`src/core/kernel/network-transport.ts`), `redditSessionOver` (`src/features/reddit/core/reddit-session.ts`), `checkedFileStore` (`src/core/kernel/file-store.ts`) and `pageReaderOver` (`src/core/kernel/page-reader.ts`) each take the adapter's transport and return the port, and the two network ones build the `NetworkResponse` from the status, header reader and body that the transport returns. The differences between the targets that stay are named fields of that transport: the request headers of each method (`Transport.headers`: the Worker's POST sends no `accept`), the connect-time DNS check (`Transport.lookup`: `globalAddressesOnly` on the container, `null` on the Worker because Cloudflare resolves the name, and the type checker refuses a transport that leaves the field out), and `maxHtmlBytes` of the page reader.
 - The core imports no runtime module (`node:*`, `cloudflare:*`). Only the two target entry files and their adapters do, so a core change runs on both targets by construction.
-- The `Crypto` port has one adapter, `nodeCrypto` in `src/targets/shared/`, and `portsOf` (`src/targets/shared/ports.ts`) passes it for both targets, because the Worker runs `node:crypto` through `nodejs_compat`. This is the accepted exception to the two-adapter rule. The port exists because the lint bans `node:` imports in `src/core` and `src/http`.
+- The `Crypto` port has one adapter, `nodeCrypto` in `src/targets/shared/`, and `portsOf` (`src/targets/shared/ports.ts`) passes it for both targets, because the Worker runs `node:crypto` through `nodejs_compat`. This is the accepted exception to the two-adapter rule. The port exists because the lint bans `node:` imports in `src/core`, `src/features` and `src/http`.
 - `Ports.fetchers` is a second accepted exception to the two-adapter rule, and it is a list, not a behaviour port: it holds the fetcher plug-ins the container loaded, and the Worker builds `fetchers: []` and carries no loader. The feature exists only because a self-hoster adds code to the container (`docs/spec.md`, Fetchers, Fetcher plug-ins (container only)), so no second production adapter can exist, and a wrapper that made the empty Worker list look like one would be a test adapter in disguise. The core reads the list as data and calls no per-target code for it (`pluginPage` in `src/features/fetch/core/plugin-fetch.ts`).
 - `Ports.redditSession` has two production adapters that cannot be one function: `nodeRedditSession` (`src/targets/node/network.ts`, the platform `fetch` with a manual redirect) and `workerRedditSession` (`src/targets/worker/reddit-session.ts`, a raw TLS socket from `cloudflare:sockets` with HTTP/1.1 from `src/targets/worker/http1.ts`), because Reddit answers the Workers `fetch` client with 403 even with the owner's session cookie while a socket from the same Worker got 200 (`docs/architecture/fetchers.md`, Reddit).
 - The Worker builds its ports once per isolate and keeps the promise (`isolatePorts` in `src/targets/worker/index.ts`). A build that rejects clears the promise, so the next request builds again instead of failing the same way for the life of the isolate. The build is one async function (`build`), so a failed `settingsOf` rejects the shared promise. A real input does that: `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO=yes` makes `settingsOf` throw a `ZodError` (run on 2026-11-15, when `aiAndSecrets`, which `settingsOf` replaced, parsed it with the same call).
@@ -31,23 +31,29 @@ The `ports:` row names fields of `Ports` in `src/core/kernel/ports.ts`, except `
 
 ## The folders of the core
 
-The core is cut into folders that import each other in one direction, and the ports sit at the bottom of that order.
+The code is cut into folders that import each other in one direction, and the ports sit at the bottom of that order. The core is `src/core/` and the core half of each feature; `src/http/` and the http half of each feature put it on Hono.
 
 ```
- src/targets/, src/http/        import contract, kernel, compose and the entries of features
+ src/targets/             import contract, kernel, compose, src/http and the entries of the core halves
           |
-   compose  (job engine, sweep, tick: run the folders below together)
+   routes.ts, app.ts     import the http halves of the features
           |
-   features (access ... bot: each imports only the features before it, through their entries)
+   http halves           src/features/<feature>/http: the routes of one feature, never of another
           |
-   kernel   (tables, schema, ports, guards, job queue, shared stored-record readers and writers)
+   src/http              the access gate, refusals, MCP endpoint, shared route helpers
           |
-   contract (constants, schemas, types, pure parsers: the only folder web/ and the Extension import)
+   compose               (job engine, sweep, tick: run the folders below together)
+          |
+   core halves           src/features/<feature>/core, access ... bot: each imports only the core halves
+          |              before it, through their entries
+   kernel                (tables, schema, ports, guards, job queue, shared stored-record readers and writers)
+          |
+   contract              (constants, schemas, types, pure parsers: the only folder web/ and the Extension import)
 ```
 
 - `kernel` holds `ports.ts` and the port interface modules, except `crypto.ts`, which sits in `contract`. So a feature calls a port and never sees an adapter. `contract` imports no other folder, so the browser and the Extension get the same constants and schemas as the server.
 - A feature is a group of modules named for one glossary area. Its interface is its entries, the modules that code outside the folder imports; the other modules are hidden and cannot gain an outside importer.
-- `tools/core-layout.json` holds the order and the entries. `threadsift/layer-imports` refuses an import against the order, an import of a hidden module from outside its feature, and an import into `web/` or the Extension of any `src/core` folder but `contract`, or of `src/http` or `src/targets`. `docs/architecture/repository-layout.md` (The folders of `src/core`) says what each folder holds and how to add a module, an entry or a feature.
+- `tools/core-layout.json` holds the order and the entries. `threadsift/layer-imports` refuses an import against the order, an import of a hidden module from outside its feature, an import between the http halves of two features, and an import into `web/` or the Extension of any `src/core` folder but `contract`, of a core half, of an http half, of `src/http` or of `src/targets`. `docs/architecture/repository-layout.md` (The tree under `src`) says what each folder holds and how to add a module, a route module, an entry or a feature.
 
 ## How a target builds its ports
 

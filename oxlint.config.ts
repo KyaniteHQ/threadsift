@@ -1,10 +1,11 @@
 import { defineConfig } from "oxlint";
+import type { DummyRuleMap } from "oxlint";
 
 const NODE_GLOBALS = ["process", "Buffer", "global", "__dirname", "__filename", "require"].map(
   (name) => ({
     name,
     message:
-      "Node globals do not exist on the Worker or in the browser; src/core/, src/http/ and web/ run there (docs/architecture/one-codebase-two-install-targets.md).",
+      "Node globals do not exist on the Worker or in the browser; src/core/, src/features/, src/http/ and web/ run there (docs/architecture/one-codebase-two-install-targets.md).",
   }),
 );
 
@@ -15,16 +16,22 @@ const CANNOT_THROW = {
 
 const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];
 
+const HONO_PATTERN = {
+  regex: "^(hono(/|$)|@hono/)",
+  message:
+    "src/core and the core halves do not import hono or @hono/*; move the code that needs it into the http half of the feature that owns the route, src/features/<feature>/http/, or into src/http/ (docs/architecture/repository-layout.md).",
+};
+
 const PORT_PATTERNS = [
   {
     regex: "^(node|cloudflare):",
     message:
-      "src/core/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture/one-codebase-two-install-targets.md).",
+      "src/core/, src/features/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture/one-codebase-two-install-targets.md).",
   },
   {
     regex: "(^|[/#@])targets(/|$)",
     message:
-      "src/core/ and src/http/ never import an adapter; the target entry passes ports in through createApp(ports).",
+      "src/core/, src/features/ and src/http/ never import an adapter; the target entry passes ports in through createApp(ports).",
   },
 ];
 
@@ -33,6 +40,20 @@ const VAULT_QUEUE_PATTERN = {
   message:
     "A writer declares which Vault notes its change makes stale in STALE (src/core/kernel/vault-stale.ts); only the vault modules import vault-queue.ts (docs/architecture/vault-mirror.md, Queue).",
 };
+
+interface ImportPattern {
+  readonly regex: string;
+  readonly message: string;
+}
+
+function restrictImports(patterns: readonly ImportPattern[]): DummyRuleMap {
+  const options = { patterns: patterns.map((pattern) => ({ ...pattern })) };
+
+  return {
+    "eslint/no-restricted-imports": ["error", options],
+    "threadsift/no-restricted-import-types": ["error", options],
+  };
+}
 
 const WEB_FETCH = {
   name: "fetch",
@@ -211,21 +232,22 @@ export default defineConfig({
       rules: { "import/max-dependencies": "off" },
     },
     {
-      files: ["src/core/**", "src/http/**"],
+      files: ["src/core/**", "src/features/**", "src/http/**"],
       rules: {
         "threadsift/static-import-source": "error",
-        "eslint/no-restricted-imports": [
-          "error",
-          { patterns: [...PORT_PATTERNS, VAULT_QUEUE_PATTERN] },
-        ],
+        ...restrictImports([...PORT_PATTERNS, VAULT_QUEUE_PATTERN]),
       },
     },
     {
-      files: ["src/core/*/vault-*.ts"],
-      rules: { "eslint/no-restricted-imports": ["error", { patterns: PORT_PATTERNS }] },
+      files: ["src/core/**", "src/features/*/core/**"],
+      rules: restrictImports([...PORT_PATTERNS, HONO_PATTERN, VAULT_QUEUE_PATTERN]),
     },
     {
-      files: ["src/core/**", "src/http/**", "web/**"],
+      files: ["src/core/*/vault-*.ts", "src/features/*/core/vault-*.ts"],
+      rules: restrictImports([...PORT_PATTERNS, HONO_PATTERN]),
+    },
+    {
+      files: ["src/core/**", "src/features/**", "src/http/**", "web/**"],
       rules: { "eslint/no-restricted-globals": ["error", ...NODE_GLOBALS] },
     },
     {
@@ -245,19 +267,12 @@ export default defineConfig({
     },
     {
       files: ["web/**"],
-      rules: {
-        "eslint/no-restricted-imports": [
-          "error",
-          {
-            patterns: [
-              {
-                regex: "^(node|cloudflare):",
-                message: "web/ runs in the browser, so it imports no runtime module.",
-              },
-            ],
-          },
-        ],
-      },
+      rules: restrictImports([
+        {
+          regex: "^(node|cloudflare):",
+          message: "web/ runs in the browser, so it imports no runtime module.",
+        },
+      ]),
     },
   ],
   ignorePatterns: [
