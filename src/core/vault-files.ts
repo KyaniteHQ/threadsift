@@ -1,22 +1,19 @@
 import { and, eq } from "drizzle-orm";
 
-import { planOf } from "./export-plan.ts";
-import { readItem } from "./item-detail.ts";
-import type { JobPorts } from "./job-outcome.ts";
-import { vaultContent, vaultContentSha } from "./vault-content.ts";
-import { GITHUB_FILE_BYTES, VAULT_FILE_BYTES } from "./vault-contract.ts";
-import { itemWikiSections } from "./vault-markdown.ts";
-import { VAULT_ROOT, vaultNotePath } from "./vault-paths.ts";
-import { type PendingVaultNote, VaultNoteFailure, parkVaultNote } from "./vault-queue.ts";
+import { vaultContent } from "./vault-content.ts";
+import { VAULT_FILE_BYTES } from "./vault-contract.ts";
+import { VaultNoteFailure } from "./vault-note-failure.ts";
+import { vaultNotePath } from "./vault-paths.ts";
+import { type PendingVaultNote, parkVaultNote } from "./vault-queue.ts";
+import { type Reader, subjectFiles } from "./vault-subject-files.ts";
 import { mirrorFiles, type VaultSubject } from "./vault-tables.ts";
-import type { VaultChange, VaultFile, VaultProgress, VaultTarget } from "./vault-target.ts";
-import { vaultWikiContent } from "./vault-wiki.ts";
-
-interface Reader {
-  readonly ports: JobPorts;
-  readonly target: VaultTarget;
-  readonly signal: AbortSignal;
-}
+import {
+  type VaultFile,
+  type VaultChange,
+  type VaultProgress,
+  gitBlobSha,
+  vaultFileSize,
+} from "./vault-target.ts";
 
 interface Prepared {
   readonly changes: readonly VaultChange[];
@@ -36,72 +33,6 @@ export interface VaultBatch {
 
 const EMPTY: Prepared = { changes: [], progress: [], bytes: 0, complete: true };
 
-async function itemFiles(reader: Reader, subjectId: number): Promise<readonly VaultFile[]> {
-  reader.signal.throwIfAborted();
-  const read = await readItem(reader.ports, subjectId);
-  reader.signal.throwIfAborted();
-  if (read === undefined) return [];
-  const omittedImages = read.storedFiles.flatMap(({ key, size }) =>
-    key !== null && size !== null && size > GITHUB_FILE_BYTES ? [key] : [],
-  );
-  const planned = planOf(
-    {
-      item: read.item,
-      keptNodes: read.keptNodes(),
-      postTextKey: read.postTextKey,
-      storedFiles: read.storedFiles,
-    },
-    { links: itemWikiSections(read), omittedImages },
-  );
-  if (planned.kind === "missing") throw new VaultNoteFailure("file-missing");
-  const [note, ...text] = planned.plan.head;
-  if (note === undefined) throw new VaultNoteFailure("item-unreadable");
-  return [
-    ...text.map(({ name, bytes }) => ({
-      path: `${VAULT_ROOT}/${name}`,
-      kind: "memory" as const,
-      bytes,
-    })),
-    ...planned.plan.stored.map(({ key, size }) => ({
-      path: `${VAULT_ROOT}/${key}`,
-      kind: "binary" as const,
-      key,
-      size,
-    })),
-    {
-      path: vaultNotePath({ kind: "item", subjectId }),
-      kind: "memory",
-      bytes: note.bytes,
-    },
-  ];
-}
-
-async function subjectFiles(reader: Reader, { kind, subjectId }: VaultSubject) {
-  if (kind === "item") {
-    const files = await itemFiles(reader, subjectId);
-    const oversized = files.filter((file) => fileSize(file) > GITHUB_FILE_BYTES);
-    const omitted = new Set(oversized);
-
-    return {
-      files: files.filter((file) => !omitted.has(file)),
-      oversized: oversized.map(({ path }) => path),
-    };
-  }
-
-  const content = await vaultWikiContent(
-    reader.ports.db,
-    { kind, subjectId },
-    reader.signal,
-    reader.target.logMonths,
-  );
-  const path = vaultNotePath({ kind, subjectId });
-
-  return {
-    files: content.kind === "memory" ? [{ ...content, path }] : [],
-    oversized: [],
-  };
-}
-
 function groupsOf(
   files: readonly VaultFile[],
   previous: readonly Readonly<{ path: string }>[],
@@ -109,19 +40,17 @@ function groupsOf(
 ) {
   const paths = new Set(files.map(({ path }) => path));
   const notePath = vaultNotePath(subject);
+  const isNote = ({ path }: Readonly<{ path: string }>) => path === notePath;
   const deletes = previous.flatMap(({ path }) =>
     paths.has(path) ? [] : [{ path, kind: "delete" as const }],
   );
-  if (files.length === 0)
-    return [
-      deletes.filter(({ path }) => path === notePath),
-      deletes.filter(({ path }) => path !== notePath),
-    ];
-  return [
-    files.filter(({ path }) => path !== notePath),
-    files.filter(({ path }) => path === notePath),
-    deletes,
-  ];
+
+  const removals =
+    files.length === 0
+      ? [deletes.filter((file) => isNote(file)), deletes.filter((file) => !isNote(file))]
+      : [deletes];
+
+  return [files.filter((file) => !isNote(file)), files.filter((file) => isNote(file)), ...removals];
 }
 
 interface FileReader extends Reader {
@@ -139,10 +68,6 @@ function alreadyWritten(reader: FileReader, file: VaultFile): boolean {
   );
 }
 
-function fileSize(file: VaultFile): number {
-  return file.kind === "delete" ? 0 : file.kind === "binary" ? file.size : file.bytes.length;
-}
-
 async function prepareFile(reader: FileReader, file: VaultFile) {
   const held = reader.remote.get(file.path) ?? null;
   const progress = {
@@ -157,7 +82,7 @@ async function prepareFile(reader: FileReader, file: VaultFile) {
       change: held === null ? null : { ...progress, kind: "delete" as const, sha: null },
     };
   const bytes = await vaultContent({ ports: reader.ports, file, signal: reader.signal });
-  const sha = await vaultContentSha(bytes);
+  const sha = await gitBlobSha(bytes);
   return {
     progress: { ...progress, sha },
     change: sha === held ? null : { ...progress, kind: "put" as const, sha, bytes },
@@ -173,7 +98,7 @@ async function prepareGroup(
   const [file, ...rest] = files;
   if (file === undefined) return taken;
   if (alreadyWritten(reader, file)) return prepareGroup(reader, rest, budget, taken);
-  const size = fileSize(file);
+  const size = vaultFileSize(file);
   if (size > VAULT_FILE_BYTES) throw new VaultNoteFailure("file-too-large");
   if (taken.bytes + size > budget) return { ...taken, complete: false };
   const result = await prepareFile(reader, file);

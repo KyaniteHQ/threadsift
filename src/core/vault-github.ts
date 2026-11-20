@@ -1,18 +1,12 @@
 import { z } from "zod";
 
+import { toBase64 } from "./encoding.ts";
 import type { Network } from "./network.ts";
-import { base64VaultBytes } from "./vault-content.ts";
 import type { GithubVaultInput } from "./vault-contract.ts";
+import { vaultLogMonths, vaultSubjects, vaultTreeFiles } from "./vault-paths.ts";
 import { vaultRequest } from "./vault-request.ts";
 import type { VaultChange, VaultTarget } from "./vault-target.ts";
-import {
-  VaultRefSchema,
-  vaultLogMonths,
-  vaultSubjects,
-  vaultTree,
-  vaultTreeFiles,
-  type VaultTree,
-} from "./vault-tree.ts";
+import { VaultRefSchema, vaultTree, type VaultTree } from "./vault-tree.ts";
 
 const CommitSchema = z.object({
   data: z.object({ createCommitOnBranch: z.object({ commit: z.object({ oid: z.string() }) }) }),
@@ -34,9 +28,7 @@ function commitBody(
         message: { headline: "Update Threadsift vault notes" },
         fileChanges: {
           additions: files.flatMap((file) =>
-            file.kind === "put"
-              ? [{ path: file.path, contents: base64VaultBytes(file.bytes) }]
-              : [],
+            file.kind === "put" ? [{ path: file.path, contents: toBase64(file.bytes) }] : [],
           ),
           deletions: files.flatMap((file) => (file.kind === "delete" ? [{ path: file.path }] : [])),
         },

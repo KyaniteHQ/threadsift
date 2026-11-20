@@ -3,6 +3,7 @@ import { utf8Length } from "./encoding.ts";
 import { isImageRouteOf, keyOfFileRoute } from "./file-keys.ts";
 import { collapsed } from "./format.ts";
 import type { Kind, ReadState, Source } from "./kinds.ts";
+import { lineBreaksOf, plainMarkdown, yamlScalar } from "./markdown-escape.ts";
 import { inlineImage, rewriteImages, scanMarkdown } from "./markdown-images.ts";
 import {
   COMMENTS_TITLE,
@@ -28,18 +29,8 @@ const NOTE_PREFIX = "note-";
 
 const NOTE_SUFFIX = ".md";
 
-const NOT_PLAIN_YAML = /[\u007F-\u009F\u2028\u2029\uFFFE\uFFFF]/gu;
-
-function unicodeEscape(character: string): string {
-  return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
-}
-
-export function scalar(value: string | null): string {
-  return JSON.stringify(value ?? "").replaceAll(NOT_PLAIN_YAML, unicodeEscape);
-}
-
 function moment(milliseconds: number | null): string {
-  return scalar(milliseconds === null ? null : new Date(milliseconds).toISOString());
+  return yamlScalar(milliseconds === null ? null : new Date(milliseconds).toISOString());
 }
 
 export interface NoteHighlight {
@@ -69,27 +60,6 @@ export interface ItemNoteInput {
   readonly comments: readonly CommentNode[];
 }
 
-function lineBreaksOf(text: string): string[] {
-  return text.split(/\r\n|\r|\n/u);
-}
-
-const INLINE_SPECIALS = /[\\`*_[\]<>&~|]/gu;
-
-const BLOCK_MARKER = /^(\s{0,3})([#>+=-])/u;
-
-const LIST_NUMBER = /^(\s{0,3}\d+)([.)])/u;
-
-export function plainMarkdown(text: string): string {
-  return lineBreaksOf(text)
-    .map((line) =>
-      line
-        .replaceAll(INLINE_SPECIALS, "\\$&")
-        .replace(BLOCK_MARKER, "$1\\$2")
-        .replace(LIST_NUMBER, "$1\\$2"),
-    )
-    .join("\n");
-}
-
 function titleOf({ title }: Readonly<Pick<ItemNoteInput, "title">>): string {
   const single = collapsed(title ?? "");
 
@@ -102,17 +72,17 @@ function frontMatter(input: Readonly<ItemNoteInput>): string {
     `id: ${String(input.id)}`,
     ...(input.title === null || input.title.trim() === ""
       ? []
-      : [`aliases: [${scalar(input.title)}]`]),
-    `source: ${scalar(input.source)}`,
-    `url: ${scalar(input.url)}`,
-    `author: ${scalar(input.author)}`,
-    `community: ${scalar(input.community)}`,
+      : [`aliases: [${yamlScalar(input.title)}]`]),
+    `source: ${yamlScalar(input.source)}`,
+    `url: ${yamlScalar(input.url)}`,
+    `author: ${yamlScalar(input.author)}`,
+    `community: ${yamlScalar(input.community)}`,
     `posted: ${moment(input.postedAt)}`,
     `saved: ${moment(input.savedAt)}`,
     `fetched: ${moment(input.fetchedAt)}`,
-    `topic: ${scalar(input.topic)}`,
-    `tags: [${input.tags.map((tag) => scalar(tag)).join(", ")}]`,
-    `read: ${scalar(input.readState)}`,
+    `topic: ${yamlScalar(input.topic)}`,
+    `tags: [${input.tags.map((tag) => yamlScalar(tag)).join(", ")}]`,
+    `read: ${yamlScalar(input.readState)}`,
     "---",
   ].join("\n");
 }

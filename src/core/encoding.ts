@@ -10,11 +10,17 @@ export function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
+const BASE64_CHUNK_BYTES = 32_768;
+
+export function toBase64(bytes: Uint8Array): string {
+  let text = "";
+  for (let at = 0; at < bytes.length; at += BASE64_CHUNK_BYTES)
+    text += String.fromCodePoint(...bytes.subarray(at, at + BASE64_CHUNK_BYTES));
+  return btoa(text);
+}
+
 export function base64url(bytes: Uint8Array): string {
-  return btoa(String.fromCodePoint(...bytes))
-    .replaceAll("+", "-")
-    .replaceAll("/", "_")
-    .replaceAll("=", "");
+  return toBase64(bytes).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
 }
 
 export function fromBase64url(text: string): Uint8Array {

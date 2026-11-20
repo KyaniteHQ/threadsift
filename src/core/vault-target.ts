@@ -1,4 +1,13 @@
+import { hex } from "./encoding.ts";
 import type { VaultKind, VaultSubject } from "./vault-tables.ts";
+
+export async function gitBlobSha(bytes: Uint8Array): Promise<string> {
+  const header = new TextEncoder().encode(`blob ${String(bytes.length)}\0`);
+  const input = new Uint8Array(header.length + bytes.length);
+  input.set(header);
+  input.set(bytes, header.length);
+  return hex(new Uint8Array(await crypto.subtle.digest("SHA-1", input)));
+}
 
 export type VaultFile = Readonly<{ path: string }> &
   (
@@ -6,6 +15,10 @@ export type VaultFile = Readonly<{ path: string }> &
     | Readonly<{ kind: "memory"; bytes: Uint8Array }>
     | Readonly<{ kind: "delete" }>
   );
+
+export function vaultFileSize(file: VaultFile): number {
+  return file.kind === "delete" ? 0 : file.kind === "binary" ? file.size : file.bytes.length;
+}
 
 export interface VaultProgress {
   readonly path: string;

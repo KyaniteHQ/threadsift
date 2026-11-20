@@ -1,10 +1,10 @@
 import { bestEffort, logFailure, report } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { VAULT_DEADLINE_MS, VAULT_NOTE_LIMIT } from "./vault-contract.ts";
+import { VaultFailure, vaultFailure } from "./vault-failure.ts";
 import { vaultFiles } from "./vault-files.ts";
 import { vaultGithub } from "./vault-github.ts";
 import { dueVaultNotes, type PendingVaultNote } from "./vault-queue.ts";
-import { VaultFailure, staleVault } from "./vault-request.ts";
 import {
   type VaultLease,
   acknowledgeVault,
@@ -19,6 +19,8 @@ import { VaultFileConflict, type VaultTarget } from "./vault-target.ts";
 
 const TOPIC_NOTE_LIMIT = 4;
 const SHARED_NOTE_LIMIT = 4;
+const FAILURE_WAIT_MS = 60_000;
+const REBUILD_WAIT_MS = 1000;
 
 interface Drain {
   readonly ports: JobPorts;
@@ -35,7 +37,7 @@ async function publish(
   if (batch.pending.length === 0) return;
   const current = async () =>
     (await currentVaultNotes(ports.db, lease, batch.pending)).length === batch.pending.length;
-  if (!(await current())) throw staleVault();
+  if (!(await current())) throw vaultFailure("stale");
   await target.write({
     files: batch.files,
     current,
@@ -81,13 +83,11 @@ async function publishShared(input: Drain, pending: readonly PendingVaultNote[])
 async function targetFor(ports: JobPorts, lease: Readonly<VaultLease>, signal: AbortSignal) {
   const { target } = lease;
   if (target.mode === "folder") {
-    if (ports.vaultFolder === null)
-      throw new VaultFailure({ reason: "folder-unavailable", until: null, status: null });
+    if (ports.vaultFolder === null) throw vaultFailure("folder-unavailable");
     return ports.vaultFolder(target.folder, signal);
   }
   const token = await ports.secrets?.open(target.sealedToken);
-  if (token === null || token === undefined)
-    throw new VaultFailure({ reason: "secret-missing", until: null, status: null });
+  if (token === null || token === undefined) throw vaultFailure("secret-missing");
   return vaultGithub(
     ports.network,
     { repository: target.repository, branch: target.branch, token },
@@ -129,7 +129,9 @@ function failureWait(lease: Readonly<VaultLease>, cause: unknown): number | null
       ? { generation: lease.generation, reason: cause.reason, status: cause.status ?? "none" }
       : { generation: lease.generation };
   logFailure("vault-mirror-failed", fields, cause);
-  return cause instanceof VaultFailure && cause.until !== null ? cause.until : Date.now() + 60_000;
+  return cause instanceof VaultFailure && cause.until !== null
+    ? cause.until
+    : Date.now() + FAILURE_WAIT_MS;
 }
 
 async function rebuildingDrain(
@@ -144,7 +146,7 @@ async function rebuildingDrain(
     if (!(error instanceof VaultFailure) || error.reason !== "branch-moved" || attempt >= 2)
       throw error;
     await new Promise<void>((resolve) => {
-      setTimeout(resolve, 1000);
+      setTimeout(resolve, REBUILD_WAIT_MS);
     });
     await rebuildingDrain(ports, lease, signal, attempt + 1);
   }

@@ -1,7 +1,7 @@
 import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
 import { VAULT_FILE_BYTES } from "./vault-contract.ts";
-import { VaultNoteFailure } from "./vault-queue.ts";
+import { VaultNoteFailure } from "./vault-note-failure.ts";
 import type { VaultSubject } from "./vault-tables.ts";
 import { logLines, logMonthLines } from "./vault-wiki-log.ts";
 import { indexLines, topicLines } from "./vault-wiki-topics.ts";

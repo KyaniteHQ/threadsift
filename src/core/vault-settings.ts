@@ -10,10 +10,10 @@ import {
   type VaultView,
   type VaultVerifyInput,
 } from "./vault-contract.ts";
+import { VaultFailure, refusalReason } from "./vault-failure.ts";
 import { vaultGithub } from "./vault-github.ts";
 import { queueVaultLibrary } from "./vault-queue.ts";
-import { VaultFailure } from "./vault-request.ts";
-import { VAULT_CLOCK, vaultIdleAt } from "./vault-state.ts";
+import { VAULT_CLOCK, vaultFolderIdleAt, vaultIdleAt } from "./vault-state.ts";
 import { mirrorFiles, mirrorNotes, vaultDestination, vaultSettings } from "./vault-tables.ts";
 
 type VaultPorts = Pick<Ports, "db" | "secrets" | "vaultFolder">;
@@ -66,8 +66,7 @@ function refused(reason: VaultRefusal["reason"]): VaultRefusal {
   return { kind: "refused", reason };
 }
 
-const folderIdle = sql`not exists (select 1 from ${vaultSettings}
-  where ${vaultSettings.mode} = 'folder' and ${vaultSettings.leaseUntil} > ${VAULT_CLOCK})`;
+const folderIdle = vaultFolderIdleAt(VAULT_CLOCK);
 
 async function settingRow({ secrets, vaultFolder }: VaultPorts, input: Readonly<VaultInput>) {
   if (input.mode === "folder") {
@@ -164,12 +163,6 @@ export async function verifyVaultSettings(
     return { kind: "verified" } as const;
   } catch (error) {
     if (!(error instanceof VaultFailure)) throw error;
-    return refused(
-      error.reason === "stale" ||
-        error.reason === "invalid-response" ||
-        error.reason === "branch-moved"
-        ? "github-error"
-        : error.reason,
-    );
+    return refused(refusalReason(error.reason));
   }
 }
