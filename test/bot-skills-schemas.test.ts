@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { TaskReadSchema } from "../src/core/bot/ai-task-read.ts";
-import { BOT_TASK_KINDS } from "../src/core/bot/bot-task-kinds.ts";
 import { WebhookBodySchema } from "../src/core/contract/grok-bot-contract.ts";
 import { X_INTAKE_TASK } from "../src/core/contract/x-intake-contract.ts";
+import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
+import { BOT_TASK_KINDS } from "../src/features/bot/core/bot-task-kinds.ts";
 import { schemaFields } from "./bot-skills-fields.ts";
 import { SKILL_PATH, botFile, proseOf, sectionOf, spansOf } from "./bot-skills-reader.ts";
 

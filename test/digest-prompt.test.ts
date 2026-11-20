@@ -5,9 +5,9 @@ import { z } from "zod";
 
 import { AI_INPUT_BYTES } from "../src/core/contract/ai-contract.ts";
 import { utf8Length } from "../src/core/contract/encoding.ts";
-import { type LinkedPage, digestPrompt } from "../src/core/digest/digest-prompt.ts";
-import { chooseCandidateLink } from "../src/core/media/candidate-link.ts";
-import type { CommentCandidate } from "../src/core/thread/thread-selection.ts";
+import { type LinkedPage, digestPrompt } from "../src/features/digest/core/digest-prompt.ts";
+import { chooseCandidateLink } from "../src/features/media/core/candidate-link.ts";
+import type { CommentCandidate } from "../src/features/thread/core/thread-selection.ts";
 
 const NO_CATALOG = { topics: [], tags: [] };
 

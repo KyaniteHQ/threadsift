@@ -1,9 +1,9 @@
 import type { z } from "zod";
 
-import { getItem } from "../core/item/item-detail.ts";
-import { itemFilters } from "../core/item/item-filters.ts";
-import { listItems } from "../core/item/item-selection.ts";
 import type { Ports } from "../core/kernel/ports.ts";
+import { getItem } from "../features/item/core/item-detail.ts";
+import { itemFilters } from "../features/item/core/item-filters.ts";
+import { listItems } from "../features/item/core/item-selection.ts";
 import { itemView } from "./item-view.ts";
 import type { ItemQuerySchema } from "./route-input.ts";
 

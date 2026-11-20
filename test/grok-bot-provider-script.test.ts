@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { TaskReadSchema } from "../src/core/bot/ai-task-read.ts";
+import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
 import { ScriptWorld } from "./bot-script-world.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";

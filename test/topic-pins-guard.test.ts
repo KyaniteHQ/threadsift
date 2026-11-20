@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { guardHolds } from "../src/core/kernel/guards.ts";
-import { pinnedDigest } from "../src/core/wiki/pins.ts";
+import { pinnedDigest } from "../src/features/wiki/core/pins.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
 import { script } from "./pin-fixtures.ts";

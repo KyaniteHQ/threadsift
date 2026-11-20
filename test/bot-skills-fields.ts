@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { TaskReadSchema } from "../src/core/bot/ai-task-read.ts";
 import { DigestSchema } from "../src/core/contract/digest-schema.ts";
 import { WebhookBodySchema } from "../src/core/contract/grok-bot-contract.ts";
 import { ItemPageResponseSchema } from "../src/core/contract/item-route-wire.ts";
@@ -8,6 +7,7 @@ import { SaveItemRequestSchema } from "../src/core/contract/save-wire.ts";
 import { TopicIndexSchema } from "../src/core/contract/topic-index-contract.ts";
 import { IntakeAnswerSchema, IntakeInputSchema } from "../src/core/contract/x-intake-contract.ts";
 import { XThreadSchema } from "../src/core/contract/x-wire.ts";
+import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
 
 export const JsonSchema = z.json();
 

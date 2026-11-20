@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { checked, oembedAnswerOf, resolutionsNeeded } from "../src/core/x/x-oembed.ts";
+import { checked, oembedAnswerOf, resolutionsNeeded } from "../src/features/x/core/x-oembed.ts";
 import {
   CUT_BARE_HEAD,
   CUT_BARE_ID,

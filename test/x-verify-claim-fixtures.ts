@@ -4,7 +4,7 @@ import { claimNextDue, dueIds } from "../src/core/compose/jobs.ts";
 import type { XThreadValue } from "../src/core/contract/x-wire.ts";
 import { enqueueItemJobs } from "../src/core/kernel/job-rows.ts";
 import { jobs, xVerifications } from "../src/core/kernel/schema.ts";
-import { queuedVerification, savedProgress } from "../src/core/x/x-verify-store.ts";
+import { queuedVerification, savedProgress } from "../src/features/x/core/x-verify-store.ts";
 import type { Instance } from "./instance.ts";
 import { addressOf } from "./x-intake-fixtures.ts";
 import { allJudged, storedForVerification } from "./x-verify-job-fixtures.ts";

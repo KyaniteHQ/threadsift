@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { X_REPLIES_MAX } from "../src/core/contract/limits.ts";
-import { parseXThread } from "../src/core/x/x-thread.ts";
+import { parseXThread } from "../src/features/x/core/x-thread.ts";
 import type { Json } from "./instance.ts";
 import { POST_ID, authored, reply, thread } from "./x-thread-fixtures.ts";
 

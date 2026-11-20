@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it, mock } from "node:test";
 
-import { latestTask } from "../src/core/ai/bot-task-rows.ts";
 import { applyOutcome } from "../src/core/compose/job-finish.ts";
 import { HANDLERS } from "../src/core/compose/job-handlers.ts";
-import { refusedAnswer } from "../src/core/x/x-intake-writes.ts";
+import { latestTask } from "../src/features/ai/core/bot-task-rows.ts";
+import { refusedAnswer } from "../src/features/x/core/x-intake-writes.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";

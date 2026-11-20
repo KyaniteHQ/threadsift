@@ -3,13 +3,13 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
-import { DIGEST_TASK } from "../src/core/digest/digest-task.ts";
+import { DIGEST_TASK } from "../src/features/digest/core/digest-task.ts";
 
 const CONTRACT_FILES = [
   ":(top)src/core/contract/digest-schema.ts",
   ":(top)src/core/contract/digest-text.ts",
-  ":(top)src/core/digest/digest-prompt.ts",
-  ":(top)src/core/wiki/catalog-budget.ts",
+  ":(top)src/features/digest/core/digest-prompt.ts",
+  ":(top)src/features/wiki/core/catalog-budget.ts",
   ":(top)src/core/contract/plain-text.ts",
 ];
 

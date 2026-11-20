@@ -1,8 +1,8 @@
 import type { Judged } from "../src/core/contract/x-verdict.ts";
 import { type XThreadValue, XThreadSchema } from "../src/core/contract/x-wire.ts";
 import { enqueueItemJobs } from "../src/core/kernel/job-rows.ts";
-import { startingJudged } from "../src/core/x/x-verify-state.ts";
-import { queuedVerification, savedProgress } from "../src/core/x/x-verify-store.ts";
+import { startingJudged } from "../src/features/x/core/x-verify-state.ts";
+import { queuedVerification, savedProgress } from "../src/features/x/core/x-verify-store.ts";
 import type { Instance } from "./instance.ts";
 import { until } from "./related-fixtures.ts";
 import { addressOf } from "./x-intake-fixtures.ts";

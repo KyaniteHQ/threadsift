@@ -17,7 +17,7 @@ Use these exact terms in code, docs and issues.
 | What is not fully built yet, and the file of each architecture section | `docs/architecture.md`, the index |
 | The tech stack | `docs/architecture/the-stack-at-a-glance.md` |
 | The module seams and the two install targets | `docs/architecture/one-codebase-two-install-targets.md` |
-| Where files go, and why; the folders of `src/core`, their import order and entries | `docs/architecture/repository-layout.md` |
+| Where files go, and why; the tree under `src` (`src/core`, `src/features`, `src/http`), its import order and entries | `docs/architecture/repository-layout.md` |
 | The data model | `docs/architecture/data-model-outline.md` |
 | The testing approach | `docs/architecture/testing.md` |
 | Topic pages, the Index, Related Items, and the Log | `docs/wiki.md` |

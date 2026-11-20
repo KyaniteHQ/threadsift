@@ -204,7 +204,7 @@ paste box, Share target, Extension, Import, HTTP API, MCP, Grok Bot
 
 ## Comment filter
 
-1. The script drops deleted or removed comments, comments by AutoModerator, empty replies and replies that are only "+1", "this", "same", "thanks", "thank you", "lol" or "lmao" (`src/core/thread/comment-filter.ts`).
+1. The script drops deleted or removed comments, comments by AutoModerator, empty replies and replies that are only "+1", "this", "same", "thanks", "thank you", "lol" or "lmao" (`src/features/thread/core/comment-filter.ts`).
 2. The agent keeps a remaining comment only when it adds a fact, a fix, a working link or command, first-hand experience, or a real counterargument. It drops jokes, agreement and repeats.
 3. When a kept reply sits under a dropped parent, the parent stays as a one-line Context stub so the tree still reads correctly.
 4. X replies follow the same rules.
@@ -444,7 +444,7 @@ Each agent token carries scopes that limit what it calls:
   - `digest`: queue a Digest or a Topic page overview again, and send a Digest with a Paste;
   - `delete`: delete an Item;
   - `reddit`: connect and disconnect the Reddit account through `/api/reddit-account` (reading it there needs `read`).
-- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. A token created before scopes existed keeps the first four and never gets `reddit`. A token that holds a scope name this release does not know cannot authenticate any call that needs a token, and the token list shows it with no scopes (`verifyToken` and `summaryOf` in `src/core/access/tokens.ts`). A call outside the token's scopes answers 403.
+- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. A token created before scopes existed keeps the first four and never gets `reddit`. A token that holds a scope name this release does not know cannot authenticate any call that needs a token, and the token list shows it with no scopes (`verifyToken` and `summaryOf` in `src/features/access/core/tokens.ts`). A call outside the token's scopes answers 403.
 ### Token budget
 
 Each agent token has a daily budget of new Items. Only a new Item counts, because each one costs the Provider one Digest call; a link the library already holds, a refused host, a read and a search do not.

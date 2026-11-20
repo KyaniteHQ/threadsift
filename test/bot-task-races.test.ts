@@ -1,8 +1,12 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { latestTask, renewedCredential, timedOutTask } from "../src/core/ai/bot-task-rows.ts";
-import { acceptBotAnswer } from "../src/core/bot/bot-answer.ts";
+import {
+  latestTask,
+  renewedCredential,
+  timedOutTask,
+} from "../src/features/ai/core/bot-task-rows.ts";
+import { acceptBotAnswer } from "../src/features/bot/core/bot-answer.ts";
 import {
   type BotLibrary,
   SECRET_KEY,

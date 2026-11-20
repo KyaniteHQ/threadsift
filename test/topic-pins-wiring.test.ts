@@ -4,8 +4,11 @@ import { after, before, describe, it } from "node:test";
 
 import { sql } from "drizzle-orm";
 
-import { publishedByCaller, readForPublishing } from "../src/core/digest/digest-publish.ts";
 import { guardedBatch } from "../src/core/kernel/guards.ts";
+import {
+  publishedByCaller,
+  readForPublishing,
+} from "../src/features/digest/core/digest-publish.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
 import { item, script, topicNameOf } from "./pin-fixtures.ts";

@@ -7,14 +7,14 @@ import {
   type VaultFolder,
   type VaultWrite,
 } from "../../core/kernel/vault-target.ts";
-import { VaultFailure, vaultFailure } from "../../core/vault/vault-failure.ts";
+import { VaultFailure, vaultFailure } from "../../features/vault/core/vault-failure.ts";
 import {
   ITEMS_FOLDER,
   vaultLogMonths,
   vaultPathParts,
   vaultSubjects,
   vaultTreeFiles,
-} from "../../core/vault/vault-paths.ts";
+} from "../../features/vault/core/vault-paths.ts";
 import {
   INVALID_DIRECTORY,
   type VaultDirectory,

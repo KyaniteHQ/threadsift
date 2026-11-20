@@ -1,9 +1,9 @@
 import { sql } from "drizzle-orm";
 
+import { mirrorVault } from "../../features/vault/core/vault-mirror.ts";
+import { claimingRun } from "../../features/wiki/core/scheduled-claim.ts";
 import { bestEffort } from "../kernel/failure-log.ts";
 import type { JobPorts } from "../kernel/job-outcome.ts";
-import { mirrorVault } from "../vault/vault-mirror.ts";
-import { claimingRun } from "../wiki/scheduled-claim.ts";
 import { sweep } from "./sweep.ts";
 
 const SWEEP_TASK = "sweep";

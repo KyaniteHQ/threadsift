@@ -1,11 +1,11 @@
-import { botStep } from "../src/core/ai/bot-step.ts";
-import { sendBotTask } from "../src/core/ai/bot-task-send.ts";
-import { ownerOf, startBotTask } from "../src/core/ai/bot-task-start.ts";
 import { applyOutcome } from "../src/core/compose/job-finish.ts";
 import { HANDLERS } from "../src/core/compose/job-handlers.ts";
 import type { JobOutcome } from "../src/core/kernel/job-outcome.ts";
 import { holding } from "../src/core/kernel/job-rows.ts";
-import { relatedKind } from "../src/core/related/related-kind.ts";
+import { botStep } from "../src/features/ai/core/bot-step.ts";
+import { sendBotTask } from "../src/features/ai/core/bot-task-send.ts";
+import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts";
+import { relatedKind } from "../src/features/related/core/related-kind.ts";
 import { openJob, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, until } from "./related-fixtures.ts";

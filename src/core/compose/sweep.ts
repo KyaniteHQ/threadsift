@@ -1,11 +1,11 @@
-import { sweepConnectTransactions } from "../ai/openrouter-connect.ts";
-import { cleanExports } from "../export/export-cleanup.ts";
+import { sweepConnectTransactions } from "../../features/ai/core/openrouter-connect.ts";
+import { cleanExports } from "../../features/export/core/export-cleanup.ts";
+import { cleanRestoreParts } from "../../features/restore/core/restore-parts.ts";
+import { continueMerges } from "../../features/wiki/core/merge-accept.ts";
+import { weeklyStages } from "../../features/wiki/core/proposal-kinds.ts";
 import { sweepDigests } from "../kernel/digest-opening.ts";
 import { logFailure } from "../kernel/failure-log.ts";
 import { restoreHoldsLibrary } from "../kernel/restore-hold.ts";
-import { cleanRestoreParts } from "../restore/restore-parts.ts";
-import { continueMerges } from "../wiki/merge-accept.ts";
-import { weeklyStages } from "../wiki/proposal-kinds.ts";
 import { cleanFiles } from "./file-cleanup.ts";
 import { enqueueDue } from "./jobs.ts";
 

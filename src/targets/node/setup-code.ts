@@ -1,6 +1,6 @@
-import { hasOwner } from "../../core/access/owner.ts";
 import { randomSecret } from "../../core/contract/encoding.ts";
 import type { Database } from "../../core/kernel/database.ts";
+import { hasOwner } from "../../features/access/core/owner.ts";
 import { nodeCrypto } from "../shared/crypto.ts";
 
 const GENERATED_CODE_BYTES = 32;

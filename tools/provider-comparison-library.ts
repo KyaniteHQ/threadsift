@@ -1,11 +1,11 @@
-import { readLinkedPage } from "../src/core/digest/digest-hop.ts";
-import { digestInput } from "../src/core/digest/digest-input.ts";
-import { modelInput } from "../src/core/digest/digest-model-input.ts";
-import { cutDigestInput } from "../src/core/digest/digest-prompt.ts";
 import type { Database } from "../src/core/kernel/database.ts";
 import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
-import { postTextOf } from "../src/core/thread/post-text.ts";
-import { readCatalog } from "../src/core/wiki/catalog.ts";
+import { readLinkedPage } from "../src/features/digest/core/digest-hop.ts";
+import { digestInput } from "../src/features/digest/core/digest-input.ts";
+import { modelInput } from "../src/features/digest/core/digest-model-input.ts";
+import { cutDigestInput } from "../src/features/digest/core/digest-prompt.ts";
+import { postTextOf } from "../src/features/thread/core/post-text.ts";
+import { readCatalog } from "../src/features/wiki/core/catalog.ts";
 import { dataFileStore } from "../src/targets/node/file-store.ts";
 import { nodeNetwork } from "../src/targets/node/network.ts";
 import { threadPageReader } from "../src/targets/node/page-reader.ts";

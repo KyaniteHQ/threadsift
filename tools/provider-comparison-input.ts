@@ -5,9 +5,9 @@ import { DatabaseSync } from "node:sqlite";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
-import { digestOutputTokens, submittedOf } from "../src/core/digest/digest-prompt.ts";
 import type { Database } from "../src/core/kernel/database.ts";
 import { withCleanup } from "../src/core/kernel/failure-log.ts";
+import { digestOutputTokens, submittedOf } from "../src/features/digest/core/digest-prompt.ts";
 import { proxyTo } from "../src/targets/node/database.ts";
 import { libraryReader } from "./provider-comparison-library.ts";
 import { compatibleSource } from "./provider-comparison-source.ts";
