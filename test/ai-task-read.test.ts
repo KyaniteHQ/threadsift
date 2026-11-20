@@ -38,6 +38,27 @@ describe("the task read answers what the bot has to do to the task's own credent
     assert.deepEqual(taskRows(world.instance), unchanged);
   });
 
+  it("answers a HEAD as its GET without the body, to the task's credential and to none", async () => {
+    const task = await taskAfterStart(world.instance, world.library.source);
+    const url = `/api/ai-tasks/${String(task.id)}`;
+    const read = await readOf(world.instance, task.id, task.token);
+
+    const head = await world.instance.fetch(url, {
+      method: "HEAD",
+      headers: { authorization: `Bearer ${task.token}` },
+    });
+
+    assert.deepEqual(
+      [head.status, head.headers.get("cache-control"), head.headers.get("content-type")],
+      [read.status, "no-store", read.headers.get("content-type")],
+    );
+    assert.equal(await head.text(), "");
+
+    const anonymous = await world.instance.fetch(url, { method: "HEAD" });
+
+    assert.deepEqual([anonymous.status, anonymous.headers.get("cache-control")], [401, "no-store"]);
+  });
+
   it("reads an X link task with the link as its input and the answer it takes as its schema", async () => {
     const task = await sentIntake(world.instance);
 

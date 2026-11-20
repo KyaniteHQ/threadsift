@@ -73,13 +73,12 @@ function planOf(c: Ctx, who: Who | "unrouted", cache: CacheKind | null): Plan {
 
   if (who === "self") return { credentials: null, csrf: false, after: "next", cache };
 
-  const after = who === "callback" ? "credential" : "next";
-  const open = who === "anyone" || who === "callback";
+  if (who === "callback") return { credentials: null, csrf: true, after: "credential", cache };
 
   return {
-    credentials: open ? (c.req.method === "HEAD" ? "read" : null) : who,
+    credentials: who === "anyone" ? null : who,
     csrf: true,
-    after,
+    after: "next",
     cache,
   };
 }
@@ -104,7 +103,6 @@ async function proceed(c: Ctx, plan: Readonly<Plan>, next: Next): Promise<void> 
   const task = await lookup(c);
 
   if (task instanceof Response) {
-    applyCache(task, plan.cache);
     c.res = task;
 
     return;
@@ -112,7 +110,6 @@ async function proceed(c: Ctx, plan: Readonly<Plan>, next: Next): Promise<void> 
 
   c.set("callbackTask", task);
   await next();
-  applyCache(c.res, plan.cache);
 }
 
 async function answerOf(
@@ -161,7 +158,7 @@ function gateOf<E extends Env, W extends Who | "unrouted">(
     const plan = planOf(c, who, cache ?? null);
     const answer = signedOutAnswer(c, await answerOf(c, plan, cap, next), signedOutNavigation);
 
-    if (plan.cache !== null && plan.after !== "credential") applyCache(answer ?? c.res, plan.cache);
+    applyCache(answer ?? c.res, plan.cache);
 
     return answer;
   });

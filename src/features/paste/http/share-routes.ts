@@ -74,15 +74,13 @@ function arrivalFor(
 }
 
 export function registerShareRoutes(app: OpenAPIHono, ports: Ports): void {
-  app.on(["GET", "POST"], SHARE_PATH, access("self"), async (c) => {
+  app.on(["GET", "POST"], SHARE_PATH, access("self", { cache: "no-store" }), async (c) => {
     const fields = await fieldsOf(c);
 
     const arrival =
       fields === null
         ? prefillOf("", "invalid")
         : await arrivalFor(ports, sharedContentOf(fields), await isTrustedShare(c, ports));
-
-    c.header("Cache-Control", "no-store");
 
     return c.redirect(shareAddress(arrival), 303);
   });
