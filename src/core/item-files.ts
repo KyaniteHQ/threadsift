@@ -1,13 +1,11 @@
 import type { CommentNode } from "./comment-view.ts";
 import { parseFileKey } from "./file-keys.ts";
-import type { readItem } from "./item-detail.ts";
+import type { ItemDetail } from "./item-detail.ts";
 import type { ItemNoteInput } from "./item-note.ts";
-
-type ItemRead = NonNullable<Awaited<ReturnType<typeof readItem>>>;
 
 type NotedItem = Readonly<
   Pick<
-    ItemRead["item"],
+    ItemDetail,
     | "id"
     | "source"
     | "kind"

@@ -9,6 +9,7 @@ import { enqueueRows, openingJob } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
+import { reopenedFetch } from "./settle.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 
 export type Existing = "refresh" | "keep";
@@ -79,10 +80,7 @@ export function queuedRows(
       })
       .onConflictDoNothing({ target: items.normalizedUrl })
       .returning({ id: items.id }),
-    db
-      .update(items)
-      .set({ reason: null, pendingDigest })
-      .where(eq(items.normalizedUrl, normalizedUrl)),
+    reopenedFetch(db, eq(items.normalizedUrl, normalizedUrl), pendingDigest),
     openingJob(db, { kind: "fetch", address, normalizedUrl, now, page }),
     selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
     queueVaultItems(db, eq(items.normalizedUrl, normalizedUrl)),

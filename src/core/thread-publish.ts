@@ -1,15 +1,6 @@
-import { eq, sql } from "drizzle-orm";
-
 import type { Database } from "./database.ts";
-import { digestAfterFetch } from "./digest-opening.ts";
-import { closeItemJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
-import { items, media } from "./schema.ts";
-import { fetchedPartWrites } from "./search.ts";
-import type { StoredThread } from "./stored-thread.ts";
-import { type Owner, ownerOf, threadWrites } from "./thread-store.ts";
-import { queueVaultItems } from "./vault-queue.ts";
-import { queueVaultFetchedTitle } from "./vault-wiki-writes.ts";
+import { items } from "./schema.ts";
 
 export interface ThreadPlace extends Link {
   readonly address: string;
@@ -29,52 +20,4 @@ export function threadItemInsert(db: Database, place: Readonly<ThreadPlace>) {
     })
     .onConflictDoNothing({ target: items.normalizedUrl })
     .returning({ id: items.id });
-}
-
-function contentWrites(
-  db: Database,
-  normalizedUrl: string,
-  owner: Readonly<Owner>,
-  thread: Readonly<StoredThread>,
-  pendingDigest: string | null,
-) {
-  return [
-    ...closeItemJobs(db, owner.id),
-    db.delete(media).where(eq(media.itemId, owner.id)),
-    db
-      .update(items)
-      .set({
-        title: thread.title,
-        author: thread.author,
-        community: thread.community,
-        postText: thread.postText,
-        postTextKey: null,
-        postedAt: thread.postedAt,
-        fetchedAt: Date.now(),
-        fetch: "ok",
-        xNote: null,
-        reason: null,
-        pendingDigest,
-        generation: sql`${items.generation} + 1`,
-      })
-      .where(eq(items.normalizedUrl, normalizedUrl)),
-  ];
-}
-
-export function threadPublication(
-  db: Database,
-  place: Readonly<ThreadPlace>,
-  thread: Readonly<StoredThread>,
-  pendingDigest: string | null,
-) {
-  const owner = ownerOf(place.normalizedUrl);
-
-  return [
-    ...queueVaultFetchedTitle(db, eq(items.normalizedUrl, place.normalizedUrl), thread.title),
-    ...contentWrites(db, place.normalizedUrl, owner, thread, pendingDigest),
-    ...threadWrites(db, owner, thread, null),
-    ...fetchedPartWrites(db, eq(items.normalizedUrl, place.normalizedUrl), thread.postText),
-    ...digestAfterFetch(db, { itemId: owner.id, address: place.address }),
-    queueVaultItems(db, eq(items.normalizedUrl, place.normalizedUrl)),
-  ];
 }

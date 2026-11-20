@@ -15,7 +15,8 @@ import {
 } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
-import { holding, wokenJob } from "./job-rows.ts";
+import { holding } from "./job-rows.ts";
+import { wokenJob } from "./job-waiting.ts";
 import { type JobRow, aiTasks } from "./schema.ts";
 
 type Held = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>;

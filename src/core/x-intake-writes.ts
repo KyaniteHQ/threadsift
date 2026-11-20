@@ -1,4 +1,4 @@
-import { and, eq, ne, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { completedAiTask, failedAiTask } from "./ai-task-rows.ts";
 import { type AiTaskRow, acceptsAnswer } from "./ai-task-state.ts";
@@ -7,7 +7,9 @@ import type { Database } from "./database.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { JobPorts, JobWrites } from "./job-outcome.ts";
 import { enqueueQuietly } from "./job-rows.ts";
+import { wokenJob } from "./job-waiting.ts";
 import { items, jobs } from "./schema.ts";
+import { withdrawnFetch } from "./settle.ts";
 import { queuedVerification } from "./x-verify-store.ts";
 import type { XThreadValue } from "./x-wire.ts";
 
@@ -65,15 +67,7 @@ export function unavailableIntake(db: Database, task: IntakeTask): JobWrites {
   return [
     ...answeredIntake(db, task, { unavailable: true }),
     ...closeItemJobs(db, sql`${itemId}`, { answering: task.id }),
-    db
-      .update(items)
-      .set({
-        fetch: "status",
-        xNote: "bot-unavailable",
-        reason: null,
-        pendingDigest: null,
-      })
-      .where(eq(items.id, itemId)),
+    withdrawnFetch(db, itemId, "status", "bot-unavailable"),
   ];
 }
 
@@ -83,11 +77,7 @@ export async function staleIntake(
 ): Promise<void> {
   await failedAiTask(ports.db, id, { reason: "stale", status: null });
 
-  const [woken] = await ports.db
-    .update(jobs)
-    .set({ nextAttemptAt: Date.now() })
-    .where(and(eq(jobs.id, jobId), ne(jobs.state, "done")))
-    .returning({ id: jobs.id });
+  const [woken] = await wokenJob(ports.db, jobId, Date.now()).returning({ id: jobs.id });
 
   if (woken !== undefined) await enqueueQuietly(ports, [woken.id], 0);
 }

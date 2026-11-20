@@ -1,4 +1,4 @@
-import { and, desc, eq, getTableColumns, isNull, lte, or } from "drizzle-orm";
+import { and, desc, eq, isNull, lte, or } from "drizzle-orm";
 
 import { budgetOf, tokenItemsToday } from "./agent-token-budget.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
@@ -18,7 +18,14 @@ type TokenSummary = Omit<AgentTokenRow, "digest" | "scopes" | "dailyBudget"> & {
   readonly budget: TokenBudget;
 };
 
-const { digest: _digest, ...summary } = getTableColumns(agentTokens);
+const summary = {
+  id: agentTokens.id,
+  name: agentTokens.name,
+  createdAt: agentTokens.createdAt,
+  lastUsedAt: agentTokens.lastUsedAt,
+  scopes: agentTokens.scopes,
+  dailyBudget: agentTokens.dailyBudget,
+};
 
 type SummaryRow = Omit<AgentTokenRow, "digest"> & { readonly added: number };
 

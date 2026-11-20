@@ -4,9 +4,9 @@ import { readExactly } from "./capped.ts";
 import { EXPORT_SLICE_BYTES, type PartialItem } from "./export-contract.ts";
 import { itemFileKey } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";
-import { readItem } from "./item-detail.ts";
 import { type ItemFilePlan, type StoredFile, itemFilePlan } from "./item-files.ts";
 import { itemNote, noteFileName } from "./item-note.ts";
+import { readPlanSource } from "./plan-source.ts";
 import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
 import type { ZipFile } from "./zip.ts";
@@ -94,7 +94,7 @@ async function gather(
   itemId: number,
   place: Readonly<Place>,
 ): Promise<Gathered> {
-  const read = await readItem(ports, itemId);
+  const read = await readPlanSource(ports, itemId);
 
   if (read === undefined) return { kind: "gone" };
 

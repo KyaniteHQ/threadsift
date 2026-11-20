@@ -1,11 +1,11 @@
-import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { DIGEST_VIEW_COLUMNS } from "./digest-stored.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { STATUS_VIEW_COLUMNS } from "./item-status.ts";
-import { WAIT_VIEW_COLUMNS } from "./job-rows.ts";
+import { WAIT_VIEW_COLUMNS } from "./job-waiting.ts";
 import { IMAGE_VIEW_COLUMNS } from "./media-reads.ts";
 import { pageTail } from "./page-tail.ts";
 import { digests, githubRepos, items } from "./schema.ts";
@@ -20,23 +20,35 @@ const JOINED_VIEW_COLUMNS = {
   ...FILLABLE_COLUMNS,
 };
 
-const {
-  generation: _generation,
-  digestFailed: _digestFailed,
-  pendingDigest: _pendingDigest,
-  topicId: _topicId,
-  addedByToken: _addedByToken,
-  ...DETAIL_COLUMNS
-} = getTableColumns(items);
+const ITEM_IDENTITY = {
+  id: items.id,
+  source: items.source,
+  kind: items.kind,
+  normalizedUrl: items.normalizedUrl,
+  originalUrl: items.originalUrl,
+  savedAt: items.savedAt,
+  title: items.title,
+  author: items.author,
+  community: items.community,
+};
 
-const {
-  postText: _postText,
-  postTextKey: _postTextKey,
-  postedAt: _postedAt,
-  ...LISTED_COLUMNS
-} = DETAIL_COLUMNS;
+const ITEM_FETCHED = {
+  fetchedAt: items.fetchedAt,
+  readState: items.readState,
+  reason: items.reason,
+  fetch: items.fetch,
+  xNote: items.xNote,
+};
 
-export { DETAIL_COLUMNS, LISTED_COLUMNS };
+export const LISTED_COLUMNS = { ...ITEM_IDENTITY, ...ITEM_FETCHED };
+
+export const DETAIL_COLUMNS = {
+  ...ITEM_IDENTITY,
+  postText: items.postText,
+  postTextKey: items.postTextKey,
+  postedAt: items.postedAt,
+  ...ITEM_FETCHED,
+};
 
 export function selectItems<Fields extends typeof LISTED_COLUMNS>(db: Database, fields: Fields) {
   return db

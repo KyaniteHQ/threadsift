@@ -1,3 +1,4 @@
+import type { Database } from "./database.ts";
 import { detailReads } from "./detail-reads.ts";
 import type { ReaderDigest } from "./digest-schema.ts";
 import { readStoredDigest } from "./digest-stored.ts";
@@ -7,7 +8,9 @@ import { sizedImagesOf } from "./media-reads.ts";
 import { noteViewOf } from "./notes.ts";
 import type { Ports } from "./ports.ts";
 import { postTextOf } from "./post-text.ts";
-import { commentsOf } from "./thread-read.ts";
+import { commentsOf, keptNodesOf } from "./thread-read.ts";
+
+type DetailResults = Awaited<ReturnType<typeof detailReads>>;
 
 function readerDigest(
   id: number,
@@ -29,26 +32,11 @@ function readerDigest(
   return { summary, keyPoints, tags: tagRows.map((tag) => tag.name) };
 }
 
-export async function getItem(ports: Readonly<Pick<Ports, "db" | "files">>, id: number) {
-  const first = await readItem(ports, id);
-
-  return first?.textLost === true ? (await readItem(ports, id))?.item : first?.item;
-}
-
-function commentViews(...args: Readonly<Parameters<typeof commentsOf>>) {
-  const [rows, ...rest] = args;
-
-  return {
-    comments: commentsOf(rows, ...rest),
-    keptNodes: () =>
-      commentsOf(
-        rows.map((row) => Object.assign({}, row, { readable: row.kept })),
-        ...rest,
-      ).nodes,
-  };
-}
-
-export async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files">>, id: number) {
+export async function readDetail<Extra extends readonly unknown[]>(
+  { db, files }: Readonly<Pick<Ports, "db" | "files">>,
+  id: number,
+  read: (db: Database, id: number) => Promise<readonly [...DetailResults, ...Extra]>,
+) {
   const [
     [row],
     [stored],
@@ -60,34 +48,27 @@ export async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files
     [note],
     sizes,
     related,
-    storedFiles,
-  ] = await detailReads(db, id);
+    ...extra
+  ] = await read(db, id);
 
-  if (row === undefined) {
-    return row;
-  }
+  if (row === undefined) return row;
 
-  const { revision, postTextKey, topicId, ...item } = row;
-  const postText = await postTextOf(files, id, { postText: item.postText, postTextKey });
-
-  const comments = commentViews(threadRows, threadReport, revision, {
-    outcome: item.digestOutcome,
-    stored: stored !== undefined,
-  });
+  const { revision, postTextKey, topicId: _topicId, ...columns } = row;
+  const postText = await postTextOf(files, id, { postText: columns.postText, postTextKey });
+  const digest = { outcome: columns.digestOutcome, stored: stored !== undefined };
 
   return {
+    row,
+    extra,
+    keptNodes: () => keptNodesOf(threadRows, threadReport, revision, digest),
     textLost: postText === null && postTextKey !== null,
-    postTextKey,
-    topicId,
-    storedFiles,
-    keptNodes: comments.keptNodes,
     item: {
-      ...item,
+      ...columns,
       postText,
       digest: readerDigest(id, stored?.digest, tagRows),
       repository: repository ?? null,
       images: sizedImagesOf(sizes),
-      comments: comments.comments,
+      comments: commentsOf(threadRows, threadReport, revision, digest),
       link: threadReport[0]?.link ?? null,
       highlights: highlightsViewOf(held, {
         post: revision,
@@ -97,4 +78,12 @@ export async function readItem({ db, files }: Readonly<Pick<Ports, "db" | "files
       related,
     },
   };
+}
+
+export type ItemDetail = NonNullable<Awaited<ReturnType<typeof getItem>>>;
+
+export async function getItem(ports: Readonly<Pick<Ports, "db" | "files">>, id: number) {
+  const first = await readDetail(ports, id, detailReads);
+
+  return first?.textLost === true ? (await readDetail(ports, id, detailReads))?.item : first?.item;
 }

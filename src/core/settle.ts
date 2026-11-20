@@ -6,8 +6,9 @@ import type { FetchResult } from "./fetch-results.ts";
 import type { XReadNote } from "./kinds.ts";
 import { sourceOf } from "./links.ts";
 import { type ItemRow, items } from "./schema.ts";
+import type { StoredThread } from "./stored-thread.ts";
 
-type Settled = Pick<ItemRow, "fetch" | "xNote" | "reason"> &
+export type Settled = Pick<ItemRow, "fetch" | "xNote" | "reason"> &
   Partial<
     Pick<
       ItemRow,
@@ -55,6 +56,12 @@ function contentFields(content: Readonly<Content>) {
   }
 }
 
+export function postTextOf(fetched: Readonly<Concluded>): string | null | undefined {
+  const content = fetched.status === "ok" ? fetched.found.content : null;
+
+  return content === null ? undefined : textFields(content).postText;
+}
+
 export function isRetryable(result: FetchResult): result is "timeout" | "network" {
   return result === "timeout" || result === "network";
 }
@@ -83,6 +90,31 @@ export function settle(fetched: Readonly<Concluded>, current: string | null, now
   }
 
   return { reason: null, fetch: result, xNote };
+}
+
+export function fetchedThread(thread: Readonly<StoredThread>): Concluded {
+  const { title, author, community } = thread;
+
+  return {
+    status: "ok",
+    found: { title, author, community, content: { kind: "thread", thread, archivedAt: null } },
+  };
+}
+
+export function withdrawnFetch(
+  db: Database,
+  itemId: number,
+  fetch: "status" | "unreadable",
+  xNote: XReadNote | null,
+) {
+  return db
+    .update(items)
+    .set({ fetch, xNote, reason: null, pendingDigest: null })
+    .where(eq(items.id, itemId));
+}
+
+export function reopenedFetch(db: Database, where: SQL, pendingDigest: string | null) {
+  return db.update(items).set({ reason: null, pendingDigest }).where(where);
 }
 
 export function failedFetch(

@@ -17,17 +17,14 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { Database } from "./database.ts";
 import { CLAIM_MARGIN_MS, type Closing, type JobPorts } from "./job-outcome.ts";
 import { enqueueQuietly, holding } from "./job-rows.ts";
+import { waitingFor, wokenJobs } from "./job-waiting.ts";
 import { ACCOUNT_ROW, type AccountRow, redditAccount } from "./reddit-account-tables.ts";
 import { FILL_DEADLINE_MS } from "./request-waits.ts";
 import { type JobRow, jobs } from "./schema.ts";
 
 export const WAIT_CHECK_MS = 300_000;
 
-const WAITING = and(
-  eq(jobs.kind, "fetch"),
-  eq(jobs.state, "queued"),
-  eq(jobs.waitReason, "reddit-limit"),
-);
+const WAITING = and(eq(jobs.kind, "fetch"), waitingFor("reddit-limit"));
 
 const OLDEST_WAITING = sql`(select min(${jobs.id}) from ${jobs} where ${WAITING})`;
 
@@ -129,16 +126,15 @@ function releaseTurn(db: Database, run: TurnRun): BatchItem<"sqlite"> {
 }
 
 function wakeOldest(db: Database, run: TurnRun, now: number): BatchItem<"sqlite"> {
-  return db
-    .update(jobs)
-    .set({ nextAttemptAt: now })
-    .where(
-      and(
-        WAITING,
-        eq(jobs.id, sql`${OLDEST_WAITING}`),
-        sql`exists (select 1 from ${redditAccount} where ${ownedBy(run)})`,
-      ),
-    );
+  return wokenJobs(
+    db,
+    now,
+    and(
+      WAITING,
+      eq(jobs.id, sql`${OLDEST_WAITING}`),
+      sql`exists (select 1 from ${redditAccount} where ${ownedBy(run)})`,
+    ),
+  );
 }
 
 function deferTurn(db: Database, run: TurnRun, waits: boolean): BatchItem<"sqlite"> {
@@ -162,16 +158,15 @@ function deferTurn(db: Database, run: TurnRun, waits: boolean): BatchItem<"sqlit
 function wakeWhenFree(db: Database, run: TurnRun, now: number): BatchItem<"sqlite"> {
   const takeable = and(turnIsFree(db, run.id, now), queueAllows(db, run.id));
 
-  return db
-    .update(jobs)
-    .set({ nextAttemptAt: now })
-    .where(
-      and(
-        eq(jobs.id, run.id),
-        WAITING,
-        sql`exists (select 1 from ${redditAccount} where ${takeable})`,
-      ),
-    );
+  return wokenJobs(
+    db,
+    now,
+    and(
+      eq(jobs.id, run.id),
+      WAITING,
+      sql`exists (select 1 from ${redditAccount} where ${takeable})`,
+    ),
+  );
 }
 
 export function redditClosing(
@@ -199,11 +194,11 @@ export async function redditClosed(
 }
 
 export function releaseWaiting(db: Database, now: number): BatchItem<"sqlite"> {
-  return db.update(jobs).set({ nextAttemptAt: now }).where(WAITING);
+  return wokenJobs(db, now, WAITING);
 }
 
 export function releaseWaitingWhen(db: Database, now: number, condition: SQL): BatchItem<"sqlite"> {
-  return db.update(jobs).set({ nextAttemptAt: now }).where(and(WAITING, condition));
+  return wokenJobs(db, now, and(WAITING, condition));
 }
 
 export async function enqueueWaiting(

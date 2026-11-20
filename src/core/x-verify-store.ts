@@ -8,6 +8,7 @@ import { isLastAttempt, retryDelayMs } from "./job-retry.ts";
 import { opening } from "./job-rows.ts";
 import type { XReadNote } from "./kinds.ts";
 import { items, jobs, xVerifications } from "./schema.ts";
+import { withdrawnFetch } from "./settle.ts";
 import type { Judged } from "./x-verdict.ts";
 import { startingJudged } from "./x-verify-state.ts";
 import type { XThreadValue } from "./x-wire.ts";
@@ -90,18 +91,7 @@ export function unreadableWrites(
   revision: number | null,
   xNote: WithdrawnNote,
 ): JobWrites {
-  return [
-    db
-      .update(items)
-      .set({
-        fetch: "unreadable",
-        xNote,
-        reason: null,
-        pendingDigest: null,
-      })
-      .where(eq(items.id, itemId)),
-    forgotten(db, itemId, revision),
-  ];
+  return [withdrawnFetch(db, itemId, "unreadable", xNote), forgotten(db, itemId, revision)];
 }
 
 export function afterRefusedRoot(

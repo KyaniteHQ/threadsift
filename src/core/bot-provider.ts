@@ -7,6 +7,7 @@ import type { Database } from "./database.ts";
 import { grokBotConnection, unreadyAsProvider } from "./grok-bot-ready.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import type { JobWrites } from "./job-outcome.ts";
+import { waitingFor, wokenJobs } from "./job-waiting.ts";
 import { GROK_BOT_WAIT } from "./kinds.ts";
 import type { SettingsPorts } from "./ports.ts";
 import { jobs } from "./schema.ts";
@@ -28,12 +29,7 @@ export function leaveGrokBotWrites(db: Database, now: number): JobWrites {
   return [
     db.update(grokBotSettings).set({ useAsProvider: false }).where(eq(grokBotSettings.id, 1)),
     abandonedTasks(db, X_INTAKE_TASK),
-    db
-      .update(jobs)
-      .set({ nextAttemptAt: now })
-      .where(
-        and(eq(jobs.state, "queued"), eq(jobs.waitReason, GROK_BOT_WAIT), ne(jobs.kind, "fetch")),
-      ),
+    wokenJobs(db, now, and(waitingFor(GROK_BOT_WAIT), ne(jobs.kind, "fetch"))),
   ];
 }
 
