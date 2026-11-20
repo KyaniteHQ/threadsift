@@ -1,6 +1,5 @@
 import { storedCommentId } from "../../../core/contract/comment-id.ts";
 import { type RedditRef, redditRefOf } from "../../../core/contract/links.ts";
-import { millisecondsFrom } from "../../../core/contract/reddit-http.ts";
 import {
   type Walked,
   checkedIds,
@@ -12,6 +11,7 @@ import {
 import type { WirePost } from "../../../core/contract/reddit-wire.ts";
 import type { ThreadAnswers } from "../../../core/contract/thread-answers.ts";
 import { checkedMetadata, checkedText, refuse } from "../../../core/contract/thread-refusal.ts";
+import { millisecondsFrom } from "../../../core/contract/time-units.ts";
 import { chooseCandidateLink, shownLinkOf } from "../../media/core/candidate-link.ts";
 import { isRemovedBody } from "../../thread/core/comment-filter.ts";
 import {

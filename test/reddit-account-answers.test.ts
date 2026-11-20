@@ -60,7 +60,7 @@ describe("the account row records what Reddit answered", () => {
     assert.deepEqual([row?.window_remaining, row?.limited_until], [0, NOW + 60 * SECOND_MS]);
   });
 
-  it("stops the account for the longest of the 429's reset, its Retry-After and 60 s, and at most one hour", async () => {
+  it("stops the account for the longest of the 429's reset, its Retry-After (seconds or an HTTP-date) and 60 s, and at most one hour", async () => {
     await record({ left: null, reset: "120", retryAfter: "300", limited: true });
     assert.equal(account(instance)[0]?.limited_until, NOW + 300 * SECOND_MS);
 
@@ -71,6 +71,14 @@ describe("the account row records what Reddit answered", () => {
       limited: true,
     });
     assert.equal(account(instance)[0]?.limited_until, NOW + 900 * SECOND_MS);
+
+    await record({
+      left: null,
+      reset: "120",
+      retryAfter: new Date(NOW + 1200 * SECOND_MS).toUTCString(),
+      limited: true,
+    });
+    assert.equal(account(instance)[0]?.limited_until, NOW + 1200 * SECOND_MS);
 
     await record({ left: null, reset: "86400", retryAfter: null, limited: true });
     assert.equal(account(instance)[0]?.limited_until, NOW + 3600 * SECOND_MS);

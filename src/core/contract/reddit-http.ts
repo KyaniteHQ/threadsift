@@ -1,5 +1,6 @@
 import { REDDIT_WINDOW_REQUESTS } from "./limits.ts";
 import { pause } from "./pause.ts";
+import { millisecondsFrom } from "./time-units.ts";
 
 export const OK = 200;
 
@@ -12,10 +13,6 @@ export const RATE_LIMITED = 429;
 const SIGNED_OUT_STATUSES: ReadonlySet<number> = new Set([LOGGED_OUT, FORBIDDEN]);
 
 const DECIMAL = /^\d+(?:\.\d+)?$/u;
-
-const WHOLE = /^\d+$/u;
-
-const MS_PER_SECOND = 1000;
 
 const REQUEST_SPACING_MS = 500;
 
@@ -51,10 +48,6 @@ export function isSignedOut(status: number): boolean {
   return SIGNED_OUT_STATUSES.has(status);
 }
 
-export function millisecondsFrom(seconds: number): number {
-  return Math.round(seconds * MS_PER_SECOND);
-}
-
 export function leftOf(header: string | null): number | null {
   const text = header?.trim() ?? "";
 
@@ -65,12 +58,6 @@ export function millisecondsOf(seconds: string | null): number | null {
   const whole = leftOf(seconds);
 
   return whole === null ? null : millisecondsFrom(whole);
-}
-
-export function wholeMillisecondsOf(seconds: string | null): number | null {
-  const text = seconds?.trim() ?? "";
-
-  return WHOLE.test(text) ? millisecondsFrom(Number(text)) : null;
 }
 
 export function spacingWaitMs(lastRequestAt: number): number {

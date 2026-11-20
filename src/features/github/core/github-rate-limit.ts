@@ -1,7 +1,9 @@
 import { z } from "zod";
 
+import { wholeMillisecondsOf } from "../../../core/contract/time-units.ts";
 import type { RateLimitHeaders } from "../../../core/kernel/network.ts";
 import { parsedJson } from "../../../core/kernel/parsed-json.ts";
+import { retryAfterMs } from "../../../core/kernel/retry-after.ts";
 
 type RateLimitKind = "primary" | "secondary";
 
@@ -21,10 +23,10 @@ export const MAX_COOLDOWN_MS = 3_600_000;
 const RATE_LIMIT_BASE_MS = 60_000;
 const FALLBACK_DOUBLINGS = 1;
 
-const LIMIT_STATUSES: ReadonlySet<number> = new Set([403, 429]);
+const TOO_MANY_REQUESTS = 429;
+
+const LIMIT_STATUSES: ReadonlySet<number> = new Set([403, TOO_MANY_REQUESTS]);
 const SECONDARY_MESSAGE = /secondary rate limit/iu;
-const WHOLE_NUMBER = /^\d+$/u;
-const MS_PER_SECOND = 1000;
 
 const ErrorBodySchema = z.object({ message: z.string() });
 
@@ -37,17 +39,15 @@ function laterThan(at: number, now: number): number | null {
 }
 
 function resetAt(value: string | null, now: number): number | null {
-  const text = value?.trim() ?? "";
+  const at = wholeMillisecondsOf(value);
 
-  return WHOLE_NUMBER.test(text) ? laterThan(Number(text) * MS_PER_SECOND, now) : null;
+  return at === null ? null : laterThan(at, now);
 }
 
 function retryAfterAt(value: string | null, now: number): number | null {
-  const text = value?.trim() ?? "";
+  const delay = retryAfterMs(value, now);
 
-  if (WHOLE_NUMBER.test(text)) return laterThan(now + Number(text) * MS_PER_SECOND, now);
-
-  return laterThan(Date.parse(text), now);
+  return delay === null || delay === 0 ? null : now + delay;
 }
 
 export function rateLimitOf(answer: Readonly<LimitedAnswer>, now: number): RateLimit | null {
@@ -75,29 +75,26 @@ export function backoffUntil(now: number, attempts: number, doublings: number): 
   return Math.min(until, now + MAX_COOLDOWN_MS);
 }
 
-export function limitedUntil(limit: Readonly<RateLimit>, now: number, attempts: number): number {
-  return limit.until === null
+function waitUntil(until: number | null, now: number, attempts: number): number {
+  return until === null
     ? backoffUntil(now, attempts, FALLBACK_DOUBLINGS)
-    : Math.min(limit.until, now + MAX_COOLDOWN_MS);
+    : Math.min(until, now + MAX_COOLDOWN_MS);
 }
 
-function retryAfterWait(retryAfter: string, now: number): number {
-  const seconds = Number(retryAfter);
-  const until = Number.isFinite(seconds)
-    ? now + Math.max(1, seconds) * MS_PER_SECOND
-    : Date.parse(retryAfter);
-
-  return Number.isFinite(until) ? until : backoffUntil(now, 0, 0);
+export function limitedUntil(limit: Readonly<RateLimit>, now: number, attempts: number): number {
+  return waitUntil(limit.until, now, attempts);
 }
 
 export function rateLimitWait(answer: Readonly<LimitedAnswer>, now: number): number | null {
   const limit = rateLimitOf(answer, now);
 
-  if (limit !== null) return limit.until ?? limitedUntil(limit, now, 0);
+  if (limit !== null) return limitedUntil(limit, now, 0);
 
   if (!isLimitStatus(answer.status)) return null;
 
-  if (answer.headers.retryAfter !== null) return retryAfterWait(answer.headers.retryAfter, now);
+  const { retryAfter } = answer.headers;
 
-  return answer.status === 429 ? backoffUntil(now, 0, 0) : null;
+  return retryAfter !== null || answer.status === TOO_MANY_REQUESTS
+    ? waitUntil(retryAfterAt(retryAfter, now), now, 0)
+    : null;
 }

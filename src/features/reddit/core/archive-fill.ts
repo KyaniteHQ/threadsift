@@ -1,7 +1,8 @@
 import { ITEM_REQUEST_BYTES } from "../../../core/contract/limits.ts";
 import type { RedditRef } from "../../../core/contract/links.ts";
 import { pause } from "../../../core/contract/pause.ts";
-import { RATE_LIMITED, wholeMillisecondsOf } from "../../../core/contract/reddit-http.ts";
+import { RATE_LIMITED } from "../../../core/contract/reddit-http.ts";
+import { wholeMillisecondsOf } from "../../../core/contract/time-units.ts";
 import {
   type FetchPolicy,
   type GuardOutcome,
