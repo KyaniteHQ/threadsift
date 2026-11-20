@@ -1,7 +1,3 @@
-import { access, constants, mkdtemp, rm, stat } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { delimiter, dirname, isAbsolute, join } from "node:path";
-
 import { z } from "zod";
 
 import {
@@ -12,81 +8,16 @@ import {
   type ResolvedCliConnection,
   refusedAi,
 } from "../../core/ai-contract.ts";
-import { withCleanup } from "../../core/failure-log.ts";
+import { report } from "../../core/failure-log.ts";
 import type { CliProvider } from "../../core/provider-families.ts";
-import { PROBE_MS } from "../../core/request-waits.ts";
 import type { CliRunner, RunnerTask } from "../shared/ai-runner.ts";
-import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
+import { type ProcessEnd, type UnfinishedEnd, answerWithin } from "./cli-process.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 
 export const STDOUT_CAP = 1024 * 1024;
-export const STDERR_CAP = 64 * 1024;
-const FIXED_PATH = ["/usr/local/bin", "/usr/bin", "/bin"];
-
-async function isExecutable(path: string): Promise<boolean> {
-  try {
-    await access(path, constants.X_OK);
-
-    return (await stat(path)).isFile();
-  } catch {
-    return false;
-  }
-}
-
-export async function findBinary(path: string, name: string): Promise<string | null> {
-  const candidates = path
-    .split(delimiter)
-    .filter((dir) => isAbsolute(dir))
-    .map((dir) => join(dir, name));
-
-  const found = await Promise.all(candidates.map((candidate) => isExecutable(candidate)));
-
-  return candidates.find((_candidate, index) => found[index] === true) ?? null;
-}
-
-export function childPath(binary: string): string {
-  return [dirname(binary), ...FIXED_PATH].join(delimiter);
-}
-
-export async function inEmptyFolder<Result>(
-  work: (folder: string) => Promise<Result>,
-): Promise<Result> {
-  const folder = await mkdtemp(join(tmpdir(), "threadsift-cli-"));
-
-  return withCleanup(
-    { event: "cli-folder-not-removed", fields: {} },
-    () => work(folder),
-    () => rm(folder, { recursive: true, force: true }),
-  );
-}
-
-export function answerWithin<Answer>(
-  shutdown: AbortSignal,
-  probe: (signal: AbortSignal) => Promise<Answer>,
-  unanswered: Answer,
-): Promise<Answer> {
-  const deadline = AbortSignal.any([AbortSignal.timeout(PROBE_MS), shutdown]);
-  const answer = probe(deadline).catch(() => unanswered);
-
-  const expired = new Promise<Answer>((resolve) => {
-    deadline.addEventListener("abort", () => {
-      resolve(unanswered);
-    });
-  });
-
-  return Promise.race([answer, expired]);
-}
-
-export function present(name: string, value: string | undefined): [string, string][] {
-  return value === undefined ? [] : [[name, value]];
-}
 
 export function exitCode(end: Readonly<ProcessEnd>): number | null {
   return end.kind === "exited" ? end.code : null;
-}
-
-function report(provider: CliProvider, reason: string, code: number | null): void {
-  console.error(JSON.stringify({ event: "cli-refused", provider, reason, exit: code }));
 }
 
 export function endRefusal(end: UnfinishedEnd) {
@@ -199,7 +130,9 @@ export abstract class SlottedCli implements CliRunner {
     const done = await inSlot(this.slots, stop, async () => {
       const { result, code } = await this.attempt(task, stop);
 
-      if (result.kind === "refused") report(this.provider, result.reason, code);
+      if (result.kind === "refused") {
+        report("cli-refused", { provider: this.provider, reason: result.reason, exit: code });
+      }
 
       return result;
     });

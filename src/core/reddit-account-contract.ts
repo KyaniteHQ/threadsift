@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { REDDIT_ACCOUNT_VIEW_STATES } from "./reddit-account-state-names.ts";
 
-export const REDDIT_SESSION_MAX = 4096;
+const REDDIT_SESSION_MAX = 4096;
 
 const SESSION_PREFIX = "reddit_session=";
 
@@ -23,7 +23,7 @@ export const RedditAccountViewSchema = z.object({
 
 export type RedditAccountView = z.infer<typeof RedditAccountViewSchema>;
 
-export const RedditAccountRefusedSchema = z.object({
+const RedditAccountRefusedSchema = z.object({
   kind: z.literal("refused"),
   reason: z.enum(["secret-missing"]),
 });
@@ -33,7 +33,7 @@ export const RedditAccountSaveResponseSchema = z.union([
   RedditAccountRefusedSchema,
 ]);
 
-export const REDDIT_VERIFY_RESULTS = [
+const REDDIT_VERIFY_RESULTS = [
   "ok",
   "logged-out",
   "blocked",

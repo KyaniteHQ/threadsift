@@ -35,7 +35,7 @@ export async function intakeItem(db: Database, task: IntakeTask) {
   return item ?? null;
 }
 
-export function answeredIntake(
+function answeredIntake(
   db: Database,
   { id }: Readonly<Pick<IntakeTask, "id">>,
   result: Readonly<{ unavailable: boolean }>,

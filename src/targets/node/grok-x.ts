@@ -1,8 +1,7 @@
 import { join } from "node:path";
 
 import type { XFetch, XFetcher, XFetcherStatus } from "../../core/x-fetcher-port.ts";
-import { Slots, inTimedSlot } from "./cli-slots.ts";
-import { findBinary } from "./cli-support.ts";
+import { findBinary } from "./cli-process.ts";
 import {
   type Outcome,
   type Refused,
@@ -14,10 +13,9 @@ import {
   refused,
   versionRefusal,
 } from "./grok-answer.ts";
-import { identityOf, inRunFolders } from "./grok-folders.ts";
+import { type BinaryIdentity, identityOf, inRunFolders } from "./grok-folders.ts";
 import { type GrokCli, grokCli } from "./grok-process.ts";
 import {
-  type BinaryIdentity,
   type PreflightResult,
   type Proof,
   UNPROVEN,
@@ -30,11 +28,11 @@ import {
   preflightResultOf,
   sameBinary,
 } from "./grok-proof.ts";
+import { GrokSlots } from "./grok-slots.ts";
 import { sharedReading } from "./grok-status.ts";
 import { PREFLIGHT_PROMPT, PROVEN_VERSION, fetchPrompt, isProvenVersion } from "./grok-surface.ts";
 
 const BINARY = "grok";
-const FETCH_WIDTH = 2;
 const PREFLIGHT_MS = 60_000;
 
 export interface GrokEnvironment {
@@ -64,7 +62,7 @@ class GrokXFetcher implements StoppableXFetcher {
   readonly id = "grok-cli";
   private readonly cli: GrokCli;
   private readonly shutdown = new AbortController();
-  private readonly slots = new Slots(FETCH_WIDTH);
+  private readonly slots = new GrokSlots();
   private proof: Proof = UNPROVEN;
   private proving: Promise<Refused | null> | null = null;
   private readonly read: ReturnType<typeof sharedReading>;
@@ -96,9 +94,7 @@ class GrokXFetcher implements StoppableXFetcher {
     const prompt = fetchPrompt(statusId);
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 
-    const outcome = await inTimedSlot(this.slots, stop, (run) =>
-      this.attempt(prompt, run).catch(internal),
-    );
+    const outcome = await this.slots.run(stop, (run) => this.attempt(prompt, run).catch(internal));
 
     return logged(outcome ?? OUT_OF_TIME, Date.now() - started);
   };

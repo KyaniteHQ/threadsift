@@ -8,7 +8,7 @@ import type { XCliThreadValue } from "../../core/x-wire.ts";
 import type { ProcessEnd, UnfinishedEnd } from "./cli-process.ts";
 import { XFetchAnswerSchema } from "./grok-surface.ts";
 
-export interface Refusal {
+interface Refusal {
   readonly status: XFetchFailure;
   readonly category: XRefusalCategory;
 }

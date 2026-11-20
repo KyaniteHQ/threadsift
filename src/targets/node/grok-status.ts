@@ -1,11 +1,11 @@
-import { answerWithin } from "./cli-support.ts";
+import { answerWithin } from "./cli-process.ts";
 import { inRunFolders } from "./grok-folders.ts";
 import type { GrokCli } from "./grok-process.ts";
 import type { SignInLine } from "./grok-sign-in.ts";
 
 const STATUS_CACHE_MS = 10_000;
 
-export interface Reading {
+interface Reading {
   readonly version: string | null;
   readonly signedIn: SignInLine;
 }

@@ -1,11 +1,9 @@
 import { writeFile } from "node:fs/promises";
 
 import { type ProcessEnd, runProcess } from "./cli-process.ts";
-import { STDERR_CAP, childPath } from "./cli-support.ts";
 import { type RunFolders, sweepGrokTemp, toolListOf } from "./grok-folders.ts";
-import type { RunRecord } from "./grok-proof.ts";
 import { type SignInLine, signInOf } from "./grok-sign-in.ts";
-import { runArguments } from "./grok-surface.ts";
+import { type ToolList, runArguments } from "./grok-surface.ts";
 
 const ANSWER_CAP = 4 * 1024 * 1024;
 const LINE_CAP = 16 * 1024;
@@ -13,6 +11,11 @@ const LINE_CAP = 16 * 1024;
 interface Versioned {
   readonly end: ProcessEnd;
   readonly version: string | null;
+}
+
+export interface RunRecord {
+  readonly end: ProcessEnd;
+  readonly tools: ToolList;
 }
 
 export interface GrokCli {
@@ -33,10 +36,9 @@ function spawnerOf(binary: string, authFile: string): Spawn {
   return (folders, args, signal, stdoutCap) =>
     runProcess(
       {
-        file: binary,
+        binary,
         args,
-        env: {
-          PATH: childPath(binary),
+        extraEnv: {
           HOME: folders.home,
           GROK_HOME: folders.grokHome,
           GROK_AUTH_PATH: authFile,
@@ -45,7 +47,6 @@ function spawnerOf(binary: string, authFile: string): Spawn {
         cwd: folders.cwd,
         stdin: "",
         stdoutCap,
-        stderrCap: STDERR_CAP,
         keepStdout: true,
       },
       signal,

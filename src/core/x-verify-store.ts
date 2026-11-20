@@ -76,11 +76,7 @@ export function savedProgress(
     .where(and(eq(xVerifications.itemId, itemId), eq(xVerifications.revision, revision)));
 }
 
-export function forgotten(
-  db: Database,
-  itemId: number,
-  revision: number | null,
-): BatchItem<"sqlite"> {
+function forgotten(db: Database, itemId: number, revision: number | null): BatchItem<"sqlite"> {
   return db
     .delete(xVerifications)
     .where(and(eq(xVerifications.itemId, itemId), sql`${xVerifications.revision} is ${revision}`));
