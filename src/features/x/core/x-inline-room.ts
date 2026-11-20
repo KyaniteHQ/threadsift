@@ -7,6 +7,10 @@ export function partBytes(part: string): number {
   return utf8Length(`${PART_SEPARATOR}${part}`);
 }
 
+export function roomBefore(note: string): number {
+  return INLINE_TEXT_BYTES - partBytes(note);
+}
+
 export function roomAfter(lead: string, note: string): number {
-  return INLINE_TEXT_BYTES - utf8Length(lead) - partBytes(note);
+  return roomBefore(note) - utf8Length(lead);
 }

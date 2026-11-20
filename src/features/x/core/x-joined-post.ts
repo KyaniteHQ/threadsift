@@ -1,4 +1,5 @@
-import { X_QUOTES_MAX } from "../../../core/contract/limits.ts";
+import { prefixWithin, utf8Length } from "../../../core/contract/encoding.ts";
+import { INLINE_TEXT_BYTES, X_QUOTES_MAX } from "../../../core/contract/limits.ts";
 import { isImageLine, withImages } from "../../../core/contract/x-images.ts";
 import {
   type Judged,
@@ -7,12 +8,16 @@ import {
   recipientsOmittedOn,
   rejectedPostIds,
 } from "../../../core/contract/x-verdict.ts";
-import type { XQuoted, XThreadValue } from "../../../core/contract/x-wire.ts";
-import { type JoinedAuthorThread, joinedAuthorThread } from "./x-author-thread.ts";
+import type { XPost, XQuoted, XThreadValue } from "../../../core/contract/x-wire.ts";
+import { type JoinedAuthorThread, joinedAuthorThread, partText } from "./x-author-thread.ts";
 import { LINE_BREAK, closedBlocks } from "./x-blocks.ts";
-import { PART_SEPARATOR, partBytes, roomAfter } from "./x-inline-room.ts";
+import { PART_SEPARATOR, partBytes, roomAfter, roomBefore } from "./x-inline-room.ts";
 
 const NOT_SAVED_NOTE = "Quoted posts were not saved.";
+
+const CUT_NOTE = "The end of the post, author follow-up posts and quoted posts were not saved.";
+
+const LINK_PART = /:\/\/|\]\(|www\./iu;
 
 const TITLE_CHARACTERS = 120;
 
@@ -119,6 +124,36 @@ function omittedQuote(thread: Readonly<XThreadValue>, judged: Judged): boolean {
   return rejectedPostIds(judged).some((id) => !known.has(id));
 }
 
+function wordStart(text: string): number {
+  let start = text.length;
+
+  while (start > 0 && !/\s/u.test(text.charAt(start - 1))) start -= 1;
+
+  return start;
+}
+
+function cutAt(text: string, bytes: number): string {
+  const kept = prefixWithin(text, bytes);
+  const start = wordStart(kept);
+  const insideWord = kept !== text && start < kept.length && !/\s/u.test(text.charAt(kept.length));
+
+  return insideWord && start > 0 && LINK_PART.test(kept.slice(start))
+    ? kept.slice(0, start).trimEnd()
+    : kept;
+}
+
+function leadWithin(post: Readonly<XPost>, bytes: number): string {
+  let text = post.text.trim();
+  let lead = partText({ text, images: post.images });
+
+  while (text !== "" && utf8Length(lead) > bytes) {
+    text = cutAt(text, utf8Length(text) - (utf8Length(lead) - bytes));
+    lead = partText({ text, images: post.images });
+  }
+
+  return lead;
+}
+
 export interface JoinedPost extends JoinedAuthorThread {
   readonly quotes: readonly Readonly<XQuoted>[];
 }
@@ -128,6 +163,50 @@ function withoutUnshownPhotos<Post extends Readonly<{ id: string; images: readon
   judged: Judged,
 ): Post {
   return photosRejectedOn(judged, post.id) ? { ...post, images: [] } : post;
+}
+
+function joinedWhole(
+  thread: Readonly<XThreadValue>,
+  keptReplies: Readonly<ReadonlySet<string>>,
+  strict: Readonly<ReadonlySet<string>>,
+  judged: Judged,
+): JoinedPost {
+  const { post } = thread;
+  const root = partText(post);
+  const leading = leadingQuotes(post.quoted, judged);
+  const quotes = fittingQuotes(leading, roomAfter(root, LONGEST_NOTE));
+  const notSaved = quotes.length < post.quoted.length || omittedQuote(thread, judged);
+  const block = blockOf(quotes, notSaved);
+
+  const author = joinedAuthorThread(
+    {
+      ...thread,
+      post: { ...post, text: block === "" ? root : `${root}${PART_SEPARATOR}${block}`, quoted: [] },
+    },
+    keptReplies,
+    strict,
+    "join",
+  );
+
+  return { ...author, quotes };
+}
+
+function joinedCut(
+  thread: Readonly<XThreadValue>,
+  keptReplies: Readonly<ReadonlySet<string>>,
+  strict: Readonly<ReadonlySet<string>>,
+): JoinedPost {
+  const { post } = thread;
+  const text = `${leadWithin(post, roomBefore(CUT_NOTE))}${PART_SEPARATOR}${CUT_NOTE}`;
+
+  const author = joinedAuthorThread(
+    { ...thread, post: { ...post, text, quoted: [] } },
+    keptReplies,
+    strict,
+    "leave-out",
+  );
+
+  return { ...author, quotes: [] };
 }
 
 export function joinedPost(
@@ -143,21 +222,11 @@ export function joinedPost(
     replies: shown.replies.map((reply) => withoutUnshownPhotos(reply, judged)),
   };
 
-  const { post } = thread;
-  const root = withImages(closedBlocks(post.text), post.images);
-  const leading = leadingQuotes(post.quoted, judged);
-  const quotes = fittingQuotes(leading, roomAfter(root, LONGEST_NOTE));
-  const notSaved = quotes.length < post.quoted.length || omittedQuote(thread, judged);
-  const block = blockOf(quotes, notSaved);
+  const strict = new Set([...keptReplies].filter((id) => !recipientsOmittedOn(judged, id)));
+  const whole = joinedWhole(thread, keptReplies, strict, judged);
+  const grew = whole.thread.post.text !== partText(thread.post);
 
-  const author = joinedAuthorThread(
-    {
-      ...thread,
-      post: { ...post, text: block === "" ? root : `${root}${PART_SEPARATOR}${block}`, quoted: [] },
-    },
-    keptReplies,
-    new Set([...keptReplies].filter((id) => !recipientsOmittedOn(judged, id))),
-  );
-
-  return { ...author, quotes };
+  return grew && utf8Length(whole.thread.post.text) > INLINE_TEXT_BYTES
+    ? joinedCut(thread, keptReplies, strict)
+    : whole;
 }

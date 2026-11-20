@@ -1,3 +1,7 @@
+import { utf8Length } from "../src/core/contract/encoding.ts";
+import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
+import type { Json } from "./instance.ts";
+
 export const POST_ID = "1000000000000000001";
 
 export const X_LINK = `https://x.com/someone/status/${POST_ID}`;
@@ -72,3 +76,42 @@ export const authored = (postId = POST_ID): ReturnType<typeof thread> =>
     ],
     { id: postId },
   );
+
+export const CUT_LINE =
+  "\n\nThe end of the post, author follow-up posts and quoted posts were not saved.";
+
+export const ROOM = INLINE_TEXT_BYTES - utf8Length(CUT_LINE);
+
+export const LEFT_OUT = "LEFT-OUT-FOLLOW-UP";
+
+const QUOTE_ID = "1000000000000000100";
+
+export const QUOTED_BLOCK = `\n\n> [@carol \u00B7 2026-03-04 08:00 UTC](https://x.com/carol/status/${QUOTE_ID})\n>\n> q`;
+
+export const CUT_CASES = [
+  { name: "ASCII", text: "a".repeat(999_999), root: "a".repeat(ROOM) },
+  {
+    name: "3-byte characters",
+    text: "\u20AC".repeat(333_333),
+    root: "\u20AC".repeat(Math.floor(ROOM / 3)),
+  },
+  {
+    name: "4-byte characters",
+    text: "\u{1F600}".repeat(249_999),
+    root: "\u{1F600}".repeat(Math.floor(ROOM / 4)),
+  },
+  {
+    name: "a cut inside a link",
+    text: `${"a".repeat(999_000)} https://example.com/${"p".repeat(978)}`,
+    root: "a".repeat(999_000),
+  },
+  { name: "blank edges", text: `${" ".repeat(999_998)}X`, root: "X" },
+];
+
+export const withQuote = (value: ReturnType<typeof thread>): Json => ({
+  ...value,
+  post: {
+    ...value.post,
+    quoted: [{ id: QUOTE_ID, author: "carol", text: "q", postedAt: "2026-03-04T08:00:00Z" }],
+  },
+});

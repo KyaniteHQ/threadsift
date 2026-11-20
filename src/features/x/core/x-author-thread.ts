@@ -1,5 +1,5 @@
 import { withImages } from "../../../core/contract/x-images.ts";
-import type { XReply, XThreadValue } from "../../../core/contract/x-wire.ts";
+import type { XPost, XReply, XThreadValue } from "../../../core/contract/x-wire.ts";
 import { closedBlocks } from "./x-blocks.ts";
 import { PART_SEPARATOR, partBytes, roomAfter } from "./x-inline-room.ts";
 
@@ -103,7 +103,7 @@ function authorThreadOf(
   return followUps;
 }
 
-function partText({ text, images }: Readonly<XReply>): string {
+export function partText({ text, images }: Readonly<Pick<XPost, "text" | "images">>): string {
   return withImages(closedBlocks(text), images);
 }
 
@@ -130,15 +130,18 @@ export function authorPartsOf(thread: Readonly<XThreadValue>): readonly Readonly
   return authorThreadOf(thread, byId, new Set(byId.keys()));
 }
 
+export type FollowUps = "join" | "leave-out";
+
 export function joinedAuthorThread(
   thread: Readonly<XThreadValue>,
   kept: Ids,
   strict: Ids,
+  followUps: FollowUps,
 ): JoinedAuthorThread {
   const { post, replies } = thread;
   const byId = new Map(replies.map((reply) => [reply.id, reply]));
   const shown = authorThreadOf(thread, byId, strict);
-  const fitting = fittingText(post.text, shown);
+  const fitting = followUps === "join" ? fittingText(post.text, shown) : [];
 
   const refused = authorThreadOf(thread, byId, new Set(byId.keys())).filter(
     ({ id }) => !kept.has(id),
@@ -157,7 +160,7 @@ export function joinedAuthorThread(
 
       return part === "" ? [] : [part];
     }),
-    ...(notSaved > 0 ? [NOT_SAVED_NOTE] : []),
+    ...(notSaved > 0 && followUps === "join" ? [NOT_SAVED_NOTE] : []),
   ].join(PART_SEPARATOR);
 
   return {
