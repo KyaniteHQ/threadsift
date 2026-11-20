@@ -24,10 +24,11 @@ import {
   pauseForSpacing,
   windowFits,
 } from "./reddit-http.ts";
-import { type ParsedThread, parseRedditThread } from "./reddit-json.ts";
+import { parseRedditThread } from "./reddit-json.ts";
 import { answerOf } from "./reddit-session.ts";
 import { FILL_DEADLINE_MS, REQUEST_DEADLINE_MS } from "./request-waits.ts";
 import { THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "./thread-fill.ts";
+import type { ParsedThread } from "./thread-parse.ts";
 
 type RedditRef = import("./links.ts").RedditRef;
 

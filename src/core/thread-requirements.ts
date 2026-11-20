@@ -1,10 +1,9 @@
 import type { SQLWrapper } from "drizzle-orm";
 
 import type { Invalid, NotWaiting } from "./paste-outcome.ts";
-import { awaitsThread, ownerOf } from "./reddit-thread.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import type { ThreadPlace } from "./thread-publish.ts";
-import { holdsAtLeastStored, repliesOf } from "./x-partial.ts";
+import { awaitsThread, holdsAtLeastStored, ownerOf, repliesOf } from "./thread-store.ts";
 
 export type Refusal = NotWaiting | Invalid<"content">;
 

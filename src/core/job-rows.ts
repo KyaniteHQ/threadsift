@@ -6,7 +6,14 @@ import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
 import { ITEM_FILES_ROOT } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { ITEM_JOB_KINDS, type JobKind, type UnownedJobKind, type WaitReason } from "./kinds.ts";
+import {
+  INTAKE_JOB_KINDS,
+  ITEM_JOB_KINDS,
+  type JobKind,
+  type UnownedJobKind,
+  type WaitReason,
+} from "./kinds.ts";
+import { listed } from "./schema-checks.ts";
 import { type JobRow, exportRuns, items, jobs, restoreRuns } from "./schema.ts";
 
 interface AttemptColumns {
@@ -38,6 +45,18 @@ export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${
     sql`, `,
   )}))`;
 }
+
+const WAITING_JOB = sql`${jobs.itemId} = ${items.id} and ${jobs.kind} in (${listed(INTAKE_JOB_KINDS)}) and ${jobs.state} = 'queued' and ${jobs.waitReason} is not null`;
+
+export const WAIT_VIEW_COLUMNS = {
+  waitReason:
+    sql<WaitReason | null>`(select ${jobs.waitReason} from ${jobs} where ${WAITING_JOB})`.as(
+      "wait_reason",
+    ),
+  retryAt: sql<number | null>`(select ${jobs.nextAttemptAt} from ${jobs} where ${WAITING_JOB})`.as(
+    "retry_at",
+  ),
+};
 
 export function wokenJob(db: Database, jobId: number, now: number, when?: Readonly<SQLWrapper>) {
   return db

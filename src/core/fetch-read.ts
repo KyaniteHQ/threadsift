@@ -5,9 +5,9 @@ import { X_READER_BOT } from "./kinds.ts";
 import { takesPage } from "./links.ts";
 import { pluginPage } from "./plugin-fetch.ts";
 import { fetchedWithThread } from "./reddit-fetch.ts";
-import { holdsNoThread } from "./reddit-thread.ts";
 import { FETCH_DEADLINE_MS, X_FETCH_DEADLINE_MS } from "./request-waits.ts";
 import { SuppliedPageSchema } from "./supplied-page.ts";
+import { holdsNoThread } from "./thread-store.ts";
 import { type ToVerify, fetchedByX } from "./x-fetcher.ts";
 import { type XRoute, noted, xRouteOf } from "./x-reader.ts";
 

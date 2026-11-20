@@ -1,4 +1,4 @@
-import type { ParsedThread } from "./reddit-json.ts";
+import type { ParsedThread } from "./thread-parse.ts";
 
 export interface StoredThread extends ParsedThread {
   readonly followUps?: number;

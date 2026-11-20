@@ -4,10 +4,10 @@ import type { Concluded } from "./details.ts";
 import type { ClaimedJob, JobFiles, JobPorts } from "./job-outcome.ts";
 import { mediaKeysOf, mediaWrites } from "./media-writes.ts";
 import { placePostText } from "./post-text-files.ts";
-import { ownerOfItem, threadWrites } from "./reddit-thread.ts";
 import { fetchedRepository, repositoryWrites } from "./repositories.ts";
 import { settle } from "./settle.ts";
 import { storeMedia } from "./store-media.ts";
+import { ownerOfItem, threadWrites } from "./thread-store.ts";
 
 function archivedOf(fetched: Readonly<Concluded>) {
   return fetched.status === "ok" && fetched.found.content?.kind === "thread"

@@ -17,13 +17,13 @@ import {
 } from "./highlight-publish.ts";
 import type { JobOutcome } from "./job-outcome.ts";
 import { MAX_STALE_REQUEUES } from "./job-retry.ts";
+import { items } from "./schema.ts";
 import {
   eligibleAmong,
   highlightedComments,
   selectedBodies,
   submittedAmong,
-} from "./reddit-thread.ts";
-import { items } from "./schema.ts";
+} from "./thread-selection.ts";
 
 type CatalogRule =
   | { readonly kind: "checked"; readonly version: number; readonly staleRequeues: number }

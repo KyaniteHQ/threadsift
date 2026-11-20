@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { redditJsonOfArchive } from "../src/core/archive-adapter.ts";
+import { parseArchiveThread } from "../src/core/archive-thread.ts";
 import { readArticle } from "../src/core/article.ts";
 import { CATALOG_KEY_EXPANSION_MAX, CATALOG_KEY_MAX } from "../src/core/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/catalog-key.ts";
-import { parseArchiveThread } from "../src/core/reddit-json.ts";
 import { relatedPickTask } from "../src/core/related-task.ts";
 import { overviewLine } from "../src/core/topic-overview-contract.ts";
 
@@ -95,7 +94,7 @@ describe("the parsers turn literal input into the values the library stores", ()
     assert.notEqual(catalogKey("Machine Learning"), catalogKey("Machine Learnings"));
   });
 
-  it("reads an Arctic Shift comment tree like Reddit's JSON and drops what the archive saw deleted later", () => {
+  it("turns an Arctic Shift comment tree into the stored rows and drops what the archive saw deleted later", () => {
     const post = {
       data: [
         {
@@ -136,26 +135,19 @@ describe("the parsers turn literal input into the values the library stores", ()
       ],
     };
 
-    const json = redditJsonOfArchive(JSON.stringify(post), JSON.stringify(tree));
-
-    assert.ok(json !== null);
-
     const ref = {
       postId: "abc123",
       commentId: undefined,
       community: undefined,
     };
 
-    const parsed = parseArchiveThread(json, ref);
+    const thread = parseArchiveThread(JSON.stringify(post), JSON.stringify(tree), ref);
 
-    assert.equal(parsed.kind, "thread");
-
-    if (parsed.kind !== "thread") return;
-
-    assert.equal(parsed.thread.title, "How do you back up SQLite?");
-    assert.equal(parsed.thread.reported, 4);
+    assert.ok(thread !== null);
+    assert.equal(thread.title, "How do you back up SQLite?");
+    assert.equal(thread.reported, 4);
     assert.deepEqual(
-      parsed.thread.nodes.map(({ id, parentId, depth, eligible, body }) => [
+      thread.nodes.map(({ id, parentId, depth, eligible, body }) => [
         id,
         parentId,
         depth,

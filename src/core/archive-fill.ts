@@ -1,4 +1,4 @@
-import { redditJsonOfArchive } from "./archive-adapter.ts";
+import { parseArchiveThread } from "./archive-thread.ts";
 import { type FetchPolicy, type GuardOutcome, guardedFetch } from "./fetch-guard.ts";
 import { ITEM_REQUEST_BYTES } from "./limits.ts";
 import type { RedditRef } from "./links.ts";
@@ -6,9 +6,9 @@ import type { Network } from "./network.ts";
 import { pause } from "./pause.ts";
 import type { Ports } from "./ports.ts";
 import { RATE_LIMITED, wholeMillisecondsOf } from "./reddit-http.ts";
-import { type ParsedThread, parseArchiveThread } from "./reddit-json.ts";
 import { archiveFillIsOn } from "./reddit-settings.ts";
-import { holdsNoThread } from "./reddit-thread.ts";
+import type { ParsedThread } from "./thread-parse.ts";
+import { holdsNoThread } from "./thread-store.ts";
 
 export interface ArchivedThread {
   readonly thread: ParsedThread;
@@ -72,13 +72,7 @@ async function fetchedThread(
     deadline,
   );
 
-  const json = tree === null ? null : redditJsonOfArchive(post, tree);
-
-  if (json === null) return null;
-
-  const parsed = parseArchiveThread(json, ref);
-
-  return parsed.kind === "thread" ? parsed.thread : null;
+  return tree === null ? null : parseArchiveThread(post, tree, ref);
 }
 
 export async function archivedThread(

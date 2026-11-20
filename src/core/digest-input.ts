@@ -5,8 +5,8 @@ import type { Database } from "./database.ts";
 import { guardedOutcome } from "./guarded-outcome.ts";
 import type { JobOutcome } from "./job-outcome.ts";
 import { hasOpenJob } from "./job-rows.ts";
-import { candidateLink, eligibleComments } from "./reddit-thread.ts";
 import { items } from "./schema.ts";
+import { candidateLink, eligibleComments } from "./thread-store.ts";
 
 function digestContent() {
   return [isNotNull(items.postText), isNotNull(items.postTextKey), eligibleComments()] as const;

@@ -1,11 +1,24 @@
 import { and, desc, eq, getTableColumns, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
+import { DIGEST_VIEW_COLUMNS } from "./digest-stored.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
-import { JOINED_VIEW_COLUMNS } from "./joined-view.ts";
+import { STATUS_VIEW_COLUMNS } from "./item-status.ts";
+import { WAIT_VIEW_COLUMNS } from "./job-rows.ts";
+import { IMAGE_VIEW_COLUMNS } from "./media-reads.ts";
 import { pageTail } from "./page-tail.ts";
 import { digests, githubRepos, items } from "./schema.ts";
+import { COMMENT_COUNT_COLUMNS, FILLABLE_COLUMNS } from "./thread-store.ts";
+
+const JOINED_VIEW_COLUMNS = {
+  ...STATUS_VIEW_COLUMNS,
+  ...DIGEST_VIEW_COLUMNS,
+  ...WAIT_VIEW_COLUMNS,
+  ...COMMENT_COUNT_COLUMNS,
+  ...IMAGE_VIEW_COLUMNS,
+  ...FILLABLE_COLUMNS,
+};
 
 const {
   generation: _generation,

@@ -13,8 +13,8 @@ import { closeItemJobs } from "./job-close.ts";
 import { enqueueItemJobs } from "./job-rows.ts";
 import type { Link } from "./links.ts";
 import type { Ports } from "./ports.ts";
-import { hasNoThread, ownerOf } from "./reddit-thread.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
+import { hasNoThread, ownerOf } from "./thread-store.ts";
 
 export type { Existing, Paste, Saved } from "./item-rows.ts";
 export { saveResolved, saveUnresolved } from "./short-link-save.ts";
