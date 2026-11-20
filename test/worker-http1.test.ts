@@ -82,9 +82,11 @@ describe("the Worker's HTTP/1.1 reader", () => {
     const response = await readResponse(piecesOf(lengthAnswer, 5));
 
     assert.equal(response.status, 200);
-    assert.equal(response.contentType, "application/json; charset=UTF-8");
-    assert.equal(response.location, "https://www.reddit.com/elsewhere");
-    assert.deepEqual(response.rateLimit, { retryAfter: "12", remaining: "97.0", reset: "537" });
+    assert.equal(response.header("content-type"), "application/json; charset=UTF-8");
+    assert.equal(response.header("location"), "https://www.reddit.com/elsewhere");
+    assert.equal(response.header("retry-after"), "12");
+    assert.equal(response.header("x-ratelimit-remaining"), "97.0");
+    assert.equal(response.header("x-ratelimit-reset"), "537");
   });
 
   it("skips an interim 103 answer and reads the final answer that follows it", async () => {
@@ -92,7 +94,7 @@ describe("the Worker's HTTP/1.1 reader", () => {
     const response = await readResponse(piecesOf(`${early}${lengthAnswer}`, 6));
 
     assert.equal(response.status, 200);
-    assert.equal(response.rateLimit.remaining, "97.0");
+    assert.equal(response.header("x-ratelimit-remaining"), "97.0");
   });
 
   it("reads an answer with no body", async () => {

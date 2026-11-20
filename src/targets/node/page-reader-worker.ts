@@ -1,23 +1,7 @@
 import { parentPort } from "node:worker_threads";
 
-import { readArticle, readSuppliedPage, readTitle } from "../../core/article.ts";
+import { answerPage } from "../../core/page-answer.ts";
 import type { Reply, RequestMessage } from "./page-reader-protocol.ts";
-
-function answerOf(request: Readonly<RequestMessage>) {
-  switch (request.kind) {
-    case "title":
-      return Promise.resolve(readTitle(request.html));
-    case "article":
-      return readArticle(request.html, request.url);
-    case "page":
-      return Promise.resolve(readSuppliedPage(request.page));
-    default: {
-      const exhaustive: never = request;
-
-      throw new Error(JSON.stringify(exhaustive));
-    }
-  }
-}
 
 if (parentPort === null) {
   throw new Error("the page reader runs only as a worker thread");
@@ -32,7 +16,7 @@ function send(answer: Readonly<Reply>): void {
 
 async function reply(request: Readonly<RequestMessage>): Promise<void> {
   try {
-    send({ id: request.id, ok: true, value: await answerOf(request) });
+    send({ id: request.id, ok: true, value: await answerPage(request) });
   } catch (error) {
     const message = error instanceof Error ? error.message : "the page could not be read";
 

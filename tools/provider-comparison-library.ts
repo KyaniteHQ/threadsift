@@ -8,10 +8,10 @@ import { postTextOf } from "../src/core/post-text.ts";
 import { sealedSecrets } from "../src/core/sealed-secret.ts";
 import { dataFileStore } from "../src/targets/node/file-store.ts";
 import { nodeNetwork } from "../src/targets/node/network.ts";
-import { WorkerPageReader } from "../src/targets/node/page-reader.ts";
+import { threadPageReader } from "../src/targets/node/page-reader.ts";
 
 export async function libraryReader(dataDir: string) {
-  const pages = new WorkerPageReader();
+  const pages = threadPageReader();
   const files = dataFileStore(dataDir);
   const secrets = await sealedSecrets(process.env["THREADSIFT_SECRET_KEY"]);
 

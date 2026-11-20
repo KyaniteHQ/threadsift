@@ -2,9 +2,14 @@ import { Worker } from "node:worker_threads";
 
 import type { ArticleReading } from "../../core/article.ts";
 import { PageReadTimeout } from "../../core/page-read-timeout.ts";
-import type { PageReader } from "../../core/page-reader.ts";
-import type { SuppliedPage } from "../../core/supplied-page.ts";
-import type { PageRequest, Reply } from "./page-reader-protocol.ts";
+import {
+  type PageReader,
+  type PageRequest,
+  type PageSource,
+  type RequestsAnswering,
+  pageReaderOver,
+} from "../../core/page-reader.ts";
+import type { Reply } from "./page-reader-protocol.ts";
 
 const WORKER_FILE = new URL("./page-reader-worker.ts", import.meta.url);
 
@@ -25,20 +30,10 @@ const MAX_HTML_BYTES = 5 * 1024 * 1024;
 
 const STOPPED = "the page reader stopped";
 
-export class WorkerPageReader implements PageReader {
-  readonly maxHtmlBytes = MAX_HTML_BYTES;
+class PageThread implements PageSource {
   private state: State = { kind: "idle" };
   private nextId = 0;
   private readonly pending = new Map<number, Pending>();
-
-  readonly title = (html: string, deadline: AbortSignal): Promise<string> =>
-    this.ask({ kind: "title", html }, deadline);
-
-  readonly article = (html: string, url: string, deadline: AbortSignal) =>
-    this.ask({ kind: "article", html, url }, deadline);
-
-  readonly page = (page: SuppliedPage, deadline: AbortSignal) =>
-    this.ask({ kind: "page", page }, deadline);
 
   stop(): void {
     this.terminate();
@@ -46,15 +41,12 @@ export class WorkerPageReader implements PageReader {
     this.failAll(new Error(STOPPED));
   }
 
-  private ask(
-    request: Readonly<Extract<PageRequest, { readonly kind: "title" }>>,
-    deadline: AbortSignal,
-  ): Promise<string>;
-  private ask(
-    request: Readonly<Exclude<PageRequest, { readonly kind: "title" }>>,
+  ask(request: Readonly<RequestsAnswering<string>>, deadline: AbortSignal): Promise<string>;
+  ask(
+    request: Readonly<RequestsAnswering<ArticleReading>>,
     deadline: AbortSignal,
   ): Promise<ArticleReading>;
-  private ask(request: Readonly<PageRequest>, deadline: AbortSignal): Promise<Answered> {
+  ask(request: Readonly<PageRequest>, deadline: AbortSignal): Promise<Answered> {
     if (this.state.kind === "stopped") return Promise.reject(new Error(STOPPED));
 
     if (deadline.aborted) return Promise.reject(new PageReadTimeout());
@@ -165,4 +157,15 @@ export class WorkerPageReader implements PageReader {
 
     this.pending.clear();
   }
+}
+
+export function threadPageReader(): PageReader & { readonly stop: () => void } {
+  const thread = new PageThread();
+
+  return {
+    ...pageReaderOver(MAX_HTML_BYTES, thread),
+    stop: () => {
+      thread.stop();
+    },
+  };
 }

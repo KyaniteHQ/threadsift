@@ -1,12 +1,6 @@
 import { batchesOf } from "../../core/batches.ts";
-import {
-  parseStoredKey,
-  requireFileKey,
-  requireStoredKey,
-  requireFilePrefix,
-  requireListLimit,
-} from "../../core/file-keys.ts";
-import type { FilePage, FileStore } from "../../core/file-store.ts";
+import { parseStoredKey, storeKeyText, storePrefixText } from "../../core/file-keys.ts";
+import { type FilePage, type FileStore, checkedFileStore } from "../../core/file-store.ts";
 
 interface BucketObject {
   readonly key: string;
@@ -34,25 +28,22 @@ export interface FilesBucket {
 const R2_DELETE_BATCH_KEYS = 1000;
 
 export function r2FileStore(bucket: FilesBucket): FileStore {
-  return {
+  return checkedFileStore({
+    checksLimitFirst: false,
     put: async (key, bytes) => {
-      requireFileKey(key);
-      await bucket.put(key, bytes);
+      await bucket.put(storeKeyText(key), bytes);
     },
-    get: async (key) => {
-      requireStoredKey(key);
-
-      return (await bucket.get(key))?.body ?? null;
-    },
+    get: async (key) => (await bucket.get(storeKeyText(key)))?.body ?? null,
     delete: async (keys) => {
-      for (const key of keys) requireStoredKey(key);
-
-      await Promise.all(batchesOf(keys, R2_DELETE_BATCH_KEYS).map((batch) => bucket.delete(batch)));
+      await Promise.all(
+        batchesOf(
+          keys.map((key) => storeKeyText(key)),
+          R2_DELETE_BATCH_KEYS,
+        ).map((batch) => bucket.delete(batch)),
+      );
     },
     list: async (prefix, cursor, limit): Promise<FilePage> => {
-      requireFilePrefix(prefix);
-
-      const options: ListOptions = { prefix, limit: requireListLimit(limit) };
+      const options: ListOptions = { prefix: storePrefixText(prefix), limit };
 
       if (cursor !== null) options.cursor = cursor;
 
@@ -63,5 +54,5 @@ export function r2FileStore(bucket: FilesBucket): FileStore {
         cursor: listing.truncated ? (listing.cursor ?? null) : null,
       };
     },
-  };
+  });
 }
