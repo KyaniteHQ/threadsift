@@ -1,7 +1,8 @@
 import { eq, or } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
-import { FILE_LIST_LIMIT, itemFilesPrefix } from "./file-keys.ts";
+import { itemFilesPrefix } from "./file-keys.ts";
+import { listedKeys } from "./file-pages.ts";
 import type { FileStore } from "./file-store.ts";
 import type { Ports } from "./ports.ts";
 import { goneWithItem } from "./proposal-lifecycle.ts";
@@ -26,23 +27,9 @@ import {
 } from "./schema.ts";
 import { queueVaultItemDeletion } from "./vault-wiki-writes.ts";
 
-async function storedKeys(files: FileStore, itemId: number): Promise<string[]> {
-  const keys: string[] = [];
-  let cursor: string | null = null;
-
-  do {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Each page starts at the cursor the previous page returned.
-    const page = await files.list(itemFilesPrefix(itemId), cursor, FILE_LIST_LIMIT);
-    keys.push(...page.keys);
-    cursor = page.cursor;
-  } while (cursor !== null);
-
-  return keys;
-}
-
 async function deleteFilesQuietly(files: FileStore, itemId: number): Promise<void> {
   try {
-    const keys = await storedKeys(files, itemId);
+    const keys = await listedKeys(files, itemFilesPrefix(itemId));
 
     if (keys.length > 0) await files.delete(keys);
   } catch (error) {

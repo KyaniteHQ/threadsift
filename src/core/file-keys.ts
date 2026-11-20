@@ -38,10 +38,16 @@ const TEMPORARY = new RegExp(
   "u",
 );
 
-const POST_TEXT = new RegExp(`^${ITEM_FILES_ROOT}${OWNER_ID}/post-[0-9]+-[0-9]+\\.md$`, "u");
+export const POST_TEXT_STEM = "post-";
+export const IMAGE_STEM = "img-";
+
+const POST_TEXT = new RegExp(
+  `^${ITEM_FILES_ROOT}(?<itemId>${OWNER_ID})/${POST_TEXT_STEM}[0-9]+-[0-9]+\\.md$`,
+  "u",
+);
 
 const IMAGE = new RegExp(
-  `^${ITEM_FILES_ROOT}${OWNER_ID}/img-[0-9]+-[0-9]+-[0-9]+\\.(?:${Object.values(IMAGE_EXTENSIONS).join("|")})$`,
+  `^${ITEM_FILES_ROOT}(?<itemId>${OWNER_ID})/${IMAGE_STEM}[0-9]+-[0-9]+-[0-9]+\\.(?:${Object.values(IMAGE_EXTENSIONS).join("|")})$`,
   "u",
 );
 
@@ -72,8 +78,27 @@ export function finalKeyOf(key: string): string {
   return folder === undefined || name === undefined ? key : folder + name;
 }
 
+export interface ItemFile {
+  readonly kind: "post-text" | "image";
+  readonly itemId: string;
+}
+
+export function imageKey(prefix: string, position: number, extension: string): string {
+  return `${prefix}${String(position)}.${extension}`;
+}
+
+export function itemFileOf(key: string): ItemFile | null {
+  const post = POST_TEXT.exec(key)?.groups?.["itemId"];
+
+  if (post !== undefined) return { kind: "post-text", itemId: post };
+
+  const image = IMAGE.exec(key)?.groups?.["itemId"];
+
+  return image === undefined ? null : { kind: "image", itemId: image };
+}
+
 export function isSweptKey(key: string): boolean {
-  return POST_TEXT.test(key) || IMAGE.test(key);
+  return itemFileOf(key) !== null;
 }
 
 export interface FileKey {
@@ -207,7 +232,9 @@ export function keyOfFileRoute(path: string): string | null {
 export function isImageRouteOf(path: string, itemId: number): boolean {
   const key = keyOfFileRoute(path);
 
-  return key !== null && IMAGE.test(key) && parseFileKey(key)?.itemId === String(itemId);
+  const file = key === null ? null : itemFileOf(key);
+
+  return file?.kind === "image" && file.itemId === String(itemId);
 }
 
 export function isOwnerId(id: string): boolean {

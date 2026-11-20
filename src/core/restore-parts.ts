@@ -2,13 +2,8 @@ import { and, eq, gte, inArray, lt, or } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
-import { removeUnder } from "./file-cleanup.ts";
-import {
-  FILE_LIST_LIMIT,
-  RESTORE_FILES_ROOT,
-  parseStoredKey,
-  restoreFilesPrefix,
-} from "./file-keys.ts";
+import { RESTORE_FILES_ROOT, parseStoredKey, restoreFilesPrefix } from "./file-keys.ts";
+import { deleteMatching, removeUnder } from "./file-pages.ts";
 import type { FileStore } from "./file-store.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { RESTORE_PARTS_KEEP_MS } from "./restore-contract.ts";
@@ -67,24 +62,18 @@ async function holdingParts(db: Database, keys: readonly string[]): Promise<Read
   return new Set(holding.map(({ id }) => id));
 }
 
-async function removeStrayParts(
-  ports: Readonly<PartPorts>,
-  cursor: string | null,
-): Promise<number> {
-  const page = await ports.files.list(RESTORE_FILES_ROOT, cursor, FILE_LIST_LIMIT);
-  const keys = page.keys;
-  const holding = await holdingParts(ports.db, keys);
-  const stray = keys.filter((key) => !holding.has(Number(parseStoredKey(key)?.ownerId)));
+async function strayParts(db: Database, keys: readonly string[]): Promise<readonly string[]> {
+  const holding = await holdingParts(db, keys);
 
-  if (stray.length > 0) await ports.files.delete(stray);
-
-  return stray.length + (page.cursor === null ? 0 : await removeStrayParts(ports, page.cursor));
+  return keys.filter((key) => !holding.has(Number(parseStoredKey(key)?.ownerId)));
 }
 
 export async function cleanRestoreParts(ports: Readonly<PartPorts>): Promise<void> {
   await endAbandonedUploads(ports);
 
-  const removed = await removeStrayParts(ports, null);
+  const removed = await deleteMatching(ports.files, RESTORE_FILES_ROOT, (keys) =>
+    strayParts(ports.db, keys),
+  );
 
   if (removed > 0) report("restore-stray-parts-removed", { keys: removed });
 }

@@ -8,6 +8,13 @@ import { type Ending, mirrorAfter } from "./restore-hold.ts";
 import { restoreById } from "./restore-state.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 
+export function tallied(column: "restored" | "dropped", name: string, delta: SQL | number): SQL {
+  const held = restoreRuns[column];
+  const path = sql.raw(`'$."${name}"'`);
+
+  return sql`json_set(${held}, ${path}, coalesce(json_extract(${held}, ${path}), 0) + ${delta})`;
+}
+
 function partKeysOf(run: Readonly<Pick<RestoreRow, "id" | "parts">>): readonly string[] {
   return Array.from({ length: run.parts }, (_, at) => restorePartKey(run.id, at + 1));
 }

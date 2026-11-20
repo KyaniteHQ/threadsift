@@ -7,13 +7,8 @@ import {
   EXPORT_SLICE_DEADLINE_MS,
 } from "./export-contract.ts";
 import { logFailure, report } from "./failure-log.ts";
-import { removeUnder } from "./file-cleanup.ts";
-import {
-  EXPORT_FILES_ROOT,
-  FILE_LIST_LIMIT,
-  exportFilesPrefix,
-  parseStoredKey,
-} from "./file-keys.ts";
+import { EXPORT_FILES_ROOT, exportFilesPrefix, parseStoredKey } from "./file-keys.ts";
+import { deleteMatching, removeUnder } from "./file-pages.ts";
 import { CLAIM_MARGIN_MS, type JobPorts } from "./job-outcome.ts";
 import { exportRuns } from "./schema.ts";
 import { among } from "./sql-expressions.ts";
@@ -40,19 +35,6 @@ async function expiredKeys(db: Database, keys: readonly string[]): Promise<reado
   const ids = new Set(expired.map(({ id }) => id));
 
   return owned.flatMap(({ key, id }) => (ids.has(id) ? [key] : []));
-}
-
-async function removeStrays(
-  { db, files }: Readonly<CleanupPorts>,
-  cursor: string | null,
-): Promise<number> {
-  const page = await files.list(EXPORT_FILES_ROOT, cursor, FILE_LIST_LIMIT);
-
-  const stray = await expiredKeys(db, page.keys);
-
-  if (stray.length > 0) await files.delete(stray);
-
-  return stray.length + (page.cursor === null ? 0 : await removeStrays({ db, files }, page.cursor));
 }
 
 export async function removeExport({ db, files }: Readonly<CleanupPorts>, id: number) {
@@ -93,7 +75,9 @@ export async function cleanExports(ports: Readonly<CleanupPorts>): Promise<void>
 
   await Promise.all(stale.map(({ id }) => removeExport(ports, id)));
 
-  const removed = await removeStrays(ports, null);
+  const removed = await deleteMatching(ports.files, EXPORT_FILES_ROOT, (keys) =>
+    expiredKeys(ports.db, keys),
+  );
 
   if (removed > 0) report("export-stray-objects-removed", { keys: removed });
 }

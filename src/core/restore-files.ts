@@ -1,17 +1,99 @@
+import { sql } from "drizzle-orm";
+
+import type { Database } from "./database.ts";
+import { itemFileOf } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
+import { IMAGE_MAX_BYTES, ITEM_REQUEST_BYTES } from "./limits.ts";
+import { NAMED_FILES } from "./named-files.ts";
 import {
   FilesCursorSchema,
   MISSING_FILES,
   RESTORED_FILES,
-  START_ITEMS,
+  RESTORE_FILE_BYTES,
+  RESTORE_FILE_ENTRIES,
+  entering,
 } from "./restore-contract.ts";
-import { namedAfter, windowOf } from "./restore-file-window.ts";
 import { readRestoreDirectory } from "./restore-source.ts";
-import { tallied } from "./restore-tally.ts";
-import { steppedUnit } from "./restore-unit.ts";
-import { type RestoreRow, restoreRuns } from "./schema.ts";
-import { type ReadEntry, type ZipDirectory, type ZipSource, entriesBytes } from "./zip-read.ts";
+import { steppedUnit, tallied } from "./restore-unit.ts";
+import type { RestoreRow } from "./schema.ts";
+import {
+  type ReadEntry,
+  type ReadExtent,
+  type ZipDirectory,
+  type ZipEntry,
+  type ZipSource,
+  entriesBytes,
+  extentWith,
+} from "./zip-read.ts";
+
+const ITEM_FILE_BYTES = {
+  image: IMAGE_MAX_BYTES,
+  "post-text": ITEM_REQUEST_BYTES,
+} as const;
+
+interface Named {
+  readonly owner: number;
+  readonly key: string;
+}
+
+interface Batch {
+  readonly stored: readonly ZipEntry[];
+  readonly missing: number;
+  readonly last: Named;
+}
+
+function namedAfter(db: Database, after: Readonly<Named>) {
+  return db
+    .select({ key: sql<string>`named.key`, owner: sql<number>`named.owner` })
+    .from(sql`${NAMED_FILES} as named`)
+    .where(sql`(named.owner, named.key) > (${after.owner}, ${after.key})`)
+    .orderBy(sql`named.owner, named.key`)
+    .limit(RESTORE_FILE_ENTRIES);
+}
+
+function restorable(
+  directory: Readonly<ZipDirectory>,
+  entries: Readonly<ReadonlyMap<string, Readonly<ZipEntry>>>,
+  { owner, key }: Readonly<Named>,
+): ZipEntry | null {
+  const entry = entries.get(`${directory.root}/${key}`);
+  const file = itemFileOf(key);
+
+  if (entry === undefined || file === null || file.itemId !== String(owner)) return null;
+
+  return entry.size > ITEM_FILE_BYTES[file.kind] ? null : entry;
+}
+
+function windowOf(
+  directory: Readonly<ZipDirectory>,
+  rows: readonly Readonly<Named>[],
+): Batch | null {
+  const entries = new Map(directory.entries.map((entry) => [entry.name, entry]));
+  const stored: ZipEntry[] = [];
+  let missing = 0;
+  let last: Named | null = null;
+  let extent: ReadExtent | null = null;
+
+  for (const row of rows) {
+    const entry = restorable(directory, entries, row);
+
+    if (entry === null) {
+      missing += 1;
+    } else {
+      const next = extentWith(extent, entry);
+
+      if (stored.length > 0 && next.to - next.from > RESTORE_FILE_BYTES) break;
+
+      stored.push(entry);
+      extent = next;
+    }
+
+    last = row;
+  }
+
+  return last === null ? null : { stored, missing, last };
+}
 
 function putEach(
   store: FileStore,
@@ -36,14 +118,14 @@ export async function filesUnit(
   const window = windowOf(directory, rows);
 
   if (window === null) {
-    return steppedUnit(db, run, { phase: "search", cursor: JSON.stringify(START_ITEMS) });
+    return steppedUnit(db, run, entering("search"));
   }
 
   await putEach(files, directory, await entriesBytes(source, directory, window.stored));
 
   return steppedUnit(db, run, {
     cursor: JSON.stringify(window.last),
-    restored: tallied(restoreRuns.restored, RESTORED_FILES, window.stored.length),
-    dropped: tallied(restoreRuns.dropped, MISSING_FILES, window.missing),
+    restored: tallied("restored", RESTORED_FILES, window.stored.length),
+    dropped: tallied("dropped", MISSING_FILES, window.missing),
   });
 }

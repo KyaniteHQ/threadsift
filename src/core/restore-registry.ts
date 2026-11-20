@@ -2,14 +2,12 @@ import { getTableName, is } from "drizzle-orm";
 import { SQLiteBaseInteger, SQLiteTable, getTableConfig } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
-import { BACKUP_TABLES, backupTable } from "./backup-tables.ts";
+import { BACKUP_TABLES, type Singleton, backupTable } from "./backup-tables.ts";
 import type { Row } from "./restore-lines.ts";
-import { REWRITES, type Rewrite } from "./restore-rewrites.ts";
+import type { Rewrite } from "./restore-rewrites.ts";
 import * as schema from "./schema.ts";
 
 export type LeftOutColumnDefault = string | number | null;
-
-export type Singleton = "keep" | "reset";
 
 export interface ColumnSpec {
   readonly name: string;
@@ -29,13 +27,10 @@ export interface TableSpec {
   }>[];
   readonly autoIncrement: boolean;
   readonly singleton: Singleton | null;
+  readonly rebuiltInto: readonly SQLiteTable[];
 }
 
-const SINGLETONS: ReadonlyMap<string, Singleton> = new Map([
-  ["log_start", "keep"],
-  ["reddit_settings", "reset"],
-  ["catalog_version", "keep"],
-]);
+type TablesByName = Readonly<ReadonlyMap<string, SQLiteTable>>;
 
 const Literal = z.union([z.number(), z.string(), z.boolean().transform((flag) => (flag ? 1 : 0))]);
 
@@ -74,7 +69,7 @@ function cellOf(
   return column.notNull ? cell : cell.nullable();
 }
 
-function tablesByName(): ReadonlyMap<string, SQLiteTable> {
+function tablesByName(): TablesByName {
   const found = new Map<string, SQLiteTable>();
 
   for (const value of Object.values(schema)) {
@@ -112,7 +107,18 @@ function defaultsOf(
   );
 }
 
-function specOf(name: string, table: SQLiteTable): TableSpec {
+function rebuiltIntoOf(schemaTables: TablesByName, name: string, names: readonly string[]) {
+  return names.map((target) => {
+    const found = schemaTables.get(target);
+
+    if (found === undefined)
+      throw new Error(`${name} is rebuilt into ${target}, which the schema lacks`);
+
+    return found;
+  });
+}
+
+function specOf(schemaTables: TablesByName, name: string, table: SQLiteTable): TableSpec {
   const { columns, foreignKeys } = getTableConfig(table);
   const exported = backupTable(name);
 
@@ -129,7 +135,7 @@ function specOf(name: string, table: SQLiteTable): TableSpec {
     table,
     columns: listed,
     defaults: defaultsOf(name, columns, exported.columns),
-    rewrites: REWRITES.get(name) ?? {},
+    rewrites: exported.rewrites ?? {},
     parents: foreignKeys.map((key) => {
       const reference = key.reference();
 
@@ -142,7 +148,8 @@ function specOf(name: string, table: SQLiteTable): TableSpec {
     autoIncrement: columns.some(
       (column) => column.primary && is(column, SQLiteBaseInteger) && column.autoIncrement,
     ),
-    singleton: SINGLETONS.get(name) ?? null,
+    singleton: exported.singleton ?? null,
+    rebuiltInto: rebuiltIntoOf(schemaTables, name, exported.rebuiltInto ?? []),
   };
 }
 
@@ -173,7 +180,7 @@ function buildRegistry() {
 
       if (table === undefined) throw new Error(`The schema has no table ${name}`);
 
-      return [name, specOf(name, table)] as const;
+      return [name, specOf(held, name, table)] as const;
     }),
   );
 

@@ -1,8 +1,10 @@
 import { desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
+import { BACKUP_TABLES, backupTable } from "./backup-tables.ts";
 import type { Database } from "./database.ts";
-import { FILE_LIST_LIMIT, restoreFilesPrefix } from "./file-keys.ts";
+import { restoreFilesPrefix } from "./file-keys.ts";
+import { listedKeys } from "./file-pages.ts";
 import type { FileStore } from "./file-store.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { COPY_RESTORE_PHASES } from "./kinds.ts";
@@ -20,10 +22,10 @@ const CopyPhaseSchema = z.enum(COPY_RESTORE_PHASES);
 
 const PART_NAME = /\/part-(?<part>[1-9][0-9]{0,9})$/u;
 
-const LIBRARY_TABLES = ["items", "topics", "tags", "log_entries", "proposals", "pins", "imports"];
-
 export const EMPTY_LIBRARY = sql.join(
-  LIBRARY_TABLES.map((table) => sql`not exists (select 1 from ${sql.identifier(table)})`),
+  Object.keys(BACKUP_TABLES)
+    .filter((table) => backupTable(table).mustBeEmpty === true)
+    .map((table) => sql`not exists (select 1 from ${sql.identifier(table)})`),
   sql` and `,
 );
 
@@ -52,17 +54,14 @@ export async function restoreById(db: Database, id: number): Promise<RestoreRow 
 export async function receivedParts(
   files: Pick<FileStore, "list">,
   id: number,
-  cursor: string | null = null,
 ): Promise<readonly number[]> {
-  const page = await files.list(restoreFilesPrefix(id), cursor, FILE_LIST_LIMIT);
+  const keys = await listedKeys(files, restoreFilesPrefix(id));
 
-  const here = page.keys.flatMap((key) => {
+  return keys.flatMap((key) => {
     const part = PART_NAME.exec(key)?.groups?.["part"];
 
     return part === undefined ? [] : [Number(part)];
   });
-
-  return page.cursor === null ? here : [...here, ...(await receivedParts(files, id, page.cursor))];
 }
 
 export async function holdsEveryPart(
