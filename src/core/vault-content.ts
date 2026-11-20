@@ -1,3 +1,4 @@
+import { readExactly } from "./capped.ts";
 import { hex } from "./encoding.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { VaultNoteFailure } from "./vault-queue.ts";
@@ -8,6 +9,16 @@ export function base64VaultBytes(bytes: Uint8Array): string {
   for (let at = 0; at < bytes.length; at += 32_768)
     text += String.fromCodePoint(...bytes.subarray(at, at + 32_768));
   return btoa(text);
+}
+
+async function* unlessAborted(
+  body: AsyncIterable<Uint8Array>,
+  signal: AbortSignal,
+): AsyncGenerator<Uint8Array> {
+  for await (const chunk of body) {
+    signal.throwIfAborted();
+    yield chunk;
+  }
 }
 
 export async function vaultContent({
@@ -23,15 +34,8 @@ export async function vaultContent({
   if (file.kind === "memory") return file.bytes;
   const stream = await ports.files.get(file.key);
   if (stream === null) throw new VaultNoteFailure("file-missing");
-  const bytes = new Uint8Array(file.size);
-  let offset = 0;
-  for await (const chunk of stream) {
-    signal.throwIfAborted();
-    if (offset + chunk.length > file.size) throw new VaultNoteFailure("file-changed");
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
-  if (offset !== file.size) throw new VaultNoteFailure("file-changed");
+  const bytes = await readExactly(unlessAborted(stream, signal), file.size);
+  if (bytes === null) throw new VaultNoteFailure("file-changed");
   return bytes;
 }
 

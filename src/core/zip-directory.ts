@@ -1,5 +1,4 @@
 import { utf8Length } from "./encoding.ts";
-import { RESTORE_DIRECTORY_BYTES } from "./restore-contract.ts";
 import {
   ZipRefused,
   type ZipDirectory,
@@ -8,6 +7,7 @@ import {
   viewOf,
   wide,
   bytesAt,
+  checkedEnd,
 } from "./zip-read.ts";
 import {
   CENTRAL_RECORD_BYTES,
@@ -43,26 +43,26 @@ async function zip64Placement(
   const at = tail.end - ZIP64_LOCATOR_BYTES;
 
   if (at < 0 || viewOf(tail.bytes).getUint32(at, true) !== ZIP64_LOCATOR_SIGNATURE) {
-    throw new ZipRefused("not-a-zip", "The zip has no ZIP64 locator");
+    throw new ZipRefused("malformed", "The zip has no ZIP64 locator");
   }
 
   const endAt = wide(viewOf(tail.bytes), at + 8);
 
   if (endAt + ZIP64_END_BYTES > source.size) {
-    throw new ZipRefused("not-a-zip", "The ZIP64 end record is outside the zip");
+    throw new ZipRefused("malformed", "The ZIP64 end record is outside the zip");
   }
 
   const record = viewOf(await bytesAt(source, endAt, ZIP64_END_BYTES));
 
   if (record.getUint32(0, true) !== ZIP64_END_SIGNATURE) {
-    throw new ZipRefused("not-a-zip", "The ZIP64 end record is malformed");
+    throw new ZipRefused("malformed", "The ZIP64 end record is malformed");
   }
 
   return { count: wide(record, 32), size: wide(record, 40), offset: wide(record, 48) };
 }
 
 async function placementOf(source: Readonly<ZipSource>): Promise<Placement> {
-  if (source.size < END_BYTES) throw new ZipRefused("not-a-zip", "The file is not a zip");
+  if (source.size < END_BYTES) throw new ZipRefused("malformed", "The file is not a zip");
 
   const length = Math.min(source.size, END_SEARCH_BYTES);
   const start = source.size - length;
@@ -84,7 +84,7 @@ async function placementOf(source: Readonly<ZipSource>): Promise<Placement> {
     }
   }
 
-  throw new ZipRefused("not-a-zip", "The file is not a zip");
+  throw new ZipRefused("malformed", "The file is not a zip");
 }
 
 function segmentsOf(name: string): string[] {
@@ -103,7 +103,7 @@ function checkedName(name: string): void {
     segmentsOf(name).some((segment) => segment === "" || segment === "." || segment === "..");
 
   if (name === "" || unsafe) {
-    throw new ZipRefused("bad-entry-name", "An entry of the zip has an unsafe name");
+    throw new ZipRefused("bad-name", "An entry of the zip has an unsafe name");
   }
 }
 
@@ -129,7 +129,7 @@ function zip64Fields(view: DataView, at: number, held: Readonly<Placeholders>): 
   ).length;
 
   if (view.getUint16(at + 2, true) < wanted * 8 || at + 4 + wanted * 8 > view.byteLength) {
-    throw new ZipRefused("not-a-zip", "A ZIP64 extra field of the zip is too short");
+    throw new ZipRefused("malformed", "A ZIP64 extra field of the zip is too short");
   }
 
   const skipped = (held.size === ZIP_SIZE_LIMIT ? 8 : 0) + (held.packed === ZIP_SIZE_LIMIT ? 8 : 0);
@@ -158,7 +158,7 @@ function decoded(bytes: Uint8Array): string {
   try {
     return NAMES.decode(bytes);
   } catch {
-    throw new ZipRefused("bad-entry-name", "An entry of the zip has a name that is not UTF-8");
+    throw new ZipRefused("bad-name", "An entry of the zip has a name that is not UTF-8");
   }
 }
 
@@ -174,7 +174,7 @@ function parsedRecords(pending: Uint8Array): Parsed {
 
   while (at + CENTRAL_RECORD_BYTES <= pending.length) {
     if (view.getUint32(at, true) !== CENTRAL_SIGNATURE) {
-      throw new ZipRefused("not-a-zip", "The central directory is malformed");
+      throw new ZipRefused("malformed", "The central directory is malformed");
     }
 
     const nameBytes = view.getUint16(at + 28, true);
@@ -184,7 +184,7 @@ function parsedRecords(pending: Uint8Array): Parsed {
     if (next > pending.length) break;
 
     if (view.getUint16(at + 10, true) !== STORE_METHOD) {
-      throw new ZipRefused("unsupported-compression", "An entry of the zip is not stored");
+      throw new ZipRefused("unsupported-method", "An entry of the zip is not stored");
     }
 
     const held = {
@@ -194,7 +194,7 @@ function parsedRecords(pending: Uint8Array): Parsed {
     };
 
     if (held.packed !== held.size) {
-      throw new ZipRefused("not-a-zip", "An entry of the zip has two sizes");
+      throw new ZipRefused("malformed", "An entry of the zip has two sizes");
     }
 
     const nameAt = at + CENTRAL_RECORD_BYTES;
@@ -229,7 +229,7 @@ async function recordsOf(
   }
 
   if (pending.length > 0 || entries.length !== count) {
-    throw new ZipRefused("not-a-zip", "The central directory does not match the end record");
+    throw new ZipRefused("malformed", "The central directory does not match the end record");
   }
 
   return entries;
@@ -243,31 +243,34 @@ function sameRoot(entries: readonly ZipEntry[]): string {
   const [root] = roots;
 
   if (roots.size > 1 || root === "") {
-    throw new ZipRefused("bad-entry-name", "The entries of the zip do not share one root folder");
+    throw new ZipRefused("bad-name", "The entries of the zip do not share one root folder");
   }
 
   return root ?? "";
 }
 
-export async function readDirectory(source: Readonly<ZipSource>): Promise<ZipDirectory> {
+export async function readDirectory(
+  source: Readonly<ZipSource>,
+  directoryBytes: number,
+): Promise<ZipDirectory> {
   const placement = await placementOf(source);
 
-  if (placement.size > RESTORE_DIRECTORY_BYTES || placement.offset + placement.size > source.size) {
-    throw new ZipRefused("not-a-zip", "The central directory is outside the zip or too large");
+  if (placement.size > directoryBytes || placement.offset + placement.size > source.size) {
+    throw new ZipRefused("malformed", "The central directory is outside the zip or too large");
   }
 
   const entries = await recordsOf(source, placement);
 
   if (new Set(entries.map(({ name }) => name)).size !== entries.length) {
-    throw new ZipRefused("bad-entry-name", "The zip holds two entries of one name");
+    throw new ZipRefused("bad-name", "The zip holds two entries of one name");
   }
 
   for (const entry of entries) {
-    const nameBytes = utf8Length(entry.name);
-
-    if (entry.headerOffset + LOCAL_HEADER_BYTES + nameBytes + entry.size > placement.offset) {
-      throw new ZipRefused("not-a-zip", "An entry of the zip runs past its end");
-    }
+    checkedEnd(
+      placement.offset,
+      entry.headerOffset + LOCAL_HEADER_BYTES + utf8Length(entry.name),
+      entry.size,
+    );
   }
 
   return { entries, offset: placement.offset, root: entries.length === 0 ? "" : sameRoot(entries) };

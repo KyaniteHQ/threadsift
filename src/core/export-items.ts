@@ -1,5 +1,6 @@
 import { asc, gt } from "drizzle-orm";
 
+import { readExactly } from "./capped.ts";
 import { EXPORT_SLICE_BYTES, type PartialItem } from "./export-contract.ts";
 import { type Plan, type StoredFile, planOf } from "./export-plan.ts";
 import type { FileStore } from "./file-store.ts";
@@ -17,27 +18,6 @@ interface Place {
   readonly used: number;
 }
 
-async function readSized(
-  files: Pick<FileStore, "get">,
-  { key, size }: Readonly<StoredFile>,
-): Promise<Uint8Array | null> {
-  const body = await files.get(key);
-
-  if (body === null) return null;
-
-  const bytes = new Uint8Array(size);
-  let filled = 0;
-
-  for await (const chunk of body) {
-    if (filled + chunk.length > size) return null;
-
-    bytes.set(chunk, filled);
-    filled += chunk.length;
-  }
-
-  return filled === size ? bytes : null;
-}
-
 type Reading =
   | { readonly kind: "missing"; readonly key: string }
   | { readonly kind: "read"; readonly files: readonly ZipFile[] };
@@ -51,7 +31,8 @@ async function readEach(
 
   if (next === undefined) return { kind: "read", files: read };
 
-  const bytes = await readSized(files, next);
+  const body = await files.get(next.key);
+  const bytes = body === null ? null : await readExactly(body, next.size);
 
   return bytes === null
     ? { kind: "missing", key: next.key }

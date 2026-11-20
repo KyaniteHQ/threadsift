@@ -1,39 +1,21 @@
-import { z } from "zod";
-
-import { EXPORT_FORMAT } from "./export-contract.ts";
-import { recordPath, recordTableOf } from "./export-manifest.ts";
-import { RESTORE_MANIFEST_BYTES, type RestoreRefusal } from "./restore-contract.ts";
+import {
+  type Manifest,
+  ManifestSchema,
+  manifestName,
+  recordPath,
+  recordTableOf,
+} from "./export-format.ts";
+import { RESTORE_MANIFEST_BYTES } from "./restore-contract.ts";
 import { parsedJsonBytes } from "./restore-lines.ts";
+import { RestoreRefused } from "./restore-refusal.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
-import { WholeCount } from "./whole-count.ts";
-import { type ZipDirectory, ZipRefused, type ZipSource, entryBytes } from "./zip-read.ts";
-
-const ManifestSchema = z
-  .object({
-    format: z.literal(EXPORT_FORMAT),
-    migration: z.string().nullable(),
-    tables: z
-      .record(
-        z.string(),
-        z.object({ files: z.array(z.string()).readonly(), rows: WholeCount }).readonly(),
-      )
-      .readonly(),
-    sequences: z.record(z.string(), WholeCount).readonly(),
-  })
-  .readonly();
-
-export type Manifest = z.infer<typeof ManifestSchema>;
-
-const MANIFEST_NAME = "threadsift.json";
-
-export function refused(code: RestoreRefusal, message: string): ZipRefused {
-  return new ZipRefused(code, message);
-}
+import { type ZipDirectory, type ZipSource, entryBytes } from "./zip-read.ts";
 
 function manifestOf(bytes: Uint8Array): Manifest {
   const manifest = parsedJsonBytes(ManifestSchema, bytes);
 
-  if (manifest === null) throw refused("format", "The manifest is not in the export format");
+  if (manifest === null)
+    throw new RestoreRefused("format", "The manifest is not in the export format");
 
   return manifest;
 }
@@ -42,11 +24,12 @@ export async function readManifest(
   source: Readonly<ZipSource>,
   directory: Readonly<ZipDirectory>,
 ): Promise<Manifest> {
-  const entry = directory.entries.find(({ name }) => name === `${directory.root}/${MANIFEST_NAME}`);
+  const entry = directory.entries.find(({ name }) => name === manifestName(directory.root));
 
-  if (entry === undefined) throw refused("no-manifest", "The zip has no manifest");
+  if (entry === undefined) throw new RestoreRefused("no-manifest", "The zip has no manifest");
 
-  if (entry.size > RESTORE_MANIFEST_BYTES) throw refused("format", "The manifest is too large");
+  if (entry.size > RESTORE_MANIFEST_BYTES)
+    throw new RestoreRefused("format", "The manifest is too large");
 
   return manifestOf(await entryBytes(source, directory, entry));
 }
@@ -57,16 +40,22 @@ function known(name: string): boolean {
 
 function checkedManifest(manifest: Readonly<Manifest>): void {
   if (RESTORE_TABLES.some((name) => manifest.tables[name] === undefined)) {
-    throw refused("format", "The manifest leaves out a table of the export format");
+    throw new RestoreRefused("format", "The manifest leaves out a table of the export format");
   }
 
   if (!Object.keys(manifest.tables).every((name) => known(name))) {
-    throw refused("unknown-table", "The manifest names a table this release does not restore");
+    throw new RestoreRefused(
+      "unknown-table",
+      "The manifest names a table this release does not restore",
+    );
   }
 
   for (const [table, { files }] of Object.entries(manifest.tables)) {
     if (files.some((file, at) => file !== recordPath(table, at + 1))) {
-      throw refused("format", "The manifest lists record files the format does not name");
+      throw new RestoreRefused(
+        "format",
+        "The manifest lists record files the format does not name",
+      );
     }
   }
 }
@@ -83,21 +72,24 @@ function checkedEntries(manifest: Readonly<Manifest>, directory: Readonly<ZipDir
 
     if (table !== null && !name.endsWith("/")) {
       if (!known(table)) {
-        throw refused(
+        throw new RestoreRefused(
           "unknown-table",
           "The zip holds a record file of a table this release does not restore",
         );
       }
 
       if (!listed.has(name)) {
-        throw refused("format", "The zip holds a record file the manifest does not list");
+        throw new RestoreRefused(
+          "format",
+          "The zip holds a record file the manifest does not list",
+        );
       }
     }
   }
 
   for (const name of listed) {
     if (!directory.entries.some((entry) => entry.name === name)) {
-      throw refused("format", "The manifest lists a record file the zip does not hold");
+      throw new RestoreRefused("format", "The manifest lists a record file the zip does not hold");
     }
   }
 }

@@ -159,14 +159,13 @@ export async function restoreStatus(ports: StatusPorts): Promise<RestoreStatus> 
       return { state: "running", libraryEmpty, id, phase: run.phase, ...countsOf(run) };
     }
 
-    case "done":
-      return {
-        state: "done",
-        libraryEmpty,
-        id,
-        finishedAt: run.finishedAt ?? run.updatedAt,
-        ...countsOf(run),
-      };
+    case "done": {
+      if (run.finishedAt === null)
+        throw new Error(`Restore ${String(id)} is done with no end time`);
+
+      return { state: "done", libraryEmpty, id, finishedAt: run.finishedAt, ...countsOf(run) };
+    }
+
     case "failed":
       return failedStatus(ports, run, libraryEmpty);
 

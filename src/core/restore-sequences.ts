@@ -2,8 +2,8 @@ import { eq, notExists, sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./database.ts";
+import type { Manifest } from "./export-format.ts";
 import { NAMED_FILES } from "./named-files.ts";
-import type { Manifest } from "./restore-check.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
 
 const sqliteSequence = sqliteTable("sqlite_sequence", {

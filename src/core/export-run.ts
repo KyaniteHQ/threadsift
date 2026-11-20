@@ -2,16 +2,10 @@ import { and, desc, eq } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { removeExport, removeQuietly } from "./export-cleanup.ts";
-import {
-  type ExportStatus,
-  ExportTallySchema,
-  NO_TALLY,
-  exportObjectName,
-  exportRootName,
-  exportTailName,
-} from "./export-contract.ts";
+import { type ExportStatus, NO_TALLY } from "./export-contract.ts";
+import { exportRootName } from "./export-format.ts";
 import { openingExportJob } from "./export-job.ts";
-import { exportFileKey } from "./file-keys.ts";
+import { storedZip, zipSize } from "./export-zip.ts";
 import { refusedBy } from "./guards.ts";
 import { closeRunJobs } from "./job-close.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -98,17 +92,22 @@ export async function exportStatus(db: Database): Promise<ExportStatus> {
         dataBytes: run.dataBytes,
         parts: run.parts,
       };
-    case "ready":
+    case "ready": {
+      if (run.finishedAt === null)
+        throw new Error(`Export ${String(id)} is ready with no end time`);
+
       return {
         state: "ready",
         id,
         createdAt,
-        finishedAt: run.finishedAt ?? run.updatedAt,
+        finishedAt: run.finishedAt,
         entries: run.entries,
         dataBytes: run.dataBytes,
         parts: run.parts,
-        zipBytes: run.dataBytes + run.dirBytes + run.tailBytes,
+        zipBytes: zipSize(run),
       };
+    }
+
     case "failed": {
       if (run.failure === null) throw new Error(`Export ${String(id)} failed with no reason`);
 
@@ -163,20 +162,7 @@ export async function readyExport(db: Database, id: number): Promise<ReadyExport
 
   if (run === undefined) return null;
 
-  const { generations } = ExportTallySchema.parse(JSON.parse(run.tally));
+  const stored = storedZip(run);
 
-  const tail = generations.at(-1);
-
-  if (tail === undefined) return null;
-
-  const named = (kind: "part" | "dir") =>
-    generations.map((generation, at) =>
-      exportFileKey(run.id, exportObjectName(kind, at + 1, generation)),
-    );
-
-  return {
-    keys: [...named("part"), ...named("dir"), exportFileKey(run.id, exportTailName(tail))],
-    size: run.dataBytes + run.dirBytes + run.tailBytes,
-    filename: `${exportRootName(run.createdAt)}.zip`,
-  };
+  return stored === null ? null : { ...stored, filename: `${exportRootName(run.createdAt)}.zip` };
 }
