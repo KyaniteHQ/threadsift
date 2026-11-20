@@ -14,6 +14,7 @@ import {
   type RequestHeaders,
   type WireResponse,
   wireResponseOf,
+  withCallerHeaders,
 } from "../../core/kernel/network.ts";
 import { publicAddressesOf } from "../../core/kernel/public-host.ts";
 import { redditSessionOver } from "../../features/reddit/core/reddit-session.ts";
@@ -119,17 +120,11 @@ function exchange({
   });
 }
 
-const withEncodings = (caller: RequestHeaders): RequestHeaders => ({
-  ...REQUEST_HEADERS,
-  "accept-encoding": ACCEPT_ENCODING,
-  ...caller,
-});
+const withEncodings = (caller: RequestHeaders): RequestHeaders =>
+  withCallerHeaders({ ...REQUEST_HEADERS, "accept-encoding": ACCEPT_ENCODING }, caller);
 
 export const nodeNetwork: Network = networkOver({
-  headers: {
-    GET: withEncodings,
-    POST: (caller) => ({ ...withEncodings(caller), "accept-encoding": IDENTITY }),
-  },
+  getHeaders: withEncodings,
   lookup: globalAddressesOnly,
   send: exchange,
 });
