@@ -1,19 +1,11 @@
 import { writeFile } from "node:fs/promises";
 
 import { refusedAi } from "../../core/ai-contract.ts";
+import { report } from "../../core/failure-log.ts";
 import { PROVIDERS } from "../../core/provider-families.ts";
 import type { RunnerTask } from "../shared/ai-runner.ts";
+import { findBinary } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
-import {
-  type Attempt,
-  STDOUT_CAP,
-  SlottedCli,
-  endRefusal,
-  exitCode,
-  findBinary,
-  outputSchema,
-  promptOf,
-} from "./cli-support.ts";
 import { codexHomeOf, reserveCodexHome } from "./codex-home.ts";
 import {
   type Installation,
@@ -25,14 +17,19 @@ import {
   taskArguments,
 } from "./codex-process.ts";
 import { type ToollessCatalog, readOutcome, surfaceOf } from "./codex-protocol.ts";
+import {
+  type Attempt,
+  STDOUT_CAP,
+  SlottedCli,
+  endRefusal,
+  exitCode,
+  outputSchema,
+  promptOf,
+} from "./slotted-cli.ts";
 
 const BINARY = "codex";
 const SURFACE_MS = 60_000;
 const RECOMMENDED = { model: "gpt-6.2-sol", effort: "medium" } as const;
-
-function reportSurface(extraTools: readonly string[], foreignTexts: number): void {
-  console.error(JSON.stringify({ event: "codex-surface-refused", extraTools, foreignTexts }));
-}
 
 export interface CodexEnvironment {
   readonly path: string;
@@ -132,7 +129,10 @@ class CodexCli extends SlottedCli {
     if (surface === null) return refusedAi("unreachable");
 
     if (surface.extraTools.length === 0 && surface.foreignTexts === 0) return null;
-    reportSurface(surface.extraTools, surface.foreignTexts);
+    report("codex-surface-refused", {
+      extraTools: surface.extraTools,
+      foreignTexts: surface.foreignTexts,
+    });
 
     return refusedAi("provider-unavailable");
   }
@@ -147,7 +147,7 @@ export async function codexCli(environment: Readonly<CodexEnvironment>, slots: S
   const refused = await reserveCodexHome(home);
 
   if (refused !== null) {
-    console.error(JSON.stringify({ event: "codex-home-refused", path: refused }));
+    report("codex-home-refused", { path: refused });
 
     return null;
   }
@@ -156,7 +156,7 @@ export async function codexCli(environment: Readonly<CodexEnvironment>, slots: S
   const catalog = await bundledCatalog(installation);
 
   if (catalog === null) {
-    console.error(JSON.stringify({ event: "codex-catalog-refused" }));
+    report("codex-catalog-refused", {});
 
     return null;
   }

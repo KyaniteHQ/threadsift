@@ -7,8 +7,8 @@ import { abandonRunning, claimNextDue, executeClaimed } from "../../core/jobs.ts
 import { NOTHING } from "../../core/nothing.ts";
 import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
 import { tick } from "../../core/tick.ts";
+import { CAPACITY } from "./capacity.ts";
 
-const LOOP_WIDTH = 4;
 const LOOP_POLL_MS = 5000;
 const TICK_MS = 60_000;
 const STOP_WAIT_MS = HOP_DEADLINE_MS + 1000;
@@ -124,7 +124,7 @@ export class JobLoop {
   }
 
   private async startJobs(ports: JobPorts): Promise<void> {
-    if (!this.running || this.runs.size >= LOOP_WIDTH) return;
+    if (!this.running || this.runs.size >= CAPACITY.jobs) return;
 
     const job = await claimNextDue(ports.db);
 

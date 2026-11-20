@@ -56,7 +56,7 @@ export function databaseCodeOf(cause: unknown, depth = 0): string {
 
 export function report(
   event: string,
-  fields: Readonly<Record<string, number | string | null | readonly number[]>>,
+  fields: Readonly<Record<string, number | string | null | readonly number[] | readonly string[]>>,
 ): void {
   console.warn(JSON.stringify({ event, ...fields }));
 }
@@ -69,7 +69,7 @@ export function logFailure(
   console.error(JSON.stringify({ event, ...fields, error: errorClassOf(cause) }));
 }
 
-export interface FailureLine {
+interface FailureLine {
   readonly event: string;
   readonly fields: Readonly<Record<string, string | number>>;
 }

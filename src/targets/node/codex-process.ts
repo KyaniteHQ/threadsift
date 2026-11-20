@@ -1,14 +1,10 @@
-import { mkdir } from "node:fs/promises";
 import { join } from "node:path";
 
 import type { ResolvedCliConnection } from "../../core/ai-contract.ts";
-import { runProcess } from "./cli-process.ts";
-import { STDERR_CAP, childPath, inEmptyFolder } from "./cli-support.ts";
+import { type ChildFolders, inChildFolders, runProcess } from "./cli-process.ts";
 import { SURFACE_PROMPT, toollessCatalog } from "./codex-protocol.ts";
 
-export interface RunFolders {
-  readonly cwd: string;
-  readonly home: string;
+export interface RunFolders extends ChildFolders {
   readonly schemaFile: string;
   readonly catalogFile: string;
 }
@@ -83,18 +79,13 @@ export function taskArguments(
 }
 
 export function inRunFolders<Result>(work: (folders: Readonly<RunFolders>) => Promise<Result>) {
-  return inEmptyFolder(async (folder) => {
-    const folders = {
-      cwd: join(folder, "cwd"),
-      home: join(folder, "home"),
-      schemaFile: join(folder, "schema.json"),
-      catalogFile: join(folder, "models.json"),
-    };
-
-    await Promise.all([mkdir(folders.cwd), mkdir(folders.home)]);
-
-    return work(folders);
-  });
+  return inChildFolders((folders) =>
+    work({
+      ...folders,
+      schemaFile: join(folders.root, "schema.json"),
+      catalogFile: join(folders.root, "models.json"),
+    }),
+  );
 }
 
 export interface Installation {
@@ -102,7 +93,7 @@ export interface Installation {
   readonly home: string;
 }
 
-export interface Capture {
+interface Capture {
   readonly cap: number;
   readonly keep: boolean;
 }
@@ -117,13 +108,12 @@ export function spawnCodex(
 ) {
   return runProcess(
     {
-      file: binary,
+      binary,
       args,
-      env: { PATH: childPath(binary), HOME: folders.home, CODEX_HOME: home },
+      extraEnv: { HOME: folders.home, CODEX_HOME: home },
       cwd: folders.cwd,
       stdin,
       stdoutCap: stdout.cap,
-      stderrCap: STDERR_CAP,
       keepStdout: stdout.keep,
     },
     signal,

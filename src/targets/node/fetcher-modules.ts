@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { z } from "zod";
 
 import { isGlobalAddress } from "../../core/addresses.ts";
-import { errorClassOf } from "../../core/failure-log.ts";
+import { errorClassOf, report } from "../../core/failure-log.ts";
 import { type Fetcher, type LoadedFetcher, isFetcher } from "../../core/fetcher.ts";
 import { NetworkFailure } from "../../core/network.ts";
 
@@ -162,7 +162,7 @@ export async function loadFetchers(list: string | undefined): Promise<readonly L
 
   const loaded = await importedInOrder(entries);
 
-  for (const { module } of loaded) console.log(JSON.stringify({ event: "fetcher-loaded", module }));
+  for (const { module } of loaded) report("fetcher-loaded", { module });
 
   return loaded;
 }

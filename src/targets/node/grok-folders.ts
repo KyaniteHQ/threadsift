@@ -1,33 +1,33 @@
 import { mkdir, readFile, readdir, rmdir, stat, unlink } from "node:fs/promises";
 import { basename, join } from "node:path";
 
-import { inEmptyFolder } from "./cli-support.ts";
-import type { BinaryIdentity } from "./grok-proof.ts";
+import { type ChildFolders, inChildFolders } from "./cli-process.ts";
 import { type ToolList, localToolNames } from "./grok-surface.ts";
 
 const CHILD_TEMP_FOLDER = "/tmp";
 
-export interface RunFolders {
-  readonly root: string;
-  readonly cwd: string;
-  readonly home: string;
+export interface RunFolders extends ChildFolders {
   readonly grokHome: string;
   readonly promptFile: string;
 }
 
+export interface BinaryIdentity {
+  readonly path: string;
+  readonly size: number;
+  readonly modifiedMs: number;
+}
+
 export function inRunFolders<Result>(work: (folders: RunFolders) => Promise<Result>) {
-  return inEmptyFolder(async (root) => {
-    const folders = {
-      root,
-      cwd: join(root, "cwd"),
-      home: join(root, "home"),
-      grokHome: join(root, "grok"),
-      promptFile: join(root, "prompt.txt"),
+  return inChildFolders(async (folders) => {
+    const grokFolders = {
+      ...folders,
+      grokHome: join(folders.root, "grok"),
+      promptFile: join(folders.root, "prompt.txt"),
     };
 
-    await Promise.all([mkdir(folders.cwd), mkdir(folders.home), mkdir(folders.grokHome)]);
+    await mkdir(grokFolders.grokHome);
 
-    return work(folders);
+    return work(grokFolders);
   });
 }
 

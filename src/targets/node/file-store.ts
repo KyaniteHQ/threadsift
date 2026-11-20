@@ -3,7 +3,7 @@ import { constants } from "node:fs";
 import { type FileHandle, lstat, mkdir, open, readdir, rename, rm } from "node:fs/promises";
 import { join, sep } from "node:path";
 
-import { bestEffort } from "../../core/failure-log.ts";
+import { bestEffort, errnoCodeOf } from "../../core/failure-log.ts";
 import {
   FileRefused,
   STORE_ROOT_PREFIX,
@@ -19,7 +19,6 @@ import {
   temporaryPrefix,
 } from "../../core/file-keys.ts";
 import type { FilePage, FileStore } from "../../core/file-store.ts";
-import { hasErrnoCode } from "./errno.ts";
 
 const CHUNK_BYTES = 65_536;
 
@@ -27,8 +26,10 @@ const HANDLE_NOT_CLOSED = { event: "file-handle-not-closed", fields: {} } as con
 
 type Kind = "directory" | "file";
 
-function isMissing(error: unknown): error is NodeJS.ErrnoException {
-  return hasErrnoCode(error, "ENOENT", "ENOTDIR", "ENAMETOOLONG");
+const MISSING_CODES = new Set(["ENOENT", "ENOTDIR", "ENAMETOOLONG"]);
+
+function isMissing(cause: unknown): boolean {
+  return MISSING_CODES.has(errnoCodeOf(cause));
 }
 
 async function exists(path: string, wanted: Kind): Promise<boolean> {
@@ -125,7 +126,7 @@ class FileFolder {
         .filter((key) => parseStoredKey(key) !== null)
         .toSorted();
     } catch (error) {
-      if (hasErrnoCode(error, "ENOENT")) return [];
+      if (errnoCodeOf(error) === "ENOENT") return [];
 
       throw error;
     }
@@ -175,7 +176,7 @@ async function openLeaf(path: string): Promise<FileHandle | null> {
   } catch (error) {
     if (isMissing(error)) return null;
 
-    if (hasErrnoCode(error, "ELOOP")) {
+    if (errnoCodeOf(error) === "ELOOP") {
       throw new FileRefused(`${path} is a symlink`);
     }
 

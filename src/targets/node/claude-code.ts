@@ -3,27 +3,22 @@ import { homedir } from "node:os";
 import { z } from "zod";
 
 import { type AiExecution, apiRefusal, refusedAi } from "../../core/ai-contract.ts";
-import { readOrAssume } from "../../core/failure-log.ts";
+import { readOrAssume, report } from "../../core/failure-log.ts";
 import { parsedJson } from "../../core/parsed-json.ts";
 import { PROVIDERS } from "../../core/provider-families.ts";
 import { PROBE_MS } from "../../core/request-waits.ts";
 import type { RunnerTask } from "../shared/ai-runner.ts";
 import { configuredCode } from "../shared/configured-code.ts";
-import { runProcess } from "./cli-process.ts";
+import { findBinary, inEmptyFolder, runProcess } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
   type Attempt,
-  STDERR_CAP,
   STDOUT_CAP,
   SlottedCli,
-  childPath,
   exitCode,
-  findBinary,
-  inEmptyFolder,
   outputSchema,
-  present,
   promptOf,
-} from "./cli-support.ts";
+} from "./slotted-cli.ts";
 
 export interface ClaudeEnvironment {
   readonly path: string;
@@ -54,6 +49,10 @@ const EnvelopeSchema = z.object({
 });
 
 const StatusSchema = z.object({ loggedIn: z.boolean() });
+
+function present(name: string, value: string | undefined): [string, string][] {
+  return value === undefined ? [] : [[name, value]];
+}
 
 function taskArguments(
   schema: string,
@@ -133,7 +132,6 @@ class ClaudeCode extends SlottedCli {
     const { configDir, token } = this.environment;
 
     return Object.fromEntries([
-      ["PATH", childPath(this.binary)],
       ["HOME", homedir()],
       ["CLAUDE_CODE_DISABLE_ATTACHMENTS", "1"],
       ["CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC", "1"],
@@ -161,47 +159,25 @@ class ClaudeCode extends SlottedCli {
 }
 
 function spawnClaude(
-  file: string,
+  binary: string,
   args: readonly string[],
-  env: Readonly<Record<string, string>>,
+  extraEnv: Readonly<Record<string, string>>,
   stdin: string,
   signal: AbortSignal,
 ) {
   return inEmptyFolder((cwd) =>
     runProcess(
-      {
-        file,
-        args,
-        env,
-        cwd,
-        stdin,
-        stdoutCap: STDOUT_CAP,
-        stderrCap: STDERR_CAP,
-        keepStdout: true,
-      },
+      { binary, args, extraEnv, cwd, stdin, stdoutCap: STDOUT_CAP, keepStdout: true },
       signal,
     ),
   );
 }
 
 async function recommendationOf(binary: string) {
-  const version = await spawnClaude(
-    binary,
-    ["--version"],
-    { PATH: childPath(binary) },
-    "",
-    AbortSignal.timeout(PROBE_MS),
-  );
+  const version = await spawnClaude(binary, ["--version"], {}, "", AbortSignal.timeout(PROBE_MS));
   const supports =
     version.kind === "exited" && version.code === 0 ? supportsSonnet55(version.stdout) : null;
-  if (supports === null)
-    console.error(
-      JSON.stringify({
-        event: VERSION_UNKNOWN,
-        kind: version.kind,
-        exit: exitCode(version),
-      }),
-    );
+  if (supports === null) report(VERSION_UNKNOWN, { kind: version.kind, exit: exitCode(version) });
 
   return supports === true ? RECOMMENDED : undefined;
 }

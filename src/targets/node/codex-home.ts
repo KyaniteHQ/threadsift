@@ -1,8 +1,8 @@
 import { chmod, lstat, mkdir, open, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
+import { errnoCodeOf } from "../../core/failure-log.ts";
 import { configuredCode } from "../shared/configured-code.ts";
-import { hasErrnoCode } from "./errno.ts";
 
 type Entry = "missing" | "empty" | "owned";
 
@@ -60,7 +60,7 @@ async function inspect({ path, holds }: Readonly<Reservation>): Promise<Entry> {
   try {
     return (await holds(path)) ? "empty" : "owned";
   } catch (error) {
-    if (hasErrnoCode(error, "ENOENT")) return "missing";
+    if (errnoCodeOf(error) === "ENOENT") return "missing";
 
     throw error;
   }
@@ -72,7 +72,7 @@ async function reserve(reservation: Readonly<Reservation>): Promise<boolean> {
 
     return true;
   } catch (error) {
-    if (!hasErrnoCode(error, "EEXIST")) throw error;
+    if (errnoCodeOf(error) !== "EEXIST") throw error;
 
     return (await inspect(reservation)) === "empty";
   }

@@ -1,5 +1,3 @@
-import { X_RUN_DEADLINE_MS, X_SLOT_WAIT_MS } from "../../core/request-waits.ts";
-
 type Release = () => void;
 
 export class Slots {
@@ -75,16 +73,4 @@ export async function inSlot<Result>(
   } finally {
     release();
   }
-}
-
-export function inTimedSlot<Result>(
-  slots: Slots,
-  stop: AbortSignal,
-  work: (run: AbortSignal) => Promise<Result>,
-): Promise<Result | null> {
-  const queued = AbortSignal.any([stop, AbortSignal.timeout(X_SLOT_WAIT_MS)]);
-
-  return inSlot(slots, queued, () =>
-    work(AbortSignal.any([stop, AbortSignal.timeout(X_RUN_DEADLINE_MS)])),
-  );
 }

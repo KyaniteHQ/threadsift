@@ -1,14 +1,9 @@
-import type { ProcessEnd } from "./cli-process.ts";
 import { type Refused, SURFACE_REFUSAL, refusalOf } from "./grok-answer.ts";
-import { type ToolList, type ToolsVerdict, toolsVerdict } from "./grok-surface.ts";
+import type { BinaryIdentity } from "./grok-folders.ts";
+import type { RunRecord } from "./grok-process.ts";
+import { type ToolsVerdict, toolsVerdict } from "./grok-surface.ts";
 
-export interface BinaryIdentity {
-  readonly path: string;
-  readonly size: number;
-  readonly modifiedMs: number;
-}
-
-export type Barred = "extra-tools" | "version-changed";
+type Barred = "extra-tools" | "version-changed";
 
 export type Proof =
   | { readonly kind: "unproven" }
@@ -28,7 +23,7 @@ export type PreflightResult =
     }
   | { readonly kind: "inconclusive" };
 
-export type Permission = "allowed" | "preflight" | "refused";
+type Permission = "allowed" | "preflight" | "refused";
 
 export const UNPROVEN: Proof = { kind: "unproven" };
 
@@ -98,12 +93,7 @@ export function preflightResultOf(
     : { kind: "judged", verdict, version };
 }
 
-export interface RunRecord {
-  readonly end: ProcessEnd;
-  readonly tools: ToolList;
-}
-
-export type RunCheck =
+type RunCheck =
   | { readonly kind: "surface-held" }
   | { readonly kind: "barred"; readonly verdict: "extra-tools" }
   | { readonly kind: "discard" | "reprove" | "keep"; readonly refusal: Refused };
