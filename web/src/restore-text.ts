@@ -26,6 +26,8 @@ export const RESTORE_TEXT = {
   cancellingStatus: "Removing restored records and files…",
   cancelled:
     "The Restore is cancelled and the library is empty again, so you can start a new Restore.",
+  cancelledKept:
+    "The Restore is cancelled and the library is left as it is. A new Restore needs an empty library, so none can start here.",
   resume: "Resume Restore",
   resuming: "Resuming…",
   cancelFailed: "Couldn’t cancel the Restore. Try again.",
@@ -77,6 +79,8 @@ const REFUSAL_TEXT = {
   "library-not-empty":
     "This Instance already holds Items or other library records. A Restore needs an empty library.",
   "restore-open": "Another Restore is waiting for its upload or is running. Reload the page.",
+  "not-uploading":
+    "This Restore is already past its upload, so this try stopped. Check the status above.",
   "vault-busy":
     "The Vault mirror is finishing a write. Wait a moment and choose the same zip again to start the Restore.",
 } as const satisfies Record<RestoreErrorCode, string>;

@@ -21,7 +21,6 @@ import { openingRestoreJob } from "./restore-unit.ts";
 type CancelledRestore =
   | { readonly kind: "cancelled" }
   | { readonly kind: "undoing" }
-  | { readonly kind: "nothing-to-undo" }
   | { readonly kind: "missing" }
   | { readonly kind: "superseded" }
   | { readonly kind: "finished" };
@@ -106,7 +105,7 @@ async function settledByCancel(
 ): Promise<CancelledRestore> {
   if (!(await isNewestRestore(ports.db, run.id))) return { kind: "superseded" };
 
-  if (await cancelledUnwritten(ports, run.id)) return { kind: "nothing-to-undo" };
+  if (await cancelledUnwritten(ports, run.id)) return { kind: "cancelled" };
 
   if (await undoing(ports, run.id)) return { kind: "undoing" };
 

@@ -5,9 +5,9 @@ import { MAX_ATTEMPTS } from "../../../core/contract/job-contract.ts";
 import {
   RESTORE_MAX_BYTES,
   NewRestoreSchema,
-  RestoreErrorSchema,
   RestoreStatusSchema,
   StartedRestoreSchema,
+  restoreAnswerSchema,
 } from "../../../core/contract/restore-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access, PART_CAP } from "../../../http/access.ts";
@@ -29,6 +29,23 @@ const LIBRARY_NOT_EMPTY =
 
 const OPEN = "Another restore is waiting for its upload or is running.";
 
+const PAST_UPLOAD = { error: "The restore is past its upload", code: "not-uploading" as const };
+
+const FINISHED = {
+  error: "The restore is done, so there is nothing to cancel",
+  code: "finished" as const,
+};
+
+const NOT_RESUMABLE = {
+  error: "The restore did not give up, or its cancel is running",
+  code: "not-resumable" as const,
+};
+
+const SUPERSEDED = {
+  error: "A newer restore exists, so only that one can be cancelled or resumed",
+  code: "superseded" as const,
+};
+
 const createRestoreRoute = createRoute({
   method: "post",
   path: "/api/restore",
@@ -45,7 +62,7 @@ const createRestoreRoute = createRoute({
     ),
     ...OWNER_SESSION_REFUSALS,
     409: jsonBody(
-      RestoreErrorSchema,
+      restoreAnswerSchema("library-not-empty", "restore-open"),
       `\`code\` is \`library-not-empty\`: ${LIBRARY_NOT_EMPTY} Or \`restore-open\`: ${OPEN}`,
     ),
   },
@@ -82,7 +99,10 @@ const partRoute = createRoute({
     400: jsonBody(ErrorResponseSchema, "The body is not the length this part must have."),
     ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "No restore has this id, or it has no such part."),
-    409: jsonBody(ErrorResponseSchema, "The restore is no longer waiting for its upload."),
+    409: jsonBody(
+      restoreAnswerSchema("not-uploading"),
+      "`code` is `not-uploading`: the restore is past its upload and holds no parts any more, because it is `done`, `cancelled`, or `failed` and cannot be resumed, so the part is not stored. A part that arrives late for a `running` restore, or a `failed` one that can be resumed, is stored.",
+    ),
     413: jsonBody(ErrorResponseSchema, "The body is longer than `partBytes`."),
   },
 });
@@ -98,14 +118,14 @@ const startRoute = createRoute({
       `The restore was waiting for its start, the library is still empty and every part has arrived, so it is \`running\` in its \`check\` phase. Jobs check the whole zip first (a refusal shows in \`GET /api/restore\` as \`failed\` with a \`failure\` code, deletes the parts and writes nothing to the library), then restore the tables in foreign key order, one bounded unit after another, keep the ids of the zip, and then set each table's id counter. \`POST /api/items\` and \`POST /api/items/batch\` answer 503 while it runs and while it is \`failed\` with \`gave-up\`, until it is resumed or cancelled.${OWNER_ONLY}`,
     ),
     400: jsonBody(
-      RestoreErrorSchema,
+      restoreAnswerSchema("incomplete-upload"),
       "`code` is `incomplete-upload`: a part has not arrived, and the restore keeps its parts.",
     ),
     ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "No restore has this id."),
     409: jsonBody(
-      RestoreErrorSchema,
-      `\`library-not-empty\`: ${LIBRARY_NOT_EMPTY} Or \`restore-open\`: the restore is not waiting for its start. Or \`vault-busy\`: the Vault mirror holds a write lease. The uploaded parts stay available for retry.`,
+      restoreAnswerSchema("library-not-empty", "not-uploading", "vault-busy"),
+      `\`code\` is \`library-not-empty\`: ${LIBRARY_NOT_EMPTY} Or \`not-uploading\`: the restore is past its upload, because it is running, failed, cancelled or done. Or \`vault-busy\`: the Vault mirror holds a write lease. The uploaded parts stay available for retry.`,
     ),
   },
 });
@@ -118,16 +138,16 @@ const cancelRoute = createRoute({
   responses: {
     202: jsonBody(
       StartedRestoreSchema.pick({ id: true }),
-      `The restore was \`running\` or \`failed\`. When it got past its \`check\` phase it is now \`cancelling\`, and jobs now delete every restored row, one bounded unit after another in the reverse of the table order, then every file under \`items/\`, and then the uploaded parts. \`GET /api/restore\` shows \`cancelled\` when the library is empty again. The ids the restore used are not reused. A restore that never got past \`check\`, such as one the check refused, wrote no row, so it is \`cancelled\` at once, its parts are deleted, and the library stays as it is; a cancel again answers 204. A repeat while an undo runs answers 202 again. A cancel that fails ${String(MAX_ATTEMPTS)} times shows \`failed\` with \`cancelFailed\` true, and a cancel again continues it.${OWNER_ONLY}`,
+      `The restore was \`running\` or \`failed\` and had got past its \`check\` phase, so it is now \`cancelling\`, and jobs now delete every restored row, one bounded unit after another in the reverse of the table order, then every file under \`items/\`, and then the uploaded parts. \`GET /api/restore\` shows \`cancelled\` when the library is empty again. The ids the restore used are not reused. A restore that had written no library record answers 204 instead. A repeat while an undo runs answers 202 again. A cancel that fails ${String(MAX_ATTEMPTS)} times shows \`failed\` with \`cancelFailed\` true, and a cancel again continues it.${OWNER_ONLY}`,
     ),
     204: noContent(
-      `The restore was waiting for its upload, or is already cancelled. Its parts are deleted, and a new restore is accepted.${OWNER_ONLY}`,
+      `The restore is \`cancelled\` at once and has no library record to undo, because it was waiting for its upload, it had written no library record (a refusal of the check included), or it was cancelled before. Its parts are deleted and the library stays as it is. A new restore is accepted once the library is empty.${OWNER_ONLY}`,
     ),
     ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "No restore has this id."),
     409: jsonBody(
-      ErrorResponseSchema,
-      "The restore is done, so there is nothing to cancel, or a newer restore exists, so only that one can be cancelled.",
+      restoreAnswerSchema("finished", "superseded"),
+      "`code` is `finished`: the restore is done, so there is nothing to cancel. Or `superseded`: a newer restore exists, so only that one can be cancelled.",
     ),
   },
 });
@@ -143,14 +163,14 @@ const resumeRoute = createRoute({
       `The restore had \`failed\` with \`gave-up\` (a unit failed ${String(MAX_ATTEMPTS)} times), so it is \`running\` again and a job continues from the cursor of its last committed unit. It ends \`done\` with the rows an uninterrupted run writes.${OWNER_ONLY}`,
     ),
     400: jsonBody(
-      RestoreErrorSchema,
+      restoreAnswerSchema("incomplete-upload"),
       "`code` is `incomplete-upload`: a part of the zip is gone, so the restore cannot continue. Cancel it and upload the zip again.",
     ),
     ...OWNER_SESSION_REFUSALS,
     404: jsonBody(ErrorResponseSchema, "No restore has this id."),
     409: jsonBody(
-      ErrorResponseSchema,
-      "The restore did not fail with `gave-up`, its cancel is running, or a newer restore exists. A refusal of the check cannot be resumed.",
+      restoreAnswerSchema("not-resumable", "superseded"),
+      "`code` is `not-resumable`: the restore did not fail with `gave-up`, or its cancel is running. A refusal of the check cannot be resumed. Or `superseded`: a newer restore exists, so only that one can be resumed.",
     ),
   },
 });
@@ -188,7 +208,7 @@ function registerUploadRoutes(app: OpenAPIHono, ports: Ports): void {
       case "missing":
         return notFound(c);
       case "not-uploading":
-        return c.json({ error: "The restore is no longer waiting for its upload" }, 409);
+        return c.json(PAST_UPLOAD, 409);
       case "wrong-length":
         return c.json({ error: "The body is not the length this part must have" }, 400);
       default:
@@ -210,10 +230,7 @@ function registerRunRoutes(app: OpenAPIHono, ports: Ports): void {
       case "missing":
         return notFound(c);
       case "not-uploading":
-        return c.json(
-          { error: "The restore is not waiting for its start", code: "restore-open" as const },
-          409,
-        );
+        return c.json(PAST_UPLOAD, 409);
       case "library-not-empty":
         return c.json({ error: LIBRARY_NOT_EMPTY, code: "library-not-empty" as const }, 409);
       case "vault-busy":
@@ -229,7 +246,7 @@ function registerRunRoutes(app: OpenAPIHono, ports: Ports): void {
   });
 }
 
-function registerEndRoutes(app: OpenAPIHono, ports: Ports): void {
+function registerCancelRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(cancelRoute, async (c) => {
     const { id } = c.req.valid("param");
     const cancelled = await cancelRestore(ports, id);
@@ -238,19 +255,20 @@ function registerEndRoutes(app: OpenAPIHono, ports: Ports): void {
       case "cancelled":
         return c.body(null, 204);
       case "undoing":
-      case "nothing-to-undo":
         return c.json({ id }, 202);
       case "missing":
         return notFound(c);
       case "finished":
-        return c.json({ error: "The restore is done, so there is nothing to cancel" }, 409);
+        return c.json(FINISHED, 409);
       case "superseded":
-        return c.json({ error: "A newer restore exists, so only that one can be cancelled" }, 409);
+        return c.json(SUPERSEDED, 409);
       default:
         return cancelled satisfies never;
     }
   });
+}
 
+function registerResumeRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(resumeRoute, async (c) => {
     const { id } = c.req.valid("param");
     const resumed = await resumeRestore(ports, id);
@@ -261,9 +279,9 @@ function registerEndRoutes(app: OpenAPIHono, ports: Ports): void {
       case "missing":
         return notFound(c);
       case "not-resumable":
-        return c.json({ error: "The restore did not give up, or its cancel is running" }, 409);
+        return c.json(NOT_RESUMABLE, 409);
       case "superseded":
-        return c.json({ error: "A newer restore exists, so only that one can be resumed" }, 409);
+        return c.json(SUPERSEDED, 409);
       case "incomplete-upload":
         return c.json({ error: "Some parts of the upload are gone", code: resumed.kind }, 400);
       default:
@@ -275,5 +293,6 @@ function registerEndRoutes(app: OpenAPIHono, ports: Ports): void {
 export function registerRestoreRoutes(app: OpenAPIHono, ports: Ports): void {
   registerUploadRoutes(app, ports);
   registerRunRoutes(app, ports);
-  registerEndRoutes(app, ports);
+  registerCancelRoute(app, ports);
+  registerResumeRoute(app, ports);
 }

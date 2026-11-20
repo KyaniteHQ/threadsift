@@ -1,5 +1,11 @@
 import { type RestoreStatus, partsOf } from "../../src/core/contract/restore-contract.ts";
-import { createRestore, fetchRestoreStatus, sendPart, startRestore } from "./restore-api.ts";
+import {
+  type Refused,
+  createRestore,
+  fetchRestoreStatus,
+  sendPart,
+  startRestore,
+} from "./restore-api.ts";
 import { matchesFingerprint, rememberFingerprint } from "./restore-fingerprint.ts";
 import { RESTORE_TEXT, refusalLabel } from "./restore-text.ts";
 import type { Outcome } from "./use-settings-action.ts";
@@ -65,13 +71,13 @@ async function prepare(file: Chosen, view: RestoreStatus | null): Promise<Prepar
   };
 }
 
-async function sendOnce(id: number, part: number, bytes: Readonly<Blob>): Promise<boolean> {
-  try {
-    await sendPart(id, part, bytes);
+type Sent = Readonly<{ kind: "sent" }> | Readonly<{ kind: "lost" }> | Refused;
 
-    return true;
+async function sendOnce(id: number, part: number, bytes: Readonly<Blob>): Promise<Sent> {
+  try {
+    return await sendPart(id, part, bytes);
   } catch {
-    return false;
+    return { kind: "lost" };
   }
 }
 
@@ -86,16 +92,15 @@ async function sendMissing(
   target: Target,
   progress: UploadSteps["progress"],
   at = 0,
-): Promise<boolean> {
+): Promise<Sent> {
   const part = missingParts(target)[at];
 
-  if (part === undefined) return true;
+  if (part === undefined) return { kind: "sent" };
 
   const start = (part - 1) * target.partBytes;
+  const sent = await sendOnce(target.id, part, file.slice(start, start + target.partBytes));
 
-  if (!(await sendOnce(target.id, part, file.slice(start, start + target.partBytes)))) {
-    return false;
-  }
+  if (sent.kind !== "sent") return sent;
 
   progress({ kind: "sending", sent: target.received.length + at + 1, parts: target.parts });
 
@@ -124,10 +129,12 @@ export async function uploadZip(
 
   steps.progress({ kind: "sending", sent: target.received.length, parts: target.parts });
 
-  if (!(await sendMissing(file, target, steps.progress))) {
+  const sent = await sendMissing(file, target, steps.progress);
+
+  if (sent.kind !== "sent") {
     await steps.refresh();
 
-    return failure(RESTORE_TEXT.uploadFailed);
+    return failure(sent.kind === "refused" ? refusalLabel(sent.code) : RESTORE_TEXT.uploadFailed);
   }
 
   steps.progress({ kind: "checking" });
