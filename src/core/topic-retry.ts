@@ -1,14 +1,16 @@
+import type { Side } from "./merge-unit.ts";
 import { startOverview } from "./overview-start.ts";
 import type { Ports } from "./ports.ts";
+import { topicOfKey } from "./topic-lookup.ts";
 import type { Overview } from "./topic-overview-contract.ts";
 import { overviewRetried } from "./topic-overview-run.ts";
-import { type TopicRow, readTopicOverview, topicOfKey } from "./topic-page.ts";
+import { readTopicOverview } from "./topic-page.ts";
 
 type OverviewRetry =
   | { readonly outcome: "started"; readonly overview: Overview }
   | { readonly outcome: "unknown-topic" | "no-provider" | "no-items" };
 
-async function retryingTopic(ports: Ports, topic: Readonly<TopicRow>): Promise<OverviewRetry> {
+async function retryingTopic(ports: Ports, topic: Readonly<Side>): Promise<OverviewRetry> {
   const { db } = ports;
   const result = await startOverview(ports, topic.id);
 

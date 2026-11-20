@@ -109,28 +109,28 @@ A merge adds three answers:
 
 One merge runs at a time, so no two merges touch one Tag or one Topic. Overview writes use their own input revision guards.
 
-In the rest of this section, `from` is the Tag or Topic that goes, and `into` is the one that stays. The merge runs in units (`runUnit` in `src/core/merge-accept.ts`). Each unit is one guarded batch (`guardedResults`, `docs/architecture/database-and-search.md`). The two kinds share the guard, the state change, `moved`, the unit revision, and the answers. They differ in what a unit plans (`MERGES` in `src/core/merge-kinds.ts`).
+In the rest of this section, `from` is the Tag or Topic that goes, and `into` is the one that stays. The merge runs in units (`applyUnit` in `src/core/merge-apply.ts`, called by `runUnits` in `src/core/merge-accept.ts`). Each unit is one guarded batch (`guardedResults`, `docs/architecture/database-and-search.md`). The two kinds share the guard, the state change, `moved`, the unit revision, the Pin writes, the Log entry, the closing writes, and the answers. They differ in the facts that `MERGE` in `src/core/merge-kinds.ts` holds for each kind: its table, its columns on the Proposal, how an Item links to an entry, its Log action, and what a unit plans (`plan`).
 
 #### The Tag unit
 
-`planTagUnit` builds each unit from these parts:
+`applyUnit` builds each Tag unit from these parts. `planTagUnit` in `src/core/tag-merge.ts` supplies the Items to move, the writes that move them and the cursor:
 
 1. Accept starts with one statement (`proposalClaimed`) that moves the row from `open` to `accepting` when no row is `accepting`. A claim that matches nothing answers `merge-busy`, or `not-open` when the row is no longer `open`. Every unit, the first included, holds while the row is `accepting` at the unit revision the unit read. Two runners never move the same Items twice or count them twice, even after the cursor goes back to 0. Every unit also holds both Tag ids and both stored keys as it read them. A unit that loses the guard writes nothing, and the next run reads the row again.
 2. The Pin insert is an upsert on `(kind, from_key)`, so every unit can carry it. The Pin commits with the first Items, so a Digest that publishes during the merge already lands on `into`. `from_key` is `catalogKey` of the name of `from`. The unit also repoints every Pin that targets `from` to `into`.
-3. Each unit takes the next 100 Items that link to `from` (`REWRITE_UNIT_ITEMS`), by ascending Item id after the cursor. It rewrites the `tags` of each stored Digest: it drops repeats by key and keeps the first place. The rewrite is guarded per Digest on `digests.task_id` and on the Digest's `tags` still being the ones read. The rewrite writes `$.tags` alone with `json_set`, so it does not undo a concurrent Topic rewrite of the same Digest. The links move (`tagMoves` in `src/core/catalog-key-links.ts`) before the Digests are rewritten, because the link guard reads the Digests as they were read. An Item whose Digest changed in between keeps its link and its Digest for a later unit. A readable stored Digest never names `from` beside a link to `into`. A stored Digest that does not parse keeps its text, its link still moves, and one `merge-digest-unreadable` line names the Item id. An unparsable Digest never stops the merge, because one merge at a time blocks every other merge Accept.
+3. Each unit takes the next 100 Items that link to `from` (`REWRITE_UNIT_ITEMS`), by ascending Item id after the cursor. It rewrites the `tags` of each stored Digest: it drops repeats by key and keeps the first place. The rewrite is guarded per Digest on `digests.task_id` and on the Digest's `tags` still being the ones read. The rewrite writes `$.tags` alone with `json_set`, so it does not undo a concurrent Topic rewrite of the same Digest. The links move (`tagMoves` in `src/core/tag-rewrite.ts`) before the Digests are rewritten, because the link guard reads the Digests as they were read. An Item whose Digest changed in between keeps its link and its Digest for a later unit. A readable stored Digest never names `from` beside a link to `into`. A stored Digest that does not parse keeps its text, its link still moves, and one `merge-digest-unreadable` line names the Item id. An unparsable Digest never stops the merge, because one merge at a time blocks every other merge Accept.
 4. `moved` counts the `item_tags` rows of `from` among the unit's Items whose Digest still matched the read. The count is computed before the link writes, so an Item deleted or republished in between is not counted.
-5. The last part runs only when no `item_tags` row for `from` remains. It writes the `merge` Log entry and the closing writes (`closingWrites`). The closing writes are one bump of `catalog_version` and the delete of the Tag `from`. The bump makes a Digest that read the old Tag list ask again. The cascade of the delete removes the row and any other Proposal that names `from`.
+5. The last part runs only when no `item_tags` row for `from` remains. It writes the `merge` Log entry, then the closing writes (`retired` in `src/core/catalog.ts`). The closing writes are one bump of `catalog_version` and the delete of the Tag `from`. The bump makes a Digest that read the old Tag list ask again. The cascade of the delete removes the row and any other Proposal that names `from`.
 
 A Tag on 100 Items or fewer therefore merges in one batch. `moved` and the Log's count are the Items that carried `from`, including the Items that already had `into`.
 
 #### The Topic unit
 
-`planTopicUnit` in `src/core/topic-merge-unit.ts` builds each unit from the same parts as the Tag unit, with these differences:
+`applyUnit` builds each Topic unit from the same parts as the Tag unit. `planTopicUnit` in `src/core/topic-merge.ts` supplies what differs:
 
 1. Its guard holds the Proposal revision, both Topic ids, and both stored keys. An overview result whose Topic or input revision changed writes nothing and requeues over fresh inputs.
 2. The Pin is a `topic-merge` Pin, and the repoint covers the Topic Pins that target `from`.
 3. The moves are the shared Topic rewrite (`topicMoves`, described in `docs/architecture/data-model-outline.md`, Catalog keys). A unit moves the next 500 Items under `from` (`MERGE_ITEMS`) and the next 500 Log entries that name `from`. A Topic merges in one unit only when both collections fit. The cursor stays null, because the next read takes the first Items still linked.
-4. When no Item and no Log entry names `from`, the unit writes the `merge-topic` Log entry and then the closing writes (`topicClosingWrites`). The closing writes run in this order: one attempt to open an overview run for `into`, one bump of `catalog_version`, and the delete of `from`. The row stays until that last statement, because the row holds the count that the Log entry reads.
+4. When no Item and no Log entry names `from`, the unit writes the `merge-topic` Log entry and then the closing writes. The closing writes run in this order: one attempt to open an overview run for `into` (`continuingOverview`), one bump of `catalog_version`, and the delete of `from` (`retired`). The row stays until that last statement, because the row holds the count that the Log entry reads.
 
 #### Failed units
 
@@ -144,9 +144,9 @@ The cost is the lower bound of Cost of an overview update. The row shows both It
 
 #### Who runs the units
 
-The accept request claims the row, then runs up to 50 units (`UNITS_PER_ACCEPT`). The `merges` sweep stage continues every `accepting` row of either kind, with the same bound, on each tick. The stage is `continueMerges` in `src/core/merge-accept.ts`, and `src/core/sweep.ts` registers it. A merge finishes by itself after a closed tab, a crash, or an ended Worker invocation.
+The accept request claims the row, then runs up to 50 units (`UNITS_PER_RUN`). The `merges` sweep stage continues every `accepting` row of either kind, with the same bound, on each tick. A unit that loses its guard counts as one of the 50, the first unit included. The stage is `continueMerges` in `src/core/merge-accept.ts`, and `src/core/sweep.ts` registers it. A merge finishes by itself after a closed tab, a crash, or an ended Worker invocation.
 
-The route and the stage call one function (`continueMerge`) with the job ports (`JobPorts`). The function needs the job ports because a Topic unit that opens an overview job wakes the runner with `enqueueRows`. The next sweep finds a queued row that is not woken. A unit that throws a database error ends the call. The stage is then logged as `sweep-stage-failed`, and the next tick starts again from the stored row.
+The route and the stage call one function (`runUnits`) with the job ports (`JobPorts`). The function needs the job ports because a Topic unit that opens an overview job wakes the runner with `enqueueRows`. The next sweep finds a queued row that is not woken. A unit that throws a database error ends the call. The stage is then logged as `sweep-stage-failed`, and the next tick starts again from the stored row.
 
 #### A unit that keeps failing
 
@@ -154,7 +154,7 @@ A unit that fails before its batch commits writes nothing, so the row stays `acc
 
 No `failed` state exists. A merge that started cannot go back to `open`, because the Pin commits in the first unit, and the one-merge rule keeps two merges off one Tag or Topic. The row counts its failed runs in `failed_runs` instead.
 
-`runUnit` runs planning and applying through `recordingFailure` (`src/core/merge-failure.ts`). When either throws, `recordingFailure` does four things in order. It logs `merge-unit-failed` with the Proposal id, the error class, and, for a database error, its code (`databaseCodeOf`, no SQL and no parameters). It runs `unitFailed` in a write of its own. It tries `handedBack`, which matches only a first unit. It throws the original error. A cleanup write that fails does not replace the original error. A failed `unitFailed` is logged as `merge-unit-failure-not-counted`, and a failed `handedBack` as `merge-claim-not-handed-back`.
+`runUnits` runs the planning and the applying of each unit through `recordingFailure` (`src/core/merge-failure.ts`). When either throws, `recordingFailure` does four things in order. It logs `merge-unit-failed` with the Proposal id, the error class, and, for a database error, its code (`databaseCodeOf`, no SQL and no parameters). It runs `unitFailed` in a write of its own. It tries `handedBack`, which matches only a first unit. It throws the original error. A cleanup write that fails does not replace the original error. A failed `unitFailed` is logged as `merge-unit-failure-not-counted`, and a failed `handedBack` as `merge-claim-not-handed-back`.
 
 `unitFailed` matches only a row that is still `accepting` at the unit revision the run read, so a run that lost the row to another writer counts nothing. The first unit's failure count is cleared when the row is handed back. A unit that commits clears the count (`unitAdvanced`). The read returns the count as `failedRuns`, and the page points the owner to the log line.
 
@@ -166,7 +166,7 @@ The largest bound string is the JSON of a unit's read state. For each of 100 Ite
 
 #### Bounds of a Topic unit
 
-A Topic unit runs 3 reads (`readRow` and the two reads of `TOPIC_KIND.linked`) and 1 guarded batch, so 4 queries on D1. An accept request runs at most 50 units, which is 25,000 Items at `MERGE_ITEMS` = 500. The size 500 and the bound 50 are chosen numbers. Local D1 ran a Topic of 25,101 Items as 50 units of 500 in the request and the other 101 Items in one scheduled event, without error. A deployed D1 was not run, so its CPU time per unit is not measured.
+A Topic unit runs 3 reads (`readRow` and the two reads of `topicLinked`) and 1 guarded batch, so 4 queries on D1. An accept request runs at most 50 units, which is 25,000 Items at `MERGE_ITEMS` = 500. The size 500 and the bound 50 are chosen numbers. Local D1 ran a Topic of 25,101 Items as 50 units of 500 in the request and the other 101 Items in one scheduled event, without error. A deployed D1 was not run, so its CPU time per unit is not measured.
 
 ## Pins
 
@@ -178,7 +178,7 @@ Publication guards its batch on the exact resolution it used (`pinnedDigest` in 
 
 ### The address of a merged-away Topic
 
-`topicOfKey` (`src/core/topic-page.ts`) looks a key up in `topics` first. When no Topic has the key, `topicOfKey` looks in the `topic-merge` Pins and answers the Pin's target. A Topic with the key always wins over a Pin. A Pin is repointed when its target is merged away, so a chain of merges resolves the first address to the last Topic.
+`topicOfKey` (`src/core/topic-lookup.ts`) looks a key up in `topics` first. When no Topic has the key, `topicOfKey` looks in the `topic-merge` Pins (`survivorOf` in `src/core/pins.ts`) and answers the Pin's target. A Topic with the key always wins over a Pin. A Pin is repointed when its target is merged away, so a chain of merges resolves the first address to the last Topic.
 
 The Topic page replaces the address with the survivor's path when `topic.key` differs from the requested key (`web/src/use-survivor-address.ts` calls the router's `replace` in `web/src/routing.ts`, which calls `history.replaceState`). A reload and the Back button land on a key that exists. The `topic=` filter of `GET /api/items` and the Index do not follow a Pin, because a filter is built from live lists and an address is stored by the owner. A Tag Pin is not read for an address.
 

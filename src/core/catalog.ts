@@ -1,6 +1,7 @@
-import { type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 
 import { catalogKey } from "./catalog-key.ts";
+import type { CatalogTable } from "./catalog-tables.ts";
 import { TAG_USES, TOPIC_USES } from "./catalog-uses.ts";
 import type { Database } from "./database.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
@@ -88,11 +89,19 @@ export async function readCatalog(db: Database) {
   };
 }
 
-function bumpVersion(db: Database) {
+function bumpedWhen(db: Database, when: SQL, by: SQL) {
   return db
     .update(catalogVersion)
-    .set({ version: sql`${catalogVersion.version} + changes()` })
-    .where(and(eq(catalogVersion.id, 1), sql`changes() > 0`));
+    .set({ version: sql`${catalogVersion.version} + ${by}` })
+    .where(and(eq(catalogVersion.id, 1), when));
+}
+
+function bumpVersion(db: Database) {
+  return bumpedWhen(db, sql`changes() > 0`, sql`changes()`);
+}
+
+export function retired(db: Database, table: CatalogTable, id: number, gone: SQL) {
+  return [bumpedWhen(db, gone, sql`1`), db.delete(table).where(and(eq(table.id, id), gone))];
 }
 
 function linkingDigest(db: Database, itemId: number, entries: CatalogEntries, title: string) {

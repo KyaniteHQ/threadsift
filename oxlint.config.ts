@@ -83,7 +83,7 @@ export default defineConfig({
           { from: "lib", name: "Document" },
           {
             from: "file",
-            name: ["Database", "CatalogKind", "Look", "InputKind", "Slots", "GrokCli"],
+            name: ["Database", "Look", "InputKind", "Slots", "GrokCli"],
           },
           { from: "package", name: ["ZodError", "ZodObject", "ZodType"], package: "zod" },
           {

@@ -4,9 +4,9 @@ import { after, before, describe, it } from "node:test";
 
 import { sql } from "drizzle-orm";
 
-import { TOPIC_KIND, topicMoves } from "../src/core/catalog-key-links.ts";
 import { guardedBatch } from "../src/core/guards.ts";
 import { readRewrite } from "../src/core/tag-rewrite.ts";
+import { topicLinked, topicMoves } from "../src/core/topic-moves.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
 import { dump, item, script } from "./pin-fixtures.ts";
@@ -39,7 +39,7 @@ describe("a Tag rewrite that read a Digest before a Topic rewrite changed it", (
         after: 0,
       });
 
-      const moves = await TOPIC_KIND.linked(database.db, 2);
+      const moves = await topicLinked(database.db, 2);
 
       await guardedBatch(database.db, sql`1`, topicMoves(database.db, 2, 1, moves));
       await guardedBatch(database.db, sql`1`, unit.writes);
@@ -79,7 +79,7 @@ describe("a Topic rewrite that read its Items before a publication linked one of
     const database = openDatabase(instance.databaseFile, MIGRATIONS);
 
     try {
-      const moves = await TOPIC_KIND.linked(database.db, 2);
+      const moves = await topicLinked(database.db, 2);
 
       script(
         instance,

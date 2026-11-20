@@ -2,31 +2,19 @@ import { type SQL, sql } from "drizzle-orm";
 
 import { AI_DEADLINE_MS, AI_LIST_OUTPUT_TOKENS } from "./ai-contract.ts";
 import { readCatalogVersion } from "./catalog.ts";
-import type { Database } from "./database.ts";
-import type { JobWrites } from "./job-outcome.ts";
 import { defineJob } from "./job-spec.ts";
 import type { MergeKind } from "./kinds.ts";
-import { pairKey } from "./proposal-candidates.ts";
+import { MERGE } from "./merge-kinds.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
-import { type InsertedState, proposalRow } from "./proposal-lifecycle.ts";
+import { storedMerges } from "./proposal-stored.ts";
 import {
   type ProposalsResult,
-  type SentPair,
+  type Sent,
   SentPairsSchema,
   proposalsTask,
   proposalsTaskKind,
 } from "./proposal-task.ts";
-import { proposals, tags, topics } from "./schema.ts";
-import { type WeeklyRun, storedField, weeklyKind } from "./weekly-kind.ts";
-
-interface StoredRow {
-  readonly from: number;
-  readonly into: number;
-  readonly reason: string | null;
-  readonly state: InsertedState<MergeKind>;
-}
-
-type Sent = readonly Readonly<SentPair>[];
+import { type WeeklyRun, weeklyKind } from "./weekly-kind.ts";
 
 const RUNS: Readonly<Record<MergeKind, { readonly label: string; readonly event: string }>> = {
   "tag-merge": { label: "Proposals run", event: "proposals-run-failed" },
@@ -35,60 +23,9 @@ const RUNS: Readonly<Record<MergeKind, { readonly label: string; readonly event:
 
 function sentExist(kind: MergeKind, sent: Sent): SQL {
   const ids = JSON.stringify(sent.flatMap(({ low, high }) => [low.id, high.id]));
-  const table = kind === "tag-merge" ? tags : topics;
+  const { table } = MERGE[kind];
 
   return sql`not exists (select 1 from json_each(${ids}) as wanted where not exists (select 1 from ${table} where ${table.id} = wanted.value))`;
-}
-
-function rowsOf(sent: Sent, merges: ProposalsResult["merges"]): readonly StoredRow[] {
-  const merged = new Set(merges.map(({ from, into }) => pairKey(from, into)));
-
-  return [
-    ...merges.map(({ from, into, reason }) => ({ from, into, reason, state: "open" as const })),
-    ...sent.flatMap(({ low, high }) =>
-      merged.has(pairKey(low.id, high.id))
-        ? []
-        : [{ from: low.id, into: high.id, reason: null, state: "declined" as const }],
-    ),
-  ];
-}
-
-function storedRows(
-  db: Database,
-  kind: MergeKind,
-  rows: readonly Readonly<StoredRow>[],
-): JobWrites {
-  if (rows.length === 0) return [];
-
-  const side = (own: MergeKind, path: "from" | "into") =>
-    kind === own ? storedField(path) : sql`null`;
-
-  return [
-    db
-      .insert(proposals)
-      .select(
-        db
-          .select(
-            proposalRow(
-              {
-                kind,
-                state: storedField("state"),
-                reason: storedField("reason"),
-                createdAt: Date.now(),
-              },
-              {
-                fromTagId: side("tag-merge", "from"),
-                intoTagId: side("tag-merge", "into"),
-                fromTopicId: side("topic-merge", "from"),
-                intoTopicId: side("topic-merge", "into"),
-              },
-            ),
-          )
-          .from(sql`json_each(${JSON.stringify(rows)}) as stored`)
-          .where(sql`true`),
-      )
-      .onConflictDoNothing(),
-  ];
 }
 
 function runOf(kind: MergeKind): WeeklyRun<Sent, ProposalsResult> {
@@ -105,7 +42,7 @@ function runOf(kind: MergeKind): WeeklyRun<Sent, ProposalsResult> {
     },
     task: (sent) => proposalsTask(kind, sent),
     current: (sent) => sentExist(kind, sent),
-    stored: (db, { sent, result }) => storedRows(db, kind, rowsOf(sent, result.merges)),
+    stored: (db, { sent, result }) => storedMerges(db, kind, sent, result.merges),
   };
 }
 
