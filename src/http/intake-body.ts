@@ -2,8 +2,8 @@ import type { Context } from "hono";
 import { createMiddleware } from "hono/factory";
 import { HTTPException } from "hono/http-exception";
 
-import { refusedIntake } from "../core/x-intake-answer.ts";
-import { UNREADABLE_BODY } from "../core/x-intake-contract.ts";
+import { UNREADABLE_BODY } from "../core/contract/x-intake-contract.ts";
+import { refusedIntake } from "../core/x/x-intake-answer.ts";
 import type { CallbackEnv } from "./access-steps.ts";
 
 declare module "hono" {

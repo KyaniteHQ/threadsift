@@ -1,5 +1,5 @@
-import type { ImportState } from "../../src/core/import-contract.ts";
-import { doneOf } from "../../src/core/import-list.ts";
+import type { ImportState } from "../../src/core/contract/import-contract.ts";
+import { doneOf } from "../../src/core/contract/import-list.ts";
 import { readImportState } from "./import-api.ts";
 import { pause } from "./pause.ts";
 import { POLL_MS } from "./poll-interval.ts";

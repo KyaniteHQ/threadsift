@@ -1,7 +1,7 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { changePassword, resetPassword } from "../core/owner-password.ts";
-import type { Ports } from "../core/ports.ts";
+import { changePassword, resetPassword } from "../core/access/owner-password.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { changePasswordRoute, resetPasswordRoute } from "./access-contract.ts";
 import { turnedAway } from "./refusals.ts";
 import { replacedSession, sessionIdOf } from "./session-cookie.ts";

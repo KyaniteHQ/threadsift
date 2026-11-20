@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { type CommentRow, commentsViewOf } from "../src/core/comment-view.ts";
+import { type CommentRow, commentsViewOf } from "../src/core/contract/comment-view.ts";
 import { Instance, type Json } from "./instance.ts";
 import { FACT, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, until } from "./related-fixtures.ts";

@@ -1,8 +1,12 @@
 import type { Context } from "hono";
 import { deleteCookie, getCookie, setCookie } from "hono/cookie";
 
-import type { Ports } from "../core/ports.ts";
-import { SESSION_MAX_AGE_SECONDS, type StartedSession, checkSession } from "../core/sessions.ts";
+import {
+  SESSION_MAX_AGE_SECONDS,
+  type StartedSession,
+  checkSession,
+} from "../core/access/sessions.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 
 const COOKIE_NAME = "threadsift_session";
 

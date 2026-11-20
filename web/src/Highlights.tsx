@@ -1,7 +1,7 @@
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
 
-import type { Highlight, HighlightsView } from "../../src/core/highlight-contract.ts";
-import { NOTHING } from "../../src/core/nothing.ts";
+import type { Highlight, HighlightsView } from "../../src/core/contract/highlight-contract.ts";
+import { NOTHING } from "../../src/core/contract/nothing.ts";
 import { HighlightList } from "./HighlightList.tsx";
 import {
   type HighlightsApi,

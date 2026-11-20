@@ -1,4 +1,4 @@
-import type { XSettingsView } from "../../src/core/x-settings-contract.ts";
+import type { XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Command } from "./Command.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";

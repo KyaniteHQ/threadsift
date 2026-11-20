@@ -1,7 +1,7 @@
 import { memo, useId } from "react";
 
-import { itemPath } from "../../src/core/item-path.ts";
-import type { TopicItem } from "../../src/core/topic-overview-contract.ts";
+import { itemPath } from "../../src/core/contract/item-path.ts";
+import type { TopicItem } from "../../src/core/contract/topic-overview-contract.ts";
 import { useNavigateLink } from "./routing.ts";
 import { SavedTime } from "./SavedTime.tsx";
 import { READ_LABELS, SOURCE_LABELS } from "./text.ts";

@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { CommentsViewSchema } from "../core/comment-view.ts";
-import { ReaderDigestSchema } from "../core/digest-schema.ts";
-import { HighlightsViewSchema } from "../core/highlight-contract.ts";
-import { NoteViewSchema } from "../core/note-contract.ts";
-import { RelatedSchema } from "../core/related-contract.ts";
-import { withShownStatus } from "../core/shown-status.ts";
+import { CommentsViewSchema } from "../core/contract/comment-view.ts";
+import { ReaderDigestSchema } from "../core/contract/digest-schema.ts";
+import { HighlightsViewSchema } from "../core/contract/highlight-contract.ts";
+import { NoteViewSchema } from "../core/contract/note-contract.ts";
+import { RelatedSchema } from "../core/contract/related-contract.ts";
+import { withShownStatus } from "../core/contract/shown-status.ts";
 import { SizedImageSchema } from "./item-image.ts";
 import { HttpUrlSchema, ItemBaseSchema } from "./item-wire.ts";
 

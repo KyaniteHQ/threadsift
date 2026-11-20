@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
+import { STORED_PICTURE_TEXT } from "../../src/core/contract/reader-url.ts";
 import { Icon } from "./Icon.tsx";
 import { PICTURE_LABEL } from "./reader-text.ts";
 

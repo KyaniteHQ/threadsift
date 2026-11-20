@@ -5,7 +5,7 @@ import {
   importNameOf,
   parseImportList,
   resumeOf,
-} from "../../src/core/import-list.ts";
+} from "../../src/core/contract/import-list.ts";
 import { readImportState } from "./import-api.ts";
 
 export type Check =

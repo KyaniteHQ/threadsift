@@ -1,6 +1,9 @@
 import { useCallback, useMemo } from "react";
 
-import { type RedditAccountView, redditSessionOf } from "../../src/core/reddit-account-contract.ts";
+import {
+  type RedditAccountView,
+  redditSessionOf,
+} from "../../src/core/contract/reddit-account-contract.ts";
 import {
   fetchRedditAccount,
   removeRedditAccount,

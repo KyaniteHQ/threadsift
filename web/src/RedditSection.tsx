@@ -1,4 +1,4 @@
-import type { RedditSettings } from "../../src/core/reddit-contract.ts";
+import type { RedditSettings } from "../../src/core/contract/reddit-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { LoadedSection, type SectionSpec } from "./LoadedSection.tsx";
 import { RadioChoice } from "./RadioChoice.tsx";

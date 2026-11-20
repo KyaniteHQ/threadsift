@@ -1,6 +1,6 @@
 import { drizzle } from "drizzle-orm/d1";
 
-import { batchesOf } from "../../core/batches.ts";
+import { batchesOf } from "../../core/kernel/batches.ts";
 import type { TargetAdapters } from "../shared/ports.ts";
 import type { SettingVariables } from "../shared/settings.ts";
 import { type AiBinding, bindingRunner } from "./ai-binding.ts";

@@ -1,6 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { IMPORT_CURSOR_MAX, IMPORT_NAME_MAX } from "../core/import-contract.ts";
+import { IMPORT_CURSOR_MAX, IMPORT_NAME_MAX } from "../core/contract/import-contract.ts";
 import { DEFAULT_CAP, access, tooLarge } from "./access.ts";
 import { BATCH_LINKS_MAX, BatchRequestSchema, BatchResponseSchema } from "./batch-schemas.ts";
 import { budgetRefusal, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";

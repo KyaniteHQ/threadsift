@@ -1,7 +1,16 @@
 import { type CSSProperties, type FocusEvent, useCallback, useEffect, useId, useRef } from "react";
 
-import type { CommentCount, CommentNode, CommentsFilter } from "../../src/core/comment-view.ts";
-import { COMMENTS_TITLE, CONTEXT_LABEL, STUB_TEXTS, handleOf } from "../../src/core/reader-text.ts";
+import type {
+  CommentCount,
+  CommentNode,
+  CommentsFilter,
+} from "../../src/core/contract/comment-view.ts";
+import {
+  COMMENTS_TITLE,
+  CONTEXT_LABEL,
+  STUB_TEXTS,
+  handleOf,
+} from "../../src/core/contract/reader-text.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";

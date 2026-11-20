@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import type { PinKind, ProposalKind } from "../src/core/proposal-contract.ts";
+import type { PinKind, ProposalKind } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import { paste } from "./related-fixtures.ts";
 

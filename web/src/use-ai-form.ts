@@ -1,7 +1,7 @@
 import { useCallback, useState, type ChangeEvent } from "react";
 
-import type { AiRefused } from "../../src/core/ai-contract.ts";
-import { AiSettingsInputSchema } from "../../src/core/ai-settings-contract.ts";
+import type { AiRefused } from "../../src/core/contract/ai-contract.ts";
+import { AiSettingsInputSchema } from "../../src/core/contract/ai-settings-contract.ts";
 import {
   GROK_BOT_PROVIDER,
   PROVIDERS,
@@ -11,7 +11,7 @@ import {
   type Provider,
   isCliProvider,
   withoutTrailingSlashes,
-} from "../../src/core/provider-families.ts";
+} from "../../src/core/contract/provider-families.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";

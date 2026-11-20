@@ -1,6 +1,6 @@
-import type { AiRuntime } from "../../core/ai-runtime.ts";
-import type { Ports } from "../../core/ports.ts";
-import { sealedSecrets } from "../../core/sealed-secret.ts";
+import type { AiRuntime } from "../../core/kernel/ai-runtime.ts";
+import type { Ports } from "../../core/kernel/ports.ts";
+import { sealedSecrets } from "../../core/kernel/sealed-secret.ts";
 import { nodeCrypto } from "./crypto.ts";
 import { publicOriginOf } from "./public-origin.ts";
 import type { Settings } from "./settings.ts";

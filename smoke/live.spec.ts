@@ -1,11 +1,14 @@
 import { type APIRequestContext, expect, test } from "@playwright/test";
 import { z } from "zod";
 
-import { AiSaveResponseSchema, VerifyResultSchema } from "../src/core/ai-settings-contract.ts";
-import { catalogKey } from "../src/core/catalog-key.ts";
-import { DigestSchema } from "../src/core/digest-schema.ts";
-import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
-import { topicApiPath } from "../src/core/topic-path.ts";
+import {
+  AiSaveResponseSchema,
+  VerifyResultSchema,
+} from "../src/core/contract/ai-settings-contract.ts";
+import { catalogKey } from "../src/core/contract/catalog-key.ts";
+import { DigestSchema } from "../src/core/contract/digest-schema.ts";
+import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
+import { topicApiPath } from "../src/core/contract/topic-path.ts";
 import {
   ItemDetailResponseSchema,
   ItemResponseSchema,

@@ -1,8 +1,8 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import type { Ports } from "../core/ports.ts";
-import { RedditSettingsSchema } from "../core/reddit-contract.ts";
-import { readRedditSettings, saveRedditSettings } from "../core/reddit-settings.ts";
+import { RedditSettingsSchema } from "../core/contract/reddit-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { readRedditSettings, saveRedditSettings } from "../core/reddit/reddit-settings.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 

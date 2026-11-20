@@ -1,7 +1,7 @@
 import { memo, use, useCallback, useId } from "react";
 
-import { itemPath } from "../../src/core/item-path.ts";
-import type { Related as RelatedEntries } from "../../src/core/related-contract.ts";
+import { itemPath } from "../../src/core/contract/item-path.ts";
+import type { Related as RelatedEntries } from "../../src/core/contract/related-contract.ts";
 import { PagesScope } from "./pages-scope.ts";
 import { RELATED } from "./reader-text.ts";
 import { useInternalLink } from "./routing.ts";

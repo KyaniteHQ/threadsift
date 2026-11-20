@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect, useState } from "react";
 
-import type { Highlight } from "../../src/core/highlight-contract.ts";
+import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
 import { keyOf } from "./highlight-target.ts";
 import type { Reveal } from "./highlights-context.ts";
 import { scrollAndFocus } from "./jump-to-comments.ts";

@@ -1,6 +1,10 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { DEFAULT_SCOPES, DEFAULT_TOKEN_BUDGET, SCOPES } from "../core/agent-token-contract.ts";
+import {
+  DEFAULT_SCOPES,
+  DEFAULT_TOKEN_BUDGET,
+  SCOPES,
+} from "../core/contract/agent-token-contract.ts";
 import { access } from "./access.ts";
 import { codeList, jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { PASSWORD_RULE } from "./refusals.ts";

@@ -1,5 +1,5 @@
-import type { GithubSettingsView } from "../../src/core/github-contract.ts";
-import { SECRET_INPUT_MAX } from "../../src/core/secret-input.ts";
+import type { GithubSettingsView } from "../../src/core/contract/github-contract.ts";
+import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { FormField } from "./FormField.tsx";
 import {

@@ -1,4 +1,4 @@
-import type { OverviewGapProposal } from "../../src/core/proposal-contract.ts";
+import type { OverviewGapProposal } from "../../src/core/contract/proposal-contract.ts";
 import { OVERVIEW_GAP_EFFECT, PROPOSAL_WORDS, overviewCounts } from "./proposals-text.ts";
 import { TopicEffect } from "./TopicEffect.tsx";
 

@@ -1,5 +1,5 @@
-import { networkOver } from "../../core/network-transport.ts";
-import { type Network, REQUEST_HEADERS, wireResponseOf } from "../../core/network.ts";
+import { networkOver } from "../../core/kernel/network-transport.ts";
+import { type Network, REQUEST_HEADERS, wireResponseOf } from "../../core/kernel/network.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;

@@ -1,6 +1,6 @@
 import { useEffect, useEffectEvent, useState } from "react";
 
-import type { HighlightsView } from "../../src/core/highlight-contract.ts";
+import type { HighlightsView } from "../../src/core/contract/highlight-contract.ts";
 import type { SelectionDraft } from "./highlight-draft.ts";
 import { BODY_SELECTOR, keyOf } from "./highlight-target.ts";
 

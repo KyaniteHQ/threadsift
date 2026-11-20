@@ -1,6 +1,6 @@
 import type { RefObject } from "react";
 
-import { NOTHING } from "../../src/core/nothing.ts";
+import { NOTHING } from "../../src/core/contract/nothing.ts";
 import { focusNeighbour } from "./reveal.ts";
 import { type LoadedRows, useFocusNewRows } from "./use-focus-new-rows.ts";
 import { useLibraryKeys } from "./use-library-keys.ts";

@@ -4,7 +4,7 @@ import {
   VAULT_DEADLINE_MS,
   type VaultInput,
   type VaultVerifyInput,
-} from "../../src/core/vault-contract.ts";
+} from "../../src/core/contract/vault-contract.ts";
 import { del, parsedFrom, post, put } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

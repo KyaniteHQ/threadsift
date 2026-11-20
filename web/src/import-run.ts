@@ -1,4 +1,4 @@
-import { doneOf, nextBatch } from "../../src/core/import-list.ts";
+import { doneOf, nextBatch } from "../../src/core/contract/import-list.ts";
 import { type Counts, postBatch, readImportState } from "./import-api.ts";
 import { type Landing, batchLanding } from "./import-landing.ts";
 import type { FailedEnding } from "./import-text.ts";

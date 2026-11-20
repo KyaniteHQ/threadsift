@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { IndexTopic, TopicIndex } from "../../src/core/topic-index-contract.ts";
+import type { IndexTopic, TopicIndex } from "../../src/core/contract/topic-index-contract.ts";
 import { INDEX_PAGE, indexHeadLabel } from "./index-text.ts";
 import { IndexRow } from "./IndexRow.tsx";
 import { type Listing, ListPage } from "./ListPage.tsx";

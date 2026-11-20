@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { fileRouteOf } from "../core/file-keys.ts";
+import { fileRouteOf } from "../core/contract/file-keys.ts";
 
 export const ItemImageSchema = z.object({ url: z.string(), alt: z.string() });
 

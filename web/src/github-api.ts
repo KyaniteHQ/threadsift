@@ -3,7 +3,7 @@ import {
   GithubSettingsViewSchema,
   GithubVerifyResultSchema,
   type GithubTokenInput,
-} from "../../src/core/github-contract.ts";
+} from "../../src/core/contract/github-contract.ts";
 import { del, parsedFrom, post, put } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS, HOP_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

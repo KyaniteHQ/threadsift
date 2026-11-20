@@ -1,6 +1,6 @@
 import { type ChangeEvent, useCallback, useId } from "react";
 
-import type { CountedName } from "../../src/core/filter-counts-contract.ts";
+import type { CountedName } from "../../src/core/contract/filter-counts-contract.ts";
 import { Icon } from "./Icon.tsx";
 import {
   ALL_CHOICE,

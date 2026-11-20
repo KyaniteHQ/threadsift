@@ -6,7 +6,7 @@ import {
   clearRefusals,
   countRefusal,
   recordWindow,
-} from "../src/core/reddit-account-states.ts";
+} from "../src/core/reddit/reddit-account-states.ts";
 import { Instance } from "./instance.ts";
 import { SECRET_KEY, SESSION, account, connect } from "./reddit-account-fixtures.ts";
 import { exec } from "./related-fixtures.ts";

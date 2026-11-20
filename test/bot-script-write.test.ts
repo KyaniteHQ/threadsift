@@ -15,7 +15,7 @@ import { tmpdir } from "node:os";
 import { basename, join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { ITEM_REQUEST_BYTES } from "../src/core/limits.ts";
+import { ITEM_REQUEST_BYTES } from "../src/core/contract/limits.ts";
 import { ScriptFolder } from "./bot-script-run.ts";
 import { ScriptWorld } from "./bot-script-world.ts";
 

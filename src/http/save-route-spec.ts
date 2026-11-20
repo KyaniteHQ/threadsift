@@ -1,15 +1,15 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { WIRE_ID_MAX } from "../core/comment-id.ts";
-import { byteSize } from "../core/format.ts";
+import { WIRE_ID_MAX } from "../core/contract/comment-id.ts";
+import { byteSize } from "../core/contract/format.ts";
 import {
   INLINE_TEXT_BYTES,
   MAX_THREAD_ANSWERS,
   MIN_ARTICLE_WORDS,
   THREAD_CONTENT_BYTES,
   X_REPLIES_MAX,
-} from "../core/limits.ts";
-import { PAGE_BYTES } from "../core/supplied-page.ts";
+} from "../core/contract/limits.ts";
+import { PAGE_BYTES } from "../core/contract/supplied-page.ts";
 import { DEFAULT_CAP, ITEM_CAP, access } from "./access.ts";
 import {
   PASTE_DIGEST_SCOPE,

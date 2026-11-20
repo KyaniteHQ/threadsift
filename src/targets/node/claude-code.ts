@@ -2,12 +2,12 @@ import { homedir } from "node:os";
 
 import { z } from "zod";
 
-import { type AiExecution, apiRefusal, refusedAi } from "../../core/ai-contract.ts";
-import type { RunnerTask } from "../../core/ai-runtime.ts";
-import { readOrAssume, report } from "../../core/failure-log.ts";
-import { parsedJson } from "../../core/parsed-json.ts";
-import { PROVIDERS } from "../../core/provider-families.ts";
-import { PROBE_MS } from "../../core/request-waits.ts";
+import { type AiExecution, apiRefusal, refusedAi } from "../../core/contract/ai-contract.ts";
+import { PROVIDERS } from "../../core/contract/provider-families.ts";
+import { PROBE_MS } from "../../core/contract/request-waits.ts";
+import type { RunnerTask } from "../../core/kernel/ai-runtime.ts";
+import { readOrAssume, report } from "../../core/kernel/failure-log.ts";
+import { parsedJson } from "../../core/kernel/parsed-json.ts";
 import { findBinary, inEmptyFolder, runProcess } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import {

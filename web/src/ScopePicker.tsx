@@ -1,6 +1,6 @@
 import { useCallback, useId } from "react";
 
-import { SCOPES, type Scope } from "../../src/core/agent-token-contract.ts";
+import { SCOPES, type Scope } from "../../src/core/contract/agent-token-contract.ts";
 import { SETTINGS } from "./access-text.ts";
 
 const SCOPE_LABELS = {

@@ -3,7 +3,10 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { type XReaderChoice, XSettingsViewSchema } from "../src/core/x-settings-contract.ts";
+import {
+  type XReaderChoice,
+  XSettingsViewSchema,
+} from "../src/core/contract/x-settings-contract.ts";
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { SECRET_KEY, saveBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";

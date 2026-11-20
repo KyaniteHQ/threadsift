@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
-import { itemPath } from "../../src/core/item-path.ts";
-import type { ItemsDisagreeProposal } from "../../src/core/proposal-contract.ts";
+import { itemPath } from "../../src/core/contract/item-path.ts";
+import type { ItemsDisagreeProposal } from "../../src/core/contract/proposal-contract.ts";
 import { reasonId, sidesId } from "./proposal-dom.ts";
 import { ITEMS_DISAGREE_EFFECT, PROPOSAL_WORDS, sideNamedWords } from "./proposals-text.ts";
 import { useInternalLink } from "./routing.ts";

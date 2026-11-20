@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { DigestSchema } from "../core/digest-schema.ts";
-import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../core/supplied-page.ts";
-import { ThreadAnswersSchema } from "../core/thread-answers.ts";
+import { DigestSchema } from "../core/contract/digest-schema.ts";
+import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../core/contract/supplied-page.ts";
+import { ThreadAnswersSchema } from "../core/contract/thread-answers.ts";
 import { HttpUrlSchema } from "./item-wire.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 

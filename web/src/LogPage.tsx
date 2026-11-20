@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { LogEntry, LogPage as LogContent } from "../../src/core/log-contract.ts";
+import type { LogEntry, LogPage as LogContent } from "../../src/core/contract/log-contract.ts";
 import { type Listing, ListPage } from "./ListPage.tsx";
 import { localDate } from "./log-date.ts";
 import { LOG_PAGE, logEmptyLine, logSince } from "./log-text.ts";

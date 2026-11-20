@@ -1,4 +1,4 @@
-import { type RestoreStatus, partsOf } from "../../src/core/restore-contract.ts";
+import { type RestoreStatus, partsOf } from "../../src/core/contract/restore-contract.ts";
 import { createRestore, fetchRestoreStatus, sendPart, startRestore } from "./restore-api.ts";
 import { matchesFingerprint, rememberFingerprint } from "./restore-fingerprint.ts";
 import { RESTORE_TEXT, refusalLabel } from "./restore-text.ts";

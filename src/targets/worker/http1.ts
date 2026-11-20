@@ -1,4 +1,4 @@
-import type { RequestHeaders, WireResponse } from "../../core/network.ts";
+import type { RequestHeaders, WireResponse } from "../../core/kernel/network.ts";
 
 const HEAD_LIMIT_BYTES = 16 * 1024;
 

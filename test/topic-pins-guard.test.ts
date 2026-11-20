@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
-import { guardHolds } from "../src/core/guards.ts";
-import { pinnedDigest } from "../src/core/pins.ts";
+import { guardHolds } from "../src/core/kernel/guards.ts";
+import { pinnedDigest } from "../src/core/wiki/pins.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
 import { script } from "./pin-fixtures.ts";

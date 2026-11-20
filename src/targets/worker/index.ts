@@ -1,8 +1,8 @@
 import { z } from "zod";
 
-import { runJob } from "../../core/jobs.ts";
-import type { Ports } from "../../core/ports.ts";
-import { tick } from "../../core/tick.ts";
+import { runJob } from "../../core/compose/jobs.ts";
+import { tick } from "../../core/compose/tick.ts";
+import type { Ports } from "../../core/kernel/ports.ts";
 import { createApp } from "../../http/app.ts";
 import { isDocumentPath, isServerPath } from "../../http/document-path.ts";
 import { portsOf } from "../shared/ports.ts";

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { GrokBotTestSchema, GrokBotViewSchema } from "../src/core/grok-bot-contract.ts";
+import { GrokBotTestSchema, GrokBotViewSchema } from "../src/core/contract/grok-bot-contract.ts";
 import type { Instance } from "./instance.ts";
 import { rows } from "./related-fixtures.ts";
 

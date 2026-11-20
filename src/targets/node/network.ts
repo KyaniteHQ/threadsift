@@ -4,7 +4,8 @@ import { request as httpsRequest } from "node:https";
 import { type Readable, type Transform, pipeline } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
-import { type Exchange, networkOver } from "../../core/network-transport.ts";
+import { HOP_DEADLINE_MS } from "../../core/contract/request-waits.ts";
+import { type Exchange, networkOver } from "../../core/kernel/network-transport.ts";
 import {
   type Network,
   NetworkFailure,
@@ -13,10 +14,9 @@ import {
   type RequestHeaders,
   type WireResponse,
   wireResponseOf,
-} from "../../core/network.ts";
-import { publicAddressesOf } from "../../core/public-host.ts";
-import { redditSessionOver } from "../../core/reddit-session.ts";
-import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
+} from "../../core/kernel/network.ts";
+import { publicAddressesOf } from "../../core/kernel/public-host.ts";
+import { redditSessionOver } from "../../core/reddit/reddit-session.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
 const IDENTITY = "identity";

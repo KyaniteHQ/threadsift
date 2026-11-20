@@ -1,6 +1,6 @@
-import { groupedNumber } from "../../src/core/format.ts";
-import { PASSWORD_MAX, PASSWORD_MIN } from "../../src/core/passwords.ts";
-import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../../src/core/setup-code.ts";
+import { groupedNumber } from "../../src/core/contract/format.ts";
+import { PASSWORD_MAX, PASSWORD_MIN } from "../../src/core/contract/passwords.ts";
+import { RESET_CODE_MIN, SETUP_CODE_MIN } from "../../src/core/contract/setup-code.ts";
 import { plural } from "./plural.ts";
 
 export const SETUP = {

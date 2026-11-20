@@ -1,4 +1,4 @@
-import type { RedditAccountView } from "../../src/core/reddit-account-contract.ts";
+import type { RedditAccountView } from "../../src/core/contract/reddit-account-contract.ts";
 import { FormField } from "./FormField.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { REDDIT_ACCOUNT_GUIDE_URL, REDDIT_ACCOUNT_TEXT, stateText } from "./reddit-account-text.ts";

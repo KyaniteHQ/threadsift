@@ -3,10 +3,10 @@ import { existsSync, promises as fs } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
-import { AI_DEADLINE_MS } from "../src/core/ai-contract.ts";
-import { DIGEST_TASK } from "../src/core/digest-task.ts";
-import { withCleanup } from "../src/core/failure-log.ts";
-import { submittedAmong } from "../src/core/thread-selection.ts";
+import { AI_DEADLINE_MS } from "../src/core/contract/ai-contract.ts";
+import { DIGEST_TASK } from "../src/core/digest/digest-task.ts";
+import { withCleanup } from "../src/core/kernel/failure-log.ts";
+import { submittedAmong } from "../src/core/thread/thread-selection.ts";
 import {
   type ComparisonItem,
   type Snapshot,

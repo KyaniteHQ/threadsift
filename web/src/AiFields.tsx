@@ -7,8 +7,8 @@ import {
   CliChoiceSchema,
   isCliProvider,
   type Provider,
-} from "../../src/core/provider-families.ts";
-import { SECRET_INPUT_MAX } from "../../src/core/secret-input.ts";
+} from "../../src/core/contract/provider-families.ts";
+import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
 import { missingCustomOverrides, type SavedKey, type useAiForm } from "./use-ai-form.ts";

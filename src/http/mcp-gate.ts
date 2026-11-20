@@ -2,9 +2,9 @@ import type { AuthInfo } from "@modelcontextprotocol/server";
 import type { Context, MiddlewareHandler } from "hono";
 import { z } from "zod";
 
-import { presentedToken } from "../core/bearer.ts";
-import { type OriginPolicy, originPolicyOf, unlistedPart } from "../core/own-origin.ts";
-import type { Ports } from "../core/ports.ts";
+import { presentedToken } from "../core/access/bearer.ts";
+import { type OriginPolicy, originPolicyOf, unlistedPart } from "../core/access/own-origin.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { refusedBearer } from "./bearer.ts";
 import { senderOf } from "./sender.ts";
 

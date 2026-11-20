@@ -1,4 +1,4 @@
-import { NOTHING } from "../../src/core/nothing.ts";
+import { NOTHING } from "../../src/core/contract/nothing.ts";
 
 export function oneAtATime(): <Result>(task: () => Promise<Result>) => Promise<Result> {
   let queue: Promise<unknown> = Promise.resolve();

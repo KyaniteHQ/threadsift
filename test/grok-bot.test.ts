@@ -9,7 +9,7 @@ import {
   GrokBotSaveResponseSchema,
   GrokBotViewSchema,
   KEY_NEEDED,
-} from "../src/core/grok-bot-contract.ts";
+} from "../src/core/contract/grok-bot-contract.ts";
 import {
   ADDRESS,
   KEY,

@@ -1,7 +1,7 @@
 import { memo, useId } from "react";
 
-import type { Entry } from "../../src/core/highlights-page-contract.ts";
-import { NOT_FOUND } from "../../src/core/reader-text.ts";
+import type { Entry } from "../../src/core/contract/highlights-page-contract.ts";
+import { NOT_FOUND } from "../../src/core/contract/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { type Place, placePath } from "./place.ts";
 import { QuoteText } from "./QuoteText.tsx";

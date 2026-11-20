@@ -1,8 +1,8 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { refusalOf } from "../core/paste-refusal.ts";
-import { paste } from "../core/paste.ts";
-import type { Ports } from "../core/ports.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { refusalOf } from "../core/paste/paste-refusal.ts";
+import { paste } from "../core/paste/paste.ts";
 import { savedView } from "./item-view.ts";
 import { refusing } from "./refusals.ts";
 import { saveItemRoute } from "./save-route-spec.ts";

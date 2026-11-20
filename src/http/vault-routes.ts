@@ -1,18 +1,18 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import type { Ports } from "../core/ports.ts";
 import {
   VaultVerifyInputSchema,
   VaultInputSchema,
   VaultResultSchema,
   VaultViewSchema,
-} from "../core/vault-contract.ts";
+} from "../core/contract/vault-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import {
   readVaultSettings,
   removeVaultSettings,
   saveVaultSettings,
   verifyVaultSettings,
-} from "../core/vault-settings.ts";
+} from "../core/vault/vault-settings.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 

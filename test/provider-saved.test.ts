@@ -3,9 +3,9 @@ import { describe, it } from "node:test";
 
 import { sql } from "drizzle-orm";
 
-import { loadAiConfig } from "../src/core/ai-load.ts";
-import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
-import { providerSet } from "../src/core/provider-saved.ts";
+import { loadAiConfig } from "../src/core/ai/ai-load.ts";
+import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
+import { providerSet } from "../src/core/kernel/provider-saved.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { inOrder } from "./grok-bot-fixtures.ts";
 import { chooseGrokBot } from "./grok-bot-provider-fixtures.ts";

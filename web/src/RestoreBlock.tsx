@@ -1,4 +1,4 @@
-import type { RestoreStatus } from "../../src/core/restore-contract.ts";
+import type { RestoreStatus } from "../../src/core/contract/restore-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 import {

@@ -1,6 +1,6 @@
 import { createContext, use, type ReactNode } from "react";
 
-import { FOOTNOTE_LABEL_ID } from "../../src/core/reader-url.ts";
+import { FOOTNOTE_LABEL_ID } from "../../src/core/contract/reader-url.ts";
 
 export const FootnoteScope = createContext("");
 

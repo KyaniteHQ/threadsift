@@ -1,9 +1,9 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { FILE_ROUTE, itemFileKey } from "../core/file-keys.ts";
-import { servedImage } from "../core/image-serving.ts";
-import { IMAGE_TYPES } from "../core/image-type.ts";
-import type { Ports } from "../core/ports.ts";
+import { FILE_ROUTE, itemFileKey } from "../core/contract/file-keys.ts";
+import { IMAGE_TYPES } from "../core/contract/image-type.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { servedImage } from "../core/media/image-serving.ts";
 import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";

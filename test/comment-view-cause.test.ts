@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { commentsOf, threadReads } from "../src/core/thread-read.ts";
+import { commentsOf, threadReads } from "../src/core/thread/thread-read.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { chooseGrokBot } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";

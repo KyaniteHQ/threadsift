@@ -11,8 +11,8 @@ import {
   writeFileSync,
 } from "node:fs";
 
-import { errnoCodeOf } from "../../core/failure-log.ts";
-import { vaultFailure } from "../../core/vault-failure.ts";
+import { errnoCodeOf } from "../../core/kernel/failure-log.ts";
+import { vaultFailure } from "../../core/vault/vault-failure.ts";
 import {
   assertVaultDirectories,
   assertVaultDirectory,

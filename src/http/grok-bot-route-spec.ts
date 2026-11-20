@@ -1,16 +1,16 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { groupedNumber } from "../core/format.ts";
+import { groupedNumber } from "../core/contract/format.ts";
 import {
   GrokBotInUseSchema,
   GrokBotInputSchema,
   GrokBotSaveResponseSchema,
   GrokBotTestSchema,
   GrokBotViewSchema,
-} from "../core/grok-bot-contract.ts";
-import { HOP_DEADLINE_MS } from "../core/request-waits.ts";
-import { SECRET_INPUT_MAX } from "../core/secret-input.ts";
-import { SECOND_MS } from "../core/time-units.ts";
+} from "../core/contract/grok-bot-contract.ts";
+import { HOP_DEADLINE_MS } from "../core/contract/request-waits.ts";
+import { SECRET_INPUT_MAX } from "../core/contract/secret-input.ts";
+import { SECOND_MS } from "../core/contract/time-units.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";

@@ -1,6 +1,6 @@
-import { batchesOf } from "../../core/batches.ts";
-import { parseStoredKey, storeKeyText, storePrefixText } from "../../core/file-keys.ts";
-import { type FilePage, type FileStore, checkedFileStore } from "../../core/file-store.ts";
+import { parseStoredKey, storeKeyText, storePrefixText } from "../../core/contract/file-keys.ts";
+import { batchesOf } from "../../core/kernel/batches.ts";
+import { type FilePage, type FileStore, checkedFileStore } from "../../core/kernel/file-store.ts";
 
 interface BucketObject {
   readonly key: string;

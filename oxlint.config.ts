@@ -9,8 +9,8 @@ const NODE_GLOBALS = ["process", "Buffer", "global", "__dirname", "__filename", 
 );
 
 const CANNOT_THROW = {
-  "src/core/failure-log.ts": ["bestEffort", "readOrAssume"],
-  "src/core/guards.ts": ["guardHeldOrUnread"],
+  "src/core/kernel/failure-log.ts": ["bestEffort", "readOrAssume"],
+  "src/core/kernel/guards.ts": ["guardHeldOrUnread"],
 };
 
 const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];
@@ -31,7 +31,7 @@ const PORT_PATTERNS = [
 const VAULT_QUEUE_PATTERN = {
   regex: "(^|/)vault-queue\\.ts$",
   message:
-    "A writer declares which Vault notes its change makes stale in STALE (src/core/vault-stale.ts); only the vault modules import vault-queue.ts (docs/architecture/vault-mirror.md, Queue).",
+    "A writer declares which Vault notes its change makes stale in STALE (src/core/kernel/vault-stale.ts); only the vault modules import vault-queue.ts (docs/architecture/vault-mirror.md, Queue).",
 };
 
 const WEB_FETCH = {
@@ -65,6 +65,7 @@ export default defineConfig({
   ],
   rules: {
     "threadsift/no-comments": "error",
+    "threadsift/layer-imports": "error",
     "threadsift/no-await-before-rethrow": [
       "error",
       { cannotThrow: CANNOT_THROW, finalizers: false },
@@ -212,7 +213,7 @@ export default defineConfig({
       },
     },
     {
-      files: ["src/core/vault-*.ts"],
+      files: ["src/core/*/vault-*.ts"],
       rules: { "eslint/no-restricted-imports": ["error", { patterns: PORT_PATTERNS }] },
     },
     {

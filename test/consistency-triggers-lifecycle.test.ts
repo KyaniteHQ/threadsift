@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
-import type { ProposalKind } from "../src/core/proposal-contract.ts";
+import type { ProposalKind } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 
 const BUSY_TIMEOUT_MS = 5000;

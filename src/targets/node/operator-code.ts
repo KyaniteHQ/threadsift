@@ -1,5 +1,5 @@
-import type { CliRunner } from "../../core/ai-runtime.ts";
-import type { LoadedFetcher } from "../../core/fetcher.ts";
+import type { CliRunner } from "../../core/kernel/ai-runtime.ts";
+import type { LoadedFetcher } from "../../core/kernel/fetcher.ts";
 import { CAPACITY } from "./capacity.ts";
 import { type ClaudeEnvironment, claudeCode } from "./claude-code.ts";
 import { Slots } from "./cli-slots.ts";

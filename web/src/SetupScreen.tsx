@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
+import type { SetupCodeProblem } from "../../src/core/contract/setup-code.ts";
 import { SETUP } from "./access-text.ts";
 import { AuthShell } from "./AuthShell.tsx";
 import { CodeStep } from "./CodeStep.tsx";

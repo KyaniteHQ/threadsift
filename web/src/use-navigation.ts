@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
 
-import { itemPath } from "../../src/core/item-path.ts";
+import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
 import type { Route } from "./routing.ts";

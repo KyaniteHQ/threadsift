@@ -1,4 +1,4 @@
-import { GROK_BOT_IN_USE, type GrokBotResult } from "../../src/core/grok-bot-contract.ts";
+import { GROK_BOT_IN_USE, type GrokBotResult } from "../../src/core/contract/grok-bot-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 
 export const GROK_BOT_TEXT = {

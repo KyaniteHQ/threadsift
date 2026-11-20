@@ -1,8 +1,8 @@
 import type {
   RedditAccountView,
   RedditVerifyResult,
-} from "../../src/core/reddit-account-contract.ts";
-import type { RedditConnectState } from "../../src/core/reddit-relay-contract.ts";
+} from "../../src/core/contract/reddit-account-contract.ts";
+import type { RedditConnectState } from "../../src/core/contract/reddit-relay-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
 
 export const REDDIT_ACCOUNT_GUIDE_URL =

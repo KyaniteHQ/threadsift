@@ -1,4 +1,4 @@
-import { itemPath } from "../../src/core/item-path.ts";
+import { itemPath } from "../../src/core/contract/item-path.ts";
 
 export type Place = { readonly kind: "highlight"; readonly id: number } | { readonly kind: "note" };
 

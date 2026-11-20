@@ -1,8 +1,8 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
-import { type BatchEntry, pasteLinksThenSaveCursor } from "../core/batch-paste.ts";
-import { refusalOf } from "../core/paste-refusal.ts";
-import type { Ports } from "../core/ports.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { type BatchEntry, pasteLinksThenSaveCursor } from "../core/paste/batch-paste.ts";
+import { refusalOf } from "../core/paste/paste-refusal.ts";
 import { batchRoute } from "./batch-route-spec.ts";
 import { savedView } from "./item-view.ts";
 import { refusing } from "./refusals.ts";

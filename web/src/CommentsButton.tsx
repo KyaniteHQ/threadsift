@@ -1,6 +1,6 @@
 import { type MouseEvent, useCallback } from "react";
 
-import type { CommentCount } from "../../src/core/comment-view.ts";
+import type { CommentCount } from "../../src/core/contract/comment-view.ts";
 import { Icon } from "./Icon.tsx";
 import { jumpToComments } from "./jump-to-comments.ts";
 import { commentsButtonLabels } from "./reader-text.ts";

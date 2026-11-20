@@ -1,8 +1,8 @@
 import { createContext, type ReactNode, use, useCallback, useMemo, useState } from "react";
 import { z } from "zod";
 
-import { isImageRouteOf, keyOfFileRoute } from "../../src/core/file-keys.ts";
-import type { ImageSize } from "../../src/core/image-size.ts";
+import { isImageRouteOf, keyOfFileRoute } from "../../src/core/contract/file-keys.ts";
+import type { ImageSize } from "../../src/core/contract/image-size.ts";
 import type { SizedImage } from "../../src/http/item-image.ts";
 import { Mark } from "./Mark.tsx";
 import { Link } from "./ReaderLink.tsx";

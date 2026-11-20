@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { Proposal } from "../../src/core/proposal-contract.ts";
+import type { Proposal } from "../../src/core/contract/proposal-contract.ts";
 import { ACCEPT_CLASS, REJECT_CLASS, rowDescription } from "./proposal-dom.ts";
 import type { Busy } from "./proposals-api.ts";
 import {

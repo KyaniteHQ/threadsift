@@ -78,7 +78,7 @@ function checkClause(context: Context, found: Found, clause: ESTree.CatchClause)
 }
 
 function checkStale(context: Context, found: Found, program: ESTree.Program): void {
-  const names = found.trusted.get(repositoryPath(context.cwd, context.filename));
+  const names = found.trusted.get(repositoryPath(context.filename));
 
   for (const name of undeclaredNames(program, names)) {
     context.report({ node: program, messageId: "staleCannotThrow", data: { name } });
@@ -94,9 +94,9 @@ export const noAwaitBeforeRethrowRule = defineRule({
     },
     messages: {
       awaitBeforeRethrow:
-        "This await can run before the catch block throws the caught error, so a failure here replaces that error. Run the cleanup through bestEffort or readOrAssume (src/core/failure-log.ts), or put it in its own try with a catch.",
+        "This await can run before the catch block throws the caught error, so a failure here replaces that error. Run the cleanup through bestEffort or readOrAssume (src/core/kernel/failure-log.ts), or put it in its own try with a catch.",
       awaitInFinally:
-        "This await runs in a finally block, so a failure here replaces the error that ended the try block. Run the body and the cleanup through withCleanup (src/core/failure-log.ts), or the cleanup through bestEffort.",
+        "This await runs in a finally block, so a failure here replaces the error that ended the try block. Run the body and the cleanup through withCleanup (src/core/kernel/failure-log.ts), or the cleanup through bestEffort.",
       staleCannotThrow:
         "oxlint.config.ts lists {{name}} as a function of this module that cannot throw, and the module declares no such function.",
     },

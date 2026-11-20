@@ -1,5 +1,5 @@
-import { itemPath } from "../../src/core/item-path.ts";
-import type { TopicPage } from "../../src/core/topic-overview-contract.ts";
+import { itemPath } from "../../src/core/contract/item-path.ts";
+import type { TopicPage } from "../../src/core/contract/topic-overview-contract.ts";
 import { useNavigateLink } from "./routing.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { oembedAnswerOf } from "../src/core/x-oembed.ts";
+import { oembedAnswerOf } from "../src/core/x/x-oembed.ts";
 import { CUT_BARE_ID, answerJson, postOf, recorded, withParagraph } from "./x-oembed-fixtures.ts";
 
 describe("a post is read from the oEmbed answer X gave for its id", () => {

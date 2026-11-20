@@ -3,10 +3,10 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { eq } from "drizzle-orm";
 
-import { fetchHandler } from "../src/core/fetch-job.ts";
-import type { Closing } from "../src/core/job-outcome.ts";
-import { takeTurn } from "../src/core/reddit-account-queue.ts";
-import { type JobRow, jobs as jobsTable } from "../src/core/schema.ts";
+import { fetchHandler } from "../src/core/fetch/fetch-job.ts";
+import type { Closing } from "../src/core/kernel/job-outcome.ts";
+import { type JobRow, jobs as jobsTable } from "../src/core/kernel/schema.ts";
+import { takeTurn } from "../src/core/reddit/reddit-account-queue.ts";
 import { claimedOf } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {

@@ -1,6 +1,6 @@
 import { type Dispatch, type SetStateAction, createContext, use, useState } from "react";
 
-import type { Highlight } from "../../src/core/highlight-contract.ts";
+import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
 import type { MarkSpan } from "./highlight-marks.ts";
 import { NO_INDEX, NO_SPANS, type SpanIndex, indexSpans } from "./highlight-target.ts";
 import { provided } from "./provided.ts";

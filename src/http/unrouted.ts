@@ -1,6 +1,6 @@
-import { EXPORT_DOWNLOAD_PATH } from "../core/export-contract.ts";
-import { FILE_ROUTE } from "../core/file-keys.ts";
-import { CONNECT_CALLBACK_PATH, CONNECT_START_PATH } from "../core/openrouter-contract.ts";
+import { EXPORT_DOWNLOAD_PATH } from "../core/contract/export-contract.ts";
+import { FILE_ROUTE } from "../core/contract/file-keys.ts";
+import { CONNECT_CALLBACK_PATH, CONNECT_START_PATH } from "../core/contract/openrouter-contract.ts";
 import type { Ctx, Plan } from "./access-steps.ts";
 import type { CacheKind } from "./response-headers.ts";
 

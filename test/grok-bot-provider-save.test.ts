@@ -3,7 +3,10 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { AiSettingsViewSchema, VerifyResultSchema } from "../src/core/ai-settings-contract.ts";
+import {
+  AiSettingsViewSchema,
+  VerifyResultSchema,
+} from "../src/core/contract/ai-settings-contract.ts";
 import { saveBot } from "./bot-task-fixtures.ts";
 import { taskRows } from "./bot-task-rows.ts";
 import { SECRET_KEY } from "./grok-bot-fixtures.ts";

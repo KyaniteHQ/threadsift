@@ -124,7 +124,7 @@ paste box, Share target, Extension, Import, HTTP API, MCP, Grok Bot
 - Both readers rank replies by likes, then by their own reply count (zero when absent), then by older id. They keep the smallest set that accounts for 80% of the likes, with a minimum of 20 and a maximum of 40. They also keep the selected replies' ancestors and the author thread (`docs/architecture/fetchers.md`, X, Replies kept). On a bot read, the Item also keeps replies eligible for ranking that the stored Digest names as Kept comments, along with their fetched ancestors. The bot's Digest takes precedence over a Digest the caller sent with the link. A bot read can therefore keep more replies than a CLI read of the same link. A refresh can keep more than 40 to hold the number of replies it stored, and the cap can leave the first read under 80% of the likes. When fewer than 20 replies qualify for ranking, both readers keep all of them.
 - When either reader omits a parent, the Reader groups its saved replies under one Context stub and keeps their descendants beneath them. A thread that holds fewer replies than the stored one never replaces it. A thread with fewer replies than the post reports ends with a "Further replies were not saved" row.
 - The Cloudflare build has no CLI and does not offer `grok-cli`, so there X needs the webhook.
-- A Paste can also carry the thread: `POST /api/items` with `{url, content}` for an X link takes one JSON text of the post and its replies (`XThreadSchema`, `src/core/x-wire.ts`), stores it like a Reddit thread and keeps no archive note.
+- A Paste can also carry the thread: `POST /api/items` with `{url, content}` for an X link takes one JSON text of the post and its replies (`XThreadSchema`, `src/core/contract/x-wire.ts`), stores it like a Reddit thread and keeps no archive note.
 
 ### Reddit post or comment
 
@@ -204,7 +204,7 @@ paste box, Share target, Extension, Import, HTTP API, MCP, Grok Bot
 
 ## Comment filter
 
-1. The script drops deleted or removed comments, comments by AutoModerator, empty replies and replies that are only "+1", "this", "same", "thanks", "thank you", "lol" or "lmao" (`src/core/comment-filter.ts`).
+1. The script drops deleted or removed comments, comments by AutoModerator, empty replies and replies that are only "+1", "this", "same", "thanks", "thank you", "lol" or "lmao" (`src/core/thread/comment-filter.ts`).
 2. The agent keeps a remaining comment only when it adds a fact, a fix, a working link or command, first-hand experience, or a real counterargument. It drops jokes, agreement and repeats.
 3. When a kept reply sits under a dropped parent, the parent stays as a one-line Context stub so the tree still reads correctly.
 4. X replies follow the same rules.
@@ -232,7 +232,7 @@ The agent returns one JSON record, the Digest, stored apart from the fetched con
 
 Rules for the Digest:
 
-- **Identity of Topics and Tags.** It uses `catalogKey` in `src/core/catalog-key.ts`. Case, width, composition and spacing do not make a new Topic or Tag: `İstanbul`, `Istanbul` and `istanbul` are one, and so are `Straße` and `STRASSE`, while `café` and `cafe`, `ş` and `s`, `ö` and `o`, and the dotless `ı` and `i` stay apart. The first spelling stays visible. This normalized key is the app's only duplicate check. Semantic near-duplicates such as "ML" and "Machine learning" are the model's job from the supplied lists and, for the pairs the plain checks find, the Proposals' job.
+- **Identity of Topics and Tags.** It uses `catalogKey` in `src/core/contract/catalog-key.ts`. Case, width, composition and spacing do not make a new Topic or Tag: `İstanbul`, `Istanbul` and `istanbul` are one, and so are `Straße` and `STRASSE`, while `café` and `cafe`, `ş` and `s`, `ö` and `o`, and the dotless `ı` and `i` stay apart. The first spelling stays visible. This normalized key is the app's only duplicate check. Semantic near-duplicates such as "ML" and "Machine learning" are the model's job from the supplied lists and, for the pairs the plain checks find, the Proposals' job.
 - **The list.** It uses the stored Digest's clean title and Topic and keeps the fetched title separately. Summary, Key points and Tags wait for the Reader. The last stored Digest stays visible during refresh or regeneration.
 - **A failed run.** It shows "No Digest" only when there is no stored Digest. A kept Digest shows "Digest not updated". Both offer Try again, in the list row and in the Reader beside the note, and a failed Item's failure note in the Reader carries it too.
 - Try again queues a Digest over stored text without a new fetch, and does nothing while a Digest is already open or the Item is failed. The owner session and agent tokens may call it.
@@ -444,7 +444,7 @@ Each agent token carries scopes that limit what it calls:
   - `digest`: queue a Digest or a Topic page overview again, and send a Digest with a Paste;
   - `delete`: delete an Item;
   - `reddit`: connect and disconnect the Reddit account through `/api/reddit-account` (reading it there needs `read`).
-- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. A token created before scopes existed keeps the first four and never gets `reddit`. A token that holds a scope name this release does not know cannot authenticate any call that needs a token, and the token list shows it with no scopes (`verifyToken` and `summaryOf` in `src/core/tokens.ts`). A call outside the token's scopes answers 403.
+- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. A token created before scopes existed keeps the first four and never gets `reddit`. A token that holds a scope name this release does not know cannot authenticate any call that needs a token, and the token list shows it with no scopes (`verifyToken` and `summaryOf` in `src/core/access/tokens.ts`). A call outside the token's scopes answers 403.
 ### Token budget
 
 Each agent token has a daily budget of new Items. Only a new Item counts, because each one costs the Provider one Digest call; a link the library already holds, a refused host, a read and a search do not.

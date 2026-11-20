@@ -1,16 +1,16 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { completeOpenRouterConnect } from "../core/openrouter-callback.ts";
-import { startOpenRouterConnect } from "../core/openrouter-connect.ts";
+import { sentByOwnPage } from "../core/access/own-origin.ts";
+import { completeOpenRouterConnect } from "../core/ai/openrouter-callback.ts";
+import { startOpenRouterConnect } from "../core/ai/openrouter-connect.ts";
 import {
   CONNECT_CALLBACK_PATH,
   CONNECT_START_PATH,
   ConnectStartInputSchema,
   ConnectStartResponseSchema,
   returnAddress,
-} from "../core/openrouter-contract.ts";
-import { sentByOwnPage } from "../core/own-origin.ts";
-import type { Ports } from "../core/ports.ts";
+} from "../core/contract/openrouter-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";

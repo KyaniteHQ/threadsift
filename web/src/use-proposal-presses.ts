@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 
-import type { Proposal } from "../../src/core/proposal-contract.ts";
+import type { Proposal } from "../../src/core/contract/proposal-contract.ts";
 import { stateAfterWaiting } from "./proposal-check.ts";
 import { type Busy, type Failure, isBusy, sendAccept, sendReject } from "./proposals-api.ts";
 import {

@@ -1,9 +1,9 @@
 import { constants, fstatSync, openSync, readFileSync, readdirSync } from "node:fs";
 
-import { VAULT_FILE_BYTES } from "../../core/vault-contract.ts";
-import { type VaultEntries, type VaultEntry, vaultFileName } from "../../core/vault-paths.ts";
-import type { VaultSubject } from "../../core/vault-tables.ts";
-import { gitBlobSha } from "../../core/vault-target.ts";
+import { VAULT_FILE_BYTES } from "../../core/contract/vault-contract.ts";
+import type { VaultSubject } from "../../core/kernel/vault-tables.ts";
+import { gitBlobSha } from "../../core/kernel/vault-target.ts";
+import { type VaultEntries, type VaultEntry, vaultFileName } from "../../core/vault/vault-paths.ts";
 import {
   type VaultDirectory,
   closeVaultFd,

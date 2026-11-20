@@ -1,9 +1,9 @@
 import { writeFile } from "node:fs/promises";
 
-import { refusedAi } from "../../core/ai-contract.ts";
-import type { RunnerTask } from "../../core/ai-runtime.ts";
-import { report } from "../../core/failure-log.ts";
-import { PROVIDERS } from "../../core/provider-families.ts";
+import { refusedAi } from "../../core/contract/ai-contract.ts";
+import { PROVIDERS } from "../../core/contract/provider-families.ts";
+import type { RunnerTask } from "../../core/kernel/ai-runtime.ts";
+import { report } from "../../core/kernel/failure-log.ts";
 import { findBinary } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import { codexHomeOf, reserveCodexHome } from "./codex-home.ts";

@@ -18,6 +18,8 @@ const STATEMENT_BARE = /(?:^|\n)\s*import\s*["']([^"']+)["']/gu;
 
 const DYNAMIC = /import\(\s*["']([^"']+)["']\s*\)/gu;
 
+const LOAD = /\b(?:import|require)\(\s*["'`]([^"'`$]+)["'`]\s*\)/gu;
+
 const SOURCE_FILE = /\.(?:ts|tsx|mts)$/u;
 
 const scanned = new Map<string, Scanned>();
@@ -48,6 +50,14 @@ function valueSpecifiersOf(text: string): string[] {
   }
 
   return found;
+}
+
+export function importedSpecifiersOf(text: string): string[] {
+  const statements = [...text.matchAll(STATEMENT_FROM)].map(([, , , specifier = ""]) => specifier);
+  const bare = [...text.matchAll(STATEMENT_BARE)].map(([, specifier = ""]) => specifier);
+  const loads = [...text.matchAll(LOAD)].map(([, specifier = ""]) => specifier);
+
+  return [...statements, ...bare, ...loads];
 }
 
 function specifiersOf(file: string): readonly string[] {

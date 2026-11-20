@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { BATCH_LINKS_MAX } from "../src/core/import-contract.ts";
-import { importNameOf, nextBatch, parseImportList, resumeOf } from "../src/core/import-list.ts";
-import { BODY_LIMIT_BYTES } from "../src/core/limits.ts";
+import { BATCH_LINKS_MAX } from "../src/core/contract/import-contract.ts";
+import {
+  importNameOf,
+  nextBatch,
+  parseImportList,
+  resumeOf,
+} from "../src/core/contract/import-list.ts";
+import { BODY_LIMIT_BYTES } from "../src/core/contract/limits.ts";
 import { BatchRequestSchema } from "../src/http/batch-schemas.ts";
 
 describe("the Import list parser turns literal text into the links the batch call takes", () => {

@@ -1,6 +1,6 @@
-import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
-import { ownerOf, startBotTask } from "../src/core/bot-task-start.ts";
-import type { ClaimedJob } from "../src/core/job-outcome.ts";
+import { ownerOf, startBotTask } from "../src/core/ai/bot-task-start.ts";
+import { BOT_TASK_KINDS } from "../src/core/bot/bot-task-kinds.ts";
+import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import type { BotKindName, KindCase } from "./bot-kinds-cases.ts";
 import { openJobOfKind, selectGrokBot } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";

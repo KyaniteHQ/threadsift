@@ -4,14 +4,14 @@ import { DatabaseSync } from "node:sqlite";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
-import type { Database } from "../src/core/database.ts";
-import { HighlightResponseSchema } from "../src/core/highlight-contract.ts";
+import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import {
   type MergeProposal,
   type Proposal,
   type ProposalPage,
   ProposalPageSchema,
-} from "../src/core/proposal-contract.ts";
+} from "../src/core/contract/proposal-contract.ts";
+import type { Database } from "../src/core/kernel/database.ts";
 import { batchTo, proxyTo } from "../src/targets/node/database.ts";
 import type { Instance } from "./instance.ts";
 import { exec, paste, rows, saveProvider } from "./related-fixtures.ts";

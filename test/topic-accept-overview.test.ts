@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
+import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";

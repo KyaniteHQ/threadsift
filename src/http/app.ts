@@ -1,7 +1,7 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
 
-import type { Ports } from "../core/ports.ts";
-import { reasonsOf } from "../core/zod-reasons.ts";
+import { reasonsOf } from "../core/contract/zod-reasons.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access, unrouted, withPorts } from "./access.ts";
 import { registerMcpRoute } from "./mcp-route.ts";
 import { verifyPolicies } from "./policy-check.ts";

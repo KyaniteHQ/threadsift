@@ -1,4 +1,4 @@
-import type { Proposal } from "../../src/core/proposal-contract.ts";
+import type { Proposal } from "../../src/core/contract/proposal-contract.ts";
 
 export const ACCEPT_CLASS = "pr-accept";
 

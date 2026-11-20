@@ -1,4 +1,4 @@
-import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
+import type { SetupCodeProblem } from "../../src/core/contract/setup-code.ts";
 
 export type SetupStep =
   | { readonly name: "code" | "code-wrong" }

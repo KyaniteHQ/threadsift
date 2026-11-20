@@ -67,7 +67,7 @@ _Avoid_: Job, prompt, request, AI call
 ### Sorting
 
 **Topic**:
-The one broad subject of an Item, from a list the agent keeps and grows. Topics keep their first spelling; `catalogKey` in `src/core/catalog-key.ts` defines their identity.
+The one broad subject of an Item, from a list the agent keeps and grows. Topics keep their first spelling; `catalogKey` in `src/core/contract/catalog-key.ts` defines their identity.
 _Avoid_: Category, folder
 
 **Tag**:

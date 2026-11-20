@@ -1,10 +1,10 @@
-import { itemPath } from "../../src/core/item-path.ts";
+import { itemPath } from "../../src/core/contract/item-path.ts";
 import {
   type Overview,
   citationId,
   overviewLines,
   overviewTokens,
-} from "../../src/core/topic-overview-contract.ts";
+} from "../../src/core/contract/topic-overview-contract.ts";
 import { keyed } from "./keyed.ts";
 import { useNavigateLink } from "./routing.ts";
 import { RETRY_LABEL } from "./text.ts";

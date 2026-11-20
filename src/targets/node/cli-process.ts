@@ -3,8 +3,8 @@ import { access, constants, mkdir, mkdtemp, rm, stat } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, isAbsolute, join } from "node:path";
 
-import { errnoCodeOf, withCleanup } from "../../core/failure-log.ts";
-import { PROBE_MS } from "../../core/request-waits.ts";
+import { PROBE_MS } from "../../core/contract/request-waits.ts";
+import { errnoCodeOf, withCleanup } from "../../core/kernel/failure-log.ts";
 import { Capture } from "./cli-capture.ts";
 
 const KILL_GRACE_MS = 5000;

@@ -1,6 +1,6 @@
 import { type Browser, type Locator, type Page, expect } from "@playwright/test";
 
-import { LogPageSchema } from "../src/core/log-contract.ts";
+import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";

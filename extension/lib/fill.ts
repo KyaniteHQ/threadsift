@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { parseLink, redditRefOf } from "../../src/core/links.ts";
+import { parseLink, redditRefOf } from "../../src/core/contract/links.ts";
 import { type Config, REDDIT_HOSTS, hostPattern, instanceRequest } from "./config.ts";
 import { fillWanted, loadConfig } from "./credentials.ts";
 import { type ThreadTab, fetchThread } from "./reddit-thread.ts";

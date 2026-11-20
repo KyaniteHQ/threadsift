@@ -1,7 +1,7 @@
 import { useEffect, useRef } from "react";
 
-import { shownUrl, whereOf } from "../../src/core/link-place.ts";
-import { handleOf } from "../../src/core/reader-text.ts";
+import { shownUrl, whereOf } from "../../src/core/contract/link-place.ts";
+import { handleOf } from "../../src/core/contract/reader-text.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { DIGEST_PENDING, READER_LOADING, postedLabel } from "./reader-text.ts";
 import { HeadNote, Note } from "./ReaderNote.tsx";

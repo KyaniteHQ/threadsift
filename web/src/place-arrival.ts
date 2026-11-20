@@ -1,6 +1,6 @@
 import { type RefObject, createContext, use, useEffect, useEffectEvent, useState } from "react";
 
-import type { Highlight } from "../../src/core/highlight-contract.ts";
+import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
 import { scrollAndFocus } from "./jump-to-comments.ts";
 import { type Place, arrivalPlace } from "./place.ts";
 import { provided } from "./provided.ts";

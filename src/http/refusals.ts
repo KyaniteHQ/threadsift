@@ -3,11 +3,11 @@ import { HTTPException } from "hono/http-exception";
 import type { HTTPResponseError } from "hono/types";
 import type { JSONParsed } from "hono/utils/types";
 
-import type { LockedOut, RefusalName, Refused } from "../core/access-refusal.ts";
-import { logFailure } from "../core/failure-log.ts";
-import { groupedNumber } from "../core/format.ts";
-import { PASSWORD_MAX, PASSWORD_MIN } from "../core/passwords.ts";
-import type { AdmissionRefusal, Refusal } from "../core/paste-refusal.ts";
+import type { LockedOut, RefusalName, Refused } from "../core/access/access-refusal.ts";
+import { groupedNumber } from "../core/contract/format.ts";
+import { PASSWORD_MAX, PASSWORD_MIN } from "../core/contract/passwords.ts";
+import { logFailure } from "../core/kernel/failure-log.ts";
+import type { AdmissionRefusal, Refusal } from "../core/paste/paste-refusal.ts";
 
 type AccessRefusal = Refused<RefusalName> | LockedOut;
 

@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { CommentCountSchema } from "../core/comment-view.ts";
-import { FETCH_RESULTS } from "../core/fetch-results.ts";
-import { DIGEST_OUTCOMES, KINDS, READ_STATES, SOURCES } from "../core/item-contract.ts";
-import { WAIT_REASONS } from "../core/job-contract.ts";
-import { withShownStatus } from "../core/shown-status.ts";
-import { X_READ_NOTES } from "../core/x-read-note.ts";
+import { CommentCountSchema } from "../core/contract/comment-view.ts";
+import { FETCH_RESULTS } from "../core/contract/fetch-results.ts";
+import { DIGEST_OUTCOMES, KINDS, READ_STATES, SOURCES } from "../core/contract/item-contract.ts";
+import { WAIT_REASONS } from "../core/contract/job-contract.ts";
+import { withShownStatus } from "../core/contract/shown-status.ts";
+import { X_READ_NOTES } from "../core/contract/x-read-note.ts";
 import { ItemImageSchema } from "./item-image.ts";
 
 export const HttpUrlSchema = z.url({ protocol: /^https?$/u });

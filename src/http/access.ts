@@ -3,15 +3,15 @@ import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
 import type { BlankEnv, Env, H } from "hono/types";
 
-import type { Scope } from "../core/agent-token-contract.ts";
-import { byteSize } from "../core/format.ts";
+import type { Scope } from "../core/contract/agent-token-contract.ts";
+import { byteSize } from "../core/contract/format.ts";
 import {
   BODY_LIMIT_BYTES,
   ITEM_REQUEST_BYTES,
   RESTORE_PART_BYTES,
   RESULT_BODY_BYTES,
-} from "../core/limits.ts";
-import type { Ports } from "../core/ports.ts";
+} from "../core/contract/limits.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { type CallbackEnv, type Ctx, type Plan, admit } from "./access-steps.ts";
 import { answerFailure } from "./refusals.ts";
 import { type CacheKind, applyCache } from "./response-headers.ts";

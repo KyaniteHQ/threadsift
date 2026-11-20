@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { defineUnlistedScript } from "wxt/utils/define-unlisted-script";
 
-import { redditRefOf } from "../../src/core/links.ts";
+import { redditRefOf } from "../../src/core/contract/links.ts";
 import { FILL_PORT } from "../lib/state.ts";
 
 function reportThread(): void {

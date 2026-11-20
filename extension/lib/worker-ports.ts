@@ -1,6 +1,6 @@
 import { type Browser, browser } from "wxt/browser";
 
-import { RELAY_PORT, WORKER_WORKING } from "../../src/core/reddit-relay-contract.ts";
+import { RELAY_PORT, WORKER_WORKING } from "../../src/core/contract/reddit-relay-contract.ts";
 import { changeSettings } from "./change.ts";
 import type { Config } from "./config.ts";
 import { loadConfig, loadConfigView } from "./credentials.ts";

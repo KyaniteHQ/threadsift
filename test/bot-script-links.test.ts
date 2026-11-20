@@ -6,7 +6,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { TopicIndexSchema } from "../src/core/topic-index-contract.ts";
+import { TopicIndexSchema } from "../src/core/contract/topic-index-contract.ts";
 import { ScriptWorld } from "./bot-script-world.ts";
 import { pasteThread } from "./bot-skills-examples.ts";
 import { SKILL_PATH, botFile, fencesOf } from "./bot-skills-reader.ts";

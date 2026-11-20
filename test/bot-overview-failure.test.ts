@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { exhaust } from "../src/core/job-finish.ts";
-import { HANDLERS } from "../src/core/job-handlers.ts";
+import { exhaust } from "../src/core/compose/job-finish.ts";
+import { HANDLERS } from "../src/core/compose/job-handlers.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { insertedTask, taskRow, topicFailures } from "./bot-task-rows.ts";

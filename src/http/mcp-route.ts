@@ -1,7 +1,7 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
 
-import type { Ports } from "../core/ports.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access, ownCheck } from "./access.ts";
 import { MCP_PATH } from "./document-path.ts";
 import { registerAddTool } from "./mcp-add-tool.ts";

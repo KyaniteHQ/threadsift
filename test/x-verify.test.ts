@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import type { Judged } from "../src/core/x-verdict.ts";
-import { progressOf, sliceOf, startingJudged } from "../src/core/x-verify-state.ts";
-import type { XReply, XThreadValue } from "../src/core/x-wire.ts";
+import type { Judged } from "../src/core/contract/x-verdict.ts";
+import type { XReply, XThreadValue } from "../src/core/contract/x-wire.ts";
+import { progressOf, sliceOf, startingJudged } from "../src/core/x/x-verify-state.ts";
 
 const ROOT = "3100000000000000011";
 const FIRST = "3100000000000000101";

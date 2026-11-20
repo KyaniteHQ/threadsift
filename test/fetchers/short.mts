@@ -1,4 +1,4 @@
-import type { Fetcher } from "../../src/core/fetcher.ts";
+import type { Fetcher } from "../../src/core/kernel/fetcher.ts";
 import { hostOf } from "./words.mts";
 
 export default {

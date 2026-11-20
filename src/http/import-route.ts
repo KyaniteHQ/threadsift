@@ -1,8 +1,8 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { IMPORT_NAME_MAX } from "../core/import-contract.ts";
-import { readImport } from "../core/import-cursor.ts";
-import type { Ports } from "../core/ports.ts";
+import { IMPORT_NAME_MAX } from "../core/contract/import-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { readImport } from "../core/paste/import-cursor.ts";
 import { access } from "./access.ts";
 import { ImportNameSchema, ImportStateSchema } from "./batch-schemas.ts";
 import { jsonBody } from "./openapi.ts";

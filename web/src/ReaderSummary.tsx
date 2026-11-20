@@ -1,4 +1,4 @@
-import { KEY_POINTS_LABEL, SUMMARY_LABEL } from "../../src/core/reader-text.ts";
+import { KEY_POINTS_LABEL, SUMMARY_LABEL } from "../../src/core/contract/reader-text.ts";
 import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { keyed } from "./keyed.ts";
 import { tagHue } from "./tag-hue.ts";

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { HighlightsView } from "../../src/core/highlight-contract.ts";
+import type { HighlightsView } from "../../src/core/contract/highlight-contract.ts";
 import { highlightIds } from "./highlight-ids.ts";
 import { BODY_SELECTOR, keyOf } from "./highlight-target.ts";
 import type { Panel } from "./highlights-context.ts";

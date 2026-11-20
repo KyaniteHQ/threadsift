@@ -5,13 +5,13 @@ import {
   AiSaveResponseSchema,
   VerifyResultSchema,
   type AiSettingsInput,
-} from "../../src/core/ai-settings-contract.ts";
-import { GrokBotUnreadySchema } from "../../src/core/grok-bot-contract.ts";
+} from "../../src/core/contract/ai-settings-contract.ts";
+import { GrokBotUnreadySchema } from "../../src/core/contract/grok-bot-contract.ts";
 import {
   CONNECT_START_PATH,
   ConnectStartResponseSchema,
   type ConnectStartInput,
-} from "../../src/core/openrouter-contract.ts";
+} from "../../src/core/contract/openrouter-contract.ts";
 import { call, callOk, parsedBody, parsedFrom, post, put } from "./calls.ts";
 import {
   AI_SAVE_DEADLINE_MS,

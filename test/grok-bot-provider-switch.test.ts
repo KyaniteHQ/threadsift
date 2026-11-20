@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { claimNextDue, executeClaimed } from "../src/core/jobs.ts";
+import { claimNextDue, executeClaimed } from "../src/core/compose/jobs.ts";
 import {
   type BotLibrary,
   answerOf,

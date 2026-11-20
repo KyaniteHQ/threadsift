@@ -1,7 +1,7 @@
 import { use, useCallback } from "react";
 
-import { catalogKey } from "../../src/core/catalog-key.ts";
-import { topicPath } from "../../src/core/topic-path.ts";
+import { catalogKey } from "../../src/core/contract/catalog-key.ts";
+import { topicPath } from "../../src/core/contract/topic-path.ts";
 import { PagesScope } from "./pages-scope.ts";
 import { useInternalLink } from "./routing.ts";
 import { TOPIC_PAGE, topicLinkLabel } from "./topic-text.ts";

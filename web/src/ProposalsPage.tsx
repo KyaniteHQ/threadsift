@@ -1,6 +1,6 @@
 import { useCallback, useLayoutEffect } from "react";
 
-import type { Proposal, ProposalPage } from "../../src/core/proposal-contract.ts";
+import type { Proposal, ProposalPage } from "../../src/core/contract/proposal-contract.ts";
 import { Announcement } from "./Announcement.tsx";
 import { type Listing, ListPage } from "./ListPage.tsx";
 import { localDate } from "./log-date.ts";

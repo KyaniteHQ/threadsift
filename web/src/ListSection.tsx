@@ -1,6 +1,10 @@
 import { type ChangeEvent, useCallback, useId } from "react";
 
-import type { ImportList, SkipReason, Skipped as SkippedRows } from "../../src/core/import-list.ts";
+import type {
+  ImportList,
+  SkipReason,
+  Skipped as SkippedRows,
+} from "../../src/core/contract/import-list.ts";
 import { Alert } from "./Alert.tsx";
 import {
   IMPORT,

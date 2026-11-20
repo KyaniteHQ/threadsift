@@ -1,4 +1,4 @@
-import { SHARE_PATH } from "../core/share-address.ts";
+import { SHARE_PATH } from "../core/contract/share-address.ts";
 
 export const MCP_PATH = "/mcp";
 

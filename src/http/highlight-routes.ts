@@ -1,12 +1,12 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { CONTEXT_CODE_POINTS } from "../core/highlight-anchor.ts";
+import { CONTEXT_CODE_POINTS } from "../core/contract/highlight-anchor.ts";
 import {
   CreateHighlightRequestSchema,
   HighlightResponseSchema,
-} from "../core/highlight-contract.ts";
-import { createHighlight, removeHighlight } from "../core/highlights.ts";
-import type { Ports } from "../core/ports.ts";
+} from "../core/contract/highlight-contract.ts";
+import { createHighlight, removeHighlight } from "../core/item/highlights.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { DEFAULT_CAP, access, tooLarge } from "./access.ts";
 import { registerHighlightsPageRoute } from "./highlights-page-route.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";

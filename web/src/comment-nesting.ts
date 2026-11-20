@@ -1,4 +1,4 @@
-import type { CommentNode } from "../../src/core/comment-view.ts";
+import type { CommentNode } from "../../src/core/contract/comment-view.ts";
 
 export interface Branch {
   readonly node: CommentNode;

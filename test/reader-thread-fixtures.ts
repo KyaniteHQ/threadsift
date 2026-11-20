@@ -1,4 +1,4 @@
-import type { CommentsView } from "../src/core/comment-view.ts";
+import type { CommentsView } from "../src/core/contract/comment-view.ts";
 import { ItemReadResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import type { Instance, Json } from "./instance.ts";
 

@@ -1,12 +1,12 @@
 import { setTimeout } from "node:timers/promises";
 
-import { logFailure } from "../../core/failure-log.ts";
-import type { JobPorts } from "../../core/job-outcome.ts";
-import type { JobQueue } from "../../core/job-queue.ts";
-import { abandonRunning, claimNextDue, executeClaimed } from "../../core/jobs.ts";
-import { NOTHING } from "../../core/nothing.ts";
-import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
-import { tick } from "../../core/tick.ts";
+import { abandonRunning, claimNextDue, executeClaimed } from "../../core/compose/jobs.ts";
+import { tick } from "../../core/compose/tick.ts";
+import { NOTHING } from "../../core/contract/nothing.ts";
+import { HOP_DEADLINE_MS } from "../../core/contract/request-waits.ts";
+import { logFailure } from "../../core/kernel/failure-log.ts";
+import type { JobPorts } from "../../core/kernel/job-outcome.ts";
+import type { JobQueue } from "../../core/kernel/job-queue.ts";
 import { CAPACITY } from "./capacity.ts";
 
 const LOOP_POLL_MS = 5000;

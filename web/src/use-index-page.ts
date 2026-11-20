@@ -1,4 +1,4 @@
-import { type TopicIndex, TopicIndexSchema } from "../../src/core/topic-index-contract.ts";
+import { type TopicIndex, TopicIndexSchema } from "../../src/core/contract/topic-index-contract.ts";
 import { parsedFrom, withCursor } from "./calls.ts";
 import { usePagedRead } from "./use-paged-read.ts";
 

@@ -1,7 +1,7 @@
 import { type McpServer, requireScopes } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
-import type { Ports } from "../core/ports.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { readItem, readItemPage } from "./item-read.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
 import { NOT_FOUND } from "./refusals.ts";

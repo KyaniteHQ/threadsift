@@ -1,23 +1,23 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { BlankEnv } from "hono/types";
 
-import type { Scope } from "../core/agent-token-contract.ts";
-import { groupedNumber } from "../core/format.ts";
-import type { Ports } from "../core/ports.ts";
+import type { Scope } from "../core/contract/agent-token-contract.ts";
+import { groupedNumber } from "../core/contract/format.ts";
 import {
   REDDIT_SESSION_MAX,
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
   RedditSessionInputSchema,
   RedditVerifySchema,
-} from "../core/reddit-account-contract.ts";
+} from "../core/contract/reddit-account-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import {
   connectRedditAccount,
   disconnectRedditAccount,
   redditAccountState,
   savedAnswer,
   verifyRedditAccount,
-} from "../core/reddit-account.ts";
+} from "../core/reddit/reddit-account.ts";
 import { type Gate, access } from "./access.ts";
 import { jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";

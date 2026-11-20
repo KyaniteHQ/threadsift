@@ -1,9 +1,9 @@
-import { groupedNumber } from "../../src/core/format.ts";
+import { groupedNumber } from "../../src/core/contract/format.ts";
 import type {
   RestoreErrorCode,
   RestoreFailure,
   RunningPhase,
-} from "../../src/core/restore-contract.ts";
+} from "../../src/core/contract/restore-contract.ts";
 import { filled } from "./text.ts";
 
 export const RESTORE_TEXT = {

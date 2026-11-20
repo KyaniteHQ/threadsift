@@ -1,5 +1,5 @@
-import { GROK_BOT_FIRST } from "../../src/core/grok-bot-contract.ts";
-import type { CliProvider } from "../../src/core/provider-families.ts";
+import { GROK_BOT_FIRST } from "../../src/core/contract/grok-bot-contract.ts";
+import type { CliProvider } from "../../src/core/contract/provider-families.ts";
 
 export const AI_TEXT = {
   "key-needed":

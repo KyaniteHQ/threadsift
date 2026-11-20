@@ -1,11 +1,16 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { THREAD_CONTENT_BYTES } from "../../src/core/limits.ts";
-import { redditRefOf } from "../../src/core/links.ts";
-import { unfilledStubsOf } from "../../src/core/reddit-tree.ts";
-import { REQUEST_DEADLINE_MS } from "../../src/core/request-waits.ts";
-import { THREAD_QUERY, fillAnswers, hiddenIn, permalinkPath } from "../../src/core/thread-fill.ts";
+import { THREAD_CONTENT_BYTES } from "../../src/core/contract/limits.ts";
+import { redditRefOf } from "../../src/core/contract/links.ts";
+import { unfilledStubsOf } from "../../src/core/contract/reddit-tree.ts";
+import { REQUEST_DEADLINE_MS } from "../../src/core/contract/request-waits.ts";
+import {
+  THREAD_QUERY,
+  fillAnswers,
+  hiddenIn,
+  permalinkPath,
+} from "../../src/core/contract/thread-fill.ts";
 import { logFailure } from "./log.ts";
 import { resultInTab } from "./tab-result.ts";
 import { type ThreadBody, fitThreadBody } from "./thread-body.ts";

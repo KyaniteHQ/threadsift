@@ -1,14 +1,14 @@
 import type { PluggableList } from "unified";
 
-import { unitIndexAt } from "../../src/core/code-points.ts";
-import { isImageRouteOf } from "../../src/core/file-keys.ts";
+import { unitIndexAt } from "../../src/core/contract/code-points.ts";
+import { isImageRouteOf } from "../../src/core/contract/file-keys.ts";
 import {
   type HastNode,
   TEXT,
   imageText,
   type Piece,
   projectTree,
-} from "../../src/core/text-projection.ts";
+} from "../../src/core/contract/text-projection.ts";
 import { idsAttribute } from "./highlight-ids.ts";
 
 export interface MarkSpan {

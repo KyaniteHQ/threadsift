@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { type SentTopic, disagreementTask } from "../src/core/disagreement-task.ts";
+import { type SentTopic, disagreementTask } from "../src/core/wiki/disagreement-task.ts";
 
 const topic = (id: number, items: number, summaryLength: number, first = id * 100): SentTopic => ({
   id,

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { within } from "../../src/core/deadline.ts";
+import { within } from "../../src/core/contract/deadline.ts";
 import { READ_DEADLINE_MS } from "./calls.ts";
 import type { Loaded, SettingsLoad } from "./settings-load-types.ts";
 import { readSettings } from "./settings-reads.ts";

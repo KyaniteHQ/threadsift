@@ -1,6 +1,6 @@
 import { memo } from "react";
 
-import type { MergeProposal } from "../../src/core/proposal-contract.ts";
+import type { MergeProposal } from "../../src/core/contract/proposal-contract.ts";
 import { ItemsDisagreeBody } from "./ItemsDisagreeBody.tsx";
 import { LostHighlightBody } from "./LostHighlightBody.tsx";
 import { OverviewGapBody } from "./OverviewGapBody.tsx";

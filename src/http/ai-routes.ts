@@ -1,17 +1,21 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { providersOf } from "../core/ai-run.ts";
+import { providersOf } from "../core/ai/ai-run.ts";
+import { readAiSettings, saveAiSettings } from "../core/ai/ai-settings.ts";
+import { verifyProvider } from "../core/bot/bot-verify.ts";
 import {
   AiSettingsInputSchema,
   AiSettingsViewSchema,
   AiSaveResponseSchema,
   VerifyResultSchema,
-} from "../core/ai-settings-contract.ts";
-import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
-import { verifyProvider } from "../core/bot-verify.ts";
-import { VERIFY_WAIT_MS, GROK_BOT_FIRST, GrokBotUnreadySchema } from "../core/grok-bot-contract.ts";
-import type { Ports } from "../core/ports.ts";
-import { SECOND_MS } from "../core/time-units.ts";
+} from "../core/contract/ai-settings-contract.ts";
+import {
+  VERIFY_WAIT_MS,
+  GROK_BOT_FIRST,
+  GrokBotUnreadySchema,
+} from "../core/contract/grok-bot-contract.ts";
+import { SECOND_MS } from "../core/contract/time-units.ts";
+import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";

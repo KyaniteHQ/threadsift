@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ProposalPageSchema } from "../src/core/proposal-contract.ts";
+import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { CreatedTokenResponseSchema, ItemReadResponseSchema } from "../src/http/schemas.ts";
 import {
   accept,

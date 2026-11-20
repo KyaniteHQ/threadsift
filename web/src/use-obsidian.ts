@@ -5,7 +5,7 @@ import {
   VaultVerifyInputSchema,
   type VaultRefusal,
   type VaultView,
-} from "../../src/core/vault-contract.ts";
+} from "../../src/core/contract/vault-contract.ts";
 import { removeObsidian, saveObsidian, verifyObsidian } from "./obsidian-api.ts";
 import { OBSIDIAN_TEXT as TEXT } from "./obsidian-text.ts";
 import { useField } from "./use-form.ts";

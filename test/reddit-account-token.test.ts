@@ -6,7 +6,7 @@ import { z } from "zod";
 import {
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
-} from "../src/core/reddit-account-contract.ts";
+} from "../src/core/contract/reddit-account-contract.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { PATH, SECRET_KEY, SESSION, account, connect } from "./reddit-account-fixtures.ts";

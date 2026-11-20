@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 
-import { topicPath } from "../../src/core/topic-path.ts";
+import { topicPath } from "../../src/core/contract/topic-path.ts";
 import type { Route } from "./routing.ts";
 
 export function useSurvivorAddress(

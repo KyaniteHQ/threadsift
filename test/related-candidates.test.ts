@@ -3,8 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { HighlightResponseSchema } from "../src/core/highlight-contract.ts";
-import { NoteResponseSchema } from "../src/core/note-contract.ts";
+import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
+import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { Instance } from "./instance.ts";
 import {
   SECRET_KEY,

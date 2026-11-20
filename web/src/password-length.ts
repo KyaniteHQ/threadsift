@@ -1,4 +1,4 @@
-import { passwordLength } from "../../src/core/passwords.ts";
+import { passwordLength } from "../../src/core/contract/passwords.ts";
 import { SETUP } from "./access-text.ts";
 import type { FieldState } from "./use-form.ts";
 

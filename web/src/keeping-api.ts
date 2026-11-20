@@ -2,13 +2,13 @@ import {
   type CreateHighlightRequest,
   type Highlight,
   HighlightResponseSchema,
-} from "../../src/core/highlight-contract.ts";
+} from "../../src/core/contract/highlight-contract.ts";
 import {
   type NoteView,
   NoteConflictSchema,
   NoteResponseSchema,
   type SaveNoteRequest,
-} from "../../src/core/note-contract.ts";
+} from "../../src/core/contract/note-contract.ts";
 import { callOk, del, parsedBody, post, put } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

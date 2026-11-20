@@ -1,5 +1,5 @@
-import type { ExportFailure } from "../../src/core/export-contract.ts";
-import { groupedNumber } from "../../src/core/format.ts";
+import type { ExportFailure } from "../../src/core/contract/export-contract.ts";
+import { groupedNumber } from "../../src/core/contract/format.ts";
 import { filled } from "./text.ts";
 
 export const EXPORT_TEXT = {

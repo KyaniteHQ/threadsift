@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import type { RefusalCode } from "../../src/core/access-contract.ts";
-import type { Scope } from "../../src/core/agent-token-contract.ts";
-import type { PasswordProblem } from "../../src/core/passwords.ts";
-import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
+import type { RefusalCode } from "../../src/core/contract/access-contract.ts";
+import type { Scope } from "../../src/core/contract/agent-token-contract.ts";
+import type { PasswordProblem } from "../../src/core/contract/passwords.ts";
+import type { SetupCodeProblem } from "../../src/core/contract/setup-code.ts";
 import {
   CreatedTokenResponseSchema,
   ErrorResponseSchema,

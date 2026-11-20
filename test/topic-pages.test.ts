@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { TopicPageSchema } from "../src/core/topic-overview-contract.ts";
-import { topicApiPath } from "../src/core/topic-path.ts";
+import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
+import { topicApiPath } from "../src/core/contract/topic-path.ts";
 import { CreatedTokenResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";
 

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { exhaust } from "../src/core/job-finish.ts";
-import { HANDLERS } from "../src/core/job-handlers.ts";
+import { exhaust } from "../src/core/compose/job-finish.ts";
+import { HANDLERS } from "../src/core/compose/job-handlers.ts";
 import { KIND_CASES } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";

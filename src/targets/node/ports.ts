@@ -1,5 +1,5 @@
-import type { Database } from "../../core/database.ts";
-import type { Ports } from "../../core/ports.ts";
+import type { Database } from "../../core/kernel/database.ts";
+import type { Ports } from "../../core/kernel/ports.ts";
 import { portsOf } from "../shared/ports.ts";
 import { settingsOf } from "../shared/settings.ts";
 import type { NodeEnvironment } from "./environment.ts";

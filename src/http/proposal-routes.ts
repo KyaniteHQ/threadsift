@@ -1,17 +1,17 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { CURSOR_DIGITS, PAGE_SIZE, parseNumberCursor } from "../core/paging.ts";
-import type { Ports } from "../core/ports.ts";
+import { CURSOR_DIGITS, PAGE_SIZE, parseNumberCursor } from "../core/contract/paging.ts";
 import {
   AcceptedSchema,
   ProposalIdParamSchema,
   ProposalPageSchema,
   ProposalStateSchema,
   RejectedSchema,
-} from "../core/proposal-contract.ts";
-import { acceptProposal, rejectProposal } from "../core/proposal-decision.ts";
-import { readProposalPage, readProposalState } from "../core/proposal-page.ts";
-import { ADDED_READ_LIMIT } from "../core/topic-overview-input.ts";
+} from "../core/contract/proposal-contract.ts";
+import type { Ports } from "../core/kernel/ports.ts";
+import { acceptProposal, rejectProposal } from "../core/wiki/proposal-decision.ts";
+import { readProposalPage, readProposalState } from "../core/wiki/proposal-page.ts";
+import { ADDED_READ_LIMIT } from "../core/wiki/topic-overview-input.ts";
 import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";

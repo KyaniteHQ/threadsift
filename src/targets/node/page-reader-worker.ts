@@ -1,6 +1,6 @@
 import { parentPort } from "node:worker_threads";
 
-import { answerPage } from "../../core/page-answer.ts";
+import { answerPage } from "../../core/fetch/page-answer.ts";
 import type { Reply, RequestMessage } from "./page-reader-protocol.ts";
 
 if (parentPort === null) {

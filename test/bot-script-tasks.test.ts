@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "
 import { join } from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { TaskReadSchema } from "../src/core/ai-task-read.ts";
+import { TaskReadSchema } from "../src/core/bot/ai-task-read.ts";
 import { ScriptWorld } from "./bot-script-world.ts";
 import { pastDeadline, picksFor } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";

@@ -1,9 +1,9 @@
 import { type ReactNode, memo, useCallback } from "react";
 
-import { itemPath } from "../../src/core/item-path.ts";
-import { LOG } from "../../src/core/log-actions.ts";
-import type { LogEntry } from "../../src/core/log-contract.ts";
-import { topicPath } from "../../src/core/topic-path.ts";
+import { itemPath } from "../../src/core/contract/item-path.ts";
+import { LOG } from "../../src/core/contract/log-actions.ts";
+import type { LogEntry } from "../../src/core/contract/log-contract.ts";
+import { topicPath } from "../../src/core/contract/topic-path.ts";
 import { localStamp } from "./log-date.ts";
 import { LOG_WORDS, addedRemoved, itemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
 import { LogLink } from "./LogLink.tsx";

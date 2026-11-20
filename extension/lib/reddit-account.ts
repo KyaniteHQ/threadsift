@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 
-import { RedditAccountSaveResponseSchema } from "../../src/core/reddit-account-contract.ts";
-import type { RedditConnectState } from "../../src/core/reddit-relay-contract.ts";
+import { RedditAccountSaveResponseSchema } from "../../src/core/contract/reddit-account-contract.ts";
+import type { RedditConnectState } from "../../src/core/contract/reddit-relay-contract.ts";
 import { exclusive, reconcileAccess } from "./access.ts";
 import { type Config, holdsInstanceAccess, holdsRedditConnect, instanceRequest } from "./config.ts";
 import { logFailure } from "./log.ts";

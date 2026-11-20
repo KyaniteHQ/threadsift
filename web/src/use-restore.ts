@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useEffect, useState } from "react";
 
-import type { RestoreStatus } from "../../src/core/restore-contract.ts";
+import type { RestoreStatus } from "../../src/core/contract/restore-contract.ts";
 import { cancelRestore, fetchRestoreStatus, resumeRestore } from "./restore-api.ts";
 import { RESTORE_TEXT } from "./restore-text.ts";
 import { type Progress, uploadZip } from "./restore-upload.ts";

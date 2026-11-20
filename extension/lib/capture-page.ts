@@ -1,8 +1,8 @@
 import Defuddle, { createMarkdownContent } from "defuddle/full";
 
-import { replaceMedia } from "../../src/core/article-media.ts";
-import { redditRefOf } from "../../src/core/links.ts";
-import type { SuppliedPage } from "../../src/core/supplied-page.ts";
+import { replaceMedia } from "../../src/core/contract/article-media.ts";
+import { redditRefOf } from "../../src/core/contract/links.ts";
+import type { SuppliedPage } from "../../src/core/contract/supplied-page.ts";
 
 interface CapturedPage extends SuppliedPage {
   readonly url: string;

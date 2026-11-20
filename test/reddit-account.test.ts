@@ -3,8 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { RedditAccountViewSchema } from "../src/core/reddit-account-contract.ts";
-import { verdictOf } from "../src/core/reddit-account.ts";
+import { RedditAccountViewSchema } from "../src/core/contract/reddit-account-contract.ts";
+import { verdictOf } from "../src/core/reddit/reddit-account.ts";
 import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 import {

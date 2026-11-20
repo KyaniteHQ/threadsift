@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { GrokBotViewSchema } from "../src/core/grok-bot-contract.ts";
+import { GrokBotViewSchema } from "../src/core/contract/grok-bot-contract.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { PATH } from "./grok-bot-fixtures.ts";
 import { chooseGrokBot, usedAsProvider } from "./grok-bot-provider-fixtures.ts";
