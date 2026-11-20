@@ -20,48 +20,8 @@ interface JobBatch {
 
 const JobBodySchema = z.object({ jobId: z.number().int() });
 
-interface ApiApp {
-  readonly resetCode: string | undefined;
-  readonly app: ReturnType<typeof createApp>;
-}
-
-let ports: Promise<Ports> | undefined;
-let api: ApiApp | undefined;
-
-async function build(env: Env): Promise<Ports> {
-  const adapters = workerAdapters(env);
-  const built = await portsOf(settingsOf(settingVariablesOf(env)), adapters);
-
-  return built;
-}
-
-function isolatePorts(env: Env): Promise<Ports> {
-  if (ports !== undefined) return ports;
-
-  const building = build(env);
-
-  ports = building;
-
-  building.catch(() => {
-    if (ports === building) ports = undefined;
-  });
-
-  return building;
-}
-
-async function apiApp(env: Env): Promise<ReturnType<typeof createApp>> {
-  const resetCode = settingVariablesOf(env).PASSWORD_RESET_CODE;
-  const cached = api;
-
-  if (cached !== undefined && cached.resetCode === resetCode) {
-    return cached.app;
-  }
-
-  const { config, ...built } = await isolatePorts(env);
-  const app = createApp({ ...built, config: { ...config, resetCode } });
-  api = { resetCode, app };
-
-  return app;
+function build(env: Env): Promise<Ports> {
+  return portsOf(settingsOf(settingVariablesOf(env)), workerAdapters(env));
 }
 
 function serveDocument(request: Request, env: Env): Response | Promise<Response> {
@@ -80,7 +40,7 @@ async function runMessage(env: Env, message: Readonly<JobMessage>): Promise<void
 
   try {
     if (body.success) {
-      await runJob(await isolatePorts(env), body.data.jobId);
+      await runJob(await build(env), body.data.jobId);
     }
   } finally {
     message.ack();
@@ -90,11 +50,11 @@ async function runMessage(env: Env, message: Readonly<JobMessage>): Promise<void
 export default {
   fetch: async (request: Request, env: Env): Promise<Response> =>
     isServerPath(new URL(request.url).pathname)
-      ? (await apiApp(env)).fetch(request)
+      ? createApp(await build(env)).fetch(request)
       : serveDocument(request, env),
   queue: async (batch: Readonly<JobBatch>, env: Env): Promise<void> => {
     await Promise.all(batch.messages.map((message) => runMessage(env, message)));
   },
   scheduled: async (_controller: Readonly<{ cron: string }>, env: Env): Promise<void> =>
-    tick(await isolatePorts(env)),
+    tick(await build(env)),
 };
