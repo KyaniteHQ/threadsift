@@ -6,6 +6,12 @@ export function utf8Length(text: string): number {
   return encoder.encode(text).length;
 }
 
+export function prefixWithin(text: string, bytes: number): string {
+  const { read } = encoder.encodeInto(text, new Uint8Array(Math.max(0, bytes)));
+
+  return text.slice(0, read);
+}
+
 export function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

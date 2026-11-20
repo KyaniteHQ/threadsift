@@ -3,11 +3,25 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { utf8Length } from "../src/core/contract/encoding.ts";
 import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
-import { Instance } from "./instance.ts";
+import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
+import { Instance, type Json } from "./instance.ts";
 import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
-import { SECOND_FACT, SQLITE_FACT, authored, reply, thread } from "./x-thread-fixtures.ts";
+import {
+  CUT_CASES,
+  CUT_LINE,
+  LEFT_OUT,
+  QUOTED_BLOCK,
+  ROOM,
+  SECOND_FACT,
+  SQLITE_FACT,
+  authored,
+  reply,
+  thread,
+  withQuote,
+} from "./x-thread-fixtures.ts";
 
 const STORED = "1000000000000000005";
 
@@ -185,6 +199,71 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
       ).map(({ id }) => id),
       [PARENT],
     );
+  });
+
+  const postTextOf = async (statusId: string, content: Json): Promise<string> => {
+    const item = await xClient(instance).saved({
+      url: `https://x.com/someone/status/${statusId}`,
+      content: JSON.stringify(content),
+      digest: { ...DIGEST, keptComments: [] },
+    });
+
+    await instance.settledItem(item.id);
+
+    return (await instance.detail(item.id)).postText ?? "";
+  };
+
+  it("saves a post whose end does not fit with a line that says so, cut at a whole character before any link, and leaves its follow-up out", async () => {
+    const texts = await Promise.all(
+      CUT_CASES.map(({ text }, index) => {
+        const id = String(1000000000000000101n + BigInt(index));
+
+        return postTextOf(
+          id,
+          thread([reply(BigInt(id) + 1n, id, { author: "someone", text: LEFT_OUT })], { id, text }),
+        );
+      }),
+    );
+
+    CUT_CASES.forEach(({ name, root }, index) => {
+      assert.ok(texts[index] === `${root}${CUT_LINE}`, name);
+    });
+  });
+
+  it("leaves out the quoted post and the follow-up of a post whose end does not fit, so the line always shows", async () => {
+    const id = "1000000000000000111";
+
+    const text = await postTextOf(
+      id,
+      withQuote(
+        thread([reply(BigInt(id) + 1n, id, { author: "someone", text: LEFT_OUT })], {
+          id,
+          text: "a".repeat(999_990),
+        }),
+      ),
+    );
+
+    assert.ok(text === `${"a".repeat(ROOM)}${CUT_LINE}`);
+  });
+
+  it("keeps the text of a post that fits with its quoted post, on a Paste and on a Paste again", async () => {
+    const id = "1000000000000000112";
+    const root = "a".repeat(INLINE_TEXT_BYTES - utf8Length(QUOTED_BLOCK) - 70);
+    const content = withQuote(thread([], { id, text: root }));
+
+    assert.ok((await postTextOf(id, content)) === `${root}${QUOTED_BLOCK}`);
+    assert.ok((await postTextOf(id, content)) === `${root}${QUOTED_BLOCK}`);
+  });
+
+  it("refuses a post with no follow-up and no quoted post whose text and open code block pass the limit", async () => {
+    const id = "1000000000000000113";
+
+    const reason = await xClient(instance).refused({
+      url: `https://x.com/someone/status/${id}`,
+      content: JSON.stringify(thread([], { id, text: `\`\`\`\n${"a".repeat(999_994)}` })),
+    });
+
+    assert.match(reason, /the post text is longer than 1000000 bytes/u);
   });
 
   it("stores an X link pasted with no content as a Link-only Item", async () => {

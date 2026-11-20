@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { utf8Length } from "../src/core/contract/encoding.ts";
+import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
 import type { Judged } from "../src/core/contract/x-verdict.ts";
 import type { XReply, XThreadValue } from "../src/core/contract/x-wire.ts";
 import { progressOf, sliceOf, startingJudged } from "../src/features/x/core/x-verify-state.ts";
@@ -102,6 +104,23 @@ describe("a thread is shown only as far as every post of it was judged", () => {
         : null,
       [[ROOT], 1],
     );
+  });
+
+  it("cuts a post of 999,999 bytes whose follow-up hangs under a rejected follow-up with a moved parent, and ends its text with the line that says so", () => {
+    const author = "fieldnotes_ana";
+    const first = { ...reply(FIRST, ROOT), author, repairedParent: true };
+    const second = { ...reply(SECOND, FIRST), author };
+    const long = { ...thread([first, second]).post, text: "a".repeat(999_999) };
+
+    const progress = progressOf(
+      { post: long, replies: [first, second] },
+      { [ROOT]: "verified", [FIRST]: "rejected", [SECOND]: "verified" },
+    );
+
+    assert.ok(progress.kind === "ready");
+    assert.ok(utf8Length(progress.thread.post.text) <= INLINE_TEXT_BYTES);
+    assert.ok(progress.thread.post.text.endsWith("were not saved."));
+    assert.equal(progress.followUps, 0);
   });
 
   it("refuses the thread once the post is rejected, without waiting for the replies", () => {
