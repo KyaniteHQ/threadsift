@@ -89,13 +89,50 @@ The 20-character row: `node --input-type=module -e 'import { projectText } from 
 
 The cause is `micromark-extension-gfm-autolink-literal` 2.1.0, which tries its construct at every word start. Each failed try leaves a new `data` token next to the one before, and `resolveAllText` (`micromark/lib/initialize/text.js`, micromark 4.0.3) merges each such run with `events.splice`, which moves every later event of the paragraph. A counter around `Array.prototype.splice` saw 4,000 splices move 80,004,000 events for 4,000 lines of 20 characters, so the cost grew with the square of the lines. `DATA_RUN` takes the text of a failed try into the `data` token before it, so no run is left to merge. It ends a token where `initializeText` does, by calling the `previous` check of every construct that `this.parser.constructs.text` lists for the next code, so a micromark update that changes that rule is not noticed by any test.
 
-Four costs remain. Each grows with the square of the paragraph, and none is touched by `DATA_RUN`, which acts while the text is tokenized and not after it. CPU milliseconds of one `parse` at 31,250, 62,500 and 125,000 bytes, one paragraph, at load averages of 9 to 26:
+Four shapes still cost the square of the paragraph after `DATA_RUN`, because the time goes into the resolvers that run once the paragraph is tokenized, and `DATA_RUN` acts while it is tokenized. `DELIMITER_OVERFLOW` limits them. It is the first text construct for `!`, `*`, `[`, `]`, `_` and `~`. While the paragraph's text tokenizer holds fewer than `PARAGRAPH_EVENT_CAP` (20,000) events it refuses before it consumes anything, so a parse below the cap is the parse without it. From 20,000 events on it takes the delimiter into the `data` token before it, with the tokenizer and the merge of `DATA_RUN`, so no later `*`, `_`, `~`, `[`, `![` or `]` starts attention, strikethrough, a label, a link, an image or a footnote call. `<https://...>`, `www.`, `http://` and email autolinks and code spans still work past the cap. `PostText` and `projectText` both parse with `GFM_PLUGINS`, so the Reader and the server read the same text past the cap and a Highlight's quote still matches.
 
-| Shape | 31,250 | 62,500 | 125,000 | Where the time goes |
+The `[` and `!` keys are needed as much as `]`. A `]` that reads as text leaves every later `[` unbalanced, and `previousUnbalanced` in `micromark-extension-gfm-autolink-literal` 2.1.0 then walks the events back to the last unbalanced label at each word start. With `*`, `]`, `_` and `~` alone, one paragraph of 900 `[a](b)` links followed by lines of single words turned a parse that was linear on `main` into a square one. CPU milliseconds of one `parse`, 900 links and then lines of `word`:
+
+| Keys | 125,000 | 250,000 | 1,000,000 |
+|---|---|---|---|
+| before the cap | 1,367 | 2,275 | 5,316 |
+| `*`, `]`, `_`, `~` only | 15,731 | 166,341 | not run |
+| all six keys | 1,415 | 1,963 | 5,394 |
+
+**What the cap does not cover.** It stops the six delimiters, not the growth of the event list. Line endings and character escapes still add events past the cap, and a lone `[` before the cap stays unbalanced, so the same walk stays quadratic for `"[ "` followed by lines of `a b c d e` (8,637 ms at 125,000 bytes) and for `"[ "` followed by `a\. ` repeated (50,959 ms), CPU milliseconds that the cap leaves within 5 % of `main`. Ending that walk means taking ordinary text and line endings past the cap, and a paragraph's line endings must stay events: a construct on every code that consumed the rest of the paragraph made `micromark-util-subtokenize` throw `RangeError: Cannot access index 27504 in a splice buffer of size 27504`. These shapes remain a cost of the parser, and no figure below holds for a page that contains them.
+
+CPU milliseconds of one `parse` of one paragraph, before the cap and with the cap (Node 26.13.1, 2026-11-20 and 2026-11-21):
+
+| Shape | Where the time went | 125,000 before the cap | 125,000 with the cap | 1,000,000 before the cap | 1,000,000 with the cap |
+|---|---|---|---|---|---|
+| `a* ` repeated (closers with no opener) | `resolveAllAttention`, which scans back once for each closer | 16,226 | 501 | over 2,220,000, not finished | 1,808 |
+| `a] b` lines (stray `]`) | `tokenizePotentialGfmFootnoteCall`, which walks the events back for each `]` | 9,915 | 1,336 | 1,876,309 | 5,644 |
+| `*a* ` repeated on one line (emphasis pairs) | `splice` of `micromark-util-chunked`, once for each pair | 5,079 | 357 | 366,919 | 1,362 |
+| `~~ab~~ cd ef ~~gh~~ ij` lines (strikethrough pairs) | `resolveAllStrikethrough`, once for each pair | 1,888 | 523 | 46,780 | 2,308 |
+| `lorem ipsum dolor si` lines (plain words) | none; `DATA_RUN` | 501 | 193 | 2,017 | 1,363 |
+
+The first row: `node --input-type=module -e 'import remarkParse from "remark-parse"; import { unified } from "unified"; import { GFM_PLUGINS } from "./src/core/contract/gfm-markdown.ts"; const t = "a* ".repeat(41667); const c = process.cpuUsage(); unified().use(remarkParse).use(GFM_PLUGINS).parse(t); console.log(process.cpuUsage(c).user / 1000, "ms")'`. The plain-words row shows the cap leaves a paragraph with no delimiter alone. The `a* ` run before the cap at 1,000,000 bytes was stopped after 37 CPU minutes, so its cell is a lower bound.
+
+**Value.** The owner chose 20,000. The cap counts the entries of the paragraph's text tokenizer at the moment a delimiter begins: 4 for a soft line break, 8 for an emphasis or strikethrough pair, 28 for an inline link and 30 for an image, so 20,000 is about 5,000 wrapped lines, 2,500 pairs or 700 links. Three corpora gave the largest count; each ran with a cap too high to act, and the counts are of events where a `*`, `_`, `~` or `]` begins:
+
+| Corpus | Documents | Largest | 99th percentile | 1,000 or more | 5,000 or more | 20,000 or more |
+|---|---|---|---|---|---|---|
+| Markdown that people wrote: this repository's, the READMEs and changelogs under its `node_modules`, and those of other repositories on the machine | 957 | 804 | 522 | 0 | 0 | 0 |
+| HTML reference pages (Python, PostgreSQL, SQLite, Nix, OpenSSL and zsh documentation), converted to Markdown by `readArticle` | 868 | 24,152 | 5,648 | 41 | 9 | 2 |
+| Conversational prose in 1,268 text blocks, a stand-in for comments | 1,268 | 954 | 806 | 0 | 0 | 0 |
+
+The 9 converted pages at or above 5,000 are index pages that turn a list of 490 to 6,702 links into one paragraph, and OpenSSL manual pages whose synopsis paragraph holds about 1,000 `*`. The corpora held no Reddit posts or comments, no X posts and no news articles, so how often those reach a cap is not known, and a saved page is denser than Markdown that a person wrote.
+
+CPU seconds of one `parse` of a 1,000,000-byte page made of paragraphs of one size, the highest of a sweep from 1,000 to 160,000 bytes a paragraph, for the four shapes above:
+
+| Cap | `a* ` | `a] b` | `*a* ` | `~~ab~~` lines |
 |---|---|---|---|---|
-| `a* ` repeated (closers with no opener) | 1,101 | 3,599 | 16,073 | `resolveAllAttention`, which scans back once for each closer |
-| `a] b` lines (stray `]`) | 991 | 3,099 | 8,903 | `tokenizePotentialGfmFootnoteCall`, which walks the events back for each `]` |
-| `*a* ` repeated on one line (emphasis pairs) | 455 | 1,175 | 4,493 | `splice` of `micromark-util-chunked`, once for each pair |
-| `~~ab~~ cd ef ~~gh~~ ij` lines (strikethrough pairs) | 170 | 419 | 2,289 | `resolveAllStrikethrough`, once for each pair |
+| 5,000 | 7.6 | 8.1 | 7.2 | 4.7 |
+| 10,000 | 14.1 | 15.2 | 6.9 | 4.4 |
+| 20,000 | 24.4 | 24.2 | 8.6 | 4.6 |
 
-A re-run of the `a* ` shape on the same code gave 1,605 ms at 31,250 bytes and 13,285 ms at 62,500, so the growth holds on a quieter machine. A page of about 1 MB with one `*emphasis*` pair on each 80-character line took 2.4 s with `projectText`.
+The sweep ran with the first four keys. The cost of these shapes grows in proportion to the cap. At 5,000, 9 of the 868 converted pages show raw Markdown after the cap and the four shapes cost at most 8.1 s; at 20,000, 2 of 868 do and the shapes cost up to 24.4 s. The owner chose 20,000 over 5,000, which keeps more converted pages whole at the price of that cost.
+
+A parse below the cap is the parse without the construct. A differential run compared the mdast and the hast, positions included, of `main` and of the cap on 471,958 documents: 300,000 strings of 1 to 40 random characters, 125,000 documents of 1 to 30 Markdown fragments, 36,000 longer ones (24,000 strings of 200 to 2,000 characters and 12,000 documents of 100 to 1,000 fragments), 10,000 inline-only documents of 100 to 6,000 fragments and 958 Markdown files. No document below the cap differed. 20 of the 10,000 inline documents reach the cap, and each of them differs. A copy of the cap set to 5,000 differed on 111 of 300 inline documents that stay below 20,000, so the corpus sees a wrong cap.
+
+A page of about 1 MB with one `*emphasis*` pair on each 80-character line took 2.4 s with `projectText` before the cap and 1.8 s with it.

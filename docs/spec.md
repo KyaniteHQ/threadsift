@@ -260,6 +260,7 @@ Rules for the Digest:
   - the Highlights list;
   - the Note box.
 - **Markdown** shows without raw HTML, and only `http`, `https`, `mailto` and in-page links work.
+- Once the parser's list of parts for one paragraph reaches 20,000 entries, the rest of that paragraph stops reading `*`, `_`, `~`, `[`, `![` and `]` as Markdown. A soft line break adds 4 entries, an emphasis or strikethrough pair 8, an inline link 28 and an image 30, so the limit is about 5,000 wrapped lines, 2,500 pairs or 700 links. From that point the paragraph shows emphasis, strikethrough, links, images and footnote calls as the characters that were saved, in the Reader and in a Highlight's quote alike, while `<https://...>`, `www.`, `http://` and email autolinks and code spans still work, and every other paragraph reads as before.
 - **A failed later read.** When a later read of the Item fails, the Reader keeps the body it has and shows the failure. It offers Try again for a failed Item or one with a retry action. An X refresh that ends `unreadable` keeps the saved body and shows the fetch note without a button beside it.
 - **The bar** holds the Comments button, Mark read or unread, Open on the Item's Source and Delete, and it drops the key hint and then the button labels until it fits.
 - **Comments.** Replies nest under their parent, drawn in the Comment style the owner chose, and the Item author's comments carry an OP badge.

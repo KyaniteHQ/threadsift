@@ -27,6 +27,11 @@ const SECRET_WORD = "quokkafruit";
 
 const ONE_PARAGRAPH = Array.from({ length: 89_000 }, () => "a b c d e").join("\n");
 
+const ONE_PARAGRAPH_OF_DELIMITERS = [
+  "[a](b) ![a](b) ".repeat(450).trimEnd(),
+  ...Array.from({ length: 27_000 }, () => "a] a] a* a_ ~~a~~ ~~b~~ w"),
+].join("\n");
+
 const PLUGIN_LIST = [
   "first.mts",
   "second.mts",
@@ -134,6 +139,18 @@ describe("a self-hoster's fetcher plug-in reads the links it claims, and only th
     assert.equal(reader.fetch, "ok");
     assert.equal(reader.kind, "article");
     assert.equal(reader.postText === ONE_PARAGRAPH, true);
+  });
+
+  it("reads a page that is one paragraph of links, images, closing and stray delimiters as an Article", async () => {
+    const started = Date.now();
+    const reader = await pasted("https://first.test/one-paragraph-of-delimiters", {
+      page: { markdown: ONE_PARAGRAPH_OF_DELIMITERS, title: "One paragraph of delimiters" },
+    });
+
+    assert.equal(Date.now() - started < SETTLE_DEADLINE_MS, true);
+    assert.equal(reader.fetch, "ok");
+    assert.equal(reader.kind, "article");
+    assert.equal(reader.postText === ONE_PARAGRAPH_OF_DELIMITERS, true);
   });
 
   it("ends a page with an empty title as no-title, like any page", async () => {
