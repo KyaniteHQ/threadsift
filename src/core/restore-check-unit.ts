@@ -1,23 +1,27 @@
-import { appliedMigration } from "./export-manifest.ts";
+import { appliedMigration } from "./export-format.ts";
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
 import { type Env, advance, rowsMatch } from "./restore-check-scan.ts";
-import { checkedTables, readManifest, refused } from "./restore-check.ts";
+import { checkedTables, readManifest } from "./restore-check.ts";
 import { CheckCursorSchema, START_CURSOR } from "./restore-contract.ts";
+import { RestoreRefused, restoreRefusalOf } from "./restore-refusal.ts";
+import { readRestoreDirectory } from "./restore-source.ts";
 import { endedUnit, steppedUnit } from "./restore-unit.ts";
 import type { RestoreRow } from "./schema.ts";
-import { readDirectory } from "./zip-directory.ts";
-import { ZipRefused, type ZipSource } from "./zip-read.ts";
+import type { ZipSource } from "./zip-read.ts";
 
 async function environment(
   { db }: Pick<JobPorts, "db">,
   source: Readonly<ZipSource>,
 ): Promise<Env> {
-  const directory = await readDirectory(source);
+  const directory = await readRestoreDirectory(source);
   const manifest = await readManifest(source, directory);
   const running = await appliedMigration(db);
 
   if (manifest.migration === null || running === null || manifest.migration !== running) {
-    throw refused("other-release", "The export migration does not match the running migration");
+    throw new RestoreRefused(
+      "other-release",
+      "The export migration does not match the running migration",
+    );
   }
 
   checkedTables(manifest, directory);
@@ -44,8 +48,10 @@ export async function checkUnit(
 
     return steppedUnit(db, run, { phase: "tables", cursor: JSON.stringify(START_CURSOR) });
   } catch (error) {
-    if (!(error instanceof ZipRefused)) throw error;
+    const failure = restoreRefusalOf(error);
 
-    return endedUnit(db, run, { state: "failed", failure: error.code, updatedAt: Date.now() });
+    if (failure === null) throw error;
+
+    return endedUnit(db, run, { state: "failed", failure, updatedAt: Date.now() });
   }
 }

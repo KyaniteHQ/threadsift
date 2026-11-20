@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { readWithin } from "./capped.ts";
 import { limitedUntil, rateLimitOf } from "./github-rate-limit.ts";
 import type { Network, NetworkResponse } from "./network.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
@@ -34,20 +35,11 @@ export function invalidVaultResponse(): VaultFailure {
   return new VaultFailure({ reason: "invalid-response", until: null, status: null });
 }
 
+const RESPONSE_BYTES = 8 * 1024 * 1024;
+
 async function responseText(response: NetworkResponse): Promise<string> {
-  const chunks: Uint8Array[] = [];
-  let length = 0;
-  for await (const chunk of response.body) {
-    length += chunk.length;
-    if (length > 8 * 1024 * 1024) throw invalidVaultResponse();
-    chunks.push(chunk);
-  }
-  const bytes = new Uint8Array(length);
-  let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.length;
-  }
+  const bytes = await readWithin(response.body, RESPONSE_BYTES);
+  if (bytes === null) throw invalidVaultResponse();
   return new TextDecoder().decode(bytes);
 }
 

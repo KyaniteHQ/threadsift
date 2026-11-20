@@ -1,20 +1,14 @@
 import { type SQLWrapper, and, eq, exists, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import {
-  EXPORT_SLICE_DEADLINE_MS,
-  type ExportFailure,
-  exportObjectName,
-  exportTailName,
-} from "./export-contract.ts";
+import { EXPORT_SLICE_DEADLINE_MS, type ExportFailure } from "./export-contract.ts";
 import { type BuiltSlice, buildSlice } from "./export-slice.ts";
+import { type PackedSlice, packedSlice } from "./export-zip.ts";
 import { report } from "./failure-log.ts";
-import { exportFileKey } from "./file-keys.ts";
 import type { ClaimedExport, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { openingUnowned, unownedRun } from "./job-rows.ts";
 import { defineUnownedJob } from "./job-spec.ts";
 import { type ExportRow, exportRuns } from "./schema.ts";
-import { dosTimeOf, endOfArchive, packFiles } from "./zip.ts";
 
 export function openingExportJob(db: Database, scope: Readonly<SQLWrapper>) {
   return openingUnowned(db, "export", exportRuns, scope);
@@ -33,50 +27,6 @@ function stillAt(db: Database, exportId: number, parts: number) {
         ),
       ),
   );
-}
-
-interface PackedSlice {
-  readonly objects: readonly Readonly<{ key: string; bytes: Uint8Array }>[];
-  readonly entries: number;
-  readonly dataBytes: number;
-  readonly dirBytes: number;
-  readonly tailBytes: number | null;
-}
-
-function packedSlice(
-  run: Readonly<ExportRow>,
-  slice: Readonly<BuiltSlice>,
-  generation: number,
-): PackedSlice {
-  const packed = packFiles(slice.files, { offset: run.dataBytes, dos: dosTimeOf(run.createdAt) });
-  const part = run.parts + 1;
-  const entries = run.entries + slice.files.length;
-  const dataBytes = run.dataBytes + packed.data.length;
-  const dirBytes = run.dirBytes + packed.directory.length;
-
-  const tail = slice.finished
-    ? endOfArchive({ entries, directoryOffset: dataBytes, directorySize: dirBytes })
-    : null;
-
-  return {
-    objects: [
-      {
-        key: exportFileKey(run.id, exportObjectName("part", part, generation)),
-        bytes: packed.data,
-      },
-      {
-        key: exportFileKey(run.id, exportObjectName("dir", part, generation)),
-        bytes: packed.directory,
-      },
-      ...(tail === null
-        ? []
-        : [{ key: exportFileKey(run.id, exportTailName(generation)), bytes: tail }]),
-    ],
-    entries,
-    dataBytes,
-    dirBytes,
-    tailBytes: tail?.length ?? null,
-  };
 }
 
 function checkpoint(

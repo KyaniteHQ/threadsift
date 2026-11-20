@@ -145,6 +145,21 @@ export function exportFileKey(exportId: number | string, name: string): string {
   return `${exportFilesPrefix(exportId)}${name}`;
 }
 
+export type ExportPiece = "part" | "dir";
+
+export function exportPieceKey(
+  exportId: number | string,
+  piece: ExportPiece,
+  part: number,
+  generation: number,
+): string {
+  return exportFileKey(exportId, `${piece}-${String(part)}-${String(generation)}`);
+}
+
+export function exportTailKey(exportId: number | string, generation: number): string {
+  return exportFileKey(exportId, `tail-${String(generation)}`);
+}
+
 export function restoreFilesPrefix(restoreId: number | string): string {
   return `${RESTORE_FILES_ROOT}${restoreId}/`;
 }

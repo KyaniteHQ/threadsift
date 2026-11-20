@@ -6,12 +6,11 @@ import {
   EXPORT_SLICE_ITEMS,
   ITEM_FILES_STREAM,
   type ExportTally,
-  ExportTallySchema,
   type PartialItem,
-  exportRootName,
+  tallyOf,
 } from "./export-contract.ts";
+import { exportRootName, manifestFile, recordPath } from "./export-format.ts";
 import { takeItems } from "./export-items.ts";
-import { manifestFile, recordPath } from "./export-manifest.ts";
 import {
   type RecordRow,
   STREAMS,
@@ -227,7 +226,7 @@ export async function buildSlice(
 ): Promise<BuiltSlice | null> {
   const { db } = ports;
   const root = exportRootName(run.createdAt);
-  const before = ExportTallySchema.parse(JSON.parse(run.tally));
+  const before = tallyOf(run);
   const position = streamPosition(run.stream);
 
   if (position === null || (before.list !== "" && before.list !== STREAM_LIST)) return null;

@@ -1,14 +1,16 @@
+import { readExactly } from "./capped.ts";
 import { crc32 } from "./crc32.ts";
 import { utf8Length } from "./encoding.ts";
-import type { RestoreRefusal } from "./restore-contract.ts";
-import { LOCAL_HEADER_BYTES, LOCAL_SIGNATURE, joined } from "./zip.ts";
+import { LOCAL_HEADER_BYTES, LOCAL_SIGNATURE } from "./zip.ts";
+
+export type ZipFault = "malformed" | "unsupported-method" | "bad-name" | "bad-checksum";
 
 export class ZipRefused extends Error {
-  readonly code: RestoreRefusal;
+  readonly fault: ZipFault;
 
-  constructor(code: RestoreRefusal, message: string) {
+  constructor(fault: ZipFault, message: string) {
     super(message);
-    this.code = code;
+    this.fault = fault;
   }
 }
 
@@ -30,24 +32,34 @@ export interface ZipDirectory {
   readonly root: string;
 }
 
+export function checkedEnd(
+  limit: number,
+  start: number | null,
+  size: number,
+): asserts start is number {
+  if (start === null || start + size > limit) {
+    throw new ZipRefused("malformed", "An entry of the zip runs past its end");
+  }
+}
+
+export function checkedCrc(entry: Readonly<Pick<ZipEntry, "crc">>, computed: number): void {
+  if (computed !== entry.crc) {
+    throw new ZipRefused("bad-checksum", "An entry of the zip does not match its checksum");
+  }
+}
+
 export async function bytesAt(
   source: Readonly<ZipSource>,
   offset: number,
   length: number,
 ): Promise<Uint8Array> {
-  const parts: Uint8Array[] = [];
-  let held = 0;
+  const bytes = await readExactly(source.read(offset, length), length);
 
-  for await (const chunk of source.read(offset, length)) {
-    parts.push(chunk);
-    held += chunk.length;
+  if (bytes === null) {
+    throw new ZipRefused("malformed", "The zip ends before the bytes its records name");
   }
 
-  if (held !== length) {
-    throw new ZipRefused("not-a-zip", "The zip ends before the bytes its records name");
-  }
-
-  return joined(parts);
+  return bytes;
 }
 
 export function viewOf(bytes: Uint8Array): DataView {
@@ -58,7 +70,7 @@ export function wide(view: DataView, at: number): number {
   const value = view.getBigUint64(at, true);
 
   if (value > BigInt(Number.MAX_SAFE_INTEGER)) {
-    throw new ZipRefused("not-a-zip", "A size or offset in the zip is too large");
+    throw new ZipRefused("malformed", "A size or offset in the zip is too large");
   }
 
   return Number(value);
@@ -76,20 +88,20 @@ export function localDataStart(
   const header = viewOf(bytes.subarray(at, at + LOCAL_HEADER_BYTES));
 
   if (header.getUint32(0, true) !== LOCAL_SIGNATURE) {
-    throw new ZipRefused("not-a-zip", "A local header of the zip is malformed");
+    throw new ZipRefused("malformed", "A local header of the zip is malformed");
   }
 
   const name = NAMES.encode(entry.name);
   const nameEnd = at + LOCAL_HEADER_BYTES + name.length;
 
   if (header.getUint16(26, true) !== name.length) {
-    throw new ZipRefused("not-a-zip", "A local header of the zip names another entry");
+    throw new ZipRefused("malformed", "A local header of the zip names another entry");
   }
 
   if (nameEnd > bytes.length) return null;
 
   if (!name.every((byte, position) => bytes[at + LOCAL_HEADER_BYTES + position] === byte)) {
-    throw new ZipRefused("not-a-zip", "A local header of the zip names another entry");
+    throw new ZipRefused("malformed", "A local header of the zip names another entry");
   }
 
   return nameEnd + header.getUint16(28, true);
@@ -103,12 +115,11 @@ export async function entryStart(
   const headerBytes = LOCAL_HEADER_BYTES + utf8Length(entry.name);
   const bytes = await bytesAt(source, entry.headerOffset, headerBytes);
   const start = localDataStart(bytes, 0, entry);
+  const dataStart = start === null ? null : entry.headerOffset + start;
 
-  if (start === null || entry.headerOffset + start + entry.size > directory.offset) {
-    throw new ZipRefused("not-a-zip", "An entry of the zip runs past its end");
-  }
+  checkedEnd(directory.offset, dataStart, entry.size);
 
-  return entry.headerOffset + start;
+  return dataStart;
 }
 
 export async function entryBytes(
@@ -118,9 +129,7 @@ export async function entryBytes(
 ): Promise<Uint8Array> {
   const bytes = await bytesAt(source, await entryStart(source, directory, entry), entry.size);
 
-  if (crc32(bytes) !== entry.crc) {
-    throw new ZipRefused("crc", "An entry of the zip does not match its checksum");
-  }
+  checkedCrc(entry, crc32(bytes));
 
   return bytes;
 }
@@ -141,18 +150,14 @@ function sliceOf(
 
   if (start === null) return null;
 
-  if (region.base + start + entry.size > directory.offset) {
-    throw new ZipRefused("not-a-zip", "An entry of the zip runs past its end");
-  }
+  checkedEnd(directory.offset, region.base + start, entry.size);
 
   const bytes =
     start + entry.size > region.bytes.length
       ? null
       : region.bytes.subarray(start, start + entry.size);
 
-  if (bytes !== null && crc32(bytes) !== entry.crc) {
-    throw new ZipRefused("crc", "An entry of the zip does not match its checksum");
-  }
+  if (bytes !== null) checkedCrc(entry, crc32(bytes));
 
   return bytes;
 }

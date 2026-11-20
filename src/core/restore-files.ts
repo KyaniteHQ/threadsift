@@ -7,10 +7,10 @@ import {
   START_ITEMS,
 } from "./restore-contract.ts";
 import { namedAfter, windowOf } from "./restore-file-window.ts";
+import { readRestoreDirectory } from "./restore-source.ts";
 import { tallied } from "./restore-tally.ts";
 import { steppedUnit } from "./restore-unit.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
-import { readDirectory } from "./zip-directory.ts";
 import { type ReadEntry, type ZipDirectory, type ZipSource, entriesBytes } from "./zip-read.ts";
 
 function putEach(
@@ -32,7 +32,7 @@ export async function filesUnit(
 ): Promise<JobOutcome> {
   const after = FilesCursorSchema.parse(JSON.parse(run.cursor));
   const rows = await namedAfter(db, after);
-  const directory = await readDirectory(source);
+  const directory = await readRestoreDirectory(source);
   const window = windowOf(directory, rows);
 
   if (window === null) {

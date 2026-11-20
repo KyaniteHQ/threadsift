@@ -8,7 +8,7 @@ import {
 } from "./restore-contract.ts";
 import { type Lines, completeLines } from "./restore-lines.ts";
 import { RESTORE_ORDER } from "./restore-registry.ts";
-import { readDirectory } from "./zip-directory.ts";
+import { readRestoreDirectory } from "./restore-source.ts";
 import { type ZipSource, bytesAt, entryStart } from "./zip-read.ts";
 
 export interface Opened {
@@ -19,7 +19,7 @@ export interface Opened {
 }
 
 export async function recordFiles(source: Readonly<ZipSource>) {
-  const directory = await readDirectory(source);
+  const directory = await readRestoreDirectory(source);
   const manifest = await readManifest(source, directory);
 
   const files = RESTORE_ORDER.flatMap((table) => {

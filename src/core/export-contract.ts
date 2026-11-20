@@ -2,8 +2,6 @@ import { z } from "zod";
 
 import { WholeCount } from "./whole-count.ts";
 
-export const EXPORT_FORMAT = 1;
-
 export const EXPORT_SLICE_DEADLINE_MS = 600_000;
 
 export const EXPORT_SLICE_BYTES = 8 * 1024 * 1024;
@@ -43,6 +41,10 @@ export const ExportTallySchema = z
   .readonly();
 
 export type ExportTally = z.infer<typeof ExportTallySchema>;
+
+export function tallyOf({ tally }: Readonly<{ tally: string }>): ExportTally {
+  return ExportTallySchema.parse(JSON.parse(tally));
+}
 
 export const NO_TALLY: ExportTally = {
   tables: {},
@@ -89,19 +91,3 @@ export const ExportStatusSchema = z.discriminatedUnion("state", [
 export type ExportStatus = z.infer<typeof ExportStatusSchema>;
 
 export const StartedExportSchema = z.object({ id: z.number().int().positive() });
-
-function exportDay(createdAt: number): string {
-  return new Date(createdAt).toISOString().slice(0, 10);
-}
-
-export function exportRootName(createdAt: number): string {
-  return `threadsift-${exportDay(createdAt)}`;
-}
-
-export function exportObjectName(kind: "part" | "dir", part: number, generation: number): string {
-  return `${kind}-${String(part)}-${String(generation)}`;
-}
-
-export function exportTailName(generation: number): string {
-  return `tail-${String(generation)}`;
-}

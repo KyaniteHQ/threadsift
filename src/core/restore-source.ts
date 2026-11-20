@@ -1,7 +1,9 @@
 import { restorePartKey } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";
-import { partLength } from "./restore-contract.ts";
-import { ZipRefused, type ZipSource } from "./zip-read.ts";
+import { RESTORE_DIRECTORY_BYTES, partLength } from "./restore-contract.ts";
+import { RestoreRefused } from "./restore-refusal.ts";
+import { readDirectory } from "./zip-directory.ts";
+import type { ZipDirectory, ZipSource } from "./zip-read.ts";
 
 export interface UploadedZip {
   readonly id: number;
@@ -32,7 +34,10 @@ async function* sliced(
     if (given === count) return;
   }
 
-  throw new ZipRefused("incomplete-upload", "An uploaded part is shorter than it was announced");
+  throw new RestoreRefused(
+    "incomplete-upload",
+    "An uploaded part is shorter than it was announced",
+  );
 }
 
 async function* readFrom(
@@ -47,7 +52,7 @@ async function* readFrom(
   const take = Math.min(end - at, partLength(zip, part) - within);
   const body = await files.get(restorePartKey(zip.id, part));
 
-  if (body === null) throw new ZipRefused("incomplete-upload", "An uploaded part is missing");
+  if (body === null) throw new RestoreRefused("incomplete-upload", "An uploaded part is missing");
 
   yield* sliced(body, within, take);
   yield* readFrom(files, zip, { at: at + take, end });
@@ -58,4 +63,8 @@ export function partSource(files: Pick<FileStore, "get">, zip: Readonly<Uploaded
     size: zip.bytes,
     read: (offset, length) => readFrom(files, zip, { at: offset, end: offset + length }),
   };
+}
+
+export function readRestoreDirectory(source: Readonly<ZipSource>): Promise<ZipDirectory> {
+  return readDirectory(source, RESTORE_DIRECTORY_BYTES);
 }

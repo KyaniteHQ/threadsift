@@ -1,15 +1,16 @@
 import { crc32 } from "./crc32.ts";
-import { recordTableOf } from "./export-manifest.ts";
-import { type Manifest, refused } from "./restore-check.ts";
+import { type Manifest, recordTableOf } from "./export-format.ts";
 import { type CheckCursor, RESTORE_CHECK_BYTES, RESTORE_LINE_BYTES } from "./restore-contract.ts";
 import { completeLines, parsedRow } from "./restore-lines.ts";
+import { RestoreRefused } from "./restore-refusal.ts";
 import { type TableSpec, lineVerdict, tableSpec } from "./restore-registry.ts";
 import {
   type ZipDirectory,
   type ZipEntry,
-  ZipRefused,
   type ZipSource,
   bytesAt,
+  checkedCrc,
+  checkedEnd,
   entryStart,
   localDataStart,
 } from "./zip-read.ts";
@@ -38,17 +39,19 @@ function lineRefusal(
   spec: Readonly<TableSpec>,
   line: Uint8Array,
   number: number,
-): ZipRefused | null {
+): RestoreRefused | null {
   const where = `line ${String(number)} of a record file of the table ${spec.name}`;
   const row = parsedRow(line);
 
   if (row === null || line.length > RESTORE_LINE_BYTES) {
-    return refused("format", `The ${where} is not a record that fits the table`);
+    return new RestoreRefused("format", `The ${where} is not a record that fits the table`);
   }
 
   const verdict = lineVerdict(spec, row);
 
-  return verdict === "valid" ? null : refused(verdict, `The ${where} does not match the table`);
+  return verdict === "valid"
+    ? null
+    : new RestoreRefused(verdict, `The ${where} does not match the table`);
 }
 
 function scanned(
@@ -71,7 +74,10 @@ function scanned(
   });
 
   if (consumed === 0 && !final && data.length >= RESTORE_LINE_BYTES) {
-    throw refused("format", `A line of a record file of the table ${spec.name} is too long`);
+    throw new RestoreRefused(
+      "format",
+      `A line of a record file of the table ${spec.name} is too long`,
+    );
   }
 
   for (const [position, line] of lines.entries()) {
@@ -93,9 +99,7 @@ function finished(
   entry: Readonly<ZipEntry>,
   at: Readonly<CheckCursor>,
 ): CheckCursor {
-  if (at.crc !== entry.crc) {
-    throw refused("crc", "An entry of the zip does not match its checksum");
-  }
+  checkedCrc(entry, at.crc);
 
   const spec = recordSpec(env, entry);
 
@@ -121,9 +125,7 @@ function dataIn(
 
   if (from === null) return null;
 
-  if (base + from + entry.size - offset > env.directory.offset) {
-    throw new ZipRefused("not-a-zip", "An entry of the zip runs past its end");
-  }
+  checkedEnd(env.directory.offset, base + from, entry.size - offset);
 
   return bytes.subarray(from, from + entry.size - offset);
 }
@@ -182,7 +184,7 @@ export function rowsMatch({ manifest }: Readonly<Env>, counted: CheckCursor["row
   );
 
   if (!same) {
-    throw refused(
+    throw new RestoreRefused(
       "format",
       "The record files of a table hold another number of rows than the manifest says",
     );
