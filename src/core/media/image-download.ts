@@ -2,7 +2,7 @@ import { fromBase64 } from "../contract/encoding.ts";
 import { fits } from "../contract/image-rules.ts";
 import { type ImageType, declaredImageType, sniffImageType } from "../contract/image-type.ts";
 import { IMAGE_MAX_BYTES } from "../contract/limits.ts";
-import { type Failed, guardedFetchBytes } from "../kernel/fetch-guard.ts";
+import { guardedFetchBytes } from "../kernel/fetch-guard.ts";
 import type { MediaFailure } from "../kernel/media-tables.ts";
 import type { Network } from "../kernel/network.ts";
 
@@ -15,15 +15,6 @@ const PAYLOAD_CHARACTERS = BASE64_CHARACTERS * PERCENT_ESCAPE_CHARACTERS;
 const BASE64_WHITESPACE = /[\t\n\f\r ]+/gu;
 
 const IMAGE_HEADERS = { accept: "image/avif,image/webp,image/png,image/jpeg,image/gif" } as const;
-
-const FAILURES: Readonly<Record<Failed["reason"], MediaFailure>> = {
-  timeout: "timeout",
-  refused: "refused",
-  unsupported: "unsupported",
-  "redirect-limit": "redirect-limit",
-  network: "network",
-  status: "status",
-};
 
 export type Downloaded =
   | {
@@ -98,7 +89,7 @@ export async function downloaded(
 
   if (outcome.kind === "stopped") return { ok: false, reason: "refused" };
 
-  if (outcome.kind === "failed") return { ok: false, reason: FAILURES[outcome.reason] };
+  if (outcome.kind === "failed") return { ok: false, reason: outcome.reason };
 
   const verdict = checked(outcome.contentType, outcome.bytes, outcome.cut);
 

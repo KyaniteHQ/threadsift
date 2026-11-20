@@ -4,15 +4,13 @@ import { resolveUrl } from "./addresses.ts";
 import { allowedAiUrl } from "./ai-url.ts";
 import { groupedNumber } from "./format.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
-import { SECRET_INPUT_MAX } from "./secret-input.ts";
+import { HEADER_SAFE_SECRET, SECRET_INPUT_MAX } from "./secret-input.ts";
 
 export const GROK_BOT_PING_KIND = "ping";
 
 const PUBLIC_ONLY = true;
 
 const QUERY_OR_FRAGMENT_MARK = /[?#]/u;
-
-const HEADER_SAFE_KEY = /^[\u0021-\u007E]+$/u;
 
 const GROK_BOT_ADDRESS_RULE = "a public https address with no credentials, query or fragment";
 
@@ -34,7 +32,7 @@ export const GrokBotInputSchema = z.object({
   key: z
     .string()
     .max(SECRET_INPUT_MAX)
-    .regex(HEADER_SAFE_KEY, {
+    .regex(HEADER_SAFE_SECRET, {
       error: `must be 1 to ${groupedNumber(SECRET_INPUT_MAX)} printable ASCII characters, no space`,
     })
     .optional(),

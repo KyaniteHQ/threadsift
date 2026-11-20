@@ -240,7 +240,6 @@ export function dataFileStore(dataDir: string): FileStore {
   const folder = new FileFolder(join(dataDir, "files"));
 
   return checkedFileStore({
-    checksLimitFirst: true,
     put: async (parsed, bytes) => {
       await folder.ensureFolders(parsed.root, parsed.ownerId);
 

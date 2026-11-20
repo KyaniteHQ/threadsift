@@ -1,18 +1,23 @@
 import { z } from "zod";
 
+import { GithubTokenStateSchema } from "./github-contract.ts";
+import { HEADER_SAFE_SECRET, SECRET_INPUT_MAX } from "./secret-input.ts";
+
+export const VAULT_NAME_MAX = 240;
+
 const GithubInputSchema = z.strictObject({
   mode: z.literal("github").optional(),
   repository: z
     .string()
     .trim()
-    .max(240)
+    .max(VAULT_NAME_MAX)
     .regex(/^[\w-]+\/[\w.-]+$/u)
     .refine((name) => ![".", ".."].includes(name.split("/")[1] ?? "")),
   branch: z
     .string()
     .trim()
     .min(1)
-    .max(240)
+    .max(VAULT_NAME_MAX)
     .refine(
       (name) =>
         !/[\s~^:?*[\\\p{Cc}]/u.test(name) &&
@@ -24,12 +29,7 @@ const GithubInputSchema = z.strictObject({
         !name.endsWith(".") &&
         name !== "@",
     ),
-  token: z
-    .string()
-    .trim()
-    .min(1)
-    .max(4096)
-    .regex(/^[\u0021-\u007E]+$/u),
+  token: z.string().trim().min(1).max(SECRET_INPUT_MAX).regex(HEADER_SAFE_SECRET),
 });
 
 export const VAULT_FOLDER_MAX = 4096;
@@ -58,7 +58,7 @@ const GithubViewSchema = z.object({
   repository: z.string(),
   branch: z.string(),
   secretReady: z.boolean(),
-  token: z.enum(["none", "saved", "unreadable"]),
+  token: GithubTokenStateSchema,
 });
 const FolderViewSchema = z.object({
   mode: z.literal("folder"),

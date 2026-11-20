@@ -1,26 +1,15 @@
 import { useId, useState } from "react";
 
-import { VAULT_FOLDER_MAX, type VaultView } from "../../src/core/contract/vault-contract.ts";
+import type { VaultView } from "../../src/core/contract/vault-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { FormField } from "./FormField.tsx";
 import { fetchObsidian } from "./obsidian-api.ts";
+import { BRANCH, FOLDER, REPOSITORY, TOKEN } from "./obsidian-fields.ts";
 import { OBSIDIAN_TEXT as TEXT } from "./obsidian-text.ts";
 import { RadioChoice } from "./RadioChoice.tsx";
 import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
 import { useObsidian } from "./use-obsidian.ts";
 import { usePolling } from "./use-polling.ts";
-
-const FIELD = { type: "text", autoComplete: "off", required: true, maxLength: 240 } as const;
-const REPOSITORY = { ...FIELD, name: "repository" };
-const BRANCH = { ...FIELD, name: "branch" };
-const FOLDER = { ...FIELD, name: "folder", maxLength: VAULT_FOLDER_MAX };
-const TOKEN = {
-  name: "token",
-  type: "password",
-  autoComplete: "off",
-  required: true,
-  maxLength: 4096,
-} as const;
 
 const MODES = [
   { value: "github", label: TEXT.githubMode },

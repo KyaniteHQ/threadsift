@@ -1,6 +1,6 @@
 import { isRefusedHost, webUrlOf } from "../contract/addresses.ts";
 import { decoderFor, isHtmlType } from "../contract/body-text.ts";
-import type { FetchFailure } from "../contract/fetch-results.ts";
+import type { FetchFailure, GuardFailure } from "../contract/fetch-results.ts";
 import { HOP_DEADLINE_MS } from "../contract/request-waits.ts";
 import { type Capped, readCapped } from "./capped.ts";
 import { report } from "./failure-log.ts";
@@ -19,13 +19,10 @@ const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]
 const DEFAULT_BODY_BYTES = 512 * 1024;
 const NO_HEADERS: RequestHeaders = {};
 
-type GuardFailure = Extract<
-  FetchFailure,
-  "timeout" | "refused" | "unsupported" | "redirect-limit" | "network"
->;
+type UnansweredFailure = Exclude<GuardFailure, "status">;
 
 export type Failed<Answer = never> =
-  | { readonly kind: "failed"; readonly reason: GuardFailure }
+  | { readonly kind: "failed"; readonly reason: UnansweredFailure }
   | {
       readonly kind: "failed";
       readonly reason: "status";
@@ -85,9 +82,9 @@ type Hop<Answer> =
     } & Capped)
   | Failed<Answer>;
 
-const failed = (reason: GuardFailure): Failed => ({ kind: "failed", reason });
+const failed = (reason: UnansweredFailure): Failed => ({ kind: "failed", reason });
 
-function failureOf(deadlineHit: boolean, reason: NetworkFailureReason | null): GuardFailure {
+function failureOf(deadlineHit: boolean, reason: NetworkFailureReason | null): UnansweredFailure {
   return deadlineHit ? "timeout" : (reason ?? "network");
 }
 

@@ -1,3 +1,4 @@
+import type { FetchFailure } from "../contract/fetch-results.ts";
 import { PAGE_BYTES, pageBytes } from "../contract/supplied-page.ts";
 import { logFailure } from "../kernel/failure-log.ts";
 import { type LoadedFetcher, type PluginPage, PluginPageSchema } from "../kernel/fetcher.ts";
@@ -5,7 +6,7 @@ import { NetworkFailure } from "../kernel/network.ts";
 
 type PluginFailure = {
   readonly kind: "failed";
-  readonly status: "unreadable" | "timeout" | "refused";
+  readonly status: Extract<FetchFailure, "unreadable" | "timeout" | "refused">;
 };
 
 type PluginResult =

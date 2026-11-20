@@ -29,7 +29,6 @@ const R2_DELETE_BATCH_KEYS = 1000;
 
 export function r2FileStore(bucket: FilesBucket): FileStore {
   return checkedFileStore({
-    checksLimitFirst: false,
     put: async (key, bytes) => {
       await bucket.put(storeKeyText(key), bytes);
     },
