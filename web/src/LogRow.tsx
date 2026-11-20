@@ -1,9 +1,9 @@
 import { type ReactNode, memo, useCallback } from "react";
 
 import { itemPath } from "../../src/core/item-path.ts";
+import { LOG } from "../../src/core/log-actions.ts";
 import type { LogEntry } from "../../src/core/log-contract.ts";
 import { topicPath } from "../../src/core/topic-path.ts";
-import { VAULT_TEXT } from "../../src/core/vault-text.ts";
 import { localStamp } from "./log-date.ts";
 import { LOG_WORDS, addedRemoved, itemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
 import { LogLink } from "./LogLink.tsx";
@@ -138,10 +138,7 @@ function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
     case "vault-file-skipped":
     case "vault-file-conflict":
       return [
-        {
-          key: "action",
-          node: entry.action === "vault-file-conflict" ? VAULT_TEXT.conflict : VAULT_TEXT.skipped,
-        },
+        { key: "action", node: LOG[entry.action].word },
         { key: "path", node: entry.path },
       ];
     default:

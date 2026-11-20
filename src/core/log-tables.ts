@@ -4,7 +4,15 @@ import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-cor
 import { topics } from "./catalog-tables.ts";
 import { items } from "./item-tables.ts";
 import { LOG_ACTIONS } from "./kinds.ts";
+import { LOG } from "./log-actions.ts";
 import { listed } from "./schema-checks.ts";
+
+const PATH_ACTIONS = LOG_ACTIONS.filter((action) =>
+  LOG[action].schema
+    .unwrap()
+    .keyof()
+    .options.some((key) => key === "path"),
+);
 
 export const logEntries = sqliteTable(
   "log_entries",
@@ -29,7 +37,7 @@ export const logEntries = sqliteTable(
     check("log_entries_action_check", sql`${table.action} in (${listed(LOG_ACTIONS)})`),
     check(
       "log_entries_vault_path",
-      sql`(${table.path} is not null) = (${table.action} in ('vault-file-skipped', 'vault-file-conflict'))`,
+      sql`(${table.path} is not null) = (${table.action} in (${listed(PATH_ACTIONS)}))`,
     ),
     index("log_entries_at").on(table.at),
     index("log_entries_item").on(table.itemId),

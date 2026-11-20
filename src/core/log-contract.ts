@@ -1,49 +1,15 @@
 import { z } from "zod";
 
-const ItemRefSchema = z.object({ id: z.number().int(), title: z.string() }).readonly();
+import { LOG_ACTIONS } from "./kinds.ts";
+import { LOG } from "./log-actions.ts";
 
-const TopicRefSchema = z.object({ key: z.string(), name: z.string() }).readonly();
-
-const Shared = { id: z.number().int(), at: z.number().int() };
-
-const Digested = {
-  item: ItemRefSchema,
-  topic: TopicRefSchema,
-  tags: z.array(z.string()).readonly(),
-};
-
-const Merged = { from: z.string(), into: z.string(), items: z.number().int().min(0) };
+const FIRST_SCHEMA = LOG[LOG_ACTIONS[0]].schema;
 
 export const LogEntrySchema = z.discriminatedUnion("action", [
-  z.object({ ...Shared, action: z.literal("ingest"), ...Digested }).readonly(),
-  z.object({ ...Shared, action: z.literal("digest"), ...Digested }).readonly(),
-  z.object({ ...Shared, action: z.literal("topic"), topic: TopicRefSchema }).readonly(),
-  z
-    .object({
-      ...Shared,
-      action: z.literal("overview"),
-      topic: TopicRefSchema,
-      added: z.number().int().min(0),
-      removed: z.number().int().min(0),
-    })
-    .readonly(),
-  z
-    .object({
-      ...Shared,
-      action: z.literal("related"),
-      item: ItemRefSchema,
-      picks: z.number().int().min(1),
-    })
-    .readonly(),
-  z.object({ ...Shared, action: z.literal("merge"), ...Merged }).readonly(),
-  z.object({ ...Shared, action: z.literal("merge-topic"), ...Merged }).readonly(),
-  z
-    .object({
-      ...Shared,
-      action: z.enum(["vault-file-skipped", "vault-file-conflict"]),
-      path: z.string().min(1),
-    })
-    .readonly(),
+  FIRST_SCHEMA,
+  ...new Set(
+    LOG_ACTIONS.map((action) => LOG[action].schema).filter((schema) => schema !== FIRST_SCHEMA),
+  ),
 ]);
 
 export type LogEntry = z.infer<typeof LogEntrySchema>;
