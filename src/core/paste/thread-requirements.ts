@@ -1,9 +1,14 @@
 import type { SQLWrapper } from "drizzle-orm";
 
+import type { Link } from "../contract/links.ts";
 import type { Invalid, NotWaiting } from "../kernel/paste-outcome.ts";
-import type { StoredThread } from "./stored-thread.ts";
-import type { ThreadPlace } from "./thread-publish.ts";
-import { awaitsThread, holdsAtLeastStored, ownerOf, repliesOf } from "./thread-store.ts";
+import type { StoredThread } from "../thread/stored-thread.ts";
+import { awaitsThread, holdsAtLeastStored, ownerOf, repliesOf } from "../thread/thread-store.ts";
+
+export interface ThreadPlace extends Link {
+  readonly address: string;
+  readonly addedByToken: number | null;
+}
 
 export type Refusal = NotWaiting | Invalid<"content">;
 

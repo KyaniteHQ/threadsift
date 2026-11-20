@@ -6,5 +6,3 @@ export const imports = sqliteTable("imports", {
   createdAt: integer("created_at").notNull(),
   updatedAt: integer("updated_at").notNull(),
 });
-
-export type ImportRow = typeof imports.$inferSelect;

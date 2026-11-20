@@ -8,7 +8,7 @@ interface LinkedPost {
   readonly cut: unknown;
 }
 
-export interface QuoteLink {
+interface QuoteLink {
   readonly target: string;
   readonly links: readonly Anchor[];
   readonly whole: string;

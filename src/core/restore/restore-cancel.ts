@@ -18,7 +18,7 @@ import { removeParts } from "./restore-parts.ts";
 import { isNewestRestore, restoreById } from "./restore-state.ts";
 import { openingRestoreJob } from "./restore-unit.ts";
 
-export type CancelledRestore =
+type CancelledRestore =
   | { readonly kind: "cancelled" }
   | { readonly kind: "undoing" }
   | { readonly kind: "nothing-to-undo" }

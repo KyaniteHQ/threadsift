@@ -3,7 +3,7 @@ import { z } from "zod";
 import { vaultFailure } from "./vault-failure.ts";
 import type { vaultRequest } from "./vault-request.ts";
 
-export const VaultShaSchema = z.object({ sha: z.string().regex(/^[\da-f]{40}$/u) });
+const VaultShaSchema = z.object({ sha: z.string().regex(/^[\da-f]{40}$/u) });
 export const VaultRefSchema = z.object({ object: VaultShaSchema });
 const CommitSchema = z.object({ tree: VaultShaSchema });
 const TreeSchema = z.object({

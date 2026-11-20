@@ -18,7 +18,7 @@ export interface ItemAt {
   readonly address: string;
 }
 
-export interface Sequence {
+interface Sequence {
   readonly fields: Readonly<Settled> & Readonly<Partial<Pick<ItemRow, "postTextKey">>>;
   readonly postText: string | null | undefined;
   readonly pendingDigest: typeof items.pendingDigest | string | null;

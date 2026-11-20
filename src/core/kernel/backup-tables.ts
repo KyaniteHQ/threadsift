@@ -1,6 +1,6 @@
 import { PROPOSAL_REWRITES, type Rewrite } from "./restore-rewrites.ts";
 
-export type BackupScope = "per-item" | "per-item-digest-tasks" | "whole-table";
+type BackupScope = "per-item" | "per-item-digest-tasks" | "whole-table";
 
 export type Singleton = "keep" | "reset";
 

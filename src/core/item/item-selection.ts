@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from "drizzle-orm";
+import { type SQL, and, desc, eq, sql } from "drizzle-orm";
 
 import { type ItemCursor, formatCursor } from "../contract/item-cursor.ts";
 import { PAGE_SIZE, pageTail } from "../contract/paging.ts";
@@ -69,6 +69,16 @@ function listedItems(db: Database) {
 
 export type ListedItemRow = Awaited<ReturnType<typeof listedItems>>[number];
 
+export function itemRead(db: Database, at: SQL) {
+  return listedItems(db).where(at);
+}
+
+export async function itemWhere(db: Database, at: SQL): Promise<ListedItemRow | undefined> {
+  const [item] = await itemRead(db, at);
+
+  return item;
+}
+
 function pageQuery(
   db: Database,
   filters: Readonly<ItemFilters>,
@@ -105,8 +115,6 @@ export async function listItems(
   return { ...pageTail(rows, PAGE_SIZE, formatCursor), counts: filterCounts(counted) };
 }
 
-export async function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {
-  const [item] = await selectItems(db, LISTED_COLUMNS).where(eq(items.id, id));
-
-  return item;
+export function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {
+  return itemWhere(db, eq(items.id, id));
 }

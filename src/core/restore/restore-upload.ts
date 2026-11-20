@@ -12,7 +12,7 @@ import { libraryIsEmpty, restoreById } from "./restore-state.ts";
 
 const ONE_OPEN_RESTORE = /UNIQUE constraint failed: (?:index 'restores_one_open'|restores\.)/u;
 
-export type NewRestore =
+type NewRestore =
   | { readonly kind: "created"; readonly id: number; readonly partBytes: number }
   | { readonly kind: "wrong-parts" }
   | { readonly kind: "library-not-empty" }
@@ -51,7 +51,7 @@ export async function createRestore(
   }
 }
 
-export type StoredPart =
+type StoredPart =
   | { readonly kind: "stored" }
   | { readonly kind: "missing" }
   | { readonly kind: "not-uploading" }

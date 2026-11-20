@@ -9,7 +9,7 @@ import {
 } from "./topic-overview-input.ts";
 import { idleOutcome, keptOutcome } from "./topic-overview-write.ts";
 
-export type OverviewPrepared =
+type OverviewPrepared =
   | { readonly kind: "settled"; readonly outcome: JobOutcome }
   | {
       readonly kind: "ask";

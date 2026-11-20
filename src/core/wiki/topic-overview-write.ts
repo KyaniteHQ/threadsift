@@ -21,7 +21,7 @@ export function idleOutcome(
   return guardedOutcome(db, noGaps);
 }
 
-export function currentInputs(
+function currentInputs(
   topicId: number,
   read: Readonly<OverviewBasis>,
   included: OverviewSent["included"],

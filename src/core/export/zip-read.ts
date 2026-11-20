@@ -103,7 +103,7 @@ function localDataStart(bytes: Uint8Array, at: number, entry: Readonly<ZipEntry>
   return nameEnd + header.getUint16(28, true);
 }
 
-export interface ZipSpan {
+interface ZipSpan {
   readonly start: number;
   readonly end: number;
 }

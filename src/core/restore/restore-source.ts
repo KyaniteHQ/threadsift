@@ -5,7 +5,7 @@ import type { ZipDirectory, ZipSource } from "../export/zip-read.ts";
 import type { FileStore } from "../kernel/file-store.ts";
 import { RestoreRefused } from "./restore-refusal.ts";
 
-export interface UploadedZip {
+interface UploadedZip {
   readonly id: number;
   readonly bytes: number;
   readonly partBytes: number;

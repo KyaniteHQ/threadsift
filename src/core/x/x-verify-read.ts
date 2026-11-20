@@ -14,7 +14,7 @@ export interface Verification {
   readonly judged: Judged;
 }
 
-export type StoredVerification =
+type StoredVerification =
   | { readonly kind: "missing" }
   | { readonly kind: "unreadable"; readonly revision: number }
   | { readonly kind: "readable"; readonly verification: Verification };

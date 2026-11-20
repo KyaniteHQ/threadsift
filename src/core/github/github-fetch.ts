@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { fromBase64 } from "../contract/encoding.ts";
 import type { FetchFailure } from "../contract/fetch-results.ts";
-import type { RepositoryRef } from "../contract/repository-ref.ts";
+import { type RepositoryRef, repositoryRef } from "../contract/repository-ref.ts";
 import { WholeCount } from "../contract/whole-count.ts";
 import {
   type FetchPolicy,
@@ -11,8 +11,10 @@ import {
   loggedFailureOf,
 } from "../kernel/fetch-guard.ts";
 import { parsedJson } from "../kernel/parsed-json.ts";
+import type { Ports } from "../kernel/ports.ts";
 import type { Fetched } from "../media/details.ts";
 import { type GithubRun, type Waiting, apiPolicy, rejectsToken, requestApi } from "./github-api.ts";
+import { withCurrentCredential } from "./github-credential.ts";
 import type { RateLimit } from "./github-rate-limit.ts";
 
 const NOT_FOUND = 404;
@@ -134,7 +136,7 @@ async function readmeAfter(
   return { kind: "failed", status: failureOf(outcome, tokenSent) };
 }
 
-export async function fetchedOfRepository(
+async function fetchedWith(
   run: Readonly<GithubRun>,
   { owner, name }: Readonly<RepositoryRef>,
   deadline: AbortSignal,
@@ -178,4 +180,15 @@ export async function fetchedOfRepository(
       content: { kind: "github-repo", repository: answer.repository, readme: readme.text },
     },
   };
+}
+
+export function fetchedOfRepository(
+  ports: Readonly<Pick<Ports, "db" | "secrets" | "network">>,
+  attempts: number,
+  normalizedUrl: string,
+  deadline: AbortSignal,
+): Promise<Fetched> {
+  return withCurrentCredential(ports, (auth) =>
+    fetchedWith({ ports, attempts, auth }, repositoryRef(normalizedUrl), deadline),
+  );
 }

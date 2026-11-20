@@ -30,7 +30,7 @@ function subredditOf(html: string): string | null {
   return null;
 }
 
-export function detailsOfOembed(text: string): Concluded {
+function detailsOfOembed(text: string): Concluded {
   const answer = parsedJson(OembedSchema, text);
 
   if (answer === null) {

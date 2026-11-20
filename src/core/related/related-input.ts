@@ -34,7 +34,7 @@ export const VersionSchema = z
 
 export type Version = z.output<typeof VersionSchema>;
 
-export interface Versions {
+interface Versions {
   readonly source: Version;
   readonly sent: readonly Version[];
 }

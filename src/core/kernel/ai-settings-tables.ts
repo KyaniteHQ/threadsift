@@ -7,14 +7,11 @@ import {
   KEYLESS_PROVIDERS,
   STORED_PROVIDERS,
 } from "../contract/provider-families.ts";
+import { listed } from "./schema-checks.ts";
 
-function quotedList(ids: readonly string[]) {
-  return sql.raw(`(${ids.map((id) => `'${id}'`).join(", ")})`);
-}
-
-const CLI = quotedList(CliProviderSchema.options);
-const PRESETS = quotedList(CLI_CHOICES.filter((choice) => choice !== "custom"));
-const KEYLESS = quotedList(KEYLESS_PROVIDERS);
+const CLI = sql`(${listed(CliProviderSchema.options)})`;
+const PRESETS = sql`(${listed(CLI_CHOICES.filter((choice) => choice !== "custom"))})`;
+const KEYLESS = sql`(${listed(KEYLESS_PROVIDERS)})`;
 
 export const settings = sqliteTable(
   "settings",

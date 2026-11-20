@@ -14,7 +14,7 @@ import { storedZip, zipSize } from "./export-zip.ts";
 
 const ONE_LIVE_EXPORT = /UNIQUE constraint failed: (?:index 'exports_one_live'|exports\.)/u;
 
-export type StartedExport =
+type StartedExport =
   | { readonly kind: "started"; readonly id: number }
   | { readonly kind: "running" };
 
@@ -122,7 +122,7 @@ export async function exportStatus(db: Database): Promise<ExportStatus> {
   }
 }
 
-export type DeletedExport = "deleted" | "none";
+type DeletedExport = "deleted" | "none";
 
 export async function deleteExport(ports: JobPorts): Promise<DeletedExport> {
   const { db } = ports;
@@ -148,7 +148,7 @@ export async function deleteExport(ports: JobPorts): Promise<DeletedExport> {
   return "deleted";
 }
 
-export interface ReadyExport {
+interface ReadyExport {
   readonly keys: readonly string[];
   readonly size: number;
   readonly filename: string;

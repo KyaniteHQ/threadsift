@@ -14,7 +14,7 @@ export type RunnerTask<Result, Kind extends AiTaskRequest<Result>["config"]["kin
   readonly config: Extract<AiTaskRequest<Result>["config"], { readonly kind: Kind }>;
 };
 
-export type TaskRunner<Kind extends AiTaskRequest<never>["config"]["kind"]> = <Result>(
+type TaskRunner<Kind extends AiTaskRequest<never>["config"]["kind"]> = <Result>(
   task: RunnerTask<Result, Kind>,
   signal: AbortSignal,
 ) => Promise<AiExecution<Result>>;

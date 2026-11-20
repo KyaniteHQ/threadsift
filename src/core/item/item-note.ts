@@ -33,7 +33,7 @@ function moment(milliseconds: number | null): string {
   return yamlScalar(milliseconds === null ? null : new Date(milliseconds).toISOString());
 }
 
-export interface NoteHighlight {
+interface NoteHighlight {
   readonly exact: string;
   readonly found: boolean;
 }

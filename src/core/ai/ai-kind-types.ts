@@ -17,13 +17,13 @@ interface BotAsk<Context> {
   readonly inputRevision: number;
 }
 
-export interface Asked<Context, Basis> extends BotAsk<Context> {
+interface Asked<Context, Basis> extends BotAsk<Context> {
   readonly maxOutputTokens: number;
   readonly basis: Basis;
   readonly started?: ((taskId: number) => void) | undefined;
 }
 
-export type PlainAsked<Context> = Omit<Asked<Context, undefined>, "basis">;
+type PlainAsked<Context> = Omit<Asked<Context, undefined>, "basis">;
 
 type Prepared<Ask> = { readonly kind: "settled"; readonly outcome: JobOutcome } | Ask;
 

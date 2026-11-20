@@ -17,7 +17,7 @@ import {
 } from "./restore-state.ts";
 import { openingRestoreJob } from "./restore-unit.ts";
 
-export type StartedRestore =
+type StartedRestore =
   | { readonly kind: "started" }
   | { readonly kind: "missing" }
   | { readonly kind: "not-uploading" }
@@ -25,7 +25,7 @@ export type StartedRestore =
   | { readonly kind: "vault-busy" }
   | { readonly kind: "incomplete-upload" };
 
-export type ResumedRestore =
+type ResumedRestore =
   | { readonly kind: "resumed" }
   | { readonly kind: "missing" }
   | { readonly kind: "superseded" }

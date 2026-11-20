@@ -13,7 +13,7 @@ export interface BotInstructions {
   readonly schema: z.core.JSONSchema.BaseSchema;
 }
 
-export type BotAnswer =
+type BotAnswer =
   | { readonly kind: "valid"; readonly normalized: string }
   | { readonly kind: "invalid"; readonly reasons: string };
 
@@ -22,7 +22,7 @@ export interface BotAnswering {
   readonly parse: (context: string, body: Readonly<BotResult>) => BotAnswer;
 }
 
-export interface AnsweringParts<Context, Result> {
+interface AnsweringParts<Context, Result> {
   readonly context: z.ZodType<Context>;
   readonly task: (context: Context) => AiTaskDefinition<Result>;
 }

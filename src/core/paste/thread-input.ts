@@ -1,8 +1,8 @@
 import type { ThreadAnswers } from "../contract/thread-answers.ts";
 import { parseRedditThread } from "../reddit/reddit-json.ts";
 import type { StoredParse } from "../thread/stored-thread.ts";
-import type { ThreadSource } from "../thread/thread-source.ts";
 import { parseXThread } from "../x/x-thread.ts";
+import type { ThreadSource } from "./thread-source.ts";
 
 const NOT_A_THREAD_LINK = "only a Reddit post or comment link or an X post link takes content";
 

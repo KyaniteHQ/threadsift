@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
-import { pluginPage } from "../src/core/ai/plugin-fetch.ts";
+import { pluginPage } from "../src/core/fetch/plugin-fetch.ts";
 import { loadFetchers } from "../src/targets/node/fetcher-modules.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
 

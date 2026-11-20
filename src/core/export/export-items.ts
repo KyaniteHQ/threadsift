@@ -125,7 +125,7 @@ async function itemEntries(
   return settled;
 }
 
-export interface TakenItems {
+interface TakenItems {
   readonly files: readonly ZipFile[];
   readonly count: number;
   readonly last: number;

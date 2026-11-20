@@ -46,7 +46,7 @@ export function zipSize(
   return run.dataBytes + run.dirBytes + run.tailBytes;
 }
 
-export interface StoredZip {
+interface StoredZip {
   readonly keys: readonly string[];
   readonly size: number;
 }

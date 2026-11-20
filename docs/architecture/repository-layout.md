@@ -30,7 +30,7 @@ A folder imports only itself and the folders before it in `order`. Type imports,
 
 Take the first answer that fits.
 
-1. **`contract`**, when `web/` or the Extension imports the module, or a `kernel` module does and the module imports only `zod` and other `contract` modules. A `contract` module imports no `src/core` module outside `contract`: constants, Zod schemas, types and pure parsers. Which packages a browser may load is the job of `threadsift/no-server-value-import`, so `text-projection`, which imports `remark` and `unified` and which the web bundle holds, sits here and needs no exception.
+1. **`contract`**, when `web/` or the Extension imports the module, or a `kernel` module does and the module imports only `zod` and other `contract` modules. A `contract` module imports no `src/core` module outside `contract`: constants, Zod schemas, types and pure parsers. Four modules sit here although `web/`, the Extension and `kernel` do not import them: `item-cursor.ts` (read by `item`, `wiki` and `src/http`), `shown-status.ts` (read by `src/http` only), `x-intake-contract.ts` (read by `ai`, `bot`, `x`, `src/http` and tests) and `zod-reasons.ts` (read by `ai`, `x`, `src/http` and `x-intake-contract.ts`). `ai` comes before `x`, so the last two cannot sit in `x`. The first two could sit in `item` at the cost of one entry each, and stay here so that the interface of `item` does not widen. Which packages a browser may load is the job of `threadsift/no-server-value-import`, so `text-projection`, which imports `remark` and `unified` and which the web bundle holds, sits here and needs no exception.
 2. **`kernel`**, when the module is a table or the schema, a port or its interface module or a helper of a port, a guard, a part of the job queue, or a reader or writer of a stored record that two or more features import. A module that a `kernel` module imports and that is not `contract` also sits here, because `kernel` imports only `contract` and `kernel`. A reader or writer of a stored record that one feature imports stays in that feature.
 3. **The feature that owns the module's term**, when one feature does. The table below names the terms of each feature, taken from `GLOSSARY.md`. A module keeps its name when its folder differs from its prefix: `vault-stale` is in `kernel`, because writers in many features declare their stale Vault notes in it, and the features before `vault` in `order` could not import it from there.
 4. **`compose`**, when the module joins several features and no feature owns it: the job engine and its handlers, the sweep, the tick and the Item delete. No other `src/core` folder imports `compose`; `src/http/`, `src/targets/` and the tests do.
@@ -38,7 +38,7 @@ Take the first answer that fits.
 | feature | owns |
 |---|---|
 | `access` | the owner's login and password, sessions, agent tokens, the Daily budget |
-| `ai` | Provider, AI task, the Grok Bot task kinds, OpenRouter connect, fetcher plug-ins |
+| `ai` | Provider, AI task, the Grok Bot task kinds, OpenRouter connect |
 | `thread` | the comments and post text of an Item: the comment filter, Kept comment selection, the thread store |
 | `media` | article images, stored and served images, media reads and writes |
 | `item` | Item rows, the Item list and detail, Read state, Highlight, Note, search |
@@ -47,7 +47,7 @@ Take the first answer that fits.
 | `vault` | the Vault mirror |
 | `x` | the X Source: posts, Author thread, Quote chain, verification, bookmark intake |
 | `reddit` | the Reddit Source: the connected account, the Arctic Shift archive fill, oEmbed |
-| `fetch` | fetching a pasted link |
+| `fetch` | fetching a pasted link, the container's fetcher plug-ins |
 | `digest` | Digest |
 | `paste` | Paste, Import, Short-link alias, saving an Item |
 | `export` | Export, the zip codec |

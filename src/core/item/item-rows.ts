@@ -1,4 +1,4 @@
-import { type SQL, type SQLWrapper, eq } from "drizzle-orm";
+import { type SQLWrapper, eq } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Digest } from "../contract/digest-schema.ts";
@@ -9,7 +9,7 @@ import { enqueueRows, openingJob } from "../kernel/job-rows.ts";
 import type { Ports } from "../kernel/ports.ts";
 import { items } from "../kernel/schema.ts";
 import { STALE } from "../kernel/vault-stale.ts";
-import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
+import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
 import { reopenedFetch } from "./settle.ts";
 
 export type Existing = "refresh" | "keep";
@@ -35,23 +35,29 @@ export function foundItem(item: ListedItemRow | undefined, normalizedUrl: string
   return item;
 }
 
-export function itemRead(db: Database, at: SQL) {
-  return selectItems(db, LISTED_COLUMNS).where(at);
-}
-
-export async function itemFound(
+export function itemInsert(
   db: Database,
-  normalizedUrl: string,
-): Promise<ListedItemRow | undefined> {
-  const [item] = await selectItems(db, LISTED_COLUMNS).where(
-    eq(items.normalizedUrl, normalizedUrl),
-  );
-
-  return item;
+  {
+    link: { source, kind, normalizedUrl },
+    originalUrl,
+    savedAt,
+    addedByToken,
+  }: Readonly<{
+    link: Readonly<Link>;
+    originalUrl: string;
+    savedAt: number;
+    addedByToken: number | null;
+  }>,
+) {
+  return db
+    .insert(items)
+    .values({ source, kind, normalizedUrl, originalUrl, savedAt, addedByToken })
+    .onConflictDoNothing({ target: items.normalizedUrl })
+    .returning({ id: items.id });
 }
 
 export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
-  return foundItem(await itemFound(db, normalizedUrl), normalizedUrl);
+  return foundItem(await itemWhere(db, eq(items.normalizedUrl, normalizedUrl)), normalizedUrl);
 }
 
 export function holdsNoItem(db: Database, normalizedUrl: string) {
@@ -61,28 +67,18 @@ export function holdsNoItem(db: Database, normalizedUrl: string) {
 export function queuedRows(
   db: Database,
   { originalUrl, address, digest, addedByToken }: Readonly<Paste>,
-  { normalizedUrl, kind, source }: Readonly<Link>,
+  link: Readonly<Link>,
   page?: string,
 ) {
+  const { normalizedUrl } = link;
   const now = Date.now();
   const pendingDigest = digest === undefined ? null : JSON.stringify(digest);
 
   return [
-    db
-      .insert(items)
-      .values({
-        source,
-        kind,
-        normalizedUrl,
-        originalUrl,
-        savedAt: now,
-        addedByToken,
-      })
-      .onConflictDoNothing({ target: items.normalizedUrl })
-      .returning({ id: items.id }),
+    itemInsert(db, { link, originalUrl, savedAt: now, addedByToken }),
     reopenedFetch(db, eq(items.normalizedUrl, normalizedUrl), pendingDigest),
     openingJob(db, { kind: "fetch", address, normalizedUrl, now, page }),
-    selectItems(db, LISTED_COLUMNS).where(eq(items.normalizedUrl, normalizedUrl)),
+    itemRead(db, eq(items.normalizedUrl, normalizedUrl)),
     ...STALE.itemChanged(db, eq(items.normalizedUrl, normalizedUrl)),
   ] as const;
 }

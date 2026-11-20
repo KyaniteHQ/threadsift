@@ -49,12 +49,12 @@ export interface ZipFile {
   readonly bytes: Uint8Array;
 }
 
-export interface PackedFiles {
+interface PackedFiles {
   readonly data: Uint8Array;
   readonly directory: Uint8Array;
 }
 
-export interface DosTime {
+interface DosTime {
   readonly time: number;
   readonly date: number;
 }
@@ -166,13 +166,13 @@ export function packFiles(
   return { data: joined(data), directory: joined(directory) };
 }
 
-export interface ArchiveEnd {
+interface ArchiveEnd {
   readonly entries: number;
   readonly directoryOffset: number;
   readonly directorySize: number;
 }
 
-export function needsZip64({ entries, directoryOffset, directorySize }: Readonly<ArchiveEnd>) {
+function needsZip64({ entries, directoryOffset, directorySize }: Readonly<ArchiveEnd>) {
   return (
     entries >= ZIP_COUNT_LIMIT ||
     directoryOffset >= ZIP_SIZE_LIMIT ||

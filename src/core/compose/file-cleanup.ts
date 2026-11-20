@@ -22,10 +22,7 @@ function listed(db: Database, keys: readonly string[]) {
     .from(sql`json_each(${JSON.stringify(keys)}) as listed`);
 }
 
-export async function namedKeys(
-  db: Database,
-  keys: readonly string[],
-): Promise<ReadonlySet<string>> {
+async function namedKeys(db: Database, keys: readonly string[]): Promise<ReadonlySet<string>> {
   const rows = await listed(db, keys).where(named());
 
   return new Set(rows.map(({ key }) => key));
