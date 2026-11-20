@@ -1,3 +1,5 @@
+import type { GuardFailure } from "../contract/fetch-results.ts";
+
 export interface RateLimitHeaders {
   readonly retryAfter: string | null;
   readonly remaining: string | null;
@@ -74,7 +76,7 @@ export interface RedditSession {
   readonly get: (path: string, cookie: string, signal: AbortSignal) => Promise<NetworkResponse>;
 }
 
-export type NetworkFailureReason = "refused" | "timeout";
+export type NetworkFailureReason = Extract<GuardFailure, "refused" | "timeout">;
 
 export class NetworkFailure extends Error {
   readonly reason: NetworkFailureReason;

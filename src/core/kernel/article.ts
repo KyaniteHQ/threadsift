@@ -2,6 +2,7 @@ import { Defuddle } from "defuddle/node";
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
+import type { EmbedLink } from "../contract/article-embed-links.ts";
 import { baseOf, replaceMedia, retainedVideos } from "../contract/article-media.ts";
 import { collapsed } from "../contract/format.ts";
 import { MIN_ARTICLE_WORDS } from "../contract/limits.ts";
@@ -51,6 +52,39 @@ export function readTitle(html: string): string {
   return titleIn(parseHTML(html).document);
 }
 
+interface Parts {
+  readonly title: string;
+  readonly author: string;
+  readonly postText: string;
+  readonly words: number;
+  readonly postedAt: number | null;
+  readonly linked: readonly EmbedLink[];
+}
+
+function assembled({
+  title,
+  author,
+  postText,
+  words,
+  postedAt,
+  linked,
+}: Readonly<Parts>): ArticleReading {
+  const isArticle = words >= MIN_ARTICLE_WORDS;
+  const wantsLinks = linked.some(({ video }) => video);
+  const scan = isArticle ? scanMarkdown(postText, wantsLinks) : NOTHING_SCANNED;
+  const trimmedAuthor = author.trim();
+
+  return {
+    title,
+    author: trimmedAuthor === "" ? null : trimmedAuthor,
+    words,
+    postText,
+    postedAt,
+    videos: retainedVideos(linked, scan.links),
+    images: scan.images,
+  };
+}
+
 export async function readArticle(html: string, url: string): Promise<ArticleReading> {
   const { document } = parseHTML(html);
   const pageTitle = titleIn(document);
@@ -62,21 +96,14 @@ export async function readArticle(html: string, url: string): Promise<ArticleRea
     fetch: refuseRequests,
   });
 
-  const author = result.author.trim();
-  const postText = (result.contentMarkdown ?? "").trim();
-  const isArticle = result.wordCount >= MIN_ARTICLE_WORDS;
-  const wantsLinks = linked.some(({ video }) => video);
-  const scan = isArticle ? scanMarkdown(postText, wantsLinks) : NOTHING_SCANNED;
-
-  return {
+  return assembled({
     title: pageTitle === "" ? collapsed(result.title) : pageTitle,
-    author: author === "" ? null : author,
+    author: result.author,
+    postText: (result.contentMarkdown ?? "").trim(),
     words: result.wordCount,
-    postText,
     postedAt: postedAtOf(result.published),
-    videos: retainedVideos(linked, scan.links),
-    images: scan.images,
-  };
+    linked,
+  });
 }
 
 function wordsIn(text: string): number {
@@ -84,26 +111,20 @@ function wordsIn(text: string): number {
 }
 
 export function readSuppliedPage(page: SuppliedPage): ArticleReading {
-  const postText = page.markdown.trim();
-  const words = wordsIn(projectText(postText));
-
   const linked = (page.videos ?? []).flatMap((video) => {
     const url = URL.parse(video)?.href;
 
     return url === undefined ? [] : [{ url, video: true }];
   });
 
-  const isArticle = words >= MIN_ARTICLE_WORDS;
-  const scan = isArticle ? scanMarkdown(postText, linked.length > 0) : NOTHING_SCANNED;
-  const author = (page.author ?? "").trim();
+  const postText = page.markdown.trim();
 
-  return {
+  return assembled({
     title: collapsed(page.title),
-    author: author === "" ? null : author,
-    words,
+    author: page.author ?? "",
     postText,
+    words: wordsIn(projectText(postText)),
     postedAt: postedAtOf(page.published ?? ""),
-    videos: retainedVideos(linked, scan.links),
-    images: scan.images,
-  };
+    linked,
+  });
 }

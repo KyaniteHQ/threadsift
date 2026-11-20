@@ -7,8 +7,10 @@ export const GithubTokenInputSchema = z.object({ token: SecretInputSchema });
 
 export type GithubTokenInput = z.infer<typeof GithubTokenInputSchema>;
 
+export const GithubTokenStateSchema = z.enum(["none", "saved", "unreadable"]);
+
 export const GithubSettingsViewSchema = z.object({
-  token: z.enum(["none", "saved", "unreadable"]),
+  token: GithubTokenStateSchema,
   secretReady: z.boolean(),
 });
 

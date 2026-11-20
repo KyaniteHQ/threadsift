@@ -20,7 +20,6 @@ export interface FileStore {
 }
 
 interface FileBackend {
-  readonly checksLimitFirst: boolean;
   readonly put: (key: Readonly<StoreKey>, bytes: Uint8Array) => Promise<void>;
   readonly get: (key: Readonly<StoreKey>) => Promise<ReadableStream<Uint8Array> | null>;
   readonly delete: (keys: readonly Readonly<StoreKey>[]) => Promise<void>;
@@ -46,9 +45,8 @@ export function checkedFileStore(backend: Readonly<FileBackend>): FileStore {
       await backend.delete(Array.from(keys, (key) => requireStoredKey(key)));
     },
     list: async (prefix, cursor, limit) => {
-      const early = backend.checksLimitFirst ? requireListLimit(limit) : null;
-      const checked = requireFilePrefix(prefix);
-      const page = await backend.list(checked, cursor, early ?? requireListLimit(limit));
+      const checkedLimit = requireListLimit(limit);
+      const page = await backend.list(requireFilePrefix(prefix), cursor, checkedLimit);
 
       return page;
     },

@@ -5,7 +5,7 @@
 The deploy button builds from the repository root, because a monorepo subdirectory "becomes the new repo root" and must hold its own dependencies (Workers docs, Deploy buttons). So the root is the Worker project: `wrangler.jsonc` and `package.json` sit there.
 
 - `.node-version` says 26, so Workers Builds builds on Node 26 instead of its default 24.
-- `src/core/` holds logic that knows no target, in folders that import each other in one order (The folders of `src/core`, below). `src/http/` holds the Hono routes, the guard in front of them and the MCP endpoint. Neither imports `node:*`, `cloudflare:*` or `src/targets/` (`docs/architecture/one-codebase-two-install-targets.md`).
+- `src/core/` holds logic that knows no target, in folders that import each other in one order (The folders of `src/core`, below). `src/http/` holds the Hono routes, each stating its own access gate (`access(...)`, or `unrouted()` for the unmatched `/api/` paths), and the MCP endpoint. Neither imports `node:*`, `cloudflare:*` or `src/targets/` (`docs/architecture/one-codebase-two-install-targets.md`).
 - `src/targets/shared/` holds adapters both targets use. `src/targets/node/` holds the container entry and its adapters, and `src/targets/worker/` the Worker entry (fetch, queue, scheduled) and its adapters.
 - `web/` is the React SPA and imports `design/system/`, the one source of visual values.
 - `test/` holds the core tests, which run the real app in process on a temp database. `smoke/` holds the Playwright specs for both targets and the live check.

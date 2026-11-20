@@ -1,4 +1,6 @@
+import { groupedNumber } from "../../src/core/contract/format.ts";
 import { GROK_BOT_IN_USE, type GrokBotResult } from "../../src/core/contract/grok-bot-contract.ts";
+import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
 import { AI_TEXT } from "./ai-text.ts";
 
 export const GROK_BOT_TEXT = {
@@ -34,8 +36,7 @@ export const GROK_BOT_TEXT = {
   removeNothing: "Nothing is saved to remove.",
   removeInUse: GROK_BOT_IN_USE,
   invalidAddress: "Enter a public https address with no username, password, query or fragment.",
-  invalidKey:
-    "Enter a key up to 4,096 characters: letters, digits and punctuation only, no spaces or line breaks, and no accented or other non-ASCII characters.",
+  invalidKey: `Enter a key up to ${groupedNumber(SECRET_INPUT_MAX)} characters: letters, digits and punctuation only, no spaces or line breaks, and no accented or other non-ASCII characters.`,
   keyNeeded: "Enter a key to save this address.",
   resultOk: "The Grok Bot answered and its routine woke.",
   resultWrongKey:

@@ -1,5 +1,6 @@
 import { groupedNumber } from "../../src/core/contract/format.ts";
 import type { GithubRefused } from "../../src/core/contract/github-contract.ts";
+import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { filled } from "./text.ts";
 
@@ -28,7 +29,7 @@ export const GITHUB_TEXT = {
   removing: "Removing token…",
   removed: "Token removed.",
   removeNothing: "There is no saved token to remove.",
-  invalidToken: "Enter a token up to 4,096 characters with no spaces or line breaks.",
+  invalidToken: `Enter a token up to ${groupedNumber(SECRET_INPUT_MAX)} characters with no spaces or line breaks.`,
   notConfigured: "Save a token first, then run Verify.",
   wrongToken: "GitHub rejected the token. Check it and save it again.",
   unreachable: "Couldn’t reach GitHub. Check the connection and try again.",

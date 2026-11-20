@@ -110,11 +110,15 @@ export function commentsOf(
   });
 }
 
+function readableWhenKept(row: CommentRow): CommentRow {
+  return { ...row, readable: row.kept };
+}
+
 export function keptNodesOf(...args: Readonly<Parameters<typeof commentsOf>>) {
   const [rows, ...rest] = args;
 
   return commentsOf(
-    rows.map((row) => Object.assign(row, { readable: row.kept })),
+    rows.map((row) => readableWhenKept(row)),
     ...rest,
   ).nodes;
 }
