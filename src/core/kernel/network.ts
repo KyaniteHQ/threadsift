@@ -91,3 +91,13 @@ export const REQUEST_HEADERS = {
   "user-agent": "Threadsift/1 (+https://github.com/KyaniteHQ/threadsift)",
   accept: "text/html,application/json;q=0.9,*/*;q=0.8",
 } as const;
+
+export const NO_COMPRESSION = { "accept-encoding": "identity" } as const;
+
+export function withCallerHeaders(defaults: RequestHeaders, caller: RequestHeaders) {
+  const merged = new Headers(defaults);
+
+  for (const [name, value] of Object.entries(caller)) merged.set(name, value);
+
+  return Object.fromEntries(merged);
+}

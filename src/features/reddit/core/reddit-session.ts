@@ -2,6 +2,7 @@ import { THREAD_CONTENT_BYTES } from "../../../core/contract/limits.ts";
 import { OK, type RedditAnswer } from "../../../core/contract/reddit-http.ts";
 import { readCapped } from "../../../core/kernel/capped.ts";
 import {
+  NO_COMPRESSION,
   type NetworkResponse,
   REQUEST_HEADERS,
   type RedditSession,
@@ -24,7 +25,7 @@ function redditSessionHeaders(cookie: string): RequestHeaders {
   return {
     ...REQUEST_HEADERS,
     accept: "application/json",
-    "accept-encoding": "identity",
+    ...NO_COMPRESSION,
     cookie: `reddit_session=${cookie}`,
   };
 }

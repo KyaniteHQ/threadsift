@@ -1,5 +1,10 @@
 import { networkOver } from "../../core/kernel/network-transport.ts";
-import { type Network, REQUEST_HEADERS, wireResponseOf } from "../../core/kernel/network.ts";
+import {
+  type Network,
+  REQUEST_HEADERS,
+  wireResponseOf,
+  withCallerHeaders,
+} from "../../core/kernel/network.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;
@@ -38,10 +43,7 @@ export const workerFetch: typeof fetch = async (input, init) => {
 };
 
 export const workerNetwork: Network = networkOver({
-  headers: {
-    GET: (caller) => ({ ...REQUEST_HEADERS, ...caller }),
-    POST: (caller) => ({ "user-agent": REQUEST_HEADERS["user-agent"], ...caller }),
-  },
+  getHeaders: (caller) => withCallerHeaders(REQUEST_HEADERS, caller),
   lookup: null,
   send: async ({ method, url, headers, signal, body }) => {
     const init: RequestInit = { method, headers, signal };

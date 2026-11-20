@@ -8,7 +8,7 @@ import { z } from "zod";
 import { errorClassOf, report } from "../../core/kernel/failure-log.ts";
 import { type Fetcher, type LoadedFetcher, isFetcher } from "../../core/kernel/fetcher.ts";
 import { NetworkFailure } from "../../core/kernel/network.ts";
-import { publicAddressesOf } from "../../core/kernel/public-host.ts";
+import { assertPublicHost, publicAddressesOf } from "../../core/kernel/public-host.ts";
 
 function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly LookupAddress[] | null> {
   return new Promise((resolve) => {
@@ -26,6 +26,8 @@ function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly Looku
 }
 
 async function assertHostIsPublic(url: string, signal: AbortSignal): Promise<void> {
+  assertPublicHost(url);
+
   const hostname = new URL(url).hostname.replaceAll(/^\[|\]$/gu, "");
   const addresses = await lookedUp(hostname, signal);
 

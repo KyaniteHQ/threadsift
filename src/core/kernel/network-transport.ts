@@ -1,8 +1,11 @@
 import {
   type Network,
+  NO_COMPRESSION,
+  REQUEST_HEADERS,
   type RequestHeaders,
   type WireResponse,
   networkResponseOf,
+  withCallerHeaders,
 } from "./network.ts";
 import { assertPublicHost } from "./public-host.ts";
 
@@ -17,20 +20,22 @@ export interface Exchange<Lookup> {
   readonly body?: string;
 }
 
+const POST_HEADERS: RequestHeaders = { ...REQUEST_HEADERS, ...NO_COMPRESSION };
+
 interface Transport<Lookup> {
-  readonly headers: Readonly<Record<Method, (caller: RequestHeaders) => RequestHeaders>>;
+  readonly getHeaders: (caller: RequestHeaders) => RequestHeaders;
   readonly lookup: Lookup;
   readonly send: (exchange: Readonly<Exchange<Lookup>>) => Promise<WireResponse>;
 }
 
 export function networkOver<Lookup>({
-  headers,
+  getHeaders,
   lookup,
   send,
 }: Readonly<Transport<Lookup>>): Network {
   return {
     get: async (url, signal, caller) => {
-      const wire = await send({ method: "GET", url, headers: headers.GET(caller), signal, lookup });
+      const wire = await send({ method: "GET", url, headers: getHeaders(caller), signal, lookup });
 
       return networkResponseOf(wire);
     },
@@ -40,7 +45,7 @@ export function networkOver<Lookup>({
       const wire = await send({
         method: "POST",
         url,
-        headers: headers.POST(caller),
+        headers: withCallerHeaders(POST_HEADERS, caller),
         signal,
         lookup,
         body,
