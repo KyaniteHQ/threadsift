@@ -10,6 +10,7 @@ import { guardHolds } from "../kernel/guards.ts";
 import type { JobWrites, SettledOutcome } from "../kernel/job-outcome.ts";
 import { isLastAttempt, retryDelayMs } from "../kernel/job-retry.ts";
 import { opening } from "../kernel/job-rows.ts";
+import { jobIs } from "../kernel/job-tables.ts";
 import { items, jobs, xVerifications } from "../kernel/schema.ts";
 import { startingJudged } from "./x-verify-state.ts";
 
@@ -21,7 +22,7 @@ export function reopened(db: Database, itemId: number, address: string) {
     db
       .update(jobs)
       .set({ attempts: 0, nextAttemptAt: now, waitReason: null })
-      .where(and(eq(jobs.itemId, itemId), eq(jobs.kind, "x_verify"), eq(jobs.state, "queued"))),
+      .where(and(eq(jobs.itemId, itemId), eq(jobs.kind, "x_verify"), jobIs("queued"))),
   ] as const;
 }
 

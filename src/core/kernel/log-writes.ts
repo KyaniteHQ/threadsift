@@ -5,6 +5,7 @@ import type { z } from "zod";
 import type { LogAction, FieldOf, LOG } from "../contract/log-actions.ts";
 import type { LogEntry } from "../contract/log-contract.ts";
 import type { Database } from "./database.ts";
+import { hasDigest } from "./digest-stored.ts";
 import { digests, logEntries, proposals, topics } from "./schema.ts";
 import { STALE } from "./vault-stale.ts";
 
@@ -74,9 +75,7 @@ export function loggedDigest(
 ) {
   return appended(
     db,
-    sql<
-      "ingest" | "digest"
-    >`case when exists (select 1 from ${digests} where ${digests.itemId} = ${itemId}) then 'digest' else 'ingest' end`,
+    sql<"ingest" | "digest">`case when ${hasDigest(itemId)} then 'digest' else 'ingest' end`,
     { from: topics, where: eq(topics.key, topicKey) },
     {
       item: { id: itemId, title },

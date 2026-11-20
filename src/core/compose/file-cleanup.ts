@@ -6,6 +6,7 @@ import { logFailure } from "../kernel/failure-log.ts";
 import type { FileStore } from "../kernel/file-store.ts";
 import type { JobPorts } from "../kernel/job-outcome.ts";
 import { ATTEMPT_FILES } from "../kernel/job-rows.ts";
+import { jobIs } from "../kernel/job-tables.ts";
 import { restoreHoldsLibrary } from "../kernel/restore-hold.ts";
 import { fileCleaning, jobs } from "../kernel/schema.ts";
 import { NAMED_FILES } from "../restore/named-files.ts";
@@ -35,7 +36,7 @@ async function protectedKeys(db: Database, keys: readonly string[]): Promise<Rea
       .from(jobs)
       .where(
         and(
-          eq(jobs.state, "running"),
+          jobIs("running"),
           or(
             sql`${ATTEMPT_FILES.postText} = listed.value`,
             sql`substr(listed.value, 1, length(${ATTEMPT_FILES.imagePrefix})) = ${ATTEMPT_FILES.imagePrefix}`,

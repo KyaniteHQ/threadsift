@@ -1,7 +1,7 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
-import { FILE_ROUTE, itemFileKey } from "../core/contract/file-keys.ts";
+import { FILE_ROUTE, ITEM_FILES_ROOT, itemFileKey } from "../core/contract/file-keys.ts";
 import { IMAGE_TYPES } from "../core/contract/image-type.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { servedImage } from "../core/media/image-serving.ts";
@@ -15,7 +15,7 @@ const ImageBytesSchema = z.string().openapi({ format: "binary" });
 
 const imageRoute = createRoute({
   method: "get",
-  path: `${FILE_ROUTE}items/{id}/{name}`,
+  path: `${FILE_ROUTE}${ITEM_FILES_ROOT}{id}/{name}`,
   middleware: access("read", { cache: "file" }),
   request: { params: FileParamsSchema },
   responses: {

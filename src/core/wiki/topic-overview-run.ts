@@ -4,9 +4,9 @@ import type { SubqueryWithSelection } from "drizzle-orm/sqlite-core";
 import type { BuiltFrom, OverviewFailure } from "../contract/topic-overview-contract.ts";
 import type { Database } from "../kernel/database.ts";
 import type { ClaimedJob } from "../kernel/job-outcome.ts";
-import { opening } from "../kernel/job-rows.ts";
+import { jobIsOpen, opening } from "../kernel/job-rows.ts";
 import { providerSet } from "../kernel/provider-saved.ts";
-import { aiTasks, items, jobs, topicPages, topics } from "../kernel/schema.ts";
+import { aiTasks, items, topicPages, topics } from "../kernel/schema.ts";
 import { coverageGaps } from "./topic-coverage.ts";
 import { overviewContextField } from "./topic-overview-context.ts";
 
@@ -39,12 +39,10 @@ export function overviewOpened(db: Database, topicId: number) {
 }
 
 export function overviewRetried(db: Database, topicId: number, jobId: number) {
-  const stillOpen = sql`exists (select 1 from ${jobs} where ${jobs.id} = ${jobId} and ${jobs.state} <> 'done')`;
-
   return db
     .update(topicPages)
     .set({ failure: null })
-    .where(and(eq(topicPages.topicId, topicId), stillOpen));
+    .where(and(eq(topicPages.topicId, topicId), jobIsOpen(jobId)));
 }
 
 export function overviewStored(

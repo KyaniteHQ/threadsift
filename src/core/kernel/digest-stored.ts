@@ -44,6 +44,10 @@ export function holdsTitleAndSummary(): SQL {
   return sql`(case when ${STORED_IS_JSON} then json_type(${digests.digest}, '$.title') = 'text' and json_type(${digests.digest}, '$.summary') = 'text' end) = 1`;
 }
 
+export function hasDigest(itemId: number | SQLWrapper): SQL {
+  return sql`exists (select 1 from ${digests} where ${digests.itemId} = ${itemId})`;
+}
+
 export function storedTaskIs(itemId: Readonly<SQLWrapper>, taskId: Readonly<SQLWrapper>): SQL {
   return sql`${taskId} = (select ${digests.taskId} from ${digests} where ${digests.itemId} = ${itemId})`;
 }

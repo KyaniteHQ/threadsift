@@ -16,10 +16,11 @@ import { refusedAs } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { keptNotUpdated } from "./digest-marker.ts";
 import { hasDigestSource } from "./digest-source.ts";
+import { hasDigest } from "./digest-stored.ts";
 import { NOT_FAILED } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { grokBotChosen, providerSet } from "./provider-saved.ts";
-import { type JobRow, aiTasks, digests, items } from "./schema.ts";
+import { type JobRow, aiTasks, items } from "./schema.ts";
 
 const OWED_DIGESTS_PER_SWEEP = 20;
 
@@ -107,9 +108,7 @@ function owedDigests(
       sql`${provider}`,
       NOT_FAILED,
       or(eq(items.digestFailed, false), sql`${retried}`),
-      notExists(
-        db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
-      ),
+      not(hasDigest(items.id)),
     ) ?? sql`0`;
 
   return [

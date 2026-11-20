@@ -20,6 +20,7 @@ import { type ClaimedRow, type JobPorts, claimedRow } from "../kernel/job-outcom
 import { isSpent, retryDelayMs } from "../kernel/job-retry.ts";
 import { ATTEMPT_FILES, hasOpenJob } from "../kernel/job-rows.ts";
 import type { InputFact, JobSpec, Specs } from "../kernel/job-spec.ts";
+import { jobIs } from "../kernel/job-tables.ts";
 import { jobs } from "../kernel/schema.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 
@@ -63,8 +64,8 @@ function fragmentsOf(specs: Specs): Fragments {
 function isDue(specs: Specs, now: number) {
   return and(
     or(
-      and(eq(jobs.state, "queued"), lte(jobs.nextAttemptAt, now)),
-      and(eq(jobs.state, "running"), lt(jobs.claimExpires, now)),
+      and(jobIs("queued"), lte(jobs.nextAttemptAt, now)),
+      and(jobIs("running"), lt(jobs.claimExpires, now)),
     ),
     or(
       ...JOB_KINDS.map((kind) =>
@@ -101,7 +102,7 @@ async function claim(
     .set({
       state: "running",
       claimExpires: sql`${now} + ${leaseMs}`,
-      attempts: sql`case when ${jobs.attemptGeneration} <> ${inputVersion} then 0 else ${jobs.attempts} + (${jobs.state} = 'running') end`,
+      attempts: sql`case when ${jobs.attemptGeneration} <> ${inputVersion} then 0 else ${jobs.attempts} + (${jobIs("running")}) end`,
       attemptGeneration: inputVersion,
       attemptPending: pendingInput,
       waitReason: null,

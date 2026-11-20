@@ -1,6 +1,6 @@
 import { and, eq, gte, inArray, lt, or } from "drizzle-orm";
 
-import { RESTORE_FILES_ROOT, parseStoredKey, restoreFilesPrefix } from "../contract/file-keys.ts";
+import { RESTORE_FILES_ROOT, ownerIdOf, restoreFilesPrefix } from "../contract/file-keys.ts";
 import { RESTORE_PARTS_KEEP_MS } from "../contract/restore-contract.ts";
 import type { Database } from "../kernel/database.ts";
 import { report } from "../kernel/failure-log.ts";
@@ -35,9 +35,9 @@ async function holdingParts(db: Database, keys: readonly string[]): Promise<Read
   const owners = [
     ...new Set(
       keys.flatMap((key) => {
-        const id = Number(parseStoredKey(key)?.ownerId);
+        const id = ownerIdOf(key, "restores");
 
-        return Number.isSafeInteger(id) ? [id] : [];
+        return id === null ? [] : [id];
       }),
     ),
   ];
@@ -65,7 +65,11 @@ async function holdingParts(db: Database, keys: readonly string[]): Promise<Read
 async function strayParts(db: Database, keys: readonly string[]): Promise<readonly string[]> {
   const holding = await holdingParts(db, keys);
 
-  return keys.filter((key) => !holding.has(Number(parseStoredKey(key)?.ownerId)));
+  return keys.filter((key) => {
+    const id = ownerIdOf(key, "restores");
+
+    return id === null || !holding.has(id);
+  });
 }
 
 export async function cleanRestoreParts(ports: Readonly<PartPorts>): Promise<void> {

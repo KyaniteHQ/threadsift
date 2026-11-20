@@ -1,7 +1,7 @@
 import { and, eq, inArray, lt, or } from "drizzle-orm";
 
 import { EXPORT_CLEANUP_BATCH, EXPORT_KEEP_MS, SETTLE_MS } from "../contract/export-contract.ts";
-import { EXPORT_FILES_ROOT, exportFilesPrefix, parseStoredKey } from "../contract/file-keys.ts";
+import { EXPORT_FILES_ROOT, exportFilesPrefix, ownerIdOf } from "../contract/file-keys.ts";
 import type { Database } from "../kernel/database.ts";
 import { logFailure, report } from "../kernel/failure-log.ts";
 import { deleteMatching, removeUnder } from "../kernel/file-pages.ts";
@@ -13,10 +13,9 @@ type CleanupPorts = Pick<JobPorts, "db" | "files">;
 
 async function expiredKeys(db: Database, keys: readonly string[]): Promise<readonly string[]> {
   const owned = keys.flatMap((key) => {
-    const parsed = parseStoredKey(key);
-    const id = Number(parsed?.ownerId);
+    const id = ownerIdOf(key, "exports");
 
-    return parsed?.root === "exports" && Number.isSafeInteger(id) ? [{ key, id }] : [];
+    return id === null ? [] : [{ key, id }];
   });
 
   const owners = [...new Set(owned.map(({ id }) => id))];

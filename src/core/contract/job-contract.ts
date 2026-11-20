@@ -38,6 +38,8 @@ export const WAIT_REASONS = [
 
 export type JobKind = (typeof JOB_KINDS)[number];
 
+export type JobState = (typeof JOB_STATES)[number];
+
 export type IntakeJobKind = (typeof INTAKE_JOB_KINDS)[number];
 
 export type OwnedJobKind = (typeof OWNED_JOB_KINDS)[number];

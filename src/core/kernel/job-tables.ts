@@ -1,14 +1,25 @@
-import { sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import {
   JOB_KINDS,
   JOB_STATES,
+  type JobState,
   UNOWNED_JOB_KINDS,
   WAIT_REASONS,
 } from "../contract/job-contract.ts";
 import { items } from "./item-tables.ts";
-import { listed } from "./schema-checks.ts";
+import { listed, literal } from "./schema-checks.ts";
+
+const DONE = "done" satisfies JobState;
+
+export function jobIs(state: JobState): SQL {
+  return sql`${jobs.state} = ${literal(state)}`;
+}
+
+export function jobOpen(column: SQLWrapper = jobs.state): SQL {
+  return sql`${column} <> ${literal(DONE)}`;
+}
 
 export const jobs = sqliteTable(
   "jobs",
@@ -38,7 +49,7 @@ export const jobs = sqliteTable(
     ),
     uniqueIndex("jobs_one_open_per_item_kind")
       .on(table.itemId, table.kind)
-      .where(sql`${table.state} <> 'done'`),
+      .where(jobOpen(table.state)),
     index("jobs_state_next_attempt").on(table.state, table.nextAttemptAt),
   ],
 );

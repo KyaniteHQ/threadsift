@@ -1,5 +1,9 @@
 import { type SQLWrapper, sql } from "drizzle-orm";
 
+export function literal(text: string) {
+  return sql.raw(`'${text}'`);
+}
+
 export function listed(values: readonly string[]) {
   return sql.raw(values.map((value) => `'${value}'`).join(", "));
 }

@@ -1,27 +1,33 @@
-import { type SQL, type SQLWrapper, and, eq, ne, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
-import { IMAGE_STEM, ITEM_FILES_ROOT, POST_TEXT_STEM } from "../contract/file-keys.ts";
+import {
+  IMAGE_STEM,
+  ITEM_FILES_ROOT,
+  POST_TEXT_STEM,
+  type StoreRoot,
+  isOwnerId,
+  storePrefixText,
+} from "../contract/file-keys.ts";
 import {
   ITEM_JOB_KINDS,
   type JobKind,
+  type JobState,
   type UnownedJobKind,
   type WaitReason,
 } from "../contract/job-contract.ts";
 import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
 import type { JobPorts } from "./job-outcome.ts";
+import { jobIs, jobOpen } from "./job-tables.ts";
+import { literal } from "./schema-checks.ts";
 import { type JobRow, exportRuns, items, jobs, restoreRuns } from "./schema.ts";
 
 interface AttemptColumns {
   readonly itemId: SQLWrapper;
   readonly id: SQLWrapper;
   readonly attempts: SQLWrapper;
-}
-
-function literal(text: string) {
-  return sql.raw(`'${text}'`);
 }
 
 function attemptFileKeys({ itemId, id, attempts }: Readonly<AttemptColumns>) {
@@ -35,21 +41,27 @@ function attemptFileKeys({ itemId, id, attempts }: Readonly<AttemptColumns>) {
 
 export const ATTEMPT_FILES = attemptFileKeys(jobs);
 
+const QUEUED = "queued" satisfies JobState;
+
 const openJobs = alias(jobs, "open_jobs");
+
+export function jobIsOpen(id: number | SQLWrapper): SQL {
+  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${id} and ${jobOpen()})`;
+}
 
 export const OpenedJobsSchema = z.array(z.object({ id: z.number().int() }));
 
 export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${items.id}`) {
   const kinds = kind === undefined ? ITEM_JOB_KINDS : [kind];
 
-  return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${openJobs.state} <> 'done' and ${openJobs.kind} in (${sql.join(
+  return sql`(select 1 from ${jobs} as open_jobs where ${openJobs.itemId} = ${itemId} and ${jobOpen(openJobs.state)} and ${openJobs.kind} in (${sql.join(
     kinds.map((each) => sql`${each}`),
     sql`, `,
   )}))`;
 }
 
 export function holding(job: Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>) {
-  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobs.state} = 'running' and ${jobs.attempts} = ${job.attempts} and ${jobs.attemptGeneration} is ${job.attemptGeneration})`;
+  return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobIs("running")} and ${jobs.attempts} = ${job.attempts} and ${jobs.attemptGeneration} is ${job.attemptGeneration})`;
 }
 
 export function openingJob(
@@ -94,7 +106,7 @@ function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
     kind: sql<JobKind>`${kind}`.as("kind"),
     itemId,
     address: sql<string>`${address}`.as("address"),
-    state: sql<"queued">`'queued'`.as("state"),
+    state: sql<typeof QUEUED>`${literal(QUEUED)}`.as("state"),
     attempts: sql<number>`${attempts}`.as("attempts"),
     staleRequeues: sql<number>`0`.as("stale_requeues"),
     attemptGeneration: sql<null>`null`.as("attempt_generation"),
@@ -148,18 +160,22 @@ export function opening(
 }
 
 const ADDRESS_ROOTS = { export: "exports", restore: "restores" } as const satisfies Readonly<
-  Record<UnownedJobKind, string>
+  Record<UnownedJobKind, StoreRoot>
 >;
 
+function addressPrefix(kind: UnownedJobKind): string {
+  return storePrefixText({ root: ADDRESS_ROOTS[kind], ownerId: null });
+}
+
 export function unownedAddress(kind: UnownedJobKind, ownerId: number): string {
-  return `${ADDRESS_ROOTS[kind]}/${String(ownerId)}`;
+  return `${addressPrefix(kind)}${String(ownerId)}`;
 }
 
 export function unownedOwnerId(kind: UnownedJobKind, address: string): number | null {
-  const id = new RegExp(`^${ADDRESS_ROOTS[kind]}/(?<id>[1-9][0-9]{0,18})$`, "u").exec(address)
-    ?.groups?.["id"];
+  const prefix = addressPrefix(kind);
+  const id = address.startsWith(prefix) ? address.slice(prefix.length) : "";
 
-  return id === undefined ? null : Number(id);
+  return isOwnerId(id) ? Number(id) : null;
 }
 
 export async function unownedRun<Run>(
@@ -185,7 +201,7 @@ export function openingUnowned(
         .select(
           queuedRow(sql<null>`null`.as("item_id"), {
             kind,
-            address: sql`${ADDRESS_ROOTS[kind]} || '/' || ${owner.id}`,
+            address: sql`${addressPrefix(kind)} || ${owner.id}`,
             nextAttemptAt: Date.now(),
             page: sql`null`,
           }),
@@ -230,7 +246,7 @@ export async function enqueueRunJobs(
     await ports.db
       .select({ id: jobs.id })
       .from(jobs)
-      .where(and(eq(jobs.kind, kind), eq(jobs.address, address), ne(jobs.state, "done"))),
+      .where(and(eq(jobs.kind, kind), eq(jobs.address, address), jobOpen())),
   );
 }
 
@@ -241,7 +257,7 @@ export async function enqueueItemJobs(ports: JobPorts, itemId: number): Promise<
       await ports.db
         .select({ id: jobs.id })
         .from(jobs)
-        .where(and(eq(jobs.itemId, itemId), sql`${jobs.state} <> 'done'`)),
+        .where(and(eq(jobs.itemId, itemId), jobOpen())),
     );
   } catch (error) {
     logFailure("jobs-not-queued", { itemId }, error);

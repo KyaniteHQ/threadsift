@@ -1,8 +1,7 @@
-import { eq } from "drizzle-orm";
-
 import type { Database } from "../kernel/database.ts";
 import type { JobPorts } from "../kernel/job-outcome.ts";
 import { enqueueRows } from "../kernel/job-rows.ts";
+import { jobIs } from "../kernel/job-tables.ts";
 import { jobs } from "../kernel/schema.ts";
 import { jobEngine } from "./job-engine.ts";
 import { HANDLERS } from "./job-handlers.ts";
@@ -28,5 +27,5 @@ export async function runJob(ports: JobPorts, id: number): Promise<void> {
 }
 
 export async function abandonRunning(db: Database): Promise<void> {
-  await db.update(jobs).set({ claimExpires: 0 }).where(eq(jobs.state, "running"));
+  await db.update(jobs).set({ claimExpires: 0 }).where(jobIs("running"));
 }
