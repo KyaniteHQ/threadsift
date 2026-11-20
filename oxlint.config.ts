@@ -203,6 +203,14 @@ export default defineConfig({
       rules: { "typescript/prefer-readonly-parameter-types": "off" },
     },
     {
+      files: ["src/http/**"],
+      rules: { "import/max-dependencies": ["error", { max: 14, ignoreTypeImports: true }] },
+    },
+    {
+      files: ["src/http/routes.ts"],
+      rules: { "import/max-dependencies": "off" },
+    },
+    {
       files: ["src/core/**", "src/http/**"],
       rules: {
         "threadsift/static-import-source": "error",

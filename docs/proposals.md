@@ -57,7 +57,7 @@ An accepted disagreement row is deleted. Its Pin keeps the pair decided while bo
 
 ## Accept
 
-`POST /api/proposals/{id}/accept` is owner-only. An agent token gets 403 (the route is declared `access("owner")` in `src/http/proposal-route-spec.ts`), and the MCP endpoint has no tool for it. Accept has no confirmation and no undo. `acceptProposal` reads the row's `kind` and calls `accept` in the declaration of that kind. `readRow` answers only for a merge kind.
+`POST /api/proposals/{id}/accept` is owner-only. An agent token gets 403 (the route is declared `access("owner")` in `src/http/proposal-routes.ts`), and the MCP endpoint has no tool for it. Accept has no confirmation and no undo. `acceptProposal` reads the row's `kind` and calls `accept` in the declaration of that kind. `readRow` answers only for a merge kind.
 
 Every kind shares two answers:
 
