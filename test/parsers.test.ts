@@ -6,6 +6,7 @@ import {
   CATALOG_KEY_MAX,
 } from "../src/core/contract/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
+import { itemIdOf } from "../src/core/contract/item-path.ts";
 import { overviewLine } from "../src/core/contract/topic-overview-contract.ts";
 import { readArticle } from "../src/core/kernel/article.ts";
 import { parseArchiveThread } from "../src/features/reddit/core/archive-thread.ts";
@@ -95,6 +96,22 @@ describe("the parsers turn literal input into the values the library stores", ()
     assert.equal(catalogKey("  machine   LEARNING "), key);
     assert.equal(catalogKey("Café"), catalogKey("Café"));
     assert.notEqual(catalogKey("Machine Learning"), catalogKey("Machine Learnings"));
+  });
+
+  it("reads an Item address only when its id is a canonical whole number", () => {
+    assert.equal(itemIdOf("/items/16"), 16);
+    assert.deepEqual(
+      [
+        "/items/016",
+        "/items/0",
+        "/items/0x10",
+        "/items/1e3",
+        "/items/16.0",
+        "/items/9007199254740992",
+        "/items/16/x",
+      ].map((path) => itemIdOf(path)),
+      Array.from({ length: 7 }, () => null),
+    );
   });
 
   it("turns an Arctic Shift comment tree into the stored rows and drops what the archive saw deleted later", () => {

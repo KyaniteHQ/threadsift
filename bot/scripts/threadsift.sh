@@ -100,7 +100,7 @@ plain_dirs() {
 }
 
 folder_of() {
-  [[ "$1" =~ ^[0-9]{1,16}$ ]] || stop bad-input "bad task id"
+  [[ "$1" =~ ^[1-9][0-9]{0,15}$ ]] || stop bad-input "bad task id"
   folder="$HERE/tasks/$1"
 }
 
@@ -159,11 +159,11 @@ same_address() {
 pruned_tasks() {
   local tasks="$HERE/tasks"
   find "$HERE/tmp" -maxdepth 1 -type f -mmin +1440 -delete 2> /dev/null || true
-  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[0-9]{1,16}/done' -mmin +10080 \
+  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[1-9][0-9]{0,15}/done' -mmin +10080 \
     -exec sh -c 'for each; do rm -rf -- "${each%/*}"; done' _ {} + 2> /dev/null || true
-  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[0-9]{1,16}/task\.json' -mmin +1440 \
+  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[1-9][0-9]{0,15}/task\.json' -mmin +1440 \
     -exec sh -c 'for each; do [ -e "${each%/*}/done" ] || rm -rf -- "${each%/*}"; done' _ {} + 2> /dev/null || true
-  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[0-9]{1,16}/token' -mmin +1440 -delete 2> /dev/null || true
+  find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[1-9][0-9]{0,15}/token' -mmin +1440 -delete 2> /dev/null || true
 }
 
 [[ "$command" != mark ]] || { mark_word; exit 0; }
@@ -220,7 +220,7 @@ try:
     task = str(task)
     if not (isinstance(kind, str) and isinstance(token, str)):
         sys.exit(1)
-    if not (re.fullmatch(r"[0-9]{1,16}", task) and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", token) and re.fullmatch(r"[a-z][a-z_]{0,39}", kind)):
+    if not (re.fullmatch(r"[1-9][0-9]{0,15}", task) and re.fullmatch(r"[A-Za-z0-9_-]{1,64}", token) and re.fullmatch(r"[a-z][a-z_]{0,39}", kind)):
         sys.exit(1)
     print(task, token, kind)
 except Exception:

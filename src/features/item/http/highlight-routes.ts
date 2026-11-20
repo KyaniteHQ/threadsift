@@ -63,7 +63,10 @@ const removeHighlightRoute = createRoute({
     204: noContent(
       `The Highlight and its search entry are removed. ${OWNER_ONLY} A second delete of the same ids answers 404.`,
     ),
-    400: jsonBody(ErrorResponseSchema, "`id` or `highlightId` is not a positive integer."),
+    400: jsonBody(
+      ErrorResponseSchema,
+      "`id` or `highlightId` breaks the rule its parameter states.",
+    ),
     403: jsonBody(ErrorResponseSchema, `An agent token called this. ${OWNER_ONLY}`),
     404: jsonBody(
       ErrorResponseSchema,

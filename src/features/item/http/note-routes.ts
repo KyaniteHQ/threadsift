@@ -30,7 +30,7 @@ const saveNoteRoute = createRoute({
     ),
     400: jsonBody(
       ErrorResponseSchema,
-      `The body is not a \`body\` string and a \`revision\`, the \`body\` is longer than ${groupedNumber(NOTE_MAX_CODE_POINTS)} code points or is not well-formed Unicode, or \`id\` is not a positive integer. Nothing is saved.`,
+      `The body is not a \`body\` string and a \`revision\`, the \`body\` is longer than ${groupedNumber(NOTE_MAX_CODE_POINTS)} code points or is not well-formed Unicode, or \`id\` breaks the rule its parameter states. Nothing is saved.`,
     ),
     403: jsonBody(
       ErrorResponseSchema,

@@ -124,10 +124,12 @@ describe("the Proposals routes", () => {
     assert.equal(second.proposals.length, first.proposals.length - 1);
 
     const answers = await Promise.all(
-      ["", "x", "-1", "1.5", "12345678901234567", "9007199254740993"].map(async (cursor) => ({
-        cursor,
-        status: (await instance.send("GET", `/api/proposals?cursor=${cursor}`)).status,
-      })),
+      ["", "x", "-1", "1.5", "0", "0016", "12345678901234567", "9007199254740993"].map(
+        async (cursor) => ({
+          cursor,
+          status: (await instance.send("GET", `/api/proposals?cursor=${cursor}`)).status,
+        }),
+      ),
     );
 
     assert.deepEqual(

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v11
+
+- A task id with a leading zero, or a task id of 0, is refused as `bad-input` before any call, because the Instance answers 401 for it. The Instance sends only ids that start with 1 to 9.
+
 ## bot-v10
 
 - Keep the original parent id when a thread read returns a reply without its parent. Update the Instance first so it accepts the answer and shows the missing parent as Context.

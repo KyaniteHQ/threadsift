@@ -1,7 +1,8 @@
 import { z } from "zod";
 
+import { CanonicalNumberTextSchema } from "./canonical-number.ts";
 import { SOURCES } from "./item-contract.ts";
-import { CursorNumber, joinCursor, parseCursor as parseFields } from "./paging.ts";
+import { joinCursor, parseCursor as parseFields } from "./paging.ts";
 
 const ENTRY_KINDS = ["highlight", "note"] as const;
 
@@ -39,7 +40,7 @@ export function formatCursor({ date, kind, id }: Readonly<PageCursor>): string {
 }
 
 const PageCursorSchema = z
-  .tuple([CursorNumber, z.enum(ENTRY_KINDS), CursorNumber])
+  .tuple([CanonicalNumberTextSchema, z.enum(ENTRY_KINDS), CanonicalNumberTextSchema])
   .transform(([date, kind, id]): PageCursor => ({ date, kind, id }));
 
 export function parseCursor(text: string): PageCursor | null {

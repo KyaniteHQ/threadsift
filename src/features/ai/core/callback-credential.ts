@@ -1,5 +1,6 @@
 import { and, eq } from "drizzle-orm";
 
+import { CanonicalNumberTextSchema } from "../../../core/contract/canonical-number.ts";
 import type { Crypto } from "../../../core/contract/crypto.ts";
 import { digestOf, randomSecret } from "../../../core/contract/encoding.ts";
 import type { AiTaskRow } from "../../../core/kernel/ai-task-state.ts";
@@ -12,8 +13,6 @@ const CALLBACK_PREFIX = "tst_";
 const CALLBACK_BYTES = 32;
 
 const CREDENTIAL = /^tst_[A-Za-z0-9_-]+$/u;
-
-const TASK_ID = /^[1-9][0-9]{0,15}$/u;
 
 interface CallbackCredential {
   readonly value: string;
@@ -39,13 +38,15 @@ export async function callbackTaskOf(
 
   if (bearer?.kind !== "token" || !CREDENTIAL.test(bearer.value)) return null;
 
-  if (id === undefined || !TASK_ID.test(id)) return null;
+  const taskId = CanonicalNumberTextSchema.safeParse(id);
+
+  if (!taskId.success) return null;
 
   const [task] = await db
     .select()
     .from(aiTasks)
     .where(
-      and(eq(aiTasks.id, Number(id)), eq(aiTasks.callbackHash, digestOf(crypto, bearer.value))),
+      and(eq(aiTasks.id, taskId.data), eq(aiTasks.callbackHash, digestOf(crypto, bearer.value))),
     );
 
   return task ?? null;

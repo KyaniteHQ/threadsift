@@ -17,6 +17,8 @@ const HOSTILE_EVENTS = [
   '{"taskId":1.5,"kind":"digest","callbackToken":"tst_abc"}',
   '{"taskId":true,"kind":"digest","callbackToken":"tst_abc"}',
   '{"taskId":12345678901234567,"kind":"digest","callbackToken":"tst_abc"}',
+  '{"taskId":"016","kind":"digest","callbackToken":"tst_abc"}',
+  '{"taskId":0,"kind":"digest","callbackToken":"tst_abc"}',
   JSON.stringify({ taskId: 1, kind: "digest", callbackToken: "x".repeat(65) }),
   '["taskId"]',
   "not json",
@@ -35,7 +37,7 @@ describe("the script takes a webhook event only as a file it parses itself, and 
 
   after(() => world.close());
 
-  it("answers bad-input for an event whose fields hold shell syntax, quotes, newlines or a path, and creates nothing outside the folders of tasks", async () => {
+  it("answers bad-input for an event whose fields hold shell syntax, quotes, newlines, a path or a task id with a leading zero, and creates nothing outside the folders of tasks", async () => {
     const words = await Promise.all(
       HOSTILE_EVENTS.map((body) => run(["task-open", world.folder.event(body)])),
     );

@@ -14,7 +14,7 @@ import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
 import { OWNER_SESSION_REFUSALS, jsonBody, noContent } from "../../../http/openapi.ts";
 import { notFound } from "../../../http/refusals.ts";
-import { IdParamSchema } from "../../../http/route-input.ts";
+import { ID_REFUSAL, IdParamSchema } from "../../../http/route-input.ts";
 import { zipStream } from "../core/export-download.ts";
 import { deleteExport, exportStatus, readyExport, startExport } from "../core/export-run.ts";
 
@@ -59,6 +59,7 @@ const downloadRoute = createRoute({
   middleware: access("owner", { cache: "file" }),
   request: { params: IdParamSchema },
   responses: {
+    ...ID_REFUSAL,
     200: {
       description: `The export as one zip, streamed from the stored slices in order. \`Content-Disposition\` is \`attachment; filename="threadsift-<UTC date>.zip"\`, \`Content-Length\` is \`zipBytes\`, and the answer carries \`Cache-Control: no-store\`, \`X-Content-Type-Options: nosniff\`, \`Cross-Origin-Resource-Policy: same-origin\`, \`Referrer-Policy: no-referrer\` and \`X-Frame-Options: DENY\`. A client that disconnects ends the stream. There are no range requests: a download that stops starts again from the beginning.${OWNER_ONLY}`,
       content: { "application/zip": { schema: ZipBytesSchema } },

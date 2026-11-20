@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { z } from "zod";
+
 import {
   ItemDetailResponseSchema,
   ItemReadResponseSchema,
@@ -136,6 +138,25 @@ describe("an agent searches and reads Items through /mcp with the same answers a
     assert.deepEqual(
       answers.flat().map(({ isError }) => isError),
       Array.from({ length: 6 }, () => true),
+    );
+  });
+
+  it("refuses an id that is not a whole number with the reason the HTTP API gives", async () => {
+    const refused = z
+      .object({ error: z.string() })
+      .parse(JSON.parse((await instance.send("GET", "/api/items/0")).body));
+
+    const answers = await callBoth(agents, "read", { id: 0 });
+
+    assert.deepEqual(
+      answers.map(({ isError, content }) => [
+        isError,
+        JSON.stringify(content).includes(refused.error),
+      ]),
+      [
+        [true, true],
+        [true, true],
+      ],
     );
   });
 

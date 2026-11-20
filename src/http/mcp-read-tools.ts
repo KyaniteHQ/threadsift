@@ -1,6 +1,7 @@
 import { type McpServer, requireScopes } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
+import { CanonicalNumberSchema } from "../core/contract/canonical-number.ts";
 import {
   ItemDetailResponseSchema,
   ItemReadResponseSchema,
@@ -14,7 +15,7 @@ import { ItemQuerySchema } from "./route-input.ts";
 
 const READ_ONLY = requireScopes("read");
 
-const ReadInputSchema = z.object({ id: z.number().int().positive() });
+const ReadInputSchema = z.object({ id: CanonicalNumberSchema });
 
 export function registerReadTools(server: McpServer, ports: Ports): void {
   server.registerTool(

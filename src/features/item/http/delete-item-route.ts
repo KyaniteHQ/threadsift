@@ -21,7 +21,10 @@ const deleteItemRoute = createRoute({
     204: noContent(
       "The Item is deleted with its Digest, Tag links, search entries, jobs, AI tasks and files. Topics and Tags stay in the lists. A file that could not be removed is left to the cleanup, and the answer is still 204.",
     ),
-    400: jsonBody(ErrorResponseSchema, "`id` is not a positive integer. Nothing is deleted."),
+    400: jsonBody(
+      ErrorResponseSchema,
+      "`id` breaks the rule its parameter states. Nothing is deleted.",
+    ),
     404: jsonBody(ErrorResponseSchema, "No Item has this id."),
   },
 });
