@@ -238,3 +238,26 @@ describe("a token whose stored scopes are unreadable", () => {
     );
   });
 });
+
+describe("a token row stored without scopes", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start();
+  });
+
+  after(() => instance.close());
+
+  it("is refused by the database, which holds no default scopes for a token", () => {
+    const database = new DatabaseSync(instance.databaseFile);
+
+    assert.throws(() => {
+      database
+        .prepare(
+          "insert into agent_tokens (name, digest, created_at) values ('no scopes', 'digest', 0)",
+        )
+        .run();
+    }, /NOT NULL constraint failed: agent_tokens\.scopes/u);
+    database.close();
+  });
+});

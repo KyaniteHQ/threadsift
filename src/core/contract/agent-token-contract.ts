@@ -10,13 +10,6 @@ export const ScopeListSchema = z.array(z.enum(SCOPES));
 
 export const DEFAULT_SCOPES = ["read", "add"] as const satisfies readonly Scope[];
 
-export const STORED_DEFAULT_SCOPES = [
-  "read",
-  "add",
-  "digest",
-  "delete",
-] as const satisfies readonly Scope[];
-
 export const DEFAULT_TOKEN_BUDGET = 200;
 
 export const UNKNOWN_TOKEN = "Unknown or revoked agent token";
