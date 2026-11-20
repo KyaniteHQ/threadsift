@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import { applyAnswer } from "./disagreement-apply.ts";
 import {
   disagreementRows,
@@ -12,17 +13,15 @@ import {
   tokenOf,
 } from "./disagreement-fixtures.ts";
 import { acceptStatus, pinRows, replaceDigestToken } from "./disagreement-pin-fixtures.ts";
-import { Instance } from "./instance.ts";
+import type { Instance } from "./instance.ts";
 
 const REASON = "One says the setting is on, the other says it is off.";
 
 type Pair = Readonly<{ a: number; b: number; reason: string }>;
 
 async function storeAnswer(instance: Instance, disagreements: readonly Pair[]): Promise<void> {
-  const { db } = instance.core;
-
   await applyAnswer(
-    { instance, db, sent: await sentTopics(db) },
+    { instance, sent: await sentTopics(instance.core.db) },
     runningTask(instance),
     disagreements,
   );
@@ -32,14 +31,14 @@ describe("the guarded store of a weekly disagreement answer, applied to the outc
   let instance: Instance;
 
   before(async () => {
-    instance = await Instance.start();
-    await instance.setUp();
+    instance = await botInstance();
     seedTopics(instance, { 1: "Reading" });
     seedDigested(
       instance,
       Array.from({ length: 4 }, (_, at) => ({ id: at + 1, topic: 1 })),
     );
     await acceptStatus(instance, proposeDisagreement(instance, [1, 2]));
+    await selectGrokBot(instance);
   });
 
   after(() => instance.close());

@@ -4,8 +4,9 @@ import { type Listening, listening } from "./bot-script-server.ts";
 import { intakeExample } from "./bot-skills-examples.ts";
 import { SECRET_KEY, relatedLibrary, retireTasks, saveBot } from "./bot-task-fixtures.ts";
 import { taskAfterStart } from "./bot-task-lifecycle.ts";
+import { fetcherFile } from "./fetcher-record.ts";
 import { Instance } from "./instance.ts";
-import { type IntakeTask, sentIntakeForContent } from "./x-intake-fixtures.ts";
+import { type IntakeTask, sentIntake } from "./x-intake-fixtures.ts";
 
 interface Servers {
   readonly real: Listening;
@@ -44,7 +45,10 @@ export class ScriptWorld {
   }
 
   static async start(): Promise<ScriptWorld> {
-    const instance = await Instance.start({ secretKey: SECRET_KEY });
+    const instance = await Instance.start({
+      secretKey: SECRET_KEY,
+      fetchers: fetcherFile("first.mts"),
+    });
 
     await instance.setUp();
     await saveBot(instance);
@@ -88,7 +92,7 @@ export class ScriptWorld {
   }
 
   async intake(): Promise<IntakeTask & { readonly example: string }> {
-    const task = await sentIntakeForContent(this.instance);
+    const task = await sentIntake(this.instance);
 
     return { ...task, example: intakeExample(task.statusId) };
   }

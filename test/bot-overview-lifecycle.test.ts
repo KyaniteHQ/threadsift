@@ -1,17 +1,13 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { applyOutcome } from "../src/core/compose/job-finish.ts";
-import { HANDLERS } from "../src/core/compose/job-handlers.ts";
+import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
-import { outcomeOf } from "./bot-kinds-steps.ts";
 import { retireTasks, selectGrokBot } from "./bot-task-fixtures.ts";
-import { insertedTask, jobRow, rowCount, taskRow } from "./bot-task-rows.ts";
+import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
-
-const SEND_FAILED = /send failed: unreachable/u;
 
 const FILL = 10;
 
@@ -45,9 +41,8 @@ describe("a Topic overview keeps its task and job state across retries", () => {
     }
 
     const job = await newJob();
-    const outcome = await outcomeOf(instance, "topic_overview", job);
 
-    await applyOutcome(instance.core, job, outcome, HANDLERS[job.kind]);
+    await executeClaimed(instance.core, job);
 
     const deferred = jobRow(instance, job.id);
 
@@ -57,23 +52,24 @@ describe("a Topic overview keeps its task and job state across retries", () => {
     );
   });
 
-  it("throws when the send fails", async () => {
+  it("fails the task and charges an attempt when the send fails", async () => {
     const job = await newJob();
 
-    await assert.rejects(outcomeOf(instance, "topic_overview", job), SEND_FAILED);
+    await executeClaimed(instance.core, job);
+
+    const failed = jobRow(instance, job.id);
+
+    assert.deepEqual(
+      taskRows(instance, "job_id = ?", job.id).map(({ state, refusal }) => [state, refusal]),
+      [["failed", "unreachable"]],
+    );
+    assert.deepEqual([failed.state, failed.attempts], ["queued", 1]);
   });
 
   it("defers without an attempt when its task is still waiting", async () => {
-    const job = await newJob();
+    const { job } = await sentTask(instance, await newJob());
 
-    await sentTask(instance, "topic_overview", job);
-
-    await applyOutcome(
-      instance.core,
-      job,
-      await outcomeOf(instance, "topic_overview", job),
-      HANDLERS[job.kind],
-    );
+    await executeClaimed(instance.core, job);
 
     const deferred = jobRow(instance, job.id);
 
@@ -83,25 +79,25 @@ describe("a Topic overview keeps its task and job state across retries", () => {
     );
   });
 
-  it("throws when a resend fails", async () => {
-    const job = await newJob();
-    const sent = await sentTask(instance, "topic_overview", job);
+  it("fails the task and charges an attempt when a resend fails", async () => {
+    const { id, job } = await sentTask(instance, await newJob());
 
-    exec(instance, "update ai_tasks set sent_at = null where id = ?", sent.id);
+    exec(instance, "update ai_tasks set sent_at = null where id = ?", id);
+    await executeClaimed(instance.core, job);
 
-    await assert.rejects(outcomeOf(instance, "topic_overview", job), SEND_FAILED);
+    const failed = jobRow(instance, job.id);
+
+    assert.deepEqual(
+      [taskRow(instance, id).state, taskRow(instance, id).refusal],
+      ["failed", "unreachable"],
+    );
+    assert.deepEqual([failed.state, failed.attempts], ["queued", 1]);
   });
 
   it("applies the answer and stores one page", async () => {
-    const job = await newJob();
-    const sent = await answeredAs(instance, { kindCase: overview, job });
+    const sent = await answeredAs(instance, { kindCase: overview, job: await newJob() });
 
-    await applyOutcome(
-      instance.core,
-      job,
-      await outcomeOf(instance, "topic_overview", job),
-      HANDLERS[job.kind],
-    );
+    await executeClaimed(instance.core, sent.job);
 
     assert.equal(taskRow(instance, sent.id).state, "done");
     assert.equal(rowCount(instance, "topic_pages", "topic_id = 1"), 1);
@@ -112,35 +108,24 @@ describe("a Topic overview keeps its task and job state across retries", () => {
 
     exec(instance, "update jobs set attempts = attempts + 1 where id = ?", job.id);
 
-    await applyOutcome(
-      instance.core,
-      job,
-      await outcomeOf(instance, "topic_overview", job),
-      HANDLERS[job.kind],
-    );
+    await executeClaimed(instance.core, job);
 
     assert.equal(rowCount(instance, "ai_tasks", `job_id = ${String(job.id)}`), 0);
   });
 
   it("fails the task stale, without an error, when the Topic was deleted while the bot worked", async () => {
-    const job = await newJob();
-    const sent = await answeredAs(instance, { kindCase: overview, job });
+    const sent = await answeredAs(instance, { kindCase: overview, job: await newJob() });
 
     exec(instance, "update items set topic_id = null where topic_id = 1");
     exec(instance, "delete from log_entries where topic_id = 1");
     exec(instance, "delete from topics where id = 1");
 
-    await applyOutcome(
-      instance.core,
-      job,
-      await outcomeOf(instance, "topic_overview", job),
-      HANDLERS[job.kind],
-    );
+    await executeClaimed(instance.core, sent.job);
 
     const task = taskRow(instance, sent.id);
 
     assert.deepEqual(
-      [task.state, task.refusal, jobRow(instance, job.id).attempts],
+      [task.state, task.refusal, jobRow(instance, sent.job.id).attempts],
       ["failed", "stale", 0],
     );
   });

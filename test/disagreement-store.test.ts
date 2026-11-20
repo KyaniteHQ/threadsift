@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import type { Database } from "../src/core/kernel/database.ts";
-import { refusedByGuard } from "../src/core/kernel/guards.ts";
+import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import { applyAnswer } from "./disagreement-apply.ts";
 import {
   checksOf,
@@ -17,20 +16,18 @@ import {
   tokenOf,
   topicIdOf,
 } from "./disagreement-fixtures.ts";
-import { Instance } from "./instance.ts";
+import type { Instance } from "./instance.ts";
 
 const REASON = "One says the setting is on, the other says it is off.";
 
 type Reading = Readonly<{
   instance: Instance;
-  db: Database;
   sent: Awaited<ReturnType<typeof sentTopics>>;
 }>;
 
 async function start(): Promise<Reading> {
-  const instance = await Instance.start();
+  const instance = await botInstance();
 
-  await instance.setUp();
   await pasteItems(instance, [
     { topic: "Reading" },
     { topic: "Reading" },
@@ -39,9 +36,9 @@ async function start(): Promise<Reading> {
     { topic: "Other" },
   ]);
 
-  const { db } = instance.core;
+  await selectGrokBot(instance);
 
-  return { instance, db, sent: await sentTopics(db) };
+  return { instance, sent: await sentTopics(instance.core.db) };
 }
 
 describe("the guarded store of a disagreement run, applied to the outcome the production handler builds", () => {
@@ -114,31 +111,17 @@ describe("the guard of the store of a disagreement run", () => {
 
   after(() => reading.instance.close());
 
-  it("writes nothing and refuses the batch when a Digest of a sent Topic was replaced after the read", async () => {
+  it("writes nothing and fails the task as stale when a Digest of a sent Topic was replaced after the read", async () => {
     const { instance } = reading;
     const taskId = runningTask(instance);
     const unchanged = checksOf(instance);
 
     await replaceDigest(instance, 2, { topic: "Reading", summary: "A replaced summary." });
+    await applyAnswer(reading, taskId, [{ a: 1, b: 2, reason: REASON }]);
 
-    await assert.rejects(applyAnswer(reading, taskId, [{ a: 1, b: 2, reason: REASON }]), (error) =>
-      refusedByGuard(error),
-    );
     assert.deepEqual(disagreementRows(instance), []);
     assert.deepEqual(checksOf(instance), unchanged);
-    assert.equal(taskState(instance, taskId), "running");
-  });
-
-  it("writes nothing and refuses the batch when the AI task is no longer running", async () => {
-    const { instance } = reading;
-    const fresh = { instance, db: reading.db, sent: await sentTopics(reading.db) };
-    const taskId = runningTask(instance, "failed");
-
-    await assert.rejects(applyAnswer(fresh, taskId, [{ a: 1, b: 2, reason: REASON }]), (error) =>
-      refusedByGuard(error),
-    );
-    assert.deepEqual(disagreementRows(instance), []);
-    assert.deepEqual(checksOf(instance), []);
+    assert.equal(taskState(instance, taskId), "failed");
   });
 });
 
@@ -152,16 +135,14 @@ describe("the store of a disagreement run next to a row that a new Digest made s
   after(() => reading.instance.close());
 
   it("replaces the hidden open row of the same pair with a row on the new Digest tokens", async () => {
-    const { instance, db } = reading;
+    const { instance } = reading;
     const stale = proposeDisagreement(instance, [1, 2]);
 
     await replaceDigest(instance, 2, { topic: "Reading", summary: "A replaced summary." });
 
-    const sent = await sentTopics(db);
+    const sent = await sentTopics(instance.core.db);
 
-    await applyAnswer({ instance, db, sent }, runningTask(instance), [
-      { a: 1, b: 2, reason: REASON },
-    ]);
+    await applyAnswer({ instance, sent }, runningTask(instance), [{ a: 1, b: 2, reason: REASON }]);
 
     const stored = disagreementRows(instance);
 

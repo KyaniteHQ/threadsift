@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-import { BOT_TASK_KINDS } from "../src/features/bot/core/bot-task-kinds.ts";
+import type { IntakeJobKind, OwnedJobKind } from "../src/core/contract/job-contract.ts";
 import { SentTopicsSchema } from "../src/features/wiki/core/disagreement-task.ts";
 import { SentPairsSchema } from "../src/features/wiki/core/proposal-sent.ts";
 import { seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance, Json } from "./instance.ts";
 import { REDDIT_THREAD, exec, paste, rows } from "./related-fixtures.ts";
 
-export type BotKindName = Exclude<keyof typeof BOT_TASK_KINDS, "related_pick">;
+export type BotKindName = Exclude<OwnedJobKind, IntakeJobKind | "related_pick">;
 
 const Count = z.object({ n: z.number() });
 

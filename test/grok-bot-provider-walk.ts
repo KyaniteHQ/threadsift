@@ -37,11 +37,8 @@ export async function claimedAgain(
   return claimed;
 }
 
-export async function unansweredClaim(
-  instance: Instance,
-  { kindCase, job }: Readonly<{ kindCase: KindCase; job: Readonly<ClaimedJob> }>,
-) {
-  const sent = await sentTask(instance, kindCase.kind, job);
+export async function unansweredClaim(instance: Instance, job: Readonly<ClaimedJob>) {
+  const sent = await sentTask(instance, job);
 
   pastDeadline(instance, sent.id);
 

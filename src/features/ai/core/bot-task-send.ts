@@ -49,7 +49,7 @@ async function failedSend(
     : { kind: "failed", reason, status: failure.status };
 }
 
-export function webhookBodyOf(
+function webhookBodyOf(
   kind: Pick<KindFace, "describe">,
   { task, token }: Readonly<{ task: SentTask; token: string }>,
 ): string | null {

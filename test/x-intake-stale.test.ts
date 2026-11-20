@@ -9,7 +9,7 @@ import {
   addressOf,
   advancedContent,
   closedJob,
-  insertedFetchJob,
+  claimedFetchJob,
   intakeTo,
   openJobIds,
   sentIntake,
@@ -48,7 +48,7 @@ describe("an answer the task no longer takes publishes nothing, and an unavailab
     const task = await sentIntake(instance);
 
     closedJob(instance, task.job.id);
-    insertedFetchJob(instance, task.itemId, addressOf(task.statusId));
+    await claimedFetchJob(instance, task.itemId, addressOf(task.statusId));
 
     const [replacement] = openJobIds(instance, task.itemId);
     const unchanged = stored(instance, PUBLISHED_TABLES);

@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { type KindCase, KIND_CASES } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
-import { settled } from "./bot-kinds-steps.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { jobRow, taskRow } from "./bot-task-rows.ts";
@@ -24,21 +24,18 @@ describe("an answer whose guard moved between the send and the answer is accepte
         it("writes nothing, fails the task stale and requeues the job without an attempt", async () => {
           const owner = await kindCase.library(instance);
 
-          const job = await openJobOf(instance, {
-            kind: kindCase.kind,
-            itemId: owner,
-            staleRequeues: 2,
-          });
+          const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
 
           const sent = await answeredAs(instance, {
             kindCase,
             job,
+            counters: { staleRequeues: 2 },
             between: (context) => {
               move(instance, context);
             },
           });
 
-          await settled(instance, kindCase.kind, job);
+          await executeClaimed(instance.core, sent.job);
 
           const task = taskRow(instance, sent.id);
           const queued = jobRow(instance, job.id);
@@ -69,19 +66,14 @@ async function movedWhile(
 ) {
   const owner = await kindCase.library(instance);
 
-  const job = await openJobOf(instance, {
-    kind: kindCase.kind,
-    itemId: owner,
-    staleRequeues: 2,
-  });
-
-  const sent = await sentTask(instance, kindCase.kind, job);
+  const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
+  const sent = await sentTask(instance, job, { staleRequeues: 2 });
 
   move(instance, sent.context);
 
   if (phase === "timed out") pastDeadline(instance, sent.id);
 
-  await settled(instance, kindCase.kind, job);
+  await executeClaimed(instance.core, sent.job);
 
   return { sent, job, owner };
 }
@@ -130,7 +122,7 @@ describe("a reported bot error is charged as an attempt even when the input move
       try {
         const owner = await kindCase.library(instance);
         const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
-        const sent = await sentTask(instance, kindCase.kind, job);
+        const sent = await sentTask(instance, job);
 
         moved.move(instance, sent.context);
 
@@ -139,7 +131,7 @@ describe("a reported bot error is charged as an attempt even when the input move
         });
 
         assert.equal(reported.status, 204);
-        await assert.rejects(settled(instance, kindCase.kind, job), /reported an error/u);
+        await executeClaimed(instance.core, sent.job);
 
         const task = taskRow(instance, sent.id);
 
@@ -147,6 +139,7 @@ describe("a reported bot error is charged as an attempt even when the input move
           [task.state, task.refusal, task.answered_at],
           ["failed", "provider-busy", null],
         );
+        assert.equal(jobRow(instance, job.id).attempts, 1);
         assert.equal(kindCase.wrote(instance, owner), false);
       } finally {
         await instance.close();

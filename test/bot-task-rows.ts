@@ -17,6 +17,7 @@ const TaskRowSchema = z.object({
   sent_at: z.number().nullable(),
   answered_at: z.number().nullable(),
   deadline: z.number(),
+  attempts: z.number(),
   executor: z.string(),
   kind: z.string(),
 });
@@ -25,7 +26,7 @@ export function taskRows(instance: Instance, where = "1 = 1", ...params: readonl
   return rows(
     instance,
     TaskRowSchema,
-    `select id, state, refusal, status, result, callback_hash, job_id, context, sent_at, answered_at, deadline, executor, kind from ai_tasks where ${where} order by id`,
+    `select id, state, refusal, status, result, callback_hash, job_id, context, sent_at, answered_at, deadline, attempts, executor, kind from ai_tasks where ${where} order by id`,
     ...params,
   );
 }
@@ -112,15 +113,15 @@ const LIBRARY_TABLES = [
   "proposals",
   "topic_checks",
   "log_entries",
-  "ai_tasks",
 ] as const;
 
-export function libraryDump(instance: Instance): string {
-  return JSON.stringify(
-    LIBRARY_TABLES.map((table) =>
+export function libraryDump(instance: Instance, jobId: number): string {
+  return JSON.stringify([
+    ...LIBRARY_TABLES.map((table) =>
       rows(instance, z.looseObject({}), `select * from ${table} order by 1`),
     ),
-  );
+    rows(instance, z.looseObject({}), "select * from ai_tasks where job_id = ? order by 1", jobId),
+  ]);
 }
 
 const PageSchema = z.object({

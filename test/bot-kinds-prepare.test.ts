@@ -1,12 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { applyOutcome } from "../src/core/compose/job-finish.ts";
-import { HANDLERS } from "../src/core/compose/job-handlers.ts";
-import { BOT_TASK_KINDS } from "../src/features/bot/core/bot-task-kinds.ts";
+import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { KIND_CASES } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, selectGrokBot } from "./bot-kinds-fixtures.ts";
-import { outcomeOf } from "./bot-kinds-steps.ts";
 import { jobRow, rowCount, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
@@ -27,12 +24,9 @@ describe("what a kind does when there is nothing to ask the bot", () => {
     );
 
     const job = await openJobOf(instance, { kind: "proposals", itemId: 1 });
-    const prepared = await BOT_TASK_KINDS.proposals.prepare(instance.core, job);
 
-    assert.equal(prepared.kind, "settled");
-
-    if (prepared.kind === "settled")
-      await applyOutcome(instance.core, job, prepared.outcome, HANDLERS[job.kind]);
+    await selectGrokBot(instance);
+    await executeClaimed(instance.core, job);
 
     assert.equal(jobRow(instance, job.id).state, "done");
     assert.equal(rowCount(instance, "ai_tasks"), 0);
@@ -49,12 +43,15 @@ describe("the payload of each kind builds, so the send reaches the network and f
         const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
 
         await selectGrokBot(instance);
-
-        await assert.rejects(outcomeOf(instance, kindCase.kind, job), /send failed: unreachable/u);
+        await executeClaimed(instance.core, job);
 
         assert.deepEqual(
           taskRows(instance, "job_id = ?", job.id).map(({ state, refusal }) => [state, refusal]),
           [["failed", "unreachable"]],
+        );
+        assert.deepEqual(
+          [jobRow(instance, job.id).state, jobRow(instance, job.id).attempts],
+          ["queued", 1],
         );
       } finally {
         await instance.close();

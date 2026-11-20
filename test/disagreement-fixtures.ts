@@ -216,11 +216,10 @@ export async function replaceDigest(
   );
 }
 
-export function runningTask(instance: Instance, state = "running"): number {
+export function runningTask(instance: Instance): number {
   exec(
     instance,
-    "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state) values ('disagreement_proposals', '{}', 0, 'cli', 1, 4102444800000, ?)",
-    state,
+    "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state) values ('disagreement_proposals', '{}', 0, 'cli', 1, 4102444800000, 'running')",
   );
 
   const [row] = rows(instance, z.object({ id: z.number() }), "select max(id) as id from ai_tasks");
@@ -249,8 +248,6 @@ export const topicIdOf = (instance: Instance, name: string): number => {
 
   return row.id;
 };
-
-export type ReadingDatabase = Database;
 
 export async function sentTopics(db: Database) {
   const read = await readDisagreementInput(db);

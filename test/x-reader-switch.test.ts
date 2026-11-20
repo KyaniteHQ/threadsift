@@ -9,7 +9,7 @@ import { taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 import { answerOf } from "./x-intake-bodies.ts";
-import { intakeTo, sentIntakeForContent } from "./x-intake-fixtures.ts";
+import { intakeTo, sentIntake } from "./x-intake-fixtures.ts";
 import { itemRow } from "./x-intake-rows.ts";
 
 const JobStateSchema = z.object({
@@ -49,7 +49,7 @@ describe("a fetch with an open Grok Bot task stays on the bot whatever the reade
   after(() => instance.close());
 
   it("keeps waiting for the bot after the owner chooses the grok CLI, and stores the bot's answer", async () => {
-    const task = await sentIntakeForContent(instance);
+    const task = await sentIntake(instance);
 
     released(instance, task.job.id);
     await runJob(instance.core, task.job.id);
@@ -69,7 +69,7 @@ describe("a fetch with an open Grok Bot task stays on the bot whatever the reade
   });
 
   it("ends a task that passed its deadline as failed on the bot route, and takes the chosen reader for the next attempt", async () => {
-    const task = await sentIntakeForContent(instance);
+    const task = await sentIntake(instance);
 
     pastDeadline(instance, task.id);
     released(instance, task.job.id);

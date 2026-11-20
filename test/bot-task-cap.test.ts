@@ -3,14 +3,12 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { applyOutcome } from "../src/core/compose/job-finish.ts";
 import { HANDLERS } from "../src/core/compose/job-handlers.ts";
+import type { JobKind } from "../src/core/contract/job-contract.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
-import {
-  GROK_BOT_IN_FLIGHT,
-  ownerOf,
-  startBotTask,
-} from "../src/features/ai/core/bot-task-start.ts";
+import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts";
 import {
   type BotLibrary,
+  GROK_BOT_IN_FLIGHT,
   SECRET_KEY,
   bulkJobs,
   openJob,
@@ -33,7 +31,7 @@ describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap"
   const startAll = (jobs: readonly ClaimedJob[]) =>
     Promise.all(jobs.map((job) => startBotTask(instance.core, ownerOf(job), START)));
 
-  const kindsOf = async (count: number, kind: string) =>
+  const kindsOf = async (count: number, kind: JobKind) =>
     (await startAll(await bulkJobs(instance, count, kind))).map(({ kind: outcome }) => outcome);
 
   before(async () => {

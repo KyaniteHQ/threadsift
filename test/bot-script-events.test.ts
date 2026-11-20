@@ -92,7 +92,7 @@ describe("the script takes a webhook event only as a file it parses itself, and 
       "bad-input",
     );
     assert.match(
-      await run(["save", world.folder.tmpFile("quote", "https://example.com/it's", "txt")]),
+      await run(["save", world.folder.tmpFile("quote", "https://first.test/it's", "txt")]),
       /^ok /u,
     );
     assert.equal(
