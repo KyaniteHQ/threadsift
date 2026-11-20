@@ -5,7 +5,7 @@ import { cleanFiles } from "./file-cleanup.ts";
 import { enqueueDue } from "./jobs.ts";
 import { continueMerges } from "./merge-accept.ts";
 import { sweepConnectTransactions } from "./openrouter-connect.ts";
-import { weeklyStages } from "./proposal-week.ts";
+import { weeklyStages } from "./proposal-kinds.ts";
 import { restoreHoldsLibrary } from "./restore-hold.ts";
 import { cleanRestoreParts } from "./restore-parts.ts";
 

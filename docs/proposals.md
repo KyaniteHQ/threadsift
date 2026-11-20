@@ -4,25 +4,26 @@ A Proposal is a change the agent suggests once a week, and the owner accepts or 
 
 `docs/architecture/jobs-leases-and-the-schedule.md` and `docs/architecture/ai-tasks-and-providers.md` (The `proposals` task) hold the run, its input, and its freshness rule. This file holds the rest.
 
-Start from these four modules:
+Start from these modules:
 
-- `src/core/proposal-lifecycle.ts` holds the states.
+- `src/core/proposal-kinds.ts` holds `PROPOSAL`, which says for each kind how it is accepted, when its row is listed, how the page shows it, and how its weekly check runs (`ProposalKindSpec` in `src/core/proposal-kind.ts`), and the weekly stages built from it. The compiler refuses an entry under another kind's key. The entries sit beside the code of their kind: `merge-proposal.ts`, `highlight-proposals.ts`, `overview-proposals.ts`, `disagreement-proposal.ts`. A merge kind also has a record in `MERGE` (`src/core/merge-kinds.ts`), and a model check has its AI run (`weeklyKind`).
+- `src/core/proposal-lifecycle.ts` holds the moves between states and the writes of a row. The state list is `PROPOSAL_STATES` in `src/core/kinds.ts`.
 - `src/core/proposal-decision.ts` holds Accept's dispatch and Reject.
-- `src/core/proposal-week.ts` holds the weekly stages.
+- `src/core/weekly-check.ts` holds the two weekly checks that a declaration chooses from, `plainCheck` and `modelCheck`.
 - `src/core/weekly-kind.ts` holds `weeklyKind`, the AI task kind that every weekly model check shares.
 
 With Grok Bot as the Provider, the Tag, Topic, and disagreement runs run as bot tasks through the same `weeklyKind` (`src/core/weekly-kind.ts`). `weeklyKind` keeps each run's `current` guard, so a guard that moved fails the task as `stale` and requeues the job.
 
 ## The lifecycle
 
-`LIFECYCLE` in `src/core/proposal-lifecycle.ts` declares, for each kind, the states an insert may start in. A merge kind holds `open`, `accepting`, `rejected`, and `declined`. The other kinds hold only `open` and `rejected`.
+A row starts `open`, except a pair that the weekly merge run sent and the model did not return, which starts `declined` (`rowsOf` in `src/core/proposal-stored.ts`). Only a merge kind holds `accepting` or `declined`, and the database refuses them on any other kind (`proposals_state_check`). Every kind can end `rejected`.
 
 Only `src/core/proposal-lifecycle.ts` moves a row between states or removes it. A statement that moves a row names the state it moves the row from, so it leaves a row in another state alone. A row goes one other way: the foreign-key cascade on its subject columns.
 
 - **Reject.** A row of any kind moves from `open` to `rejected`.
 - **Apply.** The claim that starts an Accept (`proposalClaimed`) moves the row from `open` to `accepting` before any unit runs. A first unit that throws hands the row back to `open` (`handedBack`). `handedBack` matches only a row with no `cursor`, `moved`, or `unit_revision`. The columns `cursor`, `moved`, `unit_revision`, and `failed_runs` mean something only while the row is `accepting`. The row leaves with the Tag or Topic it names, in the last unit's batch, by the cascade.
 - **Remove.** An `open` row is deleted when Accept of an overview update or of a disagreement commits, and when a weekly stage finds that the row no longer holds. The row of a lost Highlight goes with the Highlight. `goneWithItem` deletes the rows of any state that name a deleted Item or its Highlights.
-- **`declined`.** The weekly merge run inserts a row in this state for each pair the model refused. A `declined` row never changes.
+- **`declined`.** The weekly merge run inserts a row in this state for each pair the model did not return. A `declined` row never changes.
 - **Merge lock.** One merge runs at a time. `anyAccepting` holds while a row of any kind is `accepting`.
 
 The database refuses a state that a kind cannot hold. It also refuses the `accepting` columns on a row that is not `accepting` (The value guard). `test/consistency-triggers-proposals.test.ts` and `test/consistency-triggers-lifecycle.test.ts` check those constraints. The constraints and the two tests do not define which transitions are allowed.
@@ -41,7 +42,7 @@ The database refuses a state that a kind cannot hold. It also refuses the `accep
 `GET /api/proposals?cursor=` answers the owner's session and an agent token, and the MCP endpoint gets no tool for it. It lists `open` and `accepting` rows of every kind, 50 to a page, newest first by `id`, with the Log's cursor rule. `src/core/proposal-contract.ts` holds the shapes. These fields need a reason:
 
 - The list reads a merge row's `items` counts when the call is made. A disagreement row shows the title and `summary` of the stored Digest whose task id the row holds. The page shows the text the model judged, and never a later text.
-- `pageQuery` is one statement. Its `WHERE` holds the condition that makes a row listable (`LISTED_WHILE`), and the condition applies before the page limit. A merge row is always listable. A `highlight-lost` row is listable while its Highlight is not `attached`. An `overview-gap` row is listable while `overviewGap` holds for its Topic. An `items-disagree` row is listable while `DISAGREEMENT.listed` holds. A hidden row leaves a page of up to 50 full and not short. The eligibility, the quote, the Item, and the title come from one snapshot, because the Node adapter runs each batch in its own transaction. A later read could pair a row with a subject that the row was not chosen for.
+- `pageQuery` is one statement. Its `WHERE` holds the condition that makes a row listable (`listedWhile` in the declaration of the kind), and the condition applies before the page limit. A merge row is always listable. A `highlight-lost` row is listable while its Highlight is not `attached`. An `overview-gap` row is listable while `overviewGap` holds for its Topic. An `items-disagree` row is listable while `DISAGREEMENT.listed` holds. A hidden row leaves a page of up to 50 full and not short. The eligibility, the quote, the Item, and the title come from one snapshot, because the Node adapter runs each batch in its own transaction. A later read could pair a row with a subject that the row was not chosen for.
 - `checkedAt` is the largest `last_run_at` of the weekly claims in `WEEKLY_TASK`. `provider` says whether a Provider is saved.
 
 ## Reject
@@ -56,7 +57,7 @@ An accepted disagreement row is deleted. Its Pin keeps the pair decided while bo
 
 ## Accept
 
-`POST /api/proposals/{id}/accept` is owner-only. An agent token gets 403 (the route is declared `access("owner")` in `src/http/proposal-routes.ts`), and the MCP endpoint has no tool for it. Accept has no confirmation and no undo. `acceptProposal` reads the row's `kind` and calls the entry of a table keyed by kind (`ACCEPT`). `readRow` answers only for a merge kind.
+`POST /api/proposals/{id}/accept` is owner-only. An agent token gets 403 (the route is declared `access("owner")` in `src/http/proposal-routes.ts`), and the MCP endpoint has no tool for it. Accept has no confirmation and no undo. `acceptProposal` reads the row's `kind` and calls `accept` in the declaration of that kind. `readRow` answers only for a merge kind.
 
 Every kind shares two answers:
 
@@ -109,7 +110,7 @@ A merge adds three answers:
 
 One merge runs at a time, so no two merges touch one Tag or one Topic. Overview writes use their own input revision guards.
 
-In the rest of this section, `from` is the Tag or Topic that goes, and `into` is the one that stays. The merge runs in units (`applyUnit` in `src/core/merge-apply.ts`, called by `runUnits` in `src/core/merge-accept.ts`). Each unit is one guarded batch (`guardedResults`, `docs/architecture/database-and-search.md`). The two kinds share the guard, the state change, `moved`, the unit revision, the Pin writes, the Log entry, the closing writes, and the answers. They differ in the facts that `MERGE` in `src/core/merge-kinds.ts` holds for each kind: its table, its columns on the Proposal, how an Item links to an entry, its Log action, and what a unit plans (`plan`).
+In the rest of this section, `from` is the Tag or Topic that goes, and `into` is the one that stays. The merge runs in units (`applyUnit` in `src/core/merge-apply.ts`, called by `runUnits` in `src/core/merge-accept.ts`). Each unit is one guarded batch (`guardedResults`, `docs/architecture/database-and-search.md`). The two kinds share the guard, the state change, `moved`, the unit revision, the Pin writes, the Log entry, the closing writes, and the answers. They differ in the facts that `MERGE` in `src/core/merge-kinds.ts` holds for each kind: its table, its columns on the Proposal, how an Item links to an entry, its Log action, what a unit plans (`plan`), and how the weekly run asks about it: the instructions to the model and the names it sends with each Tag or Topic (`instructions`, `names`).
 
 #### The Tag unit
 
@@ -214,7 +215,7 @@ The `proposals` and `topic-proposals` sweep stages claim the `scheduled_runs` ro
 The `highlight-proposals` sweep stage claims `highlight_proposals` on the same rule and under the same conditions as the other stages: a Provider is saved and at least one Item has a Digest. The condition is shared so that the page's empty state stays true. The empty state says that the weekly check needs a Provider. The stage calls no model, makes no `ai_tasks` row, and opens no job. It is one `db.batch` of three statements:
 
 1. The claim.
-2. The insert, with `WHERE changes() > 0` after the claim. A second tick in the week inserts nothing, and a batch that fails spends no week. The insert takes the 20 newest Highlights (`PROPOSALS_MAX`) whose status is not `attached` and that have no `proposals` row in any state. It inserts them in ascending id order, so the newest Highlight lists first. Each row is `open` with the fixed reason `plain-check`, because the `proposals_open_reason` check needs a reason on an open row. `ON CONFLICT DO NOTHING` keeps the unique index `proposals_highlight` from failing the batch.
+2. The insert, with `WHERE changes() > 0` after the claim. A second tick in the week inserts nothing, and a batch that fails spends no week. The insert takes the 20 newest Highlights (`LOST_HIGHLIGHTS_PER_WEEK`) whose status is not `attached` and that have no `proposals` row in any state. It inserts them in ascending id order, so the newest Highlight lists first. Each row is `open` with the fixed reason `plain-check`, because the `proposals_open_reason` check needs a reason on an open row. `ON CONFLICT DO NOTHING` keeps the unique index `proposals_highlight` from failing the batch.
 3. The delete of `open` rows whose Highlight is `attached` again. It comes after the insert, so that `changes()` in the insert still reads the claim's row. It runs only when the `scheduled_runs` row holds this tick's time (`claimedAt` in `src/core/scheduled-claim.ts`), because a tick that lost the claim must delete nothing. A rejected row stays, so Reject is final for that Highlight.
 
 Nothing in the check updates `highlights`. `src/core/highlight-publish.ts` stays the one writer of `status` and `start` after the insert. A Highlight whose text comes back is `attached` again with no help from a Proposal.
@@ -228,14 +229,14 @@ A stage that throws before its batch commits logs `sweep-stage-failed`. The next
 The `overview-proposals` sweep stage claims `overview_proposals` on the same rule and under the same conditions. The Provider condition is real here, because Accept starts an overview run and an overview run needs a Provider. The stage calls no model, makes no `ai_tasks` row, and opens no job. It is one `db.batch` of three statements:
 
 1. The claim.
-2. The insert, with `WHERE changes() > 0` after the claim. It takes up to 20 Topics (`PROPOSALS_MAX`) for which `overviewGap` holds and that have no `proposals` row of this kind in any state, so a Reject is final for the Topic. `overviewGap` holds on two conditions. First, the Topic has an Item with a Digest that `built_from` does not list with that Digest's task id. That is the predicate the Topic page uses. The stage does not use `coverageGaps`, because `coverageGaps` also counts removed Items. Second, no Item of the Topic owns a `topic_overview` job that is not `done`, because that run, and the runs it chains, close the gap. The stage chooses the Topics by the number of uncovered Items, most first, then by Topic id. It inserts them in the reverse order, so the Topic furthest behind lists first, with the fixed reason `plain-check`. `ON CONFLICT DO NOTHING` keeps the unique index `proposals_overview_topic` from failing the batch.
+2. The insert, with `WHERE changes() > 0` after the claim. It takes up to 20 Topics (`OVERVIEW_GAPS_PER_WEEK`) for which `overviewGap` holds and that have no `proposals` row of this kind in any state, so a Reject is final for the Topic. `overviewGap` holds on two conditions. First, the Topic has an Item with a Digest that `built_from` does not list with that Digest's task id. That is the predicate the Topic page uses. The stage does not use `coverageGaps`, because `coverageGaps` also counts removed Items. Second, no Item of the Topic owns a `topic_overview` job that is not `done`, because that run, and the runs it chains, close the gap. The stage chooses the Topics by the number of uncovered Items, most first, then by Topic id. It inserts them in the reverse order, so the Topic furthest behind lists first, with the fixed reason `plain-check`. `ON CONFLICT DO NOTHING` keeps the unique index `proposals_overview_topic` from failing the batch.
 3. The delete of `open` rows whose Topic no longer has a gap. The delete runs only in the tick that won the claim, and after the insert. Between claims the page hides such a row and the row stays. A row whose Topic has a run open lists again if that run ends and leaves a gap. A Topic that falls behind again after its row was deleted is proposed again.
 
 An overview run that failed leaves a failure marker and uncovered Items with no open job, so this stage finds that Topic. It also finds Items that arrived, or that a Topic merge moved, while no Provider was saved.
 
 ## The weekly disagreement check
 
-The `disagreement-proposals` sweep stage claims `disagreement_proposals` on the same rule and under the same conditions. It opens one job in the same batch (`openModelRun` in `src/core/proposal-week.ts`), and the newest Item with a Digest owns the job.
+The `disagreement-proposals` sweep stage claims `disagreement_proposals` on the same rule and under the same conditions. It opens one job in the same batch (`modelCheck` in `src/core/weekly-check.ts`), and the newest Item with a Digest owns the job.
 
 The batch also holds a third statement, `staleDisagreements`, which deletes two sets of `open` rows: the rows whose Items no longer both have the Digest the row names, and the rows whose pair has a current Pin. The second set makes a duplicate that an older release stored for an accepted pair go at once. The statement runs only when the claim row holds this tick's time, so a tick that lost the claim deletes nothing. The one exception is two ticks with the same millisecond, which both delete. That is harmless, because the rows they delete are stale for both ticks. A `rejected` row is never deleted, and neither is an `open` row whose Items merely sit in two Topics.
 

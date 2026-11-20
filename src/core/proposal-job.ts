@@ -1,37 +1,19 @@
-import { type SQL, sql } from "drizzle-orm";
-
 import { AI_DEADLINE_MS, AI_LIST_OUTPUT_TOKENS } from "./ai-contract.ts";
 import { readCatalogVersion } from "./catalog.ts";
 import { defineJob } from "./job-spec.ts";
-import type { MergeKind } from "./kinds.ts";
+import { type MergeKind, WEEKLY_TASK } from "./kinds.ts";
 import { MERGE } from "./merge-kinds.ts";
 import { proposalsInput, readProposalPairs } from "./proposal-input.ts";
-import { storedMerges } from "./proposal-stored.ts";
-import {
-  type ProposalsResult,
-  type Sent,
-  SentPairsSchema,
-  proposalsTask,
-  proposalsTaskKind,
-} from "./proposal-task.ts";
+import { type Sent, SentPairsSchema } from "./proposal-sent.ts";
+import { sentExist, storedMerges } from "./proposal-stored.ts";
+import { type ProposalsResult, proposalsTask } from "./proposal-task.ts";
 import { type WeeklyRun, weeklyKind } from "./weekly-kind.ts";
-
-const RUNS: Readonly<Record<MergeKind, { readonly label: string; readonly event: string }>> = {
-  "tag-merge": { label: "Proposals run", event: "proposals-run-failed" },
-  "topic-merge": { label: "Topic proposals run", event: "topic-proposals-run-failed" },
-};
-
-function sentExist(kind: MergeKind, sent: Sent): SQL {
-  const ids = JSON.stringify(sent.flatMap(({ low, high }) => [low.id, high.id]));
-  const { table } = MERGE[kind];
-
-  return sql`not exists (select 1 from json_each(${ids}) as wanted where not exists (select 1 from ${table} where ${table.id} = wanted.value))`;
-}
 
 function runOf(kind: MergeKind): WeeklyRun<Sent, ProposalsResult> {
   return {
-    ...RUNS[kind],
-    kind: proposalsTaskKind(kind),
+    kind: WEEKLY_TASK[kind],
+    label: MERGE[kind].label,
+    event: MERGE[kind].event,
     sent: SentPairsSchema,
     maxOutputTokens: AI_LIST_OUTPUT_TOKENS,
     read: async (db) => {

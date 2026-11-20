@@ -2,29 +2,8 @@ import { type SQL, type SQLWrapper, and, eq, inArray, isNull, or, sql } from "dr
 
 import type { Database } from "./database.ts";
 import type { ProposalKind, ProposalState } from "./kinds.ts";
+import type { SUBJECTS } from "./proposal-tables.ts";
 import { highlights, proposals } from "./schema.ts";
-
-interface Lifecycle {
-  readonly inserted: readonly ProposalState[];
-}
-
-const MERGE_LIFECYCLE = {
-  inserted: ["open", "declined"],
-} as const satisfies Lifecycle;
-
-const PLAIN_LIFECYCLE = {
-  inserted: ["open"],
-} as const satisfies Lifecycle;
-
-export const LIFECYCLE = {
-  "tag-merge": MERGE_LIFECYCLE,
-  "topic-merge": MERGE_LIFECYCLE,
-  "highlight-lost": PLAIN_LIFECYCLE,
-  "overview-gap": PLAIN_LIFECYCLE,
-  "items-disagree": PLAIN_LIFECYCLE,
-} as const satisfies Readonly<Record<ProposalKind, Lifecycle>>;
-
-export type InsertedState<Kind extends ProposalKind> = (typeof LIFECYCLE)[Kind]["inserted"][number];
 
 const MOVES = {
   reject: { from: "open", to: "rejected" },
@@ -130,32 +109,29 @@ export function goneWithItem(db: Database, itemId: number) {
 
 type Subject = Readonly<SQLWrapper>;
 
-interface Subjects {
-  readonly fromTagId: Subject;
-  readonly intoTagId: Subject;
-  readonly fromTopicId: Subject;
-  readonly intoTopicId: Subject;
-  readonly highlightId: Subject;
-  readonly topicId: Subject;
-  readonly fromItemId: Subject;
-  readonly intoItemId: Subject;
-  readonly fromDigest: Subject;
-  readonly intoDigest: Subject;
-}
+type SubjectColumn = (typeof SUBJECTS)[ProposalKind][number];
+
+type Subjects = { readonly [Column in SubjectColumn]: Subject };
 
 interface Row<Kind extends ProposalKind> {
   readonly kind: Kind;
-  readonly state: InsertedState<Kind> | Subject;
+  readonly state: Subject;
   readonly reason: Subject;
   readonly createdAt: number;
 }
 
 const NONE = sql`null`;
 
+export type OwnSubjects<Kind extends ProposalKind> = Kind extends ProposalKind
+  ? { readonly [Column in (typeof SUBJECTS)[Kind][number]]: Subject }
+  : never;
+
 export function proposalRow<Kind extends ProposalKind>(
   { kind, state, reason, createdAt }: Readonly<Row<Kind>>,
-  subjects: Readonly<Partial<Subjects>>,
+  own: OwnSubjects<Kind>,
 ) {
+  const subjects: Readonly<Partial<Subjects>> = own;
+
   return {
     id: sql<null>`null`.as("id"),
     kind: sql<ProposalKind>`${kind}`.as("kind"),

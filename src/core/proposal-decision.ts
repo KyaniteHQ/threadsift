@@ -1,25 +1,11 @@
 import { eq } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { acceptDisagreement } from "./disagreement-accept.ts";
-import { acceptLostHighlight } from "./highlight-proposals.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { type MergeAcceptance, acceptMerge } from "./merge-accept.ts";
-import { acceptOverviewGap } from "./overview-accept.ts";
+import type { Acceptance } from "./proposal-kind.ts";
+import { PROPOSAL } from "./proposal-kinds.ts";
 import { rejection } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
-
-export type Acceptance = MergeAcceptance | "not-current" | "no-provider";
-
-type Accepting = (ports: JobPorts, id: number) => Promise<Acceptance>;
-
-const ACCEPT = {
-  "tag-merge": acceptMerge,
-  "topic-merge": acceptMerge,
-  "highlight-lost": ({ db }, id) => acceptLostHighlight(db, id),
-  "overview-gap": acceptOverviewGap,
-  "items-disagree": ({ db }, id) => acceptDisagreement(db, id),
-} as const satisfies Readonly<Record<(typeof proposals.$inferSelect)["kind"], Accepting>>;
 
 export async function acceptProposal(ports: JobPorts, id: number): Promise<Acceptance> {
   const [found] = await ports.db
@@ -27,7 +13,7 @@ export async function acceptProposal(ports: JobPorts, id: number): Promise<Accep
     .from(proposals)
     .where(eq(proposals.id, id));
 
-  return found === undefined ? "unknown" : ACCEPT[found.kind](ports, id);
+  return found === undefined ? "unknown" : PROPOSAL[found.kind].accept(ports, id);
 }
 
 type Rejection = "rejected" | "unknown" | "not-open";

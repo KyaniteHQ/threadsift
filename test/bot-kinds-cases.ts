@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { BOT_TASK_KINDS } from "../src/core/bot-task-kinds.ts";
 import { SentTopicsSchema } from "../src/core/disagreement-task.ts";
-import { SentPairsSchema } from "../src/core/proposal-task.ts";
+import { SentPairsSchema } from "../src/core/proposal-sent.ts";
 import { seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance, Json } from "./instance.ts";
 import { REDDIT_THREAD, exec, paste, rows } from "./related-fixtures.ts";

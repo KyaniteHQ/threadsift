@@ -5,14 +5,15 @@ import { AI_INPUT_BYTES } from "../src/core/ai-contract.ts";
 import { catalogKey } from "../src/core/catalog-key.ts";
 import {
   type Candidate,
-  PROPOSALS_MAX,
+  MERGE_PAIRS_PER_RUN,
   candidatePairs,
   disjointPairs,
   looseKey,
   pairKey,
 } from "../src/core/proposal-candidates.ts";
 import { proposalsInput } from "../src/core/proposal-input.ts";
-import { type SentPair, proposalsTask } from "../src/core/proposal-task.ts";
+import type { SentPair } from "../src/core/proposal-sent.ts";
+import { proposalsTask } from "../src/core/proposal-task.ts";
 
 function tag(id: number, name: string, items = 1): Candidate {
   return { id, key: catalogKey(name), items };
@@ -94,7 +95,7 @@ describe("the plain check picks the pairs of Tags that may name one concept, in 
     ]).flat();
 
     assert.equal(candidatePairs(tags, new Set()).length, 25);
-    assert.equal(disjointPairs(candidatePairs(tags, new Set())).length, PROPOSALS_MAX);
+    assert.equal(disjointPairs(candidatePairs(tags, new Set())).length, MERGE_PAIRS_PER_RUN);
   });
 });
 

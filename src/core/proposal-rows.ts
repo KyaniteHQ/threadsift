@@ -1,21 +1,14 @@
-import { type SQLWrapper, and, desc, eq, inArray, lt, ne, or, sql } from "drizzle-orm";
+import { type SQLWrapper, and, desc, eq, inArray, lt, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./database.ts";
-import {
-  DISAGREEMENT,
-  firstDigest,
-  firstItem,
-  secondDigest,
-  secondItem,
-} from "./disagreement-rows.ts";
+import { firstDigest, firstItem, secondDigest, secondItem } from "./disagreement-rows.ts";
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { itemTitle } from "./item-title.ts";
-import { PROPOSAL_KINDS, type ProposalKind } from "./kinds.ts";
 import { acrossKinds } from "./merge-kinds.ts";
 import { ListedStateSchema } from "./proposal-contract.ts";
 import { digests, highlights, items, proposals, topics } from "./schema.ts";
-import { overviewGap, digestedCount, uncoveredCount } from "./topic-coverage.ts";
+import { digestedCount, uncoveredCount } from "./topic-coverage.ts";
 
 const subjectTopic = alias(topics, "subject_topic");
 
@@ -36,18 +29,6 @@ function mergeSide(end: "from" | "into") {
 const FROM = mergeSide("from");
 
 const INTO = mergeSide("into");
-
-const LISTED_WHILE = {
-  "tag-merge": undefined,
-  "topic-merge": undefined,
-  "highlight-lost": ne(highlights.status, "attached"),
-  "overview-gap": overviewGap(proposals.topicId),
-  "items-disagree": DISAGREEMENT.listed,
-} as const satisfies Readonly<Record<ProposalKind, SQLWrapper | undefined>>;
-
-const listable = or(
-  ...PROPOSAL_KINDS.map((kind) => and(eq(proposals.kind, kind), LISTED_WHILE[kind])),
-);
 
 function sideColumns(
   prefix: string,
@@ -93,7 +74,13 @@ const PAGE_COLUMNS = {
   digested: sql<number>`${digestedCount(proposals.topicId)}`.as("digested"),
 };
 
-export function pageQuery(db: Database, cursor: number | null) {
+export type PageRow = Awaited<ReturnType<typeof pageQuery>>[number];
+
+export function pageQuery(
+  db: Database,
+  cursor: number | null,
+  listable: Readonly<SQLWrapper> | undefined,
+) {
   return db
     .select(PAGE_COLUMNS)
     .from(proposals)

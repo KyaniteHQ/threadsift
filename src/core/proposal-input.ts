@@ -1,4 +1,4 @@
-import { asc, count, eq, gt, inArray, sql } from "drizzle-orm";
+import { asc, count, eq, gt } from "drizzle-orm";
 
 import { AI_INPUT_BYTES } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
@@ -8,24 +8,16 @@ import { MERGE } from "./merge-kinds.ts";
 import {
   type Candidate,
   type CandidatePair,
-  NAMES_PER_SUBJECT,
   candidatePairs,
   disjointPairs,
   pairKey,
 } from "./proposal-candidates.ts";
-import type { SentPair, SentSubject } from "./proposal-task.ts";
-import { itemTags, items, proposals, tags, topics } from "./schema.ts";
+import type { SentPair, SentSubject } from "./proposal-sent.ts";
+import { proposals } from "./schema.ts";
 
 const SUBJECT_PAGE = 1000;
 
 type NamedCandidate = Candidate & { readonly name: string };
-
-interface NameRow {
-  readonly owner: number;
-  readonly key: string;
-  readonly name: string;
-  readonly used: number;
-}
 
 async function allPages(
   readPage: (after: number) => Promise<readonly NamedCandidate[]>,
@@ -67,49 +59,6 @@ async function knownPairs(db: Database, kind: MergeKind): Promise<ReadonlySet<st
   );
 }
 
-function mostUsed(rows: readonly Readonly<NameRow>[]): ReadonlyMap<number, readonly string[]> {
-  const byOwner = Map.groupBy(rows, ({ owner }) => owner);
-
-  return new Map(
-    [...byOwner].map(([owner, each]) => [
-      owner,
-      each
-        .toSorted((first, second) => second.used - first.used || (first.key < second.key ? -1 : 1))
-        .slice(0, NAMES_PER_SUBJECT)
-        .map(({ name }) => name),
-    ]),
-  );
-}
-
-async function topicsOf(db: Database, ids: readonly number[]) {
-  return mostUsed(
-    await db
-      .select({ owner: itemTags.tagId, key: topics.key, name: topics.name, used: count() })
-      .from(itemTags)
-      .innerJoin(items, eq(items.id, itemTags.itemId))
-      .innerJoin(topics, eq(topics.id, items.topicId))
-      .where(inArray(itemTags.tagId, ids))
-      .groupBy(itemTags.tagId, topics.id),
-  );
-}
-
-async function tagsOf(db: Database, ids: readonly number[]) {
-  return mostUsed(
-    await db
-      .select({
-        owner: sql<number>`${items.topicId}`,
-        key: tags.key,
-        name: tags.name,
-        used: count(),
-      })
-      .from(items)
-      .innerJoin(itemTags, eq(itemTags.itemId, items.id))
-      .innerJoin(tags, eq(tags.id, itemTags.tagId))
-      .where(inArray(items.topicId, ids))
-      .groupBy(items.topicId, tags.id),
-  );
-}
-
 function proposalsJson(pairs: readonly Readonly<SentPair>[]): string {
   return JSON.stringify({ pairs: pairs.map(({ low, high }) => [low, high]) });
 }
@@ -123,19 +72,6 @@ export function proposalsInput(pairs: readonly Readonly<SentPair>[]) {
 
   return { input: proposalsJson(sent), sent };
 }
-
-type Base = Readonly<Pick<NamedCandidate, "id" | "name" | "items">>;
-
-const NAMES = {
-  "tag-merge": {
-    of: topicsOf,
-    subject: (base: Base, names: readonly string[]): SentSubject => ({ ...base, topics: names }),
-  },
-  "topic-merge": {
-    of: tagsOf,
-    subject: (base: Base, names: readonly string[]): SentSubject => ({ ...base, tags: names }),
-  },
-} as const;
 
 function sentPair(
   { low, high }: Readonly<CandidatePair>,
@@ -157,7 +93,7 @@ export async function readProposalPairs(
 
   if (ids.length === 0) return [];
 
-  const { of, subject } = NAMES[kind];
+  const { of, subject } = MERGE[kind].names;
   const names = await of(db, ids);
 
   const named = new Map<number, SentSubject>(
