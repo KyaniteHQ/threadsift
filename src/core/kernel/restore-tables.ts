@@ -2,6 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { RESTORE_FAILURES, RESTORE_PHASES, RESTORE_STATES } from "../contract/restore-contract.ts";
+import { OPEN_RUNS, standingSql } from "./restore-standing.ts";
 import { listed } from "./schema-checks.ts";
 
 export const restoreRuns = sqliteTable(
@@ -26,7 +27,7 @@ export const restoreRuns = sqliteTable(
     check("restores_values_check", sql`${table.state} in (${listed(RESTORE_STATES)})`),
     uniqueIndex("restores_one_open")
       .on(sql`1`)
-      .where(sql`${table.state} not in ('done', 'cancelled', 'failed')`),
+      .where(standingSql(table, OPEN_RUNS)),
   ],
 );
 

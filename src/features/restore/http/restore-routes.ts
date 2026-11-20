@@ -62,7 +62,7 @@ const createRestoreRoute = createRoute({
     ...accessRefusals(OWNER),
     409: jsonBody(
       restoreAnswerSchema("library-not-empty", "restore-open"),
-      `\`code\` is \`library-not-empty\`: ${LIBRARY_NOT_EMPTY} Or \`restore-open\`: ${OPEN}`,
+      `\`code\` is \`library-not-empty\`: ${LIBRARY_NOT_EMPTY} The library is checked first, so a restore that is open and has already written records gives this code too. Or \`restore-open\`: ${OPEN} The library is still empty then, as it is for a restore that waits for its upload and for one that failed with \`gave-up\` before it wrote a record.`,
     ),
   },
 });

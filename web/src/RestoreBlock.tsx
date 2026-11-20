@@ -154,6 +154,25 @@ function Picker({
   );
 }
 
+function offersPicker(view: RestoreStatus): boolean {
+  if (!view.libraryEmpty) return false;
+
+  switch (view.state) {
+    case "running":
+    case "cancelling":
+      return false;
+    case "failed":
+      return view.failure !== "gave-up";
+    case "none":
+    case "uploading":
+    case "done":
+    case "cancelled":
+      return true;
+    default:
+      return view satisfies never;
+  }
+}
+
 export function RestoreBlock() {
   const { view, loadFailed, progress, acting, result, choose, cancel, resume } = useRestore();
   const busy = acting !== null;
@@ -186,9 +205,7 @@ export function RestoreBlock() {
       {progress === null ? (
         <Actions view={view} acting={acting} cancel={cancel} resume={resume} />
       ) : null}
-      {view.libraryEmpty && view.state !== "running" && view.state !== "cancelling" ? (
-        <Picker acting={acting} choose={choose} />
-      ) : null}
+      {offersPicker(view) ? <Picker acting={acting} choose={choose} /> : null}
       <SettingsResult outcome={result} />
     </div>
   );
