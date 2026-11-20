@@ -1,5 +1,4 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
-import type { Context } from "hono";
 
 import { completeOpenRouterConnect } from "../core/openrouter-callback.ts";
 import { startOpenRouterConnect } from "../core/openrouter-connect.ts";
@@ -10,10 +9,12 @@ import {
   ConnectStartResponseSchema,
   returnAddress,
 } from "../core/openrouter-contract.ts";
+import { sentByOwnPage } from "../core/own-origin.ts";
 import type { Ports } from "../core/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
+import { senderOf } from "./sender.ts";
 import { sessionIdOf } from "./session-cookie.ts";
 
 const startRoute = createRoute({
@@ -52,14 +53,6 @@ const callbackRoute = createRoute({
   },
 });
 
-function fromOwnPage(c: Context, origin: string): boolean {
-  return (
-    c.req.header("origin") === origin &&
-    c.req.header("sec-fetch-site") === "same-origin" &&
-    new URL(c.req.url).host === new URL(origin).host
-  );
-}
-
 function registerStart(app: OpenAPIHono, ports: Ports): void {
   app.openapi(startRoute, async (c) => {
     const { publicOrigin } = ports;
@@ -67,7 +60,7 @@ function registerStart(app: OpenAPIHono, ports: Ports): void {
     if (publicOrigin === null)
       return c.json({ error: "Connect needs THREADSIFT_PUBLIC_ORIGIN" }, 503);
 
-    if (!fromOwnPage(c, publicOrigin))
+    if (!sentByOwnPage(senderOf(c), publicOrigin))
       return c.json({ error: "Connect starts only from this Instance's own Settings page" }, 403);
 
     const sessionId = sessionIdOf(c);

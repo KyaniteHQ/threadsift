@@ -1,5 +1,6 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 
+import { type LockedOut, type Refused, lockedOut, refused } from "./access-refusal.ts";
 import type { Database } from "./database.ts";
 import type { ThrottleKind } from "./kinds.ts";
 import { throttles } from "./schema.ts";
@@ -9,10 +10,16 @@ const FIRST_LOCK_MS = 60_000;
 const LONGEST_LOCK_MS = 3_600_000;
 const LAST_DOUBLING = 6;
 
-export type Attempt<Proof> =
+type WrongAnswer =
+  | "wrong-setup-code"
+  | "wrong-password"
+  | "wrong-current-password"
+  | "wrong-reset-code";
+
+export type Attempt<Proof, Wrong extends WrongAnswer> =
   | { readonly kind: "ok"; readonly proof: Proof }
-  | { readonly kind: "wrong" }
-  | { readonly kind: "locked"; readonly retryAfter: number };
+  | Refused<Wrong>
+  | LockedOut;
 
 type Admission =
   | { readonly admitted: true; readonly number: number }
@@ -46,21 +53,22 @@ async function admit(db: Database, kind: ThrottleKind, now: number): Promise<Adm
     : admit(db, kind, now);
 }
 
-export async function settleAttempt<Proof>(
+export async function settleAttempt<Proof, Wrong extends WrongAnswer>(
   db: Database,
   kind: ThrottleKind,
-  verify: () => Promise<Proof | null>,
-): Promise<Attempt<Proof>> {
+  verify: () => Promise<Proof | null> | Proof | null,
+  wrong: Wrong,
+): Promise<Attempt<Proof, Wrong>> {
   const admission = await admit(db, kind, Date.now());
 
   if (!admission.admitted) {
-    return { kind: "locked", retryAfter: admission.retryAfter };
+    return lockedOut(admission.retryAfter);
   }
 
   const proof = await verify();
 
   if (proof === null) {
-    return { kind: "wrong" };
+    return refused(wrong);
   }
 
   await db

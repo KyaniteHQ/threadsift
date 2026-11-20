@@ -6,18 +6,23 @@ import type { WaitReason } from "../core/kinds.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { type ShownStatus, type ShownStatusInput, shownStatus } from "../core/shown-status.ts";
 import { type ImageColumns, type ItemImageSchema, imageOf } from "./item-image.ts";
-import type { WaitSchema } from "./schemas.ts";
+import type { WaitSchema } from "./item-wire.ts";
+
+interface ViewInputs extends Pick<ShownStatusInput, "digestSource">, ImageColumns, CountColumns {
+  readonly waitReason: WaitReason | null;
+  readonly retryAt: number | null;
+}
 
 type StatusRow = Pick<ItemRow, "id"> &
-  ShownStatusInput & {
-    readonly waitReason: WaitReason | null;
-    readonly retryAt: number | null;
-  } & ImageColumns &
-  CountColumns;
+  Omit<ShownStatusInput, "digestSource"> & { readonly inputs: ViewInputs };
 
 type Wait = z.infer<typeof WaitSchema>;
 
-function waitOf({ status, waitReason, retryAt }: Readonly<StatusRow>): Wait | null {
+function waitOf({
+  status,
+  waitReason,
+  retryAt,
+}: Readonly<Pick<ShownStatusInput, "status"> & ViewInputs>): Wait | null {
   return status === "processing" && waitReason !== null && retryAt !== null
     ? { reason: waitReason, retryAt }
     : null;
@@ -25,41 +30,21 @@ function waitOf({ status, waitReason, retryAt }: Readonly<StatusRow>): Wait | nu
 
 export function itemView<Row extends StatusRow>(
   row: Readonly<Row>,
-): Omit<
-  Row,
-  | keyof ImageColumns
-  | keyof CountColumns
-  | "status"
-  | "reason"
-  | "digestOutcome"
-  | "digestSource"
-  | "waitReason"
-  | "retryAt"
-> &
+): Omit<Row, "inputs" | "status" | "reason" | "digestOutcome"> &
   ShownStatus & {
     readonly wait: Wait | null;
     readonly commentCount: CommentCount | null;
     readonly image: z.infer<typeof ItemImageSchema> | null;
   } {
-  const {
-    digestSource: _digestSource,
-    waitReason: _waitReason,
-    retryAt: _retryAt,
-    imageKey: _imageKey,
-    imageAlt: _imageAlt,
-    commentsPublished: _commentsPublished,
-    commentsReceived: _commentsReceived,
-    commentsShown: _commentsShown,
-    commentsReported: _commentsReported,
-    ...view
-  } = row;
+  const { inputs, ...view } = row;
+  const read = { ...row, ...inputs };
 
   return {
     ...view,
-    ...shownStatus(row),
-    wait: waitOf(row),
-    image: imageOf(row),
-    commentCount: commentCountOf(row),
+    ...shownStatus(read),
+    wait: waitOf(read),
+    image: imageOf(inputs),
+    commentCount: commentCountOf(inputs),
   };
 }
 

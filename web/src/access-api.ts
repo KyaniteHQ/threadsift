@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { Scope } from "../../src/core/kinds.ts";
+import type { RefusalCode, Scope } from "../../src/core/kinds.ts";
 import type { PasswordProblem } from "../../src/core/passwords.ts";
 import type { SetupCodeProblem } from "../../src/core/setup-code.ts";
 import {
@@ -9,7 +9,6 @@ import {
   SessionStateSchema,
   TokenListResponseSchema,
   TokenSummaryResponseSchema,
-  type RefusalCode,
   type Token,
 } from "../../src/http/schemas.ts";
 import { type JsonBody, call, callOk, del, parsedFrom, patch, post } from "./calls.ts";

@@ -1,31 +1,18 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
-import { createMiddleware } from "hono/factory";
 
 import { TaskReadSchema, readableTask } from "../core/ai-task-read.ts";
-import { BotAnswerSchema, acceptBotAnswer } from "../core/bot-answer.ts";
+import { type AnswerOutcome, BotAnswerSchema, acceptBotAnswer } from "../core/bot-answer.ts";
 import type { Ports } from "../core/ports.ts";
-import { acceptIntake, refusedIntake } from "../core/x-intake-answer.ts";
+import { acceptIntake } from "../core/x-intake-answer.ts";
 import { IntakeAnswerSchema, refusedBodyOf } from "../core/x-intake-contract.ts";
-import type { CallbackEnv } from "./access-steps.ts";
 import { access, ITEM_CAP, RESULT_CAP } from "./access.ts";
+import { countedRefusals, refusedBody } from "./intake-body.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 import { CREDENTIAL_ONLY, CREDENTIAL_REQUIRED } from "./task-credential.ts";
 
 const UNSUPPORTED_TASK = "unsupported-task";
-
-const recordRefusedIntake = createMiddleware<CallbackEnv>(async (c, next) => {
-  await next();
-
-  if (c.res.status === 400) {
-    await refusedIntake(
-      c.get("ports"),
-      c.get("callbackTask"),
-      c.get("intakeRefusal") ?? "unreadable-body",
-    );
-  }
-});
 
 const CREDENTIAL_REFUSALS = {
   401: jsonBody(
@@ -88,7 +75,7 @@ const resultRoute = createRoute({
 const intakeRoute = createRoute({
   method: "post",
   path: "/api/ai-tasks/{id}/intake",
-  middleware: [access("callback", { body: ITEM_CAP }), recordRefusedIntake] as const,
+  middleware: [access("callback", { body: ITEM_CAP }), countedRefusals] as const,
   request: {
     params: z.object({ id: z.string() }),
     body: jsonRequest(IntakeAnswerSchema),
@@ -111,12 +98,6 @@ const intakeRoute = createRoute({
 });
 
 const CLOSED = "The task no longer takes an answer";
-
-type AnswerOutcome =
-  | { readonly kind: "accepted" }
-  | { readonly kind: "unsupported" }
-  | { readonly kind: "closed" }
-  | { readonly kind: "invalid"; readonly reasons: string };
 
 function answered(c: Context, outcome: AnswerOutcome) {
   switch (outcome.kind) {
@@ -163,13 +144,7 @@ export function registerAiTaskRoutes(app: OpenAPIHono, ports: Ports): void {
 
       return answered(c, outcome);
     },
-    (result, c) => {
-      const refusal = result.success ? null : refusedBodyOf(result.error);
-
-      if (refusal !== null) c.set("intakeRefusal", refusal.logged);
-
-      return refusal === null ? undefined : c.json({ error: refusal.error }, 400);
-    },
+    (result, c) => (result.success ? undefined : refusedBody(c, refusedBodyOf(result.error))),
   );
   app.openapi(resultRoute, async (c) => {
     const body = c.req.valid("json");

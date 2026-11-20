@@ -2,10 +2,11 @@ import { type SQLWrapper, and, eq, gt, lte, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { backoffUntil } from "./github-rate-limit.ts";
-import { among, guardHolds, guardedBatch } from "./guards.ts";
+import { guardHolds, guardedBatch } from "./guards.ts";
 import { loggedVaultFile } from "./log-writes.ts";
 import { HOLDS_LIBRARY } from "./restore-hold.ts";
 import { restoreRuns } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 import {
   type PendingVaultNote,
   parkedUntil,

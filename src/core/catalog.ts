@@ -6,10 +6,10 @@ import { TAG_USES, TOPIC_USES } from "./catalog-uses.ts";
 import type { Database } from "./database.ts";
 import { CATALOG_NAME_LIMIT } from "./digest-prompt.ts";
 import type { Digest } from "./digest-schema.ts";
-import { amongJson } from "./guards.ts";
 import { loggedDigest, loggedTopic } from "./log-writes.ts";
 import { pinnedDigest } from "./pins.ts";
 import { UninitializedDatabase, catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
+import { amongJson } from "./sql-expressions.ts";
 import { openingOverview } from "./topic-overview-run.ts";
 import { queueVaultDigestWiki } from "./vault-wiki-writes.ts";
 

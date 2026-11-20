@@ -4,8 +4,8 @@ import type { BatchItem } from "drizzle-orm/batch";
 import { StoredCommentId } from "./comment-id.ts";
 import type { Database } from "./database.ts";
 import type { CommentCandidate } from "./digest-prompt.ts";
-import { among } from "./guards.ts";
 import { digests, items, redditComments, redditThreads } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 
 export function keptCommentIds(): SQL<string> {
   return sql<string>`(select coalesce(json_group_array(id), '[]') from (select ${redditComments.id} as id from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;

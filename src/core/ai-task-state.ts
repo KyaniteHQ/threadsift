@@ -11,8 +11,8 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { DATABASE_NOW } from "./guards.ts";
 import { aiTasks } from "./schema.ts";
+import { DATABASE_NOW } from "./sql-expressions.ts";
 
 export const GROK_BOT_EXECUTOR = "grok-bot";
 

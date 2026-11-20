@@ -2,8 +2,8 @@ import { type SQLWrapper, and, asc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { storedWithTopic } from "./digest-stored.ts";
-import { among } from "./guards.ts";
 import { digests, items, logEntries, topics } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 import { queueVaultIndex, queueVaultItems, queueVaultTopics } from "./vault-queue.ts";
 
 const MERGE_ITEMS = 500;

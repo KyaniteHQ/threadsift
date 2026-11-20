@@ -3,10 +3,10 @@ import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { Database } from "./database.ts";
 import { hasDigestSource } from "./digest-input.ts";
 import { type Digest, parseStoredDigest } from "./digest-schema.ts";
-import { among } from "./guards.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import type { DigestOutcome } from "./kinds.ts";
 import { digests, items, topics } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 
 export interface DigestRead {
   readonly id: number;
@@ -77,5 +77,8 @@ export const DIGEST_VIEW_COLUMNS = {
     sql<DigestOutcome>`case when exists ${hasOpenJob("digest")} then 'pending' when ${items.digestFailed} then 'failed' else 'none' end`.as(
       "digest_outcome",
     ),
+};
+
+export const DIGEST_SOURCE_COLUMNS = {
   digestSource: sql<boolean>`${hasDigestSource()}`.mapWith(Boolean).as("digest_source"),
 };

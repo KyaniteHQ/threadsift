@@ -35,3 +35,5 @@ const INTAKE_FIELDS = fieldNamesOf(IntakeAnswerSchema);
 export function refusedBodyOf(error: z.ZodError) {
   return { error: reasonsOf(error), logged: issueCodesOf(error, INTAKE_FIELDS) };
 }
+
+export const UNREADABLE_BODY = "unreadable-body";

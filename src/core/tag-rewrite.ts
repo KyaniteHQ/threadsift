@@ -13,10 +13,10 @@ import {
   unchangedDigests,
 } from "./digest-stored.ts";
 import { report } from "./failure-log.ts";
-import { among } from "./guards.ts";
 import type { Side } from "./merge-unit.ts";
 import { digests, items, itemTags } from "./schema.ts";
 import { siblingTags, tagPartWrites } from "./search.ts";
+import { among } from "./sql-expressions.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 
 export const REWRITE_UNIT_ITEMS = 100;

@@ -2,9 +2,9 @@ import type { MiddlewareHandler } from "hono";
 import { csrf } from "hono/csrf";
 
 import type { AiTaskRow } from "../core/ai-task-state.ts";
+import { presentedToken } from "../core/bearer.ts";
 import type { Scope } from "../core/kinds.ts";
-import { verifyToken } from "../core/tokens.ts";
-import { bearerCheck } from "./bearer.ts";
+import { refusedBearer } from "./bearer.ts";
 import type { CacheKind } from "./response-headers.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 import { requireScopes } from "./token-scopes.ts";
@@ -26,23 +26,17 @@ export interface Plan {
 
 const NOT_FOR_TOKENS = "Agent tokens cannot use this route";
 
-const bearer = bearerCheck(async (value, c) => {
-  const token = await verifyToken(c.get("ports"), value);
-
-  if (token === undefined) {
-    return false;
-  }
-
-  c.set("principal", { kind: "token", id: token.id, scopes: token.scopes });
-
-  return true;
-});
-
 const cross = csrf();
 
 async function credentials(c: Ctx, needs: Needs): Promise<Response | undefined> {
-  if (c.req.header("authorization") !== undefined) {
-    await bearer(c, async () => {});
+  const authorization = c.req.header("authorization");
+
+  if (authorization !== undefined) {
+    const presented = await presentedToken(c.get("ports"), authorization);
+
+    if (presented.kind !== "token") return refusedBearer(c, presented);
+
+    c.set("principal", { kind: "token", id: presented.token.id, scopes: presented.token.scopes });
 
     if (needs === "owner") {
       return c.json({ error: NOT_FOR_TOKENS }, 403);

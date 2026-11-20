@@ -2,11 +2,11 @@ import { and, eq, gt } from "drizzle-orm";
 
 import { CURRENT_REVISION, readRevision } from "./ai-settings-revision.ts";
 import { digestOf } from "./encoding.ts";
-import { DATABASE_NOW } from "./guards.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
 import { openrouterConnectTransactions as transactions } from "./openrouter-tables.ts";
 import type { Ports } from "./ports.ts";
 import { sessionIsLive } from "./sessions.ts";
+import { DATABASE_NOW } from "./sql-expressions.ts";
 
 export interface Attempt {
   readonly sessionId: string;
