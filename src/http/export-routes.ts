@@ -1,9 +1,14 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { ExportStatusSchema, StartedExportSchema } from "../core/export-contract.ts";
+import {
+  EXPORT_DOWNLOAD_PATH,
+  ExportStatusSchema,
+  StartedExportSchema,
+} from "../core/export-contract.ts";
 import { zipStream } from "../core/export-download.ts";
 import { deleteExport, exportStatus, readyExport, startExport } from "../core/export-run.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { OWNER_SESSION_REFUSALS, jsonBody, noContent } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
@@ -16,6 +21,7 @@ const OWNER_ONLY =
 const startRoute = createRoute({
   method: "post",
   path: "/api/export",
+  middleware: access("owner"),
   responses: {
     202: jsonBody(
       StartedExportSchema,
@@ -32,6 +38,7 @@ const startRoute = createRoute({
 const statusRoute = createRoute({
   method: "get",
   path: "/api/export",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       ExportStatusSchema,
@@ -43,7 +50,8 @@ const statusRoute = createRoute({
 
 const downloadRoute = createRoute({
   method: "get",
-  path: "/api/export/{id}/download",
+  path: EXPORT_DOWNLOAD_PATH,
+  middleware: access("owner", { cache: "file" }),
   request: { params: IdParamSchema },
   responses: {
     200: {
@@ -61,6 +69,7 @@ const downloadRoute = createRoute({
 const deleteRoute = createRoute({
   method: "delete",
   path: "/api/export",
+  middleware: access("owner"),
   responses: {
     204: noContent(
       `The export is gone from \`GET /api/export\`. A ready or failed export has its stored objects deleted at once. A running export stops, and the sweep deletes its objects 12 minutes later. A slice that a pause held past that point can still write afterwards, and a later sweep deletes what it wrote.${OWNER_ONLY}`,

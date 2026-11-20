@@ -4,6 +4,7 @@ import { HIGHLIGHTS_PAGE_SIZE } from "../core/highlights-page-contract.ts";
 import { highlightsPage } from "../core/highlights-page.ts";
 import { itemFilters } from "../core/item-filters.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { HighlightsPageResponseSchema, HighlightsQuerySchema } from "./highlights-page-schemas.ts";
 import { jsonBody } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
@@ -11,6 +12,7 @@ import { ErrorResponseSchema } from "./schemas.ts";
 const listHighlightsRoute = createRoute({
   method: "get",
   path: "/api/highlights",
+  middleware: access("read"),
   request: { query: HighlightsQuerySchema },
   responses: {
     200: jsonBody(

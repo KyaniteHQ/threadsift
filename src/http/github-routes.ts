@@ -13,11 +13,13 @@ import {
   verifyGithubToken,
 } from "../core/github-token.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/github",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       GithubSettingsViewSchema,
@@ -29,6 +31,7 @@ const readRoute = createRoute({
 const saveRoute = createRoute({
   method: "put",
   path: "/api/settings/github",
+  middleware: access("owner"),
   request: { body: jsonRequest(GithubTokenInputSchema) },
   responses: {
     200: jsonBody(
@@ -41,6 +44,7 @@ const saveRoute = createRoute({
 const removeRoute = createRoute({
   method: "delete",
   path: "/api/settings/github",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       GithubSettingsViewSchema,
@@ -52,6 +56,7 @@ const removeRoute = createRoute({
 const verifyRoute = createRoute({
   method: "post",
   path: "/api/settings/github/verify",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       GithubVerifyResultSchema,

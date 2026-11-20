@@ -12,6 +12,7 @@ import {
 } from "../core/proposal-contract.ts";
 import { acceptProposal, rejectProposal } from "../core/proposal-decision.ts";
 import { readProposalPage, readProposalState } from "../core/proposal-page.ts";
+import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, cursorParam } from "./schemas.ts";
@@ -21,6 +22,7 @@ const ProposalQuerySchema = z.object({ cursor: cursorParam(parseLogCursor) });
 const listProposalsRoute = createRoute({
   method: "get",
   path: "/api/proposals",
+  middleware: access("read"),
   request: { query: ProposalQuerySchema },
   responses: {
     200: jsonBody(
@@ -37,6 +39,7 @@ const listProposalsRoute = createRoute({
 const proposalStateRoute = createRoute({
   method: "get",
   path: "/api/proposals/{id}",
+  middleware: access("read"),
   request: { params: ProposalIdParamSchema },
   responses: {
     200: jsonBody(
@@ -50,6 +53,7 @@ const proposalStateRoute = createRoute({
 const rejectProposalRoute = createRoute({
   method: "post",
   path: "/api/proposals/{id}/reject",
+  middleware: access("owner"),
   request: { params: ProposalIdParamSchema },
   responses: {
     200: jsonBody(
@@ -67,6 +71,7 @@ const rejectProposalRoute = createRoute({
 const acceptProposalRoute = createRoute({
   method: "post",
   path: "/api/proposals/{id}/accept",
+  middleware: access("owner"),
   request: { params: ProposalIdParamSchema },
   responses: {
     200: jsonBody(

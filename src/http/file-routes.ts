@@ -4,6 +4,7 @@ import { FILE_ROUTE, itemFileKey } from "../core/file-keys.ts";
 import { servedImage } from "../core/image-serving.ts";
 import { IMAGE_TYPES } from "../core/image-type.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
@@ -15,6 +16,7 @@ const ImageBytesSchema = z.string().openapi({ format: "binary" });
 const imageRoute = createRoute({
   method: "get",
   path: `${FILE_ROUTE}items/{id}/{name}`,
+  middleware: access("read", { cache: "file" }),
   request: { params: FileParamsSchema },
   responses: {
     200: {

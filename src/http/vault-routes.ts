@@ -13,11 +13,13 @@ import {
   saveVaultSettings,
   verifyVaultSettings,
 } from "../core/vault-settings.ts";
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 
 const read = createRoute({
   method: "get",
   path: "/api/settings/obsidian",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       VaultViewSchema,
@@ -28,12 +30,14 @@ const read = createRoute({
 const save = createRoute({
   method: "put",
   path: "/api/settings/obsidian",
+  middleware: access("owner"),
   request: { body: jsonRequest(VaultInputSchema) },
   responses: { 200: jsonBody(VaultResultSchema, "Save a vault target and queue the library.") },
 });
 const remove = createRoute({
   method: "delete",
   path: "/api/settings/obsidian",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(VaultResultSchema, "Disconnect the vault without deleting its files."),
   },
@@ -41,6 +45,7 @@ const remove = createRoute({
 const verify = createRoute({
   method: "post",
   path: "/api/settings/obsidian/verify",
+  middleware: access("owner"),
   request: { body: jsonRequest(VaultVerifyInputSchema) },
   responses: {
     200: jsonBody(

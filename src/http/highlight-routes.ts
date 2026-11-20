@@ -6,6 +6,7 @@ import {
 } from "../core/highlight-contract.ts";
 import { createHighlight, removeHighlight } from "../core/highlights.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { registerHighlightsPageRoute } from "./highlights-page-route.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
@@ -23,6 +24,7 @@ const OWNER_ONLY = "Only the owner's session may call this; an agent token gets 
 const createHighlightRoute = createRoute({
   method: "post",
   path: "/api/items/{id}/highlights",
+  middleware: access("owner"),
   request: { params: IdParamSchema, body: jsonRequest(CreateHighlightRequestSchema) },
   responses: {
     201: jsonBody(
@@ -53,6 +55,7 @@ const createHighlightRoute = createRoute({
 const removeHighlightRoute = createRoute({
   method: "delete",
   path: "/api/items/{id}/highlights/{highlightId}",
+  middleware: access("owner"),
   request: { params: HighlightParamsSchema },
   responses: {
     204: noContent(

@@ -3,6 +3,7 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { refusalOf } from "../core/paste-refusal.ts";
 import { paste } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
+import { access, ITEM_CAP } from "./access.ts";
 import { savedView } from "./item-view.ts";
 import {
   PASTE_DIGEST_SCOPE,
@@ -21,16 +22,19 @@ import {
 } from "./schemas.ts";
 import { callerOf, requirePasteScopes } from "./token-scopes.ts";
 
+const SAVE_ITEM = access("add", { body: ITEM_CAP });
+
 const saveItemRoute = createRoute({
   method: "post",
   path: "/api/items",
+  middleware: SAVE_ITEM,
   description:
     "Save a link as an Item. `content` supplies a thread. For a Reddit link it is the Reddit JSON: one text, or 1 to 101 texts, the thread's `.json` first and then the permalink answers (`/comments/<post>/_/<comment>.json`) that fill its `more` stubs, each holding one comment at its top. For an X link it is exactly one JSON text `{post, replies}`: `post` has `id` (the link's status id), `author` (the handle without @), `text`, `postedAt` (ISO 8601 or null) and `replies` (the reply count X reports, or null), and each of at most 500 `replies` has `id`, `parentId` (the id of the post this reply answers), `author`, `text`, `postedAt` and `likes` (a whole number or null). When a reply answers neither the root post nor a post in `replies`, the Reader shows the missing parent as a Context stub above its saved replies. Every id is a digit string with no leading zero and at most 29 digits, and no other field is allowed. `page` supplies the text of a web page that the caller read in its own browser tab: `markdown` (the page text), `title`, and optionally `author`, `published` (an ISO 8601 date) and `videos` (the video addresses the Markdown links to). The server publishes a `page` like a fetched article, with the same 100-word minimum, image storage and Highlight anchoring, and never fetches the page itself. A link takes `content` or `page`, not both. `fill: true` with `content` saves the thread only for a Reddit post or comment Item that holds no thread yet, which the Item's `fillable` shows; it answers 409 and changes nothing when the Item already holds a saved thread or no Item has the link, and 400 with `page` or without `content`. `page` takes no X or GitHub link, no short link (`bit.ly`, `t.co` and the other short link hosts), no Reddit share link (`reddit.com/r/<community>/s/<code>`) and no Reddit link that is not a post or a comment; an Item's identity is the address a short link or share link leads to, so send the page at that address, or send the link alone, which a Paste resolves; a Reddit post or comment takes it as its text and stays a Reddit Item with no comment rows, and a page under 100 words leaves it only its title, author and community; it answers 409 when the Item already holds a saved thread." +
-    scopeNote("POST", "/api/items", PASTE_DIGEST_SCOPE),
+    scopeNote(SAVE_ITEM, PASTE_DIGEST_SCOPE),
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
     401: jsonBody(ErrorResponseSchema, "The agent token is unknown or revoked."),
-    ...scopeRefusal("POST", "/api/items", PASTE_DIGEST_SCOPE),
+    ...scopeRefusal(SAVE_ITEM, PASTE_DIGEST_SCOPE),
     ...budgetRefusal("Nothing is saved."),
     201: jsonBody(
       SavedItemResponseSchema,

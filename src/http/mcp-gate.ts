@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import type { Ports } from "../core/ports.ts";
 import { verifyToken } from "../core/tokens.ts";
-import { bearerCheck } from "./guard.ts";
+import { bearerCheck } from "./bearer.ts";
 
 export interface McpEnv {
   Variables: { caller: AuthInfo };

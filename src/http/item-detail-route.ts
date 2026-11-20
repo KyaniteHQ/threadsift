@@ -1,6 +1,7 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { readItem } from "./item-read.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
@@ -9,6 +10,7 @@ import { ErrorResponseSchema, IdParamSchema, ItemDetailResponseSchema } from "./
 const getItemRoute = createRoute({
   method: "get",
   path: "/api/items/{id}",
+  middleware: access("read"),
   request: { params: IdParamSchema },
   responses: {
     200: jsonBody(

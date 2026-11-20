@@ -3,11 +3,13 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { Ports } from "../core/ports.ts";
 import { RedditSettingsSchema } from "../core/reddit-contract.ts";
 import { readRedditSettings, saveRedditSettings } from "../core/reddit-settings.ts";
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/reddit",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       RedditSettingsSchema,
@@ -19,6 +21,7 @@ const readRoute = createRoute({
 const saveRoute = createRoute({
   method: "put",
   path: "/api/settings/reddit",
+  middleware: access("owner"),
   request: { body: jsonRequest(RedditSettingsSchema) },
   responses: {
     200: jsonBody(

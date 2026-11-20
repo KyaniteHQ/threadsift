@@ -7,6 +7,7 @@ import {
 } from "../core/note-contract.ts";
 import { saveNote } from "../core/notes.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
@@ -17,6 +18,7 @@ const STALE =
 const saveNoteRoute = createRoute({
   method: "put",
   path: "/api/items/{id}/note",
+  middleware: access("owner"),
   request: { params: IdParamSchema, body: jsonRequest(SaveNoteRequestSchema) },
   responses: {
     200: jsonBody(

@@ -1,4 +1,5 @@
 import { registerAiRoutes } from "./ai-routes.ts";
+import { registerAiTaskRoutes } from "./ai-task-routes.ts";
 import { registerGithubRoutes } from "./github-routes.ts";
 import { registerGrokBotRoutes } from "./grok-bot-routes.ts";
 import { registerOpenRouterRoutes } from "./openrouter-routes.ts";
@@ -12,6 +13,7 @@ export const SETTINGS_ROUTES = [
   registerVaultRoutes,
   registerOpenRouterRoutes,
   registerGithubRoutes,
+  registerAiTaskRoutes,
   registerGrokBotRoutes,
   registerRedditRoutes,
   registerRedditAccountRoutes,

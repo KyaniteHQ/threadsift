@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { PASSWORD_RULE } from "./refusals.ts";
 import {
@@ -32,6 +33,7 @@ const SETUP_ERRORS = {
 export const sessionRoute = createRoute({
   method: "get",
   path: "/api/session",
+  middleware: access("anyone"),
   responses: {
     200: jsonBody(
       SessionStateSchema,
@@ -43,6 +45,7 @@ export const sessionRoute = createRoute({
 export const setupCodeRoute = createRoute({
   method: "post",
   path: "/api/setup/code",
+  middleware: access("anyone"),
   request: { body: jsonRequest(SetupCodeRequestSchema) },
   responses: { 204: noContent("The setup code is right."), ...SETUP_ERRORS },
 });
@@ -50,6 +53,7 @@ export const setupCodeRoute = createRoute({
 export const setupRoute = createRoute({
   method: "post",
   path: "/api/setup",
+  middleware: access("anyone"),
   request: { body: jsonRequest(SetupRequestSchema) },
   responses: {
     204: noContent("The owner exists and the response sets the session cookie."),
@@ -64,6 +68,7 @@ export const setupRoute = createRoute({
 export const loginRoute = createRoute({
   method: "post",
   path: "/api/login",
+  middleware: access("anyone"),
   request: { body: jsonRequest(LoginRequestSchema) },
   responses: {
     204: noContent("The password is right and the response sets the session cookie."),
@@ -76,6 +81,7 @@ export const loginRoute = createRoute({
 export const changePasswordRoute = createRoute({
   method: "post",
   path: "/api/password",
+  middleware: access("owner"),
   request: { body: jsonRequest(ChangePasswordRequestSchema) },
   responses: {
     204: noContent(
@@ -94,6 +100,7 @@ export const changePasswordRoute = createRoute({
 export const resetPasswordRoute = createRoute({
   method: "post",
   path: "/api/password/reset",
+  middleware: access("anyone"),
   request: { body: jsonRequest(ResetPasswordRequestSchema) },
   responses: {
     204: noContent(
@@ -112,12 +119,14 @@ export const resetPasswordRoute = createRoute({
 export const logoutRoute = createRoute({
   method: "post",
   path: "/api/logout",
+  middleware: access("owner"),
   responses: { 204: noContent("The session is deleted and the cookie cleared.") },
 });
 
 export const createTokenRoute = createRoute({
   method: "post",
   path: "/api/tokens",
+  middleware: access("owner"),
   request: { body: jsonRequest(CreateTokenRequestSchema) },
   responses: {
     201: jsonBody(
@@ -133,6 +142,7 @@ export const createTokenRoute = createRoute({
 export const listTokensRoute = createRoute({
   method: "get",
   path: "/api/tokens",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       TokenListResponseSchema,
@@ -144,6 +154,7 @@ export const listTokensRoute = createRoute({
 export const revokeTokenRoute = createRoute({
   method: "delete",
   path: "/api/tokens/{id}",
+  middleware: access("owner"),
   request: { params: IdParamSchema },
   responses: {
     204: noContent("The token is revoked and its next use gets 401."),
@@ -154,6 +165,7 @@ export const revokeTokenRoute = createRoute({
 export const changeBudgetRoute = createRoute({
   method: "patch",
   path: "/api/tokens/{id}",
+  middleware: access("owner"),
   request: { params: IdParamSchema, body: jsonRequest(ChangeBudgetRequestSchema) },
   responses: {
     200: jsonBody(

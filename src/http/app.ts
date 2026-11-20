@@ -1,13 +1,17 @@
 import { OpenAPIHono } from "@hono/zod-openapi";
-import { HTTPException } from "hono/http-exception";
 
-import { logFailure } from "../core/failure-log.ts";
 import type { Ports } from "../core/ports.ts";
 import { reasonsOf } from "../core/zod-reasons.ts";
-import { installApiMiddleware } from "./api-middleware.ts";
-import { mcpRoute } from "./mcp-route.ts";
-import { notFound } from "./refusals.ts";
+import { access, unrouted, withPorts } from "./access.ts";
+import { registerMcpRoute } from "./mcp-route.ts";
+import { verifyPolicies } from "./policy-check.ts";
+import { answerFailure, notFound } from "./refusals.ts";
 import { registerRoutes } from "./routes.ts";
+
+const DOCUMENT = {
+  openapi: "3.1.0",
+  info: { title: "Threadsift", version: "1" },
+} as const;
 
 export function createApp(ports: Ports): OpenAPIHono {
   const app = new OpenAPIHono({
@@ -15,34 +19,19 @@ export function createApp(ports: Ports): OpenAPIHono {
       result.success ? undefined : c.json({ error: reasonsOf(result.error) }, 400),
   });
 
-  installApiMiddleware(app, ports);
+  app.use("/*", withPorts(ports));
 
   registerRoutes(app, ports);
 
-  app.route("/", mcpRoute(ports));
+  registerMcpRoute(app, ports);
 
-  app.doc31("/api/openapi.json", {
-    openapi: "3.1.0",
-    info: { title: "Threadsift", version: "1" },
-  });
+  app.get("/api/openapi.json", access("read"), (c) => c.json(app.getOpenAPI31Document(DOCUMENT)));
 
-  app.all("/api/*", notFound);
+  app.all("/api/*", unrouted(), notFound);
 
-  app.onError(async (error, c) => {
-    if (error instanceof HTTPException) {
-      const refusal = error.getResponse();
+  app.onError(answerFailure);
 
-      if (refusal.headers.get("content-type")?.includes("application/json") === true) {
-        return refusal;
-      }
-
-      return c.json({ error: (await refusal.text()) || "Request refused" }, error.status);
-    }
-
-    logFailure("request-failed", { path: c.req.path }, error);
-
-    return c.json({ error: "Internal error" }, 500);
-  });
+  verifyPolicies(app);
 
   return app;
 }

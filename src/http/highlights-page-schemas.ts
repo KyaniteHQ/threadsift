@@ -1,14 +1,10 @@
 import { z } from "zod";
 
 import { EntrySchema, parseCursor } from "../core/highlights-page-contract.ts";
-import { SOURCES } from "../core/kinds.ts";
-import { FilterCountsSchema, SEARCH_MAX, cursorParam } from "./schemas.ts";
+import { FILTER_FIELDS, FilterCountsSchema, cursorParam } from "./schemas.ts";
 
 export const HighlightsQuerySchema = z.object({
-  q: z.string().max(SEARCH_MAX).optional(),
-  topic: z.string().optional(),
-  tag: z.string().optional(),
-  source: z.enum(SOURCES).optional(),
+  ...FILTER_FIELDS,
   cursor: cursorParam(parseCursor),
 });
 

@@ -140,11 +140,15 @@ export function cursorParam<Cursor>(parse: (text: string) => Cursor | null) {
     .optional();
 }
 
-export const ItemQuerySchema = z.object({
+export const FILTER_FIELDS = {
   q: z.string().max(SEARCH_MAX).optional(),
   topic: z.string().optional(),
   tag: z.string().optional(),
   source: z.enum(SOURCES).optional(),
+};
+
+export const ItemQuerySchema = z.object({
+  ...FILTER_FIELDS,
   read: z.enum(READ_STATES).optional(),
   url: HttpUrlSchema.optional(),
   cursor: cursorParam(parseCursor),

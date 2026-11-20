@@ -5,7 +5,7 @@ import { pasteLink } from "../core/paste.ts";
 import type { Ports } from "../core/ports.ts";
 import { SHARE_PATH, type ShareArrival, prefillOf, shareAddress } from "../core/share-address.ts";
 import { type SharedContent, sharedContentOf } from "../core/shared-link.ts";
-import { bodyCap } from "./guard.ts";
+import { access } from "./access.ts";
 import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { fieldsOf } from "./share-fields.ts";
 import { isTrustedShare } from "./share-trust.ts";
@@ -69,7 +69,7 @@ function arrivalFor(
 }
 
 export function registerShareRoutes(app: OpenAPIHono, ports: Ports): void {
-  app.on(["GET", "POST"], SHARE_PATH, bodyCap, async (c) => {
+  app.on(["GET", "POST"], SHARE_PATH, access("self"), async (c) => {
     const fields = await fieldsOf(c);
 
     const arrival =
