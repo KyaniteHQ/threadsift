@@ -2,7 +2,9 @@ import { hostOf, words } from "./words.mts";
 
 const SIZED_TITLE = "Sized";
 
-const UNIT = 'é"\n';
+const PAIRS_PER_LINE = 1_000;
+
+const LINE = `${'é"'.repeat(PAIRS_PER_LINE)}\n`;
 
 const encoder = new TextEncoder();
 
@@ -11,7 +13,7 @@ const escapedBytes = (text: string): number =>
 
 function sizedPage(bytes: number) {
   const free = bytes - encoder.encode(JSON.stringify({ markdown: "", title: SIZED_TITLE })).length;
-  const markdown = UNIT.repeat(Math.floor(free / escapedBytes(UNIT)));
+  const markdown = LINE.repeat(Math.floor(free / escapedBytes(LINE)));
   const padding = free - escapedBytes(markdown);
 
   return { markdown: `${markdown}${"a".repeat(padding)}`, title: SIZED_TITLE };
