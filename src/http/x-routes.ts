@@ -7,12 +7,14 @@ import {
   XSettingsViewSchema,
 } from "../core/x-settings-contract.ts";
 import { chooseXReader, readXSettings } from "../core/x-settings.ts";
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/x",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       XSettingsViewSchema,
@@ -24,6 +26,7 @@ const readRoute = createRoute({
 const saveRoute = createRoute({
   method: "put",
   path: "/api/settings/x",
+  middleware: access("owner"),
   request: { body: jsonRequest(XReaderInputSchema) },
   responses: {
     200: jsonBody(

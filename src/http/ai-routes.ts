@@ -10,6 +10,7 @@ import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
 import { verifyProvider } from "../core/bot-verify.ts";
 import { GROK_BOT_FIRST, GrokBotUnreadySchema } from "../core/grok-bot-contract.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
@@ -18,6 +19,7 @@ const PROVIDER_UNAVAILABLE = "This Instance does not offer that Provider";
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/ai",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       AiSettingsViewSchema,
@@ -29,6 +31,7 @@ const readRoute = createRoute({
 const saveRoute = createRoute({
   method: "put",
   path: "/api/settings/ai",
+  middleware: access("owner"),
   request: { body: jsonRequest(AiSettingsInputSchema) },
   responses: {
     200: jsonBody(
@@ -49,6 +52,7 @@ const saveRoute = createRoute({
 const verifyRoute = createRoute({
   method: "post",
   path: "/api/settings/ai/verify",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       VerifyResultSchema,

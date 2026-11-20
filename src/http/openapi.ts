@@ -1,6 +1,6 @@
 import type { ZodType } from "zod";
 
-import { requiredScope } from "./access-rules.ts";
+import type { Scope } from "../core/kinds.ts";
 import { BudgetRefusalSchema, ErrorResponseSchema } from "./schemas.ts";
 
 export const PASTE_DIGEST_SCOPE = " A body with a `digest` needs the `digest` scope as well.";
@@ -15,26 +15,13 @@ export function jsonRequest<T extends ZodType>(schema: T) {
 
 export const noContent = (description: string) => ({ description });
 
-function scopeOf(method: string, path: string): string {
-  const scope = requiredScope(method, path);
-
-  if (scope === undefined) {
-    throw new Error(`${method} ${path} has no scope`);
-  }
-
-  return scope;
+export function scopeNote({ who }: Readonly<{ who: Scope }>, extra = ""): string {
+  return ` An agent token needs the \`${who}\` scope.${extra}`;
 }
 
-export function scopeNote(method: string, path: string, extra = ""): string {
-  return ` An agent token needs the \`${scopeOf(method, path)}\` scope.${extra}`;
-}
-
-export function scopeRefusal(method: string, path: string, extra = "") {
+export function scopeRefusal({ who }: Readonly<{ who: Scope }>, extra = "") {
   return {
-    403: jsonBody(
-      ErrorResponseSchema,
-      `The agent token lacks the \`${scopeOf(method, path)}\` scope.${extra}`,
-    ),
+    403: jsonBody(ErrorResponseSchema, `The agent token lacks the \`${who}\` scope.${extra}`),
   };
 }
 

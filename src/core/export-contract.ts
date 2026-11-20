@@ -2,6 +2,8 @@ import { z } from "zod";
 
 import { WholeCount } from "./whole-count.ts";
 
+export const EXPORT_DOWNLOAD_PATH = "/api/export/{id}/download";
+
 export const EXPORT_SLICE_DEADLINE_MS = 600_000;
 
 export const EXPORT_SLICE_BYTES = 8 * 1024 * 1024;

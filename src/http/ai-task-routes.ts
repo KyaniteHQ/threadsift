@@ -1,16 +1,31 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 import type { Context } from "hono";
+import { createMiddleware } from "hono/factory";
 
 import { TaskReadSchema, readableTask } from "../core/ai-task-read.ts";
 import { BotAnswerSchema, acceptBotAnswer } from "../core/bot-answer.ts";
 import type { Ports } from "../core/ports.ts";
 import { acceptIntake, refusedIntake } from "../core/x-intake-answer.ts";
 import { IntakeAnswerSchema, refusedBodyOf } from "../core/x-intake-contract.ts";
+import type { CallbackEnv } from "./access-steps.ts";
+import { access, ITEM_CAP, RESULT_CAP } from "./access.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
-import { CREDENTIAL_ONLY, CREDENTIAL_REQUIRED, taskCredential } from "./task-credential.ts";
+import { CREDENTIAL_ONLY, CREDENTIAL_REQUIRED } from "./task-credential.ts";
 
 const UNSUPPORTED_TASK = "unsupported-task";
+
+const recordRefusedIntake = createMiddleware<CallbackEnv>(async (c, next) => {
+  await next();
+
+  if (c.res.status === 400) {
+    await refusedIntake(
+      c.get("ports"),
+      c.get("callbackTask"),
+      c.get("intakeRefusal") ?? "unreadable-body",
+    );
+  }
+});
 
 const CREDENTIAL_REFUSALS = {
   401: jsonBody(
@@ -26,6 +41,7 @@ const CREDENTIAL_REFUSALS = {
 const readRoute = createRoute({
   method: "get",
   path: "/api/ai-tasks/{id}",
+  middleware: access("callback", { body: RESULT_CAP, cache: "no-store" }),
   request: { params: z.object({ id: z.string() }) },
   responses: {
     200: jsonBody(
@@ -47,6 +63,7 @@ const readRoute = createRoute({
 const resultRoute = createRoute({
   method: "post",
   path: "/api/ai-tasks/{id}/result",
+  middleware: access("callback", { body: RESULT_CAP }),
   request: {
     params: z.object({ id: z.string() }),
     body: jsonRequest(BotAnswerSchema),
@@ -71,6 +88,7 @@ const resultRoute = createRoute({
 const intakeRoute = createRoute({
   method: "post",
   path: "/api/ai-tasks/{id}/intake",
+  middleware: [access("callback", { body: ITEM_CAP }), recordRefusedIntake] as const,
   request: {
     params: z.object({ id: z.string() }),
     body: jsonRequest(IntakeAnswerSchema),
@@ -118,12 +136,7 @@ function answered(c: Context, outcome: AnswerOutcome) {
   }
 }
 
-function registerRead(app: OpenAPIHono, ports: Ports): void {
-  app.on("GET", "/api/ai-tasks/:id", async (c, next) => {
-    await next();
-    c.header("Cache-Control", "no-store");
-  });
-  app.on("GET", "/api/ai-tasks/:id", taskCredential(ports));
+export function registerAiTaskRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(readRoute, async (c) => {
     const reading = await readableTask(ports.db, c.get("callbackTask"));
 
@@ -139,23 +152,6 @@ function registerRead(app: OpenAPIHono, ports: Ports): void {
 
         return exhaustive;
       }
-    }
-  });
-}
-
-export function registerAiTaskRoutes(app: OpenAPIHono, ports: Ports): void {
-  registerRead(app, ports);
-  app.use("/api/ai-tasks/:id/result", taskCredential(ports));
-  app.use("/api/ai-tasks/:id/intake", taskCredential(ports));
-  app.use("/api/ai-tasks/:id/intake", async (c, next) => {
-    await next();
-
-    if (c.res.status === 400) {
-      await refusedIntake(
-        ports,
-        c.get("callbackTask"),
-        c.get("intakeRefusal") ?? "unreadable-body",
-      );
     }
   });
   app.openapi(

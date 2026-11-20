@@ -1,6 +1,9 @@
 import type { Context, TypedResponse } from "hono";
+import { HTTPException } from "hono/http-exception";
+import type { HTTPResponseError } from "hono/types";
 import type { JSONParsed } from "hono/utils/types";
 
+import { logFailure } from "../core/failure-log.ts";
 import { groupedNumber } from "../core/format.ts";
 import type { ResetResult } from "../core/owner-password.ts";
 import type { SetupBlock } from "../core/owner.ts";
@@ -34,6 +37,25 @@ export const PASSWORD_RULE = `The password is shorter than ${PASSWORD_MIN} or lo
 
 export function notFound(c: Context) {
   return c.json({ error: NOT_FOUND }, 404);
+}
+
+export async function answerFailure(
+  error: Readonly<Error | HTTPResponseError>,
+  c: Context,
+): Promise<Response> {
+  if (error instanceof HTTPException) {
+    const refusal = error.getResponse();
+
+    if (refusal.headers.get("content-type")?.includes("application/json") === true) {
+      return refusal;
+    }
+
+    return c.json({ error: (await refusal.text()) || "Request refused" }, error.status);
+  }
+
+  logFailure("request-failed", { path: c.req.path }, error);
+
+  return c.json({ error: "Internal error" }, 500);
 }
 
 export function locked(c: Context, retryAfter: number) {

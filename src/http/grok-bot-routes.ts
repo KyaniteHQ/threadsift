@@ -12,13 +12,14 @@ import {
 import { pingGrokBot } from "../core/grok-bot-ping.ts";
 import { readGrokBot, removeGrokBot, saveGrokBot } from "../core/grok-bot-settings.ts";
 import type { Ports } from "../core/ports.ts";
-import { registerAiTaskRoutes } from "./ai-task-routes.ts";
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/grok-bot",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       GrokBotViewSchema,
@@ -30,6 +31,7 @@ const readRoute = createRoute({
 const saveRoute = createRoute({
   method: "put",
   path: "/api/settings/grok-bot",
+  middleware: access("owner"),
   request: { body: jsonRequest(GrokBotInputSchema) },
   responses: {
     200: jsonBody(
@@ -50,6 +52,7 @@ const saveRoute = createRoute({
 const removeRoute = createRoute({
   method: "delete",
   path: "/api/settings/grok-bot",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       GrokBotViewSchema,
@@ -65,6 +68,7 @@ const removeRoute = createRoute({
 const testRoute = createRoute({
   method: "post",
   path: "/api/settings/grok-bot/test",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       GrokBotTestSchema,
@@ -74,7 +78,6 @@ const testRoute = createRoute({
 });
 
 export function registerGrokBotRoutes(app: OpenAPIHono, ports: Ports): void {
-  registerAiTaskRoutes(app, ports);
   app.openapi(readRoute, async (c) => c.json(await readGrokBot(ports), 200));
   app.openapi(saveRoute, async (c) => {
     const saved = await saveGrokBot(ports, c.req.valid("json"));

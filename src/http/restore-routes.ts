@@ -1,6 +1,5 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { RESTORE_PART_BYTES } from "../core/limits.ts";
 import type { Ports } from "../core/ports.ts";
 import { cancelRestore, resumeRestore } from "../core/restore-cancel.ts";
 import {
@@ -12,6 +11,7 @@ import {
 import { createRestore, storePart } from "../core/restore-run.ts";
 import { startRestore } from "../core/restore-start.ts";
 import { restoreStatus } from "../core/restore-state.ts";
+import { access, PART_CAP } from "./access.ts";
 import { OWNER_SESSION_REFUSALS, jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
@@ -29,6 +29,7 @@ const OPEN = "Another restore is waiting for its upload or is running.";
 const createRestoreRoute = createRoute({
   method: "post",
   path: "/api/restore",
+  middleware: access("owner"),
   request: { body: jsonRequest(NewRestoreSchema) },
   responses: {
     201: jsonBody(
@@ -50,6 +51,7 @@ const createRestoreRoute = createRoute({
 const statusRoute = createRoute({
   method: "get",
   path: "/api/restore",
+  middleware: access("owner"),
   responses: {
     200: jsonBody(
       RestoreStatusSchema,
@@ -62,6 +64,7 @@ const statusRoute = createRoute({
 const partRoute = createRoute({
   method: "put",
   path: "/api/restore/{id}/parts/{part}",
+  middleware: access("owner", { body: PART_CAP }),
   request: {
     params: PartParamsSchema,
     body: {
@@ -71,7 +74,7 @@ const partRoute = createRoute({
   },
   responses: {
     204: noContent(
-      `The part is stored. Sending a part again replaces it, so a repeat is safe. The body must be exactly \`partBytes\` (${String(RESTORE_PART_BYTES)}) bytes, except the last part, which holds the rest.${OWNER_ONLY}`,
+      `The part is stored. Sending a part again replaces it, so a repeat is safe. The body must be exactly \`partBytes\` (${String(PART_CAP.bytes)}) bytes, except the last part, which holds the rest.${OWNER_ONLY}`,
     ),
     400: jsonBody(ErrorResponseSchema, "The body is not the length this part must have."),
     ...OWNER_SESSION_REFUSALS,
@@ -84,6 +87,7 @@ const partRoute = createRoute({
 const startRoute = createRoute({
   method: "post",
   path: "/api/restore/{id}/start",
+  middleware: access("owner"),
   request: { params: IdParamSchema },
   responses: {
     202: jsonBody(
@@ -106,6 +110,7 @@ const startRoute = createRoute({
 const cancelRoute = createRoute({
   method: "delete",
   path: "/api/restore/{id}",
+  middleware: access("owner"),
   request: { params: IdParamSchema },
   responses: {
     202: jsonBody(
@@ -127,6 +132,7 @@ const cancelRoute = createRoute({
 const resumeRoute = createRoute({
   method: "post",
   path: "/api/restore/{id}/resume",
+  middleware: access("owner"),
   request: { params: IdParamSchema },
   responses: {
     202: jsonBody(

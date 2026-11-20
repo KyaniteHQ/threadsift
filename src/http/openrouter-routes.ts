@@ -11,6 +11,7 @@ import {
   returnAddress,
 } from "../core/openrouter-contract.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 import { sessionIdOf } from "./session-cookie.ts";
@@ -18,6 +19,7 @@ import { sessionIdOf } from "./session-cookie.ts";
 const startRoute = createRoute({
   method: "post",
   path: CONNECT_START_PATH,
+  middleware: access("owner", { cache: "private" }),
   request: { body: jsonRequest(ConnectStartInputSchema) },
   responses: {
     201: jsonBody(
@@ -40,6 +42,10 @@ const startRoute = createRoute({
 const callbackRoute = createRoute({
   method: "get",
   path: CONNECT_CALLBACK_PATH,
+  middleware: access("owner", {
+    cache: "private",
+    signedOutNavigation: returnAddress(null),
+  }),
   responses: {
     303: { description: "Always a redirect to Settings with a closed notice." },
     405: { description: "Only GET may complete an attempt." },

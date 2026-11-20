@@ -1,4 +1,4 @@
-import type { Context, MiddlewareHandler } from "hono";
+import type { Context } from "hono";
 
 import type { AiTaskRow } from "../core/ai-task-state.ts";
 import { BEARER_CALLBACK, callbackTaskOf } from "../core/callback-credential.ts";
@@ -8,7 +8,6 @@ import { ownerHasSession } from "./session-cookie.ts";
 
 declare module "hono" {
   interface ContextVariableMap {
-    callbackTask: AiTaskRow;
     intakeRefusal: string;
   }
 }
@@ -45,19 +44,18 @@ async function carriesOtherAccess(c: Context, ports: Ports): Promise<boolean> {
   return ownerHasSession(c, ports);
 }
 
-export function taskCredential(ports: Ports): MiddlewareHandler {
-  return async (c, next) => {
-    const presented = presentedCredential(c);
-    const task = presented === null ? null : await callbackTaskOf(ports, presented);
+function credentialOnly(c: Context): Response {
+  return c.json({ error: CREDENTIAL_ONLY }, 403);
+}
 
-    if (task !== null) {
-      c.set("callbackTask", task);
+export async function callbackTask(c: Context): Promise<AiTaskRow | Response> {
+  const ports = c.get("ports");
+  const presented = presentedCredential(c);
+  const task = presented === null ? null : await callbackTaskOf(ports, presented);
 
-      return next();
-    }
+  if (task !== null) return task;
 
-    return (await carriesOtherAccess(c, ports))
-      ? c.json({ error: CREDENTIAL_ONLY }, 403)
-      : c.json({ error: CREDENTIAL_REQUIRED }, 401);
-  };
+  return (await carriesOtherAccess(c, ports))
+    ? credentialOnly(c)
+    : c.json({ error: CREDENTIAL_REQUIRED }, 401);
 }

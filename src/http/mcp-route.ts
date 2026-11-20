@@ -1,11 +1,11 @@
+import type { OpenAPIHono } from "@hono/zod-openapi";
 import { McpServer, createMcpHandler } from "@modelcontextprotocol/server";
-import { Hono } from "hono";
 
 import type { Ports } from "../core/ports.ts";
+import { access, ownCheck } from "./access.ts";
 import { MCP_PATH } from "./document-path.ts";
-import { bodyCap } from "./guard.ts";
 import { registerAddTool } from "./mcp-add-tool.ts";
-import { type McpEnv, McpExtraSchema, mcpGate } from "./mcp-gate.ts";
+import { McpExtraSchema, mcpGate } from "./mcp-gate.ts";
 import { registerReadTools } from "./mcp-read-tools.ts";
 
 function createMcpServer(ports: Ports, tokenId: number): McpServer {
@@ -17,16 +17,12 @@ function createMcpServer(ports: Ports, tokenId: number): McpServer {
   return server;
 }
 
-export function mcpRoute(ports: Ports): Hono<McpEnv> {
+export function registerMcpRoute(app: OpenAPIHono, ports: Ports): void {
   const handler = createMcpHandler(({ authInfo }) =>
     createMcpServer(ports, McpExtraSchema.parse(authInfo?.extra).tokenId),
   );
 
-  const route = new Hono<McpEnv>();
-
-  route.all(MCP_PATH, mcpGate(ports), bodyCap, (c) =>
+  app.all(MCP_PATH, ownCheck(mcpGate(ports)), access("self"), (c) =>
     handler.fetch(c.req.raw, { authInfo: c.get("caller") }),
   );
-
-  return route;
 }

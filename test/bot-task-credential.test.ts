@@ -4,7 +4,6 @@ import { after, before, describe, it, mock } from "node:test";
 
 import { z } from "zod";
 
-import { isPublic } from "../src/http/access-rules.ts";
 import {
   type BotLibrary,
   SECRET_KEY,
@@ -18,7 +17,16 @@ import { step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { digestOfToken, taskRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 
-const PATH_OF = (id: number | string) => `/api/ai-tasks/${String(id)}/result`;
+const OPEN_CALLS: ReadonlySet<string> = new Set([
+  "GET /api/session",
+  "POST /api/setup/code",
+  "POST /api/setup",
+  "POST /api/login",
+  "POST /api/password/reset",
+  "GET /api/ai-tasks/{id}",
+  "POST /api/ai-tasks/{id}/result",
+  "POST /api/ai-tasks/{id}/intake",
+]);
 
 describe("the task credential is kept only as a digest and ends at a resend", () => {
   let instance: Instance;
@@ -66,6 +74,13 @@ describe("the task credential is kept only as a digest and ends at a resend", ()
   });
 });
 
+const CALLBACK_NEIGHBOURS: readonly (readonly [string, string])[] = [
+  ["GET", "/api/ai-tasks/1/result"],
+  ["POST", "/api/ai-tasks/1/result/more"],
+  ["POST", "/api/ai-tasks/1"],
+  ["POST", "/api/ai-tasks//result"],
+];
+
 describe("the callback route is credential-only and every other route stays closed", () => {
   let instance: Instance;
 
@@ -76,24 +91,19 @@ describe("the callback route is credential-only and every other route stays clos
 
   after(() => instance.close());
 
-  it("lets the guard pass the result route and nothing next to it", () => {
-    assert.equal(isPublic("POST", PATH_OF(1)), true);
-    assert.equal(isPublic("GET", PATH_OF(1)), false);
-    assert.equal(isPublic("POST", `${PATH_OF(1)}/more`), false);
-    assert.equal(isPublic("POST", "/api/ai-tasks/1"), false);
-    assert.equal(isPublic("POST", "/api/ai-tasks//result"), false);
-  });
-
-  it("answers 401 to every documented route that is not public, and documents the result route once", async () => {
+  it("answers 401 to every documented route that is not public and to the paths beside the task routes, and documents the result route once", async () => {
     const document = z
       .object({ paths: z.record(z.string(), z.record(z.string(), z.unknown())) })
       .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
 
-    const calls = Object.entries(document.paths).flatMap(([path, methods]) =>
-      Object.keys(methods)
-        .map((method) => [method.toUpperCase(), path] as const)
-        .filter(([method, route]) => !isPublic(method, route)),
-    );
+    const calls = [
+      ...Object.entries(document.paths).flatMap(([path, methods]) =>
+        Object.keys(methods)
+          .map((method) => [method.toUpperCase(), path] as const)
+          .filter(([method, route]) => !OPEN_CALLS.has(`${method} ${route}`)),
+      ),
+      ...CALLBACK_NEIGHBOURS,
+    ];
 
     const statuses = await Promise.all(
       calls.map(async ([method, path]) => [

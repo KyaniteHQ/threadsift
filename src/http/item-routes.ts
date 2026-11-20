@@ -4,6 +4,7 @@ import { retryDigest } from "../core/digest-retry.ts";
 import { ITEMS_PAGE_SIZE } from "../core/item-page.ts";
 import { getListedItem } from "../core/item-selection.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { readItemPage } from "./item-read.ts";
 import { itemView } from "./item-view.ts";
 import { jsonBody, scopeNote, scopeRefusal } from "./openapi.ts";
@@ -19,6 +20,7 @@ import {
 const listItemsRoute = createRoute({
   method: "get",
   path: "/api/items",
+  middleware: access("read"),
   request: { query: ItemQuerySchema },
   responses: {
     200: jsonBody(
@@ -35,6 +37,7 @@ const listItemsRoute = createRoute({
 const getItemStatusRoute = createRoute({
   method: "get",
   path: "/api/items/{id}/status",
+  middleware: access("read"),
   request: { params: IdParamSchema },
   responses: {
     200: jsonBody(
@@ -45,13 +48,16 @@ const getItemStatusRoute = createRoute({
   },
 });
 
+const RETRY_DIGEST = access("digest");
+
 const retryDigestRoute = createRoute({
   method: "post",
   path: "/api/items/{id}/digest",
-  description: `Queue a Digest again.${scopeNote("POST", "/api/items/{id}/digest")}`,
+  middleware: RETRY_DIGEST,
+  description: `Queue a Digest again.${scopeNote(RETRY_DIGEST)}`,
   request: { params: IdParamSchema },
   responses: {
-    ...scopeRefusal("POST", "/api/items/{id}/digest"),
+    ...scopeRefusal(RETRY_DIGEST),
     200: jsonBody(
       ItemResponseSchema,
       "Queue a Digest over stored text, or return the unchanged Item when a Digest is already open or no text exists.",

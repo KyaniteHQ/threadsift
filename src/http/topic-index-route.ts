@@ -6,6 +6,7 @@ import { ITEMS_PAGE_SIZE } from "../core/item-page.ts";
 import type { Ports } from "../core/ports.ts";
 import { TopicIndexSchema } from "../core/topic-index-contract.ts";
 import { readTopicIndex } from "../core/topic-index.ts";
+import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
 
@@ -14,6 +15,7 @@ const IndexQuerySchema = z.object({ cursor: z.string().max(CATALOG_KEY_MAX).opti
 const listTopicsRoute = createRoute({
   method: "get",
   path: "/api/topics",
+  middleware: access("read"),
   request: { query: IndexQuerySchema },
   responses: {
     200: jsonBody(

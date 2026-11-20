@@ -5,6 +5,7 @@ import { ITEMS_PAGE_SIZE } from "../core/item-page.ts";
 import { LogPageSchema, parseLogCursor } from "../core/log-contract.ts";
 import { readLog } from "../core/log-page.ts";
 import type { Ports } from "../core/ports.ts";
+import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { ErrorResponseSchema, cursorParam } from "./schemas.ts";
 
@@ -13,6 +14,7 @@ const LogQuerySchema = z.object({ cursor: cursorParam(parseLogCursor) });
 const listLogRoute = createRoute({
   method: "get",
   path: "/api/log",
+  middleware: access("read"),
   request: { query: LogQuerySchema },
   responses: {
     200: jsonBody(
