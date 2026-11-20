@@ -291,7 +291,7 @@ Rules for the Digest:
 - The owner downloads the library as a zip with one Markdown file per Item: front matter with Source, URL, author, dates, Topic, Tags, Read state and a title alias when present, then the Summary, Key points, Highlights, Note, post text and Kept comments (not the comments the Reader shows before a Digest covers the thread), with the Item's stored images beside it.
 - One export exists at a time, and a ready export is kept 24 hours, then the sweep removes it.
 - The export zip also holds every library record (everything except secrets, login data, work in flight, the owner's choice of Provider and of X reader, and the search tables, which are derived from the records).
-- A new Instance can restore from the zip after its setup code is entered, so the same zip backs up both install targets and moves a library between them (`docs/architecture/export-backup-and-restore.md`). The restore brings back the records, the stored images, the search rebuild and the Highlight anchors, and it has cancel, resume and a setup page step.
+- A new Instance can restore from the zip after its setup code is entered, so the same zip backs up both install targets and moves a library between them (`docs/architecture/export-backup-and-restore.md`). The restore brings back the records, the stored images, the search rebuild and the Highlight anchors, and it has cancel, resume and a setup page step. A cancel undoes only what the restore wrote, so the cancel of a restore that the check refused leaves the library as it is.
 
 ## The library wiki
 
@@ -428,7 +428,7 @@ C. Intake webhook
 - A Topic merge removes the old Topic page note and rewrites the affected Item notes and their wikilinks to the surviving Topic. A Tag merge rewrites the affected Item notes. Accepting a lost Highlight, an overview gap or a disagreement updates the notes when the change is stored.
 - A file above GitHub's 100 MiB limit is omitted and recorded in the Log. See the writer's separate request and memory budget in `docs/architecture/vault-mirror.md`.
 - A single leased writer drains the queue, with the same file paths, Markdown, and write order for either destination. Assets arrive before the Item note. Deletion removes the note before the assets. Folder publication installs complete files atomically. GitHub compares the expected branch tip, rebuilds after a moved tip, and waits until GitHub's retry time when it meets a rate limit. File progress survives retries, and a newer queued change survives an older write.
-- If the Vault mirror holds a write lease, Restore keeps the uploaded zip and asks the owner to try again with the same file. A running Restore pauses the writer and queues the final library when it finishes or is cancelled. The Export leaves the settings, queue and written-file list out.
+- If the Vault mirror holds a write lease, Restore keeps the uploaded zip and asks the owner to try again with the same file. A running Restore pauses the writer and queues the final library when it finishes or after an undo; a Cancel that settles a Restore still in `check` queues nothing. The Export leaves the settings, queue and written-file list out.
 - The mirror is one-way: the owner reads in Obsidian and edits Highlights and Notes in Threadsift. Vault repositories on other Git hosts are not in the first release.
 
 ## Access
