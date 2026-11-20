@@ -9,16 +9,6 @@ import { digests, highlights, items, redditComments, redditThreads } from "./sch
 import type { StoredThread } from "./stored-thread.ts";
 import { jsonArrays, rowJson } from "./thread-rows.ts";
 
-export function eligibleComments(): SQL {
-  return sql`exists (select 1 from ${redditComments} where ${redditComments.itemId} = ${items.id} and ${redditComments.generation} = ${items.generation} and ${redditComments.eligible} = 1)`;
-}
-
-export function candidateLink(): SQL<string | null> {
-  return sql<
-    string | null
-  >`(select ${redditThreads.linkedUrl} from ${redditThreads} where ${redditThreads.itemId} = ${items.id} and ${redditThreads.generation} = ${items.generation})`;
-}
-
 export function commentReadable(): SQL<boolean> {
   const covered = sql`${redditComments}.generation in (${publishedGeneration(sql`${redditComments}.item_id`)})`;
   const held = sql`exists (select 1 from ${highlights} where ${highlights.itemId} = ${redditComments}.item_id and ${highlights.status} = 'attached' and ${highlights.commentId} = ${redditComments}.id)`;

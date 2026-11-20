@@ -2,8 +2,8 @@ import { type SQL, type SQLWrapper, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Database } from "./database.ts";
+import { disagreementInTopic } from "./disagreement-sql.ts";
 import { itemTitle } from "./item-title.ts";
-import { disagreementInTopic } from "./known-disagreements.ts";
 import { digests, items, logEntries, pins, relatedItems, topics } from "./schema.ts";
 import { logMonthAt, logMonthColumn } from "./vault-log-month.ts";
 import { queueVaultNotes } from "./vault-queue.ts";

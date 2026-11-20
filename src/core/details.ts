@@ -1,11 +1,12 @@
 import type { ArticleReading } from "./article.ts";
-import type { Page } from "./fetch-guard.ts";
+import { type GuardOutcome, type Page, loggedFailureOf } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { collapsed } from "./format.ts";
 import type { WaitReason } from "./job-contract.ts";
 import { MIN_ARTICLE_WORDS } from "./limits.ts";
 import { type Link, isGitHubLink, isVideoLink, parseLink, redditRefOf } from "./links.ts";
 import type { MarkdownImage } from "./markdown-images.ts";
+import { PageReadTimeout } from "./page-read-timeout.ts";
 import type { PageReader } from "./page-reader.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
@@ -154,4 +155,30 @@ export async function detailsOfPage(
   }
 
   return articleDetails(await pages.article(page.text, page.url, deadline), page.url);
+}
+
+export async function readOrTimeOut(
+  read: () => Promise<Concluded> | Concluded,
+): Promise<Concluded> {
+  try {
+    return await read();
+  } catch (error) {
+    if (error instanceof PageReadTimeout) {
+      return { status: "timeout" };
+    }
+
+    throw error;
+  }
+}
+
+export function fetchedOf(
+  outcome: Readonly<GuardOutcome>,
+  readPage: (page: Readonly<Page>) => Promise<Concluded> | Concluded,
+  whenStopped: FetchFailure,
+): Promise<Concluded> {
+  if (outcome.kind !== "page") {
+    return Promise.resolve({ status: loggedFailureOf(outcome, whenStopped) });
+  }
+
+  return readOrTimeOut(() => readPage(outcome));
 }

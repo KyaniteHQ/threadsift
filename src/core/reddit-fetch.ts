@@ -1,9 +1,9 @@
 import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import type { Concluded, Fetched } from "./details.ts";
-import { type LinkRoute, fetchedOfOembed } from "./fetch-link.ts";
 import type { ClaimedJob } from "./job-outcome.ts";
 import { isLastAttempt } from "./job-retry.ts";
-import type { RedditRef } from "./links.ts";
+import type { LinkRoute, RedditRef } from "./links.ts";
+import { fetchedOfOembed } from "./oembed-details.ts";
 import type { Ports } from "./ports.ts";
 import { accountThread } from "./reddit-account-fetch.ts";
 import { type AccountTurn, accountTurn } from "./reddit-account-turn.ts";

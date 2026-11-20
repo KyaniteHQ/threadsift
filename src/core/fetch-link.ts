@@ -4,21 +4,16 @@ import {
   NOT_REQUESTED,
   detailsOfPage,
   detailsOfSuppliedPage,
+  fetchedOf,
+  readOrTimeOut,
 } from "./details.ts";
-import {
-  type BodyUse,
-  type FetchPolicy,
-  type GuardOutcome,
-  type Page,
-  guardedFetch,
-  loggedFailureOf,
-} from "./fetch-guard.ts";
-import type { FetchFailure } from "./fetch-results.ts";
+import { type FetchPolicy, guardedFetch, loggedFailureOf } from "./fetch-guard.ts";
+import { SMALL_POLICY, followingShortLinks } from "./fetch-policies.ts";
 import { withCurrentCredential } from "./github-credential.ts";
 import { fetchedOfRepository } from "./github-fetch.ts";
 import {
   type Link,
-  type RedditRef,
+  type LinkRoute,
   isRedditOrXLink,
   isRedditShareLink,
   isShortLink,
@@ -26,8 +21,7 @@ import {
   redditRefOf,
 } from "./links.ts";
 import type { Network } from "./network.ts";
-import { detailsOfOembed } from "./oembed-details.ts";
-import { PageReadTimeout } from "./page-read-timeout.ts";
+import { fetchedOfOembed } from "./oembed-details.ts";
 import type { PageReader } from "./page-reader.ts";
 import type { Ports } from "./ports.ts";
 import { repositoryRef } from "./repository-ref.ts";
@@ -36,23 +30,6 @@ import type { SuppliedPage } from "./supplied-page.ts";
 type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
   | { readonly kind: "failed"; readonly fetched: Exclude<Concluded, { status: "ok" }> };
-
-export type LinkRoute =
-  | { readonly kind: "reddit"; readonly link: Link; readonly ref: RedditRef }
-  | { readonly kind: "x" }
-  | { readonly kind: "unrequested" }
-  | { readonly kind: "github"; readonly link: Link }
-  | { readonly kind: "page"; readonly link: Link };
-
-const followingShortLinks =
-  (others: BodyUse) =>
-  (url: string): BodyUse =>
-    isShortLink(url) ? "follow-refresh" : others;
-
-const SMALL_POLICY: FetchPolicy = {
-  stopAt: isRedditOrXLink,
-  body: followingShortLinks("read"),
-};
 
 const RESOLVE_POLICY: FetchPolicy = {
   stopAt: isRedditOrXLink,
@@ -85,47 +62,6 @@ export function linkRouteOf(address: string): LinkRoute {
 
 function pagePolicy({ maxHtmlBytes }: Readonly<PageReader>): FetchPolicy {
   return { ...SMALL_POLICY, htmlMaxBytes: maxHtmlBytes };
-}
-
-export async function readOrTimeOut(
-  read: () => Promise<Concluded> | Concluded,
-): Promise<Concluded> {
-  try {
-    return await read();
-  } catch (error) {
-    if (error instanceof PageReadTimeout) {
-      return { status: "timeout" };
-    }
-
-    throw error;
-  }
-}
-
-function fetchedOf(
-  outcome: Readonly<GuardOutcome>,
-  readPage: (page: Readonly<Page>) => Promise<Concluded> | Concluded,
-  whenStopped: FetchFailure,
-): Promise<Concluded> {
-  if (outcome.kind !== "page") {
-    return Promise.resolve({ status: loggedFailureOf(outcome, whenStopped) });
-  }
-
-  return readOrTimeOut(() => readPage(outcome));
-}
-
-export async function fetchedOfOembed(
-  network: Network,
-  normalizedUrl: string,
-  deadline: AbortSignal,
-): Promise<Concluded> {
-  const outcome = await guardedFetch(
-    network,
-    `https://www.reddit.com/oembed?url=${encodeURIComponent(normalizedUrl)}`,
-    SMALL_POLICY,
-    deadline,
-  );
-
-  return fetchedOf(outcome, ({ text }) => detailsOfOembed(text), "unreadable");
 }
 
 async function fetchedOfPage(

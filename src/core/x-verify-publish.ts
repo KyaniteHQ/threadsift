@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { report } from "./failure-log.ts";
-import { settledThread } from "./fetch-settle.ts";
+import { settledThread } from "./fetch-content.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";
 import { X_VERIFY_DEADLINE_MS } from "./request-waits.ts";
 import { fewerThanStored, holdsAtLeastStored, ownerOfItem, repliesOf } from "./thread-store.ts";

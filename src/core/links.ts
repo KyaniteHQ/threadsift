@@ -282,3 +282,10 @@ export function takesPage(absoluteUrl: string): boolean {
     !(isRedditOrXLink(absoluteUrl) || isGitHubLink(absoluteUrl))
   );
 }
+
+export type LinkRoute =
+  | { readonly kind: "reddit"; readonly link: Link; readonly ref: RedditRef }
+  | { readonly kind: "x" }
+  | { readonly kind: "unrequested" }
+  | { readonly kind: "github"; readonly link: Link }
+  | { readonly kind: "page"; readonly link: Link };

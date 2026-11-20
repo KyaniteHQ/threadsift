@@ -1,28 +1,12 @@
-import { and, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { AI_INPUT_BYTES } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
+import { candidateLink, hasDigestContent } from "./digest-source.ts";
 import { guardedOutcome } from "./guarded-outcome.ts";
 import type { JobOutcome } from "./job-outcome.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { items } from "./schema.ts";
-import { candidateLink, eligibleComments } from "./thread-store.ts";
-
-function digestContent() {
-  return [isNotNull(items.postText), isNotNull(items.postTextKey), eligibleComments()] as const;
-}
-
-function hasCandidateLink() {
-  return and(isNull(items.pendingDigest), isNotNull(candidateLink())) ?? sql`0`;
-}
-
-function hasDigestContent() {
-  return or(...digestContent()) ?? sql`0`;
-}
-
-export function hasDigestSource() {
-  return or(...digestContent(), hasCandidateLink()) ?? sql`0`;
-}
 
 export function digestInput(db: Database, id: number) {
   return db

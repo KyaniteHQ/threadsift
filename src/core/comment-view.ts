@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { DigestOutcome } from "./item-contract.ts";
-import type { COMMENT_KINDS } from "./reddit-tables.ts";
+import type { COMMENT_KINDS } from "./reddit-contract.ts";
 import { WholeCount } from "./whole-count.ts";
 
 const Place = {

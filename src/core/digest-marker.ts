@@ -1,7 +1,7 @@
 import { type SQLWrapper, and, eq, exists, isNull, not, or, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { hasDigestSource } from "./digest-input.ts";
+import { hasDigestSource } from "./digest-source.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { providerSet } from "./provider-saved.ts";
 import { type JobRow, digests, items } from "./schema.ts";

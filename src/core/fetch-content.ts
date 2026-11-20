@@ -1,12 +1,17 @@
+import { eq } from "drizzle-orm";
+
+import type { Database } from "./database.ts";
 import type { Concluded } from "./details.ts";
-import type { FetchedContent } from "./item-publish.ts";
+import { type FetchedContent, publishFetched } from "./item-publish.ts";
 import type { ClaimedJob, JobPorts } from "./job-outcome.ts";
 import { mediaKeysOf } from "./media-writes.ts";
 import { placePostText } from "./post-text-files.ts";
-import { postTextOf } from "./settle.ts";
+import { items } from "./schema.ts";
+import { fetchedThread, isRetryable, postTextOf } from "./settle.ts";
 import { storeMedia } from "./store-media.ts";
+import type { StoredThread } from "./stored-thread.ts";
 
-export async function settledContent(
+async function settledContent(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
   fetched: Readonly<Concluded>,
@@ -33,4 +38,36 @@ export async function settledContent(
     },
     suppliedDigest,
   };
+}
+
+async function titleOf(db: Database, itemId: number): Promise<string | null> {
+  const [item] = await db.select({ title: items.title }).from(items).where(eq(items.id, itemId));
+
+  return item?.title ?? null;
+}
+
+export async function settledFetch(
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+  fetched: Readonly<Concluded>,
+  deadline: AbortSignal,
+  suppliedDigest: string | null,
+) {
+  const title = isRetryable(fetched.status) ? await titleOf(ports.db, job.itemId) : null;
+
+  return publishFetched(
+    ports.db,
+    job,
+    await settledContent(ports, job, fetched, title, deadline, suppliedDigest),
+  );
+}
+
+export function settledThread(
+  ports: JobPorts,
+  job: Readonly<ClaimedJob>,
+  thread: Readonly<StoredThread>,
+  deadline: AbortSignal,
+  suppliedDigest: string | null,
+) {
+  return settledFetch(ports, job, fetchedThread(thread), deadline, suppliedDigest);
 }
