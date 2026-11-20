@@ -445,7 +445,7 @@ Each agent token carries scopes that limit what it calls:
   - `digest`: queue a Digest or a Topic page overview again, and send a Digest with a Paste;
   - `delete`: delete an Item;
   - `reddit`: connect and disconnect the Reddit account through `/api/reddit-account` (reading it there needs `read`).
-- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. A token created before scopes existed keeps the first four and never gets `reddit`. A token that holds a scope name this release does not know cannot authenticate any call that needs a token, and the token list shows it with no scopes (`verifyToken` and `summaryOf` in `src/features/access/core/tokens.ts`). A call outside the token's scopes answers 403.
+- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. A token created before scopes existed keeps the first four and never gets `reddit`. A token whose stored scopes this release cannot read, such as text that is not JSON or a list that holds a scope name it does not know, reads as a token with no scopes (`scopesOf` in `src/features/access/core/tokens.ts`). The token list shows it with no scopes, and each call that needs a scope answers 403 like a token that lacks the scope, never 500. On `/mcp` that is each tool call; `initialize` and the request for the tool list answer 200 as they do for a token that lacks the scope. A call outside the token's scopes answers 403.
 ### Token budget
 
 Each agent token has a daily budget of new Items. Only a new Item counts, because each one costs the Provider one Digest call; a link the library already holds, a refused host, a read and a search do not.

@@ -212,11 +212,35 @@ describe("a token whose stored scopes are unreadable", () => {
 
   after(() => instance.close());
 
-  it("still fails closed when the stored scopes are not a list of names", async () => {
-    const { id, value } = await createAgentToken(instance, "unreadable scopes");
+  it("lists with no scopes, and each call answers the 403 of a token that lacks the scope", async () => {
+    const lacking = await createAgentToken(instance, "lacks read", ["add"]);
+    const expected = await instance.sendWithToken(lacking.value, "GET", "/api/items");
 
-    store(id, JSON.stringify({ read: true }));
+    assert.equal(expected.status, 403);
 
-    assert.notEqual((await instance.sendWithToken(value, "GET", "/api/items")).status, 200);
+    const stored = [JSON.stringify({ read: true }), JSON.stringify(["read", "admin"]), "["];
+
+    const unreadable = await Promise.all(
+      stored.map((scopes, index) =>
+        createAgentToken(instance, `unreadable scopes ${String(index)}`).then((token) => {
+          store(token.id, scopes);
+
+          return token;
+        }),
+      ),
+    );
+
+    const answers = await Promise.all(
+      unreadable.map(({ value }) => instance.sendWithToken(value, "GET", "/api/items")),
+    );
+
+    assert.deepEqual(answers, [expected, expected, expected]);
+
+    const { tokens } = await instance.read("GET", "/api/tokens", TokenListResponseSchema);
+
+    assert.deepEqual(
+      unreadable.map(({ id }) => tokens.find((each) => each.id === id)?.scopes),
+      [[], [], []],
+    );
   });
 });
