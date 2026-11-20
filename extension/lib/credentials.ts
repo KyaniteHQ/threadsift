@@ -1,21 +1,37 @@
 import { browser } from "wxt/browser";
-import { z } from "zod";
 
-import { type Config, hasRedditAccess, instanceOrigin, storeFill } from "./config.ts";
+import { type Config, hasRedditAccess, instanceOrigin } from "./config.ts";
 import type { ConfigView } from "./state.ts";
+import { type Stored, StoredSchema } from "./stored-keys.ts";
 
-const StoredSchema = z.object({
-  instance: z.string().optional(),
-  token: z.string().optional(),
-  fill: z.boolean().optional(),
-});
+const STORED_KEYS = StoredSchema.keyof().options;
 
-export async function stored(): Promise<z.infer<typeof StoredSchema>> {
-  const read = StoredSchema.safeParse(
-    await browser.storage.local.get(["instance", "token", "fill"]),
-  );
+export async function stored(): Promise<Stored> {
+  const read = StoredSchema.safeParse(await browser.storage.local.get([...STORED_KEYS]));
 
   return read.success ? read.data : {};
+}
+
+function write(change: Readonly<Stored>): Promise<void> {
+  return browser.storage.local.set(change);
+}
+
+export function storeOrigin(origin: string): Promise<void> {
+  return write({ instance: origin });
+}
+
+export function storeConfig({ origin, token }: Readonly<Config>): Promise<void> {
+  return write({ instance: origin, token });
+}
+
+export function storeFill(on: boolean): Promise<void> {
+  return write({ fill: on });
+}
+
+export async function restrictStorage(): Promise<void> {
+  if ("setAccessLevel" in browser.storage.local) {
+    await browser.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+  }
 }
 
 export async function fillWanted(): Promise<boolean> {

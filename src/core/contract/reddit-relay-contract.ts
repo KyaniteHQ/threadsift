@@ -18,7 +18,11 @@ export const RELAY_PORT = "relay";
 
 export const RELAY_PRESENCE_MS = 3000;
 
-export const RELAY_RESULT_MS = 35_000;
+export const INSTANCE_CALL_DEADLINE_MS = 25_000;
+
+export const REDDIT_DEADLINE_MS = INSTANCE_CALL_DEADLINE_MS + 5_000;
+
+export const RELAY_RESULT_MS = REDDIT_DEADLINE_MS + 5_000;
 
 const ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/u;
 

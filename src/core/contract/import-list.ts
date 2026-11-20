@@ -1,4 +1,7 @@
+import type { z } from "zod";
+
 import { webUrlOf } from "./addresses.ts";
+import type { BatchRequestSchema } from "./batch-wire.ts";
 import { hex, utf8Length } from "./encoding.ts";
 import { BODY_LIMIT_BYTES } from "./limits.ts";
 import { linkIn } from "./shared-link.ts";
@@ -42,14 +45,14 @@ export interface ImportList {
   readonly skipped: Readonly<Record<SkipReason, Skipped>>;
 }
 
-export interface ImportRequest {
-  readonly links: readonly { readonly url: string }[];
-  readonly import: {
-    readonly name: string;
-    readonly cursor: string;
-    readonly previous: string | null;
-  };
-}
+type BatchRequest = z.input<typeof BatchRequestSchema>;
+
+export type ImportRequest = Readonly<{
+  links: BatchRequest["links"];
+  import: Readonly<
+    Omit<NonNullable<BatchRequest["import"]>, "previous"> & { previous: string | null }
+  >;
+}>;
 
 export type Resume =
   | { readonly kind: "fresh" }

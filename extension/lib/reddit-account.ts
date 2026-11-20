@@ -1,28 +1,37 @@
 import { browser } from "wxt/browser";
+import type { z } from "zod";
 
-import { RedditAccountSaveResponseSchema } from "../../src/core/contract/reddit-account-contract.ts";
+import {
+  REDDIT_SESSION_COOKIE,
+  RedditAccountSaveResponseSchema,
+  type RedditSessionInputSchema,
+} from "../../src/core/contract/reddit-account-contract.ts";
 import type { RedditConnectState } from "../../src/core/contract/reddit-relay-contract.ts";
 import { exclusive, reconcileAccess } from "./access.ts";
-import { type Config, holdsInstanceAccess, holdsRedditConnect, instanceRequest } from "./config.ts";
+import {
+  type Config,
+  holdsInstanceAccess,
+  holdsRedditConnect,
+  instanceAnswer,
+  instanceRequest,
+} from "./config.ts";
 import { logFailure } from "./log.ts";
 import { oneAtATime } from "./one-at-a-time.ts";
 
 const accountWrites = oneAtATime();
 
-const COOKIE = { url: "https://www.reddit.com/", name: "reddit_session" };
+const COOKIE = { url: "https://www.reddit.com/", name: REDDIT_SESSION_COOKIE };
 
 const FIRST_PARTY_ANY = import.meta.env.FIREFOX ? { firstPartyDomain: null } : {};
 
 async function stateOf(response: Response): Promise<RedditConnectState> {
   switch (response.status) {
     case 200: {
-      const answer = RedditAccountSaveResponseSchema.safeParse(
-        await response.json().catch(() => null),
-      );
+      const answer = await instanceAnswer(response, RedditAccountSaveResponseSchema);
 
-      if (!answer.success) return "failed";
+      if (answer === null) return "failed";
 
-      return "kind" in answer.data ? "missing" : answer.data.state;
+      return "kind" in answer ? "missing" : answer.state;
     }
 
     case 401:
@@ -36,7 +45,10 @@ async function stateOf(response: Response): Promise<RedditConnectState> {
 
 async function call(
   config: Readonly<Config>,
-  request: Readonly<{ method: "GET" | "PUT" | "DELETE"; body?: { readonly session: string } }>,
+  request: Readonly<{
+    method: "GET" | "PUT" | "DELETE";
+    body?: z.input<typeof RedditSessionInputSchema>;
+  }>,
 ): Promise<RedditConnectState> {
   try {
     return await stateOf(await instanceRequest(config, "/api/reddit-account", request));

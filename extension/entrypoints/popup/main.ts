@@ -1,13 +1,6 @@
 import { browser } from "wxt/browser";
 
-import {
-  applyLook,
-  button,
-  element,
-  replaceControls,
-  say,
-  type Tone,
-} from "../../lib/page-look.ts";
+import { applyLook, button, element, replaceControls, say } from "../../lib/page-look.ts";
 import {
   type RedditView,
   loadReddit,
@@ -17,6 +10,7 @@ import {
   redditStatusText,
   redditTone,
 } from "../../lib/reddit-setting.ts";
+import { SAVE_STATE_FACTS, opensItem } from "../../lib/save-state-facts.ts";
 import { SAVE_PORT, type SaveState, SaveStateSchema, ask } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
 
@@ -37,11 +31,6 @@ const redditBlock = element("div", { class: "ext-form", hidden: "" }, redditStat
 
 root.replaceChildren(title, saveStatus, saveActions, redditBlock);
 
-interface Message {
-  readonly text: string;
-  readonly tone: Tone;
-}
-
 function openItem(itemUrl: string): HTMLAnchorElement {
   return element(
     "a",
@@ -51,77 +40,24 @@ function openItem(itemUrl: string): HTMLAnchorElement {
 }
 
 function actions(state: Readonly<SaveState>): HTMLElement[] {
-  switch (state.kind) {
-    case "saved":
-    case "saved-incomplete":
-    case "saved-page":
-      return [openItem(state.itemUrl)];
-    case "saving":
-    case "thread-kept":
-    case "budget-spent":
-      return [];
-    case "not-configured":
-    case "access-missing":
-    case "token-refused":
-    case "scope-refused":
+  if (opensItem(state)) return [openItem(state.itemUrl)];
+
+  const { action } = SAVE_STATE_FACTS[state.kind];
+
+  switch (action) {
+    case "settings":
       return [button(TEXT.openSettings, () => void browser.runtime.openOptionsPage())];
-    case "page-blocked":
-    case "too-large":
-    case "private-link":
-    case "unsupported-link":
-    case "unreachable":
-    case "failed":
+    case "retry":
       return [button(TEXT.tryAgain, () => void save())];
+    case "none":
+      return [];
     default:
-      return state satisfies never;
-  }
-}
-
-function warning(text: string): Message {
-  return { text, tone: "warn" };
-}
-
-function messageOf(state: Readonly<SaveState>): Message {
-  switch (state.kind) {
-    case "saving":
-      return { text: TEXT.saving, tone: "plain" };
-    case "saved":
-      return { text: TEXT.saved, tone: "ok" };
-    case "saved-incomplete":
-      return warning(TEXT.savedIncomplete);
-    case "saved-page":
-      return warning(TEXT.savedPage);
-    case "not-configured":
-      return warning(TEXT.notConfigured);
-    case "access-missing":
-      return warning(TEXT.accessMissing);
-    case "page-blocked":
-      return warning(TEXT.pageBlocked);
-    case "token-refused":
-      return warning(TEXT.tokenRefused);
-    case "scope-refused":
-      return warning(TEXT.scopeRefused);
-    case "too-large":
-      return warning(TEXT.tooLarge);
-    case "private-link":
-      return warning(TEXT.privateLink);
-    case "unsupported-link":
-      return warning(TEXT.unsupportedLink);
-    case "thread-kept":
-      return warning(TEXT.threadKept);
-    case "budget-spent":
-      return warning(TEXT.budgetSpent);
-    case "unreachable":
-      return warning(TEXT.unreachable);
-    case "failed":
-      return warning(TEXT.failed);
-    default:
-      return state satisfies never;
+      return action satisfies never;
   }
 }
 
 function show(state: Readonly<SaveState>): void {
-  const { text, tone } = messageOf(state);
+  const { text, tone } = SAVE_STATE_FACTS[state.kind];
 
   say(saveStatus, text, tone);
   replaceControls(saveActions, title, actions(state));

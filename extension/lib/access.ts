@@ -6,7 +6,7 @@ import { settleFill, stored } from "./credentials.ts";
 import { logFailure } from "./log.ts";
 import { oneAtATime } from "./one-at-a-time.ts";
 
-export type AccessResult = "reconciled" | "kept";
+type AccessResult = "reconciled" | "kept";
 
 export const exclusive = oneAtATime();
 

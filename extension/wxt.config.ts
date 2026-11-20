@@ -1,8 +1,9 @@
 import { defineConfig } from "wxt";
 
+import { LOOPBACK_HOSTS } from "./lib/loopback-hosts.ts";
 import { TEXT } from "./lib/text.ts";
 
-const HOSTS = ["https://*/*", "http://localhost/*", "http://127.0.0.1/*"];
+const HOSTS = ["https://*/*", ...LOOPBACK_HOSTS.map((host) => `http://${host}/*`)];
 
 const GECKO = {
   id: "{5d3f6c1e-8a47-4c2b-9e0d-3b7a41c9f2a6}",

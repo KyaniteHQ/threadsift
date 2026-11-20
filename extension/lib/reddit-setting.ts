@@ -1,12 +1,10 @@
 import { browser } from "wxt/browser";
 
-import type { RedditConnectState } from "../../src/core/contract/reddit-relay-contract.ts";
 import {
   REDDIT_DEADLINE_MS,
-  REDDIT_PERMISSIONS,
-  holdsRedditConnect,
-  requestAccess,
-} from "./config.ts";
+  type RedditConnectState,
+} from "../../src/core/contract/reddit-relay-contract.ts";
+import { REDDIT_PERMISSIONS, holdsRedditConnect, requestAccess } from "./config.ts";
 import { logFailure } from "./log.ts";
 import type { Tone } from "./page-look.ts";
 import { REDDIT_PORT, RedditAnswerSchema, type RedditRequest, ask } from "./state.ts";

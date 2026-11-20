@@ -1,14 +1,13 @@
 import { type Browser, browser } from "wxt/browser";
+import type { z } from "zod";
 
+import { INSTANCE_CALL_DEADLINE_MS } from "../../src/core/contract/reddit-relay-contract.ts";
 import { logFailure } from "./log.ts";
+import { LOOPBACK_HOSTS } from "./loopback-hosts.ts";
 
-const LOOPBACK_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
+const LOOPBACK_SET: ReadonlySet<string> = new Set(LOOPBACK_HOSTS);
 
 export const REDDIT_HOSTS = ["https://*.reddit.com/*"];
-
-export const FILL_SCRIPT_ID = "fill";
-
-export const RELAY_SCRIPT_ID = "relay";
 
 export const REDDIT_PERMISSIONS: Browser.permissions.Permissions = {
   permissions: ["cookies"],
@@ -40,10 +39,6 @@ export async function requestAccess(
   }
 }
 
-export const REQUEST_DEADLINE_MS = 25_000;
-
-export const REDDIT_DEADLINE_MS = 30_000;
-
 export interface Config {
   readonly origin: string;
   readonly token: string;
@@ -63,8 +58,17 @@ export function instanceRequest(
     headers,
     body: body === undefined ? null : JSON.stringify(body),
     redirect: "error",
-    signal: AbortSignal.timeout(REQUEST_DEADLINE_MS),
+    signal: AbortSignal.timeout(INSTANCE_CALL_DEADLINE_MS),
   });
+}
+
+export async function instanceAnswer<Schema extends z.ZodType>(
+  response: Response,
+  schema: Schema,
+): Promise<z.output<Schema> | null> {
+  const answer = schema.safeParse(await response.json().catch(() => null));
+
+  return answer.success ? answer.data : null;
 }
 
 export function instanceOrigin(address: string): string | null {
@@ -72,7 +76,7 @@ export function instanceOrigin(address: string): string | null {
 
   if (url === null || url.username !== "" || url.password !== "") return null;
 
-  const isLocal = url.protocol === "http:" && LOOPBACK_HOSTS.has(url.hostname);
+  const isLocal = url.protocol === "http:" && LOOPBACK_SET.has(url.hostname);
 
   return url.protocol === "https:" || isLocal ? url.origin : null;
 }
@@ -81,22 +85,4 @@ export function hostPattern(origin: string): string {
   const { protocol, hostname } = new URL(origin);
 
   return `${protocol}//${hostname}/*`;
-}
-
-export function storeOrigin(origin: string): Promise<void> {
-  return browser.storage.local.set({ instance: origin });
-}
-
-export function storeConfig({ origin, token }: Readonly<Config>): Promise<void> {
-  return browser.storage.local.set({ instance: origin, token });
-}
-
-export function storeFill(on: boolean): Promise<void> {
-  return browser.storage.local.set({ fill: on });
-}
-
-export async function restrictStorage(): Promise<void> {
-  if ("setAccessLevel" in browser.storage.local) {
-    await browser.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
-  }
 }

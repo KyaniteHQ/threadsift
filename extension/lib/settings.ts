@@ -27,12 +27,12 @@ export type SettingsState =
   | { readonly kind: "refused"; readonly stored: ConfigView; readonly reason: Refusal }
   | { readonly kind: "failed"; readonly stored: ConfigView; readonly step: Failure };
 
-export interface SettingsInput {
+interface SettingsInput {
   readonly address: string;
   readonly token: string;
 }
 
-export async function readStored(): Promise<ConfigView | null> {
+export async function askConfigView(): Promise<ConfigView | null> {
   try {
     return await ask(CONFIG_PORT, ConfigViewSchema, { deadlineMs: ANSWER_DEADLINE_MS });
   } catch (cause) {
@@ -58,7 +58,7 @@ export async function requestChange(request: SettingsRequest): Promise<ChangeAns
 async function readState(
   make: (stored: Readonly<ConfigView>) => SettingsState,
 ): Promise<SettingsState> {
-  const stored = await readStored();
+  const stored = await askConfigView();
 
   return stored === null ? { kind: "unreadable" } : make(stored);
 }

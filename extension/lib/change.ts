@@ -1,7 +1,7 @@
 import { exclusive, reconcileAccess } from "./access.ts";
-import { instanceOrigin, storeConfig, storeFill, storeOrigin } from "./config.ts";
+import { instanceOrigin } from "./config.ts";
 import { syncScripts } from "./content-scripts.ts";
-import { loadConfigView, stored } from "./credentials.ts";
+import { loadConfigView, storeConfig, storeFill, storeOrigin, stored } from "./credentials.ts";
 import { cancelFills } from "./fill.ts";
 import { logFailure } from "./log.ts";
 import type { ChangeAnswer, SettingsRequest } from "./state.ts";
