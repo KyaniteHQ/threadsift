@@ -1,24 +1,11 @@
 import { isRefusedHost, withoutTrailingDot } from "./addresses.ts";
 import { GITHUB_NON_OWNER_PATHS } from "./github-owners.ts";
-import type { Kind, Source } from "./kinds.ts";
+import { type Kind, type Source, SOURCE_OF_KIND } from "./item-contract.ts";
 
 export interface Link {
   readonly normalizedUrl: string;
   readonly kind: Kind;
   readonly source: Source;
-}
-
-const SOURCE_OF_KIND: Readonly<Record<Kind, Source>> = {
-  "reddit-post": "reddit",
-  "reddit-comment": "reddit",
-  "x-post": "x",
-  "github-repo": "github",
-  article: "article",
-  link: "other",
-};
-
-export function sourceOf(kind: Kind): Source {
-  return SOURCE_OF_KIND[kind];
 }
 
 const TRACKING_PARAMS: ReadonlySet<string> = new Set([
@@ -212,7 +199,7 @@ function repositoryRootPath([owner = "", repo = ""]: readonly string[]): string 
   return `/${owner}/${withoutGitSuffix(repo)}`.toLowerCase();
 }
 
-export interface ParsedLink {
+interface ParsedLink {
   readonly link: Link;
   readonly reddit: RedditRef | null;
 }

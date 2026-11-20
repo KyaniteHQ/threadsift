@@ -1,6 +1,6 @@
 import type { CommentCount, UnfilteredCause } from "../../src/core/comment-view.ts";
 import { collapsed, groupedNumber } from "../../src/core/format.ts";
-import type { Source } from "../../src/core/kinds.ts";
+import type { Source } from "../../src/core/item-contract.ts";
 import { UNTITLED } from "../../src/core/reader-text.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/reader-url.ts";
 import { plural } from "./plural.ts";

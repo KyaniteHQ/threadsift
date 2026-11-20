@@ -30,6 +30,7 @@ The app is one core with ports, and each install target supplies an adapter per 
 - `src/core/` and `src/http/` run on both targets and call ports only. Lint refuses there a `node:` or `cloudflare:` import, any import from `targets/`, and an `import()` whose source is not a plain string; the target's entry passes adapters in through `createApp(ports)`.
 - A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because tests use no fakes (`docs/testing.md`). `Crypto`, `fetchers`, `xFetcher` and `vaultFolder` are the four accepted exceptions, and `docs/architecture/one-codebase-two-install-targets.md` gives the reason for each.
 - Names come from `GLOSSARY.md`.
+- An enum list, a code or a limit is declared once, in the contract module of the feature that owns its meaning (`src/core/item-contract.ts`, `src/core/agent-token-contract.ts`, `src/core/log-actions.ts`, `src/core/limits.ts`), or in the table module of the one table that reads it (`src/core/media-tables.ts`), and only when no screen, route or Extension reads the list. Tables, schemas, CHECKs, cursors and route text derive from it, as `caseOf` in `src/core/schema-checks.ts` builds a CHECK from a record and `byteSize` in `src/core/format.ts` writes a size, so a second copy never drifts.
 
 ## State, writes and failures
 

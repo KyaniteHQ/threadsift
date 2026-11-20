@@ -7,6 +7,7 @@ import { bestEffort, databaseCodeOf, logFailure, readOrAssume, report } from "./
 import { deleteQuietly, unnamed } from "./file-cleanup.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import { closeJob, discardTask } from "./job-close.ts";
+import type { WaitReason } from "./job-contract.ts";
 import {
   type ClaimedRow,
   type JobClosing,
@@ -21,7 +22,6 @@ import {
 import { nextStaleRequeues, staleDelayMs } from "./job-retry.ts";
 import { enqueueItemJobs, enqueueQuietly, holding } from "./job-rows.ts";
 import type { JobSpec } from "./job-spec.ts";
-import type { WaitReason } from "./kinds.ts";
 import { type JobRow, aiTasks, jobs } from "./schema.ts";
 
 function writeWhileHolding(

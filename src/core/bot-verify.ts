@@ -3,10 +3,10 @@ import { loadAiConfig } from "./ai-load.ts";
 import { sendBotTask } from "./bot-task-send.ts";
 import { VERIFY_OWNER, startBotTask } from "./bot-task-start.ts";
 import { VERIFY_START, verifyAnswering } from "./bot-verify-task.ts";
+import { type Verified, awaitVerifiedDigest } from "./bot-verify-wait.ts";
 import type { Ports } from "./ports.ts";
 import { GROK_BOT_PROVIDER } from "./provider-families.ts";
 import { verifyAi } from "./verify-model.ts";
-import { type Verified, awaitVerifiedDigest } from "./verify-wait.ts";
 
 type VerifyPorts = Pick<Ports, "db" | "ai" | "secrets" | "network" | "crypto">;
 

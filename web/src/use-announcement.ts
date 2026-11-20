@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import type { ReadState } from "../../src/core/kinds.ts";
+import type { ReadState } from "../../src/core/item-contract.ts";
 import type { Item } from "../../src/http/schemas.ts";
 import type { Writes } from "./library.ts";
 import { MARKED_READ, MARKED_UNREAD, READ_FAILED } from "./reader-text.ts";

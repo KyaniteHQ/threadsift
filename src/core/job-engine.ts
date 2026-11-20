@@ -15,12 +15,12 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
+import { JOB_KINDS } from "./job-contract.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 import { CLAIM_MARGIN_MS, type ClaimedRow, type JobPorts, claimedRow } from "./job-outcome.ts";
 import { isSpent, retryDelayMs } from "./job-retry.ts";
 import { ATTEMPT_FILES, hasOpenJob } from "./job-rows.ts";
 import type { InputFact, JobSpec, Specs } from "./job-spec.ts";
-import { JOB_KINDS } from "./kinds.ts";
 import { jobs } from "./schema.ts";
 
 function caseOnKind(whens: readonly SQL[]): SQL {

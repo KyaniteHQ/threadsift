@@ -6,9 +6,9 @@ import { keptNotUpdated, markAttemptsSpent } from "./digest-marker.ts";
 import { owedDigest } from "./digest-opening.ts";
 import { emptyInput } from "./digest-prepare.ts";
 import { readForPublishing } from "./digest-publish.ts";
+import { INTAKE_JOB_KINDS } from "./job-contract.ts";
 import type { ClaimedJob, JobOutcome, JobPorts } from "./job-outcome.ts";
 import { defineJob } from "./job-spec.ts";
-import { INTAKE_JOB_KINDS } from "./kinds.ts";
 
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
   const { item, anchors } = await readForPublishing(ports.db, job.itemId);

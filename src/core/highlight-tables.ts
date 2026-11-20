@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
+import { HIGHLIGHT_STATUSES } from "./highlight-contract.ts";
 import { items } from "./item-tables.ts";
-import { HIGHLIGHT_STATUSES } from "./kinds.ts";
 
 export const highlights = sqliteTable(
   "highlights",

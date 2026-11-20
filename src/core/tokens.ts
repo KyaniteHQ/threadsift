@@ -1,13 +1,15 @@
 import { and, desc, eq, isNull, lte, or } from "drizzle-orm";
 
 import { budgetOf, tokenItemsToday } from "./agent-token-budget.ts";
+import {
+  ScopeListSchema,
+  type Scope,
+  type TokenBudget,
+  DEFAULT_TOKEN_BUDGET,
+} from "./agent-token-contract.ts";
 import { digestOf, randomSecret } from "./encoding.ts";
-import { ScopeListSchema, type Scope, type TokenBudget } from "./kinds.ts";
-import { DEFAULT_TOKEN_BUDGET } from "./limits.ts";
 import type { Ports } from "./ports.ts";
 import { type AgentTokenRow, agentTokens } from "./schema.ts";
-
-export const UNKNOWN_TOKEN = "Unknown or revoked agent token";
 
 const TOKEN_BYTES = 32;
 const TOKEN_PREFIX = "tsa_";

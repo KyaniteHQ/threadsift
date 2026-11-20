@@ -1,8 +1,9 @@
 import { z } from "zod";
 
+import { groupedNumber } from "./format.ts";
 import { REDDIT_ACCOUNT_VIEW_STATES } from "./reddit-account-state-names.ts";
 
-const REDDIT_SESSION_MAX = 4096;
+export const REDDIT_SESSION_MAX = 4096;
 
 const SESSION_PREFIX = "reddit_session=";
 
@@ -49,5 +50,4 @@ export const RedditVerifySchema = z.object({ result: z.enum(REDDIT_VERIFY_RESULT
 
 export type RedditVerifyResult = (typeof REDDIT_VERIFY_RESULTS)[number];
 
-export const REDDIT_SESSION_INVALID =
-  "session must be 1 to 4,096 characters of letters, digits and . _ ~ + / = % -, with at most one leading reddit_session=";
+export const REDDIT_SESSION_INVALID = `session must be 1 to ${groupedNumber(REDDIT_SESSION_MAX)} characters of letters, digits and . _ ~ + / = % -, with at most one leading reddit_session=`;

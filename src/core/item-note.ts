@@ -2,7 +2,7 @@ import type { CommentNode } from "./comment-view.ts";
 import { utf8Length } from "./encoding.ts";
 import { isImageRouteOf, keyOfFileRoute } from "./file-keys.ts";
 import { collapsed } from "./format.ts";
-import type { Kind, ReadState, Source } from "./kinds.ts";
+import type { Kind, ReadState, Source } from "./item-contract.ts";
 import { lineBreaksOf, plainMarkdown, yamlScalar } from "./markdown-escape.ts";
 import { inlineImage, rewriteImages, scanMarkdown } from "./markdown-images.ts";
 import {

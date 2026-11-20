@@ -3,7 +3,6 @@ import { asc, count, eq, gt } from "drizzle-orm";
 import { AI_INPUT_BYTES } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
-import type { MergeKind } from "./kinds.ts";
 import { MERGE } from "./merge-kinds.ts";
 import {
   type Candidate,
@@ -12,6 +11,7 @@ import {
   disjointPairs,
   pairKey,
 } from "./proposal-candidates.ts";
+import type { MergeKind } from "./proposal-contract.ts";
 import type { SentPair, SentSubject } from "./proposal-sent.ts";
 import { proposals } from "./schema.ts";
 

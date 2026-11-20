@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import { DEFAULT_TOKEN_BUDGET } from "../../src/core/limits.ts";
+import { DEFAULT_TOKEN_BUDGET } from "../../src/core/agent-token-contract.ts";
 import { SETTINGS } from "./access-text.ts";
 import { FormField } from "./FormField.tsx";
 import { dailyBudgetOf, parseBudget } from "./token-budget.ts";

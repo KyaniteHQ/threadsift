@@ -2,8 +2,7 @@ import { asc, count, eq, gt } from "drizzle-orm";
 
 import { TOPIC_USES } from "./catalog-uses.ts";
 import type { Database } from "./database.ts";
-import { ITEMS_PAGE_SIZE } from "./item-page.ts";
-import { pageTail } from "./page-tail.ts";
+import { PAGE_SIZE, pageTail } from "./paging.ts";
 import { topicPages, topics } from "./schema.ts";
 import type { TopicIndex } from "./topic-index-contract.ts";
 import { overviewLine } from "./topic-overview-contract.ts";
@@ -26,11 +25,11 @@ export function topicIndexRows(db: Database, cursor: string | null, limit: numbe
 
 export async function readTopicIndex(db: Database, cursor: string | null): Promise<TopicIndex> {
   const [rows, [totals]] = await db.batch([
-    topicIndexRows(db, cursor, ITEMS_PAGE_SIZE + 1),
+    topicIndexRows(db, cursor, PAGE_SIZE + 1),
     db.select({ total: count() }).from(topics),
   ]);
 
-  const { items, next } = pageTail(rows, ITEMS_PAGE_SIZE, ({ key }) => key);
+  const { items, next } = pageTail(rows, PAGE_SIZE, ({ key }) => key);
 
   return {
     topics: items.map(({ key, name, itemCount, overview }) => ({

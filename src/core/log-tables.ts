@@ -3,8 +3,7 @@ import { check, index, integer, sqliteTable, text } from "drizzle-orm/sqlite-cor
 
 import { topics } from "./catalog-tables.ts";
 import { items } from "./item-tables.ts";
-import { LOG_ACTIONS } from "./kinds.ts";
-import { LOG } from "./log-actions.ts";
+import { LOG_ACTIONS, LOG } from "./log-actions.ts";
 import { listed } from "./schema-checks.ts";
 
 const PATH_ACTIONS = LOG_ACTIONS.filter((action) =>

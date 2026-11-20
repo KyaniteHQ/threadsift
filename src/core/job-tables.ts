@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 import { items } from "./item-tables.ts";
-import { JOB_KINDS, JOB_STATES, UNOWNED_JOB_KINDS, WAIT_REASONS } from "./kinds.ts";
+import { JOB_KINDS, JOB_STATES, UNOWNED_JOB_KINDS, WAIT_REASONS } from "./job-contract.ts";
 import { listed } from "./schema-checks.ts";
 
 export const jobs = sqliteTable(

@@ -5,8 +5,13 @@ import { z } from "zod";
 import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
 import { IMAGE_STEM, ITEM_FILES_ROOT, POST_TEXT_STEM } from "./file-keys.ts";
+import {
+  ITEM_JOB_KINDS,
+  type JobKind,
+  type UnownedJobKind,
+  type WaitReason,
+} from "./job-contract.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { ITEM_JOB_KINDS, type JobKind, type UnownedJobKind, type WaitReason } from "./kinds.ts";
 import { type JobRow, exportRuns, items, jobs, restoreRuns } from "./schema.ts";
 
 interface AttemptColumns {

@@ -2,13 +2,14 @@ import type { ArticleReading } from "./article.ts";
 import type { Page } from "./fetch-guard.ts";
 import type { FetchFailure } from "./fetch-results.ts";
 import { collapsed } from "./format.ts";
-import type { WaitReason, XReadNote } from "./kinds.ts";
+import type { WaitReason } from "./job-contract.ts";
 import { MIN_ARTICLE_WORDS } from "./limits.ts";
 import { type Link, isGitHubLink, isVideoLink, parseLink, redditRefOf } from "./links.ts";
 import type { MarkdownImage } from "./markdown-images.ts";
 import type { PageReader } from "./page-reader.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import type { SuppliedPage } from "./supplied-page.ts";
+import type { XReadNote } from "./x-read-note.ts";
 
 export interface Repository {
   readonly description: string | null;

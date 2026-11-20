@@ -1,5 +1,5 @@
+import type { RefusalCode } from "./access-contract.ts";
 import { groupedNumber } from "./format.ts";
-import type { RefusalCode } from "./kinds.ts";
 import { PASSWORD_MAX, PASSWORD_MIN, type PasswordProblem } from "./passwords.ts";
 import { RESET_CODE_MIN, SETUP_CODE_MIN } from "./setup-code.ts";
 

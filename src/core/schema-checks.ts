@@ -4,6 +4,14 @@ export function listed(values: readonly string[]) {
   return sql.raw(values.map((value) => `'${value}'`).join(", "));
 }
 
+export function caseOf(subject: Readonly<SQLWrapper>, results: Readonly<Record<string, string>>) {
+  const branches = Object.entries(results).map(([value, result]) =>
+    sql.raw(`when '${value}' then '${result}'`),
+  );
+
+  return sql`case ${subject} ${sql.join(branches, sql` `)} end`;
+}
+
 export function subjectsForKind(
   kind: Readonly<SQLWrapper>,
   columns: Readonly<Record<string, SQLWrapper>>,

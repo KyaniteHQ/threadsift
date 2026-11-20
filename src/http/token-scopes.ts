@@ -1,9 +1,14 @@
 import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 
+import {
+  type Scope,
+  type NeededScopes,
+  lacksScope,
+  missingScope,
+  pasteScopes,
+} from "../core/agent-token-contract.ts";
 import type { Caller } from "../core/caller.ts";
-import type { Scope } from "../core/kinds.ts";
-import { type NeededScopes, lacksScope, missingScope, pasteScopes } from "../core/scopes.ts";
 
 type Principal =
   | { readonly kind: "owner" }

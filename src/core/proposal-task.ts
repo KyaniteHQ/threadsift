@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import { AI_REASON_MAX, type AiTaskDefinition } from "./ai-contract.ts";
-import { type MergeKind, WEEKLY_TASK } from "./kinds.ts";
 import { MERGE } from "./merge-kinds.ts";
 import { plainText } from "./plain-text.ts";
 import { MERGE_PAIRS_PER_RUN, pairKey } from "./proposal-candidates.ts";
+import { type MergeKind, WEEKLY_TASK } from "./proposal-contract.ts";
 import type { SentPair } from "./proposal-sent.ts";
 
 export interface ProposalsResult {

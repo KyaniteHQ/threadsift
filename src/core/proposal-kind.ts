@@ -1,9 +1,8 @@
 import type { SQLWrapper } from "drizzle-orm";
 
 import type { JobPorts } from "./job-outcome.ts";
-import type { ProposalKind } from "./kinds.ts";
 import type { MergeAcceptance } from "./merge-accept.ts";
-import type { Proposal } from "./proposal-contract.ts";
+import type { ProposalKind, Proposal } from "./proposal-contract.ts";
 import type { PageRow } from "./proposal-rows.ts";
 import type { WeeklyCheck } from "./weekly-check.ts";
 

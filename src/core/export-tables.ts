@@ -1,8 +1,7 @@
 import { sql } from "drizzle-orm";
 import { check, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
-import { EXPORT_FAILURES } from "./export-contract.ts";
-import { EXPORT_STATES } from "./kinds.ts";
+import { EXPORT_FAILURES, EXPORT_STATES } from "./export-contract.ts";
 import { listed } from "./schema-checks.ts";
 
 export const exportRuns = sqliteTable(

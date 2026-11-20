@@ -1,7 +1,6 @@
 import type { Concluded, Fetched } from "./details.ts";
 import { type LinkRoute, fetchedOfRoute, linkRouteOf, suppliedDetails } from "./fetch-link.ts";
 import type { ClaimedJob, JobPorts } from "./job-outcome.ts";
-import { X_READER_BOT } from "./kinds.ts";
 import { takesPage } from "./links.ts";
 import { pluginPage } from "./plugin-fetch.ts";
 import { fetchedWithThread } from "./reddit-fetch.ts";
@@ -10,6 +9,7 @@ import { SuppliedPageSchema } from "./supplied-page.ts";
 import { holdsNoThread } from "./thread-store.ts";
 import { type ToVerify, fetchedByX } from "./x-fetcher.ts";
 import { type XRoute, noted, xRouteOf } from "./x-reader.ts";
+import { X_READER_BOT } from "./x-settings-contract.ts";
 
 type JobRead =
   | { readonly kind: "bot" }

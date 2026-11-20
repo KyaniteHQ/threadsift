@@ -7,8 +7,8 @@ import type { BotAnswering, BotInstructions } from "./bot-task-answering.ts";
 import type { BotTaskStart } from "./bot-task-start.ts";
 import type { Database } from "./database.ts";
 import type { GuardedOutcome } from "./guarded-outcome.ts";
+import type { WaitReason } from "./job-contract.ts";
 import type { ClaimedJob, JobOutcome, JobPorts, JobWrites } from "./job-outcome.ts";
-import type { WaitReason } from "./kinds.ts";
 
 interface BotAsk<Context> {
   readonly kind: "ask";

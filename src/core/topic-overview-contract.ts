@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { AiRefusalSchema } from "./ai-contract.ts";
 import { CATALOG_KEY_MAX } from "./catalog-key-limit.ts";
-import { SOURCES } from "./kinds.ts";
+import { SOURCES } from "./item-contract.ts";
 
 export const TopicKeyParamSchema = z.object({ key: z.string().min(1).max(CATALOG_KEY_MAX) });
 

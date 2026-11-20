@@ -1,6 +1,38 @@
 import { z } from "zod";
 
-import { MERGE_KINDS, PROPOSAL_STATES, SOURCES } from "./kinds.ts";
+import { SOURCES } from "./item-contract.ts";
+import { NUMBER_TEXT } from "./paging.ts";
+
+export const MERGE_KINDS = ["tag-merge", "topic-merge"] as const;
+
+export const PIN_KINDS = [...MERGE_KINDS, "items-disagree"] as const;
+
+export const PROPOSAL_KINDS = [
+  ...MERGE_KINDS,
+  "highlight-lost",
+  "overview-gap",
+  "items-disagree",
+] as const;
+
+export const PROPOSAL_STATES = ["open", "accepting", "rejected", "declined"] as const;
+
+export type MergeKind = (typeof MERGE_KINDS)[number];
+
+export type PinKind = (typeof PIN_KINDS)[number];
+
+export type ProposalKind = (typeof PROPOSAL_KINDS)[number];
+
+export type ProposalState = (typeof PROPOSAL_STATES)[number];
+
+export const WEEKLY_TASK = {
+  "tag-merge": "proposals",
+  "topic-merge": "topic_proposals",
+  "highlight-lost": "highlight_proposals",
+  "overview-gap": "overview_proposals",
+  "items-disagree": "disagreement_proposals",
+} as const satisfies Readonly<Record<ProposalKind, string>>;
+
+export type WeeklyTask = (typeof WEEKLY_TASK)[ProposalKind];
 
 const SubjectRefSchema = z
   .object({ id: z.number().int(), name: z.string(), items: z.number().int().min(0) })
@@ -73,7 +105,7 @@ const ItemsDisagreeProposalSchema = z
   })
   .readonly();
 
-export const ProposalSchema = z.discriminatedUnion("kind", [
+const ProposalSchema = z.discriminatedUnion("kind", [
   MergeProposalSchema,
   LostHighlightProposalSchema,
   OverviewGapProposalSchema,
@@ -89,7 +121,7 @@ export const ProposalPageSchema = z
   })
   .readonly();
 
-export const ProposalIdParamSchema = z.object({ id: z.string().regex(/^\d{1,16}$/u) });
+export const ProposalIdParamSchema = z.object({ id: z.string().regex(NUMBER_TEXT) });
 
 export const ProposalStateSchema = z.object({ state: z.enum(PROPOSAL_STATES) }).readonly();
 

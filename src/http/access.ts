@@ -3,7 +3,8 @@ import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
 import type { BlankEnv, Env, H } from "hono/types";
 
-import type { Scope } from "../core/kinds.ts";
+import type { Scope } from "../core/agent-token-contract.ts";
+import { byteSize } from "../core/format.ts";
 import {
   BODY_LIMIT_BYTES,
   ITEM_REQUEST_BYTES,
@@ -28,18 +29,26 @@ interface Cap {
   readonly label: string;
 }
 
-const DEFAULT_CAP: Cap = { bytes: BODY_LIMIT_BYTES, label: "64 KiB" };
+function sizedCap(bytes: number): Cap {
+  return { bytes, label: byteSize(bytes) };
+}
 
-export const ITEM_CAP: Cap = { bytes: ITEM_REQUEST_BYTES, label: "8 MiB" };
+export const DEFAULT_CAP = sizedCap(BODY_LIMIT_BYTES);
 
-export const RESULT_CAP: Cap = { bytes: RESULT_BODY_BYTES, label: "256 KiB" };
+export const ITEM_CAP = sizedCap(ITEM_REQUEST_BYTES);
+
+export const RESULT_CAP = sizedCap(RESULT_BODY_BYTES);
 
 export const PART_CAP: Cap = { bytes: RESTORE_PART_BYTES, label: "the part size" };
 
-function capOf({ bytes, label }: Readonly<Cap>): MiddlewareHandler {
+export function tooLarge({ label }: Readonly<Cap>): string {
+  return `The request body is larger than ${label}`;
+}
+
+function capOf(cap: Readonly<Cap>): MiddlewareHandler {
   return bodyLimit({
-    maxSize: bytes,
-    onError: (c) => c.json({ error: `The request body is larger than ${label}` }, 413),
+    maxSize: cap.bytes,
+    onError: (c) => c.json({ error: tooLarge(cap) }, 413),
   });
 }
 

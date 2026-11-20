@@ -3,9 +3,9 @@ import { sql } from "drizzle-orm";
 import { TIMED_OUT, UNANSWERED, isRunning } from "./ai-task-state.ts";
 import { latestTask } from "./bot-task-rows.ts";
 import type { Database } from "./database.ts";
-import type { XReadNote } from "./kinds.ts";
 import { aiTasks } from "./schema.ts";
 import { X_INTAKE_TASK } from "./x-intake-contract.ts";
+import type { XReadNote } from "./x-read-note.ts";
 
 export function botFailureNote(jobId: number) {
   const unanswered = sql`(${UNANSWERED}) or (${TIMED_OUT})`;

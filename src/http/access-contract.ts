@@ -1,7 +1,8 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { DEFAULT_SCOPES, DEFAULT_TOKEN_BUDGET, SCOPES } from "../core/agent-token-contract.ts";
 import { access } from "./access.ts";
-import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
+import { codeList, jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { PASSWORD_RULE } from "./refusals.ts";
 import {
   ChangeBudgetRequestSchema,
@@ -15,6 +16,7 @@ import {
   SetupCodeRequestSchema,
   SetupRequestSchema,
   IdParamSchema,
+  TOKEN_NAME_MAX,
   TokenListResponseSchema,
   TokenSummaryResponseSchema,
 } from "./schemas.ts";
@@ -131,10 +133,10 @@ export const createTokenRoute = createRoute({
   responses: {
     201: jsonBody(
       CreatedTokenResponseSchema,
-      "The token, with the `scopes` it holds and its `budget`, and its value, which is never shown again. `scopes` in the request defaults to `read` and `add`. `dailyBudget` is the number of new Items the token may add each UTC day; it defaults to 200 and `null` means no budget.",
+      `The token, with the \`scopes\` it holds and its \`budget\`, and its value, which is never shown again. \`scopes\` in the request defaults to ${codeList(DEFAULT_SCOPES)}. \`dailyBudget\` is the number of new Items the token may add each UTC day; it defaults to ${String(DEFAULT_TOKEN_BUDGET)} and \`null\` means no budget.`,
     ),
     400: errorBody(
-      "`name` is empty or longer than 80 characters, `scopes` is empty or names something other than `read`, `add`, `digest`, `delete` and `reddit`, or `dailyBudget` is not a whole number above 0 or null.",
+      `\`name\` is empty or longer than ${String(TOKEN_NAME_MAX)} characters, \`scopes\` is empty or names something other than ${codeList(SCOPES)}, or \`dailyBudget\` is not a whole number above 0 or null.`,
     ),
   },
 });

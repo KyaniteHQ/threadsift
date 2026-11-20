@@ -1,7 +1,6 @@
 import { z } from "zod";
 
-import { LOG_ACTIONS } from "./kinds.ts";
-import { LOG } from "./log-actions.ts";
+import { LOG_ACTIONS, LOG } from "./log-actions.ts";
 
 const FIRST_SCHEMA = LOG[LOG_ACTIONS[0]].schema;
 
@@ -23,11 +22,3 @@ export const LogPageSchema = z
   .readonly();
 
 export type LogPage = z.infer<typeof LogPageSchema>;
-
-const CURSOR = /^\d{1,16}$/u;
-
-export function parseLogCursor(text: string): number | null {
-  const id = Number(text);
-
-  return CURSOR.test(text) && Number.isSafeInteger(id) ? id : null;
-}

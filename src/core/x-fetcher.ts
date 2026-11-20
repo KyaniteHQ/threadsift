@@ -1,11 +1,11 @@
 import type { Fetched } from "./details.ts";
 import { report } from "./failure-log.ts";
 import { isLastAttempt, retryDelayMs } from "./job-retry.ts";
-import type { XReadNote } from "./kinds.ts";
 import { statusIdOf } from "./links.ts";
 import type { Network } from "./network.ts";
 import type { Ports } from "./ports.ts";
 import type { UnreadableResult, XFetcher } from "./x-fetcher-port.ts";
+import type { XReadNote } from "./x-read-note.ts";
 import { readFetchedThread } from "./x-replies-ranked.ts";
 import { shownOnX } from "./x-verify.ts";
 import { StatusIdSchema, type XThreadValue } from "./x-wire.ts";

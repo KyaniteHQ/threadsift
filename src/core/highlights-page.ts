@@ -5,14 +5,13 @@ import type { Database } from "./database.ts";
 import {
   type Entry,
   type EntryKind,
-  HIGHLIGHTS_PAGE_SIZE,
   type PageCursor,
   formatCursor,
 } from "./highlights-page-contract.ts";
+import type { Source } from "./item-contract.ts";
 import { type ItemFilters, facetCounts, facetQueries, itemConditions } from "./item-filters.ts";
 import { itemTitle } from "./item-title.ts";
-import type { Source } from "./kinds.ts";
-import { pageTail } from "./page-tail.ts";
+import { PAGE_SIZE, pageTail } from "./paging.ts";
 import { digests, highlights, items, notes, searchParts } from "./schema.ts";
 import { partMatching } from "./search.ts";
 
@@ -111,7 +110,7 @@ function pageQuery(db: Database, filters: Readonly<ItemFilters>, cursor: PageCur
     .from(entries)
     .where(before)
     .orderBy(desc(entries.date), desc(entries.kind), desc(entries.id))
-    .limit(HIGHLIGHTS_PAGE_SIZE + 1);
+    .limit(PAGE_SIZE + 1);
 }
 
 type Row = Awaited<ReturnType<typeof pageQuery>>[number];
@@ -140,7 +139,7 @@ export async function highlightsPage(
 
   const { items: entries, next } = pageTail(
     rows.map((row) => entryOf(row)),
-    HIGHLIGHTS_PAGE_SIZE,
+    PAGE_SIZE,
     formatCursor,
   );
 

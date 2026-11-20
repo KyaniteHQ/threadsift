@@ -2,6 +2,7 @@ import { type SQLWrapper, sql } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "./database.ts";
+import type { JobKind, OwnedJobKind, UnownedJobKind } from "./job-contract.ts";
 import type {
   Closing,
   ClaimedJob,
@@ -13,7 +14,6 @@ import type {
   JobWrites,
 } from "./job-outcome.ts";
 import { enqueueRunJobs, unownedOwnerId } from "./job-rows.ts";
-import type { JobKind, OwnedJobKind, UnownedJobKind } from "./kinds.ts";
 
 export interface InputFact {
   readonly key: SQLiteColumn;

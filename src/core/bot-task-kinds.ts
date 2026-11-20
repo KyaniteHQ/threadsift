@@ -4,7 +4,7 @@ import type { BotAnswering } from "./bot-task-answering.ts";
 import { isVerifyContext, verifyAnswering } from "./bot-verify-task.ts";
 import { digestKind } from "./digest-kind.ts";
 import { disagreementKind } from "./disagreement-job.ts";
-import type { IntakeJobKind, OwnedJobKind } from "./kinds.ts";
+import type { IntakeJobKind, OwnedJobKind } from "./job-contract.ts";
 import { proposalsKind, topicProposalsKind } from "./proposal-job.ts";
 import { relatedKind } from "./related-kind.ts";
 import { topicOverviewKind } from "./topic-overview-kind.ts";

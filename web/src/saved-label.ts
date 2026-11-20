@@ -1,4 +1,5 @@
-const DAY_MS = 86_400_000;
+import { DAY_MS } from "../../src/core/time-units.ts";
+
 const WEEK_DAYS = 7;
 const MONTH_AND_DAY = { month: "short", day: "numeric" } as const;
 const DAY_WITH_YEAR = new Intl.DateTimeFormat("en-US", { ...MONTH_AND_DAY, year: "numeric" });

@@ -1,6 +1,6 @@
-import type { MergeKind } from "./kinds.ts";
 import { acceptMerge } from "./merge-accept.ts";
 import { MERGE } from "./merge-kinds.ts";
+import type { MergeKind } from "./proposal-contract.ts";
 import type { PageRow } from "./proposal-rows.ts";
 import { modelCheck } from "./weekly-check.ts";
 

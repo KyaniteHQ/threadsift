@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import { AI_REASON_MAX, type AiTaskDefinition } from "./ai-contract.ts";
-import { WEEKLY_TASK } from "./kinds.ts";
 import { plainText } from "./plain-text.ts";
 import { pairKey } from "./proposal-candidates.ts";
+import { WEEKLY_TASK } from "./proposal-contract.ts";
 
 export const DISAGREEMENT_ITEMS = 12;
 

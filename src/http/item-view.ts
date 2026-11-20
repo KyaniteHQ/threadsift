@@ -2,7 +2,7 @@ import type { z } from "zod";
 
 import { type CommentCount, type CountColumns, commentCountOf } from "../core/comment-view.ts";
 import { itemPath } from "../core/item-path.ts";
-import type { WaitReason } from "../core/kinds.ts";
+import type { WaitReason } from "../core/job-contract.ts";
 import type { ItemRow } from "../core/schema.ts";
 import { type ShownStatus, type ShownStatusInput, shownStatus } from "../core/shown-status.ts";
 import { type ImageColumns, type ItemImageSchema, imageOf } from "./item-image.ts";

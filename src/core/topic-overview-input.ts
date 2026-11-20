@@ -11,7 +11,7 @@ import { notBuiltFrom, removedItemIds } from "./topic-coverage.ts";
 import { type BuiltFrom, citedIds } from "./topic-overview-contract.ts";
 import { overviewWithout } from "./topic-overview-prune.ts";
 
-const ADDED_READ_LIMIT = 40;
+export const ADDED_READ_LIMIT = 40;
 
 const ALL_ROWS = Number.MAX_SAFE_INTEGER;
 

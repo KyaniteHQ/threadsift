@@ -1,7 +1,20 @@
 import { z } from "zod";
 
-import type { LogAction } from "./kinds.ts";
 import { VAULT_TEXT } from "./vault-text.ts";
+
+export const LOG_ACTIONS = [
+  "ingest",
+  "digest",
+  "topic",
+  "overview",
+  "related",
+  "merge",
+  "merge-topic",
+  "vault-file-skipped",
+  "vault-file-conflict",
+] as const;
+
+export type LogAction = (typeof LOG_ACTIONS)[number];
 
 const STAMPED = { id: z.number().int(), at: z.number().int() };
 

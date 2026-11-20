@@ -1,8 +1,8 @@
 import { and, eq, lte, sql } from "drizzle-orm";
 
 import { type LockedOut, type Refused, lockedOut, refused } from "./access-refusal.ts";
+import type { ThrottleKind } from "./access-tables.ts";
 import type { Database } from "./database.ts";
-import type { ThrottleKind } from "./kinds.ts";
 import { throttles } from "./schema.ts";
 
 const LOCK_AFTER_FAILURES = 10;

@@ -2,11 +2,11 @@ import { asc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { MERGE_KINDS } from "./kinds.ts";
 import { applyUnit } from "./merge-apply.ts";
 import { recordingFailure } from "./merge-failure.ts";
 import { acrossKinds } from "./merge-kinds.ts";
 import type { MergeRow } from "./merge-unit.ts";
+import { MERGE_KINDS } from "./proposal-contract.ts";
 import { proposalClaimed, revisionOf } from "./proposal-lifecycle.ts";
 import { proposals } from "./schema.ts";
 

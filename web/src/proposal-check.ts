@@ -1,4 +1,4 @@
-import type { ProposalState } from "../../src/core/kinds.ts";
+import type { ProposalState } from "../../src/core/proposal-contract.ts";
 import { pause } from "./pause.ts";
 import { POLL_MS } from "./poll-interval.ts";
 import { fetchProposalState } from "./proposals-api.ts";

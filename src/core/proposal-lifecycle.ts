@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, and, eq, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import type { ProposalKind, ProposalState } from "./kinds.ts";
+import type { ProposalKind, ProposalState } from "./proposal-contract.ts";
 import type { SUBJECTS } from "./proposal-tables.ts";
 import { highlights, proposals } from "./schema.ts";
 

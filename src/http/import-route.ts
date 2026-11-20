@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { IMPORT_NAME_MAX } from "../core/import-contract.ts";
 import { readImport } from "../core/import-cursor.ts";
 import type { Ports } from "../core/ports.ts";
 import { access } from "./access.ts";
@@ -21,7 +22,10 @@ const getImportRoute = createRoute({
       ImportStateSchema,
       "The cursor the last batch call saved under this name, and when it saved it in milliseconds.",
     ),
-    400: jsonBody(ErrorResponseSchema, "`name` is not 1 to 64 letters, digits, `.`, `_` and `-`."),
+    400: jsonBody(
+      ErrorResponseSchema,
+      `\`name\` is not 1 to ${String(IMPORT_NAME_MAX)} letters, digits, \`.\`, \`_\` and \`-\`.`,
+    ),
     404: jsonBody(ErrorResponseSchema, "No batch call saved a cursor under this name."),
   },
 });

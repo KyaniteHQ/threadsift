@@ -12,10 +12,10 @@ import {
 import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import { startsPair } from "./code-points.ts";
 import type { Database } from "./database.ts";
 import { holdsTitleAndSummary } from "./digest-stored.ts";
 import { utf8Length } from "./encoding.ts";
-import type { SearchPartKind } from "./kinds.ts";
 import {
   digests,
   githubRepos,
@@ -26,13 +26,13 @@ import {
   searchParts,
   tags,
 } from "./schema.ts";
+import type { SearchPartKind } from "./search-tables.ts";
 import { jsonArrays } from "./thread-rows.ts";
 
 export const siblingTags = alias(itemTags, "sibling");
 
 const CHUNK_UNITS = 125_000;
 const CHUNK_TRIGGER_BYTES = 500_000;
-const LAST_BMP_CODE_POINT = 0xff_ff;
 
 const DIGEST_KINDS = [
   "digest-title",
@@ -49,9 +49,7 @@ function lastSeparatorBefore(text: string, limit: number): number {
 }
 
 function hardCut(text: string): number {
-  const straddling = (text.codePointAt(CHUNK_UNITS - 1) ?? 0) > LAST_BMP_CODE_POINT;
-
-  return straddling ? CHUNK_UNITS - 1 : CHUNK_UNITS;
+  return startsPair(text, CHUNK_UNITS - 1) ? CHUNK_UNITS - 1 : CHUNK_UNITS;
 }
 
 function chunkPostText(text: string): readonly string[] {

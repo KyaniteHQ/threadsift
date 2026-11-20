@@ -1,9 +1,9 @@
 import { ITEMS_DISAGREE } from "./disagreement-proposal.ts";
 import { LOST_HIGHLIGHT } from "./highlight-proposals.ts";
 import type { JobPorts } from "./job-outcome.ts";
-import { PROPOSAL_KINDS, type ProposalKind } from "./kinds.ts";
 import { mergeProposal } from "./merge-proposal.ts";
 import { OVERVIEW_GAP } from "./overview-proposals.ts";
+import { PROPOSAL_KINDS, type ProposalKind } from "./proposal-contract.ts";
 import type { ProposalKindSpec } from "./proposal-kind.ts";
 
 export const PROPOSAL = {

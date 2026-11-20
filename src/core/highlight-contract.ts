@@ -1,8 +1,11 @@
 import { z } from "zod";
 
 import { StoredCommentId } from "./comment-id.ts";
-import { HIGHLIGHT_REASONS } from "./kinds.ts";
 import { WholeCount } from "./whole-count.ts";
+
+const HIGHLIGHT_REASONS = ["gone", "ambiguous"] as const;
+
+export const HIGHLIGHT_STATUSES = ["attached", ...HIGHLIGHT_REASONS] as const;
 
 const HighlightTargetSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("post") }),

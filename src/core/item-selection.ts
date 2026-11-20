@@ -2,12 +2,12 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { DIGEST_SOURCE_COLUMNS, DIGEST_VIEW_COLUMNS } from "./digest-stored.ts";
+import { type ItemCursor, formatCursor } from "./item-cursor.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
-import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { STATUS_VIEW_COLUMNS } from "./item-status.ts";
 import { WAIT_VIEW_COLUMNS } from "./job-waiting.ts";
 import { IMAGE_VIEW_COLUMNS } from "./media-reads.ts";
-import { pageTail } from "./page-tail.ts";
+import { PAGE_SIZE, pageTail } from "./paging.ts";
 import { digests, githubRepos, items } from "./schema.ts";
 import { COMMENT_COUNT_COLUMNS, FILLABLE_COLUMNS } from "./thread-store.ts";
 
@@ -82,7 +82,7 @@ function pageQuery(
   return listedItems(db)
     .where(and(itemConditions(filters), after))
     .orderBy(desc(items.savedAt), desc(items.id))
-    .limit(ITEMS_PAGE_SIZE + 1);
+    .limit(PAGE_SIZE + 1);
 }
 
 export async function listItems(
@@ -92,7 +92,7 @@ export async function listItems(
 ) {
   if (cursor !== null) {
     return {
-      ...pageTail(await pageQuery(db, filters, cursor), ITEMS_PAGE_SIZE, formatCursor),
+      ...pageTail(await pageQuery(db, filters, cursor), PAGE_SIZE, formatCursor),
       counts: null,
     };
   }
@@ -102,7 +102,7 @@ export async function listItems(
     ...countQueries(db, filters),
   ]);
 
-  return { ...pageTail(rows, ITEMS_PAGE_SIZE, formatCursor), counts: filterCounts(counted) };
+  return { ...pageTail(rows, PAGE_SIZE, formatCursor), counts: filterCounts(counted) };
 }
 
 export async function getListedItem(db: Database, id: number): Promise<ListedItemRow | undefined> {

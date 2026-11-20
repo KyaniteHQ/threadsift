@@ -1,9 +1,9 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
+import { type ItemCursor, formatCursor } from "./item-cursor.ts";
 import { readDisagreements } from "./known-disagreements.ts";
-import { pageTail } from "./page-tail.ts";
+import { PAGE_SIZE, pageTail } from "./paging.ts";
 import { providerSet } from "./provider-saved.ts";
 import { digests, items, topicPages } from "./schema.ts";
 import { hasOpenOverview, notBuiltFrom } from "./topic-coverage.ts";
@@ -36,7 +36,7 @@ function pageQuery(db: Database, topicId: number, cursor: Readonly<ItemCursor> |
     .innerJoin(digests, eq(digests.itemId, items.id))
     .where(and(eq(items.topicId, topicId), after))
     .orderBy(desc(items.savedAt), desc(items.id))
-    .limit(ITEMS_PAGE_SIZE + 1);
+    .limit(PAGE_SIZE + 1);
 }
 
 function overviewReads(db: Database, topicId: number) {
@@ -124,7 +124,7 @@ export async function readTopicPage(
   ]);
 
   const built = new Map(builtFrom.map(({ item, digest }) => [item, digest]));
-  const page = pageTail(rows, ITEMS_PAGE_SIZE, formatCursor);
+  const page = pageTail(rows, PAGE_SIZE, formatCursor);
 
   return {
     topic: { key: topic.key, name: topic.name, itemCount: total },

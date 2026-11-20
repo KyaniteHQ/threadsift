@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { GROK_BOT_IN_FLIGHT, VERIFY_OWNER, startBotTask } from "../src/core/bot-task-start.ts";
 import { VERIFY_START } from "../src/core/bot-verify-task.ts";
-import { awaitVerifiedDigest } from "../src/core/verify-wait.ts";
+import { awaitVerifiedDigest } from "../src/core/bot-verify-wait.ts";
 import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";

@@ -1,6 +1,6 @@
 import type { H, RouterRoute } from "hono/types";
 
-import { SCOPES } from "../core/kinds.ts";
+import { SCOPES } from "../core/agent-token-contract.ts";
 import { holdsPorts, whoOf } from "./access.ts";
 
 const READ_METHODS: ReadonlySet<string> = new Set(["GET", "HEAD"]);

@@ -8,7 +8,7 @@ import {
   type UnownedJobKind,
   type WaitReason,
   isUnownedJobKind,
-} from "./kinds.ts";
+} from "./job-contract.ts";
 import type { Ports } from "./ports.ts";
 import type { JobRow } from "./schema.ts";
 

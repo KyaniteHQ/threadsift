@@ -1,8 +1,8 @@
 import { z } from "zod";
 
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
-import { RUNNING_RESTORE_PHASES } from "./kinds.ts";
 import { checkUnit } from "./restore-check-unit.ts";
+import { RUNNING_RESTORE_PHASES } from "./restore-contract.ts";
 import { filesUnit } from "./restore-files.ts";
 import { finishUnit } from "./restore-finish.ts";
 import { highlightsUnit } from "./restore-highlights.ts";

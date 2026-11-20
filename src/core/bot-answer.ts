@@ -10,7 +10,7 @@ import { guardedBatch } from "./guards.ts";
 import type { JobPorts, JobWrites } from "./job-outcome.ts";
 import { enqueueQuietly } from "./job-rows.ts";
 
-const ERROR_TEXT_MAX = 200;
+export const ERROR_TEXT_MAX = 200;
 
 export const BotAnswerSchema = z.union([
   z
