@@ -1,41 +1,30 @@
 import { sql } from "drizzle-orm";
 
+import { type LockedOut, type Refused, badPassword, refused } from "./access-refusal.ts";
 import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
-import {
-  type PasswordProblem,
-  hashPassword,
-  passwordLength,
-  passwordMatches,
-} from "./passwords.ts";
+import type { SetupCodeStatus } from "./kinds.ts";
+import { hashPassword, passwordLength, passwordMatches } from "./passwords.ts";
 import type { Ports } from "./ports.ts";
 import { owner } from "./schema.ts";
 import { type StartedSession, prepareSession, sessionWrites } from "./sessions.ts";
-import {
-  SETUP_CODE_MIN,
-  type SetupCodeProblem,
-  checkConfiguredCode,
-  codeProof,
-} from "./setup-code.ts";
+import { SETUP_CODE_MIN, checkConfiguredCode, codeProof } from "./setup-code.ts";
 import { type Attempt, settleAttempt } from "./throttle.ts";
 
-export type SetupBlock =
-  | { readonly kind: "owner-exists" }
-  | { readonly kind: "unavailable"; readonly reason: SetupCodeProblem }
-  | { readonly kind: "locked"; readonly retryAfter: number }
-  | { readonly kind: "wrong" };
+type SetupRefusal =
+  | Refused<"owner-exists" | "setup-missing" | "setup-short" | "wrong-setup-code">
+  | LockedOut;
 
 type SetupResult =
-  | SetupBlock
-  | { readonly kind: "password"; readonly length: PasswordProblem }
   | { readonly kind: "created"; readonly session: StartedSession }
-  | { readonly kind: "superseded" };
+  | SetupRefusal
+  | ReturnType<typeof badPassword>
+  | Refused<"password-changed">;
 
 type LoginResult =
   | { readonly kind: "signed-in"; readonly session: StartedSession }
-  | { readonly kind: "locked"; readonly retryAfter: number }
-  | { readonly kind: "wrong" }
-  | { readonly kind: "superseded" };
+  | Refused<"wrong-password" | "password-changed">
+  | LockedOut;
 
 export async function passwordHashOf(db: Database): Promise<string | undefined> {
   const [row] = await db.select({ hash: owner.passwordHash }).from(owner).limit(1);
@@ -51,19 +40,32 @@ export async function hasOwner(db: Database): Promise<boolean> {
   return (await passwordHashOf(db)) !== undefined;
 }
 
-export async function checkSetupCode(ports: Ports, code: string): Promise<SetupBlock | null> {
+export async function anonymousState(
+  ports: Ports,
+): Promise<
+  { readonly state: "signed-out" } | { readonly state: "setup"; readonly code: SetupCodeStatus }
+> {
+  return (await hasOwner(ports.db))
+    ? { state: "signed-out" }
+    : { state: "setup", code: checkConfiguredCode(ports.setupCode, SETUP_CODE_MIN).status };
+}
+
+export async function checkSetupCode(ports: Ports, code: string): Promise<SetupRefusal | null> {
   if (await hasOwner(ports.db)) {
-    return { kind: "owner-exists" };
+    return refused("owner-exists");
   }
 
   const configured = checkConfiguredCode(ports.setupCode, SETUP_CODE_MIN);
 
   if (configured.status !== "set") {
-    return { kind: "unavailable", reason: configured.status };
+    return refused(`setup-${configured.status}`);
   }
 
-  const outcome = await settleAttempt(ports.db, "setup", () =>
-    codeProof(ports.crypto, code, configured.code),
+  const outcome = await settleAttempt(
+    ports.db,
+    "setup",
+    () => codeProof(ports.crypto, code, configured.code),
+    "wrong-setup-code",
   );
 
   return outcome.kind === "ok" ? null : outcome;
@@ -95,7 +97,7 @@ export async function setUpOwner(
   const length = passwordLength(password);
 
   if (length !== "ok") {
-    return { kind: "password", length };
+    return badPassword(length);
   }
 
   const passwordHash = await hashPassword(ports.crypto, password);
@@ -107,26 +109,35 @@ export async function setUpOwner(
     .returning({ id: owner.id });
 
   if (created.length === 0) {
-    return { kind: "owner-exists" };
+    return refused("owner-exists");
   }
 
   const session = await startedWhile(ports, passwordHash);
 
-  return session === null ? { kind: "superseded" } : { kind: "created", session };
+  return session === null ? refused("password-changed") : { kind: "created", session };
 }
 
-export function verifyOwnerPassword(ports: Ports, password: string): Promise<Attempt<string>> {
-  return settleAttempt(ports.db, "login", async () => {
-    const stored = await passwordHashOf(ports.db);
+export function verifyOwnerPassword<Wrong extends "wrong-password" | "wrong-current-password">(
+  ports: Ports,
+  password: string,
+  wrong: Wrong,
+): Promise<Attempt<string, Wrong>> {
+  return settleAttempt(
+    ports.db,
+    "login",
+    async () => {
+      const stored = await passwordHashOf(ports.db);
 
-    return stored !== undefined && (await passwordMatches(ports.crypto, password, stored))
-      ? stored
-      : null;
-  });
+      return stored !== undefined && (await passwordMatches(ports.crypto, password, stored))
+        ? stored
+        : null;
+    },
+    wrong,
+  );
 }
 
 export async function login(ports: Ports, password: string): Promise<LoginResult> {
-  const verified = await verifyOwnerPassword(ports, password);
+  const verified = await verifyOwnerPassword(ports, password, "wrong-password");
 
   if (verified.kind !== "ok") {
     return verified;
@@ -134,5 +145,5 @@ export async function login(ports: Ports, password: string): Promise<LoginResult
 
   const session = await startedWhile(ports, verified.proof);
 
-  return session === null ? { kind: "superseded" } : { kind: "signed-in", session };
+  return session === null ? refused("password-changed") : { kind: "signed-in", session };
 }

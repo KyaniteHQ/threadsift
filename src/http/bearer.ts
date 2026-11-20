@@ -1,21 +1,23 @@
-import type { Context, MiddlewareHandler } from "hono";
-import { bearerAuth } from "hono/bearer-auth";
+import type { Context } from "hono";
 
+import type { PresentedToken } from "../core/bearer.ts";
 import { UNKNOWN_TOKEN } from "../core/tokens.ts";
 
 const NOT_BEARER = "Authorization header is not a bearer token";
 
-function notBearer(c: Context): Response {
-  return c.json({ error: NOT_BEARER }, 400);
-}
+const CHALLENGES = {
+  empty: 'Bearer realm=""',
+  malformed: 'Bearer error="invalid_request"',
+  unknown: 'Bearer error="invalid_token"',
+} as const;
 
-export function bearerCheck(
-  verified: (value: string, c: Context) => Promise<boolean>,
-): MiddlewareHandler {
-  return bearerAuth({
-    verifyToken: verified,
-    noAuthenticationHeader: { message: notBearer },
-    invalidAuthenticationHeader: { message: { error: NOT_BEARER } },
-    invalidToken: { message: { error: UNKNOWN_TOKEN } },
-  });
+export function refusedBearer(
+  c: Context,
+  { kind }: Readonly<Exclude<PresentedToken, { readonly kind: "token" }>>,
+): Response {
+  const challenge = { "WWW-Authenticate": CHALLENGES[kind] };
+
+  return kind === "unknown"
+    ? c.json({ error: UNKNOWN_TOKEN }, 401, challenge)
+    : c.json({ error: NOT_BEARER }, 400, challenge);
 }

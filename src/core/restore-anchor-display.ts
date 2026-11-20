@@ -1,12 +1,12 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import { utf8Length } from "./encoding.ts";
-import { among } from "./guards.ts";
 import { type AnchorSnapshot, commentIdsOf } from "./highlight-publish.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { readPostTextWithin } from "./post-text.ts";
 import { RESTORE_ANCHOR_BYTES } from "./restore-contract.ts";
 import { items, redditComments } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 import { commentReadable, readGeneration } from "./thread-store.ts";
 
 export type Note = (kept: number, read: number) => void;

@@ -19,8 +19,6 @@ export function checkConfiguredCode(code: string | undefined, minimum: number): 
   return code.length < minimum ? { status: "short" } : { status: "set", code };
 }
 
-export function codeProof(crypto: Crypto, typed: string, configured: string): Promise<true | null> {
-  return Promise.resolve(
-    crypto.equal(crypto.sha256(typed), crypto.sha256(configured)) ? true : null,
-  );
+export function codeProof(crypto: Crypto, typed: string, configured: string): true | null {
+  return crypto.equal(crypto.sha256(typed), crypto.sha256(configured)) ? true : null;
 }

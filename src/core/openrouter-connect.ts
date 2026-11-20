@@ -3,7 +3,7 @@ import { and, eq, gt, lte, notExists, or, sql } from "drizzle-orm";
 import { CURRENT_REVISION } from "./ai-settings-revision.ts";
 import type { Database } from "./database.ts";
 import { base64url, digestOf, randomSecret } from "./encoding.ts";
-import { DATABASE_NOW, guardedBatch } from "./guards.ts";
+import { guardedBatch } from "./guards.ts";
 import {
   CONNECT_CALLBACK_PATH,
   CONNECT_LIFETIME_MS,
@@ -12,6 +12,7 @@ import {
 import type { Ports } from "./ports.ts";
 import { openrouterConnectTransactions, sessions } from "./schema.ts";
 import { sessionIsLive } from "./sessions.ts";
+import { DATABASE_NOW } from "./sql-expressions.ts";
 
 const AUTHORIZATION_URL = "https://openrouter.ai/auth";
 const KEY_LABEL = "Threadsift";

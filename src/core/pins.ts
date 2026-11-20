@@ -3,11 +3,11 @@ import { type SQL, and, eq, or, sql } from "drizzle-orm";
 import { catalogKey, renamedTags } from "./catalog-key.ts";
 import type { Database } from "./database.ts";
 import type { Digest } from "./digest-schema.ts";
-import { among } from "./guards.ts";
 import type { MergeKind } from "./kinds.ts";
 import { MERGE, acrossKinds } from "./merge-kinds.ts";
 import type { Side } from "./merge-unit.ts";
 import { pins } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 
 interface Resolution {
   readonly kind: MergeKind;

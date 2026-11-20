@@ -10,12 +10,13 @@ import {
 } from "./ai-settings.ts";
 import { requeuedDigests } from "./digest-opening.ts";
 import { logFailure } from "./failure-log.ts";
-import { DATABASE_NOW, guardedBatch } from "./guards.ts";
+import { guardedBatch } from "./guards.ts";
 import type { JobWrites } from "./job-outcome.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import type { ConnectNotice } from "./openrouter-contract.ts";
 import type { Ports } from "./ports.ts";
 import { sessionIsLive } from "./sessions.ts";
+import { DATABASE_NOW } from "./sql-expressions.ts";
 
 type Prepared = Awaited<ReturnType<typeof prepareAiSettings>>;
 

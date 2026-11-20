@@ -1,24 +1,29 @@
 import { z } from "zod";
 
+function alternativesAt(error: z.ZodError, index: number): readonly z.ZodError[] {
+  const issue = error.issues[index];
+
+  if (issue?.code !== "invalid_union") return [];
+
+  return issue.errors.map(
+    (alternative) =>
+      new z.ZodError(
+        alternative.map((nested) => ({ ...nested, path: [...issue.path, ...nested.path] })),
+      ),
+  );
+}
+
 export function reasonsOf(error: z.ZodError): string {
   return error.issues
-    .map((issue) => {
+    .map((issue, index) => {
       const where = issue.path.join(".") || "body";
+      const alternatives = alternativesAt(error, index);
 
-      if (issue.code !== "invalid_union" || issue.errors.length === 0) {
-        return `${where}: ${issue.message}`;
-      }
+      if (alternatives.length === 0) return `${where}: ${issue.message}`;
 
-      const alternatives = issue.errors.map((alternative) => {
-        const placed = alternative.map((nested) => ({
-          ...nested,
-          path: [...issue.path, ...nested.path],
-        }));
+      const reasons = alternatives.map((nested) => `[${reasonsOf(nested)}]`);
 
-        return `[${reasonsOf(new z.ZodError(placed))}]`;
-      });
-
-      return `${where}: no accepted form fits, ${alternatives.join(" or ")}`;
+      return `${where}: no accepted form fits, ${reasons.join(" or ")}`;
     })
     .join("; ");
 }
@@ -61,23 +66,15 @@ function shown(key: string, known: readonly string[]): string {
 
 export function issueCodesOf(error: z.ZodError, known: readonly string[]): string {
   return error.issues
-    .map((issue) => {
+    .map((issue, index) => {
       const where = issue.path.map((key) => shown(String(key), known)).join(".");
+      const alternatives = alternativesAt(error, index);
 
-      if (issue.code !== "invalid_union" || issue.errors.length === 0) {
-        return `${issue.code}@${where}`;
-      }
+      if (alternatives.length === 0) return `${issue.code}@${where}`;
 
-      const alternatives = issue.errors.map((alternative) =>
-        issueCodesOf(
-          new z.ZodError(
-            alternative.map((nested) => ({ ...nested, path: [...issue.path, ...nested.path] })),
-          ),
-          known,
-        ),
-      );
+      const codes = alternatives.map((nested) => issueCodesOf(nested, known));
 
-      return `${issue.code}@${where}[${alternatives.join("|")}]`;
+      return `${issue.code}@${where}[${codes.join("|")}]`;
     })
     .join(" ");
 }

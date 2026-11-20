@@ -1,10 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 
+import { type LockedOut, type Refused, badPassword, refused } from "./access-refusal.ts";
 import type { Database } from "./database.ts";
 import { digestOf } from "./encoding.ts";
 import { guardHolds, guardedBatch } from "./guards.ts";
 import { passwordHashIs, passwordHashOf, verifyOwnerPassword } from "./owner.ts";
-import { type PasswordProblem, hashPassword, passwordLength } from "./passwords.ts";
+import { hashPassword, passwordLength } from "./passwords.ts";
 import type { Ports } from "./ports.ts";
 import { owner, spentResetCodes, throttles } from "./schema.ts";
 import {
@@ -14,30 +15,27 @@ import {
   sessionIsLive,
   sessionWrites,
 } from "./sessions.ts";
-import {
-  RESET_CODE_MIN,
-  type SetupCodeProblem,
-  checkConfiguredCode,
-  codeProof,
-} from "./setup-code.ts";
+import { RESET_CODE_MIN, checkConfiguredCode, codeProof } from "./setup-code.ts";
 import { settleAttempt } from "./throttle.ts";
 
 type ChangeResult =
   | { readonly kind: "changed"; readonly session: StartedSession }
-  | { readonly kind: "password"; readonly length: PasswordProblem }
-  | { readonly kind: "locked"; readonly retryAfter: number }
-  | { readonly kind: "wrong" }
-  | { readonly kind: "superseded" };
+  | ReturnType<typeof badPassword>
+  | Refused<"wrong-current-password" | "password-changed">
+  | LockedOut;
 
-export type ResetResult =
+type ResetResult =
   | { readonly kind: "reset" }
-  | { readonly kind: "no-owner" }
-  | { readonly kind: "unavailable"; readonly reason: SetupCodeProblem }
-  | { readonly kind: "password"; readonly length: PasswordProblem }
-  | { readonly kind: "locked"; readonly retryAfter: number }
-  | { readonly kind: "wrong" }
-  | { readonly kind: "used" }
-  | { readonly kind: "superseded" };
+  | Refused<
+      | "no-owner"
+      | "reset-missing"
+      | "reset-short"
+      | "wrong-reset-code"
+      | "reset-used"
+      | "password-changed"
+    >
+  | ReturnType<typeof badPassword>
+  | LockedOut;
 
 function setHash(db: Database, passwordHash: string) {
   return db.update(owner).set({ passwordHash }).where(eq(owner.id, 1));
@@ -52,10 +50,10 @@ export async function changePassword(
   const length = passwordLength(next);
 
   if (length !== "ok") {
-    return { kind: "password", length };
+    return badPassword(length);
   }
 
-  const verified = await verifyOwnerPassword(ports, current);
+  const verified = await verifyOwnerPassword(ports, current, "wrong-current-password");
 
   if (verified.kind !== "ok") {
     return verified;
@@ -71,7 +69,7 @@ export async function changePassword(
     [setHash(db, passwordHash), endAllSessions(db), ...sessionWrites(db, session)],
   );
 
-  return committed ? { kind: "changed", session } : { kind: "superseded" };
+  return committed ? { kind: "changed", session } : refused("password-changed");
 }
 
 function codeIsSpent(digest: string) {
@@ -103,7 +101,7 @@ async function commitReset(
     return { kind: "reset" };
   }
 
-  return (await guardHolds(db, codeIsSpent(digest))) ? { kind: "used" } : { kind: "superseded" };
+  return refused((await guardHolds(db, codeIsSpent(digest))) ? "reset-used" : "password-changed");
 }
 
 export async function resetPassword(
@@ -116,22 +114,27 @@ export async function resetPassword(
   const observed = await passwordHashOf(db);
 
   if (observed === undefined) {
-    return { kind: "no-owner" };
+    return refused("no-owner");
   }
 
   const configured = checkConfiguredCode(ports.resetCode, RESET_CODE_MIN);
 
   if (configured.status !== "set") {
-    return { kind: "unavailable", reason: configured.status };
+    return refused(`reset-${configured.status}`);
   }
 
   const length = passwordLength(password);
 
   if (length !== "ok") {
-    return { kind: "password", length };
+    return badPassword(length);
   }
 
-  const attempt = await settleAttempt(db, "reset", () => codeProof(crypto, code, configured.code));
+  const attempt = await settleAttempt(
+    db,
+    "reset",
+    () => codeProof(crypto, code, configured.code),
+    "wrong-reset-code",
+  );
 
   if (attempt.kind !== "ok") {
     return attempt;

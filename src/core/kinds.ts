@@ -123,6 +123,21 @@ export const JOB_KINDS = [...OWNED_JOB_KINDS, ...UNOWNED_JOB_KINDS] as const;
 
 export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
 
+export const REFUSAL_CODES = [
+  "wrong",
+  "owner-exists",
+  "locked",
+  "setup-missing",
+  "setup-short",
+  "password-short",
+  "password-long",
+  "password-changed",
+  "reset-missing",
+  "reset-short",
+  "reset-used",
+  "no-owner",
+] as const;
+
 export const JOB_STATES = ["queued", "running", "done"] as const;
 
 export const EXPORT_STATES = ["running", "ready", "failed", "removing", "expired"] as const;
@@ -147,6 +162,8 @@ export type Source = (typeof SOURCES)[number];
 export type Kind = (typeof KINDS)[number];
 
 export type SetupCodeStatus = (typeof SETUP_CODE_STATUSES)[number];
+
+export type RefusalCode = (typeof REFUSAL_CODES)[number];
 
 export type ReadState = (typeof READ_STATES)[number];
 

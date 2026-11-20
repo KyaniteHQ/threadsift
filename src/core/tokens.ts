@@ -114,7 +114,7 @@ export async function revokeToken(ports: Ports, id: number): Promise<boolean> {
   return revoked.length > 0;
 }
 
-interface VerifiedToken {
+export interface VerifiedToken {
   readonly id: number;
   readonly name: string;
   readonly scopes: readonly Scope[];

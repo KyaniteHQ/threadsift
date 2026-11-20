@@ -14,9 +14,9 @@ import {
   exportFilesPrefix,
   parseStoredKey,
 } from "./file-keys.ts";
-import { among } from "./guards.ts";
 import { CLAIM_MARGIN_MS, type JobPorts } from "./job-outcome.ts";
 import { exportRuns } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 
 const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
 

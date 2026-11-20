@@ -1,7 +1,7 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { DIGEST_VIEW_COLUMNS } from "./digest-stored.ts";
+import { DIGEST_SOURCE_COLUMNS, DIGEST_VIEW_COLUMNS } from "./digest-stored.ts";
 import { type ItemFilters, countQueries, filterCounts, itemConditions } from "./item-filters.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { STATUS_VIEW_COLUMNS } from "./item-status.ts";
@@ -11,13 +11,11 @@ import { pageTail } from "./page-tail.ts";
 import { digests, githubRepos, items } from "./schema.ts";
 import { COMMENT_COUNT_COLUMNS, FILLABLE_COLUMNS } from "./thread-store.ts";
 
-const JOINED_VIEW_COLUMNS = {
-  ...STATUS_VIEW_COLUMNS,
-  ...DIGEST_VIEW_COLUMNS,
+const VIEW_INPUT_COLUMNS = {
+  ...DIGEST_SOURCE_COLUMNS,
   ...WAIT_VIEW_COLUMNS,
   ...COMMENT_COUNT_COLUMNS,
   ...IMAGE_VIEW_COLUMNS,
-  ...FILLABLE_COLUMNS,
 };
 
 const ITEM_IDENTITY = {
@@ -52,7 +50,14 @@ export const DETAIL_COLUMNS = {
 
 export function selectItems<Fields extends typeof LISTED_COLUMNS>(db: Database, fields: Fields) {
   return db
-    .select({ ...fields, ...JOINED_VIEW_COLUMNS, stars: githubRepos.stars })
+    .select({
+      ...fields,
+      ...STATUS_VIEW_COLUMNS,
+      ...DIGEST_VIEW_COLUMNS,
+      inputs: VIEW_INPUT_COLUMNS,
+      ...FILLABLE_COLUMNS,
+      stars: githubRepos.stars,
+    })
     .from(items)
     .leftJoin(digests, eq(digests.itemId, items.id))
     .leftJoin(githubRepos, eq(githubRepos.itemId, items.id));

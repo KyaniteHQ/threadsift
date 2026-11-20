@@ -2,9 +2,11 @@ import type { AuthInfo } from "@modelcontextprotocol/server";
 import type { Context, MiddlewareHandler } from "hono";
 import { z } from "zod";
 
+import { presentedToken } from "../core/bearer.ts";
+import { type OriginPolicy, originPolicyOf, unlistedPart } from "../core/own-origin.ts";
 import type { Ports } from "../core/ports.ts";
-import { verifyToken } from "../core/tokens.ts";
-import { bearerCheck } from "./bearer.ts";
+import { refusedBearer } from "./bearer.ts";
+import { senderOf } from "./sender.ts";
 
 export interface McpEnv {
   Variables: { caller: AuthInfo };
@@ -12,102 +14,41 @@ export interface McpEnv {
 
 export const McpExtraSchema = z.object({ tokenId: z.number().int() });
 
-const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
-
-const AUTHORITY = /^(?<name>\[[0-9a-f:.]+\]|[^\s/?#@[\]:]+)(?::(?<port>\d{1,5}))?$/u;
-
-const MAX_PORT = 65_535;
-
-interface OriginPolicy {
-  readonly publicOrigin: string | null;
-  readonly publicHost: string | null;
-  readonly defaultPort: string;
-}
-
-function isLoopbackOrigin(origin: string): boolean {
-  const url = URL.parse(origin);
-
-  return url !== null && url.origin === origin && LOOPBACK_HOSTNAMES.has(url.hostname);
-}
-
-function hostAllowed({ publicHost, defaultPort }: Readonly<OriginPolicy>, host: string): boolean {
-  const groups = AUTHORITY.exec(host.toLowerCase())?.groups;
-
-  if (groups === undefined) {
-    return false;
-  }
-
-  const { name = "", port } = groups;
-  const portNumber = port === undefined ? undefined : Number(port);
-
-  if (portNumber !== undefined && (portNumber < 1 || portNumber > MAX_PORT)) {
-    return false;
-  }
-
-  if (publicHost === null) {
-    return LOOPBACK_HOSTNAMES.has(name);
-  }
-
-  const bare = portNumber === undefined || String(portNumber) === defaultPort;
-
-  return (bare ? name : `${name}:${String(portNumber)}`) === publicHost;
-}
-
-function originAllowed(publicOrigin: string | null, origin: string): boolean {
-  return publicOrigin === null ? isLoopbackOrigin(origin) : origin === publicOrigin;
-}
-
 function refusalOf(c: Context, policy: Readonly<OriginPolicy>): Response | null {
-  const hosts = [new URL(c.req.url).host, c.req.header("host")].filter(
-    (host) => host !== undefined,
-  );
+  const part = unlistedPart(policy, senderOf(c));
 
-  if (!hosts.every((host) => hostAllowed(policy, host))) {
-    return c.json({ error: "Host not allowed" }, 403);
-  }
+  if (part === "host") return c.json({ error: "Host not allowed" }, 403);
 
-  const origin = c.req.header("origin");
-
-  if (origin !== undefined && !originAllowed(policy.publicOrigin, origin)) {
-    return c.json({ error: "Origin not allowed" }, 403);
-  }
-
-  if (c.req.header("authorization") === undefined) {
-    return c.json({ error: "Send an agent token as a bearer token" }, 401, {
-      "WWW-Authenticate": "Bearer",
-    });
-  }
-
-  return null;
+  return part === "origin" ? c.json({ error: "Origin not allowed" }, 403) : null;
 }
 
 export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
-  const { publicOrigin } = ports;
+  const policy = originPolicyOf(ports.publicOrigin);
 
-  const publicUrl = publicOrigin === null ? null : new URL(publicOrigin);
+  return async (c, next) => {
+    const refusal = refusalOf(c, policy);
 
-  const policy: OriginPolicy = {
-    publicOrigin,
-    publicHost: publicUrl?.host ?? null,
-    defaultPort: publicUrl?.protocol === "https:" ? "443" : "80",
-  };
+    if (refusal !== null) return refusal;
 
-  const bearer = bearerCheck(async (value, c) => {
-    const token = await verifyToken(ports, value);
+    const authorization = c.req.header("authorization");
 
-    if (token === undefined) {
-      return false;
+    if (authorization === undefined) {
+      return c.json({ error: "Send an agent token as a bearer token" }, 401, {
+        "WWW-Authenticate": "Bearer",
+      });
     }
 
+    const presented = await presentedToken(ports, authorization);
+
+    if (presented.kind !== "token") return refusedBearer(c, presented);
+
     c.set("caller", {
-      token: value,
-      clientId: `agent-token-${String(token.id)}`,
-      scopes: [...token.scopes],
-      extra: { tokenId: token.id },
+      token: presented.value,
+      clientId: `agent-token-${String(presented.token.id)}`,
+      scopes: [...presented.token.scopes],
+      extra: { tokenId: presented.token.id },
     });
 
-    return true;
-  });
-
-  return async (c, next) => refusalOf(c, policy) ?? (await bearer(c, next));
+    return next();
+  };
 }

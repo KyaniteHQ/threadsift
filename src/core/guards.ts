@@ -20,16 +20,6 @@ function guardRows(db: Database, condition: Readonly<SQLWrapper>) {
     .where(sql`${condition}`);
 }
 
-export const DATABASE_NOW = sql<number>`cast((julianday('now') - 2440587.5) * 86400000 as integer)`;
-
-export function amongJson(column: Readonly<SQLWrapper>, json: string) {
-  return sql`${column} in (select value from json_each(${json}))`;
-}
-
-export function among(column: Readonly<SQLWrapper>, values: readonly (number | string)[]) {
-  return amongJson(column, JSON.stringify(values));
-}
-
 export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<SQLWrapper>) {
   return notExists(
     db
@@ -55,20 +45,6 @@ function guardHeldOrUnread(db: Database, condition: Readonly<SQLWrapper>): Promi
   );
 }
 
-export async function unlessRefused<Written>(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  write: () => Promise<Written>,
-): Promise<Written | null> {
-  try {
-    return await write();
-  } catch (error) {
-    if (await guardHeldOrUnread(db, condition)) throw error;
-
-    return null;
-  }
-}
-
 const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
 
 export function refusedBy(cause: unknown, refusal: Readonly<RegExp>): boolean {
@@ -83,34 +59,54 @@ export function refusedByGuard(cause: unknown): boolean {
   return refusedBy(cause, GUARD_REFUSED);
 }
 
-async function rethrowUnlessRefused(
+async function nullWhenRefused<Result>(
   db: Database,
   condition: Readonly<SQLWrapper>,
-  cause: unknown,
-): Promise<void> {
-  if (!refusedByGuard(cause) || (await guardHeldOrUnread(db, condition))) throw cause;
+  run: () => Promise<Result>,
+  couldBeRefusal: (cause: unknown) => boolean,
+): Promise<Result | null> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!couldBeRefusal(error) || (await guardHeldOrUnread(db, condition))) throw error;
+
+    return null;
+  }
 }
 
-export async function guardedResults(
+export function unlessRefused<Written>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  write: () => Promise<Written>,
+): Promise<Written | null> {
+  return nullWhenRefused(db, condition, write, () => true);
+}
+
+function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  writes: Writes,
+) {
+  return [insertGuard(db, condition), ...writes, db.delete(guards)] as const;
+}
+
+export function guardedResults(
   db: Database,
   condition: Readonly<SQLWrapper>,
   writes: readonly BatchItem<"sqlite">[],
 ): Promise<readonly unknown[] | null> {
-  try {
-    const [, ...results] = await db.batch([
-      insertGuard(db, condition),
-      ...writes,
-      db.delete(guards),
-    ]);
+  return nullWhenRefused(
+    db,
+    condition,
+    async () => {
+      const [, ...results] = await db.batch(guardedWrites(db, condition, writes));
 
-    const written: readonly unknown[] = results.slice(0, writes.length);
+      const written: readonly unknown[] = results.slice(0, writes.length);
 
-    return written;
-  } catch (error) {
-    await rethrowUnlessRefused(db, condition, error);
-
-    return null;
-  }
+      return written;
+    },
+    refusedByGuard,
+  );
 }
 
 export async function guardedBatch(
@@ -121,24 +117,20 @@ export async function guardedBatch(
   return (await guardedResults(db, condition, writes)) !== null;
 }
 
-export async function guardedWrite<Write extends BatchItem<"sqlite">>(
+export function guardedWrite<Write extends BatchItem<"sqlite">>(
   db: Database,
   condition: Readonly<SQLWrapper>,
   write: Write,
   rest: readonly BatchItem<"sqlite">[],
 ): Promise<Write["_"]["result"] | null> {
-  try {
-    const [, result] = await db.batch([
-      insertGuard(db, condition),
-      write,
-      ...rest,
-      db.delete(guards),
-    ]);
+  return nullWhenRefused(
+    db,
+    condition,
+    async () => {
+      const [, result] = await db.batch(guardedWrites(db, condition, [write, ...rest] as const));
 
-    return result;
-  } catch (error) {
-    await rethrowUnlessRefused(db, condition, error);
-
-    return null;
-  }
+      return result;
+    },
+    refusedByGuard,
+  );
 }

@@ -1,114 +1,19 @@
 import { z } from "zod";
 
-import { CommentCountSchema, CommentsViewSchema } from "../core/comment-view.ts";
-import { ReaderDigestSchema } from "../core/digest-schema.ts";
-import { FETCH_RESULTS } from "../core/fetch-results.ts";
-import { HighlightsViewSchema } from "../core/highlight-contract.ts";
 import { parseCursor } from "../core/item-page.ts";
 import {
   BUDGET_SPENT,
   DEFAULT_SCOPES,
   DailyBudgetSchema,
-  DIGEST_OUTCOMES,
-  FAILURE_REASONS,
-  KINDS,
   READ_STATES,
+  REFUSAL_CODES,
   RESTORING_CODE,
   ScopeListSchema,
   SETUP_CODE_STATUSES,
   SOURCES,
   TokenBudgetSchema,
-  WAIT_REASONS,
-  X_READ_NOTES,
-  XFetchRetryNoteSchema,
 } from "../core/kinds.ts";
-import { NoteViewSchema } from "../core/note-contract.ts";
-import { RelatedSchema } from "../core/related-contract.ts";
-import { ItemImageSchema, SizedImageSchema } from "./item-image.ts";
-
-export const HttpUrlSchema = z.url({ protocol: /^https?$/u });
-
-export const WaitSchema = z.object({ reason: z.enum(WAIT_REASONS), retryAt: z.number().int() });
-
-const ItemBaseSchema = z.object({
-  id: z.number().int(),
-  source: z.enum(SOURCES),
-  kind: z.enum(KINDS),
-  normalizedUrl: HttpUrlSchema,
-  originalUrl: HttpUrlSchema,
-  savedAt: z.number().int(),
-  title: z.string().nullable(),
-  digestTitle: z.string().nullable(),
-  digestTopic: z.string().nullable(),
-  digestOutcome: z.enum(DIGEST_OUTCOMES),
-  author: z.string().nullable(),
-  community: z.string().nullable(),
-  fetchedAt: z.number().int().nullable(),
-  fetch: z.enum(FETCH_RESULTS).nullable(),
-  xNote: z.enum(X_READ_NOTES).nullable(),
-  readState: z.enum(READ_STATES),
-  stars: z.number().int().nonnegative().nullable(),
-  commentCount: CommentCountSchema.nullable(),
-  wait: WaitSchema.nullable(),
-  image: ItemImageSchema.nullable(),
-  fillable: z.boolean(),
-});
-
-const RepositorySchema = z.object({
-  description: z.string().nullable(),
-  stars: z.number().int().nonnegative(),
-  language: z.string().nullable(),
-  license: z.string().nullable(),
-  topics: z.array(z.string()).readonly(),
-  pushedAt: z.number().int().nullable(),
-});
-
-function withStatus<Fields extends Readonly<Record<string, z.ZodType>>>(base: z.ZodObject<Fields>) {
-  return z.union([
-    base.extend({
-      status: z.literal("failed"),
-      reason: z.enum(FAILURE_REASONS),
-      retry: z.literal("paste"),
-    }),
-    base.extend({ status: z.literal("processing"), reason: z.null(), retry: z.null() }),
-    base.extend({
-      status: z.literal("ready"),
-      reason: z.null(),
-      retry: z.enum(["digest", "paste"]),
-      digestOutcome: z.literal("failed"),
-    }),
-    base.extend({
-      status: z.literal("ready"),
-      reason: z.null(),
-      retry: z.literal("paste"),
-      xNote: XFetchRetryNoteSchema,
-      digestOutcome: z.literal("none"),
-    }),
-    base.extend({
-      status: z.literal("ready"),
-      reason: z.null(),
-      retry: z.null(),
-      digestOutcome: z.literal("none"),
-    }),
-  ]);
-}
-
-export const ItemSchema = withStatus(ItemBaseSchema);
-
-const ItemDetailSchema = withStatus(
-  ItemBaseSchema.extend({
-    postedAt: z.number().int().nullable(),
-    postText: z.string().nullable(),
-    digest: ReaderDigestSchema.nullable(),
-    repository: RepositorySchema.nullable(),
-    images: z.array(SizedImageSchema).readonly(),
-    link: HttpUrlSchema.nullable(),
-    comments: CommentsViewSchema,
-    highlights: HighlightsViewSchema,
-    note: NoteViewSchema,
-    related: RelatedSchema,
-  }),
-);
+import { HttpUrlSchema, ItemDetailSchema, ItemSchema } from "./item-wire.ts";
 
 export const SavedItemResponseSchema = z.object({
   item: ItemSchema,
@@ -183,23 +88,6 @@ export const ItemListResponseSchema = ItemPageResponseSchema.extend({ counts: Fi
 export const ItemReadResponseSchema = ItemPageResponseSchema.extend({
   counts: FilterCountsSchema.optional(),
 });
-
-const REFUSAL_CODES = [
-  "wrong",
-  "owner-exists",
-  "locked",
-  "setup-missing",
-  "setup-short",
-  "password-short",
-  "password-long",
-  "password-changed",
-  "reset-missing",
-  "reset-short",
-  "reset-used",
-  "no-owner",
-] as const;
-
-export type RefusalCode = (typeof REFUSAL_CODES)[number];
 
 export const ErrorResponseSchema = z.object({
   error: z.string(),

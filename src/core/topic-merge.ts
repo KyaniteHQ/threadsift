@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 
-import { among } from "./guards.ts";
 import type { UnitContext, UnitPlan } from "./merge-unit.ts";
 import { items, topics } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 import { topicLinked, topicMoves } from "./topic-moves.ts";
 import { continuingOverview, overviewRemoved } from "./topic-overview-run.ts";
 import { queueVaultIndex, queueVaultTopics } from "./vault-queue.ts";

@@ -10,11 +10,11 @@ import {
   restoreFilesPrefix,
 } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";
-import { among } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { RESTORE_PARTS_KEEP_MS } from "./restore-contract.ts";
 import { NEWEST_RESTORE, RESUMABLE_RESTORE } from "./restore-hold.ts";
 import { restoreRuns } from "./schema.ts";
+import { among } from "./sql-expressions.ts";
 
 export function removeParts(files: FileStore, id: number) {
   return removeUnder(files, restoreFilesPrefix(id));
