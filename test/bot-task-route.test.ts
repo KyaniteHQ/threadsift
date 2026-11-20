@@ -70,37 +70,37 @@ describe("the result route answers each status of its contract and writes nothin
     assert.ok(jobRow(instance, task.job.id).next_attempt_at >= started);
   });
 
-  it("answers 401 with one body for a missing, malformed, foreign, unknown and non-bearer credential and for a task id that is not canonical", async () => {
+  it("answers 401 with one body and a Bearer challenge for a missing, malformed, foreign, unknown and non-bearer credential and for a task id that is not canonical", async () => {
     const task = await fresh();
     const other = await fresh();
     const body = answerOf(picksFor(candidate()));
 
-    const basic = await instance.fetch(PATH_OF(task.id), {
-      method: "POST",
-      headers: { authorization: `Basic ${task.token}`, "content-type": "application/json" },
-      body: JSON.stringify(body),
-    });
+    const answers = await Promise.all([
+      ...[
+        { id: task.id, token: null },
+        { id: task.id, token: "not-a-task-credential" },
+        { id: task.id, token: `${task.token}x` },
+        { id: task.id, token: other.token },
+        { id: 999_999, token: task.token },
+        { id: "abc", token: task.token },
+        { id: `0${String(task.id)}`, token: task.token },
+        { id: `0x${task.id.toString(16)}`, token: task.token },
+        { id: `${String(task.id)}.0`, token: task.token },
+      ].map((who) => answered(instance, who, body)),
+      ...[`Basic ${task.token}`, ""].map((authorization) =>
+        answered(instance, { id: task.id, token: null }, body, { authorization }),
+      ),
+    ]);
 
-    const answers = [
-      ...(await Promise.all(
-        [
-          { id: task.id, token: null },
-          { id: task.id, token: "not-a-task-credential" },
-          { id: task.id, token: `${task.token}x` },
-          { id: task.id, token: other.token },
-          { id: 999_999, token: task.token },
-          { id: "abc", token: task.token },
-          { id: `0${String(task.id)}`, token: task.token },
-          { id: `0x${task.id.toString(16)}`, token: task.token },
-          { id: `${String(task.id)}.0`, token: task.token },
-        ].map((who) => answered(instance, who, body)),
-      )),
-      { status: basic.status, text: await basic.text() },
-    ];
-
+    assert.deepEqual([...new Set(answers.map(({ status }) => status))], [401]);
     assert.deepEqual(
-      answers.map(({ status }) => status),
-      Array.from({ length: 10 }, () => 401),
+      answers.map(({ challenge }) => challenge),
+      [
+        "Bearer",
+        ...Array.from({ length: 8 }, () => 'Bearer error="invalid_token"'),
+        "Bearer",
+        "Bearer",
+      ],
     );
     assert.equal(new Set(answers.map(({ text }) => text)).size, 1);
     assert.equal(taskRow(instance, task.id).answered_at, null);

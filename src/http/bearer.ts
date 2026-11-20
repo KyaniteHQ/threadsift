@@ -7,8 +7,6 @@ const NOT_BEARER = "Authorization header is not a bearer token";
 
 const CHALLENGES = {
   missing: "Bearer",
-  empty: 'Bearer realm=""',
-  malformed: 'Bearer error="invalid_request"',
   unknown: 'Bearer error="invalid_token"',
 } as const;
 
@@ -20,9 +18,7 @@ export function refusedBearer(
   c: Context,
   { kind }: Readonly<Exclude<PresentedToken, { readonly kind: "token" }>>,
 ): Response {
-  const challenge = challengeOf(kind);
-
   return kind === "unknown"
-    ? c.json({ error: UNKNOWN_TOKEN }, 401, challenge)
-    : c.json({ error: NOT_BEARER }, 400, challenge);
+    ? c.json({ error: UNKNOWN_TOKEN }, 401, challengeOf("unknown"))
+    : c.json({ error: NOT_BEARER }, 401, challengeOf("missing"));
 }

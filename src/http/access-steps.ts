@@ -4,7 +4,7 @@ import { csrf } from "hono/csrf";
 import type { Scope } from "../core/contract/agent-token-contract.ts";
 import type { AiTaskRow } from "../core/kernel/ai-task-state.ts";
 import { presentedToken } from "../features/access/core/bearer.ts";
-import { refusedBearer } from "./bearer.ts";
+import { challengeOf, refusedBearer } from "./bearer.ts";
 import type { CacheKind } from "./response-headers.ts";
 import { ownerHasSession } from "./session-cookie.ts";
 import { requireScopes } from "./token-scopes.ts";
@@ -53,7 +53,7 @@ async function credentials(c: Ctx, needs: Needs): Promise<Response | undefined> 
     return undefined;
   }
 
-  return c.json({ error: "Sign in or send an agent token" }, 401);
+  return c.json({ error: "Sign in or send an agent token" }, 401, challengeOf("missing"));
 }
 
 export async function admit(

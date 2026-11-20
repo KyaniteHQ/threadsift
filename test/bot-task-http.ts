@@ -37,10 +37,19 @@ export async function answered(
   instance: Instance,
   who: Readonly<Credential>,
   body: Json,
-): Promise<{ readonly status: number; readonly text: string }> {
-  const response = await answerTo(instance, who, body);
+  extra: Readonly<Record<string, string>> = {},
+): Promise<{
+  readonly status: number;
+  readonly text: string;
+  readonly challenge: string | null;
+}> {
+  const response = await answerTo(instance, who, body, extra);
 
-  return { status: response.status, text: await response.text() };
+  return {
+    status: response.status,
+    text: await response.text(),
+    challenge: response.headers.get("www-authenticate"),
+  };
 }
 
 const ErrorBodySchema = z.object({ error: z.string() });

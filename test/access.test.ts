@@ -64,10 +64,15 @@ describe("the owner takes a new Instance from first run to a signed-in session w
     assert.equal(second.status, 409);
   });
 
-  it("signs out and refuses the library again", async () => {
+  it("signs out and refuses the library again, to a Basic header with a Bearer challenge", async () => {
     assert.equal((await instance.send("POST", "/api/logout")).status, 204);
     assert.equal(await sessionState(), "signed-out");
     assert.equal((await instance.send("GET", "/api/items")).status, 401);
+
+    const basic = await instance.fetch("/api/items", { headers: { authorization: "Basic abc" } });
+
+    assert.equal(basic.status, 401);
+    assert.equal(basic.headers.get("www-authenticate"), "Bearer");
   });
 
   it("refuses a wrong password and stays signed out", async () => {
