@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import type { AiRuntime } from "../../core/ai-runtime.ts";
-import { readCapped } from "../../core/capped.ts";
-import type { OpenRouterExchange } from "../../core/openrouter-contract.ts";
-import { pause } from "../../core/pause.ts";
-import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
-import { SECRET_INPUT_MAX } from "../../core/secret-input.ts";
+import type { AiRuntime } from "./ai-runtime.ts";
 import { aiTransport } from "./ai-transport.ts";
+import { readCapped } from "./capped.ts";
+import type { OpenRouterExchange } from "./openrouter-contract.ts";
+import { pause } from "./pause.ts";
+import { HOP_DEADLINE_MS } from "./request-waits.ts";
+import { SECRET_INPUT_MAX } from "./secret-input.ts";
 
 const EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
 const KEY_URL = "https://openrouter.ai/api/v1/key";
@@ -54,33 +54,32 @@ async function keyOf(body: AsyncIterable<Uint8Array> | null): Promise<OpenRouter
   return answer.success ? { kind: "key", key: answer.data.key } : { kind: "uncertain" };
 }
 
-export function openRouterActivation(
-  request: typeof fetch,
-): AiRuntime["awaitOpenRouterActivation"] {
-  const send = aiTransport(request);
-
-  return (key) => activated(send, key, Date.now() + ACTIVATION_WAIT_MS);
+export function awaitOpenRouterActivation(
+  { request }: Readonly<Pick<AiRuntime, "request">>,
+  key: string,
+): Promise<boolean> {
+  return activated(aiTransport(request), key, Date.now() + ACTIVATION_WAIT_MS);
 }
 
-export function openRouterExchange(request: typeof fetch): AiRuntime["exchangeOpenRouterCode"] {
-  const send = aiTransport(request);
+export async function exchangeOpenRouterCode(
+  { request }: Readonly<Pick<AiRuntime, "request">>,
+  { code, verifier }: Readonly<{ code: string; verifier: string }>,
+  signal: AbortSignal,
+): Promise<OpenRouterExchange> {
+  try {
+    const response = await aiTransport(request)(EXCHANGE_URL, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: "S256" }),
+      signal,
+    });
 
-  return async ({ code, verifier }, signal) => {
-    try {
-      const response = await send(EXCHANGE_URL, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ code, code_verifier: verifier, code_challenge_method: "S256" }),
-        signal,
-      });
+    if (response.status === 200) return await keyOf(response.body);
 
-      if (response.status === 200) return await keyOf(response.body);
+    await response.body?.cancel();
 
-      await response.body?.cancel();
-
-      return REFUSING_STATUSES.has(response.status) ? { kind: "refused" } : { kind: "uncertain" };
-    } catch {
-      return { kind: "uncertain" };
-    }
-  };
+    return REFUSING_STATUSES.has(response.status) ? { kind: "refused" } : { kind: "uncertain" };
+  } catch {
+    return { kind: "uncertain" };
+  }
 }

@@ -23,7 +23,7 @@ function refusalOf(c: Context, policy: Readonly<OriginPolicy>): Response | null 
 }
 
 export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
-  const policy = originPolicyOf(ports.publicOrigin);
+  const policy = originPolicyOf(ports.config.publicOrigin);
 
   return async (c, next) => {
     const refusal = refusalOf(c, policy);

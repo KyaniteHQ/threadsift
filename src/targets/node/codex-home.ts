@@ -2,7 +2,6 @@ import { chmod, lstat, mkdir, open, readdir } from "node:fs/promises";
 import { join, resolve } from "node:path";
 
 import { errnoCodeOf } from "../../core/failure-log.ts";
-import { configuredCode } from "../shared/configured-code.ts";
 
 type Entry = "missing" | "empty" | "owned";
 
@@ -98,5 +97,5 @@ export function codexHomeOf({
   home,
   dataDir,
 }: Readonly<{ home: string | undefined; dataDir: string }>): string {
-  return resolve(configuredCode(home) ?? join(dataDir, "codex"));
+  return resolve(home ?? join(dataDir, "codex"));
 }

@@ -1,12 +1,12 @@
 import type { Database } from "../../core/database.ts";
 import type { Ports } from "../../core/ports.ts";
-import { aiAndSecrets } from "../shared/ai-runtime.ts";
-import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
-import { nodeCrypto } from "../shared/crypto.ts";
+import { portsOf } from "../shared/ports.ts";
+import { settingsOf } from "../shared/settings.ts";
+import type { NodeEnvironment } from "./environment.ts";
 import { dataFileStore } from "./file-store.ts";
 import { JobLoop } from "./job-loop.ts";
 import { nodeNetwork, nodeRedditSession } from "./network.ts";
-import { type OperatorCodeOptions, startOperatorCode } from "./operator-code.ts";
+import { startOperatorCode } from "./operator-code.ts";
 import { threadPageReader } from "./page-reader.ts";
 import { setupCodeOf } from "./setup-code.ts";
 import { vaultFolder } from "./vault-folder.ts";
@@ -16,50 +16,33 @@ interface NodeRuntime {
   readonly stop: () => Promise<void>;
 }
 
-interface NodeOptions extends OperatorCodeOptions {
-  readonly dataDir: string;
-  readonly setupCode: string | undefined;
-  readonly secretKey: string | undefined;
-  readonly resetCode: string | undefined;
-  readonly publicOrigin: string | undefined;
-  readonly openRouterMaxPriceZero?: string | undefined;
-}
-
 export async function startNode(
   db: Database,
-  options: Readonly<NodeOptions>,
+  { dataDir, variables, operator: operatorOptions }: Readonly<NodeEnvironment>,
 ): Promise<NodeRuntime> {
-  const { dataDir, setupCode, secretKey, resetCode, publicOrigin, fetchers, claude, codex, grok } =
-    options;
-
-  const operator = await startOperatorCode({ fetchers, claude, codex, grok });
-  const loop = new JobLoop();
+  const operator = await startOperatorCode(operatorOptions);
+  const loop = new JobLoop(() => ports);
   const pages = threadPageReader();
+  const files = dataFileStore(dataDir);
+  const settings = settingsOf(variables);
 
-  const ports: Ports = {
-    db,
-    files: dataFileStore(dataDir),
-    ...(await aiAndSecrets({
-      publicOnly: false,
-      secretKey,
-      request: fetch,
-      openRouterMaxPriceZero: options.openRouterMaxPriceZero,
-      cli: operator.cli,
-    })),
-    network: nodeNetwork,
-    vaultFolder,
-    redditSession: nodeRedditSession,
-    pages,
-    jobs: loop.queue,
-    crypto: nodeCrypto,
-    setupCode: await setupCodeOf(db, configuredCode(setupCode)),
-    resetCode: configuredCode(resetCode),
-    publicOrigin: configuredOrigin(publicOrigin),
-    fetchers: operator.fetchers,
-    xFetcher: operator.xFetcher,
-  };
+  const ports = await portsOf(
+    { ...settings, setupCode: await setupCodeOf(db, settings.setupCode) },
+    {
+      db,
+      files,
+      network: nodeNetwork,
+      vaultFolder,
+      redditSession: nodeRedditSession,
+      pages,
+      jobs: loop.queue,
+      fetchers: operator.fetchers,
+      xFetcher: operator.xFetcher,
+      ai: { publicOnly: false, request: fetch, binding: null, cli: operator.cli },
+    },
+  );
 
-  await loop.start(ports);
+  await loop.start();
 
   return {
     ports,

@@ -1,4 +1,5 @@
 import { type AiRefused, type CliAiConnection, refusedAi } from "./ai-contract.ts";
+import { allowsUrl, recommendationsOf, resolveCli, signedIn } from "./ai-run.ts";
 import type { AiSettingsInput } from "./ai-settings-contract.ts";
 import type { settings } from "./ai-settings-tables.ts";
 import type { AiPorts } from "./ports.ts";
@@ -23,14 +24,14 @@ async function nextCliSettings(
   const { provider, choice } = config;
   if (
     choice === "recommended" &&
-    ports.ai.recommendations[provider] === undefined &&
+    recommendationsOf(ports.ai)[provider] === undefined &&
     !(saved?.provider === provider && saved.preference.choice === "recommended")
   )
     return { kind: "recommendation-unavailable" } as const;
 
-  const selection = ports.ai.resolveCli(config);
+  const selection = resolveCli(ports.ai, config);
   if (selection.kind === "refused") return selection;
-  if (!(await ports.ai.signedIn()).includes(provider)) return refusedAi("not-configured");
+  if (!(await signedIn(ports.ai)).includes(provider)) return refusedAi("not-configured");
 
   return {
     provider,
@@ -57,7 +58,7 @@ export async function nextSettings(
   const baseUrl =
     "baseUrl" in input ? withoutTrailingSlashes(input.baseUrl) : PROVIDERS[input.provider].url;
 
-  if (!ports.ai.allowsUrl(baseUrl)) return refusedAi("refused");
+  if (!allowsUrl(ports.ai, baseUrl)) return refusedAi("refused");
 
   const same =
     saved !== undefined &&

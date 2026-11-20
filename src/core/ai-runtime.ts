@@ -2,26 +2,36 @@ import type {
   AiExecution,
   AiTaskRequest,
   CliAiConnection,
-  CliSelection,
   CliRecommendation,
+  CliSelection,
 } from "./ai-contract.ts";
-import type { OpenRouterExchange } from "./openrouter-contract.ts";
-import type { CliProvider, Provider } from "./provider-families.ts";
+import type { CliProvider } from "./provider-families.ts";
+
+export type RunnerTask<Result, Kind extends AiTaskRequest<Result>["config"]["kind"]> = Omit<
+  AiTaskRequest<Result>,
+  "config"
+> & {
+  readonly config: Extract<AiTaskRequest<Result>["config"], { readonly kind: Kind }>;
+};
+
+export type TaskRunner<Kind extends AiTaskRequest<never>["config"]["kind"]> = <Result>(
+  task: RunnerTask<Result, Kind>,
+  signal: AbortSignal,
+) => Promise<AiExecution<Result>>;
+
+export interface CliRunner {
+  readonly provider: CliProvider;
+  readonly recommendation: CliRecommendation | undefined;
+  readonly run: TaskRunner<"cli">;
+  readonly resolve: (config: Readonly<CliAiConnection>) => CliSelection;
+  readonly signedIn: () => Promise<boolean>;
+  readonly stop: () => void;
+}
 
 export interface AiRuntime {
-  readonly providers: readonly Provider[];
-  readonly recommendations: Readonly<Partial<Record<CliProvider, CliRecommendation>>>;
   readonly publicOnly: boolean;
-  readonly allowsUrl: (url: string) => boolean;
-  readonly resolveCli: (config: Readonly<CliAiConnection>) => CliSelection;
-  readonly signedIn: () => Promise<readonly CliProvider[]>;
-  readonly run: <Result>(
-    task: AiTaskRequest<Result>,
-    signal: AbortSignal,
-  ) => Promise<AiExecution<Result>>;
-  readonly exchangeOpenRouterCode: (
-    input: Readonly<{ code: string; verifier: string }>,
-    signal: AbortSignal,
-  ) => Promise<OpenRouterExchange>;
-  readonly awaitOpenRouterActivation: (key: string) => Promise<boolean>;
+  readonly zeroOpenRouterPrice: boolean;
+  readonly request: typeof fetch;
+  readonly binding: TaskRunner<"binding"> | null;
+  readonly cli: readonly CliRunner[];
 }

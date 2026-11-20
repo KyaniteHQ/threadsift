@@ -8,9 +8,9 @@ import {
   type ResolvedCliConnection,
   refusedAi,
 } from "../../core/ai-contract.ts";
+import type { CliRunner, RunnerTask } from "../../core/ai-runtime.ts";
 import { report } from "../../core/failure-log.ts";
 import type { CliProvider } from "../../core/provider-families.ts";
-import type { CliRunner, RunnerTask } from "../shared/ai-runner.ts";
 import { type ProcessEnd, type UnfinishedEnd, answerWithin } from "./cli-process.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 

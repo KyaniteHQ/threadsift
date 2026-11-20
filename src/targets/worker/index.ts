@@ -5,8 +5,9 @@ import type { Ports } from "../../core/ports.ts";
 import { tick } from "../../core/tick.ts";
 import { createApp } from "../../http/app.ts";
 import { isDocumentPath, isServerPath } from "../../http/document-path.ts";
-import { configuredCode } from "../shared/configured-code.ts";
-import { createWorkerPorts, type Env } from "./ports.ts";
+import { portsOf } from "../shared/ports.ts";
+import { settingsOf, unsetWhenEmpty } from "../shared/settings.ts";
+import { type Env, workerAdapters } from "./ports.ts";
 
 interface JobMessage {
   readonly body: unknown;
@@ -27,10 +28,17 @@ interface ApiApp {
 let ports: Promise<Ports> | undefined;
 let api: ApiApp | undefined;
 
-function portsOf(env: Env): Promise<Ports> {
+async function build(env: Env): Promise<Ports> {
+  const adapters = workerAdapters(env);
+  const built = await portsOf(settingsOf(env), adapters);
+
+  return built;
+}
+
+function isolatePorts(env: Env): Promise<Ports> {
   if (ports !== undefined) return ports;
 
-  const building = createWorkerPorts(env);
+  const building = build(env);
 
   ports = building;
 
@@ -42,14 +50,15 @@ function portsOf(env: Env): Promise<Ports> {
 }
 
 async function apiApp(env: Env): Promise<ReturnType<typeof createApp>> {
-  const resetCode = configuredCode(env.PASSWORD_RESET_CODE);
-  const built = api;
+  const resetCode = unsetWhenEmpty(env.PASSWORD_RESET_CODE);
+  const cached = api;
 
-  if (built !== undefined && built.resetCode === resetCode) {
-    return built.app;
+  if (cached !== undefined && cached.resetCode === resetCode) {
+    return cached.app;
   }
 
-  const app = createApp({ ...(await portsOf(env)), resetCode });
+  const { config, ...built } = await isolatePorts(env);
+  const app = createApp({ ...built, config: { ...config, resetCode } });
   api = { resetCode, app };
 
   return app;
@@ -71,7 +80,7 @@ async function runMessage(env: Env, message: Readonly<JobMessage>): Promise<void
 
   try {
     if (body.success) {
-      await runJob(await portsOf(env), body.data.jobId);
+      await runJob(await isolatePorts(env), body.data.jobId);
     }
   } finally {
     message.ack();
@@ -87,5 +96,5 @@ export default {
     await Promise.all(batch.messages.map((message) => runMessage(env, message)));
   },
   scheduled: async (_controller: Readonly<{ cron: string }>, env: Env): Promise<void> =>
-    tick(await portsOf(env)),
+    tick(await isolatePorts(env)),
 };

@@ -3,6 +3,7 @@ import type { Crypto } from "./crypto.ts";
 import type { Database } from "./database.ts";
 import type { LoadedFetcher } from "./fetcher.ts";
 import type { FileStore } from "./file-store.ts";
+import type { InstanceConfig } from "./instance-config.ts";
 import type { JobQueue } from "./job-queue.ts";
 import type { Network, RedditSession } from "./network.ts";
 import type { PageReader } from "./page-reader.ts";
@@ -20,9 +21,7 @@ export interface Ports {
   readonly jobs: JobQueue;
   readonly crypto: Crypto;
   readonly secrets: Sealer | null;
-  readonly setupCode: string | undefined;
-  readonly resetCode: string | undefined;
-  readonly publicOrigin: string | null;
+  readonly config: InstanceConfig;
   readonly ai: AiRuntime;
   readonly fetchers: readonly LoadedFetcher[];
   readonly xFetcher: XFetcher | null;
@@ -30,4 +29,6 @@ export interface Ports {
 
 export type AiPorts = Pick<Ports, "db" | "ai" | "secrets">;
 
-export type SettingsPorts = Pick<Ports, "db" | "ai" | "secrets" | "publicOrigin">;
+export type SettingsPorts = Pick<Ports, "db" | "ai" | "secrets"> & {
+  readonly config: Pick<InstanceConfig, "publicOrigin">;
+};

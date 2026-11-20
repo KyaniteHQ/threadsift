@@ -39,7 +39,8 @@ export async function startOpenRouterConnect(
   ports: Ports,
   { sessionId, model, revision }: Readonly<ConnectStartInput & { sessionId: string }>,
 ): Promise<StartResult> {
-  const { publicOrigin: origin, crypto } = ports;
+  const { crypto } = ports;
+  const { publicOrigin: origin } = ports.config;
   const sealer = ports.secrets;
 
   if (origin === null || sealer === null) return { kind: "unavailable" };

@@ -1,9 +1,8 @@
 import { drizzle } from "drizzle-orm/d1";
 
 import { batchesOf } from "../../core/batches.ts";
-import { aiAndSecrets } from "../shared/ai-runtime.ts";
-import { configuredCode, configuredOrigin } from "../shared/configured-code.ts";
-import { nodeCrypto } from "../shared/crypto.ts";
+import type { TargetAdapters } from "../shared/ports.ts";
+import type { SettingVariables } from "../shared/settings.ts";
 import { type AiBinding, bindingRunner } from "./ai-binding.ts";
 import { type FilesBucket, r2FileStore } from "./file-store.ts";
 import { workerNetwork, workerFetch } from "./network.ts";
@@ -15,7 +14,7 @@ const MAX_QUEUE_DELAY_SECONDS = 86_400;
 // sendBatch takes at most 100 messages per call: https://developers.cloudflare.com/queues/platform/limits/
 const QUEUE_BATCH_MESSAGES = 100;
 
-export interface Env {
+export interface Env extends SettingVariables {
   readonly DB: Parameters<typeof drizzle>[0];
   readonly FILES: FilesBucket;
   readonly JOBS: Readonly<{
@@ -24,26 +23,14 @@ export interface Env {
       options: Readonly<{ delaySeconds: number }>,
     ) => Promise<void>;
   }>;
-  readonly SETUP_CODE?: string;
-  readonly PASSWORD_RESET_CODE?: string;
-  readonly THREADSIFT_SECRET_KEY?: string;
-  readonly THREADSIFT_PUBLIC_ORIGIN?: string;
-  readonly THREADSIFT_OPENROUTER_MAX_PRICE_ZERO?: string;
   readonly ASSETS: Readonly<{ fetch: (input: Request) => Promise<Response> }>;
   readonly AI?: AiBinding;
 }
 
-export async function createWorkerPorts(env: Env): Promise<import("../../core/ports.ts").Ports> {
+export function workerAdapters(env: Env): TargetAdapters {
   return {
     db: drizzle(env.DB),
     files: r2FileStore(env.FILES),
-    ...(await aiAndSecrets({
-      publicOnly: true,
-      secretKey: env.THREADSIFT_SECRET_KEY,
-      request: workerFetch,
-      openRouterMaxPriceZero: env.THREADSIFT_OPENROUTER_MAX_PRICE_ZERO,
-      binding: env.AI === undefined ? undefined : bindingRunner(env.AI),
-    })),
     network: workerNetwork,
     vaultFolder: null,
     redditSession: workerRedditSession,
@@ -60,11 +47,13 @@ export async function createWorkerPorts(env: Env): Promise<import("../../core/po
         );
       },
     },
-    crypto: nodeCrypto,
-    setupCode: configuredCode(env.SETUP_CODE),
-    resetCode: undefined,
-    publicOrigin: configuredOrigin(env.THREADSIFT_PUBLIC_ORIGIN),
     fetchers: [],
     xFetcher: null,
+    ai: {
+      publicOnly: true,
+      request: workerFetch,
+      binding: env.AI === undefined ? null : bindingRunner(env.AI),
+      cli: [],
+    },
   };
 }

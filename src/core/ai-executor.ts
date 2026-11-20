@@ -13,15 +13,10 @@ import {
   TypeValidationError,
 } from "ai";
 
-import {
-  type AiExecution,
-  type HttpAiConnection,
-  apiRefusal,
-  refusedAi,
-} from "../../core/ai-contract.ts";
-import { AiAddressRefused } from "../../core/ai-url.ts";
-import type { RunnerTask } from "./ai-runner.ts";
+import { type AiExecution, type HttpAiConnection, apiRefusal, refusedAi } from "./ai-contract.ts";
+import type { RunnerTask } from "./ai-runtime.ts";
 import { aiTransport } from "./ai-transport.ts";
+import { AiAddressRefused } from "./ai-url.ts";
 
 const AI_CALL_OPTIONS = {
   maxRetries: 0,

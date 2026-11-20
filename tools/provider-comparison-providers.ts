@@ -1,15 +1,15 @@
 import { z } from "zod";
 
 import type { AiConnection } from "../src/core/ai-contract.ts";
-import type { AiRuntime } from "../src/core/ai-runtime.ts";
+import { type AiRunner, runAi } from "../src/core/ai-run.ts";
+import type { AiRuntime, CliRunner } from "../src/core/ai-runtime.ts";
 import { bestEffort } from "../src/core/failure-log.ts";
 import { AI_MODEL_MAX, PROVIDERS, isCliProvider } from "../src/core/provider-families.ts";
 import { claudeCode } from "../src/targets/node/claude-code.ts";
 import { findBinary } from "../src/targets/node/cli-process.ts";
 import { Slots } from "../src/targets/node/cli-slots.ts";
 import { codexCli } from "../src/targets/node/codex-cli.ts";
-import type { CliRunner } from "../src/targets/shared/ai-runner.ts";
-import { aiAndSecrets } from "../src/targets/shared/ai-runtime.ts";
+import { unsetWhenEmpty } from "../src/targets/shared/settings.ts";
 import { bindingRunner } from "../src/targets/worker/ai-binding.ts";
 
 const Id = z.string().regex(/^[a-z0-9-]+$/u);
@@ -50,35 +50,35 @@ export const ProvidersSchema = z
   .readonly();
 
 export type ProviderSpec = z.infer<typeof ProvidersSchema>[number];
-type Adapters = Pick<Parameters<typeof aiAndSecrets>[0], "cli" | "binding">;
+type Adapters = Partial<Pick<AiRuntime, "cli" | "binding">>;
 
 export type PreparedProvider =
   | { readonly kind: "unavailable"; readonly reason: string }
   | {
       readonly kind: "ready";
       readonly config: AiConnection;
-      readonly run: AiRuntime["run"];
+      readonly run: AiRunner;
       readonly stop: () => void;
     };
 
-async function ready(
+function ready(
   config: AiConnection,
-  adapters: Readonly<Adapters> = {},
-): Promise<PreparedProvider> {
-  const { ai } = await aiAndSecrets({
+  { cli = [], binding = null }: Readonly<Adapters> = {},
+): PreparedProvider {
+  const ai: AiRuntime = {
     publicOnly: false,
-    secretKey: undefined,
+    zeroOpenRouterPrice: true,
     request: fetch,
-    openRouterMaxPriceZero: "true",
-    ...adapters,
-  });
+    binding,
+    cli,
+  };
 
   return {
     kind: "ready",
     config,
-    run: ai.run,
+    run: (task, signal) => runAi(ai, task, signal),
     stop: () => {
-      for (const runner of adapters.cli ?? []) runner.stop();
+      for (const runner of cli) runner.stop();
     },
   };
 }
@@ -101,7 +101,7 @@ async function preparedCli(
       runner.stop();
       return { kind: "unavailable", reason: config.reason };
     }
-    if (await runner.signedIn()) return await ready(config, { cli: [runner] });
+    if (await runner.signedIn()) return ready(config, { cli: [runner] });
     runner.stop();
 
     return { kind: "unavailable", reason: "cli-not-signed-in" };
@@ -114,12 +114,12 @@ async function preparedCli(
   }
 }
 
-function workersAi(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
+function workersAi(spec: Readonly<ProviderSpec>): PreparedProvider {
   const account = process.env["CLOUDFLARE_ACCOUNT_ID"];
   const token = process.env["CLOUDFLARE_WORKERS_AI_TOKEN"];
 
   if (account === undefined || account === "" || token === undefined || token === "")
-    return Promise.resolve({ kind: "unavailable", reason: "workers-ai-credentials-missing" });
+    return { kind: "unavailable", reason: "workers-ai-credentials-missing" };
   const runner = bindingRunner({
     run: async (model, inputs, { signal }) => {
       const response = await fetch(
@@ -154,15 +154,15 @@ function workersAi(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
   return ready({ kind: "binding", provider: "workers-ai", model: spec.model }, { binding: runner });
 }
 
-function openRouter(spec: Readonly<ProviderSpec>): Promise<PreparedProvider> {
+function openRouter(spec: Readonly<ProviderSpec>): PreparedProvider {
   if (spec.model === "openrouter/free")
-    return Promise.resolve({ kind: "unavailable", reason: "openrouter-router-not-comparable" });
+    return { kind: "unavailable", reason: "openrouter-router-not-comparable" };
   if (!spec.model.endsWith(":free"))
-    return Promise.resolve({ kind: "unavailable", reason: "openrouter-model-must-be-free" });
+    return { kind: "unavailable", reason: "openrouter-model-must-be-free" };
   const key = process.env["OPENROUTER_API_KEY"];
 
   if (key === undefined || key === "")
-    return Promise.resolve({ kind: "unavailable", reason: "openrouter-key-missing" });
+    return { kind: "unavailable", reason: "openrouter-key-missing" };
 
   return ready({
     kind: "http",
@@ -192,8 +192,8 @@ export async function prepareProvider(
         await claudeCode(
           {
             path,
-            configDir: process.env["CLAUDE_CONFIG_DIR"],
-            token: process.env["CLAUDE_CODE_OAUTH_TOKEN"],
+            configDir: unsetWhenEmpty(process.env["CLAUDE_CONFIG_DIR"]),
+            token: unsetWhenEmpty(process.env["CLAUDE_CODE_OAUTH_TOKEN"]),
           },
           slots,
         ),
@@ -201,7 +201,10 @@ export async function prepareProvider(
       );
     case "codex":
       return preparedCli(
-        await codexCli({ path, home: process.env["CODEX_HOME"], dataDir: stateDir }, slots),
+        await codexCli(
+          { path, home: unsetWhenEmpty(process.env["CODEX_HOME"]), dataDir: stateDir },
+          slots,
+        ),
         spec,
       );
     case "workers-ai":

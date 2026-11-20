@@ -9,6 +9,7 @@ import {
   modelOf,
   refusedAi,
 } from "./ai-contract.ts";
+import { allowsUrl, providersOf, resolveCli, runAi } from "./ai-run.ts";
 import { failedAiTask, insertTask } from "./ai-task-rows.ts";
 import { within } from "./deadline.ts";
 import { bestEffort } from "./failure-log.ts";
@@ -54,9 +55,9 @@ function unavailableOriginOf(config: SavedConfig): TaskOrigin {
 }
 
 function executionConfig({ ai }: AiPorts, config: SavedConfig) {
-  if (!ai.providers.includes(config.provider)) return null;
+  if (!providersOf(ai).includes(config.provider)) return null;
 
-  return config.kind === "cli" ? ai.resolveCli(config) : config;
+  return config.kind === "cli" ? resolveCli(ai, config) : config;
 }
 
 function startTask(
@@ -121,7 +122,7 @@ export async function runAiTask<Result>(
   const config = executionConfig(ports, ai.config);
 
   if (config?.kind === "refused") return { ...config, taskId: null };
-  if (config?.kind === "http" && !ports.ai.allowsUrl(config.baseUrl))
+  if (config?.kind === "http" && !allowsUrl(ports.ai, config.baseUrl))
     return { ...refusedAi("refused"), taskId: null };
   const text = definition.prepareInput(input.text);
 
@@ -160,7 +161,8 @@ async function execute<Result>(
   const signal = within(attempt, deadline);
 
   try {
-    const result = await ports.ai.run(
+    const result = await runAi(
+      ports.ai,
       {
         config,
         input: text,

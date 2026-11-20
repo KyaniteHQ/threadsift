@@ -55,7 +55,7 @@ const callbackRoute = createRoute({
 
 function registerStart(app: OpenAPIHono, ports: Ports): void {
   app.openapi(startRoute, async (c) => {
-    const { publicOrigin } = ports;
+    const { publicOrigin } = ports.config;
 
     if (publicOrigin === null)
       return c.json({ error: "Connect needs THREADSIFT_PUBLIC_ORIGIN" }, 503);
