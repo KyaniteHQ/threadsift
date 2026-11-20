@@ -31,6 +31,16 @@ function undoTables(run: Readonly<RestoreRow>): readonly Undone[] {
   ];
 }
 
+function restoredNothing(run: Readonly<RestoreRow>): boolean {
+  return Object.keys(CountsSchema.parse(JSON.parse(run.restored))).length === 0;
+}
+
+function cancelledUnit(db: Database, run: Readonly<RestoreRow>): JobOutcome {
+  const now = Date.now();
+
+  return endedUnit(db, run, { state: "cancelled", finishedAt: now, updatedAt: now });
+}
+
 async function nextTable(db: Database, remaining: readonly Undone[]): Promise<Undone | null> {
   const [spec, ...rest] = remaining;
 
@@ -48,6 +58,8 @@ export async function undoUnit(
   { db, files }: Pick<JobPorts, "db" | "files">,
   run: Readonly<RestoreRow>,
 ): Promise<JobOutcome> {
+  if (restoredNothing(run)) return cancelledUnit(db, run);
+
   const units = UndoCursorSchema.parse(JSON.parse(run.cursor)).units + 1;
   const stepped = steppedUnit(db, run, { cursor: JSON.stringify({ units }) });
   const table = await nextTable(db, undoTables(run));
@@ -72,7 +84,5 @@ export async function undoUnit(
     return stepped;
   }
 
-  const now = Date.now();
-
-  return endedUnit(db, run, { state: "cancelled", finishedAt: now, updatedAt: now });
+  return cancelledUnit(db, run);
 }

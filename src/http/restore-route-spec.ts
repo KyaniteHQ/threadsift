@@ -111,7 +111,7 @@ export const cancelRoute = createRoute({
   responses: {
     202: jsonBody(
       StartedRestoreSchema.pick({ id: true }),
-      `The restore was \`running\` or \`failed\` and is now \`cancelling\`, and jobs now delete every restored row, one bounded unit after another in the reverse of the table order, then every file under \`items/\`, and then the uploaded parts. \`GET /api/restore\` shows \`cancelled\` when the library is empty again. The ids the restore used are not reused. A repeat while it runs answers 202 again. A cancel that fails ${String(MAX_ATTEMPTS)} times shows \`failed\` with \`cancelFailed\` true, and a cancel again continues it.${OWNER_ONLY}`,
+      `The restore was \`running\` or \`failed\`. When it got past its \`check\` phase it is now \`cancelling\`, and jobs now delete every restored row, one bounded unit after another in the reverse of the table order, then every file under \`items/\`, and then the uploaded parts. \`GET /api/restore\` shows \`cancelled\` when the library is empty again. The ids the restore used are not reused. A restore that never got past \`check\`, such as one the check refused, wrote no row, so it is \`cancelled\` at once, its parts are deleted, and the library stays as it is; a cancel again answers 204. A repeat while an undo runs answers 202 again. A cancel that fails ${String(MAX_ATTEMPTS)} times shows \`failed\` with \`cancelFailed\` true, and a cancel again continues it.${OWNER_ONLY}`,
     ),
     204: noContent(
       `The restore was waiting for its upload, or is already cancelled. Its parts are deleted, and a new restore is accepted.${OWNER_ONLY}`,

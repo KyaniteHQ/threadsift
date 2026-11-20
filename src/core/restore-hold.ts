@@ -15,6 +15,7 @@ type Standing = Readonly<{
   state: RestoreRow["state"];
   gaveUp?: true;
   undoing?: boolean;
+  pastCheck?: boolean;
 }>;
 
 type Condition = Readonly<Pick<RestoreRow, "state" | "phase" | "failure">>;
@@ -23,7 +24,15 @@ const HOLDING: readonly Standing[] = [{ state: "running" }, { state: "failed", g
 
 const RESUMABLE: readonly Standing[] = [{ state: "failed", gaveUp: true, undoing: false }];
 
-const UNDOABLE: readonly Standing[] = [{ state: "failed" }, { state: "running", undoing: false }];
+const UNDOABLE: readonly Standing[] = [
+  { state: "failed", pastCheck: true },
+  { state: "running", undoing: false, pastCheck: true },
+];
+
+const UNWRITTEN: readonly Standing[] = [
+  { state: "failed", pastCheck: false },
+  { state: "running", pastCheck: false },
+];
 
 const UNDOING: readonly Standing[] = [{ state: "running", undoing: true }];
 
@@ -31,13 +40,16 @@ const UNDO_FAILED: readonly Standing[] = [{ state: "failed", undoing: true }];
 
 const NEEDING_PARTS: readonly Standing[] = [{ state: "running" }, ...RESUMABLE];
 
-function conditionsOf({ state, gaveUp, undoing }: Standing): readonly SQL[] {
+function conditionsOf({ state, gaveUp, undoing, pastCheck }: Standing): readonly SQL[] {
   return [
     sql`${restoreRuns.state} = ${listed([state])}`,
     ...(gaveUp === true ? [sql`${restoreRuns.failure} = 'gave-up'`] : []),
     ...(undoing === undefined
       ? []
       : [undoing ? sql`${restoreRuns.phase} = 'undoing'` : sql`${restoreRuns.phase} <> 'undoing'`]),
+    ...(pastCheck === undefined
+      ? []
+      : [pastCheck ? sql`${restoreRuns.phase} <> 'check'` : sql`${restoreRuns.phase} = 'check'`]),
   ];
 }
 
@@ -64,10 +76,11 @@ function standingSql(standings: readonly Standing[]): SQL {
 
 function inStanding(run: Readonly<Condition>, standings: readonly Standing[]): boolean {
   return standings.some(
-    ({ state, gaveUp, undoing }) =>
+    ({ state, gaveUp, undoing, pastCheck }) =>
       run.state === state &&
       (gaveUp !== true || run.failure === "gave-up") &&
-      (undoing === undefined || (run.phase === "undoing") === undoing),
+      (undoing === undefined || (run.phase === "undoing") === undoing) &&
+      (pastCheck === undefined || (run.phase !== "check") === pastCheck),
   );
 }
 
@@ -76,6 +89,8 @@ export const NEWEST_RESTORE = sql`${restoreRuns.id} = (select max(${restoreRuns.
 export const RESUMABLE_RESTORE = standingSql(RESUMABLE);
 
 export const UNDOABLE_RESTORE = standingSql(UNDOABLE);
+
+export const UNWRITTEN_RESTORE = standingSql(UNWRITTEN);
 
 export const UNDOING_RESTORE = standingSql(UNDOING);
 

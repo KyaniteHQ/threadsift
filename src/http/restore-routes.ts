@@ -100,6 +100,7 @@ function registerEndRoutes(app: OpenAPIHono, ports: Ports): void {
       case "cancelled":
         return c.body(null, 204);
       case "undoing":
+      case "nothing-to-undo":
         return c.json({ id }, 202);
       case "missing":
         return notFound(c);

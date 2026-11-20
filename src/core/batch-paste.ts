@@ -75,8 +75,9 @@ export async function pasteLinksThenSaveCursor(
 
   if (pasted.kind !== "done") return pasted;
 
-  return {
-    ...pasted,
-    import: cursor === undefined ? null : await saveImport(ports.db, cursor),
-  };
+  const saved = cursor === undefined ? null : await saveImport(ports.db, cursor);
+
+  if (saved !== null && "kind" in saved) return saved;
+
+  return { ...pasted, import: saved };
 }
