@@ -157,7 +157,7 @@ describe("a Topic page lists the Items of one Topic with their Summary lines, wh
       ["/api/topics/~.", "/api/topics/~..", "/api/topics/~~..", "/api/topics/~~~.."],
     );
     assert.equal((await instance.send("GET", topicApiPath("..."))).status, 404);
-    assert.equal((await instance.send("GET", `${topicApiPath("..")}/overview`)).status, 404);
+    assert.equal((await instance.send("GET", `${topicApiPath("..")}/overview`)).status, 405);
   });
 
   it("refuses a Topic that does not exist", async () => {

@@ -10,6 +10,7 @@ import {
 } from "../../../core/contract/openrouter-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
+import { getOnly } from "../../../http/method-refusals.ts";
 import { jsonBody, jsonRequest } from "../../../http/openapi.ts";
 import { senderOf } from "../../../http/sender.ts";
 import { sessionIdOf } from "../../../http/session-cookie.ts";
@@ -42,13 +43,19 @@ const startRoute = createRoute({
 const callbackRoute = createRoute({
   method: "get",
   path: CONNECT_CALLBACK_PATH,
-  middleware: access("owner", {
-    cache: "private",
-    signedOutNavigation: returnAddress(null),
-  }),
+  middleware: [
+    access("owner", {
+      cache: "private",
+      signedOutNavigation: returnAddress(null),
+    }),
+    getOnly,
+  ],
   responses: {
     303: { description: "Always a redirect to Settings with a closed notice." },
-    405: { description: "Only GET may complete an attempt." },
+    405: {
+      description:
+        "Any method but GET answers 405 with `Allow: GET`, and a HEAD completes no attempt. Only GET may complete an attempt.",
+    },
   },
 });
 
@@ -87,8 +94,6 @@ function registerStart(app: OpenAPIHono, ports: Ports): void {
 
 function registerCallback(app: OpenAPIHono, ports: Ports): void {
   app.openapi(callbackRoute, async (c) => {
-    if (c.req.method !== "GET") return c.body(null, 405);
-
     const notice = await completeOpenRouterConnect(ports, {
       sessionId: sessionIdOf(c),
       search: new URL(c.req.url).search,

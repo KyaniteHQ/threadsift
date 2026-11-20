@@ -15,7 +15,7 @@ export interface CallbackEnv {
 
 export type Ctx = Parameters<MiddlewareHandler>[0];
 
-type Needs = "owner" | Scope;
+type Needs = "owner" | "any" | Scope;
 
 export interface Plan {
   readonly credentials: Needs | null;
@@ -42,7 +42,7 @@ async function credentials(c: Ctx, needs: Needs): Promise<Response | undefined> 
       return c.json({ error: NOT_FOR_TOKENS }, 403);
     }
 
-    requireScopes(c, [needs]);
+    if (needs !== "any") requireScopes(c, [needs]);
 
     return undefined;
   }

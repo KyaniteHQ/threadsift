@@ -14,10 +14,16 @@ type AccessRefusal = Refused<RefusalName> | LockedOut;
 
 export const NOT_FOUND = "Not found";
 
+export const METHOD_NOT_ALLOWED = "Method not allowed";
+
 export const PASSWORD_RULE = `The password is shorter than ${PASSWORD_MIN} or longer than ${groupedNumber(PASSWORD_MAX)} characters.`;
 
 export function notFound(c: Context) {
   return c.json({ error: NOT_FOUND }, 404);
+}
+
+export function notAllowed(c: Context, methods: readonly string[]) {
+  return c.json({ error: METHOD_NOT_ALLOWED }, 405, { Allow: methods.join(", ") });
 }
 
 export async function answerFailure(

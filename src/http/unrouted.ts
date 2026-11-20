@@ -6,9 +6,7 @@ import type { CacheKind } from "./response-headers.ts";
 
 interface PathRule {
   readonly path: RegExp;
-  readonly ownerOnly?: true;
-  readonly callbackOnly?: true;
-  readonly cache?: CacheKind;
+  readonly cache: CacheKind;
 }
 
 function literal(text: string): string {
@@ -30,26 +28,16 @@ const DOWNLOAD = new RegExp(
 );
 
 const UNROUTED_PATHS: readonly PathRule[] = [
-  {
-    path: /^\/api\/(?:(?:tokens|logout|settings|password|export|restore)(?:\/|$)|items\/[^/]+\/(?:read-state$|note$|highlights(?:\/|$))|proposals\/[^/]+\/(?:accept|reject)$)/u,
-    ownerOnly: true,
-  },
-  { path: /^\/api\/ai-tasks\/[^/]+\/(?:result|intake)$/u, callbackOnly: true },
   { path: CONNECT, cache: "private" },
   { path: FILES, cache: "file" },
   { path: DOWNLOAD, cache: "file" },
 ];
 
 export function unroutedPlan(c: Ctx): Plan {
-  const rules = UNROUTED_PATHS.filter(({ path }) => path.test(c.req.path));
-  const reads =
-    (c.req.method === "GET" || c.req.method === "HEAD") &&
-    !rules.some((rule) => rule.ownerOnly === true);
-
   return {
-    credentials: reads ? "read" : "owner",
-    csrf: true,
-    after: rules.some((rule) => rule.callbackOnly === true) ? "credential" : "next",
-    cache: rules.find((rule) => rule.cache !== undefined)?.cache ?? null,
+    credentials: "any",
+    csrf: false,
+    after: "next",
+    cache: UNROUTED_PATHS.find(({ path }) => path.test(c.req.path))?.cache ?? null,
   };
 }

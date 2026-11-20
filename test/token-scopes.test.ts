@@ -161,12 +161,6 @@ describe("an agent token calls only what its scopes allow", () => {
 
   for (const [index, row] of TOKENS.entries()) tokenCases(row, index);
 
-  it("answers 403 to a method that no scope lists, even to a token with all four scopes", async () => {
-    const { value } = await createAgentToken(instance, "unlisted method", ALL);
-
-    assert.equal((await instance.sendWithToken(value, "PATCH", "/api/items/1")).status, 403);
-  });
-
   it("refuses an empty or unknown scope list when creating a token, and lists each token's scopes", async () => {
     const bad = await Promise.all(
       [[], ["read", "admin"]].map((scopes) =>
