@@ -43,7 +43,7 @@ function logClaimLost(job: Readonly<Pick<JobRow, "id" | "attempts">>): void {
   report("job-claim-lost", { jobId: job.id, attempt: job.attempts });
 }
 
-export async function finish(
+async function finish(
   ports: JobPorts,
   job: Readonly<ClaimedRow>,
   {

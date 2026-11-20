@@ -2,9 +2,9 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
+import type { Database } from "../src/core/kernel/database.ts";
 import { readDisagreementInput } from "../src/features/wiki/core/disagreement-input.ts";
 import type { Instance } from "./instance.ts";
-import type { interrupted } from "./interrupted-database.ts";
 import { script } from "./pin-fixtures.ts";
 import { exec, paste, rows, until } from "./related-fixtures.ts";
 
@@ -250,9 +250,9 @@ export const topicIdOf = (instance: Instance, name: string): number => {
   return row.id;
 };
 
-export type ReadingDatabase = ReturnType<typeof interrupted>;
+export type ReadingDatabase = Database;
 
-export async function sentTopics(db: ReadingDatabase) {
+export async function sentTopics(db: Database) {
   const read = await readDisagreementInput(db);
 
   assert.ok(read !== null);

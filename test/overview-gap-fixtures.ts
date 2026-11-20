@@ -105,16 +105,18 @@ const OPEN_JOBS = {
   running: "'running', 0, 0, 1, 9999999999999",
 } as const;
 
+export const overviewJobStatement = (
+  itemId: number,
+  state: keyof typeof OPEN_JOBS = "queued",
+): string =>
+  `insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) select 'topic_overview', id, original_url, ${OPEN_JOBS[state]} from items where id = ${String(itemId)}`;
+
 export function queueOverview(
   instance: Instance,
   itemId: number,
   state: keyof typeof OPEN_JOBS = "queued",
 ): void {
-  exec(
-    instance,
-    `insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) select 'topic_overview', id, original_url, ${OPEN_JOBS[state]} from items where id = ?`,
-    itemId,
-  );
+  exec(instance, overviewJobStatement(itemId, state));
 }
 
 export const body = (error: string) => JSON.stringify({ error });

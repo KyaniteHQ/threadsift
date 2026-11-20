@@ -13,14 +13,13 @@ import {
 } from "./disagreement-fixtures.ts";
 import { acceptStatus, pinRows, replaceDigestToken } from "./disagreement-pin-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { interrupted } from "./interrupted-database.ts";
 
 const REASON = "One says the setting is on, the other says it is off.";
 
 type Pair = Readonly<{ a: number; b: number; reason: string }>;
 
 async function storeAnswer(instance: Instance, disagreements: readonly Pair[]): Promise<void> {
-  const db = interrupted(instance.databaseFile, () => false, {});
+  const { db } = instance.core;
 
   await applyAnswer(
     { instance, db, sent: await sentTopics(db) },

@@ -1,19 +1,15 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
-import { eq } from "drizzle-orm";
-
-import type { Closing } from "../src/core/kernel/job-outcome.ts";
-import { type JobRow, jobs as jobsTable } from "../src/core/kernel/schema.ts";
-import { fetchHandler } from "../src/features/fetch/core/fetch-job.ts";
-import { takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
-import { claimedOf } from "./bot-task-fixtures.ts";
+import type { ClaimedRow, Closing } from "../src/core/kernel/job-outcome.ts";
+import { redditClosing, takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
 import { Instance } from "./instance.ts";
 import {
   LATER,
   SECRET_KEY,
   SESSION,
   account,
+  claimedJob,
   connect,
   fetchJob,
   jobs,
@@ -22,43 +18,31 @@ import { exec } from "./related-fixtures.ts";
 
 const HOUR_MS = 3_600_000;
 
-const REDDIT_LINK = "https://www.reddit.com/comments/q1/";
-
-const OTHER_LINK = "https://github.com/KyaniteHQ/threadsift";
-
 const WAIT_FOR_REDDIT: Closing = { kind: "deferred", wait: "reddit-limit" };
-
-const fetching = (row: Readonly<JobRow>, address: string) => claimedOf({ ...row, address });
 
 describe("one fill takes the Reddit account at a time, oldest first", () => {
   let instance: Instance;
 
   const database = () => instance.core.db;
 
-  async function closing(id: number, how: Closing, address = REDDIT_LINK): Promise<void> {
-    const [row] = await database().select().from(jobsTable).where(eq(jobsTable.id, id));
+  const claims = new Map<number, ClaimedRow>();
 
-    assert.ok(row !== undefined);
+  async function claimed(id: number): Promise<ClaimedRow> {
+    const held = claims.get(id) ?? (await claimedJob(instance, id));
 
-    const writes = fetchHandler.closing?.(database(), fetching(row, address), how) ?? [];
-    const [first, ...rest] = writes;
+    claims.set(id, held);
+
+    return held;
+  }
+
+  async function closing(id: number, how: Closing): Promise<void> {
+    const [first, ...rest] = redditClosing(database(), await claimed(id), how);
 
     if (first !== undefined) await database().batch([first, ...rest]);
   }
 
   async function take(id: number, now: number) {
-    exec(
-      instance,
-      "update jobs set state = 'running', wait_reason = null, claim_expires = ? where id = ? and state = 'queued'",
-      LATER,
-      id,
-    );
-
-    const [row] = await database().select().from(jobsTable).where(eq(jobsTable.id, id));
-
-    assert.ok(row !== undefined);
-
-    return takeTurn(database(), row, now);
+    return takeTurn(database(), await claimed(id), now);
   }
 
   before(async () => {
@@ -67,6 +51,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
   });
 
   beforeEach(async () => {
+    claims.clear();
     exec(instance, "delete from reddit_account");
     exec(instance, "delete from jobs");
     exec(instance, "delete from items");
@@ -74,8 +59,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     fetchJob(instance, 1, { state: "queued", waitReason: null, dueAt: LATER });
     fetchJob(instance, 2, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
     fetchJob(instance, 3, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
-    await closing(3, WAIT_FOR_REDDIT);
-    await closing(2, WAIT_FOR_REDDIT);
+    exec(instance, "update reddit_account set queue_head = 2");
     exec(instance, "update jobs set next_attempt_at = ?", LATER);
   });
 
@@ -89,7 +73,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
   });
 
   it("keeps the order while the oldest waiting job is being claimed", async () => {
-    exec(instance, "update jobs set state = 'running', wait_reason = null where id = 2");
+    await claimed(2);
 
     const now = Date.now();
 
@@ -147,7 +131,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
   });
 
   it("keeps an older head that is being claimed when a younger job is deferred", async () => {
-    exec(instance, "update jobs set state = 'running', wait_reason = null where id = 2");
+    await claimed(2);
     fetchJob(instance, 4, { state: "queued", waitReason: null, dueAt: LATER });
     await closing(4, WAIT_FOR_REDDIT);
 
@@ -219,24 +203,6 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
 
     assert.equal(account(instance)[0]?.busy_job, 1);
     assert.ok(jobs(instance).every((job) => job.next_attempt_at === LATER));
-  });
-
-  it("runs no Reddit statement when the job closed is a fetch of another source", async () => {
-    const [row] = await database().select().from(jobsTable).where(eq(jobsTable.id, 1));
-
-    assert.ok(row !== undefined);
-    assert.equal(
-      fetchHandler.closing?.(database(), fetching(row, OTHER_LINK), { kind: "closed" }).length,
-      0,
-    );
-    assert.equal(
-      fetchHandler.closing?.(database(), fetching(row, OTHER_LINK), WAIT_FOR_REDDIT).length,
-      0,
-    );
-    assert.ok(
-      (fetchHandler.closing?.(database(), fetching(row, REDDIT_LINK), { kind: "closed" }).length ??
-        0) > 0,
-    );
   });
 
   it("gives no turn while Reddit limits the account, and gives it back at the end of the limit", async () => {

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import {
-  REFUSALS_TO_EXPIRE,
   clearRefusals,
   countRefusal,
   recordWindow,
@@ -104,7 +103,7 @@ describe("the account row records what Reddit answered", () => {
       await countRefusal(ports, session(), { thread: "aaa111", startedAt: NOW }, NOW),
       "counted",
     );
-    assert.equal(account(instance)[0]?.refused_count, REFUSALS_TO_EXPIRE - 1);
+    assert.equal(account(instance)[0]?.refused_count, 2);
     assert.equal(
       await countRefusal(ports, session(), { thread: "ccc333", startedAt: NOW }, NOW),
       "expired",

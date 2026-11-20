@@ -1,10 +1,12 @@
 import { z } from "zod";
 
+import { claimNextDue } from "../src/core/compose/jobs.ts";
 import {
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
   RedditVerifySchema,
 } from "../src/core/contract/reddit-account-contract.ts";
+import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
@@ -66,7 +68,15 @@ export function fetchJob(
     state,
     waitReason,
     dueAt,
-  }: Readonly<{ state: string; waitReason: string | null; dueAt: number }>,
+    address = `http://127.0.0.1:9/${String(id)}`,
+    attempts = 0,
+  }: Readonly<{
+    state: string;
+    waitReason: string | null;
+    dueAt: number;
+    address?: string;
+    attempts?: number;
+  }>,
 ): void {
   exec(
     instance,
@@ -77,11 +87,12 @@ export function fetchJob(
   );
   exec(
     instance,
-    "insert into jobs (id, kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires, wait_reason) values (?, 'fetch', ?, ?, ?, 0, 0, ?, ?, ?)",
+    "insert into jobs (id, kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires, wait_reason) values (?, 'fetch', ?, ?, ?, ?, 0, ?, ?, ?)",
     id,
     id,
-    `http://127.0.0.1:9/${String(id)}`,
+    address,
     state,
+    attempts,
     dueAt,
     state === "running" ? FAR : null,
     waitReason,
@@ -89,3 +100,17 @@ export function fetchJob(
 }
 
 export const LATER = FAR;
+
+export async function claimedJob(instance: Instance, id: number): Promise<ClaimedRow> {
+  const dueAt = jobs(instance).find((row) => row.id === id)?.next_attempt_at;
+
+  exec(instance, "update jobs set next_attempt_at = 0 where id = ? and state = 'queued'", id);
+
+  const job = await claimNextDue(instance.core.db);
+
+  if (job?.id !== id || dueAt === undefined) throw new Error(`job ${String(id)} was not claimed`);
+
+  exec(instance, "update jobs set next_attempt_at = ? where id = ?", dueAt, id);
+
+  return job;
+}

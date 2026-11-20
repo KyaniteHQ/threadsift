@@ -1,7 +1,5 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 
-import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
@@ -11,8 +9,6 @@ import {
   type ProposalPage,
   ProposalPageSchema,
 } from "../src/core/contract/proposal-contract.ts";
-import type { Database } from "../src/core/kernel/database.ts";
-import { batchTo, proxyTo } from "../src/targets/node/database.ts";
 import type { Instance } from "./instance.ts";
 import { exec, paste, rows, saveProvider } from "./related-fixtures.ts";
 
@@ -155,22 +151,6 @@ const StateRowSchema = z.object({ id: z.number(), kind: z.string(), state: z.str
 
 export const proposalRows = (instance: Instance) =>
   rows(instance, StateRowSchema, "select id, kind, state from proposals order by id");
-
-export function withoutForeignKeys(file: string): Database {
-  const sqlite = new DatabaseSync(file);
-  const query = proxyTo(sqlite);
-  const batch = batchTo(sqlite);
-
-  return drizzle(query, async (queries) => {
-    sqlite.exec("PRAGMA foreign_keys = OFF");
-
-    try {
-      return await batch(queries);
-    } finally {
-      sqlite.exec("PRAGMA foreign_keys = ON");
-    }
-  });
-}
 
 const RunSchema = z.object({ last_run_at: z.number() });
 

@@ -182,38 +182,6 @@ export class Instance {
     return { status: response.status, body: await response.text() };
   }
 
-  async readThrough<Schema extends z.ZodType>(
-    db: Ports["db"],
-    path: string,
-    schema: Schema,
-  ): Promise<z.infer<Schema>> {
-    const response = await createApp({ ...this.ports, db }).request(path, {
-      headers: new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" }),
-    });
-
-    return schema.parse(JSON.parse(await response.text()));
-  }
-
-  async sendThrough(
-    db: Ports["db"],
-    method: string,
-    path: string,
-    body: Json = null,
-  ): Promise<Answer> {
-    const headers = new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" });
-
-    const response = await createApp({ ...this.ports, db }).request(
-      path,
-      requestOf(method, headers, body),
-    );
-
-    return { status: response.status, body: await response.text() };
-  }
-
-  async statusThrough(db: Ports["db"], method: string, path: string): Promise<number> {
-    return (await this.sendThrough(db, method, path)).status;
-  }
-
   async sendWithPublicOnlyAiAndNoXFetcher(
     method: string,
     path: string,

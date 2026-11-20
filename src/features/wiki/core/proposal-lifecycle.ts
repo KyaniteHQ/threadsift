@@ -1,9 +1,9 @@
-import { type SQL, type SQLWrapper, and, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, isNull, sql } from "drizzle-orm";
 
 import type { ProposalKind, ProposalState } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { SUBJECTS } from "../../../core/kernel/proposal-tables.ts";
-import { highlights, proposals } from "../../../core/kernel/schema.ts";
+import { proposals } from "../../../core/kernel/schema.ts";
 
 const MOVES = {
   reject: { from: "open", to: "rejected" },
@@ -89,22 +89,6 @@ export function removedOpen(db: Database, ...conditions: readonly Readonly<SQLWr
   return db
     .delete(proposals)
     .where(and(eq(proposals.state, MOVES.remove.from), ...conditions.map((each) => sql`${each}`)));
-}
-
-export function goneWithItem(db: Database, itemId: number) {
-  return [
-    db
-      .delete(proposals)
-      .where(
-        inArray(
-          proposals.highlightId,
-          db.select({ id: highlights.id }).from(highlights).where(eq(highlights.itemId, itemId)),
-        ),
-      ),
-    db
-      .delete(proposals)
-      .where(or(eq(proposals.fromItemId, itemId), eq(proposals.intoItemId, itemId))),
-  ];
 }
 
 type Subject = Readonly<SQLWrapper>;

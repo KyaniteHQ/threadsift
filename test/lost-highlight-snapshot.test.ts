@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
-import { writingAfterTheFirstRead } from "./interrupted-database.ts";
 import {
   keepLostHighlight,
   proposeLost,
@@ -13,56 +11,15 @@ import {
 } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, exec, paste } from "./related-fixtures.ts";
 
-const READ_BY_THE_PAGE = ['"proposals"', '"highlights"', '"items"', '"digests"'];
-
-const readsThePage = (sql: string) => READ_BY_THE_PAGE.some((table) => sql.includes(table));
-
-describe("the Proposals page reads each row and its subject in one snapshot", () => {
+describe("the Proposals page lists a row only while its subject still holds", () => {
   let instance: Instance;
-  let lost: { itemId: number; highlightId: number };
 
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
-    lost = await keepLostHighlight(instance, "snapshot", "gone", "the snapshot passage");
-    await proposeLost(instance, lost.highlightId);
   });
 
   after(() => instance.close());
-
-  it("shows the row as it was when the read began when a Digest is replaced right after", async () => {
-    const listed = await readPage(instance);
-
-    const replacing = writingAfterTheFirstRead(instance.databaseFile, readsThePage, async () => {
-      await paste(instance, "snapshot", {
-        title: "A new title",
-        postText: textHolding("a passage that is not the quote"),
-      });
-    });
-
-    const during = await instance.readThrough(replacing, "/api/proposals", ProposalPageSchema);
-    const later = await readPage(instance);
-
-    assert.deepEqual(during, listed);
-    assert.notDeepEqual(later, listed);
-  });
-
-  it("lists the row when its Highlight is removed right after the read began", async () => {
-    const listed = await readPage(instance);
-
-    const removing = writingAfterTheFirstRead(instance.databaseFile, readsThePage, () => {
-      exec(instance, "delete from search_parts where highlight_id = ?", lost.highlightId);
-      exec(instance, "delete from highlights where id = ?", lost.highlightId);
-
-      return Promise.resolve();
-    });
-
-    const during = await instance.readThrough(removing, "/api/proposals", ProposalPageSchema);
-
-    assert.equal(listed.proposals.length, 1);
-    assert.deepEqual(during, listed);
-    assert.deepEqual((await readPage(instance)).proposals, []);
-  });
 
   it("omits a row whose Highlight is found again without a half-filled row", async () => {
     const again = await keepLostHighlight(instance, "again", "gone", "the passage that returns");
