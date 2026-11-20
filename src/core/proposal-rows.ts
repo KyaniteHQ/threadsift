@@ -12,29 +12,30 @@ import {
 import { ITEMS_PAGE_SIZE } from "./item-page.ts";
 import { itemTitle } from "./item-title.ts";
 import { PROPOSAL_KINDS, type ProposalKind } from "./kinds.ts";
+import { acrossKinds } from "./merge-kinds.ts";
 import { ListedStateSchema } from "./proposal-contract.ts";
-import { digests, highlights, itemTags, items, proposals, tags, topics } from "./schema.ts";
+import { digests, highlights, items, proposals, topics } from "./schema.ts";
 import { overviewGap, digestedCount, uncoveredCount } from "./topic-coverage.ts";
-
-const fromTag = alias(tags, "from_tag");
-
-const intoTag = alias(tags, "into_tag");
-
-const fromTopic = alias(topics, "from_topic");
-
-const intoTopic = alias(topics, "into_topic");
 
 const subjectTopic = alias(topics, "subject_topic");
 
-function nameOf(tag: Readonly<SQLWrapper>, topic: Readonly<SQLWrapper>) {
-  return sql<string>`coalesce(${tag}, ${topic})`;
+function mergeSide(end: "from" | "into") {
+  return {
+    id: acrossKinds<number | null>((spec) => spec[end]),
+    name: acrossKinds<string>(
+      ({ table, ...spec }) =>
+        sql`(select ${table.name} from ${table} where ${table.id} = ${spec[end]})`,
+    ),
+    items: acrossKinds<number | null>(
+      ({ itemLink, ...spec }) =>
+        sql`case when ${spec[end]} is null then null else (select count(${itemLink.item}) from ${itemLink.entry.table} where ${itemLink.entry} = ${spec[end]}) end`,
+    ),
+  };
 }
 
-function itemsWith(tagId: Readonly<SQLWrapper>, topicId: Readonly<SQLWrapper>) {
-  return sql<
-    number | null
-  >`case ${proposals.kind} when 'tag-merge' then (select count(*) from ${itemTags} where ${itemTags.tagId} = ${tagId}) when 'topic-merge' then (select count(*) from ${items} where ${items.topicId} = ${topicId}) end`;
-}
+const FROM = mergeSide("from");
+
+const INTO = mergeSide("into");
 
 const LISTED_WHILE = {
   "tag-merge": undefined,
@@ -65,12 +66,12 @@ const PAGE_COLUMNS = {
   reason: proposals.reason,
   state: proposals.state,
   failedRuns: sql<number>`coalesce(${proposals.failedRuns}, 0)`.as("failed_runs"),
-  fromId: sql<number | null>`coalesce(${fromTag.id}, ${fromTopic.id})`.as("from_id"),
-  fromName: nameOf(fromTag.name, fromTopic.name).as("from_name"),
-  fromItems: itemsWith(fromTag.id, fromTopic.id).as("from_items"),
-  intoId: sql<number | null>`coalesce(${intoTag.id}, ${intoTopic.id})`.as("into_id"),
-  intoName: nameOf(intoTag.name, intoTopic.name).as("into_name"),
-  intoItems: itemsWith(intoTag.id, intoTopic.id).as("into_items"),
+  fromId: FROM.id.as("from_id"),
+  fromName: FROM.name.as("from_name"),
+  fromItems: FROM.items.as("from_items"),
+  intoId: INTO.id.as("into_id"),
+  intoName: INTO.name.as("into_name"),
+  intoItems: INTO.items.as("into_items"),
   highlightId: sql<number | null>`${highlights.id}`.as("highlight_id"),
   quote: sql<string | null>`${highlights.exact}`.as("quote"),
   itemId: sql<number | null>`${items.id}`.as("item_id"),
@@ -96,10 +97,6 @@ export function pageQuery(db: Database, cursor: number | null) {
   return db
     .select(PAGE_COLUMNS)
     .from(proposals)
-    .leftJoin(fromTag, eq(fromTag.id, proposals.fromTagId))
-    .leftJoin(intoTag, eq(intoTag.id, proposals.intoTagId))
-    .leftJoin(fromTopic, eq(fromTopic.id, proposals.fromTopicId))
-    .leftJoin(intoTopic, eq(intoTopic.id, proposals.intoTopicId))
     .leftJoin(firstItem, eq(firstItem.id, proposals.fromItemId))
     .leftJoin(
       firstDigest,

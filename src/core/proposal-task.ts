@@ -33,6 +33,8 @@ export type SentSubject = z.infer<typeof SentSubjectSchema>;
 
 export type SentPair = z.infer<typeof SentPairSchema>;
 
+export type Sent = z.infer<typeof SentPairsSchema>;
+
 export interface ProposalsResult {
   readonly merges: readonly Readonly<{ from: number; into: number; reason: string }>[];
 }

@@ -1,61 +1,38 @@
-import { eq, sql } from "drizzle-orm";
-import { alias } from "drizzle-orm/sqlite-core";
+import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
-import { type CatalogKind, TAG_KIND, TOPIC_KIND } from "./catalog-key-links.ts";
-import type { Database } from "./database.ts";
 import { MERGE_KINDS } from "./kinds.ts";
-import type { MergeRow, PlanUnit } from "./merge-unit.ts";
-import { revisionOf } from "./proposal-lifecycle.ts";
-import { proposals, tags, topics } from "./schema.ts";
-import { planTagUnit } from "./tag-merge-unit.ts";
-import { planTopicUnit } from "./topic-merge-unit.ts";
+import type { MergeKindSpec, MergeSpecs } from "./merge-unit.ts";
+import { itemTags, items, logEntries, pins, proposals, tags, topics } from "./schema.ts";
+import { planTagUnit } from "./tag-merge.ts";
+import { planTopicUnit } from "./topic-merge.ts";
 
-export const MERGES = {
-  "tag-merge": { catalog: TAG_KIND, plan: planTagUnit },
-  "topic-merge": { catalog: TOPIC_KIND, plan: planTopicUnit },
-} as const satisfies Readonly<
-  Record<MergeRow["kind"], { readonly catalog: CatalogKind; readonly plan: PlanUnit }>
->;
+export const MERGE: MergeSpecs = {
+  "tag-merge": {
+    table: tags,
+    from: proposals.fromTagId,
+    into: proposals.intoTagId,
+    subjects: (from, into) => ({ fromTagId: from, intoTagId: into }),
+    pin: { column: pins.intoTagId, set: (id) => ({ intoTagId: id }) },
+    itemLink: { entry: itemTags.tagId, item: itemTags.itemId },
+    alsoLinked: [],
+    log: "merge",
+    plan: planTagUnit,
+  },
+  "topic-merge": {
+    table: topics,
+    from: proposals.fromTopicId,
+    into: proposals.intoTopicId,
+    subjects: (from, into) => ({ fromTopicId: from, intoTopicId: into }),
+    pin: { column: pins.intoTopicId, set: (id) => ({ intoTopicId: id }) },
+    itemLink: { entry: items.topicId, item: items.id },
+    alsoLinked: [logEntries.topicId],
+    log: "merge-topic",
+    plan: planTopicUnit,
+  },
+};
 
-const fromTag = alias(tags, "from_tag");
+export function acrossKinds<Value>(pick: (spec: MergeKindSpec) => SQLWrapper): SQL<Value> {
+  const picked = MERGE_KINDS.map((kind) => sql`${pick(MERGE[kind])}`);
 
-const intoTag = alias(tags, "into_tag");
-
-const fromTopic = alias(topics, "from_topic");
-
-const intoTopic = alias(topics, "into_topic");
-
-export async function readRow(db: Database, id: number): Promise<MergeRow | undefined> {
-  const [row] = await db
-    .select({
-      kind: proposals.kind,
-      state: proposals.state,
-      cursor: proposals.cursor,
-      revision: sql<number>`${revisionOf()}`.as("revision"),
-      fromId: sql<number>`coalesce(${fromTag.id}, ${fromTopic.id})`.as("from_id"),
-      fromKey: sql<string>`coalesce(${fromTag.key}, ${fromTopic.key})`.as("from_key"),
-      fromName: sql<string>`coalesce(${fromTag.name}, ${fromTopic.name})`.as("from_name"),
-      intoId: sql<number>`coalesce(${intoTag.id}, ${intoTopic.id})`.as("into_id"),
-      intoKey: sql<string>`coalesce(${intoTag.key}, ${intoTopic.key})`.as("into_key"),
-      intoName: sql<string>`coalesce(${intoTag.name}, ${intoTopic.name})`.as("into_name"),
-    })
-    .from(proposals)
-    .leftJoin(fromTag, eq(fromTag.id, proposals.fromTagId))
-    .leftJoin(intoTag, eq(intoTag.id, proposals.intoTagId))
-    .leftJoin(fromTopic, eq(fromTopic.id, proposals.fromTopicId))
-    .leftJoin(intoTopic, eq(intoTopic.id, proposals.intoTopicId))
-    .where(eq(proposals.id, id));
-
-  const kind = MERGE_KINDS.find((each) => each === row?.kind);
-
-  return row === undefined || kind === undefined
-    ? undefined
-    : {
-        kind,
-        state: row.state,
-        cursor: row.cursor,
-        revision: row.revision,
-        from: { id: row.fromId, key: row.fromKey, name: row.fromName },
-        into: { id: row.intoId, key: row.intoKey, name: row.intoName },
-      };
+  return sql<Value>`coalesce(${sql.join(picked, sql`, `)})`;
 }

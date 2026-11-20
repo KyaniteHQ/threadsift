@@ -4,6 +4,7 @@ import { AI_INPUT_BYTES } from "./ai-contract.ts";
 import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
 import type { MergeKind } from "./kinds.ts";
+import { MERGE } from "./merge-kinds.ts";
 import {
   type Candidate,
   type CandidatePair,
@@ -38,19 +39,14 @@ async function allPages(
   return [...page, ...(await allPages(readPage, last.id))];
 }
 
-const USED = {
-  "tag-merge": { table: tags, linked: itemTags, link: itemTags.tagId, counted: itemTags.itemId },
-  "topic-merge": { table: topics, linked: items, link: items.topicId, counted: items.id },
-} as const;
-
 function usedSubjects(db: Database, kind: MergeKind): Promise<readonly NamedCandidate[]> {
-  const { table, linked, link, counted } = USED[kind];
+  const { table, itemLink } = MERGE[kind];
 
   return allPages((after) =>
     db
-      .select({ id: table.id, key: table.key, name: table.name, items: count(counted) })
+      .select({ id: table.id, key: table.key, name: table.name, items: count(itemLink.item) })
       .from(table)
-      .innerJoin(linked, eq(link, table.id))
+      .innerJoin(itemLink.entry.table, eq(itemLink.entry, table.id))
       .where(gt(table.id, after))
       .groupBy(table.id)
       .orderBy(asc(table.id))
@@ -59,15 +55,16 @@ function usedSubjects(db: Database, kind: MergeKind): Promise<readonly NamedCand
 }
 
 async function knownPairs(db: Database, kind: MergeKind): Promise<ReadonlySet<string>> {
+  const spec = MERGE[kind];
+
   const rows = await db
-    .select({
-      from: sql<number>`coalesce(${proposals.fromTagId}, ${proposals.fromTopicId})`,
-      into: sql<number>`coalesce(${proposals.intoTagId}, ${proposals.intoTopicId})`,
-    })
+    .select({ from: spec.from, into: spec.into })
     .from(proposals)
     .where(eq(proposals.kind, kind));
 
-  return new Set(rows.map(({ from, into }) => pairKey(from, into)));
+  return new Set(
+    rows.flatMap(({ from, into }) => (from === null || into === null ? [] : [pairKey(from, into)])),
+  );
 }
 
 function mostUsed(rows: readonly Readonly<NameRow>[]): ReadonlyMap<number, readonly string[]> {

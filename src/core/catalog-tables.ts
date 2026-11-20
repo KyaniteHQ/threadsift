@@ -21,3 +21,5 @@ export const catalogVersion = sqliteTable(
   },
   (table) => [check("catalog_is_one_row", sql`${table.id} = 1`)],
 );
+
+export type CatalogTable = typeof topics | typeof tags;

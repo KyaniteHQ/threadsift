@@ -1,13 +1,13 @@
 import { and, count, desc, eq, inArray, sql } from "drizzle-orm";
 
-import { catalogKey } from "./catalog-key.ts";
 import type { Database } from "./database.ts";
 import { type ItemCursor, ITEMS_PAGE_SIZE, formatCursor } from "./item-page.ts";
 import { readDisagreements } from "./known-disagreements.ts";
 import { pageTail } from "./page-tail.ts";
 import { providerSet } from "./provider-saved.ts";
-import { digests, items, pins, topicPages, topics } from "./schema.ts";
+import { digests, items, topicPages } from "./schema.ts";
 import { hasOpenOverview, notBuiltFrom } from "./topic-coverage.ts";
+import { topicOfKey } from "./topic-lookup.ts";
 import {
   type BuiltFrom,
   type Overview,
@@ -15,34 +15,6 @@ import {
   citedIds,
   overviewState,
 } from "./topic-overview-contract.ts";
-import { topicKeyOfSegment } from "./topic-path.ts";
-
-export interface TopicRow {
-  readonly id: number;
-  readonly key: string;
-  readonly name: string;
-}
-
-export async function topicOfKey(db: Database, text: string): Promise<TopicRow | null> {
-  const key = catalogKey(topicKeyOfSegment(text));
-
-  if (key === "") return null;
-
-  const [topic] = await db
-    .select({ id: topics.id, key: topics.key, name: topics.name })
-    .from(topics)
-    .where(eq(topics.key, key));
-
-  if (topic !== undefined) return topic;
-
-  const [merged] = await db
-    .select({ id: topics.id, key: topics.key, name: topics.name })
-    .from(pins)
-    .innerJoin(topics, eq(topics.id, pins.intoTopicId))
-    .where(and(eq(pins.kind, "topic-merge"), eq(pins.fromKey, key)));
-
-  return merged ?? null;
-}
 
 function pageQuery(db: Database, topicId: number, cursor: Readonly<ItemCursor> | null) {
   const after =

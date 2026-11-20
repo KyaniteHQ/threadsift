@@ -1,12 +1,13 @@
 import { type SQL, and, eq, or, sql } from "drizzle-orm";
-import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import { catalogKey } from "./catalog-key.ts";
+import { catalogKey, renamedTags } from "./catalog-key.ts";
 import type { Database } from "./database.ts";
 import type { Digest } from "./digest-schema.ts";
 import { among } from "./guards.ts";
 import type { MergeKind } from "./kinds.ts";
-import { pins, tags, topics } from "./schema.ts";
+import { MERGE, acrossKinds } from "./merge-kinds.ts";
+import type { Side } from "./merge-unit.ts";
+import { pins } from "./schema.ts";
 
 interface Resolution {
   readonly kind: MergeKind;
@@ -21,54 +22,26 @@ interface PinnedDigest {
   readonly current: SQL;
 }
 
-export function renamedTags(
-  names: readonly string[],
-  rename: (key: string) => string | undefined,
-): readonly string[] {
-  const kept = new Map<string, string>();
-
-  for (const name of names) {
-    const renamed = rename(catalogKey(name)) ?? name;
-    const key = catalogKey(renamed);
-
-    if (!kept.has(key)) kept.set(key, renamed);
-  }
-
-  return [...kept.values()];
-}
-
-const MERGE_PINS = {
-  "tag-merge": { column: pins.intoTagId, into: (id: number) => ({ intoTagId: id }) },
-  "topic-merge": { column: pins.intoTopicId, into: (id: number) => ({ intoTopicId: id }) },
-} satisfies Readonly<
-  Record<
-    MergeKind,
-    {
-      readonly column: SQLiteColumn;
-      readonly into: (id: number) => Readonly<Record<string, number>>;
-    }
-  >
->;
-
 export function mergePinWrites(
   db: Database,
-  merge: Readonly<{
-    kind: MergeKind;
-    fromName: string;
-    loser: number;
-    survivor: number;
-  }>,
+  kind: MergeKind,
+  { from, into }: Readonly<{ from: Side; into: Side }>,
 ) {
-  const { kind, fromName, loser, survivor } = merge;
-  const { column, into: intoOf } = MERGE_PINS[kind];
-  const into = intoOf(survivor);
+  const { pin } = MERGE[kind];
+  const target = pin.set(into.id);
 
   return [
     db
       .insert(pins)
-      .values({ kind, fromKey: catalogKey(fromName), fromName, ...into, createdAt: Date.now() })
-      .onConflictDoUpdate({ target: [pins.kind, pins.fromKey], set: into }),
-    db.update(pins).set(into).where(eq(column, loser)),
+      .values({
+        kind,
+        fromKey: from.key,
+        fromName: from.name,
+        ...target,
+        createdAt: Date.now(),
+      })
+      .onConflictDoUpdate({ target: [pins.kind, pins.fromKey], set: target }),
+    db.update(pins).set(target).where(eq(pin.column, from.id)),
   ];
 }
 
@@ -79,7 +52,7 @@ function pinToken(id: number, target: number): string {
 function resolutionHolds(resolutions: readonly Readonly<Resolution>[]): SQL {
   const wanted = JSON.stringify(resolutions);
 
-  return sql`not exists (select 1 from json_each(${wanted}) as wanted where coalesce((select ${pins.id} || ':' || coalesce(${pins.intoTagId}, ${pins.intoTopicId}) from ${pins} where ${pins.kind} = json_extract(wanted.value, '$.kind') and ${pins.fromKey} = json_extract(wanted.value, '$.key')), '') <> json_extract(wanted.value, '$.pin'))`;
+  return sql`not exists (select 1 from json_each(${wanted}) as wanted where coalesce((select ${pins.id} || ':' || ${acrossKinds((spec) => spec.pin.column)} from ${pins} where ${pins.kind} = json_extract(wanted.value, '$.kind') and ${pins.fromKey} = json_extract(wanted.value, '$.key')), '') <> json_extract(wanted.value, '$.pin'))`;
 }
 
 function resolutionOf(
@@ -96,18 +69,31 @@ function pinsFor(db: Database, tagKeys: readonly string[], topicKey: string) {
       kind: pins.kind,
       key: pins.fromKey,
       id: pins.id,
-      target: sql<number>`coalesce(${pins.intoTagId}, ${pins.intoTopicId})`,
-      intoName: sql<string>`coalesce(${tags.name}, ${topics.name})`,
+      target: acrossKinds<number>((spec) => spec.pin.column),
+      intoName: acrossKinds<string>(
+        ({ table, pin }) =>
+          sql`(select ${table.name} from ${table} where ${table.id} = ${pin.column})`,
+      ),
     })
     .from(pins)
-    .leftJoin(tags, eq(tags.id, pins.intoTagId))
-    .leftJoin(topics, eq(topics.id, pins.intoTopicId))
     .where(
       or(
         and(eq(pins.kind, "tag-merge"), among(pins.fromKey, tagKeys)),
         and(eq(pins.kind, "topic-merge"), eq(pins.fromKey, topicKey)),
       ),
     );
+}
+
+export async function survivorOf(db: Database, kind: MergeKind, key: string): Promise<Side | null> {
+  const { table, pin } = MERGE[kind];
+
+  const [survivor] = await db
+    .select({ id: table.id, key: table.key, name: table.name })
+    .from(pins)
+    .innerJoin(table, eq(table.id, pin.column))
+    .where(and(eq(pins.kind, kind), eq(pins.fromKey, key)));
+
+  return survivor ?? null;
 }
 
 export async function pinnedDigest(

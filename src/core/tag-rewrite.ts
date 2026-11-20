@@ -1,8 +1,7 @@
-import { type SQL, type SQLWrapper, and, asc, eq, gt, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, gt, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { tagMoves } from "./catalog-key-links.ts";
-import { catalogKey } from "./catalog-key.ts";
+import { catalogKey, renamedTags } from "./catalog-key.ts";
 import type { Database } from "./database.ts";
 import type { Digest } from "./digest-schema.ts";
 import {
@@ -15,23 +14,45 @@ import {
 } from "./digest-stored.ts";
 import { report } from "./failure-log.ts";
 import { among } from "./guards.ts";
-import { renamedTags } from "./pins.ts";
+import type { Side } from "./merge-unit.ts";
 import { digests, items, itemTags } from "./schema.ts";
+import { siblingTags, tagPartWrites } from "./search.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 
 export const REWRITE_UNIT_ITEMS = 100;
-
-interface TagRef {
-  readonly id: number;
-  readonly key: string;
-  readonly name: string;
-}
 
 interface RewriteUnit {
   readonly itemIds: readonly number[];
   readonly last: number;
   readonly moving: SQL;
   readonly writes: readonly BatchItem<"sqlite">[];
+}
+
+function tagMoves(
+  db: Database,
+  loser: number,
+  survivor: number,
+  within: (column: Readonly<SQLWrapper>) => SQL,
+) {
+  return [
+    db
+      .update(itemTags)
+      .set({ tagId: survivor })
+      .where(
+        and(
+          eq(itemTags.tagId, loser),
+          within(itemTags.itemId),
+          notExists(
+            db
+              .select({ one: sql`1` })
+              .from(siblingTags)
+              .where(and(eq(siblingTags.itemId, itemTags.itemId), eq(siblingTags.tagId, survivor))),
+          ),
+        ),
+      ),
+    db.delete(itemTags).where(and(eq(itemTags.tagId, loser), within(itemTags.itemId))),
+    ...tagPartWrites(db, within(items.id)),
+  ];
 }
 
 function digestsUnchanged(reads: readonly DigestRead[]) {
@@ -42,7 +63,7 @@ function digestsUnchanged(reads: readonly DigestRead[]) {
 
 function mergedTags(
   { tags }: Readonly<Digest>,
-  { from, into }: Readonly<{ from: TagRef; into: TagRef }>,
+  { from, into }: Readonly<{ from: Side; into: Side }>,
 ): readonly string[] | null {
   if (!tags.some((name) => catalogKey(name) === from.key)) return null;
 
@@ -51,7 +72,7 @@ function mergedTags(
 
 function readableDigests(
   stored: readonly Readonly<StoredDigest>[],
-  merge: Readonly<{ from: TagRef; into: TagRef }>,
+  merge: Readonly<{ from: Side; into: Side }>,
 ) {
   return stored.flatMap((row) => {
     const read = readStoredDigest(row.digest);
@@ -89,7 +110,7 @@ function digestRewrites(db: Database, reading: Readonly<ReturnType<typeof readab
 
 export async function readRewrite(
   db: Database,
-  { from, into, after }: Readonly<{ from: TagRef; into: TagRef; after: number }>,
+  { from, into, after }: Readonly<{ from: Side; into: Side; after: number }>,
 ): Promise<RewriteUnit> {
   const linked = await db
     .select({ itemId: itemTags.itemId })
