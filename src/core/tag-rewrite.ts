@@ -70,6 +70,10 @@ function mergedTags(
   return renamedTags(tags, (key) => (key === from.key ? into.name : undefined));
 }
 
+function readsStoredTags({ tags }: Readonly<StoredDigest>, digest: Readonly<Digest>): boolean {
+  return tags !== null && JSON.stringify(JSON.parse(tags)) === JSON.stringify(digest.tags);
+}
+
 function readableDigests(
   stored: readonly Readonly<StoredDigest>[],
   merge: Readonly<{ from: Side; into: Side }>,
@@ -77,7 +81,7 @@ function readableDigests(
   return stored.flatMap((row) => {
     const read = readStoredDigest(row.digest);
 
-    if (read.kind === "unreadable") {
+    if (read.kind === "unreadable" || !readsStoredTags(row, read.digest)) {
       report("merge-digest-unreadable", { itemId: row.itemId });
 
       return [];
