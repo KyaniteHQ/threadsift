@@ -1,3 +1,4 @@
+import { SETTINGS_CHANGED } from "../../src/core/contract/ai-contract.ts";
 import type { ConnectNotice as Notice } from "../../src/core/contract/openrouter-contract.ts";
 import type { AiView } from "./ai-api.ts";
 import { AI_TEXT } from "./ai-text.ts";
@@ -11,7 +12,7 @@ export function ConnectNotes({ view }: Readonly<{ view: AiView }>) {
 
 const FAILURE_TEXT = {
   incomplete: AI_TEXT.connectIncomplete,
-  "settings-changed": AI_TEXT.connectSettingsChanged,
+  [SETTINGS_CHANGED]: AI_TEXT.connectSettingsChanged,
   "possible-orphan": AI_TEXT.connectPossibleOrphan,
 } as const;
 

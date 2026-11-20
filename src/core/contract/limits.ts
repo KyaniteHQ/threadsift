@@ -1,3 +1,9 @@
+export const STATEMENT_JSON_BYTES = 1_500_000;
+
+export const JSON_ARRAY_BRACKET_BYTES = 2;
+
+export const MAX_ROW_BYTES = STATEMENT_JSON_BYTES - JSON_ARRAY_BRACKET_BYTES;
+
 export const BODY_LIMIT_BYTES = 64 * 1024;
 
 export const ERROR_BODY_BYTES = 8 * 1024;

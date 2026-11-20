@@ -2,7 +2,7 @@ import { and, desc, eq, sql } from "drizzle-orm";
 
 import { AI_INPUT_BYTES } from "../contract/ai-contract.ts";
 import { utf8Length } from "../contract/encoding.ts";
-import { type BuiltFrom, citedIds } from "../contract/topic-overview-contract.ts";
+import { ADDED_READ_LIMIT, type BuiltFrom, citedIds } from "../contract/topic-overview-contract.ts";
 import type { Database } from "../kernel/database.ts";
 import { readStoredDigest } from "../kernel/digest-stored.ts";
 import { logFailure } from "../kernel/failure-log.ts";
@@ -10,8 +10,6 @@ import { digests, items, topicPages, topics } from "../kernel/schema.ts";
 import { among } from "../kernel/sql-expressions.ts";
 import { notBuiltFrom, removedItemIds } from "./topic-coverage.ts";
 import { overviewWithout } from "./topic-overview-prune.ts";
-
-export const ADDED_READ_LIMIT = 40;
 
 const ALL_ROWS = Number.MAX_SAFE_INTEGER;
 

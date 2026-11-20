@@ -9,7 +9,7 @@ import { ErrorResponseSchema, UnavailableResponseSchema } from "./schemas.ts";
 const BATCH_DIGEST_SCOPE =
   " An entry with a `digest` needs the `digest` scope as well, and the call saves nothing without it.";
 
-export const BATCH = access("add");
+const BATCH = access("add");
 
 export const batchRoute = createRoute({
   method: "post",

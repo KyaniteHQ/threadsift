@@ -1,11 +1,10 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
+import { DISAGREEMENTS_SHOWN } from "../contract/topic-overview-contract.ts";
 import type { Database } from "../kernel/database.ts";
 import { disagreementInTopic } from "../kernel/disagreement-sql.ts";
 import { pins } from "../kernel/schema.ts";
 import { firstDigest, firstItem, secondDigest, secondItem } from "./disagreement-rows.ts";
-
-export const DISAGREEMENTS_SHOWN = 20;
 
 interface Cursor {
   readonly at: number;

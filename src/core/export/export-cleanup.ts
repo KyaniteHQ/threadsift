@@ -1,19 +1,13 @@
 import { and, eq, inArray, lt, or } from "drizzle-orm";
 
-import {
-  EXPORT_CLEANUP_BATCH,
-  EXPORT_KEEP_MS,
-  EXPORT_SLICE_DEADLINE_MS,
-} from "../contract/export-contract.ts";
+import { EXPORT_CLEANUP_BATCH, EXPORT_KEEP_MS, SETTLE_MS } from "../contract/export-contract.ts";
 import { EXPORT_FILES_ROOT, exportFilesPrefix, parseStoredKey } from "../contract/file-keys.ts";
 import type { Database } from "../kernel/database.ts";
 import { logFailure, report } from "../kernel/failure-log.ts";
 import { deleteMatching, removeUnder } from "../kernel/file-pages.ts";
-import { CLAIM_MARGIN_MS, type JobPorts } from "../kernel/job-outcome.ts";
+import type { JobPorts } from "../kernel/job-outcome.ts";
 import { exportRuns } from "../kernel/schema.ts";
 import { among } from "../kernel/sql-expressions.ts";
-
-export const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 type CleanupPorts = Pick<JobPorts, "db" | "files">;
 

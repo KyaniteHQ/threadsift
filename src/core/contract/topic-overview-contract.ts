@@ -8,6 +8,10 @@ export const TopicKeyParamSchema = z.object({ key: z.string().min(1).max(CATALOG
 
 export const OVERVIEW_TEXT_MAX = 1500;
 
+export const ADDED_READ_LIMIT = 40;
+
+export const DISAGREEMENTS_SHOWN = 20;
+
 export const OVERVIEW_LINES_MAX = 5;
 
 export const OVERVIEW_FAILURES = ["gave-up", ...AiRefusalSchema.options] as const;

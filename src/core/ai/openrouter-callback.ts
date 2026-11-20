@@ -16,8 +16,10 @@ const CallbackQuerySchema = z.object({
 
 export async function completeOpenRouterConnect(
   ports: Ports,
-  { sessionId, search }: Readonly<{ sessionId: string; search: string }>,
+  { sessionId, search }: Readonly<{ sessionId: string | undefined; search: string }>,
 ): Promise<ConnectNotice> {
+  if (sessionId === undefined) return "incomplete";
+
   const query = new URLSearchParams(search);
 
   const parameters = CallbackQuerySchema.safeParse({

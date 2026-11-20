@@ -5,10 +5,10 @@ import { z } from "zod";
 import { presentedToken } from "../core/access/bearer.ts";
 import { type OriginPolicy, originPolicyOf, unlistedPart } from "../core/access/own-origin.ts";
 import type { Ports } from "../core/kernel/ports.ts";
-import { refusedBearer } from "./bearer.ts";
+import { challengeOf, refusedBearer } from "./bearer.ts";
 import { senderOf } from "./sender.ts";
 
-export interface McpEnv {
+interface McpEnv {
   Variables: { caller: AuthInfo };
 }
 
@@ -33,9 +33,11 @@ export function mcpGate(ports: Ports): MiddlewareHandler<McpEnv> {
     const authorization = c.req.header("authorization");
 
     if (authorization === undefined) {
-      return c.json({ error: "Send an agent token as a bearer token" }, 401, {
-        "WWW-Authenticate": "Bearer",
-      });
+      return c.json(
+        { error: "Send an agent token as a bearer token" },
+        401,
+        challengeOf("missing"),
+      );
     }
 
     const presented = await presentedToken(ports, authorization);

@@ -1,8 +1,8 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
 import { byteSize } from "../core/contract/format.ts";
+import { MAX_ROW_BYTES } from "../core/contract/limits.ts";
 import { IntakeAnswerSchema } from "../core/contract/x-intake-contract.ts";
-import { MAX_ROW_BYTES } from "../core/thread/thread-rows.ts";
 import { ITEM_CAP, access, tooLarge } from "./access.ts";
 import { countedRefusals } from "./intake-body.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";

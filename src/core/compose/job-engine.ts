@@ -13,15 +13,10 @@ import {
 } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import { JOB_KINDS } from "../contract/job-contract.ts";
+import { CLAIM_MARGIN_MS, JOB_KINDS } from "../contract/job-contract.ts";
 import type { Database } from "../kernel/database.ts";
 import { logFailure } from "../kernel/failure-log.ts";
-import {
-  CLAIM_MARGIN_MS,
-  type ClaimedRow,
-  type JobPorts,
-  claimedRow,
-} from "../kernel/job-outcome.ts";
+import { type ClaimedRow, type JobPorts, claimedRow } from "../kernel/job-outcome.ts";
 import { isSpent, retryDelayMs } from "../kernel/job-retry.ts";
 import { ATTEMPT_FILES, hasOpenJob } from "../kernel/job-rows.ts";
 import type { InputFact, JobSpec, Specs } from "../kernel/job-spec.ts";

@@ -65,7 +65,6 @@ export const AiSettingsViewSchema = z.object({
 export type AiSettingsView = z.infer<typeof AiSettingsViewSchema>;
 
 export const AiSaveResponseSchema = z.union([AiSettingsViewSchema, AiRefusedSchema]);
-export type AiSaveResponse = z.infer<typeof AiSaveResponseSchema>;
 
 export const VerifyResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("done"), taskId: z.number().int(), digest: DigestSchema }),

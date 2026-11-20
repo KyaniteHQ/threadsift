@@ -2,13 +2,13 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import { PAGE_SIZE } from "../core/contract/paging.ts";
 import {
+  DISAGREEMENTS_SHOWN,
   OVERVIEW_LINES_MAX,
   OverviewRetryResponseSchema,
   TopicKeyParamSchema,
   TopicPageSchema,
 } from "../core/contract/topic-overview-contract.ts";
 import type { Ports } from "../core/kernel/ports.ts";
-import { DISAGREEMENTS_SHOWN } from "../core/wiki/known-disagreements.ts";
 import { readTopicPage } from "../core/wiki/topic-page.ts";
 import { retryOverview } from "../core/wiki/topic-retry.ts";
 import { access } from "./access.ts";
