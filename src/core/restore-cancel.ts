@@ -1,7 +1,5 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { removeUnder } from "./file-cleanup.ts";
-import { restoreFilesPrefix } from "./file-keys.ts";
 import { guardedResults, guardedWrite } from "./guards.ts";
 import { closeRunJobs } from "./job-close.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -10,11 +8,13 @@ import { START_UNDO } from "./restore-contract.ts";
 import {
   NEWEST_RESTORE,
   RESUMABLE_RESTORE,
-  holdsEveryPart,
-  isNewestRestore,
-  restoreById,
+  UNDOABLE_RESTORE,
+  UNDOING_RESTORE,
+  cancelling,
   resumable,
-} from "./restore-state.ts";
+} from "./restore-hold.ts";
+import { removeParts } from "./restore-parts.ts";
+import { holdsEveryPart, isNewestRestore, restoreById } from "./restore-state.ts";
 import { openingRestoreJob } from "./restore-unit.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 
@@ -32,8 +32,6 @@ export type ResumedRestore =
   | { readonly kind: "not-resumable" }
   | { readonly kind: "incomplete-upload" };
 
-const RUNNING_AGAIN = sql`${restoreRuns.state} = 'running'`;
-
 async function cancelledUpload({ db, files }: Pick<JobPorts, "db" | "files">, id: number) {
   const now = Date.now();
 
@@ -43,7 +41,7 @@ async function cancelledUpload({ db, files }: Pick<JobPorts, "db" | "files">, id
     .where(and(eq(restoreRuns.id, id), eq(restoreRuns.state, "uploading")))
     .returning({ id: restoreRuns.id });
 
-  if (ended.length > 0) await removeUnder(files, restoreFilesPrefix(id));
+  if (ended.length > 0) await removeParts(files, id);
 
   return ended.length > 0;
 }
@@ -51,7 +49,7 @@ async function cancelledUpload({ db, files }: Pick<JobPorts, "db" | "files">, id
 async function undoing(ports: JobPorts, id: number): Promise<boolean> {
   const { db } = ports;
 
-  const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and (${restoreRuns.state} = 'failed' or (${RUNNING_AGAIN} and ${restoreRuns.phase} <> 'undoing'))`;
+  const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${UNDOABLE_RESTORE}`;
 
   const written = await guardedResults(
     db,
@@ -68,10 +66,7 @@ async function undoing(ports: JobPorts, id: number): Promise<boolean> {
         })
         .where(waiting),
       closeRunJobs(db, "restore", id),
-      openingRestoreJob(
-        db,
-        sql`${restoreRuns.id} = ${id} and ${RUNNING_AGAIN} and ${restoreRuns.phase} = 'undoing'`,
-      ),
+      openingRestoreJob(db, sql`${restoreRuns.id} = ${id} and ${UNDOING_RESTORE}`),
     ],
   );
 
@@ -87,9 +82,7 @@ async function endedByUndo(ports: JobPorts, run: Readonly<RestoreRow>): Promise<
 
   if (await undoing(ports, run.id)) return { kind: "undoing" };
 
-  return run.state === "running" && run.phase === "undoing"
-    ? { kind: "undoing" }
-    : cancelRestore(ports, run.id);
+  return cancelling(run) ? { kind: "undoing" } : cancelRestore(ports, run.id);
 }
 
 export async function cancelRestore(ports: JobPorts, id: number): Promise<CancelledRestore> {
@@ -101,7 +94,7 @@ export async function cancelRestore(ports: JobPorts, id: number): Promise<Cancel
     case "done":
       return { kind: "finished" };
     case "cancelled":
-      await removeUnder(ports.files, restoreFilesPrefix(id));
+      await removeParts(ports.files, id);
 
       return { kind: "cancelled" };
     case "uploading":

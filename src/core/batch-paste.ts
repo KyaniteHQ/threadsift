@@ -5,8 +5,8 @@ import type { Digest } from "./digest-schema.ts";
 import type { ImportCursor, ImportWrite } from "./import-contract.ts";
 import { saveImport } from "./import-cursor.ts";
 import type { ListedItemRow } from "./item-selection.ts";
-import { type Closed, whileOpen } from "./library-gate.ts";
 import type { Ports } from "./ports.ts";
+import { type Closed, whileOpen } from "./restore-hold.ts";
 import { saveItem } from "./save-link.ts";
 
 interface BatchLink {

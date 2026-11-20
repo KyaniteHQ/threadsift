@@ -1,9 +1,9 @@
 import { type Budgeted, withinBudget } from "./agent-token-budget.ts";
 import type { Caller } from "./caller.ts";
-import { type Closed, whileOpen } from "./library-gate.ts";
 import { isRefusedLink } from "./links.ts";
 import type { Refused } from "./paste-outcome.ts";
 import type { Ports } from "./ports.ts";
+import { type Closed, whileOpen } from "./restore-hold.ts";
 
 type OwnerCaller = Extract<Caller, { readonly kind: "owner" }>;
 

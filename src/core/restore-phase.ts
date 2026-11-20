@@ -1,4 +1,7 @@
+import { z } from "zod";
+
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
+import { RUNNING_RESTORE_PHASES } from "./kinds.ts";
 import { checkUnit } from "./restore-check-unit.ts";
 import { tablesUnit } from "./restore-copy.ts";
 import { filesUnit } from "./restore-files.ts";
@@ -9,12 +12,16 @@ import { undoUnit } from "./restore-undo.ts";
 import type { RestoreRow } from "./schema.ts";
 import type { ZipSource } from "./zip-read.ts";
 
+const RunningPhaseSchema = z.enum(RUNNING_RESTORE_PHASES);
+
 export function phaseUnit(
   ports: JobPorts,
   run: Readonly<RestoreRow>,
   source: Readonly<ZipSource>,
 ): Promise<JobOutcome> {
-  switch (run.phase) {
+  const phase = RunningPhaseSchema.parse(run.phase);
+
+  switch (phase) {
     case "check":
       return checkUnit(ports, run, source);
     case "tables":
@@ -29,9 +36,7 @@ export function phaseUnit(
       return finishUnit(ports, run, source);
     case "undoing":
       return undoUnit(ports, run);
-    case "upload":
-      throw new Error(`Restore ${String(run.id)} runs in its upload phase`);
     default:
-      return run.phase satisfies never;
+      return phase satisfies never;
   }
 }

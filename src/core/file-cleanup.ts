@@ -7,7 +7,7 @@ import type { FileStore } from "./file-store.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ATTEMPT_FILES } from "./job-rows.ts";
 import { NAMED_FILES } from "./named-files.ts";
-import { restoreHoldsLibrary } from "./restore-state.ts";
+import { restoreHoldsLibrary } from "./restore-hold.ts";
 import { fileCleaning, jobs } from "./schema.ts";
 
 const CLEANUP_PAGE_KEYS = 100;

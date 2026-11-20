@@ -1,7 +1,8 @@
-import { eq, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
 import { type Cursor, CursorSchema, START_FILES } from "./restore-contract.ts";
+import { writingRows } from "./restore-hold.ts";
 import { insertRows, knownTable } from "./restore-rows.ts";
 import { tallied } from "./restore-tally.ts";
 import { continuation, precondition, steppedUnit } from "./restore-unit.ts";
@@ -34,20 +35,12 @@ export async function tablesUnit(
   };
 
   return {
-    writes: [
-      db.update(restoreRuns).set({ writing: 1 }).where(eq(restoreRuns.id, run.id)),
-      insertRows(db, spec, lines),
-      db
-        .update(restoreRuns)
-        .set({
-          writing: 0,
-          cursor: JSON.stringify(next),
-          restored: tallied(restoreRuns.restored, spec.name, sql`changes()`),
-          dropped: tallied(restoreRuns.dropped, spec.name, sql`${lines.length} - changes()`),
-          updatedAt: Date.now(),
-        })
-        .where(eq(restoreRuns.id, run.id)),
-    ],
+    writes: writingRows(db, run.id, insertRows(db, spec, lines), {
+      cursor: JSON.stringify(next),
+      restored: tallied(restoreRuns.restored, spec.name, sql`changes()`),
+      dropped: tallied(restoreRuns.dropped, spec.name, sql`${lines.length} - changes()`),
+      updatedAt: Date.now(),
+    }),
     precondition: precondition(db, run),
     continuation: continuation(db, run),
   };

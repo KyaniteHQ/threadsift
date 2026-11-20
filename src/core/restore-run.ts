@@ -6,7 +6,8 @@ import { refusedBy } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
 import { partLength, partsOf } from "./restore-contract.ts";
-import { libraryIsEmpty, restoreById, resumable } from "./restore-state.ts";
+import { needsParts } from "./restore-hold.ts";
+import { libraryIsEmpty, restoreById } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";
 
 const ONE_OPEN_RESTORE = /UNIQUE constraint failed: (?:index 'restores_one_open'|restores\.)/u;
@@ -82,7 +83,7 @@ export async function storePart(
 
   const after = await restoreById(db, id);
 
-  if (after !== null && (after.state === "running" || resumable(after))) return { kind: "stored" };
+  if (after !== null && needsParts(after)) return { kind: "stored" };
 
   await files.delete([key]);
 

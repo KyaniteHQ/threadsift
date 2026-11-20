@@ -2,12 +2,23 @@ import { and, eq, gte, inArray, lt, or } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
-import { FILE_LIST_LIMIT, RESTORE_FILES_ROOT, parseStoredKey } from "./file-keys.ts";
+import { removeUnder } from "./file-cleanup.ts";
+import {
+  FILE_LIST_LIMIT,
+  RESTORE_FILES_ROOT,
+  parseStoredKey,
+  restoreFilesPrefix,
+} from "./file-keys.ts";
+import type { FileStore } from "./file-store.ts";
 import { among } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { RESTORE_PARTS_KEEP_MS } from "./restore-contract.ts";
-import { NEWEST_RESTORE, RESUMABLE_RESTORE } from "./restore-state.ts";
+import { NEWEST_RESTORE, RESUMABLE_RESTORE } from "./restore-hold.ts";
 import { restoreRuns } from "./schema.ts";
+
+export function removeParts(files: FileStore, id: number) {
+  return removeUnder(files, restoreFilesPrefix(id));
+}
 
 type PartPorts = Pick<JobPorts, "db" | "files">;
 
