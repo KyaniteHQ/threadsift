@@ -6,8 +6,7 @@ import type { Database } from "./database.ts";
 import type { LogAction, FieldOf, LOG } from "./log-actions.ts";
 import type { LogEntry } from "./log-contract.ts";
 import { digests, logEntries, proposals, topics } from "./schema.ts";
-import { logMonthAt } from "./vault-log-month.ts";
-import { queueVaultNotes } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 interface Leaves {
   readonly item: Readonly<{ id: number; title: SQLWrapper | string }>;
@@ -59,10 +58,7 @@ function appended<Action extends LogAction>(
       .where(source.where),
   );
 
-  return [
-    write,
-    queueVaultNotes(db, { kind: "log-month", id: logMonthAt(at), when: sql`changes() > 0` }),
-  ] as const;
+  return [write, ...STALE.logAppended(db, at)] as const;
 }
 
 const TOPIC_ROW = { id: topics.id, name: topics.name };

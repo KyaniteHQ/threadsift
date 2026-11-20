@@ -16,7 +16,7 @@ import { highlightPartWrites } from "./search.ts";
 import { projectText } from "./text-projection.ts";
 import { readableBody } from "./thread-read.ts";
 import { readGeneration } from "./thread-store.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 type CreatedHighlight =
   | { readonly kind: "created" | "existing"; readonly highlight: Highlight }
@@ -117,7 +117,7 @@ async function saveHighlight(
       db,
       sql`${revisionHolds(itemId, request.target, request.revision)} and not exists ${existingHighlight(db, itemId, request)}`,
       highlightInsert(db, itemId, request).returning(),
-      [...highlightPartWrites(db, item), queueVaultItems(db, item)],
+      [...highlightPartWrites(db, item), ...STALE.itemChanged(db, item)],
     )) ?? [];
 
   return saved ?? null;
@@ -188,7 +188,7 @@ export function removalWrites(db: Database, itemId: number, highlightId: number)
     db
       .delete(searchParts)
       .where(and(eq(searchParts.highlightId, highlightId), eq(searchParts.itemId, itemId))),
-    queueVaultItems(db, sql`${eq(items.id, itemId)} and ${held}`),
+    ...STALE.itemChanged(db, sql`${eq(items.id, itemId)} and ${held}`),
     db.delete(highlights).where(target).returning({ id: highlights.id }),
   ] as const;
 }

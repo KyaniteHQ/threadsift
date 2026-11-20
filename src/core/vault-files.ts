@@ -115,7 +115,7 @@ async function prepareSubject(
   reader: Reader,
   note: PendingVaultNote,
   budget: number,
-): Promise<Prepared & { oversized: readonly string[]; logMonthsChanged: boolean }> {
+): Promise<Prepared & Pick<VaultBatch, "oversized" | "logMonthsChanged">> {
   const { files, oversized } = await subjectFiles(reader, note);
   const previous = await reader.target.files(note);
   const saved = await reader.ports.db

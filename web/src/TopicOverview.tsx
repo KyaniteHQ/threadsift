@@ -1,13 +1,14 @@
 import { itemPath } from "../../src/core/item-path.ts";
-import { type Overview, overviewLines } from "../../src/core/topic-overview-contract.ts";
+import {
+  type Overview,
+  citationId,
+  overviewLines,
+  overviewTokens,
+} from "../../src/core/topic-overview-contract.ts";
 import { keyed } from "./keyed.ts";
 import { useNavigateLink } from "./routing.ts";
 import { RETRY_LABEL } from "./text.ts";
 import { TOPIC_PAGE, builtFromLabel, citationLabel } from "./topic-text.ts";
-
-const CITATION = /(\[\d{1,19}\])/u;
-
-const CITATION_ID = /^\[(\d+)\]$/u;
 
 type Cited = Overview["cited"][number];
 
@@ -43,12 +44,12 @@ function Line({
 }>) {
   return (
     <p className="tp-line" dir="auto">
-      {keyed(line.split(CITATION)).map(({ key, text }) => {
-        const id = CITATION_ID.exec(text)?.[1];
+      {keyed(overviewTokens(line)).map(({ key, text }) => {
+        const id = citationId(text);
 
-        if (id === undefined) return text;
+        if (id === null) return text;
 
-        const source = cited.find((candidate) => candidate.id === Number(id));
+        const source = cited.find((candidate) => candidate.id === id);
 
         return source === undefined ? null : (
           <Citation key={key} source={source} navigate={navigate} />

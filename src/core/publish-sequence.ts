@@ -10,8 +10,7 @@ import { fetchedPartWrites } from "./search.ts";
 import type { Settled } from "./settle.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import type { Owner } from "./thread-store.ts";
-import { queueVaultItems } from "./vault-queue.ts";
-import { queueVaultFetchedTitle } from "./vault-wiki-writes.ts";
+import { STALE } from "./vault-stale.ts";
 
 export interface ItemAt {
   readonly where: SQL;
@@ -40,7 +39,7 @@ function sequenced(
 
   return {
     writes: [
-      ...(title === undefined ? [] : queueVaultFetchedTitle(db, where, title)),
+      ...(title === undefined ? [] : STALE.fetchedTitle(db, where, title)),
       ...closing,
       db
         .update(items)
@@ -54,7 +53,7 @@ function sequenced(
       ...(title === undefined ? [] : fetchedPartWrites(db, where, postText)),
       ...afterParts,
       ...(replaces ? digestAfterFetch(db, { itemId: owner.id, address }) : []),
-      ...(fields.fetch === "ok" ? [queueVaultItems(db, where)] : []),
+      ...(fields.fetch === "ok" ? STALE.itemChanged(db, where) : []),
     ],
     files,
   };

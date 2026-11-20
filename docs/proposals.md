@@ -333,7 +333,7 @@ Every `proposals` and `pins` row has a generated id that is never reused (`AUTOI
 
 An Item delete changes no merge Pin and no merge row, because a Pin of a merge, a `merge` or `merge-topic` entry, and a merge Proposal name no Item.
 
-A disagreement Pin and an `items-disagree` row name two Items and go with either of them. `deleteItem` deletes them before the Item, and the cascade on both columns deletes them if `deleteItem` missed one. The `highlight-lost` rows that name a Highlight of the Item go in any state in the same way, because the quote the row showed is the owner's own text, kept nowhere else.
+A disagreement Pin and an `items-disagree` row name two Items and go with either of them. The cascade on both Pin columns deletes the Pin. `deleteItem` deletes the row before the Item (`goneWithItem`), and the cascade on both columns would delete it too. The `highlight-lost` rows that name a Highlight of the Item go in any state in the same way, because the quote the row showed is the owner's own text, kept nowhere else.
 
 The reason on a disagreement Pin is the agent's own sentence and cites no Item text beyond what the agent wrote. That claim is not verified (`docs/architecture/open-items-and-unverified-claims.md`). The Summaries a disagreement row showed stay in the Digests and in no row. The AI task's `inputs` keep the Item titles and Summaries of the Topics that were sent, until the owner Item or the task goes.
 

@@ -7,7 +7,7 @@ import { refusedBy } from "./guards.ts";
 import type { RestoreFailure } from "./restore-contract.ts";
 import { listed } from "./schema-checks.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
-import { queueVaultLibrary } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 const REFUSED_BY_TRIGGER = /items_restoring: /u;
 
@@ -149,5 +149,5 @@ export type Ending =
   | { readonly state: "failed"; readonly failure: RestoreFailure; readonly updatedAt: number };
 
 export function mirrorAfter(db: Database, ending: Ending["state"]) {
-  return ending === "failed" ? [] : queueVaultLibrary(db);
+  return ending === "failed" ? [] : STALE.library(db);
 }

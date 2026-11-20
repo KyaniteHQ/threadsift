@@ -26,7 +26,7 @@ import {
   promotableFailedItem,
   recordAlias,
 } from "./short-link-aliases.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 type FailedFetch = Exclude<Concluded, { status: "ok" }>;
 
@@ -69,7 +69,7 @@ async function promotedAndKept(
 
     return db.batch([
       insertGuard(db, noRival),
-      queueVaultItems(db, sql`${promotable} and ${changed}`),
+      ...STALE.itemChanged(db, sql`${promotable} and ${changed}`),
       promoteFailedItem(db, shortLink, link),
       recordAlias(db, shortLink, paste.address, link),
       itemRead(db, eq(items.normalizedUrl, link.normalizedUrl)),
@@ -129,7 +129,7 @@ async function insertedFailure(
         ...settle(fetched, null, now),
       }),
       itemRead(db, itemKey),
-      queueVaultItems(db, itemKey),
+      ...STALE.itemChanged(db, itemKey),
       db.delete(guards),
     ]),
   );

@@ -4,7 +4,7 @@ import type { Database } from "./database.ts";
 import { storedWithTopic } from "./digest-stored.ts";
 import { digests, items, logEntries, topics } from "./schema.ts";
 import { among } from "./sql-expressions.ts";
-import { queueVaultIndex, queueVaultItems, queueVaultTopics } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 const MERGE_ITEMS = 500;
 
@@ -44,12 +44,9 @@ export function topicMoves(
 ) {
   const survivorName = sql`(select ${topics.name} from ${topics} where ${topics.id} = ${survivor})`;
   const moving = and(eq(items.topicId, loser), among(items.id, itemIds));
-  const moved = sql`exists (select 1 from ${items} where ${moving})`;
 
   return [
-    queueVaultItems(db, sql`${moving}`),
-    queueVaultTopics(db, sql`${topics.id} in (${loser}, ${survivor}) and ${moved}`),
-    queueVaultIndex(db, moved),
+    ...STALE.topicMoved(db, { loser, survivor, moving }),
     db
       .update(digests)
       .set({

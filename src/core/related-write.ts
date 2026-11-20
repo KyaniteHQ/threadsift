@@ -7,11 +7,11 @@ import { loggedRelated } from "./log-writes.ts";
 import { type Version, versionsHold } from "./related-input.ts";
 import type { RelatedResult } from "./related-task.ts";
 import { digests, items, relatedItems } from "./schema.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 function replacedSet(db: Database, sourceId: number, picks: RelatedResult["picks"]): JobWrites {
   return [
-    queueVaultItems(
+    ...STALE.itemChanged(
       db,
       sql`${items.id} = ${sourceId} and (select json_group_array(json_object('item', ${relatedItems.relatedId}, 'reason', ${relatedItems.reason}) order by ${relatedItems.position}) from ${relatedItems} where ${relatedItems.itemId} = ${sourceId}) <> ${JSON.stringify(picks)}`,
     ),

@@ -11,7 +11,7 @@ import { pinnedDigest } from "./pins.ts";
 import { UninitializedDatabase, catalogVersion, items, itemTags, tags, topics } from "./schema.ts";
 import { amongJson } from "./sql-expressions.ts";
 import { openingOverview } from "./topic-overview-run.ts";
-import { queueVaultDigestWiki } from "./vault-wiki-writes.ts";
+import { STALE } from "./vault-stale.ts";
 
 function catalogEntries(digest: Readonly<Digest>) {
   const names = new Map<string, { readonly key: string; readonly name: string }>();
@@ -111,7 +111,7 @@ function linkingDigest(db: Database, itemId: number, entries: CatalogEntries, ti
     db.insert(topics).values(entries.topic).onConflictDoNothing({ target: topics.key }),
     bumpVersion(db),
     ...loggedTopic(db, entries.topic.key),
-    ...queueVaultDigestWiki(db, { itemId, title, topicKey: entries.topic.key }),
+    ...STALE.digestLinked(db, { itemId, title, topicKey: entries.topic.key }),
     db
       .insert(tags)
       .select(

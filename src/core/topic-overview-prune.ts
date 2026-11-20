@@ -1,16 +1,15 @@
-import { citedIds } from "./topic-overview-contract.ts";
-import { overviewText } from "./topic-overview-task.ts";
-
-const SOURCED_LINE = /^(.*?\S)\s*((?:\[\d{1,19}\])+)$/u;
+import { overviewText, sourcedLine } from "./topic-overview-contract.ts";
 
 function withoutGone(row: string, gone: readonly number[]): readonly string[] {
-  const [, text = "", sources = ""] = SOURCED_LINE.exec(row.trim()) ?? [];
+  const sourced = sourcedLine(row);
 
-  const items = citedIds(sources);
+  if (sourced === null) return [row];
+
+  const { text, items } = sourced;
 
   const remaining = items.filter((id) => !gone.includes(id));
 
-  if (text === "" || remaining.length === items.length) return [row];
+  if (remaining.length === items.length) return [row];
 
   return remaining.length === 0 ? [] : [overviewText({ lines: [{ text, items: remaining }] })];
 }

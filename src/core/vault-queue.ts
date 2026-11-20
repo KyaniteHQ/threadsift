@@ -16,8 +16,6 @@ import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { Database } from "./database.ts";
 import { report } from "./failure-log.ts";
 import { hasOpenJob } from "./job-rows.ts";
-import { items, logEntries, topics } from "./schema.ts";
-import { logMonthColumn } from "./vault-log-month.ts";
 import type { VaultNoteFailure } from "./vault-note-failure.ts";
 import { mirrorNotes, vaultSettings, type VaultKind } from "./vault-tables.ts";
 
@@ -55,50 +53,6 @@ export function queueVaultNotes(db: Database, { kind, id, from, when }: Readonly
       target: [mirrorNotes.kind, mirrorNotes.subjectId],
       set: { sequence: sql`excluded.sequence`, retryAt: 0 },
     });
-}
-
-export function queueVaultItems(db: Database, when: Readonly<SQLWrapper>) {
-  return queueVaultNotes(db, { kind: "item", id: items.id, from: items, when });
-}
-
-export function queueVaultTopics(db: Database, when: Readonly<SQLWrapper>) {
-  return queueVaultNotes(db, { kind: "topic", id: topics.id, from: topics, when });
-}
-
-export function queueVaultIndex(db: Database, when: Readonly<SQLWrapper>) {
-  return queueVaultNotes(db, { kind: "index", id: 0, when });
-}
-
-export function queueVaultLog(db: Database, when: Readonly<SQLWrapper>) {
-  return queueVaultNotes(db, { kind: "log", id: 0, when });
-}
-
-export function queueVaultLogMonths(db: Database, when: Readonly<SQLWrapper>) {
-  const months = db
-    .selectDistinct({ month: logMonthColumn(logEntries.at).as("month") })
-    .from(logEntries)
-    .where(sql`${when}`)
-    .as("months");
-
-  return queueVaultNotes(db, {
-    kind: "log-month",
-    id: sql`months.month`,
-    from: sql`${months}`,
-    when: sql`months.month is not null`,
-  });
-}
-
-export function queueVaultLibrary(db: Database) {
-  const all = sql`1`;
-
-  return [
-    queueVaultItems(db, all),
-    queueVaultTopics(db, all),
-    queueVaultIndex(db, all),
-    queueVaultLogMonths(db, all),
-    queueVaultLog(db, all),
-    db.update(vaultSettings).set({ scanPending: true }),
-  ];
 }
 
 export async function parkVaultNote(

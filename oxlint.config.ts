@@ -15,6 +15,25 @@ const CANNOT_THROW = {
 
 const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];
 
+const PORT_PATTERNS = [
+  {
+    regex: "^(node|cloudflare):",
+    message:
+      "src/core/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture/one-codebase-two-install-targets.md).",
+  },
+  {
+    regex: "(^|[/#@])targets(/|$)",
+    message:
+      "src/core/ and src/http/ never import an adapter; the target entry passes ports in through createApp(ports).",
+  },
+];
+
+const VAULT_QUEUE_PATTERN = {
+  regex: "(^|/)vault-queue\\.ts$",
+  message:
+    "A writer declares which Vault notes its change makes stale in STALE (src/core/vault-stale.ts); only the vault modules import vault-queue.ts (docs/architecture/vault-mirror.md, Queue).",
+};
+
 const WEB_FETCH = {
   name: "fetch",
   message:
@@ -188,22 +207,13 @@ export default defineConfig({
         "threadsift/static-import-source": "error",
         "eslint/no-restricted-imports": [
           "error",
-          {
-            patterns: [
-              {
-                regex: "^(node|cloudflare):",
-                message:
-                  "src/core/ and src/http/ run on both targets; a runtime module belongs in an adapter under src/targets/ (docs/architecture/one-codebase-two-install-targets.md).",
-              },
-              {
-                regex: "(^|[/#@])targets(/|$)",
-                message:
-                  "src/core/ and src/http/ never import an adapter; the target entry passes ports in through createApp(ports).",
-              },
-            ],
-          },
+          { patterns: [...PORT_PATTERNS, VAULT_QUEUE_PATTERN] },
         ],
       },
+    },
+    {
+      files: ["src/core/vault-*.ts"],
+      rules: { "eslint/no-restricted-imports": ["error", { patterns: PORT_PATTERNS }] },
     },
     {
       files: ["src/core/**", "src/http/**", "web/**"],
