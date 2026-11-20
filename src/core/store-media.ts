@@ -1,13 +1,18 @@
-import { type MediaRowValue, prepareMedia } from "./article-images.ts";
+import { type ImageRules, type MediaRowValue, prepareMedia } from "./article-images.ts";
 import type { Concluded, Content } from "./details.ts";
 import type { ClaimedJob, JobPorts } from "./job-outcome.ts";
-import { statusIdOf } from "./links.ts";
+import { isRedditOrXLink, statusIdOf } from "./links.ts";
 import { scanMarkdown } from "./markdown-images.ts";
 import { isXImageUrl } from "./x-images.ts";
 
 const X_ORIGIN = "https://x.com/";
 
-const PHOTO_NOT_SAVED = "A photo was not saved.";
+const ARTICLE_IMAGE_RULES: ImageRules = { stopAt: isRedditOrXLink, unsaved: null };
+
+const X_PHOTO_RULES: ImageRules = {
+  stopAt: (address) => !isXImageUrl(address),
+  unsaved: "A photo was not saved.",
+};
 
 interface StoredMedia {
   readonly fetched: Concluded;
@@ -50,18 +55,10 @@ async function storeThreadMedia(
 
   if (images.length === 0) return nothing(fetched);
 
-  const sink = {
-    network: ports.network,
-    files: ports.files,
-    crypto: ports.crypto,
-    stopAt: (address: string) => !isXImageUrl(address),
-    unsaved: PHOTO_NOT_SAVED,
-  };
-
   const plan = await prepareMedia(
-    sink,
+    ports,
     job.imagePrefix,
-    { postText, videos: [], images, url: X_ORIGIN },
+    { postText, videos: [], images, url: X_ORIGIN, rules: X_PHOTO_RULES },
     deadline,
   );
 
@@ -86,7 +83,12 @@ export async function storeMedia(
 
   if (content.kind !== "article" && content.kind !== "page") return nothing(fetched);
 
-  const plan = await prepareMedia(ports, job.imagePrefix, content, deadline);
+  const plan = await prepareMedia(
+    ports,
+    job.imagePrefix,
+    { ...content, rules: ARTICLE_IMAGE_RULES },
+    deadline,
+  );
 
   return withContent(fetched, { ...content, postText: plan.postText }, plan);
 }

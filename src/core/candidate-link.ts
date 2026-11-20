@@ -1,5 +1,5 @@
 import { webUrlOf } from "./addresses.ts";
-import { fits } from "./image-download.ts";
+import { fits } from "./image-rules.ts";
 import { hostOf, isRedditOrXLink, isRefusedLink, isVideoLink } from "./links.ts";
 import { scanMarkdown } from "./markdown-images.ts";
 

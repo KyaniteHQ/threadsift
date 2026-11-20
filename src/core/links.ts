@@ -212,7 +212,12 @@ function repositoryRootPath([owner = "", repo = ""]: readonly string[]): string 
   return `/${owner}/${withoutGitSuffix(repo)}`.toLowerCase();
 }
 
-export function parseLink(absoluteUrl: string): Link {
+export interface ParsedLink {
+  readonly link: Link;
+  readonly reddit: RedditRef | null;
+}
+
+export function parsedLinkOf(absoluteUrl: string): ParsedLink {
   const url = new URL(absoluteUrl);
   const host = canonicalHost(url.hostname);
   url.hostname = host;
@@ -224,13 +229,13 @@ export function parseLink(absoluteUrl: string): Link {
   const reddit = redditRef(host, segments);
 
   if (reddit !== null) {
-    return redditLink(reddit);
+    return { link: redditLink(reddit), reddit };
   }
 
   const statusId = statusIdIn(host, url.pathname);
 
   if (statusId !== null) {
-    return xLink(statusId);
+    return { link: xLink(statusId), reddit: null };
   }
 
   const kind = host === GITHUB_HOST ? githubKind(segments) : "link";
@@ -239,7 +244,11 @@ export function parseLink(absoluteUrl: string): Link {
     url.pathname = repositoryRootPath(segments);
   }
 
-  return { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] };
+  return { link: { normalizedUrl: url.href, kind, source: SOURCE_OF_KIND[kind] }, reddit: null };
+}
+
+export function parseLink(absoluteUrl: string): Link {
+  return parsedLinkOf(absoluteUrl).link;
 }
 
 export function redditRefOf(absoluteUrl: string): RedditRef | null {

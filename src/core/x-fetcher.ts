@@ -61,39 +61,18 @@ function readAgain({ attempts }: Readonly<XSource>): Fetched {
   };
 }
 
-async function notFoundBy(
+const CAME_BACK_EMPTY: UnreadableResult = {
+  status: "unreadable",
+  note: NOTE_OF_REFUSAL["no-answer"],
+};
+
+async function absentOr(
   network: Network,
-  source: Readonly<XSource>,
   statusId: string,
   signal: AbortSignal,
+  otherwise: () => Fetched,
 ): Promise<Fetched> {
-  if (isLastAttempt(source.attempts)) {
-    return unansweredBy(
-      network,
-      source,
-      { status: "unreadable", note: NOTE_OF_REFUSAL["no-answer"] },
-      statusId,
-      signal,
-    );
-  }
-
-  if ((await shownOnX(network, statusId, signal)) === "absent") {
-    return POST_ABSENT;
-  }
-
-  return readAgain(source);
-}
-
-async function unansweredBy(
-  network: Network,
-  source: Readonly<XSource>,
-  ends: Readonly<UnreadableResult>,
-  statusId: string,
-  signal: AbortSignal,
-): Promise<Fetched> {
-  if (!isLastAttempt(source.attempts)) return readAgain(source);
-
-  return (await shownOnX(network, statusId, signal)) === "absent" ? POST_ABSENT : ends;
+  return (await shownOnX(network, statusId, signal)) === "absent" ? POST_ABSENT : otherwise();
 }
 
 async function concluded(
@@ -106,11 +85,17 @@ async function concluded(
   const fetched = await fetcher.fetch(statusId, signal);
 
   if (fetched.kind === "unanswered") {
-    return unansweredBy(network, source, fetched.ends, statusId, signal);
+    if (!isLastAttempt(source.attempts)) return readAgain(source);
+
+    return absentOr(network, statusId, signal, () => fetched.ends);
   }
 
   if (fetched.kind === "failed") {
-    if (fetched.status === "status") return notFoundBy(network, source, statusId, signal);
+    if (fetched.status === "status") {
+      return absentOr(network, statusId, signal, () =>
+        isLastAttempt(source.attempts) ? CAME_BACK_EMPTY : readAgain(source),
+      );
+    }
 
     return fetched.note === undefined
       ? { status: fetched.status }

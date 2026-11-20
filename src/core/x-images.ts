@@ -1,5 +1,4 @@
-import { utf8Length } from "./encoding.ts";
-import { IMAGE_URL_MAX_BYTES, ITEM_IMAGES_MAX } from "./limits.ts";
+import { ITEM_IMAGES_MAX, fits } from "./image-rules.ts";
 
 const IMAGE_HOST = "pbs.twimg.com";
 
@@ -15,7 +14,7 @@ export function isXImageUrl(address: string): boolean {
   return (
     url !== null &&
     url.href === address &&
-    utf8Length(address) <= IMAGE_URL_MAX_BYTES &&
+    fits(address) &&
     url.protocol === "https:" &&
     url.host === IMAGE_HOST &&
     url.username === "" &&

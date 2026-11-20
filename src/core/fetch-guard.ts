@@ -1,15 +1,14 @@
 import { isRefusedHost, webUrlOf } from "./addresses.ts";
 import { decoderFor, isHtmlType } from "./body-text.ts";
 import { type Capped, readCapped } from "./capped.ts";
-import { failedAnswer } from "./failed-answer.ts";
 import { report } from "./failure-log.ts";
 import type { FetchFailure } from "./fetch-results.ts";
-import type { RateLimit } from "./github-rate-limit.ts";
 import { metaRefreshTarget } from "./meta-refresh.ts";
 import {
   type Network,
   NetworkFailure,
   type NetworkFailureReason,
+  type NetworkResponse,
   type RequestHeaders,
 } from "./network.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
@@ -17,42 +16,35 @@ import { HOP_DEADLINE_MS } from "./request-waits.ts";
 const MAX_REDIRECTS = 20;
 const DEADLINE_REASON = "deadline";
 const REDIRECT_STATUSES: ReadonlySet<number> = new Set([301, 302, 303, 307, 308]);
-export const SMALL_BODY_BYTES = 512 * 1024;
+const DEFAULT_BODY_BYTES = 512 * 1024;
+const NO_HEADERS: RequestHeaders = {};
 
-export const NO_HEADERS: RequestHeaders = {};
-
-type GuardFailure = Exclude<
+type GuardFailure = Extract<
   FetchFailure,
-  "no-title" | "unreadable" | "redirect-stopped" | "github-token"
+  "timeout" | "refused" | "unsupported" | "redirect-limit" | "network"
 >;
 
-export interface RateLimited {
-  readonly kind: "failed";
-  readonly reason: "rate-limited";
-  readonly httpStatus: number;
-  readonly limit: RateLimit;
-}
-
-export type Failed =
-  | { readonly kind: "failed"; readonly reason: Exclude<GuardFailure, "status"> }
+export type Failed<Answer = never> =
+  | { readonly kind: "failed"; readonly reason: GuardFailure }
   | {
       readonly kind: "failed";
       readonly reason: "status";
       readonly httpStatus: number;
-      readonly reset: string | null;
-      readonly body?: string;
-    }
-  | RateLimited;
+      readonly answer: Answer | null;
+    };
 
-export interface FetchPolicy {
+export type BodyUse = "skip" | "read" | "follow-refresh";
+
+export interface FetchPolicy<Answer = never> {
   readonly stopAt: (url: string) => boolean;
-  readonly followMetaRefresh: (url: string) => boolean;
-  readonly readsBody: (url: string) => boolean;
-  readonly headers: (url: string) => RequestHeaders;
-  readonly readsLimits: (url: string) => boolean;
-  readonly readsForbiddenBody?: (url: string) => boolean;
-  readonly htmlMaxBytes: number;
-  readonly dataMaxBytes: number;
+  readonly body?: (url: string) => BodyUse;
+  readonly headers?: (url: string) => RequestHeaders;
+  readonly answerStatus?: (
+    response: Readonly<NetworkResponse>,
+    url: string,
+  ) => Promise<Answer | null>;
+  readonly htmlMaxBytes?: number;
+  readonly dataMaxBytes?: number;
 }
 
 export interface Page {
@@ -77,36 +69,72 @@ interface Stopped {
   readonly url: string;
 }
 
-export type GuardOutcome = Page | Stopped | Failed;
+export type GuardOutcome<Answer = never> = Page | Stopped | Failed<Answer>;
 
-type BytesOutcome = Bytes | Stopped | Failed;
+type BytesOutcome<Answer> = Bytes | Stopped | Failed<Answer>;
 
 const NO_BODY: Capped = { bytes: new Uint8Array(0), cut: false };
 
-type Hop =
+type Hop<Answer> =
   | { readonly kind: "redirect"; readonly location: string }
   | ({
       readonly kind: "page";
       readonly contentType: string | null;
       readonly html: boolean;
+      readonly refresh: boolean;
     } & Capped)
-  | Failed;
+  | Failed<Answer>;
 
-const failed = (reason: Exclude<GuardFailure, "status">): Failed => ({ kind: "failed", reason });
+const failed = (reason: GuardFailure): Failed => ({ kind: "failed", reason });
 
-function failureOf(
-  deadlineHit: boolean,
-  reason: NetworkFailureReason | null,
-): Exclude<GuardFailure, "status"> {
+function failureOf(deadlineHit: boolean, reason: NetworkFailureReason | null): GuardFailure {
   return deadlineHit ? "timeout" : (reason ?? "network");
 }
 
-async function requestHop(
+async function failedStatus<Answer>(
+  response: Readonly<NetworkResponse>,
+  url: string,
+  policy: Readonly<FetchPolicy<Answer>>,
+): Promise<Failed<Answer>> {
+  return {
+    kind: "failed",
+    reason: "status",
+    httpStatus: response.status,
+    answer: (await policy.answerStatus?.(response, url)) ?? null,
+  };
+}
+
+async function readBody<Answer>(
+  response: Readonly<NetworkResponse>,
+  url: string,
+  policy: Readonly<FetchPolicy<Answer>>,
+): Promise<Hop<Answer>> {
+  const html = isHtmlType(response.contentType);
+  const use = policy.body?.(url) ?? "read";
+
+  const body =
+    use === "skip"
+      ? NO_BODY
+      : await readCapped(
+          response.body,
+          (html ? policy.htmlMaxBytes : policy.dataMaxBytes) ?? DEFAULT_BODY_BYTES,
+        );
+
+  return {
+    kind: "page",
+    contentType: response.contentType,
+    html,
+    refresh: use === "follow-refresh",
+    ...body,
+  };
+}
+
+async function requestHop<Answer>(
   network: Network,
   url: string,
   deadline: AbortSignal,
-  policy: Readonly<FetchPolicy>,
-): Promise<Hop> {
+  policy: Readonly<FetchPolicy<Answer>>,
+): Promise<Hop<Answer>> {
   if (deadline.aborted) {
     return failed("timeout");
   }
@@ -121,7 +149,7 @@ async function requestHop(
     const response = await network.get(
       url,
       AbortSignal.any([controller.signal, deadline]),
-      policy.headers(url),
+      policy.headers?.(url) ?? NO_HEADERS,
     );
 
     if (REDIRECT_STATUSES.has(response.status) && response.location !== null) {
@@ -129,16 +157,10 @@ async function requestHop(
     }
 
     if (response.status < 200 || response.status > 299) {
-      return await failedAnswer(response, url, policy);
+      return await failedStatus(response, url, policy);
     }
 
-    const html = isHtmlType(response.contentType);
-
-    const body = policy.readsBody(url)
-      ? await readCapped(response.body, html ? policy.htmlMaxBytes : policy.dataMaxBytes)
-      : NO_BODY;
-
-    return { kind: "page", contentType: response.contentType, html, ...body };
+    return await readBody(response, url, policy);
   } catch (error) {
     const deadlineHit = controller.signal.reason === DEADLINE_REASON || deadline.aborted;
 
@@ -161,14 +183,14 @@ function hopTarget(address: string, base?: string): Target {
   return isRefusedHost(url.hostname) ? failed("refused") : { kind: "target", url };
 }
 
-function advance(
+function advance<Answer>(
   network: Network,
-  policy: Readonly<FetchPolicy>,
+  policy: Readonly<FetchPolicy<Answer>>,
   deadline: AbortSignal,
   from: URL,
   location: string,
   redirects: number,
-): Promise<BytesOutcome> {
+): Promise<BytesOutcome<Answer>> {
   const next = hopTarget(location, from.href);
 
   if (next.kind === "failed") {
@@ -184,13 +206,13 @@ function advance(
     : follow(network, policy, deadline, next.url, redirects + 1);
 }
 
-async function follow(
+async function follow<Answer>(
   network: Network,
-  policy: Readonly<FetchPolicy>,
+  policy: Readonly<FetchPolicy<Answer>>,
   deadline: AbortSignal,
   url: URL,
   redirects: number,
-): Promise<BytesOutcome> {
+): Promise<BytesOutcome<Answer>> {
   const hop = await requestHop(network, url.href, deadline, policy);
 
   if (hop.kind === "failed") {
@@ -201,10 +223,7 @@ async function follow(
     return advance(network, policy, deadline, url, hop.location, redirects);
   }
 
-  const text =
-    policy.followMetaRefresh(url.href) && hop.html
-      ? decoderFor(hop.contentType).decode(hop.bytes)
-      : null;
+  const text = hop.refresh && hop.html ? decoderFor(hop.contentType).decode(hop.bytes) : null;
 
   const refreshTo = text === null ? null : metaRefreshTarget(text, url.href);
 
@@ -220,12 +239,12 @@ async function follow(
     : advance(network, policy, deadline, url, refreshTo, redirects);
 }
 
-export function guardedFetchBytes(
+export function guardedFetchBytes<Answer = never>(
   network: Network,
   address: string,
-  policy: Readonly<FetchPolicy>,
+  policy: Readonly<FetchPolicy<Answer>>,
   deadline: AbortSignal,
-): Promise<BytesOutcome> {
+): Promise<BytesOutcome<Answer>> {
   const first = hopTarget(address);
 
   return first.kind === "failed"
@@ -233,12 +252,12 @@ export function guardedFetchBytes(
     : follow(network, policy, deadline, first.url, 0);
 }
 
-export async function guardedFetch(
+export async function guardedFetch<Answer = never>(
   network: Network,
   address: string,
-  policy: Readonly<FetchPolicy>,
+  policy: Readonly<FetchPolicy<Answer>>,
   deadline: AbortSignal,
-): Promise<GuardOutcome> {
+): Promise<GuardOutcome<Answer>> {
   const outcome = await guardedFetchBytes(network, address, policy, deadline);
 
   return outcome.kind === "bytes"
@@ -252,17 +271,17 @@ export async function guardedFetch(
     : outcome;
 }
 
-export function loggedFailureOf(
-  outcome: Exclude<BytesOutcome, Bytes>,
+export function loggedFailureOf<Answer>(
+  outcome: Exclude<BytesOutcome<Answer>, Bytes>,
   whenStopped: FetchFailure = "redirect-stopped",
 ): FetchFailure {
   if (outcome.kind === "stopped") {
     return whenStopped;
   }
 
-  if (outcome.reason === "status" || outcome.reason === "rate-limited") {
+  if (outcome.reason === "status") {
     report("fetch-status", { httpStatus: outcome.httpStatus });
   }
 
-  return outcome.reason === "rate-limited" ? "status" : outcome.reason;
+  return outcome.reason;
 }

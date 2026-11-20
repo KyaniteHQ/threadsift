@@ -19,26 +19,21 @@ const ARCHIVE_ORIGIN = "https://arctic-shift.photon-reddit.com";
 
 const MAX_RESET_WAIT_MS = 10_000;
 
-const ARCHIVE_POLICY: FetchPolicy = {
+const ARCHIVE_POLICY: FetchPolicy<number> = {
   stopAt: () => true,
-  followMetaRefresh: () => false,
-  readsBody: () => true,
   headers: () => ({ accept: "application/json" }),
-  readsLimits: () => false,
+  answerStatus: (response) =>
+    Promise.resolve(
+      response.status === RATE_LIMITED ? wholeMillisecondsOf(response.rateLimit.reset) : null,
+    ),
   htmlMaxBytes: ITEM_REQUEST_BYTES,
   dataMaxBytes: ITEM_REQUEST_BYTES,
 };
 
-function resetWaitOf(outcome: Readonly<GuardOutcome>): number | null {
-  if (
-    outcome.kind !== "failed" ||
-    outcome.reason !== "status" ||
-    outcome.httpStatus !== RATE_LIMITED
-  ) {
-    return null;
-  }
+function resetWaitOf(outcome: Readonly<GuardOutcome<number>>): number | null {
+  if (outcome.kind !== "failed" || outcome.reason !== "status") return null;
 
-  const wait = wholeMillisecondsOf(outcome.reset);
+  const wait = outcome.answer;
 
   return wait !== null && wait <= MAX_RESET_WAIT_MS ? wait : null;
 }

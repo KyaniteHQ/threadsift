@@ -16,8 +16,6 @@ interface LimitedAnswer {
   readonly body: string;
 }
 
-export const ERROR_BODY_BYTES = 8 * 1024;
-
 export const MAX_COOLDOWN_MS = 3_600_000;
 
 const FALLBACK_BASE_MS = 60_000;

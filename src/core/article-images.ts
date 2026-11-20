@@ -5,10 +5,10 @@ import { digestOf } from "./encoding.ts";
 import { fileRouteOf } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";
 import { collapsed } from "./format.ts";
-import { type Fetched, decoded, downloaded, fits } from "./image-download.ts";
+import { type Downloaded, decoded, downloaded } from "./image-download.ts";
+import { ITEM_IMAGES_MAX, fits } from "./image-rules.ts";
 import { imageSize } from "./image-size.ts";
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
-import { ITEM_IMAGES_MAX } from "./limits.ts";
 import {
   type Edit,
   type MarkdownImage,
@@ -42,19 +42,23 @@ interface MediaPlan {
   readonly written: readonly string[];
 }
 
+export interface ImageRules {
+  readonly stopAt: (address: string) => boolean;
+  readonly unsaved: string | null;
+}
+
 interface ArticleMedia {
   readonly postText: string;
   readonly videos: readonly string[];
   readonly images: readonly MarkdownImage[];
   readonly url: string;
+  readonly rules: ImageRules;
 }
 
 interface ImageSink {
   readonly network: Network;
   readonly files: FileStore;
   readonly crypto: Crypto;
-  readonly stopAt?: (address: string) => boolean;
-  readonly unsaved?: string;
 }
 
 type Source =
@@ -110,7 +114,7 @@ function classify({ destination, alt }: Readonly<MarkdownImage>, base: string): 
 function rowOf(
   crypto: Crypto,
   { source, position, alt }: Readonly<Candidate>,
-  fetched: Readonly<Fetched>,
+  fetched: Readonly<Downloaded>,
   fileKey: string | null,
 ): MediaRowValue | null {
   if (source.kind === "inline" && !fetched.ok) return null;
@@ -149,13 +153,14 @@ async function stored(
   sink: Readonly<ImageSink>,
   prefix: string,
   candidate: Readonly<Candidate>,
+  stopAt: ImageRules["stopAt"],
   deadline: AbortSignal,
 ): Promise<MediaRowValue | null> {
   const { source } = candidate;
 
   const fetched =
     source.kind === "remote"
-      ? await downloaded(sink.network, source.url, deadline, sink.stopAt)
+      ? await downloaded(sink.network, source.url, deadline, stopAt)
       : decoded(source.dataUrl);
 
   const key = fetched.ok
@@ -215,7 +220,7 @@ function replacementOf(
   image: Readonly<MarkdownImage>,
   entry: Readonly<Classified>,
   pathOf: (id: string) => string | null,
-  unsaved: string | undefined,
+  unsaved: string | null,
 ): string | undefined {
   if (entry.kind === "embed") return embedMarkdown(image, entry.link);
 
@@ -229,7 +234,7 @@ function replacementOf(
 
   if (entry.source.kind === "inline") return altText(image.alt);
 
-  return unsaved === undefined ? undefined : altText(unsaved);
+  return unsaved === null ? undefined : altText(unsaved);
 }
 
 function linkedRow(sourceUrl: string, position: number): MediaRowValue {
@@ -253,7 +258,7 @@ export async function prepareMedia(
   const classified = images.map((image) => classify(image, article.url));
 
   const outcomes = await storeAll(candidatesOf(classified), (candidate) =>
-    stored(sink, prefix, candidate, deadline),
+    stored(sink, prefix, candidate, article.rules.stopAt, deadline),
   );
 
   const pathOf = (id: string): string | null => {
@@ -269,7 +274,7 @@ export async function prepareMedia(
     const entry = classified[at];
 
     const text =
-      entry === undefined ? undefined : replacementOf(image, entry, pathOf, sink.unsaved);
+      entry === undefined ? undefined : replacementOf(image, entry, pathOf, article.rules.unsaved);
 
     if (text !== undefined) edits.push({ image, text });
 

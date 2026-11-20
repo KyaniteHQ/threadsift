@@ -1,5 +1,6 @@
-import { guardedFetch } from "./fetch-guard.ts";
-import { SMALL_POLICY } from "./fetch-link.ts";
+import { readCapped } from "./capped.ts";
+import { type FetchPolicy, guardedFetch } from "./fetch-guard.ts";
+import { ERROR_BODY_BYTES } from "./limits.ts";
 import type { Network } from "./network.ts";
 import {
   MAX_LINKS,
@@ -18,11 +19,17 @@ const OEMBED = "https://publish.x.com/oembed";
 const SHORT_LINK_HOST = "t.co";
 const CONCURRENT_REQUESTS = 4;
 
-const POLICY = {
-  ...SMALL_POLICY,
+const FORBIDDEN = 403;
+
+const POLICY: FetchPolicy<string> = {
   stopAt: () => true,
-  followMetaRefresh: () => false,
-  readsForbiddenBody: (url: string) => url.startsWith(OEMBED),
+  answerStatus: async (response, url) => {
+    if (response.status !== FORBIDDEN || !url.startsWith(OEMBED)) return null;
+
+    const { bytes } = await readCapped(response.body, ERROR_BODY_BYTES);
+
+    return new TextDecoder().decode(bytes);
+  },
 };
 
 type Resolution =
@@ -48,7 +55,7 @@ async function answerFor(network: Network, id: string, signal: AbortSignal): Pro
   }
 
   return outcome.kind === "failed" && outcome.reason === "status"
-    ? oembedAnswerOf(outcome.httpStatus, outcome.body ?? "")
+    ? oembedAnswerOf(outcome.httpStatus, outcome.answer ?? "")
     : UNAVAILABLE;
 }
 
