@@ -17,10 +17,14 @@ const HEADERS = {
   },
 } as const satisfies Record<CacheKind, Readonly<Record<string, string>>>;
 
+export function cacheHeaders(kind: CacheKind): Readonly<Record<string, string>> {
+  return HEADERS[kind];
+}
+
 export function applyCache(response: Response, kind: CacheKind | null): void {
   if (kind === null) return;
 
-  for (const [name, value] of Object.entries(HEADERS[kind])) {
+  for (const [name, value] of Object.entries(cacheHeaders(kind))) {
     response.headers.set(name, value);
   }
 }

@@ -2,6 +2,8 @@ import type { ZodType } from "zod";
 
 import { BUDGET_SPENT, type Scope } from "../core/contract/agent-token-contract.ts";
 import { BudgetRefusalSchema, ErrorResponseSchema } from "../core/contract/error-wire.ts";
+import { CHALLENGES } from "./bearer.ts";
+import { type CacheKind, cacheHeaders } from "./response-headers.ts";
 
 export const PASTE_DIGEST_SCOPE = " A body with a `digest` needs the `digest` scope as well.";
 
@@ -24,20 +26,34 @@ export function jsonRequest<T extends ZodType>(schema: T) {
 
 export const noContent = (description: string) => ({ description });
 
-export function scopeNote({ who }: Readonly<{ who: Scope }>, extra = ""): string {
-  return ` An agent token needs the \`${who}\` scope.${extra}`;
+interface Gated {
+  readonly who: "owner" | Scope;
 }
 
-export function scopeRefusal({ who }: Readonly<{ who: Scope }>, extra = "") {
+export function accessNote({ who }: Readonly<Gated>, extra = ""): string {
+  return who === "owner"
+    ? `Only the owner's session may call this; an agent token gets 403.${extra}`
+    : `An agent token needs the \`${who}\` scope.${extra}`;
+}
+
+export function accessRefusals({ who }: Readonly<Gated>, extra = "") {
   return {
-    403: jsonBody(ErrorResponseSchema, `The agent token lacks the \`${who}\` scope.${extra}`),
+    401: jsonBody(
+      ErrorResponseSchema,
+      `The request has no owner session and no agent token, its \`Authorization\` header is not a bearer credential, or the agent token is unknown or revoked. \`WWW-Authenticate\` is \`${CHALLENGES.missing}\`, and \`${CHALLENGES.unknown}\` when the agent token is unknown or revoked.`,
+    ),
+    403: jsonBody(
+      ErrorResponseSchema,
+      who === "owner"
+        ? `An agent token called this.${extra}`
+        : `The agent token lacks the \`${who}\` scope.${extra}`,
+    ),
   };
 }
 
-export const OWNER_SESSION_REFUSALS = {
-  401: jsonBody(ErrorResponseSchema, "No owner session."),
-  403: jsonBody(ErrorResponseSchema, "An agent token called this."),
-};
+export function cacheHeaderList(kind: CacheKind): string {
+  return codeList(Object.entries(cacheHeaders(kind)).map(([name, value]) => `${name}: ${value}`));
+}
 
 export function budgetRefusal(whatIsSaved: string) {
   return {

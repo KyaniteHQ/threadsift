@@ -5,7 +5,7 @@ import type { PresentedToken } from "../features/access/core/bearer.ts";
 
 const NOT_BEARER = "Authorization header is not a bearer token";
 
-const CHALLENGES = {
+export const CHALLENGES = {
   missing: "Bearer",
   unknown: 'Bearer error="invalid_token"',
 } as const;

@@ -17,15 +17,19 @@ import { SECRET_INPUT_MAX } from "../../../core/contract/secret-input.ts";
 import { SECOND_MS } from "../../../core/contract/time-units.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { jsonBody, jsonRequest } from "../../../http/openapi.ts";
+import { jsonBody, jsonRequest, accessNote, accessRefusals } from "../../../http/openapi.ts";
 import { pingGrokBot } from "../../bot/core/grok-bot-ping.ts";
 import { readGrokBot, removeGrokBot, saveGrokBot } from "../core/grok-bot-settings.ts";
+
+const OWNER = access("owner");
 
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/grok-bot",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       GrokBotViewSchema,
       "Whether a Grok Bot is set, its webhook address, and whether its key is saved (`usable`), saved but sealed under another key (`unreadable`), not set (`none`), or whether this Instance has no sealing key (`missing`). The key is never returned.",
@@ -36,9 +40,11 @@ const readRoute = createRoute({
 const saveRoute = createRoute({
   method: "put",
   path: "/api/settings/grok-bot",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   request: { body: jsonRequest(GrokBotInputSchema) },
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       GrokBotSaveResponseSchema,
       "The settings after the save, with the address in its canonical form (an upper-case scheme or host comes back in lower case), or the refusal `secret-missing` when this Instance has no sealing key. Nothing is sent to the bot.",
@@ -57,8 +63,10 @@ const saveRoute = createRoute({
 const removeRoute = createRoute({
   method: "delete",
   path: "/api/settings/grok-bot",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       GrokBotViewSchema,
       "The settings after they are removed. Removing when none are set also succeeds.",
@@ -73,8 +81,10 @@ const removeRoute = createRoute({
 const testRoute = createRoute({
   method: "post",
   path: "/api/settings/grok-bot/test",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       GrokBotTestSchema,
       `What the saved address and key got back from one ping: \`ok\` (HTTP 200), \`wrong-key\` (401 or 403), \`not-found\` (404), \`bot-error\` (any other status), \`unreachable\`, \`timeout\` (${String(HOP_DEADLINE_MS / SECOND_MS)} seconds), \`refused\` (the saved address fails the address rule, or on the container its name resolves only to non-global addresses), \`not-configured\` or \`secret-missing\`. The bot's own 401 is a result inside this 200, so it never signs the owner out. The ping wakes the bot's routine and costs it one run.`,

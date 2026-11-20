@@ -1,4 +1,7 @@
-import { EXPORT_KEEP_MS, type ExportFailure } from "../../src/core/contract/export-contract.ts";
+import {
+  EXPORT_KEEP_MS,
+  type ShownExportFailure,
+} from "../../src/core/contract/export-contract.ts";
 import { groupedNumber } from "../../src/core/contract/format.ts";
 import { MAX_ATTEMPTS } from "../../src/core/contract/job-contract.ts";
 import { HOUR_MS } from "../../src/core/contract/time-units.ts";
@@ -30,9 +33,7 @@ const FAILURE_TEXT = {
   "gave-up": `The Export failed because a step failed ${String(MAX_ATTEMPTS)} times. Start it again.`,
   "list-changed":
     "The Instance was updated while the Export ran, so the Export stopped. Start it again.",
-  cancelled: "The Export was stopped before it finished. Start it again.",
-  replaced: "The Export was stopped before it finished. Start it again.",
-} as const satisfies Record<ExportFailure, string>;
+} as const satisfies Record<ShownExportFailure, string>;
 
 const UNITS = ["B", "kB", "MB", "GB", "TB"] as const;
 
@@ -73,6 +74,6 @@ export function readyDetailLabel(entries: number, bytes: number): string {
   return sizedLabel(READY_DETAIL, entries, bytes);
 }
 
-export function failureLabel(failure: ExportFailure): string {
+export function failureLabel(failure: ShownExportFailure): string {
   return FAILURE_TEXT[failure];
 }

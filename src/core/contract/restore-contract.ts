@@ -61,7 +61,7 @@ export const RESTORE_MANIFEST_BYTES = 4 * 1024 * 1024;
 
 export const RESTORE_DIRECTORY_BYTES = 256 * 1024 * 1024;
 
-const RESTORE_REFUSALS = [
+export const RESTORE_REFUSALS = [
   "incomplete-upload",
   "not-a-zip",
   "unsupported-compression",
@@ -176,7 +176,7 @@ const Id = z.number().int().positive();
 
 const Library = { libraryEmpty: z.boolean() };
 
-const Counted = {
+export const RUN_COUNTS = {
   restored: CountsSchema,
   dropped: CountsSchema,
   files: WholeCount,
@@ -200,7 +200,7 @@ export const RestoreStatusSchema = z.discriminatedUnion("state", [
     ...Library,
     id: Id,
     phase: z.enum(COPY_RESTORE_PHASES),
-    ...Counted,
+    ...RUN_COUNTS,
   }),
   z.object({ state: z.literal("cancelling"), ...Library, id: Id }),
   z.object({
@@ -208,7 +208,7 @@ export const RestoreStatusSchema = z.discriminatedUnion("state", [
     ...Library,
     id: Id,
     finishedAt: z.number().int(),
-    ...Counted,
+    ...RUN_COUNTS,
   }),
   z.object({
     state: z.literal("failed"),

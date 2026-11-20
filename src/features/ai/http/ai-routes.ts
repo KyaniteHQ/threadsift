@@ -16,15 +16,19 @@ import {
 import { SECOND_MS } from "../../../core/contract/time-units.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { jsonBody, jsonRequest } from "../../../http/openapi.ts";
+import { accessNote, accessRefusals, jsonBody, jsonRequest } from "../../../http/openapi.ts";
 import { verifyProvider } from "../../bot/core/bot-verify.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
+
+const OWNER = access("owner");
 
 const readRoute = createRoute({
   method: "get",
   path: "/api/settings/ai",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       AiSettingsViewSchema,
       "Provider settings, whether a key is set, whether the Instance has a sealing key (`secretReady`) and whether that key opens the saved one (`keyReadable`).",
@@ -35,9 +39,11 @@ const readRoute = createRoute({
 const saveRoute = createRoute({
   method: "put",
   path: "/api/settings/ai",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   request: { body: jsonRequest(AiSettingsInputSchema) },
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       AiSaveResponseSchema,
       "Settings or a safe refusal category. No secret is returned. A Provider that `GET /api/settings/ai` does not list in `providers` is never saved.",
@@ -56,11 +62,13 @@ const saveRoute = createRoute({
 const verifyRoute = createRoute({
   method: "post",
   path: "/api/settings/ai/verify",
-  middleware: access("owner"),
+  middleware: OWNER,
+  description: accessNote(OWNER),
   responses: {
+    ...accessRefusals(OWNER),
     200: jsonBody(
       VerifyResultSchema,
-      `The verified Digest or a safe refusal category. With \`grok-bot\` as the Provider the request waits for the bot's answer for up to ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds (\`VERIFY_WAIT_MS\` in \`src/core/grok-bot-contract.ts\`), then answers \`timeout\` and closes the task.`,
+      `The verified Digest or a safe refusal category. With \`grok-bot\` as the Provider the request waits for the bot's answer for up to ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds, then answers \`timeout\` and closes the task.`,
     ),
   },
 });

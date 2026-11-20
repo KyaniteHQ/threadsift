@@ -12,7 +12,7 @@ import {
   RESULT_BODY_BYTES,
 } from "../core/contract/limits.ts";
 import type { Ports } from "../core/kernel/ports.ts";
-import { type CallbackEnv, type Ctx, type Plan, admit } from "./access-steps.ts";
+import { type CallbackEnv, type Ctx, type OriginCheck, type Plan, admit } from "./access-steps.ts";
 import { answerFailure } from "./refusals.ts";
 import { type CacheKind, applyCache } from "./response-headers.ts";
 import { callbackTask } from "./task-credential.ts";
@@ -66,21 +66,32 @@ export type Gate<E extends object, W extends string> = MiddlewareHandler<E> & {
 
 const GATES = new WeakMap<object, string>();
 
+const CAPS = new WeakMap<object, Cap>();
+
 const PORTS = new WeakSet<object>();
+
+function originCheck(who: string): OriginCheck {
+  if (who === "self" || who === "unrouted") return "none";
+
+  return who === "anyone" || who === "callback" ? "always" : "unless-authorization";
+}
+
+export function originCheckOf(handler: H): OriginCheck {
+  const who = GATES.get(handler);
+
+  return who === undefined ? "none" : originCheck(who);
+}
 
 function planOf(c: Ctx, who: Who | "unrouted", cache: CacheKind | null): Plan {
   if (who === "unrouted") return unroutedPlan(c);
 
-  if (who === "self") return { credentials: null, csrf: false, after: "next", cache };
+  const csrf = originCheck(who);
 
-  if (who === "callback") return { credentials: null, csrf: true, after: "credential", cache };
+  if (who === "self") return { credentials: null, csrf, after: "next", cache };
 
-  return {
-    credentials: who === "anyone" ? null : who,
-    csrf: true,
-    after: "next",
-    cache,
-  };
+  if (who === "callback") return { credentials: null, csrf, after: "credential", cache };
+
+  return { credentials: who === "anyone" ? null : who, csrf, after: "next", cache };
 }
 
 async function lookup(c: Ctx) {
@@ -164,6 +175,7 @@ function gateOf<E extends Env, W extends Who | "unrouted">(
   });
 
   GATES.set(middleware, who);
+  CAPS.set(middleware, body);
 
   return Object.assign(middleware, { who });
 }
@@ -205,6 +217,12 @@ export function withPorts(ports: Ports): MiddlewareHandler {
 
 export function whoOf(handler: H): string | undefined {
   return GATES.get(handler);
+}
+
+export function tooLargeOf(handler: H): string | undefined {
+  const cap = CAPS.get(handler);
+
+  return cap === undefined ? undefined : tooLarge(cap);
 }
 
 export function holdsPorts(handler: H): boolean {
