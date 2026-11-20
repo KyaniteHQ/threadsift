@@ -4,7 +4,7 @@ import { RUNNING_RESTORE_PHASES } from "../../../core/contract/restore-contract.
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
 import type { ZipSource } from "../../export/core/zip-read.ts";
-import { checkUnit } from "./restore-check-unit.ts";
+import { checkUnit, refusedRelease } from "./restore-check-unit.ts";
 import { filesUnit } from "./restore-files.ts";
 import { finishUnit } from "./restore-finish.ts";
 import { highlightsUnit } from "./restore-highlights.ts";
@@ -13,6 +13,15 @@ import { searchUnit } from "./restore-search.ts";
 import { undoUnit } from "./restore-undo.ts";
 
 const RunningPhaseSchema = z.enum(RUNNING_RESTORE_PHASES);
+
+async function afterRelease(
+  ports: JobPorts,
+  run: Readonly<RestoreRow>,
+  source: Readonly<ZipSource>,
+  unit: () => Promise<JobOutcome>,
+): Promise<JobOutcome> {
+  return (await refusedRelease(ports, run, source)) ?? unit();
+}
 
 export function phaseUnit(
   ports: JobPorts,
@@ -25,15 +34,15 @@ export function phaseUnit(
     case "check":
       return checkUnit(ports, run, source);
     case "tables":
-      return tablesUnit(ports, run, source);
+      return afterRelease(ports, run, source, () => tablesUnit(ports, run, source));
     case "files":
-      return filesUnit(ports, run, source);
+      return afterRelease(ports, run, source, () => filesUnit(ports, run, source));
     case "search":
       return searchUnit(ports, run);
     case "highlights":
       return highlightsUnit(ports, run);
     case "finish":
-      return finishUnit(ports, run, source);
+      return afterRelease(ports, run, source, () => finishUnit(ports, run, source));
     case "undoing":
       return undoUnit(ports, run);
     default:

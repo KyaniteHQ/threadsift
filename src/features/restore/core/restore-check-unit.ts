@@ -1,18 +1,18 @@
 import { CheckCursorSchema, entering } from "../../../core/contract/restore-contract.ts";
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
-import { appliedMigration } from "../../export/core/export-format.ts";
-import type { ZipSource } from "../../export/core/zip-read.ts";
+import { type Manifest, appliedMigration } from "../../export/core/export-format.ts";
+import type { ZipDirectory, ZipSource } from "../../export/core/zip-read.ts";
 import { type Env, advance, rowsMatch } from "./restore-check-scan.ts";
 import { checkedTables, readManifest } from "./restore-check.ts";
 import { RestoreRefused, restoreRefusalOf } from "./restore-refusal.ts";
 import { readRestoreDirectory } from "./restore-source.ts";
 import { endedUnit, steppedUnit } from "./restore-unit.ts";
 
-async function environment(
+async function readRelease(
   { db }: Pick<JobPorts, "db">,
   source: Readonly<ZipSource>,
-): Promise<Env> {
+): Promise<Readonly<{ directory: ZipDirectory; manifest: Manifest }>> {
   const directory = await readRestoreDirectory(source);
   const manifest = await readManifest(source, directory);
   const running = await appliedMigration(db);
@@ -24,9 +24,33 @@ async function environment(
     );
   }
 
+  return { directory, manifest };
+}
+
+async function environment(ports: Pick<JobPorts, "db">, source: Readonly<ZipSource>): Promise<Env> {
+  const { directory, manifest } = await readRelease(ports, source);
+
   checkedTables(manifest, directory);
 
   return { source, directory, manifest };
+}
+
+export async function refusedRelease(
+  ports: Pick<JobPorts, "db">,
+  run: Readonly<RestoreRow>,
+  source: Readonly<ZipSource>,
+): Promise<JobOutcome | null> {
+  try {
+    await readRelease(ports, source);
+
+    return null;
+  } catch (error) {
+    const failure = restoreRefusalOf(error);
+
+    if (failure !== "other-release") throw error;
+
+    return endedUnit(ports.db, run, { state: "failed", failure, updatedAt: Date.now() });
+  }
 }
 
 export async function checkUnit(
