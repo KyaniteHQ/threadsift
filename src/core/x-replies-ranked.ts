@@ -1,11 +1,11 @@
 import { storedCommentId } from "./comment-id.ts";
 import type { Database } from "./database.ts";
 import { X_REPLIES_KEPT_MAX, X_REPLIES_LIKES_PERCENT, X_REPLIES_MIN } from "./limits.ts";
+import { storedReplyCount } from "./thread-store.ts";
 import { authorPartsOf } from "./x-author-thread.ts";
 import { NO_TEXT, withoutPlaceholder } from "./x-images.ts";
-import { storedReplyCount } from "./x-partial.ts";
-import { order, parseXThreadValue, storedXThread } from "./x-thread.ts";
-import { hasPossibleParent } from "./x-verify-state.ts";
+import { hasPossibleParent, order } from "./x-reply-order.ts";
+import { parseXThreadValue, storedXThread } from "./x-thread.ts";
 import type { XCliReply, XCliThreadValue, XReply, XThreadValue } from "./x-wire.ts";
 
 const PERCENT = 100;

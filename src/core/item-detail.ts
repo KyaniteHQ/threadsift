@@ -3,9 +3,10 @@ import type { ReaderDigest } from "./digest-schema.ts";
 import { readStoredDigest } from "./digest-stored.ts";
 import { logFailure } from "./failure-log.ts";
 import { highlightsViewOf } from "./highlights.ts";
+import { sizedImagesOf } from "./media-reads.ts";
 import { noteViewOf } from "./notes.ts";
 import type { Ports } from "./ports.ts";
-import { postTextOf, sizedImagesOf } from "./post-text.ts";
+import { postTextOf } from "./post-text.ts";
 import { commentsOf } from "./thread-read.ts";
 
 function readerDigest(

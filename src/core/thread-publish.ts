@@ -4,10 +4,10 @@ import type { Database } from "./database.ts";
 import { digestAfterFetch } from "./digest-opening.ts";
 import { closeItemJobs } from "./job-close.ts";
 import type { Link } from "./links.ts";
-import { type Owner, ownerOf, threadWrites } from "./reddit-thread.ts";
 import { items, media } from "./schema.ts";
 import { fetchedPartWrites } from "./search.ts";
 import type { StoredThread } from "./stored-thread.ts";
+import { type Owner, ownerOf, threadWrites } from "./thread-store.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 import { queueVaultFetchedTitle } from "./vault-wiki-writes.ts";
 

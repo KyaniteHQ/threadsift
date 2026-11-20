@@ -1,12 +1,9 @@
-import { WireCommentId, storedCommentId, wireCommentId } from "./comment-id.ts";
-import { utf8Length } from "./encoding.ts";
-import { INLINE_TEXT_BYTES } from "./limits.ts";
+import { WIRE_ID_MAX, WireCommentId, storedCommentId, wireCommentId } from "./comment-id.ts";
 import { type WireChild, type WireComment, type WirePost, ThreadJson } from "./reddit-wire.ts";
 import type { ThreadAnswers } from "./thread-answers.ts";
+import { checkedMetadata, checkedText, refuse, refusing } from "./thread-refusal.ts";
 
-const METADATA_BYTES = 4096;
-
-class ThreadRefused extends Error {}
+const NOT_READABLE = "the content is not readable Reddit JSON";
 
 export interface Walked {
   readonly comment: WireComment | null;
@@ -19,24 +16,6 @@ interface Pending {
   readonly child: WireChild;
   readonly parent: string;
   readonly depth: number;
-}
-
-export function refuse(reason: string): never {
-  throw new ThreadRefused(reason);
-}
-
-export function checkedText(text: string, what: string): void {
-  if (utf8Length(text) > INLINE_TEXT_BYTES) {
-    refuse(`${what} is longer than ${String(INLINE_TEXT_BYTES)} bytes`);
-  }
-}
-
-export function checkedMetadata(fields: Readonly<Record<string, string>>): void {
-  for (const [what, text] of Object.entries(fields)) {
-    if (utf8Length(text) > METADATA_BYTES) {
-      refuse(`${what} is longer than ${String(METADATA_BYTES)} bytes`);
-    }
-  }
 }
 
 function repliesOf({ replies }: Readonly<WireComment>): readonly WireChild[] {
@@ -223,45 +202,45 @@ export interface Answer {
   readonly children: readonly WireChild[];
 }
 
+function parsedAnswer(content: string) {
+  try {
+    return ThreadJson.safeParse(JSON.parse(content));
+  } catch (error) {
+    if (error instanceof SyntaxError || error instanceof RangeError) return refuse(NOT_READABLE);
+
+    throw error;
+  }
+}
+
+export function redditAnswerOf(
+  post: WirePost,
+  children: readonly WireChild[],
+  postId: string,
+): Answer {
+  if (post.id.toLowerCase() !== postId.toLowerCase()) {
+    return refuse(`the post id ${post.id} is not the id in the link`);
+  }
+
+  return { post, children };
+}
+
 export function readAnswer(content: string, postId: string): Answer {
-  const parsed = ThreadJson.safeParse(JSON.parse(content));
+  const parsed = parsedAnswer(content);
 
   if (!parsed.success) {
     return refuse(
-      "the JSON is not a Reddit thread: a post Listing, then a comment Listing whose comment ids are 1 to 29 letters or digits",
+      `the JSON is not a Reddit thread: a post Listing, then a comment Listing whose comment ids are 1 to ${String(WIRE_ID_MAX)} letters or digits`,
     );
   }
 
   const [posts, comments] = parsed.data;
   const [{ data: post }] = posts.data.children;
 
-  if (post.id.toLowerCase() !== postId.toLowerCase()) {
-    return refuse(`the post id ${post.id} is not the id in the link`);
-  }
-
-  return { post, children: comments.data.children };
+  return redditAnswerOf(post, comments.data.children, postId);
 }
 
 export function firstParentOf(children: readonly WireChild[]): string {
   return children[0]?.data.parent_id ?? "";
-}
-
-type Read<Value> =
-  | { readonly kind: "read"; readonly value: Value }
-  | { readonly kind: "refused"; readonly reason: string };
-
-export function refusing<Value>(read: () => Value): Read<Value> {
-  try {
-    return { kind: "read", value: read() };
-  } catch (error) {
-    if (error instanceof ThreadRefused) return { kind: "refused", reason: error.message };
-
-    if (error instanceof SyntaxError || error instanceof RangeError) {
-      return { kind: "refused", reason: "the content is not readable Reddit JSON" };
-    }
-
-    throw error;
-  }
 }
 
 function hiddenIdsOf(walked: readonly Walked[]): readonly string[] {

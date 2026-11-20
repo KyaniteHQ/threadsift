@@ -183,28 +183,54 @@ interface ThreadCounts {
   readonly received: number;
   readonly shown: number;
   readonly kept: number;
-  readonly total: number;
+  readonly reported: number | null;
+}
+
+function totalOf({ reported, received }: Readonly<Pick<ThreadCounts, "reported" | "received">>) {
+  return Math.max(reported ?? 0, received);
+}
+
+type Standing = "absent" | "removed" | "kept" | "unfiltered";
+
+function standingOf(
+  published: boolean,
+  { received, shown }: Readonly<Pick<ThreadCounts, "received" | "shown">>,
+): Standing {
+  if (received === 0) return "absent";
+
+  if (published) return "kept";
+
+  return shown === 0 ? "removed" : "unfiltered";
+}
+
+function countOf(
+  filter: CommentCount["filter"],
+  counts: Readonly<Pick<ThreadCounts, "received" | "shown" | "reported">>,
+): CommentCount {
+  return { filter, shown: counts.shown, total: totalOf(counts) };
 }
 
 function viewOf(
   { published, digest }: Readonly<Pick<ThreadReport, "published" | "digest">>,
-  { received, shown, kept, total }: Readonly<ThreadCounts>,
+  counts: Readonly<ThreadCounts>,
 ): CommentsFilter {
-  if (received === 0) return { filter: "absent" };
+  const standing = standingOf(published, counts);
 
-  if (published) {
-    const count = { filter: "kept", shown, total } as const;
+  switch (standing) {
+    case "absent":
+      return { filter: "absent" };
+    case "removed":
+      return { filter: "removed" };
+    case "kept": {
+      const count = countOf("kept", counts);
 
-    return kept === 0 ? { filter: "nothing-kept", count } : { filter: "kept", count };
+      return counts.kept === 0 ? { filter: "nothing-kept", count } : { filter: "kept", count };
+    }
+    case "unfiltered":
+      return { filter: "unfiltered", cause: causeOf(digest), count: countOf("unfiltered", counts) };
+    default:
+      return standing satisfies never;
   }
-
-  if (shown === 0) return { filter: "removed" };
-
-  return {
-    filter: "unfiltered",
-    cause: causeOf(digest),
-    count: { filter: "unfiltered", shown, total },
-  };
 }
 
 export function commentsViewOf(
@@ -217,7 +243,7 @@ export function commentsViewOf(
     received: comments.length,
     shown: comments.filter((row) => row.readable).length,
     kept: comments.filter((row) => row.kept).length,
-    total: Math.max(reported ?? 0, comments.length),
+    reported,
   };
 
   const view = viewOf({ published, digest }, counts);
@@ -233,17 +259,20 @@ export function commentsViewOf(
 }
 
 export interface CountColumns {
-  readonly commentsFilter: CommentCount["filter"] | null;
-  readonly commentsShown: number | null;
-  readonly commentsOutOf: number | null;
+  readonly commentsPublished: boolean;
+  readonly commentsReceived: number;
+  readonly commentsShown: number;
+  readonly commentsReported: number | null;
 }
 
 export function commentCountOf({
-  commentsFilter: filter,
+  commentsPublished: published,
+  commentsReceived: received,
   commentsShown: shown,
-  commentsOutOf: total,
+  commentsReported: reported,
 }: Readonly<CountColumns>): CommentCount | null {
-  if (filter === null || shown === null || total === null || total === 0) return null;
+  const counts = { received, shown, reported };
+  const standing = standingOf(published, counts);
 
-  return filter === "unfiltered" && shown === 0 ? null : { filter, shown, total };
+  return standing === "kept" || standing === "unfiltered" ? countOf(standing, counts) : null;
 }

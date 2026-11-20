@@ -4,9 +4,9 @@ import { batchesOf } from "./batches.ts";
 import type { Database } from "./database.ts";
 import { type Anchor, anchorIn } from "./highlight-anchor.ts";
 import type { AnchoredOutcome, SettledOutcome } from "./job-outcome.ts";
-import { publishedGeneration } from "./reddit-thread.ts";
 import { type HighlightRow, highlights, items } from "./schema.ts";
 import { projectText } from "./text-projection.ts";
+import { digestCoversThread } from "./thread-store.ts";
 
 export interface AnchorSnapshot {
   readonly itemId: number | null;
@@ -54,7 +54,7 @@ export function anchorReads(db: Database, owner: Readonly<SQLWrapper>) {
     db
       .select({
         itemId: items.id,
-        threaded: sql<boolean>`exists (${publishedGeneration(items.id)})`.mapWith(Boolean),
+        threaded: sql<boolean>`${digestCoversThread(items.id)}`.mapWith(Boolean),
       })
       .from(items)
       .where(sql`${owner}`),
@@ -88,7 +88,7 @@ function anchorsHold(owner: Readonly<SQLWrapper>, snapshot: Readonly<AnchorSnaps
 
   const ids = JSON.stringify(snapshot.highlights.map(({ id }) => id));
 
-  return sql`exists (select 1 from ${items} where ${items.id} = ${snapshot.itemId} and exists (${publishedGeneration(items.id)}) = ${snapshot.threaded ? 1 : 0} and (select json_group_array(id) from (select ${highlights.id} as id from ${highlights} where ${highlights.itemId} = ${items.id} order by ${highlights.id})) = ${ids})`;
+  return sql`exists (select 1 from ${items} where ${items.id} = ${snapshot.itemId} and ${digestCoversThread(items.id)} = ${snapshot.threaded ? 1 : 0} and (select json_group_array(id) from (select ${highlights.id} as id from ${highlights} where ${highlights.itemId} = ${items.id} order by ${highlights.id})) = ${ids})`;
 }
 
 function anchorOf(

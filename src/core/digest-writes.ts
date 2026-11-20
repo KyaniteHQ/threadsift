@@ -5,9 +5,9 @@ import type { Database } from "./database.ts";
 import { markDigest } from "./digest-marker.ts";
 import { opening } from "./job-rows.ts";
 import { providerSet } from "./provider-saved.ts";
-import { selectionWrites } from "./reddit-thread.ts";
 import { digests, items } from "./schema.ts";
 import { commentPartWrites, digestPartWrites } from "./search.ts";
+import { selectionWrites } from "./thread-selection.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 
 interface KeptSelection {

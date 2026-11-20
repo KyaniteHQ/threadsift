@@ -47,9 +47,10 @@ export function itemView<Row extends StatusRow>(
     retryAt: _retryAt,
     imageKey: _imageKey,
     imageAlt: _imageAlt,
-    commentsFilter: _commentsFilter,
+    commentsPublished: _commentsPublished,
+    commentsReceived: _commentsReceived,
     commentsShown: _commentsShown,
-    commentsOutOf: _commentsOutOf,
+    commentsReported: _commentsReported,
     ...view
   } = row;
 

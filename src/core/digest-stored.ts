@@ -1,9 +1,12 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
+import { hasDigestSource } from "./digest-input.ts";
 import { type Digest, parseStoredDigest } from "./digest-schema.ts";
 import { among } from "./guards.ts";
-import { digests } from "./schema.ts";
+import { hasOpenJob } from "./job-rows.ts";
+import type { DigestOutcome } from "./kinds.ts";
+import { digests, items, topics } from "./schema.ts";
 
 export interface DigestRead {
   readonly id: number;
@@ -62,3 +65,17 @@ export function storedDigests(db: Database, itemIds: readonly number[]) {
 }
 
 export type StoredDigest = Awaited<ReturnType<typeof storedDigests>>[number];
+
+export const DIGEST_VIEW_COLUMNS = {
+  digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),
+  digestTopic: sql<
+    string | null
+  >`coalesce((select ${topics.name} from ${topics} where ${topics.id} = ${items.topicId}), ${digests.topic})`.as(
+    "digest_topic",
+  ),
+  digestOutcome:
+    sql<DigestOutcome>`case when exists ${hasOpenJob("digest")} then 'pending' when ${items.digestFailed} then 'failed' else 'none' end`.as(
+      "digest_outcome",
+    ),
+  digestSource: sql<boolean>`${hasDigestSource()}`.mapWith(Boolean).as("digest_source"),
+};

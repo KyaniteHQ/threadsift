@@ -6,7 +6,7 @@ import { dirname, join, resolve } from "node:path";
 import { AI_DEADLINE_MS } from "../src/core/ai-contract.ts";
 import { DIGEST_TASK } from "../src/core/digest-task.ts";
 import { withCleanup } from "../src/core/failure-log.ts";
-import { submittedAmong } from "../src/core/reddit-thread.ts";
+import { submittedAmong } from "../src/core/thread-selection.ts";
 import {
   type ComparisonItem,
   type Snapshot,

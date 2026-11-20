@@ -1,11 +1,17 @@
-import { isPlainCodeDrop } from "./comment-filter.ts";
-import { storedCommentId } from "./comment-id.ts";
+import { storedCommentId, wireCommentId } from "./comment-id.ts";
 import { utf8Length } from "./encoding.ts";
-import type { ParsedThread, ThreadParse } from "./reddit-json.ts";
-import { checkedMetadata, checkedText, refuse, refusing } from "./reddit-tree.ts";
 import type { StoredParse } from "./stored-thread.ts";
-import { MAX_ROW_BYTES, type ThreadNode, moreNode, rowFits } from "./thread-rows.ts";
+import {
+  type NodeEntry,
+  type ParsedThread,
+  type ThreadParse,
+  parsing,
+  threadNodesOf,
+} from "./thread-parse.ts";
+import { type ThreadRefusal, checkedMetadata, checkedText, refuse } from "./thread-refusal.ts";
+import { MAX_ROW_BYTES } from "./thread-rows.ts";
 import { type JoinedPost, joinedPost, postTitle } from "./x-joined-post.ts";
+import { order } from "./x-reply-order.ts";
 import { type XReply, type XThreadValue, XBotThreadSchema, XThreadSchema } from "./x-wire.ts";
 import { fieldNamesOf, issueCodesOf } from "./zod-reasons.ts";
 
@@ -53,12 +59,6 @@ function checkedQuoted({ id, quoted }: XThreadValue["post"], replies: readonly X
     checkedMetadata({ [`the author of quoted post ${quote.id}`]: quote.author });
     checkedText(quote.text, `the text of quoted post ${quote.id}`);
   }
-}
-
-export function order<Value extends bigint | number>(first: Value, second: Value): number {
-  if (first === second) return 0;
-
-  return first < second ? -1 : 1;
 }
 
 function timeOf({ postedAt }: Readonly<XReply>): number {
@@ -116,39 +116,28 @@ function walk(postId: string, replies: readonly XReply[]): readonly Placed[] {
   return walked;
 }
 
-function nodeOf({ reply, parentId, depth }: Readonly<Placed>, position: number): ThreadNode {
-  const eligible = !isPlainCodeDrop(reply.author, reply.text);
-
-  const node: ThreadNode = {
-    id: storedCommentId(reply.id),
-    parentId,
-    position,
-    depth,
-    kind: "comment",
-    author: reply.author,
-    body: eligible ? reply.text : null,
-    score: reply.likes,
-    postedAt: reply.postedAt,
-    eligible,
-  };
-
-  if (!rowFits(node)) {
-    refuse(
-      `the stored row of reply ${reply.id} is longer than ${String(MAX_ROW_BYTES)} bytes once escaped`,
-    );
-  }
-
-  return node;
+function replyNamed(id: string): string {
+  return `reply ${wireCommentId(id) ?? id}`;
 }
 
-function withMoreMarked(thread: Readonly<ParsedThread>): ParsedThread {
-  const received = thread.nodes.length;
-  const { reported } = thread;
-  const missing = reported === null ? received > 0 : reported > received;
+function entryOf({ reply, parentId, depth }: Readonly<Placed>): NodeEntry {
+  return {
+    kind: "comment",
+    id: storedCommentId(reply.id),
+    parentId,
+    depth,
+    author: reply.author,
+    body: reply.text,
+    score: reply.likes,
+    postedAt: reply.postedAt,
+  };
+}
 
-  if (!missing) return thread;
+function entriesOf(walked: readonly Placed[], reported: number | null): readonly NodeEntry[] {
+  const entries = walked.map((step) => entryOf(step));
+  const missing = reported === null ? entries.length > 0 : reported > entries.length;
 
-  return { ...thread, nodes: [...thread.nodes, moreNode(received, null, 0)] };
+  return missing ? [...entries, { kind: "more", parentId: null, depth: 0 }] : entries;
 }
 
 function parseThread(value: XThreadValue, statusId: string): ParsedThread {
@@ -161,9 +150,9 @@ function parseThread(value: XThreadValue, statusId: string): ParsedThread {
   checkedReplies(post.id, replies);
   checkedQuoted(post, replies);
 
-  const nodes = walk(post.id, replies).map((entry, position) => nodeOf(entry, position));
+  const nodes = threadNodesOf(entriesOf(walk(post.id, replies), post.replies), replyNamed);
 
-  return withMoreMarked({
+  return {
     title: postTitle(post.text, post.author),
     author: post.author,
     community: null,
@@ -173,14 +162,12 @@ function parseThread(value: XThreadValue, statusId: string): ParsedThread {
     linkedUrl: null,
     postLink: null,
     nodes,
-  });
+  };
 }
 
 export function storedXThread(
   thread: XThreadValue,
-):
-  | { readonly kind: "thread"; readonly thread: XThreadValue }
-  | Extract<ThreadParse, { kind: "refused" }> {
+): { readonly kind: "thread"; readonly thread: XThreadValue } | ThreadRefusal {
   return utf8Length(JSON.stringify(thread)) > MAX_ROW_BYTES
     ? {
         kind: "refused",
@@ -190,18 +177,14 @@ export function storedXThread(
 }
 
 export function parseXThreadValue(thread: XThreadValue, statusId: string): ThreadParse {
-  const read = refusing(() => parseThread(thread, statusId));
-
-  return read.kind === "read" ? { kind: "thread", thread: read.value } : read;
+  return parsing(() => parseThread(thread, statusId));
 }
 
 export function parseJoinedXThread(
   { thread, followUps }: Readonly<Pick<JoinedPost, "thread" | "followUps">>,
   statusId: string,
 ): StoredParse {
-  const read = refusing(() => parseThread(thread, statusId));
-
-  return read.kind === "read" ? { kind: "thread", thread: { ...read.value, followUps } } : read;
+  return parsing(() => ({ ...parseThread(thread, statusId), followUps }));
 }
 
 const THREAD_FIELDS = fieldNamesOf(XThreadSchema);

@@ -11,11 +11,11 @@ import type {
 } from "./highlight-contract.ts";
 import type { Ports } from "./ports.ts";
 import { postTextOf } from "./post-text.ts";
-import { readGeneration } from "./reddit-thread.ts";
 import { type HighlightRow, highlights, items, searchParts } from "./schema.ts";
 import { highlightPartWrites } from "./search.ts";
 import { projectText } from "./text-projection.ts";
 import { readableBody } from "./thread-read.ts";
+import { readGeneration } from "./thread-store.ts";
 import { queueVaultItems } from "./vault-queue.ts";
 
 type CreatedHighlight =

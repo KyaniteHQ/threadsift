@@ -5,7 +5,7 @@ import type { HeldAccount } from "./reddit-account-fetch.ts";
 import { type TurnRun, resumeAt, takeTurn } from "./reddit-account-queue.ts";
 import { accountRow } from "./reddit-account-states.ts";
 import { openedSession } from "./reddit-account.ts";
-import { holdsNoThread } from "./reddit-thread.ts";
+import { holdsNoThread } from "./thread-store.ts";
 
 export type AccountTurn =
   | { readonly kind: "unused" }

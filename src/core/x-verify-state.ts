@@ -1,8 +1,9 @@
 import { authorPartsOf } from "./x-author-thread.ts";
 import { joinedPost, leadingQuotes } from "./x-joined-post.ts";
 import { MAX_LINKS, type StoredPost, linkCount } from "./x-oembed.ts";
+import { hasPossibleParent } from "./x-reply-order.ts";
 import { type Judged, judgementOn, photosRejectedOn, rejectedJudged } from "./x-verdict.ts";
-import type { XReply, XThreadValue } from "./x-wire.ts";
+import type { XThreadValue } from "./x-wire.ts";
 
 const SLICE_REQUESTS = 40;
 
@@ -74,12 +75,6 @@ export function sliceOf(
   }
 
   return chosen;
-}
-
-export function hasPossibleParent({ id, parentId }: Readonly<XReply>, rootId: string): boolean {
-  const parent = BigInt(parentId);
-
-  return parent >= BigInt(rootId) && parent < BigInt(id);
 }
 
 export function startingJudged({ post, replies }: Readonly<XThreadValue>): Judged {

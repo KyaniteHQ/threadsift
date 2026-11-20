@@ -3,10 +3,9 @@ import { sql } from "drizzle-orm";
 import { report } from "./failure-log.ts";
 import { settledFetch } from "./fetch-settle.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "./job-outcome.ts";
-import { ownerOfItem } from "./reddit-thread.ts";
 import { X_VERIFY_DEADLINE_MS } from "./request-waits.ts";
+import { fewerThanStored, holdsAtLeastStored, ownerOfItem, repliesOf } from "./thread-store.ts";
 import { NOTE_OF_REFUSAL } from "./x-fetcher.ts";
-import { fewerThanStored, holdsAtLeastStored, publishableThread, repliesOf } from "./x-partial.ts";
 import { type Verification, verificationOf } from "./x-verify-read.ts";
 import { type Progress, progressOf } from "./x-verify-state.ts";
 import {
@@ -17,6 +16,7 @@ import {
   revisionHolds,
   unreadableWrites,
 } from "./x-verify-store.ts";
+import { publishableThread } from "./x-verify-thread.ts";
 
 type Ending = Exclude<Progress, { kind: "asking" }> | { readonly kind: "gave-up" };
 

@@ -5,10 +5,12 @@ import { X_QUOTES_MAX, X_REPLIES_MAX } from "./limits.ts";
 import { WholeCount } from "./whole-count.ts";
 import { onlyXImages } from "./x-images.ts";
 
+const X_STATUS_ID_MAX = WIRE_ID_MAX;
+
 export const StatusIdSchema = z
   .string()
   .regex(/^[1-9]\d*$/u, { error: "must be digits only, with no leading zero" })
-  .max(WIRE_ID_MAX, { error: `must be at most ${String(WIRE_ID_MAX)} digits` });
+  .max(X_STATUS_ID_MAX, { error: `must be at most ${String(X_STATUS_ID_MAX)} digits` });
 
 const Handle = z.string().regex(/^[A-Za-z0-9_]+$/u, {
   error: "must be the handle without @, with letters, digits and underscores only",
@@ -37,61 +39,67 @@ function repliesArrayOf<Reply extends z.ZodType>(reply: Reply) {
   return z.array(reply).max(X_REPLIES_MAX, { error: `more than ${String(X_REPLIES_MAX)} replies` });
 }
 
-function threadSchemaOf<
-  PostedAt extends z.ZodType<number | null>,
-  Repaired extends z.ZodType<boolean | undefined>,
-  Images extends z.ZodType<readonly string[]>,
-  RootText extends z.ZodType<string>,
->(postedAt: PostedAt, repairedParent: Repaired, images: Images, rootText: RootText) {
-  return z.strictObject({
-    post: z.strictObject({
-      id: StatusIdSchema,
-      author: Handle,
-      text: rootText,
-      postedAt,
-      replies: Count,
-      images,
-      quoted: z
-        .array(
-          z.strictObject({
-            id: StatusIdSchema,
-            author: Handle,
-            text: z.string(),
-            postedAt,
-            images,
-          }),
-        )
-        .max(X_QUOTES_MAX, { error: `more than ${String(X_QUOTES_MAX)} quoted posts` })
-        .default([]),
-    }),
-    replies: repliesArrayOf(
-      z.strictObject({
-        id: StatusIdSchema,
-        parentId: StatusIdSchema,
-        author: Handle,
-        text: z.string(),
-        postedAt,
-        likes: Count,
-        repairedParent,
-        images,
-      }),
-    ),
-  });
-}
+const StoredQuoted = z.strictObject({
+  id: StatusIdSchema,
+  author: Handle,
+  text: z.string(),
+  postedAt: StoredPostedAt,
+  images: PhotoUrls,
+});
 
-export const XThreadSchema = threadSchemaOf(
-  WirePostedAt,
-  z.never().optional(),
-  NoPhotoUrls,
-  PostText,
-);
+const quotedOf = <Quoted extends z.ZodType>(quoted: Quoted) =>
+  z
+    .array(quoted)
+    .max(X_QUOTES_MAX, { error: `more than ${String(X_QUOTES_MAX)} quoted posts` })
+    .default([]);
 
-export const XBotThreadSchema = threadSchemaOf(
-  WirePostedAt,
-  z.never().optional(),
-  PhotoUrls,
-  z.string(),
-);
+const StoredReply = z.strictObject({
+  id: StatusIdSchema,
+  parentId: StatusIdSchema,
+  author: Handle,
+  text: z.string(),
+  postedAt: StoredPostedAt,
+  likes: Count,
+  repairedParent: z.boolean().optional(),
+  images: PhotoUrls,
+});
+
+export const StoredXThreadSchema = z.strictObject({
+  post: z.strictObject({
+    id: StatusIdSchema,
+    author: Handle,
+    text: z.string(),
+    postedAt: StoredPostedAt,
+    replies: Count,
+    images: PhotoUrls,
+    quoted: quotedOf(StoredQuoted),
+  }),
+  replies: repliesArrayOf(StoredReply),
+});
+
+const WireQuoted = StoredQuoted.extend({ postedAt: WirePostedAt });
+
+const WireReply = StoredReply.extend({
+  postedAt: WirePostedAt,
+  repairedParent: z.never().optional(),
+});
+
+export const XBotThreadSchema = StoredXThreadSchema.extend({
+  post: StoredXThreadSchema.shape.post.extend({
+    postedAt: WirePostedAt,
+    quoted: quotedOf(WireQuoted),
+  }),
+  replies: repliesArrayOf(WireReply),
+});
+
+export const XThreadSchema = XBotThreadSchema.extend({
+  post: XBotThreadSchema.shape.post.extend({
+    text: PostText,
+    images: NoPhotoUrls,
+    quoted: quotedOf(WireQuoted.extend({ images: NoPhotoUrls })),
+  }),
+  replies: repliesArrayOf(WireReply.extend({ images: NoPhotoUrls })),
+});
 
 export const XCliThreadSchema = XBotThreadSchema.extend({
   post: XBotThreadSchema.shape.post.extend({
@@ -99,13 +107,6 @@ export const XCliThreadSchema = XBotThreadSchema.extend({
   }),
   replies: repliesArrayOf(XBotThreadSchema.shape.replies.element.extend({ replies: Count })),
 });
-
-export const StoredXThreadSchema = threadSchemaOf(
-  StoredPostedAt,
-  z.boolean().optional(),
-  PhotoUrls,
-  z.string(),
-);
 
 export type XQuoted = Readonly<z.output<typeof StoredXThreadSchema>["post"]["quoted"][number]>;
 

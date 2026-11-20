@@ -4,7 +4,6 @@ import type { Database } from "./database.ts";
 import { utf8Length } from "./encoding.ts";
 import type { JobPorts, JobWrites, SettledOutcome } from "./job-outcome.ts";
 import { postTextOf } from "./post-text.ts";
-import { keptBodies, keptCommentIds } from "./reddit-thread.ts";
 import {
   ItemsCursorSchema,
   RESTORE_INDEX_BYTES,
@@ -22,6 +21,7 @@ import {
   repositoryPartWrites,
   repositoryText,
 } from "./search.ts";
+import { keptBodies, keptCommentIds } from "./thread-selection.ts";
 
 function tagNamesOfItem() {
   return sql<string>`(select coalesce(json_group_array(name), '[]') from (select ${tags.name} as name from ${itemTags} join ${tags} on ${tags.id} = ${itemTags.tagId} where ${itemTags.itemId} = ${items.id} order by ${tags.key}))`;

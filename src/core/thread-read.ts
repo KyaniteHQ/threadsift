@@ -9,8 +9,8 @@ import {
 } from "./comment-view.ts";
 import type { Database } from "./database.ts";
 import { providerSet } from "./provider-saved.ts";
-import { commentReadable, readGeneration } from "./reddit-thread.ts";
-import { digests, redditComments, redditThreads } from "./schema.ts";
+import { redditComments, redditThreads } from "./schema.ts";
+import { commentReadable, digestCoversThread, readGeneration } from "./thread-store.ts";
 
 export function readableBody(
   db: Database,
@@ -65,20 +65,13 @@ function threadReport(db: Database, itemId: number) {
       reported: redditThreads.reported,
       archivedAt: redditThreads.archivedAt,
       generation: redditThreads.generation,
-      published: sql<boolean>`${digests.itemId} is not null`.mapWith(Boolean),
+      published: sql<boolean>`${digestCoversThread(itemId)}`.mapWith(Boolean),
       provider: sql<boolean>`${providerSet()}`.mapWith(Boolean),
       link: sql<
         string | null
-      >`(select newest.post_link from reddit_threads as newest where newest.item_id = ${redditThreads}.item_id order by newest.generation desc limit 1)`,
+      >`(select newest.post_link from ${redditThreads} as newest where newest.item_id = ${redditThreads}.item_id order by newest.generation desc limit 1)`,
     })
     .from(redditThreads)
-    .leftJoin(
-      digests,
-      and(
-        eq(digests.itemId, redditThreads.itemId),
-        eq(digests.generation, redditThreads.generation),
-      ),
-    )
     .where(
       and(
         eq(redditThreads.itemId, itemId),

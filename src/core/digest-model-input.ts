@@ -8,8 +8,8 @@ import {
   type LinkedPage,
   digestPrompt,
 } from "./digest-prompt.ts";
-import { commentCandidates } from "./reddit-thread.ts";
 import { redditThreads } from "./schema.ts";
+import { commentCandidates } from "./thread-selection.ts";
 
 async function joinedFollowUps(db: Database, itemId: number): Promise<number> {
   const [newest] = await db

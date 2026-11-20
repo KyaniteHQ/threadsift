@@ -1,10 +1,10 @@
-import { type SQL, type SQLWrapper, and, asc, eq, isNotNull, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { StoredCommentId } from "./comment-id.ts";
 import type { Database } from "./database.ts";
-import type { CommentCandidate } from "./digest-prompt.ts";
-import { among, guardHolds } from "./guards.ts";
+import { guardHolds } from "./guards.ts";
+import { REDDIT_KINDS } from "./kinds.ts";
+import { listed } from "./schema-checks.ts";
 import { digests, highlights, items, redditComments, redditThreads } from "./schema.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import { jsonArrays, rowJson } from "./thread-rows.ts";
@@ -24,106 +24,6 @@ export function commentReadable(): SQL<boolean> {
   const held = sql`exists (select 1 from ${highlights} where ${highlights.itemId} = ${redditComments}.item_id and ${highlights.status} = 'attached' and ${highlights.commentId} = ${redditComments}.id)`;
 
   return sql<boolean>`(${redditComments.kept} = 1 or ${held} or (${redditComments.eligible} = 1 and not ${covered}))`;
-}
-
-export function keptCommentIds(): SQL<string> {
-  return sql<string>`(select coalesce(json_group_array(id), '[]') from (select ${redditComments.id} as id from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;
-}
-
-function selected(kept: readonly string[]): SQL {
-  return sql`${redditComments.eligible} = 1 and ${among(redditComments.id, kept)}`;
-}
-
-function commentsWhere(
-  db: Database,
-  snapshot: Readonly<{ itemId: number; generation: number }>,
-  condition: Readonly<SQLWrapper>,
-) {
-  return db
-    .select({ id: redditComments.id, body: redditComments.body })
-    .from(redditComments)
-    .where(
-      and(
-        eq(redditComments.itemId, snapshot.itemId),
-        eq(redditComments.generation, snapshot.generation),
-        sql`${condition}`,
-      ),
-    )
-    .orderBy(asc(redditComments.position));
-}
-
-async function bodiesWhere(
-  db: Database,
-  snapshot: Readonly<{ itemId: number; generation: number }>,
-  condition: Readonly<SQLWrapper>,
-): Promise<readonly string[]> {
-  const rows = await commentsWhere(db, snapshot, condition);
-
-  return rows.flatMap(({ body }) => (body === null ? [] : [body]));
-}
-
-export function selectedBodies(
-  db: Database,
-  snapshot: Readonly<{ itemId: number; generation: number }>,
-  kept: readonly string[],
-): Promise<readonly string[]> {
-  return bodiesWhere(db, snapshot, selected(kept));
-}
-
-export async function eligibleAmong(
-  db: Database,
-  snapshot: Readonly<{ itemId: number; generation: number }>,
-  ids: readonly string[],
-): Promise<readonly string[]> {
-  if (ids.length === 0) return [];
-
-  const rows = await commentsWhere(db, snapshot, selected(ids));
-
-  return rows.map(({ id }) => id);
-}
-
-export function keptBodies(
-  db: Database,
-  snapshot: Readonly<{ itemId: number; generation: number }>,
-): Promise<readonly string[]> {
-  return bodiesWhere(db, snapshot, eq(redditComments.kept, true));
-}
-
-export function highlightedComments(
-  db: Database,
-  snapshot: Readonly<{ itemId: number; generation: number }>,
-  ids: readonly string[],
-) {
-  return ids.length === 0 ? Promise.resolve([]) : commentsWhere(db, snapshot, selected(ids));
-}
-
-export function submittedAmong(
-  ids: readonly string[],
-  submitted: readonly string[],
-): readonly string[] {
-  const allowed = new Set(submitted);
-
-  return [...new Set(ids)].filter((id) => allowed.has(id) && StoredCommentId.safeParse(id).success);
-}
-
-export async function commentCandidates(
-  db: Database,
-  snapshot: Readonly<{ itemId: number; generation: number }>,
-): Promise<readonly CommentCandidate[]> {
-  const rows = await db
-    .select({ id: redditComments.id, parentId: redditComments.parentId, body: redditComments.body })
-    .from(redditComments)
-    .where(
-      and(
-        eq(redditComments.itemId, snapshot.itemId),
-        eq(redditComments.generation, snapshot.generation),
-        eq(redditComments.eligible, true),
-        isNotNull(redditComments.body),
-      ),
-    )
-    .orderBy(asc(redditComments.position));
-
-  return rows.flatMap(({ id, parentId, body }) => (body === null ? [] : [{ id, parentId, body }]));
 }
 
 export interface Owner {
@@ -235,33 +135,12 @@ export function threadWrites(
   ];
 }
 
-export function selectionWrites(
-  db: Database,
-  published: Readonly<{ itemId: number; generation: number }>,
-  kept: readonly string[],
-): readonly BatchItem<"sqlite">[] {
-  const { itemId, generation } = published;
-
-  return [
-    db
-      .update(redditComments)
-      .set({ kept: selected(kept) })
-      .where(and(eq(redditComments.itemId, itemId), eq(redditComments.generation, generation))),
-    db
-      .delete(redditComments)
-      .where(
-        and(eq(redditComments.itemId, itemId), sql`${redditComments.generation} <> ${generation}`),
-      ),
-    db
-      .delete(redditThreads)
-      .where(
-        and(eq(redditThreads.itemId, itemId), sql`${redditThreads.generation} <> ${generation}`),
-      ),
-  ];
+function publishedGeneration(itemId: number | Readonly<SQLWrapper>) {
+  return sql`select ${redditThreads.generation} from ${redditThreads} join ${digests} on ${digests.itemId} = ${redditThreads.itemId} and ${digests.generation} = ${redditThreads.generation} where ${redditThreads.itemId} = ${itemId}`;
 }
 
-export function publishedGeneration(itemId: number | Readonly<SQLWrapper>) {
-  return sql`select ${redditThreads.generation} from ${redditThreads} join ${digests} on ${digests.itemId} = ${redditThreads.itemId} and ${digests.generation} = ${redditThreads.generation} where ${redditThreads.itemId} = ${itemId}`;
+export function digestCoversThread(itemId: number | Readonly<SQLWrapper>): SQL {
+  return sql`exists (${publishedGeneration(itemId)})`;
 }
 
 export function readGeneration(itemId: number | Readonly<SQLWrapper>) {
@@ -275,7 +154,7 @@ export function holdsNoThread(db: Database, itemId: number): Promise<boolean> {
   return guardHolds(db, noThreadFor(itemId));
 }
 
-export function noThreadFor(itemId: number | Readonly<SQLWrapper>): SQL {
+function noThreadFor(itemId: number | Readonly<SQLWrapper>): SQL {
   return sql`${readGeneration(itemId)} is null`;
 }
 
@@ -286,3 +165,64 @@ export function hasNoThread(normalizedUrl: string): SQL {
 export function awaitsThread(normalizedUrl: string): SQL {
   return sql`exists (select 1 from ${items} where ${items.normalizedUrl} = ${normalizedUrl}) and ${hasNoThread(normalizedUrl)}`;
 }
+
+export function repliesOf({
+  nodes,
+  followUps = 0,
+}: Readonly<Pick<StoredThread, "nodes" | "followUps">>): number {
+  return nodes.filter(({ kind }) => kind === "comment").length + followUps;
+}
+
+function storedReplies(itemId: number | Readonly<SQLWrapper>) {
+  const generation = sql`max(coalesce((select max(newest.generation) from ${redditComments} as newest where newest.item_id = ${itemId} and newest.kind = 'comment'), -1), coalesce((select max(joined.generation) from ${redditThreads} as joined where joined.item_id = ${itemId} and joined.follow_ups > 0), -1))`;
+
+  return sql<number>`((select count(*) from ${redditComments} as kept where kept.item_id = ${itemId} and kept.kind = 'comment' and kept.generation = ${generation}) + coalesce((select stored.follow_ups from ${redditThreads} as stored where stored.item_id = ${itemId} and stored.generation = ${generation}), 0))`;
+}
+
+export function holdsAtLeastStored(itemId: number | Readonly<SQLWrapper>, replies: number) {
+  return sql`${replies} >= ${storedReplies(itemId)}`;
+}
+
+export async function storedReplyCount(
+  db: Database,
+  itemId: number | Readonly<SQLWrapper>,
+): Promise<number> {
+  const [row] = await db.select({ stored: storedReplies(itemId) }).from(sql`(select 1)`);
+
+  return row?.stored ?? 0;
+}
+
+export async function fewerThanStored(
+  db: Database,
+  owner: Readonly<Owner>,
+  thread: Readonly<Pick<StoredThread, "nodes" | "followUps">>,
+): Promise<boolean> {
+  return repliesOf(thread) < (await storedReplyCount(db, owner.id));
+}
+
+const OF_READ_THREAD = sql`${redditComments.itemId} = ${items.id} and ${redditComments.generation} = (${readGeneration(items.id)}) and ${redditComments.kind} = 'comment'`;
+
+export const COMMENT_COUNT_COLUMNS = {
+  commentsPublished: sql<boolean>`${digestCoversThread(items.id)}`
+    .mapWith(Boolean)
+    .as("comments_published"),
+  commentsReceived:
+    sql<number>`(select count(*) from ${redditComments} where ${OF_READ_THREAD})`.as(
+      "comments_received",
+    ),
+  commentsShown:
+    sql<number>`(select count(*) from ${redditComments} where ${OF_READ_THREAD} and ${commentReadable()})`.as(
+      "comments_shown",
+    ),
+  commentsReported: sql<
+    number | null
+  >`(select ${redditThreads.reported} from ${redditThreads} where ${redditThreads.itemId} = ${items.id} and ${redditThreads.generation} = (${readGeneration(items.id)}))`.as(
+    "comments_reported",
+  ),
+};
+
+export const FILLABLE_COLUMNS = {
+  fillable: sql<boolean>`(${items.kind} in (${listed(REDDIT_KINDS)}) and ${noThreadFor(items.id)})`
+    .mapWith(Boolean)
+    .as("fillable"),
+};

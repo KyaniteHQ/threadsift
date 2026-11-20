@@ -53,7 +53,7 @@ const CommentData = z.object({
   replies: z.union([z.literal(""), Listing]).optional(),
 });
 
-const PostData = z
+export const WirePostSchema = z
   .object({
     id: z.string().min(1),
     title: z.string().trim().min(1),
@@ -76,7 +76,7 @@ const PostListing = z
     data: z
       .object({
         children: z
-          .tuple([z.object({ kind: z.literal("t3"), data: PostData }).readonly()])
+          .tuple([z.object({ kind: z.literal("t3"), data: WirePostSchema }).readonly()])
           .readonly(),
       })
       .readonly(),
@@ -85,4 +85,4 @@ const PostListing = z
 
 export const ThreadJson = z.tuple([PostListing, Listing]);
 
-export type WirePost = z.infer<typeof PostData>;
+export type WirePost = z.infer<typeof WirePostSchema>;
