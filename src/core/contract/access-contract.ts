@@ -3,7 +3,10 @@ export const SETUP_CODE_STATUSES = ["missing", "short", "set"] as const;
 export type SetupCodeStatus = (typeof SETUP_CODE_STATUSES)[number];
 
 export const REFUSAL_CODES = [
-  "wrong",
+  "wrong-setup-code",
+  "wrong-password",
+  "wrong-current-password",
+  "wrong-reset-code",
   "owner-exists",
   "locked",
   "setup-missing",

@@ -29,8 +29,10 @@ const errorBody = (description: string) => jsonBody(ErrorResponseSchema, descrip
 
 const TOO_MANY = errorBody("Too many wrong tries; `Retry-After` gives the seconds to wait.");
 
+const ORIGIN_REFUSAL = "A 403 with no `code` refuses the request's origin or content type.";
+
 const SETUP_ERRORS = {
-  401: errorBody("The setup code is wrong."),
+  403: errorBody(`The setup code is wrong; \`code\` is \`wrong-setup-code\`. ${ORIGIN_REFUSAL}`),
   409: errorBody("An owner exists already."),
   429: TOO_MANY,
   503: errorBody("The Instance has no usable setup code; `code` says why."),
@@ -78,7 +80,7 @@ export const loginRoute = createRoute({
   request: { body: jsonRequest(LoginRequestSchema) },
   responses: {
     204: noContent("The password is right and the response sets the session cookie."),
-    401: errorBody("The password is wrong."),
+    403: errorBody(`The password is wrong; \`code\` is \`wrong-password\`. ${ORIGIN_REFUSAL}`),
     409: errorBody("The password changed while this call ran, so nothing was done."),
     429: TOO_MANY,
   },
@@ -95,7 +97,9 @@ export const changePasswordRoute = createRoute({
     ),
     400: errorBody(PASSWORD_RULE),
     401: errorBody("The session is missing, expired or revoked."),
-    403: errorBody("The current password is wrong, or an agent token was sent."),
+    403: errorBody(
+      `The current password is wrong and \`code\` is \`wrong-current-password\`, or an agent token was sent and the answer has no \`code\`. ${ORIGIN_REFUSAL}`,
+    ),
     409: errorBody(
       "The password or this session changed while the call ran, so nothing was changed.",
     ),
@@ -113,7 +117,7 @@ export const resetPasswordRoute = createRoute({
       "The password is set, the code is spent and every session ended. The response sets no cookie and agent tokens keep working.",
     ),
     400: errorBody(PASSWORD_RULE),
-    403: errorBody("The reset code is wrong."),
+    403: errorBody(`The reset code is wrong; \`code\` is \`wrong-reset-code\`. ${ORIGIN_REFUSAL}`),
     409: errorBody(
       "The code was used already, the Instance has no owner, or the password changed while the call ran; `code` says which.",
     ),

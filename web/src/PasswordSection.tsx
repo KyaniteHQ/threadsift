@@ -28,7 +28,7 @@ function usePasswordChange() {
       if (result.kind === "ok") {
         clearAll();
         setOutcome("changed");
-      } else if (result.kind === "wrong") {
+      } else if (result.kind === "wrong-current-password") {
         current.clear();
         current.fail(PASSWORD.currentWrong);
       } else if (result.kind === "password") {
