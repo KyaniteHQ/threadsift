@@ -7,7 +7,7 @@ import { dataFileStore } from "./file-store.ts";
 import { JobLoop } from "./job-loop.ts";
 import { nodeNetwork, nodeRedditSession } from "./network.ts";
 import { type OperatorCodeOptions, startOperatorCode } from "./operator-code.ts";
-import { WorkerPageReader } from "./page-reader.ts";
+import { threadPageReader } from "./page-reader.ts";
 import { setupCodeOf } from "./setup-code.ts";
 import { vaultFolder } from "./vault-folder.ts";
 
@@ -34,7 +34,7 @@ export async function startNode(
 
   const operator = await startOperatorCode({ fetchers, claude, codex, grok });
   const loop = new JobLoop();
-  const pages = new WorkerPageReader();
+  const pages = threadPageReader();
 
   const ports: Ports = {
     db,

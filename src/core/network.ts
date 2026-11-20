@@ -20,6 +20,40 @@ export interface NetworkResponse {
   readonly body: AsyncIterable<Uint8Array>;
 }
 
+export interface WireResponse {
+  readonly status: number;
+  readonly header: (name: string) => string | null;
+  readonly body: AsyncIterable<Uint8Array>;
+}
+
+export function networkResponseOf({
+  status,
+  header,
+  body,
+}: Readonly<WireResponse>): NetworkResponse {
+  return {
+    status,
+    location: header("location"),
+    contentType: header("content-type"),
+    rateLimit: rateLimitHeadersOf(header),
+    body,
+  };
+}
+
+async function* chunksOf(body: ReadableStream<Uint8Array> | null): AsyncGenerator<Uint8Array> {
+  if (body !== null) {
+    yield* body;
+  }
+}
+
+export function wireResponseOf(response: Response): WireResponse {
+  return {
+    status: response.status,
+    header: (name) => response.headers.get(name),
+    body: chunksOf(response.bodyUsed ? null : response.body),
+  };
+}
+
 export type RequestHeaders = Readonly<Record<string, string>>;
 
 export interface Network {

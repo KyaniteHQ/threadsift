@@ -1,13 +1,26 @@
 import { readCapped } from "./capped.ts";
 import { THREAD_CONTENT_BYTES } from "./limits.ts";
-import { type NetworkResponse, REQUEST_HEADERS, type RequestHeaders } from "./network.ts";
+import {
+  type NetworkResponse,
+  REQUEST_HEADERS,
+  type RedditSession,
+  type RequestHeaders,
+  type WireResponse,
+  networkResponseOf,
+} from "./network.ts";
 import { OK, type RedditAnswer } from "./reddit-http.ts";
 
-export const REDDIT_HOST = "www.reddit.com";
+const REDDIT_HOST = "www.reddit.com";
 
 const HEADER_BREAK = /[\r\n]/u;
 
-export function redditSessionHeaders(cookie: string): RequestHeaders {
+interface RedditRequest {
+  readonly host: string;
+  readonly path: string;
+  readonly headers: RequestHeaders;
+}
+
+function redditSessionHeaders(cookie: string): RequestHeaders {
   return {
     ...REQUEST_HEADERS,
     accept: "application/json",
@@ -16,23 +29,37 @@ export function redditSessionHeaders(cookie: string): RequestHeaders {
   };
 }
 
-export function refusedRequestLine(path: string, cookie: string): boolean {
+function refusedRequestLine(path: string, cookie: string): boolean {
   return !path.startsWith("/") || HEADER_BREAK.test(path) || HEADER_BREAK.test(cookie);
 }
 
-export async function* boundedBody(
-  body: Readonly<AsyncIterable<Uint8Array> | Iterable<Uint8Array>>,
-  maxBytes: number = THREAD_CONTENT_BYTES,
-): AsyncGenerator<Uint8Array> {
+async function* boundedBody(body: Readonly<AsyncIterable<Uint8Array>>): AsyncGenerator<Uint8Array> {
   let size = 0;
 
   for await (const chunk of body) {
     size += chunk.length;
 
-    if (size > maxBytes) throw new RangeError("the answer is longer than the limit");
+    if (size > THREAD_CONTENT_BYTES) throw new RangeError("the answer is longer than the limit");
 
     yield chunk;
   }
+}
+
+export function redditSessionOver(
+  send: (request: Readonly<RedditRequest>, signal: AbortSignal) => Promise<WireResponse>,
+): RedditSession {
+  return {
+    get: async (path, cookie, signal) => {
+      if (refusedRequestLine(path, cookie)) throw new TypeError("the request line is not allowed");
+
+      const wire = await send(
+        { host: REDDIT_HOST, path, headers: redditSessionHeaders(cookie) },
+        signal,
+      );
+
+      return networkResponseOf({ ...wire, body: boundedBody(wire.body) });
+    },
+  };
 }
 
 export async function answerOf(response: NetworkResponse): Promise<RedditAnswer> {

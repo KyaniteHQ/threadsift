@@ -1,10 +1,5 @@
 import type { ArticleReading } from "../../core/article.ts";
-import type { SuppliedPage } from "../../core/supplied-page.ts";
-
-export type PageRequest =
-  | { readonly kind: "title"; readonly html: string }
-  | { readonly kind: "article"; readonly html: string; readonly url: string }
-  | { readonly kind: "page"; readonly page: SuppliedPage };
+import type { PageRequest } from "../../core/page-reader.ts";
 
 export type RequestMessage = PageRequest & { readonly id: number };
 

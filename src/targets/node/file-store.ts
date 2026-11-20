@@ -6,19 +6,15 @@ import { join, sep } from "node:path";
 import { bestEffort, errnoCodeOf } from "../../core/failure-log.ts";
 import {
   FileRefused,
-  STORE_ROOT_PREFIX,
   type StoreKey,
   type StoreRoot,
   TEMPORARY_BYTES,
   isOwnerId,
   parseStoredKey,
-  requireFileKey,
-  requireStoredKey,
-  requireFilePrefix,
-  requireListLimit,
+  storePrefixText,
   temporaryPrefix,
 } from "../../core/file-keys.ts";
-import type { FilePage, FileStore } from "../../core/file-store.ts";
+import { type FilePage, type FileStore, checkedFileStore } from "../../core/file-store.ts";
 
 const CHUNK_BYTES = 65_536;
 
@@ -71,10 +67,6 @@ function endsBefore(folderPrefix: string, cursor: string): boolean {
   return cursor > folderPrefix && !cursor.startsWith(folderPrefix);
 }
 
-function ownerPrefix(root: StoreRoot, ownerId: string): string {
-  return `${STORE_ROOT_PREFIX[root]}${ownerId}/`;
-}
-
 interface Located {
   readonly leaf: string;
   readonly present: boolean;
@@ -122,7 +114,7 @@ class FileFolder {
     try {
       return (await readdir(this.path(root, ownerId), { withFileTypes: true }))
         .filter((entry) => entry.isFile())
-        .map((entry) => `${ownerPrefix(root, ownerId)}${entry.name}`)
+        .map((entry) => `${storePrefixText({ root, ownerId })}${entry.name}`)
         .filter((key) => parseStoredKey(key) !== null)
         .toSorted();
     } catch (error) {
@@ -163,7 +155,7 @@ class FileFolder {
     if (!(await this.hasFolders(root, ownerId))) return [];
 
     const ownerIds = (await this.ownerIds(root, ownerId)).filter(
-      (id) => cursor === null || !endsBefore(ownerPrefix(root, id), cursor),
+      (id) => cursor === null || !endsBefore(storePrefixText({ root, ownerId: id }), cursor),
     );
 
     return this.keysFrom(root, ownerIds, cursor, limit);
@@ -247,10 +239,9 @@ async function writeAtomically(temporary: string, leaf: string, bytes: Uint8Arra
 export function dataFileStore(dataDir: string): FileStore {
   const folder = new FileFolder(join(dataDir, "files"));
 
-  return {
-    put: async (key, bytes) => {
-      const parsed = requireFileKey(key);
-
+  return checkedFileStore({
+    checksLimitFirst: true,
+    put: async (parsed, bytes) => {
       await folder.ensureFolders(parsed.root, parsed.ownerId);
 
       const { leaf } = await folder.locate(parsed);
@@ -259,12 +250,11 @@ export function dataFileStore(dataDir: string): FileStore {
       await writeAtomically(temporary, leaf, bytes);
     },
     get: async (key) => {
-      const { leaf, present } = await folder.locate(requireStoredKey(key));
+      const { leaf, present } = await folder.locate(key);
 
       return present ? readable(leaf) : null;
     },
-    delete: async (keys) => {
-      const parsed = keys.map((key) => requireStoredKey(key));
+    delete: async (parsed) => {
       const located = await Promise.all(parsed.map((one) => folder.locate(one)));
 
       await Promise.all(
@@ -272,11 +262,10 @@ export function dataFileStore(dataDir: string): FileStore {
       );
     },
     list: async (prefix, cursor, limit): Promise<FilePage> => {
-      const size = requireListLimit(limit);
-      const after = await folder.keysAfter(requireFilePrefix(prefix), cursor, size + 1);
-      const page = after.slice(0, size);
+      const after = await folder.keysAfter(prefix, cursor, limit + 1);
+      const page = after.slice(0, limit);
 
-      return { keys: page, cursor: after.length > size ? (page.at(-1) ?? null) : null };
+      return { keys: page, cursor: after.length > limit ? (page.at(-1) ?? null) : null };
     },
-  };
+  });
 }

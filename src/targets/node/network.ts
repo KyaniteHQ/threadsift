@@ -4,23 +4,18 @@ import { request as httpsRequest } from "node:https";
 import { type Readable, type Transform, pipeline } from "node:stream";
 import { createBrotliDecompress, createGunzip, createInflate } from "node:zlib";
 
-import { isGlobalAddress } from "../../core/addresses.ts";
+import { type Exchange, networkOver } from "../../core/network-transport.ts";
 import {
   type Network,
-  type NetworkResponse,
+  NetworkFailure,
   REQUEST_HEADERS,
   type RedditSession,
   type RequestHeaders,
-  NetworkFailure,
-  rateLimitHeadersOf,
+  type WireResponse,
+  wireResponseOf,
 } from "../../core/network.ts";
-import { assertPublicHost } from "../../core/public-host.ts";
-import {
-  REDDIT_HOST,
-  boundedBody,
-  redditSessionHeaders,
-  refusedRequestLine,
-} from "../../core/reddit-session.ts";
+import { publicAddressesOf } from "../../core/public-host.ts";
+import { redditSessionOver } from "../../core/reddit-session.ts";
 import { HOP_DEADLINE_MS } from "../../core/request-waits.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
@@ -36,11 +31,9 @@ const DECODERS: ReadonlyMap<string, () => Transform> = new Map([
   ["br", createBrotliDecompress],
 ]);
 
-const globalAddressesOnly: NonNullable<RequestOptions["lookup"]> = (
-  hostname,
-  options,
-  callback,
-) => {
+type AddressLookup = NonNullable<RequestOptions["lookup"]>;
+
+const globalAddressesOnly: AddressLookup = (hostname, options, callback) => {
   lookup(hostname, { ...options, all: true }, (error, resolved) => {
     if (error !== null) {
       callback(error, []);
@@ -48,13 +41,18 @@ const globalAddressesOnly: NonNullable<RequestOptions["lookup"]> = (
       return;
     }
 
-    const addresses = resolved.filter(({ address }) => isGlobalAddress(address));
-    const [first] = addresses;
+    const verdict = publicAddressesOf(hostname, resolved);
 
-    if (first === undefined) {
-      callback(new NetworkFailure("refused", `${hostname} has no globally reachable address`), []);
-    } else if (options.all === true) {
-      callback(null, addresses);
+    if (verdict.kind === "refused") {
+      callback(verdict.failure, []);
+
+      return;
+    }
+
+    const [first] = verdict.addresses;
+
+    if (options.all === true) {
+      callback(null, verdict.addresses);
     } else {
       callback(null, first.address, first.family);
     }
@@ -75,22 +73,23 @@ function decodedBody(response: IncomingMessage, encoding: string): Readable {
   return decoder === undefined ? response : pipeline(response, decoder, () => {});
 }
 
-function exchange(
-  method: "GET" | "POST",
-  url: string,
-  signal: AbortSignal,
-  headers: RequestHeaders,
-  body?: string,
-): Promise<NetworkResponse> {
-  return new Promise<NetworkResponse>((resolve, reject) => {
+function exchange({
+  method,
+  url,
+  headers,
+  signal,
+  lookup: connectLookup,
+  body,
+}: Readonly<Exchange<AddressLookup>>): Promise<WireResponse> {
+  return new Promise<WireResponse>((resolve, reject) => {
     const send = new URL(url).protocol === "https:" ? httpsRequest : httpRequest;
 
     const request = send(
       url,
       {
         method,
-        headers: { ...REQUEST_HEADERS, "accept-encoding": ACCEPT_ENCODING, ...headers },
-        lookup: globalAddressesOnly,
+        headers,
+        lookup: connectLookup,
         ...CONNECT_OPTIONS,
         signal,
         agent: false,
@@ -107,9 +106,7 @@ function exchange(
 
         resolve({
           status: response.statusCode ?? 0,
-          location: response.headers.location ?? null,
-          contentType: response.headers["content-type"] ?? null,
-          rateLimit: rateLimitHeadersOf((name) => firstHeader(response.headers[name])),
+          header: (name) => firstHeader(response.headers[name]),
           body: decodedBody(response, encoding),
         });
       },
@@ -122,39 +119,22 @@ function exchange(
   });
 }
 
-export const nodeNetwork: Network = {
-  get: (url, signal, headers) => exchange("GET", url, signal, headers),
-  post: async (url, body, signal, headers) => {
-    assertPublicHost(url);
+const withEncodings = (caller: RequestHeaders): RequestHeaders => ({
+  ...REQUEST_HEADERS,
+  "accept-encoding": ACCEPT_ENCODING,
+  ...caller,
+});
 
-    const response = await exchange(
-      "POST",
-      url,
-      signal,
-      { ...headers, "accept-encoding": IDENTITY },
-      body,
-    );
-
-    return response;
+export const nodeNetwork: Network = networkOver({
+  headers: {
+    GET: withEncodings,
+    POST: (caller) => ({ ...withEncodings(caller), "accept-encoding": IDENTITY }),
   },
-};
+  lookup: globalAddressesOnly,
+  send: exchange,
+});
 
-export const nodeRedditSession: RedditSession = {
-  get: async (path, cookie, signal) => {
-    if (refusedRequestLine(path, cookie)) throw new TypeError("the request line is not allowed");
-
-    const response = await fetch(`https://${REDDIT_HOST}${path}`, {
-      headers: redditSessionHeaders(cookie),
-      redirect: "manual",
-      signal,
-    });
-
-    return {
-      status: response.status,
-      location: response.headers.get("location"),
-      contentType: response.headers.get("content-type"),
-      rateLimit: rateLimitHeadersOf((name) => response.headers.get(name)),
-      body: boundedBody(response.body ?? []),
-    };
-  },
-};
+export const nodeRedditSession: RedditSession = redditSessionOver(
+  async ({ host, path, headers }, signal) =>
+    wireResponseOf(await fetch(`https://${host}${path}`, { headers, redirect: "manual", signal })),
+);

@@ -5,10 +5,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 import { z } from "zod";
 
-import { isGlobalAddress } from "../../core/addresses.ts";
 import { errorClassOf, report } from "../../core/failure-log.ts";
 import { type Fetcher, type LoadedFetcher, isFetcher } from "../../core/fetcher.ts";
 import { NetworkFailure } from "../../core/network.ts";
+import { publicAddressesOf } from "../../core/public-host.ts";
 
 function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly LookupAddress[] | null> {
   return new Promise((resolve) => {
@@ -23,6 +23,17 @@ function lookedUp(hostname: string, signal: AbortSignal): Promise<readonly Looku
       resolve(error === null ? addresses : null);
     });
   });
+}
+
+async function assertHostIsPublic(url: string, signal: AbortSignal): Promise<void> {
+  const hostname = new URL(url).hostname.replaceAll(/^\[|\]$/gu, "");
+  const addresses = await lookedUp(hostname, signal);
+
+  if (signal.aborted) throw new NetworkFailure("timeout", "the fetch deadline passed");
+
+  const verdict = addresses === null ? null : publicAddressesOf("the plug-in host", addresses);
+
+  if (verdict?.kind === "refused") throw verdict.failure;
 }
 
 type Stage = "specifier" | "file" | "import" | "shape";
@@ -102,12 +113,7 @@ async function importedFetcher({ module, path }: Readonly<Entry>): Promise<Loade
   return {
     module,
     matches: async (url, signal) => {
-      const addresses = await lookedUp(new URL(url).hostname.replaceAll(/^\[|\]$/gu, ""), signal);
-
-      if (signal.aborted) throw new NetworkFailure("timeout", "the fetch deadline passed");
-
-      if (addresses !== null && !addresses.some(({ address }) => isGlobalAddress(address)))
-        throw new NetworkFailure("refused", "the plug-in host has no globally reachable address");
+      await assertHostIsPublic(url, signal);
 
       const answer = fetcher.matches(url);
       const verdict = z.boolean().safeParse(answer);

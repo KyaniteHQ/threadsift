@@ -83,7 +83,7 @@ export interface FileKey {
 
 export type StoreRoot = "items" | "exports" | "restores";
 
-export const STORE_ROOT_PREFIX = {
+const STORE_ROOT_PREFIX = {
   items: ITEM_FILES_ROOT,
   exports: EXPORT_FILES_ROOT,
   restores: RESTORE_FILES_ROOT,
@@ -98,6 +98,14 @@ export interface StoreKey {
 export interface StorePrefix {
   readonly root: StoreRoot;
   readonly ownerId: string | null;
+}
+
+export function storePrefixText({ root, ownerId }: Readonly<StorePrefix>): string {
+  return ownerId === null ? STORE_ROOT_PREFIX[root] : `${STORE_ROOT_PREFIX[root]}${ownerId}/`;
+}
+
+export function storeKeyText(key: Readonly<StoreKey>): string {
+  return `${storePrefixText(key)}${key.name}`;
 }
 
 function storeRootOf(root: string): StoreRoot | null {

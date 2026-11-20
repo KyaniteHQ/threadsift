@@ -1,8 +1,4 @@
-import {
-  type NetworkResponse,
-  type RequestHeaders,
-  rateLimitHeadersOf,
-} from "../../core/network.ts";
+import type { RequestHeaders, WireResponse } from "../../core/network.ts";
 
 const HEAD_LIMIT_BYTES = 16 * 1024;
 
@@ -228,15 +224,13 @@ async function finalHead(reader: Readonly<ByteReader>): Promise<Head> {
 
 export async function readResponse(
   source: Readonly<AsyncIterable<Uint8Array>>,
-): Promise<NetworkResponse> {
+): Promise<WireResponse> {
   const reader = byteReader(source);
   const { status, headers } = await finalHead(reader);
 
   return {
     status,
-    location: headers.get("location") ?? null,
-    contentType: headers.get("content-type") ?? null,
-    rateLimit: rateLimitHeadersOf((name) => headers.get(name) ?? null),
+    header: (name) => headers.get(name) ?? null,
     body: bodyOf(reader, status, headers),
   };
 }

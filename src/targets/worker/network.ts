@@ -1,20 +1,9 @@
-import {
-  type Network,
-  type NetworkResponse,
-  REQUEST_HEADERS,
-  rateLimitHeadersOf,
-} from "../../core/network.ts";
-import { assertPublicHost } from "../../core/public-host.ts";
+import { networkOver } from "../../core/network-transport.ts";
+import { type Network, REQUEST_HEADERS, wireResponseOf } from "../../core/network.ts";
 
 const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;
 const ERROR_PAGE_BYTES = 64;
-
-async function* chunksOf(body: ReadableStream<Uint8Array> | null): AsyncGenerator<Uint8Array> {
-  if (body !== null) {
-    yield* body;
-  }
-}
 
 async function firstChunk(body: ReadableStream<Uint8Array> | null): Promise<string> {
   if (body === null) {
@@ -40,35 +29,6 @@ async function refuseUnreachableOrigin(url: string, response: Response): Promise
   }
 }
 
-function networkResponse(response: Response): NetworkResponse {
-  return {
-    status: response.status,
-    location: response.headers.get("location"),
-    contentType: response.headers.get("content-type"),
-    rateLimit: rateLimitHeadersOf((name) => response.headers.get(name)),
-    body: chunksOf(response.bodyUsed ? null : response.body),
-  };
-}
-
-export const workerNetwork: Network = {
-  get: async (url, signal, headers) =>
-    networkResponse(
-      await workerFetch(url, { signal, headers: { ...REQUEST_HEADERS, ...headers } }),
-    ),
-  post: async (url, body, signal, headers) => {
-    assertPublicHost(url);
-
-    return networkResponse(
-      await workerFetch(url, {
-        method: "POST",
-        body,
-        signal,
-        headers: { "user-agent": REQUEST_HEADERS["user-agent"], ...headers },
-      }),
-    );
-  },
-};
-
 export const workerFetch: typeof fetch = async (input, init) => {
   const request = new Request(input, init);
   const response = await fetch(request, { redirect: "manual" });
@@ -76,3 +36,18 @@ export const workerFetch: typeof fetch = async (input, init) => {
 
   return response;
 };
+
+export const workerNetwork: Network = networkOver({
+  headers: {
+    GET: (caller) => ({ ...REQUEST_HEADERS, ...caller }),
+    POST: (caller) => ({ "user-agent": REQUEST_HEADERS["user-agent"], ...caller }),
+  },
+  lookup: null,
+  send: async ({ method, url, headers, signal, body }) => {
+    const init: RequestInit = { method, headers, signal };
+
+    if (body !== undefined) init.body = body;
+
+    return wireResponseOf(await workerFetch(url, init));
+  },
+});
