@@ -12,16 +12,14 @@ import {
 } from "node:fs";
 
 import { errnoCodeOf } from "../../core/failure-log.ts";
+import { vaultFailure } from "../../core/vault-failure.ts";
 import {
+  assertVaultDirectories,
   assertVaultDirectory,
   closeVaultFd,
-  vaultFolderFailure,
   type VaultDirectory,
 } from "./vault-directory.ts";
 
-export const WRITTEN = ".written";
-export const STAGING = ".staging";
-export const RECOVERED = ".recovered";
 const PENDING = ".pending";
 const NEXT = "next";
 const ASIDE = "aside";
@@ -49,7 +47,7 @@ function linkFile(source: string, destination: string): void {
     linkSync(source, destination);
   } catch (error) {
     if (["ENOTSUP", "EXDEV", "ENOSYS", "EMLINK"].includes(errnoCodeOf(error)))
-      throw vaultFolderFailure("folder-links");
+      throw vaultFailure("folder-links");
     throw error;
   }
 }
@@ -122,10 +120,8 @@ export function clearStaging(stage: VaultDirectory): void {
 
 export function settleStaging(input: Publication, recovered: VaultDirectory | undefined): boolean {
   const { stage, target, receipts } = input;
-  assertVaultDirectory(stage);
+  assertVaultDirectories(stage, target, receipts);
   const { aside, owned, destination, receipt } = locations(input);
-  if (target !== undefined) assertVaultDirectory(target);
-  if (receipts !== undefined) assertVaultDirectory(receipts);
   const managed = state(owned) !== undefined || (receipt !== null && writtenAt(aside, receipt));
   if (!managed && !preserveAside(aside, destination)) {
     if (recovered === undefined) return false;
@@ -157,8 +153,7 @@ function stageBytes(
 
   const pending = `${receipt}${PENDING}`;
   if (bytes !== null) {
-    assertVaultDirectory(stage);
-    assertVaultDirectory(receipts);
+    assertVaultDirectories(stage, receipts);
     linkFile(next, pending);
     fsyncSync(receipts.fd);
   }
@@ -173,16 +168,12 @@ export function replaceInFolder(
   const { stage, target, receipts } = input;
   const { aside, owned, destination, receipt } = locations(input);
   if (destination === null || receipt === null) throw new Error("Missing vault publication paths");
-  assertVaultDirectory(stage);
-  assertVaultDirectory(target);
-  assertVaultDirectory(receipts);
+  assertVaultDirectories(stage, target, receipts);
   const held = state(destination);
   if (held !== undefined && !writtenAt(destination, receipt)) return false;
 
   const { next, pending } = stageBytes(stage, receipts, receipt, path, bytes);
-  assertVaultDirectory(stage);
-  assertVaultDirectory(target);
-  assertVaultDirectory(receipts);
+  assertVaultDirectories(stage, target, receipts);
   if (held !== undefined) {
     try {
       renameSync(destination, aside);
@@ -193,8 +184,7 @@ export function replaceInFolder(
   }
 
   if (bytes !== null) {
-    assertVaultDirectory(stage);
-    assertVaultDirectory(target);
+    assertVaultDirectories(stage, target);
     linkFile(next, destination);
   }
   fsyncSync(target.fd);

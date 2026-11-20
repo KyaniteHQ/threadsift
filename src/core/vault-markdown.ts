@@ -1,5 +1,5 @@
 import { collapsed } from "./format.ts";
-import { plainMarkdown, scalar } from "./item-note.ts";
+import { plainMarkdown, yamlScalar } from "./markdown-escape.ts";
 import { vaultNotePath } from "./vault-paths.ts";
 import type { VaultSubject } from "./vault-tables.ts";
 import { VAULT_TEXT } from "./vault-text.ts";
@@ -51,7 +51,7 @@ export function topicWikiHeader({
   name,
   overview,
 }: Readonly<{ name: string; overview: string | null }>) {
-  const heading = `---\naliases: [${scalar(name)}]\n---\n\n# ${plainMarkdown(collapsed(name))}\n`;
+  const heading = `---\naliases: [${yamlScalar(name)}]\n---\n\n# ${plainMarkdown(collapsed(name))}\n`;
 
   return overview === null ? heading : `${heading}\n${plainMarkdown(overview)}\n`;
 }

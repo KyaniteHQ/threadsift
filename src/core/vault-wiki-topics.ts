@@ -1,9 +1,9 @@
 import { and, asc, eq, gt } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { plainMarkdown } from "./item-note.ts";
 import { itemTitle } from "./item-title.ts";
 import { disagreementPage } from "./known-disagreements.ts";
+import { plainMarkdown } from "./markdown-escape.ts";
 import { digests, items, topicPages, topics } from "./schema.ts";
 import { topicIndexRows } from "./topic-index.ts";
 import { overviewLine } from "./topic-overview-contract.ts";

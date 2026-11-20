@@ -9,7 +9,8 @@ import {
 } from "node:fs";
 
 import { errnoCodeOf, reportFailure } from "../../core/failure-log.ts";
-import { VaultFailure } from "../../core/vault-request.ts";
+import { vaultFailure } from "../../core/vault-failure.ts";
+import { mirrorFolder } from "./vault-folders.ts";
 
 const DIRECTORY = constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW;
 
@@ -21,10 +22,6 @@ export interface VaultDirectory {
 
 function descriptor(fd: number): string {
   return `/proc/self/fd/${String(fd)}`;
-}
-
-export function vaultFolderFailure(reason: Extract<VaultFailure["reason"], `folder-${string}`>) {
-  return new VaultFailure({ reason, until: null, status: null });
 }
 
 function openDirectory(parent: VaultDirectory, part: string, create: boolean): number | undefined {
@@ -67,7 +64,7 @@ export async function inVaultDirectory<Result>(
 ): Promise<Result | undefined> {
   const [part, ...rest] = parts;
   if (part === undefined) return run(root);
-  if (!isVaultSegment(part)) throw vaultFolderFailure("folder-permission");
+  if (!isVaultSegment(part)) throw vaultFailure("folder-permission");
   const fd = openDirectory(root, part, create);
   if (fd === undefined) return undefined;
   try {
@@ -82,7 +79,7 @@ export async function inVaultFolder<Result>(
   folder: string,
   run: (directory: VaultDirectory) => Result | Promise<Result>,
 ): Promise<Result> {
-  if (!folder.startsWith("/")) throw vaultFolderFailure("folder-permission");
+  if (!folder.startsWith("/")) throw vaultFailure("folder-permission");
   const fd = openSync("/", DIRECTORY);
   try {
     const result = await inVaultDirectory(
@@ -91,16 +88,38 @@ export async function inVaultFolder<Result>(
       false,
       async (directory) => ({ value: await run(directory) }),
     );
-    if (result === undefined) throw vaultFolderFailure("folder-missing");
+    if (result === undefined) throw vaultFailure("folder-missing");
     return result.value;
   } finally {
     closeVaultFd(fd);
   }
 }
 
+export const INVALID_DIRECTORY: ReadonlySet<string> = new Set(["ELOOP", "ENOTDIR"]);
+
+export async function inMirrorFolder<Result>(
+  root: VaultDirectory,
+  parts: readonly string[],
+  run: (directory: VaultDirectory) => Result | Promise<Result>,
+): Promise<Result | undefined> {
+  try {
+    return await inVaultDirectory(root, mirrorFolder(parts), false, run);
+  } catch (error) {
+    if (!INVALID_DIRECTORY.has(errnoCodeOf(error))) throw error;
+    return undefined;
+  }
+}
+
 export function assertVaultDirectory(directory: VaultDirectory): void {
-  if (readlinkSync(directory.path) !== directory.location)
-    throw vaultFolderFailure("folder-permission");
+  if (readlinkSync(directory.path) !== directory.location) throw vaultFailure("folder-permission");
+}
+
+export function assertVaultDirectories(
+  ...directories: readonly (Readonly<VaultDirectory> | undefined)[]
+): void {
+  for (const directory of directories) {
+    if (directory !== undefined) assertVaultDirectory(directory);
+  }
 }
 
 export function assertVaultWritable(directory: VaultDirectory): void {

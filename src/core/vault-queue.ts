@@ -18,22 +18,15 @@ import { report } from "./failure-log.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { items, logEntries, topics } from "./schema.ts";
 import { logMonthColumn } from "./vault-log-month.ts";
+import type { VaultNoteFailure } from "./vault-note-failure.ts";
 import { mirrorNotes, vaultSettings, type VaultKind } from "./vault-tables.ts";
 
 export type PendingVaultNote = Readonly<typeof mirrorNotes.$inferSelect>;
 
-export class VaultNoteFailure extends Error {
-  readonly reason:
-    | "file-missing"
-    | "file-changed"
-    | "item-unreadable"
-    | "file-too-large"
-    | "log-unreadable";
+const PARK_MS = 60_000;
 
-  constructor(reason: VaultNoteFailure["reason"]) {
-    super(reason);
-    this.reason = reason;
-  }
+export function parkedUntil(): number {
+  return Date.now() + PARK_MS;
 }
 
 interface Subjects {
@@ -115,7 +108,7 @@ export async function parkVaultNote(
 ): Promise<void> {
   await db
     .update(mirrorNotes)
-    .set({ retryAt: Date.now() + 60_000 })
+    .set({ retryAt: parkedUntil() })
     .where(
       and(
         eq(mirrorNotes.sequence, note.sequence),

@@ -18,7 +18,7 @@ interface LimitedAnswer {
 
 export const MAX_COOLDOWN_MS = 3_600_000;
 
-const FALLBACK_BASE_MS = 60_000;
+const RATE_LIMIT_BASE_MS = 60_000;
 const FALLBACK_DOUBLINGS = 1;
 
 const LIMIT_STATUSES: ReadonlySet<number> = new Set([403, 429]);
@@ -69,8 +69,35 @@ export function rateLimitOf(answer: Readonly<LimitedAnswer>, now: number): RateL
   };
 }
 
-export function limitedUntil(limit: Readonly<RateLimit>, now: number, attempts: number): number {
-  const until = limit.until ?? now + FALLBACK_BASE_MS * 2 ** Math.min(attempts, FALLBACK_DOUBLINGS);
+export function backoffUntil(now: number, attempts: number, doublings: number): number {
+  const until = now + RATE_LIMIT_BASE_MS * 2 ** Math.min(attempts, doublings);
 
   return Math.min(until, now + MAX_COOLDOWN_MS);
+}
+
+export function limitedUntil(limit: Readonly<RateLimit>, now: number, attempts: number): number {
+  return limit.until === null
+    ? backoffUntil(now, attempts, FALLBACK_DOUBLINGS)
+    : Math.min(limit.until, now + MAX_COOLDOWN_MS);
+}
+
+function retryAfterWait(retryAfter: string, now: number): number {
+  const seconds = Number(retryAfter);
+  const until = Number.isFinite(seconds)
+    ? now + Math.max(1, seconds) * MS_PER_SECOND
+    : Date.parse(retryAfter);
+
+  return Number.isFinite(until) ? until : backoffUntil(now, 0, 0);
+}
+
+export function rateLimitWait(answer: Readonly<LimitedAnswer>, now: number): number | null {
+  const limit = rateLimitOf(answer, now);
+
+  if (limit !== null) return limit.until ?? limitedUntil(limit, now, 0);
+
+  if (!isLimitStatus(answer.status)) return null;
+
+  if (answer.headers.retryAfter !== null) return retryAfterWait(answer.headers.retryAfter, now);
+
+  return answer.status === 429 ? backoffUntil(now, 0, 0) : null;
 }

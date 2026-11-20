@@ -1,12 +1,14 @@
 import { type SQLWrapper, and, eq, gt, lte, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
+import { backoffUntil } from "./github-rate-limit.ts";
 import { among, guardHolds, guardedBatch } from "./guards.ts";
 import { loggedVaultFile } from "./log-writes.ts";
 import { HOLDS_LIBRARY } from "./restore-state.ts";
 import { restoreRuns } from "./schema.ts";
 import {
   type PendingVaultNote,
+  parkedUntil,
   queueVaultLibrary,
   queueVaultLog,
   queueVaultNotes,
@@ -29,11 +31,21 @@ export type VaultLease = Readonly<{
   wikiPending: boolean;
   rateFailures: number;
 }>;
+const REPEATED_LIMIT_DOUBLINGS = 5;
+
 export const VAULT_CLOCK = sql`cast(unixepoch('subsec') * 1000 as integer)`;
 export const VAULT_AVAILABLE = sql`not exists (select 1 from ${restoreRuns} where ${HOLDS_LIBRARY})`;
 
+function leaseLiveAt(at: number | Readonly<SQLWrapper>) {
+  return sql`${vaultSettings.leaseUntil} > ${at}`;
+}
+
 export function vaultIdleAt(at: number | Readonly<SQLWrapper>) {
-  return sql<number>`not exists (select 1 from ${vaultSettings} where ${vaultSettings.leaseUntil} > ${at})`;
+  return sql<number>`not exists (select 1 from ${vaultSettings} where ${leaseLiveAt(at)})`;
+}
+
+export function vaultFolderIdleAt(at: number | Readonly<SQLWrapper>) {
+  return sql<number>`not exists (select 1 from ${vaultSettings} where ${vaultSettings.mode} = 'folder' and ${leaseLiveAt(at)})`;
 }
 
 export function fenceVault(db: Database) {
@@ -75,7 +87,7 @@ export async function parkVaultConflict(
   await db.batch([
     db
       .update(mirrorNotes)
-      .set({ retryAt: Date.now() + 60_000, conflictPath: path })
+      .set({ retryAt: parkedUntil(), conflictPath: path })
       .where(and(note, held)),
     ...loggedVaultFile(
       db,
@@ -232,7 +244,10 @@ export async function finishVaultLease(
   backoff: Readonly<{ until: number | null; limited: boolean }>,
 ): Promise<void> {
   const until = backoff.limited
-    ? Math.max(backoff.until ?? 0, Date.now() + 60_000 * 2 ** Math.min(lease.rateFailures, 5))
+    ? Math.max(
+        backoff.until ?? 0,
+        backoffUntil(Date.now(), lease.rateFailures, REPEATED_LIMIT_DOUBLINGS),
+      )
     : backoff.until;
   await db.batch([
     db

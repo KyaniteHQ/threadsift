@@ -2,12 +2,16 @@ import { asc, gt } from "drizzle-orm";
 
 import { readExactly } from "./capped.ts";
 import { EXPORT_SLICE_BYTES, type PartialItem } from "./export-contract.ts";
-import { type Plan, type StoredFile, planOf } from "./export-plan.ts";
+import { itemFileKey } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";
 import { readItem } from "./item-detail.ts";
+import { type ItemFilePlan, type StoredFile, itemFilePlan } from "./item-files.ts";
+import { itemNote, noteFileName } from "./item-note.ts";
 import type { Ports } from "./ports.ts";
 import { items } from "./schema.ts";
 import type { ZipFile } from "./zip.ts";
+
+const TEXT = new TextEncoder();
 
 class ExportFileMissing extends Error {}
 
@@ -45,11 +49,19 @@ interface Chosen {
   readonly next: number | null;
 }
 
-function choose(plan: Readonly<Plan>, { skip, used }: Readonly<Place>): Chosen {
-  const sizes = [
-    ...plan.head.map(({ bytes }) => bytes.length),
-    ...plan.stored.map(({ size }) => size),
+function headOf({ note, postText }: Readonly<ItemFilePlan>): readonly ZipFile[] {
+  return [
+    {
+      name: itemFileKey(note.id, noteFileName(note.title)),
+      bytes: TEXT.encode(itemNote(note, { links: [], omittedImages: [] })),
+    },
+    ...(postText === null ? [] : [{ name: postText.key, bytes: TEXT.encode(postText.text) }]),
   ];
+}
+
+function choose(plan: Readonly<ItemFilePlan>, { skip, used }: Readonly<Place>): Chosen {
+  const head = headOf(plan);
+  const sizes = [...head.map(({ bytes }) => bytes.length), ...plan.stored.map(({ size }) => size)];
 
   let total = used;
   let at = skip;
@@ -59,10 +71,10 @@ function choose(plan: Readonly<Plan>, { skip, used }: Readonly<Place>): Chosen {
     at += 1;
   }
 
-  const headCount = plan.head.length;
+  const headCount = head.length;
 
   return {
-    head: plan.head.slice(skip, at),
+    head: head.slice(skip, at),
     stored: plan.stored.slice(Math.max(0, skip - headCount), Math.max(0, at - headCount)),
     next: at < sizes.length ? at : null,
   };
@@ -86,15 +98,7 @@ async function gather(
 
   if (read === undefined) return { kind: "gone" };
 
-  const planned = planOf(
-    {
-      item: read.item,
-      keptNodes: read.keptNodes(),
-      postTextKey: read.postTextKey,
-      storedFiles: read.storedFiles,
-    },
-    { links: [], omittedImages: [] },
-  );
+  const planned = itemFilePlan(read);
 
   if (planned.kind === "missing") return planned;
 
