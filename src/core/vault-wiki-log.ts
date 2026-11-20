@@ -1,6 +1,7 @@
 import { ZodError } from "zod";
 
 import type { Database } from "./database.ts";
+import { LOG } from "./log-actions.ts";
 import type { LogEntry } from "./log-contract.ts";
 import { readLogEntries } from "./log-page.ts";
 import { plainMarkdown } from "./markdown-escape.ts";
@@ -10,28 +11,16 @@ import { VaultNoteFailure } from "./vault-note-failure.ts";
 import { VAULT_TEXT } from "./vault-text.ts";
 
 function entryParts(entry: Readonly<LogEntry>): readonly (string | number)[] {
-  switch (entry.action) {
-    case "ingest":
-    case "digest":
-      return [entry.action, entry.item.title, entry.topic.name, ...entry.tags];
-    case "topic":
-      return [entry.action, entry.topic.name];
-    case "overview":
-      return [entry.action, entry.topic.name, `+${String(entry.added)} −${String(entry.removed)}`];
-    case "related":
-      return [entry.action, entry.item.title, entry.picks];
-    case "merge":
-    case "merge-topic":
-      return [entry.action, `${entry.from} → ${entry.into}`, entry.items];
-    case "vault-file-skipped":
-    case "vault-file-conflict":
-      return [
-        entry.action === "vault-file-conflict" ? VAULT_TEXT.conflict : VAULT_TEXT.skipped,
-        entry.path,
-      ];
-    default:
-      return entry satisfies never;
-  }
+  return [
+    LOG[entry.action].word,
+    ...("item" in entry ? [entry.item.title] : []),
+    ...("topic" in entry ? [entry.topic.name] : []),
+    ...("tags" in entry ? entry.tags : []),
+    ...("added" in entry ? [`+${String(entry.added)} −${String(entry.removed)}`] : []),
+    ...("picks" in entry ? [entry.picks] : []),
+    ...("from" in entry ? [`${entry.from} → ${entry.into}`, entry.items] : []),
+    ...("path" in entry ? [entry.path] : []),
+  ];
 }
 
 export async function* logLines(months: () => Promise<readonly number[]>): AsyncGenerator<string> {

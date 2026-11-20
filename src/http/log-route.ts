@@ -32,6 +32,6 @@ export function registerLogRoute(app: OpenAPIHono, ports: Ports): void {
   app.openapi(listLogRoute, async (c) => {
     const { cursor = null } = c.req.valid("query");
 
-    return c.json(LogPageSchema.parse(await readLog(ports.db, cursor)), 200);
+    return c.json(await readLog(ports.db, cursor), 200);
   });
 }

@@ -1,54 +1,63 @@
 import { type SQL, type SQLWrapper, eq, sql } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
+import type { z } from "zod";
 
 import type { Database } from "./database.ts";
 import type { LogAction } from "./kinds.ts";
+import type { FieldOf, LOG } from "./log-actions.ts";
+import type { LogEntry } from "./log-contract.ts";
 import { digests, logEntries, proposals, topics } from "./schema.ts";
 import { logMonthAt } from "./vault-log-month.ts";
 import { queueVaultNotes } from "./vault-queue.ts";
 
-interface Fields {
-  readonly action: SQL<LogAction> | LogAction;
-  readonly title?: SQLWrapper | string;
-  readonly path?: string;
-  readonly topic?: SQLWrapper;
-  readonly tags?: SQL;
-  readonly added?: number;
-  readonly removed?: number;
-  readonly picks?: number;
-  readonly mergedFrom?: string;
-  readonly mergedInto?: string;
-  readonly moved?: SQLWrapper | number;
-  readonly itemId?: number;
-  readonly topicId?: SQLWrapper;
+interface Leaves {
+  readonly item: Readonly<{ id: number; title: SQLWrapper | string }>;
+  readonly topic: Readonly<{ id: SQLWrapper; name: SQLWrapper }>;
+  readonly tags: SQL;
+  readonly added: number;
+  readonly removed: number;
+  readonly picks: number;
+  readonly from: string;
+  readonly into: string;
+  readonly items: SQLWrapper | number;
+  readonly path: string;
 }
 
-function appended(
+type Written<Action extends LogAction> = {
+  readonly [
+    Field in Exclude<FieldOf<z.infer<(typeof LOG)[Action]["schema"]>>, "id" | "at" | "action">
+  ]: Field extends keyof Leaves ? Leaves[Field] : never;
+};
+
+function appended<Action extends LogAction>(
   db: Database,
-  fields: Readonly<Fields & { from: SQLiteTable | SQL; where: SQL | undefined }>,
+  action: Action | SQL<Action>,
+  source: Readonly<{ from: SQLiteTable | SQL; where: SQL | undefined }>,
+  written: Written<Action>,
 ) {
+  const values: Readonly<Partial<Leaves>> = written;
   const at = Date.now();
   const write = db.insert(logEntries).select(
     db
       .select({
         id: sql<null>`null`.as("id"),
         at: sql<number>`${at}`.as("at"),
-        action: sql`${fields.action}`.as("action"),
-        title: sql`${fields.title ?? null}`.as("title"),
-        path: sql`${fields.path ?? null}`.as("path"),
-        topic: sql`${fields.topic ?? null}`.as("topic"),
-        tags: sql`${fields.tags ?? null}`.as("tags"),
-        added: sql`${fields.added ?? null}`.as("added"),
-        removed: sql`${fields.removed ?? null}`.as("removed"),
-        picks: sql`${fields.picks ?? null}`.as("picks"),
-        mergedFrom: sql`${fields.mergedFrom ?? null}`.as("merged_from"),
-        mergedInto: sql`${fields.mergedInto ?? null}`.as("merged_into"),
-        moved: sql`${fields.moved ?? null}`.as("moved"),
-        itemId: sql`${fields.itemId ?? null}`.as("item_id"),
-        topicId: sql`${fields.topicId ?? null}`.as("topic_id"),
+        action: sql`${action}`.as("action"),
+        title: sql`${values.item?.title ?? null}`.as("title"),
+        path: sql`${values.path ?? null}`.as("path"),
+        topic: sql`${values.topic?.name ?? null}`.as("topic"),
+        tags: sql`${values.tags ?? null}`.as("tags"),
+        added: sql`${values.added ?? null}`.as("added"),
+        removed: sql`${values.removed ?? null}`.as("removed"),
+        picks: sql`${values.picks ?? null}`.as("picks"),
+        mergedFrom: sql`${values.from ?? null}`.as("merged_from"),
+        mergedInto: sql`${values.into ?? null}`.as("merged_into"),
+        moved: sql`${values.items ?? null}`.as("moved"),
+        itemId: sql`${values.item?.id ?? null}`.as("item_id"),
+        topicId: sql`${values.topic?.id ?? null}`.as("topic_id"),
       })
-      .from(fields.from)
-      .where(fields.where),
+      .from(source.from)
+      .where(source.where),
   );
 
   return [
@@ -56,6 +65,8 @@ function appended(
     queueVaultNotes(db, { kind: "log-month", id: logMonthAt(at), when: sql`changes() > 0` }),
   ] as const;
 }
+
+const TOPIC_ROW = { id: topics.id, name: topics.name };
 
 export function loggedDigest(
   db: Database,
@@ -66,26 +77,27 @@ export function loggedDigest(
     tagKeys,
   }: Readonly<{ itemId: number; title: string; topicKey: string; tagKeys: string }>,
 ) {
-  return appended(db, {
-    from: topics,
-    where: eq(topics.key, topicKey),
-    action: sql<LogAction>`case when exists (select 1 from ${digests} where ${digests.itemId} = ${itemId}) then 'digest' else 'ingest' end`,
-    title,
-    topic: topics.name,
-    tags: sql`(select json_group_array(tags.name order by wanted.key) from json_each(${tagKeys}) as wanted join tags on tags.key = wanted.value)`,
-    itemId,
-    topicId: topics.id,
-  });
+  return appended(
+    db,
+    sql<
+      "ingest" | "digest"
+    >`case when exists (select 1 from ${digests} where ${digests.itemId} = ${itemId}) then 'digest' else 'ingest' end`,
+    { from: topics, where: eq(topics.key, topicKey) },
+    {
+      item: { id: itemId, title },
+      topic: TOPIC_ROW,
+      tags: sql`(select json_group_array(tags.name order by wanted.key) from json_each(${tagKeys}) as wanted join tags on tags.key = wanted.value)`,
+    },
+  );
 }
 
 export function loggedTopic(db: Database, topicKey: string) {
-  return appended(db, {
-    from: topics,
-    where: sql`${topics.key} = ${topicKey} and changes() > 0`,
-    action: "topic",
-    topic: topics.name,
-    topicId: topics.id,
-  });
+  return appended(
+    db,
+    "topic",
+    { from: topics, where: sql`${topics.key} = ${topicKey} and changes() > 0` },
+    { topic: TOPIC_ROW },
+  );
 }
 
 export function loggedOverview(
@@ -93,26 +105,21 @@ export function loggedOverview(
   topicId: number,
   { added, removed }: Readonly<{ added: number; removed: number }>,
 ) {
-  return appended(db, {
-    from: topics,
-    where: eq(topics.id, topicId),
-    action: "overview",
-    topic: topics.name,
-    added,
-    removed,
-    topicId: topics.id,
-  });
+  return appended(
+    db,
+    "overview",
+    { from: topics, where: eq(topics.id, topicId) },
+    { topic: TOPIC_ROW, added, removed },
+  );
 }
 
 export function loggedRelated(db: Database, itemId: number, picks: number) {
-  return appended(db, {
-    from: digests,
-    where: eq(digests.itemId, itemId),
-    action: "related",
-    title: digests.title,
-    picks,
-    itemId,
-  });
+  return appended(
+    db,
+    "related",
+    { from: digests, where: eq(digests.itemId, itemId) },
+    { item: { id: itemId, title: digests.title }, picks },
+  );
 }
 
 export function loggedMerge(
@@ -124,33 +131,34 @@ export function loggedMerge(
     mergedInto,
     when,
   }: Readonly<{
-    action: "merge" | "merge-topic";
+    action: Extract<LogEntry, { from: unknown }>["action"];
     proposalId: number;
     mergedFrom: string;
     mergedInto: string;
     when: Readonly<SQLWrapper>;
   }>,
 ) {
-  return appended(db, {
-    from: proposals,
-    where: sql`${proposals.id} = ${proposalId} and ${when}`,
+  return appended(
+    db,
     action,
-    mergedFrom,
-    mergedInto,
-    moved: sql`coalesce(${proposals.moved}, 0)`,
-  });
+    { from: proposals, where: sql`${proposals.id} = ${proposalId} and ${when}` },
+    { from: mergedFrom, into: mergedInto, items: sql`coalesce(${proposals.moved}, 0)` },
+  );
 }
 
 export function loggedVaultFile(
   db: Database,
-  action: "vault-file-skipped" | "vault-file-conflict",
+  action: Extract<LogEntry, { path: unknown }>["action"],
   path: string,
   held: Readonly<SQLWrapper>,
 ) {
-  return appended(db, {
-    from: sql`(select 1)`,
-    where: sql`${held} and not exists (select 1 from ${logEntries} where ${logEntries.action} = ${action} and ${logEntries.path} = ${path})`,
+  return appended(
+    db,
     action,
-    path,
-  });
+    {
+      from: sql`(select 1)`,
+      where: sql`${held} and not exists (select 1 from ${logEntries} where ${logEntries.action} = ${action} and ${logEntries.path} = ${path})`,
+    },
+    { path },
+  );
 }
