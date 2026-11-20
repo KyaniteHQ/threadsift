@@ -2,7 +2,7 @@ import { webUrlOf } from "./addresses.ts";
 import type { Crypto } from "./crypto.ts";
 import { type EmbedLink, embedLinkOf } from "./embed-links.ts";
 import { digestOf } from "./encoding.ts";
-import { fileRouteOf } from "./file-keys.ts";
+import { fileRouteOf, imageKey } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";
 import { collapsed } from "./format.ts";
 import { type Downloaded, decoded, downloaded } from "./image-download.ts";
@@ -164,7 +164,7 @@ async function stored(
       : decoded(source.dataUrl);
 
   const key = fetched.ok
-    ? `${prefix}${candidate.position}.${IMAGE_EXTENSIONS[fetched.type]}`
+    ? imageKey(prefix, candidate.position, IMAGE_EXTENSIONS[fetched.type])
     : null;
 
   if (fetched.ok && key !== null) await sink.files.put(key, fetched.bytes);

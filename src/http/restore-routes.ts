@@ -1,16 +1,16 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import type { Ports } from "../core/ports.ts";
-import { cancelRestore, resumeRestore } from "../core/restore-cancel.ts";
+import { cancelRestore } from "../core/restore-cancel.ts";
 import {
   NewRestoreSchema,
   RestoreErrorSchema,
   RestoreStatusSchema,
   StartedRestoreSchema,
 } from "../core/restore-contract.ts";
-import { createRestore, storePart } from "../core/restore-run.ts";
-import { startRestore } from "../core/restore-start.ts";
+import { resumeRestore, startRestore } from "../core/restore-start.ts";
 import { restoreStatus } from "../core/restore-state.ts";
+import { createRestore, storePart } from "../core/restore-upload.ts";
 import { access, PART_CAP } from "./access.ts";
 import { OWNER_SESSION_REFUSALS, jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { notFound } from "./refusals.ts";

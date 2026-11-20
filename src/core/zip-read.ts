@@ -78,11 +78,7 @@ export function wide(view: DataView, at: number): number {
 
 const NAMES = new TextEncoder();
 
-export function localDataStart(
-  bytes: Uint8Array,
-  at: number,
-  entry: Readonly<ZipEntry>,
-): number | null {
+function localDataStart(bytes: Uint8Array, at: number, entry: Readonly<ZipEntry>): number | null {
   if (at < 0 || at + LOCAL_HEADER_BYTES > bytes.length) return null;
 
   const header = viewOf(bytes.subarray(at, at + LOCAL_HEADER_BYTES));
@@ -107,11 +103,21 @@ export function localDataStart(
   return nameEnd + header.getUint16(28, true);
 }
 
-export async function entryStart(
+export interface ZipSpan {
+  readonly start: number;
+  readonly end: number;
+}
+
+export interface ZipRegion {
+  readonly bytes: Uint8Array;
+  readonly base: number;
+}
+
+export async function entrySpan(
   source: Readonly<ZipSource>,
   directory: Readonly<ZipDirectory>,
   entry: Readonly<ZipEntry>,
-): Promise<number> {
+): Promise<ZipSpan> {
   const headerBytes = LOCAL_HEADER_BYTES + utf8Length(entry.name);
   const bytes = await bytesAt(source, entry.headerOffset, headerBytes);
   const start = localDataStart(bytes, 0, entry);
@@ -119,7 +125,22 @@ export async function entryStart(
 
   checkedEnd(directory.offset, dataStart, entry.size);
 
-  return dataStart;
+  return { start: dataStart, end: dataStart + entry.size };
+}
+
+export function spanIn(
+  { bytes, base }: Readonly<ZipRegion>,
+  directory: Readonly<ZipDirectory>,
+  entry: Readonly<ZipEntry>,
+  consumed: number,
+): ZipSpan | null {
+  const header = consumed === 0 ? localDataStart(bytes, entry.headerOffset - base, entry) : 0;
+
+  if (header === null || header > bytes.length) return null;
+
+  checkedEnd(directory.offset, base + header, entry.size - consumed);
+
+  return { start: base + header, end: base + header + entry.size - consumed };
 }
 
 export async function entryBytes(
@@ -127,37 +148,52 @@ export async function entryBytes(
   directory: Readonly<ZipDirectory>,
   entry: Readonly<ZipEntry>,
 ): Promise<Uint8Array> {
-  const bytes = await bytesAt(source, await entryStart(source, directory, entry), entry.size);
+  const bytes = await bytesAt(
+    source,
+    (await entrySpan(source, directory, entry)).start,
+    entry.size,
+  );
 
   checkedCrc(entry, crc32(bytes));
 
   return bytes;
 }
 
-export const LOCAL_HEADER_ROOM = LOCAL_HEADER_BYTES + 1024;
+const LOCAL_HEADER_ROOM = LOCAL_HEADER_BYTES + 1024;
 
 export interface ReadEntry {
   readonly entry: ZipEntry;
   readonly bytes: Uint8Array;
 }
 
+export interface ReadExtent {
+  readonly from: number;
+  readonly to: number;
+}
+
+export function extentWith(
+  extent: Readonly<ReadExtent> | null,
+  entry: Readonly<ZipEntry>,
+): ReadExtent {
+  const to = entry.headerOffset + LOCAL_HEADER_ROOM + entry.size;
+
+  return extent === null
+    ? { from: entry.headerOffset, to }
+    : { from: Math.min(extent.from, entry.headerOffset), to: Math.max(extent.to, to) };
+}
+
 function sliceOf(
-  region: Readonly<{ bytes: Uint8Array; base: number }>,
+  region: Readonly<ZipRegion>,
   directory: Readonly<ZipDirectory>,
   entry: Readonly<ZipEntry>,
 ): Uint8Array | null {
-  const start = localDataStart(region.bytes, entry.headerOffset - region.base, entry);
+  const span = spanIn(region, directory, entry, 0);
 
-  if (start === null) return null;
+  if (span === null || span.end > region.base + region.bytes.length) return null;
 
-  checkedEnd(directory.offset, region.base + start, entry.size);
+  const bytes = region.bytes.subarray(span.start - region.base, span.end - region.base);
 
-  const bytes =
-    start + entry.size > region.bytes.length
-      ? null
-      : region.bytes.subarray(start, start + entry.size);
-
-  if (bytes !== null) checkedCrc(entry, crc32(bytes));
+  checkedCrc(entry, crc32(bytes));
 
   return bytes;
 }
@@ -167,16 +203,18 @@ export async function entriesBytes(
   directory: Readonly<ZipDirectory>,
   entries: readonly ZipEntry[],
 ): Promise<readonly ReadEntry[]> {
-  if (entries.length === 0) return [];
-
-  const base = Math.min(...entries.map(({ headerOffset }) => headerOffset));
-
-  const end = Math.min(
-    directory.offset,
-    Math.max(...entries.map(({ headerOffset, size }) => headerOffset + LOCAL_HEADER_ROOM + size)),
+  const extent = entries.reduce<ReadExtent | null>(
+    (grown, entry) => extentWith(grown, entry),
+    null,
   );
 
-  const region = { bytes: await bytesAt(source, base, Math.max(end - base, 0)), base };
+  if (extent === null) return [];
+
+  const end = Math.min(directory.offset, extent.to);
+  const region = {
+    bytes: await bytesAt(source, extent.from, Math.max(end - extent.from, 0)),
+    base: extent.from,
+  };
 
   return Promise.all(
     entries.map(async (entry) => ({

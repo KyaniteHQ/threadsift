@@ -8,7 +8,7 @@ import {
   ItemsCursorSchema,
   RESTORE_INDEX_BYTES,
   RESTORE_INDEX_ITEMS,
-  START_ITEMS,
+  entering,
 } from "./restore-contract.ts";
 import { snapshotted, steppedUnit } from "./restore-unit.ts";
 import { type RestoreRow, digests, githubRepos, itemTags, items, tags } from "./schema.ts";
@@ -95,7 +95,7 @@ export async function searchUnit(
   const rows = await itemsToIndex(db, gt(items.id, after), RESTORE_INDEX_ITEMS);
 
   if (rows.length === 0) {
-    return steppedUnit(db, run, { phase: "highlights", cursor: JSON.stringify(START_ITEMS) });
+    return steppedUnit(db, run, entering("highlights"));
   }
 
   const writes: JobWrites[number][] = [];

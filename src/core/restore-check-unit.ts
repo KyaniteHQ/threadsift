@@ -2,7 +2,7 @@ import { appliedMigration } from "./export-format.ts";
 import type { JobOutcome, JobPorts } from "./job-outcome.ts";
 import { type Env, advance, rowsMatch } from "./restore-check-scan.ts";
 import { checkedTables, readManifest } from "./restore-check.ts";
-import { CheckCursorSchema, START_CURSOR } from "./restore-contract.ts";
+import { CheckCursorSchema, entering } from "./restore-contract.ts";
 import { RestoreRefused, restoreRefusalOf } from "./restore-refusal.ts";
 import { readRestoreDirectory } from "./restore-source.ts";
 import { endedUnit, steppedUnit } from "./restore-unit.ts";
@@ -46,7 +46,7 @@ export async function checkUnit(
 
     rowsMatch(env, next.rows);
 
-    return steppedUnit(db, run, { phase: "tables", cursor: JSON.stringify(START_CURSOR) });
+    return steppedUnit(db, run, entering("tables"));
   } catch (error) {
     const failure = restoreRefusalOf(error);
 

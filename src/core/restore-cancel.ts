@@ -1,20 +1,13 @@
 import { and, eq, sql } from "drizzle-orm";
 
-import { guardedResults, guardedWrite } from "./guards.ts";
+import { guardedResults } from "./guards.ts";
 import { closeRunJobs } from "./job-close.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { OpenedJobsSchema, enqueueRows } from "./job-rows.ts";
-import { START_UNDO } from "./restore-contract.ts";
-import {
-  NEWEST_RESTORE,
-  RESUMABLE_RESTORE,
-  UNDOABLE_RESTORE,
-  UNDOING_RESTORE,
-  cancelling,
-  resumable,
-} from "./restore-hold.ts";
+import { entering } from "./restore-contract.ts";
+import { NEWEST_RESTORE, UNDOABLE_RESTORE, UNDOING_RESTORE, cancelling } from "./restore-hold.ts";
 import { removeParts } from "./restore-parts.ts";
-import { holdsEveryPart, isNewestRestore, restoreById } from "./restore-state.ts";
+import { isNewestRestore, restoreById } from "./restore-state.ts";
 import { openingRestoreJob } from "./restore-unit.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 
@@ -24,13 +17,6 @@ export type CancelledRestore =
   | { readonly kind: "missing" }
   | { readonly kind: "superseded" }
   | { readonly kind: "finished" };
-
-export type ResumedRestore =
-  | { readonly kind: "resumed" }
-  | { readonly kind: "missing" }
-  | { readonly kind: "superseded" }
-  | { readonly kind: "not-resumable" }
-  | { readonly kind: "incomplete-upload" };
 
 async function cancelledUpload({ db, files }: Pick<JobPorts, "db" | "files">, id: number) {
   const now = Date.now();
@@ -59,8 +45,7 @@ async function undoing(ports: JobPorts, id: number): Promise<boolean> {
         .update(restoreRuns)
         .set({
           state: "running",
-          phase: "undoing",
-          cursor: JSON.stringify(START_UNDO),
+          ...entering("undoing"),
           failure: null,
           updatedAt: Date.now(),
         })
@@ -105,37 +90,4 @@ export async function cancelRestore(ports: JobPorts, id: number): Promise<Cancel
     default:
       return run.state satisfies never;
   }
-}
-
-export async function resumeRestore(ports: JobPorts, id: number): Promise<ResumedRestore> {
-  const { db } = ports;
-  const run = await restoreById(db, id);
-
-  if (run === null) return { kind: "missing" };
-
-  if (!(await isNewestRestore(db, id))) return { kind: "superseded" };
-
-  if (!resumable(run)) return { kind: "not-resumable" };
-
-  if (!(await holdsEveryPart(ports.files, run))) return { kind: "incomplete-upload" };
-
-  const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${RESUMABLE_RESTORE}`;
-
-  const written = await guardedWrite(
-    db,
-    sql`exists (select 1 from ${restoreRuns} where ${waiting})`,
-    openingRestoreJob(db, waiting),
-    [
-      db
-        .update(restoreRuns)
-        .set({ state: "running", failure: null, updatedAt: Date.now() })
-        .where(waiting),
-    ],
-  );
-
-  if (written === null) return { kind: "not-resumable" };
-
-  await enqueueRows(ports, written);
-
-  return { kind: "resumed" };
 }

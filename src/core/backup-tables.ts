@@ -1,18 +1,18 @@
+import { PROPOSAL_REWRITES, type Rewrite } from "./restore-rewrites.ts";
+
 export type BackupScope = "per-item" | "per-item-digest-tasks" | "whole-table";
+
+export type Singleton = "keep" | "reset";
 
 export interface BackupTable {
   readonly scope: BackupScope;
   readonly columns: readonly string[];
   readonly leftOut: readonly string[];
+  readonly singleton?: Singleton;
+  readonly mustBeEmpty?: true;
+  readonly rewrites?: Readonly<Record<string, Rewrite>>;
+  readonly rebuiltInto?: readonly string[];
 }
-
-export type ExclusionReason =
-  | "login-data"
-  | "secret"
-  | "provider-choice"
-  | "work-in-flight"
-  | "derived"
-  | "carried-in-manifest";
 
 export const BACKUP_TABLES = {
   items: {
@@ -40,6 +40,8 @@ export const BACKUP_TABLES = {
       "x_note",
     ],
     leftOut: ["pending_digest", "added_by_token"],
+    mustBeEmpty: true,
+    rebuiltInto: ["search_parts"],
   },
   item_aliases: {
     scope: "per-item",
@@ -165,8 +167,13 @@ export const BACKUP_TABLES = {
     ],
     leftOut: ["callback_hash", "job_id", "context", "sent_at", "answered_at", "answer_refusals"],
   },
-  topics: { scope: "whole-table", columns: ["id", "key", "name"], leftOut: [] },
-  tags: { scope: "whole-table", columns: ["id", "key", "name"], leftOut: [] },
+  topics: {
+    scope: "whole-table",
+    columns: ["id", "key", "name"],
+    leftOut: [],
+    mustBeEmpty: true,
+  },
+  tags: { scope: "whole-table", columns: ["id", "key", "name"], leftOut: [], mustBeEmpty: true },
   topic_pages: {
     scope: "whole-table",
     columns: ["topic_id", "overview", "revision", "built_from", "failure", "updated_at"],
@@ -197,8 +204,14 @@ export const BACKUP_TABLES = {
       "moved",
     ],
     leftOut: [],
+    mustBeEmpty: true,
   },
-  log_start: { scope: "whole-table", columns: ["id", "started_at"], leftOut: [] },
+  log_start: {
+    scope: "whole-table",
+    columns: ["id", "started_at"],
+    leftOut: [],
+    singleton: "keep",
+  },
   proposals: {
     scope: "whole-table",
     columns: [
@@ -223,6 +236,8 @@ export const BACKUP_TABLES = {
       "failed_runs",
     ],
     leftOut: [],
+    mustBeEmpty: true,
+    rewrites: PROPOSAL_REWRITES,
   },
   pins: {
     scope: "whole-table",
@@ -240,14 +255,26 @@ export const BACKUP_TABLES = {
       "into_digest",
     ],
     leftOut: [],
+    mustBeEmpty: true,
   },
   imports: {
     scope: "whole-table",
     columns: ["name", "cursor", "created_at", "updated_at"],
     leftOut: [],
+    mustBeEmpty: true,
   },
-  reddit_settings: { scope: "whole-table", columns: ["id", "archive_fill"], leftOut: [] },
-  catalog_version: { scope: "whole-table", columns: ["id", "version"], leftOut: [] },
+  reddit_settings: {
+    scope: "whole-table",
+    columns: ["id", "archive_fill"],
+    leftOut: [],
+    singleton: "reset",
+  },
+  catalog_version: {
+    scope: "whole-table",
+    columns: ["id", "version"],
+    leftOut: [],
+    singleton: "keep",
+  },
 } as const satisfies Readonly<Record<string, BackupTable>>;
 
 export function backupTable(name: string): BackupTable {
@@ -257,37 +284,3 @@ export function backupTable(name: string): BackupTable {
 
   return listed;
 }
-
-export const EXCLUDED_TABLES = {
-  vault_settings: "secret",
-  mirror_notes: "derived",
-  mirror_files: "derived",
-  owner: "login-data",
-  sessions: "login-data",
-  agent_tokens: "login-data",
-  spent_reset_codes: "login-data",
-  throttles: "login-data",
-  settings: "secret",
-  github_settings: "secret",
-  grok_bot_settings: "secret",
-  openrouter_connect_transactions: "secret",
-  reddit_account: "secret",
-  ai_settings_revision: "provider-choice",
-  x_settings: "provider-choice",
-  jobs: "work-in-flight",
-  exports: "work-in-flight",
-  restores: "work-in-flight",
-  guards: "work-in-flight",
-  scheduled_runs: "work-in-flight",
-  file_cleaning: "work-in-flight",
-  github_cooldown: "work-in-flight",
-  x_verifications: "work-in-flight",
-  search_parts: "derived",
-  search_index: "derived",
-  search_index_config: "derived",
-  search_index_data: "derived",
-  search_index_docsize: "derived",
-  search_index_idx: "derived",
-  d1_migrations: "carried-in-manifest",
-  sqlite_sequence: "carried-in-manifest",
-} as const satisfies Readonly<Record<string, ExclusionReason>>;

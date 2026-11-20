@@ -7,8 +7,50 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { BACKUP_TABLES, EXCLUDED_TABLES, type BackupTable } from "../src/core/backup-tables.ts";
+import { BACKUP_TABLES, type BackupTable } from "../src/core/backup-tables.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
+
+type ExclusionReason =
+  | "login-data"
+  | "secret"
+  | "provider-choice"
+  | "work-in-flight"
+  | "derived"
+  | "carried-in-manifest";
+
+const EXCLUDED_TABLES = {
+  vault_settings: "secret",
+  mirror_notes: "derived",
+  mirror_files: "derived",
+  owner: "login-data",
+  sessions: "login-data",
+  agent_tokens: "login-data",
+  spent_reset_codes: "login-data",
+  throttles: "login-data",
+  settings: "secret",
+  github_settings: "secret",
+  grok_bot_settings: "secret",
+  openrouter_connect_transactions: "secret",
+  reddit_account: "secret",
+  ai_settings_revision: "provider-choice",
+  x_settings: "provider-choice",
+  jobs: "work-in-flight",
+  exports: "work-in-flight",
+  restores: "work-in-flight",
+  guards: "work-in-flight",
+  scheduled_runs: "work-in-flight",
+  file_cleaning: "work-in-flight",
+  github_cooldown: "work-in-flight",
+  x_verifications: "work-in-flight",
+  search_parts: "derived",
+  search_index: "derived",
+  search_index_config: "derived",
+  search_index_data: "derived",
+  search_index_docsize: "derived",
+  search_index_idx: "derived",
+  d1_migrations: "carried-in-manifest",
+  sqlite_sequence: "carried-in-manifest",
+} as const satisfies Readonly<Record<string, ExclusionReason>>;
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 

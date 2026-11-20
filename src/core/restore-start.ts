@@ -1,10 +1,18 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
+import { guardedWrite } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
-import { START_CHECK } from "./restore-contract.ts";
-import { EMPTY_LIBRARY, holdsEveryPart, libraryIsEmpty, restoreById } from "./restore-state.ts";
+import { entering } from "./restore-contract.ts";
+import { NEWEST_RESTORE, RESUMABLE_RESTORE, resumable } from "./restore-hold.ts";
+import {
+  EMPTY_LIBRARY,
+  holdsEveryPart,
+  isNewestRestore,
+  libraryIsEmpty,
+  restoreById,
+} from "./restore-state.ts";
 import { openingRestoreJob } from "./restore-unit.ts";
 import { restoreRuns } from "./schema.ts";
 import { fenceVault, vaultIdleAt } from "./vault-state.ts";
@@ -15,6 +23,13 @@ export type StartedRestore =
   | { readonly kind: "not-uploading" }
   | { readonly kind: "library-not-empty" }
   | { readonly kind: "vault-busy" }
+  | { readonly kind: "incomplete-upload" };
+
+export type ResumedRestore =
+  | { readonly kind: "resumed" }
+  | { readonly kind: "missing" }
+  | { readonly kind: "superseded" }
+  | { readonly kind: "not-resumable" }
   | { readonly kind: "incomplete-upload" };
 
 function opened(db: Database, id: number) {
@@ -33,8 +48,7 @@ function opened(db: Database, id: number) {
       .update(restoreRuns)
       .set({
         state: "running",
-        phase: "check",
-        cursor: JSON.stringify(START_CHECK),
+        ...entering("check"),
         updatedAt: now,
       })
       .where(ready),
@@ -67,4 +81,37 @@ export async function startRestore(ports: JobPorts, id: number): Promise<Started
   await enqueueRows(ports, jobs);
 
   return { kind: "started" };
+}
+
+export async function resumeRestore(ports: JobPorts, id: number): Promise<ResumedRestore> {
+  const { db } = ports;
+  const run = await restoreById(db, id);
+
+  if (run === null) return { kind: "missing" };
+
+  if (!(await isNewestRestore(db, id))) return { kind: "superseded" };
+
+  if (!resumable(run)) return { kind: "not-resumable" };
+
+  if (!(await holdsEveryPart(ports.files, run))) return { kind: "incomplete-upload" };
+
+  const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${RESUMABLE_RESTORE}`;
+
+  const written = await guardedWrite(
+    db,
+    sql`exists (select 1 from ${restoreRuns} where ${waiting})`,
+    openingRestoreJob(db, waiting),
+    [
+      db
+        .update(restoreRuns)
+        .set({ state: "running", failure: null, updatedAt: Date.now() })
+        .where(waiting),
+    ],
+  );
+
+  if (written === null) return { kind: "not-resumable" };
+
+  await enqueueRows(ports, written);
+
+  return { kind: "resumed" };
 }

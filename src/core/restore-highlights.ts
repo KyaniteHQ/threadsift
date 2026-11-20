@@ -9,11 +9,10 @@ import {
   KEPT_HIGHLIGHTS,
   RESTORE_INDEX_BYTES,
   RESTORE_INDEX_ITEMS,
-  START_CURSOR,
+  entering,
 } from "./restore-contract.ts";
-import { tallied } from "./restore-tally.ts";
-import { type RestoreSet, snapshotted, steppedUnit } from "./restore-unit.ts";
-import { type RestoreRow, highlights, items, restoreRuns } from "./schema.ts";
+import { type RestoreSet, snapshotted, steppedUnit, tallied } from "./restore-unit.ts";
+import { type RestoreRow, highlights, items } from "./schema.ts";
 
 function anchorItem(ports: JobPorts, itemId: number, note: Note) {
   return anchoredOutcome(
@@ -94,7 +93,7 @@ export async function highlightsUnit(
   const owners = await ownersAfter(db, after);
 
   if (owners.length === 0) {
-    return steppedUnit(db, run, { phase: "finish", cursor: JSON.stringify(START_CURSOR) });
+    return steppedUnit(db, run, entering("finish"));
   }
 
   const { writes, holds, last, kept } = await anchored(ports, owners, after);
@@ -106,7 +105,7 @@ export async function highlightsUnit(
     steppedUnit(
       db,
       run,
-      kept === 0 ? set : { ...set, dropped: tallied(restoreRuns.dropped, KEPT_HIGHLIGHTS, kept) },
+      kept === 0 ? set : { ...set, dropped: tallied("dropped", KEPT_HIGHLIGHTS, kept) },
       writes,
     ),
     holds,

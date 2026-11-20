@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { COPY_RESTORE_PHASES } from "./kinds.ts";
+import { COPY_RESTORE_PHASES, RUNNING_RESTORE_PHASES } from "./kinds.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
 import { WholeCount } from "./whole-count.ts";
 
@@ -95,21 +95,21 @@ export const CursorSchema = z
 
 export type Cursor = z.infer<typeof CursorSchema>;
 
-export const START_CURSOR: Cursor = { file: 0, entry: null, offset: 0, line: 0 };
+const START_CURSOR: Cursor = { file: 0, entry: null, offset: 0, line: 0 };
 
 export const UndoCursorSchema = z.object({ units: WholeCount }).readonly();
 
 export type UndoCursor = z.infer<typeof UndoCursorSchema>;
 
-export const START_UNDO: UndoCursor = { units: 0 };
+const START_UNDO: UndoCursor = { units: 0 };
 
 export const FilesCursorSchema = z.object({ owner: WholeCount, key: z.string() }).readonly();
 
-export const START_FILES: z.infer<typeof FilesCursorSchema> = { owner: 0, key: "" };
+const START_FILES: z.infer<typeof FilesCursorSchema> = { owner: 0, key: "" };
 
 export const ItemsCursorSchema = z.object({ after: WholeCount }).readonly();
 
-export const START_ITEMS: z.infer<typeof ItemsCursorSchema> = { after: 0 };
+const START_ITEMS: z.infer<typeof ItemsCursorSchema> = { after: 0 };
 
 export const CheckCursorSchema = z
   .object({
@@ -123,7 +123,28 @@ export const CheckCursorSchema = z
 
 export type CheckCursor = z.infer<typeof CheckCursorSchema>;
 
-export const START_CHECK: CheckCursor = { entry: 0, offset: 0, line: 0, crc: 0, rows: {} };
+const START_CHECK: CheckCursor = { entry: 0, offset: 0, line: 0, crc: 0, rows: {} };
+
+const PHASE_STARTS = {
+  check: START_CHECK,
+  tables: START_CURSOR,
+  files: START_FILES,
+  search: START_ITEMS,
+  highlights: START_ITEMS,
+  finish: START_CURSOR,
+  undoing: START_UNDO,
+} as const satisfies {
+  readonly [Phase in (typeof RUNNING_RESTORE_PHASES)[number]]:
+    | Cursor
+    | CheckCursor
+    | z.infer<typeof FilesCursorSchema>
+    | z.infer<typeof ItemsCursorSchema>
+    | UndoCursor;
+};
+
+export function entering(phase: keyof typeof PHASE_STARTS) {
+  return { phase, cursor: JSON.stringify(PHASE_STARTS[phase]) };
+}
 
 const Id = z.number().int().positive();
 

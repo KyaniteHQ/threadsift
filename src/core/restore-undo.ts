@@ -7,11 +7,12 @@ import { CountsSchema, RESTORE_UNIT_LINES, UndoCursorSchema } from "./restore-co
 import { RESTORE_ORDER, type TableSpec, tableSpec } from "./restore-registry.ts";
 import { endedUnit, steppedUnit } from "./restore-unit.ts";
 import type { RestoreRow } from "./schema.ts";
-import { searchParts } from "./search-tables.ts";
 
 type Undone = Readonly<Pick<TableSpec, "table">>;
 
-const DEPENDENTS: readonly Undone[] = [{ table: searchParts }];
+const DEPENDENTS: readonly Undone[] = RESTORE_ORDER.flatMap((name) =>
+  (tableSpec(name)?.rebuiltInto ?? []).map((table) => ({ table })),
+);
 
 const UNDO_TABLES: readonly TableSpec[] = RESTORE_ORDER.toReversed().flatMap((name) => {
   const spec = tableSpec(name);

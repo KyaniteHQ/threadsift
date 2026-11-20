@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
-import { ITEM_FILES_ROOT } from "./file-keys.ts";
+import { IMAGE_STEM, ITEM_FILES_ROOT, POST_TEXT_STEM } from "./file-keys.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { ITEM_JOB_KINDS, type JobKind, type UnownedJobKind, type WaitReason } from "./kinds.ts";
 import { type JobRow, exportRuns, items, jobs, restoreRuns } from "./schema.ts";
@@ -15,12 +15,16 @@ interface AttemptColumns {
   readonly attempts: SQLWrapper;
 }
 
+function literal(text: string) {
+  return sql.raw(`'${text}'`);
+}
+
 function attemptFileKeys({ itemId, id, attempts }: Readonly<AttemptColumns>) {
-  const folder = sql`${sql.raw(`'${ITEM_FILES_ROOT}'`)} || ${itemId} || '/'`;
+  const folder = sql`${literal(ITEM_FILES_ROOT)} || ${itemId} || '/'`;
 
   return {
-    postText: sql<string>`${folder} || 'post-' || ${id} || '-' || ${attempts} || '.md'`,
-    imagePrefix: sql<string>`${folder} || 'img-' || ${id} || '-' || ${attempts} || '-'`,
+    postText: sql<string>`${folder} || ${literal(POST_TEXT_STEM)} || ${id} || '-' || ${attempts} || '.md'`,
+    imagePrefix: sql<string>`${folder} || ${literal(IMAGE_STEM)} || ${id} || '-' || ${attempts} || '-'`,
   };
 }
 

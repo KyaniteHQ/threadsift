@@ -7,18 +7,13 @@ import { type TableSpec, lineVerdict, tableSpec } from "./restore-registry.ts";
 import {
   type ZipDirectory,
   type ZipEntry,
+  type ZipRegion,
   type ZipSource,
   bytesAt,
   checkedCrc,
-  checkedEnd,
-  entryStart,
-  localDataStart,
+  entrySpan,
+  spanIn,
 } from "./zip-read.ts";
-
-interface Region {
-  readonly bytes: Uint8Array;
-  readonly base: number;
-}
 
 export interface Env {
   readonly source: Readonly<ZipSource>;
@@ -109,30 +104,22 @@ function finished(
   return { entry: at.entry + 1, offset: 0, line: 0, crc: 0, rows };
 }
 
-function dataStart(bytes: Uint8Array, at: number, entry: Readonly<ZipEntry>): number | null {
-  const start = localDataStart(bytes, at, entry);
-
-  return start === null || start > bytes.length ? null : start;
-}
-
 function dataIn(
   env: Readonly<Env>,
-  { bytes, base }: Readonly<Region>,
+  region: Readonly<ZipRegion>,
   entry: Readonly<ZipEntry>,
   offset: number,
 ): Uint8Array | null {
-  const from = offset === 0 ? dataStart(bytes, entry.headerOffset - base, entry) : 0;
+  const span = spanIn(region, env.directory, entry, offset);
 
-  if (from === null) return null;
-
-  checkedEnd(env.directory.offset, base + from, entry.size - offset);
-
-  return bytes.subarray(from, from + entry.size - offset);
+  return span === null
+    ? null
+    : region.bytes.subarray(span.start - region.base, span.end - region.base);
 }
 
 function walk(
   env: Readonly<Env>,
-  region: Readonly<Region>,
+  region: Readonly<ZipRegion>,
   start: Readonly<CheckCursor>,
 ): CheckCursor {
   let at = start;
@@ -167,7 +154,7 @@ export async function advance(env: Readonly<Env>, at: Readonly<CheckCursor>): Pr
   const base =
     at.offset === 0
       ? first.headerOffset
-      : (await entryStart(env.source, env.directory, first)) + at.offset;
+      : (await entrySpan(env.source, env.directory, first)).start + at.offset;
 
   const bytes = await bytesAt(
     env.source,
