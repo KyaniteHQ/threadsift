@@ -1,4 +1,9 @@
 import { utf8Length } from "../contract/encoding.ts";
+import {
+  JSON_ARRAY_BRACKET_BYTES,
+  MAX_ROW_BYTES,
+  STATEMENT_JSON_BYTES,
+} from "../contract/limits.ts";
 
 export interface ThreadNode {
   readonly id: string;
@@ -28,13 +33,7 @@ export function moreNode(position: number, parentId: string | null, depth: numbe
   };
 }
 
-const STATEMENT_JSON_BYTES = 1_500_000;
-
-const BRACKETS = 2;
-
 const SEPARATOR = 1;
-
-export const MAX_ROW_BYTES = STATEMENT_JSON_BYTES - BRACKETS;
 
 export function rowJson(node: Readonly<ThreadNode>): string {
   return JSON.stringify({ ...node, eligible: node.eligible ? 1 : 0 });
@@ -54,7 +53,7 @@ export function jsonArrays(elements: readonly string[]): readonly string[] {
 
     if (open === undefined || bytes + SEPARATOR + size > STATEMENT_JSON_BYTES) {
       arrays.push([element]);
-      bytes = BRACKETS + size;
+      bytes = JSON_ARRAY_BRACKET_BYTES + size;
     } else {
       open.push(element);
       bytes += SEPARATOR + size;

@@ -1,8 +1,8 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
-import { providersOf } from "../core/ai/ai-run.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai/ai-settings.ts";
 import { verifyProvider } from "../core/bot/bot-verify.ts";
+import { SETTINGS_CHANGED } from "../core/contract/ai-contract.ts";
 import {
   AiSettingsInputSchema,
   AiSettingsViewSchema,
@@ -19,8 +19,6 @@ import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { ErrorResponseSchema } from "./schemas.ts";
-
-const PROVIDER_UNAVAILABLE = "This Instance does not offer that Provider";
 
 const readRoute = createRoute({
   method: "get",
@@ -50,7 +48,7 @@ const saveRoute = createRoute({
     ),
     409: jsonBody(
       ErrorResponseSchema,
-      "The settings changed while this save was prepared (`error: settings-changed`). Nothing from this save was written; send it again.",
+      `The settings changed while this save was prepared (\`error: ${SETTINGS_CHANGED}\`). Nothing from this save was written; send it again.`,
     ),
   },
 });
@@ -70,23 +68,27 @@ const verifyRoute = createRoute({
 export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(readRoute, async (c) => c.json(await readAiSettings(ports), 200));
   app.openapi(saveRoute, async (c) => {
-    const input = c.req.valid("json");
+    const saved = await saveAiSettings(ports, c.req.valid("json"));
 
-    if (!providersOf(ports.ai).includes(input.provider))
-      return c.json({ error: PROVIDER_UNAVAILABLE }, 400);
+    switch (saved.kind) {
+      case "saved":
+        return c.json(saved.view, 200);
+      case "refused":
+        return c.json(saved, 200);
+      case "provider-not-offered":
+        return c.json({ error: "This Instance does not offer that Provider" }, 400);
+      case "recommendation-unavailable":
+        return c.json({ error: "recommendation-unavailable" }, 400);
+      case "bot-first":
+        return c.json({ error: GROK_BOT_FIRST, code: saved.code } as const, 400);
+      case "changed":
+        return c.json({ error: SETTINGS_CHANGED }, 409);
+      default: {
+        const exhaustive: never = saved;
 
-    const saved = await saveAiSettings(ports, input);
-
-    if ("kind" in saved && saved.kind === "changed")
-      return c.json({ error: "settings-changed" }, 409);
-
-    if ("kind" in saved && saved.kind === "recommendation-unavailable")
-      return c.json({ error: "recommendation-unavailable" }, 400);
-
-    if ("kind" in saved && saved.kind === "bot-first")
-      return c.json({ error: GROK_BOT_FIRST, code: saved.code } as const, 400);
-
-    return c.json(saved, 200);
+        return exhaustive;
+      }
+    }
   });
   app.openapi(verifyRoute, async (c) => c.json(await verifyProvider(ports, c.req.raw.signal), 200));
 }

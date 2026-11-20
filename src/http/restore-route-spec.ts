@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { MAX_ATTEMPTS } from "../core/contract/job-contract.ts";
 import {
   RESTORE_MAX_BYTES,
   NewRestoreSchema,
@@ -7,7 +8,6 @@ import {
   RestoreStatusSchema,
   StartedRestoreSchema,
 } from "../core/contract/restore-contract.ts";
-import { MAX_ATTEMPTS } from "../core/kernel/job-retry.ts";
 import { access, PART_CAP } from "./access.ts";
 import { OWNER_SESSION_REFUSALS, jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";

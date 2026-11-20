@@ -1,5 +1,6 @@
 import { createRoute } from "@hono/zod-openapi";
 
+import { SETTINGS_CHANGED } from "../core/contract/ai-contract.ts";
 import { groupedNumber } from "../core/contract/format.ts";
 import {
   GrokBotInUseSchema,
@@ -43,7 +44,7 @@ export const saveRoute = createRoute({
     ),
     409: jsonBody(
       ErrorResponseSchema,
-      "The settings changed while this save was prepared (`error: settings-changed`). Nothing from this save was written; send it again.",
+      `The settings changed while this save was prepared (\`error: ${SETTINGS_CHANGED}\`). Nothing from this save was written; send it again.`,
     ),
   },
 });

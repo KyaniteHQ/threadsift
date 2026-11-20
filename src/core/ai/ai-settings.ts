@@ -1,10 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 
-import type {
-  AiSettingsInput,
-  AiSettingsView,
-  AiSaveResponse,
-} from "../contract/ai-settings-contract.ts";
+import type { AiRefused } from "../contract/ai-contract.ts";
+import type { AiSettingsInput, AiSettingsView } from "../contract/ai-settings-contract.ts";
 import { GROK_BOT_PROVIDER, hasKind } from "../contract/provider-families.ts";
 import { CURRENT_REVISION } from "../kernel/ai-settings-revision.ts";
 import type { Database } from "../kernel/database.ts";
@@ -103,15 +100,20 @@ async function preparedSave(ports: SettingsPorts, input: Readonly<AiSettingsInpu
   };
 }
 
+type SavedAi =
+  | { readonly kind: "saved"; readonly view: AiSettingsView }
+  | AiRefused
+  | { readonly kind: "changed" }
+  | { readonly kind: "recommendation-unavailable" }
+  | { readonly kind: "provider-not-offered" }
+  | BotFirst;
+
 export async function saveAiSettings(
   ports: SettingsPorts,
   input: Readonly<AiSettingsInput>,
-): Promise<
-  | AiSaveResponse
-  | { readonly kind: "changed" }
-  | { readonly kind: "recommendation-unavailable" }
-  | BotFirst
-> {
+): Promise<SavedAi> {
+  if (!providersOf(ports.ai).includes(input.provider)) return { kind: "provider-not-offered" };
+
   const prepared = await preparedSave(ports, input);
 
   if ("kind" in prepared) return prepared;
@@ -121,7 +123,7 @@ export async function saveAiSettings(
     ...requeuedDigests(ports.db),
   ]);
 
-  if (written) return readAiSettings(ports);
+  if (written) return { kind: "saved", view: await readAiSettings(ports) };
 
   return { kind: "changed" };
 }

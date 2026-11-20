@@ -8,10 +8,10 @@ import {
   ProposalStateSchema,
   RejectedSchema,
 } from "../core/contract/proposal-contract.ts";
+import { ADDED_READ_LIMIT } from "../core/contract/topic-overview-contract.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { acceptProposal, rejectProposal } from "../core/wiki/proposal-decision.ts";
 import { readProposalPage, readProposalState } from "../core/wiki/proposal-page.ts";
-import { ADDED_READ_LIMIT } from "../core/wiki/topic-overview-input.ts";
 import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
@@ -76,7 +76,7 @@ const acceptProposalRoute = createRoute({
   responses: {
     200: jsonBody(
       AcceptedSchema,
-      `The merge finished in this request: every Item carries \`into\` and the \`from\` Tag or Topic is gone, and a Pin keeps it from coming back. A Topic merge also tries once to open an overview run for \`into\`. For a \`highlight-lost\` row the Highlight and its search part are removed with the Proposal, and a second call answers 404. For an \`items-disagree\` row the pair was kept as a Pin and the Proposal was deleted in one write, no model ran, and a second call answers 404. For an \`overview-gap\` row one overview run was queued for the Topic, the Topic page's failure marker was cleared and the Proposal was deleted in one write, and a second call answers 404; the run reads at most ${String(ADDED_READ_LIMIT)} uncovered Items and starts the next run itself after a success until every Item is covered, so covering N Items takes at least ceil(N / 40) successful model calls, and a failed run stops the chain. Only the owner's session may accept; an agent token gets 403.`,
+      `The merge finished in this request: every Item carries \`into\` and the \`from\` Tag or Topic is gone, and a Pin keeps it from coming back. A Topic merge also tries once to open an overview run for \`into\`. For a \`highlight-lost\` row the Highlight and its search part are removed with the Proposal, and a second call answers 404. For an \`items-disagree\` row the pair was kept as a Pin and the Proposal was deleted in one write, no model ran, and a second call answers 404. For an \`overview-gap\` row one overview run was queued for the Topic, the Topic page's failure marker was cleared and the Proposal was deleted in one write, and a second call answers 404; the run reads at most ${String(ADDED_READ_LIMIT)} uncovered Items and starts the next run itself after a success until every Item is covered, so covering N Items takes at least ceil(N / ${String(ADDED_READ_LIMIT)}) successful model calls, and a failed run stops the chain. Only the owner's session may accept; an agent token gets 403.`,
     ),
     202: jsonBody(
       AcceptedSchema,

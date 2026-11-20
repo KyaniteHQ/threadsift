@@ -17,6 +17,12 @@ export const UNOWNED_JOB_KINDS = ["export", "restore"] as const;
 
 export const JOB_KINDS = [...OWNED_JOB_KINDS, ...UNOWNED_JOB_KINDS] as const;
 
+export const CLAIM_MARGIN_MS = 120_000;
+
+export const RETRY_DELAYS_MS = [30_000, 120_000] as const;
+
+export const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
+
 export const JOB_STATES = ["queued", "running", "done"] as const;
 
 export const GROK_BOT_WAIT = "grok-bot";

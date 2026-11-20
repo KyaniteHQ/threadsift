@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import { sessionIsLive } from "../access/sessions.ts";
+import { SETTINGS_CHANGED } from "../contract/ai-contract.ts";
 import type { ConnectNotice } from "../contract/openrouter-contract.ts";
 import { CURRENT_REVISION } from "../kernel/ai-settings-revision.ts";
 import { requeuedDigests } from "../kernel/digest-opening.ts";
@@ -82,7 +83,7 @@ async function afterActivation(
 
   const requeued = active ? requeuedDigests(ports.db) : [];
 
-  if (!(await stillStored(ports, row, requeued))) return "settings-changed";
+  if (!(await stillStored(ports, row, requeued))) return SETTINGS_CHANGED;
 
   return active ? "connected" : "activation-pending";
 }

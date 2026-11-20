@@ -14,9 +14,10 @@ import {
 } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { CLAIM_MARGIN_MS } from "../contract/job-contract.ts";
 import { FILL_DEADLINE_MS } from "../contract/request-waits.ts";
 import type { Database } from "../kernel/database.ts";
-import { CLAIM_MARGIN_MS, type Closing, type JobPorts } from "../kernel/job-outcome.ts";
+import type { Closing, JobPorts } from "../kernel/job-outcome.ts";
 import { enqueueQuietly, holding } from "../kernel/job-rows.ts";
 import { waitingFor, wokenJobs } from "../kernel/job-waiting.ts";
 import { ACCOUNT_ROW, type AccountRow, redditAccount } from "../kernel/reddit-account-tables.ts";

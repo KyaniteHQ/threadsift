@@ -1,5 +1,6 @@
 import { storedCommentId, wireCommentId } from "../contract/comment-id.ts";
 import { utf8Length } from "../contract/encoding.ts";
+import { MAX_ROW_BYTES } from "../contract/limits.ts";
 import {
   type ThreadRefusal,
   checkedMetadata,
@@ -21,7 +22,6 @@ import {
   parsing,
   threadNodesOf,
 } from "../thread/thread-parse.ts";
-import { MAX_ROW_BYTES } from "../thread/thread-rows.ts";
 import { type JoinedPost, joinedPost, postTitle } from "./x-joined-post.ts";
 import { order } from "./x-reply-order.ts";
 

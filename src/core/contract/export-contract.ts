@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { CLAIM_MARGIN_MS } from "./job-contract.ts";
 import { DAY_MS } from "./time-units.ts";
 import { WholeCount } from "./whole-count.ts";
 
@@ -8,6 +9,8 @@ export const EXPORT_STATES = ["running", "ready", "failed", "removing", "expired
 export const EXPORT_DOWNLOAD_PATH = "/api/export/{id}/download";
 
 export const EXPORT_SLICE_DEADLINE_MS = 600_000;
+
+export const SETTLE_MS = EXPORT_SLICE_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 export const EXPORT_SLICE_BYTES = 8 * 1024 * 1024;
 

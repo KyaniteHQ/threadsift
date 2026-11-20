@@ -8,6 +8,7 @@ import { groupedNumber } from "../core/contract/format.ts";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../core/contract/passwords.ts";
 import { logFailure } from "../core/kernel/failure-log.ts";
 import type { AdmissionRefusal, Refusal } from "../core/paste/paste-refusal.ts";
+import { challengeOf } from "./bearer.ts";
 
 type AccessRefusal = Refused<RefusalName> | LockedOut;
 
@@ -58,7 +59,7 @@ export function refusing(
 export function refusing(c: Context, refusal: Readonly<Refusal>) {
   switch (refusal.status) {
     case 401: {
-      return c.json(refusal.body, 401, { "WWW-Authenticate": 'Bearer error="invalid_token"' });
+      return c.json(refusal.body, 401, challengeOf("unknown"));
     }
 
     case 429: {

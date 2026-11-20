@@ -1,6 +1,7 @@
+import { MAX_ROW_BYTES } from "../contract/limits.ts";
 import { type ThreadRefusal, refuse, refusing } from "../contract/thread-refusal.ts";
 import { isPlainCodeDrop } from "./comment-filter.ts";
-import { MAX_ROW_BYTES, type ThreadNode, moreNode, rowFits } from "./thread-rows.ts";
+import { type ThreadNode, moreNode, rowFits } from "./thread-rows.ts";
 
 export interface ParsedThread {
   readonly title: string;

@@ -80,6 +80,8 @@ export type GrokBotResult = z.infer<typeof GrokBotResultSchema>;
 
 export const GrokBotTestSchema = z.object({ result: GrokBotResultSchema });
 
+export const ERROR_TEXT_MAX = 200;
+
 export const KEY_NEEDED =
   "key: a key is needed when the address is new or the saved key cannot be opened";
 

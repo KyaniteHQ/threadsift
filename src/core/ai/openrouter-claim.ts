@@ -1,6 +1,7 @@
 import { and, eq, gt } from "drizzle-orm";
 
 import { sessionIsLive } from "../access/sessions.ts";
+import { SETTINGS_CHANGED } from "../contract/ai-contract.ts";
 import { digestOf } from "../contract/encoding.ts";
 import type { ConnectNotice } from "../contract/openrouter-contract.ts";
 import { CURRENT_REVISION, readRevision } from "../kernel/ai-settings-revision.ts";
@@ -57,6 +58,6 @@ export async function refusalBeforeExchange(
   ]);
 
   return pending !== undefined && pending.expectedRevision !== counter?.revision
-    ? "settings-changed"
+    ? SETTINGS_CHANGED
     : "incomplete";
 }

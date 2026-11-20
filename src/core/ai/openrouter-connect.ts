@@ -1,5 +1,6 @@
 import { and, eq, gt, lte, notExists, or, sql } from "drizzle-orm";
 
+import { type Sender, sentByOwnPage } from "../access/own-origin.ts";
 import { sessionIsLive } from "../access/sessions.ts";
 import { base64url, digestOf, randomSecret } from "../contract/encoding.ts";
 import {
@@ -12,16 +13,28 @@ import type { Database } from "../kernel/database.ts";
 import { guardedBatch } from "../kernel/guards.ts";
 import type { Ports } from "../kernel/ports.ts";
 import { openrouterConnectTransactions, sessions } from "../kernel/schema.ts";
+import type { Sealer } from "../kernel/sealed-secret.ts";
 import { DATABASE_NOW } from "../kernel/sql-expressions.ts";
 
 const AUTHORIZATION_URL = "https://openrouter.ai/auth";
 const KEY_LABEL = "Threadsift";
 const RANDOM_BYTES = 32;
 
+type StartRefusal =
+  | { readonly kind: "no-origin" }
+  | { readonly kind: "not-own-page" }
+  | { readonly kind: "no-session" }
+  | { readonly kind: "unavailable" };
+
 type StartResult =
   | { readonly kind: "started"; readonly authorizationUrl: string; readonly expiresAt: number }
-  | { readonly kind: "unavailable" }
-  | { readonly kind: "stale" };
+  | { readonly kind: "stale" }
+  | StartRefusal;
+
+type StartRequest = ConnectStartInput & {
+  readonly sender: Sender;
+  readonly sessionId: string | undefined;
+};
 
 function authorizationUrl(origin: string, state: string, challenge: string): string {
   const url = new URL(AUTHORIZATION_URL);
@@ -35,16 +48,11 @@ function authorizationUrl(origin: string, state: string, challenge: string): str
   return url.href;
 }
 
-export async function startOpenRouterConnect(
-  ports: Ports,
-  { sessionId, model, revision }: Readonly<ConnectStartInput & { sessionId: string }>,
-): Promise<StartResult> {
-  const { crypto } = ports;
-  const { publicOrigin: origin } = ports.config;
-  const sealer = ports.secrets;
-
-  if (origin === null || sealer === null) return { kind: "unavailable" };
-
+async function sealedAttempt(
+  { crypto }: Readonly<Pick<Ports, "crypto">>,
+  { origin, sealer, sessionId }: Readonly<Ready>,
+  { model, revision }: Readonly<ConnectStartInput>,
+) {
   const state = randomSecret(crypto, RANDOM_BYTES);
   const verifier = randomSecret(crypto, RANDOM_BYTES);
 
@@ -59,9 +67,48 @@ export async function startOpenRouterConnect(
     expiresAt: sql<number>`${DATABASE_NOW} + ${CONNECT_LIFETIME_MS}`,
   };
 
+  return { state, verifier, row };
+}
+
+interface Ready {
+  readonly origin: string;
+  readonly sealer: Sealer;
+  readonly sessionId: string;
+}
+
+function readyToStart(
+  ports: Ports,
+  sender: Readonly<Sender>,
+  sessionId: string | undefined,
+): Ready | StartRefusal {
+  const { publicOrigin: origin } = ports.config;
+  const sealer = ports.secrets;
+
+  if (origin === null) return { kind: "no-origin" };
+
+  if (!sentByOwnPage(sender, origin)) return { kind: "not-own-page" };
+
+  if (sessionId === undefined) return { kind: "no-session" };
+
+  if (sealer === null) return { kind: "unavailable" };
+
+  return { origin, sealer, sessionId };
+}
+
+export async function startOpenRouterConnect(
+  ports: Ports,
+  { sender, sessionId, ...input }: Readonly<StartRequest>,
+): Promise<StartResult> {
+  const ready = readyToStart(ports, sender, sessionId);
+
+  if ("kind" in ready) return ready;
+
+  const { crypto } = ports;
+  const { state, verifier, row } = await sealedAttempt(ports, ready, input);
+
   const inserted = await guardedBatch(
     ports.db,
-    sql`${sessionIsLive(crypto, sessionId)} and ${CURRENT_REVISION} = ${revision}`,
+    sql`${sessionIsLive(crypto, ready.sessionId)} and ${CURRENT_REVISION} = ${input.revision}`,
     [ports.db.insert(openrouterConnectTransactions).values(row)],
   );
 
@@ -76,7 +123,7 @@ export async function startOpenRouterConnect(
     ? { kind: "stale" }
     : {
         kind: "started",
-        authorizationUrl: authorizationUrl(origin, state, base64url(crypto.sha256(verifier))),
+        authorizationUrl: authorizationUrl(ready.origin, state, base64url(crypto.sha256(verifier))),
         expiresAt: stored.expiresAt,
       };
 }

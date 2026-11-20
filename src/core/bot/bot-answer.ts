@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import type { BotResult } from "../ai/bot-task-answering.ts";
 import { answeredWrites, reportedWrites } from "../ai/bot-task-rows.ts";
+import { ERROR_TEXT_MAX } from "../contract/grok-bot-contract.ts";
 import {
   type AiTaskRow,
   GROK_BOT_EXECUTOR,
@@ -14,8 +15,6 @@ import { guardedBatch } from "../kernel/guards.ts";
 import type { JobPorts, JobWrites } from "../kernel/job-outcome.ts";
 import { enqueueQuietly } from "../kernel/job-rows.ts";
 import { botKindOf } from "./bot-task-kinds.ts";
-
-export const ERROR_TEXT_MAX = 200;
 
 export const BotAnswerSchema = z.union([
   z

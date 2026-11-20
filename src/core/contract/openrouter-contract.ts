@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { SETTINGS_CHANGED } from "./ai-contract.ts";
 import { PROVIDERS } from "./provider-families.ts";
 
 export const CONNECT_START_PATH = "/api/settings/ai/openrouter/start";
@@ -21,7 +22,7 @@ export const ConnectStartResponseSchema = z.object({
 export const ConnectNoticeSchema = z.enum([
   "connected",
   "incomplete",
-  "settings-changed",
+  SETTINGS_CHANGED,
   "possible-orphan",
   "activation-pending",
 ]);

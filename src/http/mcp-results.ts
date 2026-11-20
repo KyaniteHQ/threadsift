@@ -27,7 +27,7 @@ export function answered<Body extends Structured>(
   };
 }
 
-export interface RefusalDetails {
+interface RefusalDetails {
   readonly code: string;
   readonly retryAfter: number;
 }

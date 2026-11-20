@@ -26,7 +26,7 @@ import {
   UnavailableResponseSchema,
 } from "./schemas.ts";
 
-export const SAVE_ITEM = access("add", { body: ITEM_CAP });
+const SAVE_ITEM = access("add", { body: ITEM_CAP });
 
 export const saveItemRoute = createRoute({
   method: "post",

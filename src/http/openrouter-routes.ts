@@ -1,6 +1,5 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
-import { sentByOwnPage } from "../core/access/own-origin.ts";
 import { completeOpenRouterConnect } from "../core/ai/openrouter-callback.ts";
 import { startOpenRouterConnect } from "../core/ai/openrouter-connect.ts";
 import {
@@ -55,19 +54,11 @@ const callbackRoute = createRoute({
 
 function registerStart(app: OpenAPIHono, ports: Ports): void {
   app.openapi(startRoute, async (c) => {
-    const { publicOrigin } = ports.config;
-
-    if (publicOrigin === null)
-      return c.json({ error: "Connect needs THREADSIFT_PUBLIC_ORIGIN" }, 503);
-
-    if (!sentByOwnPage(senderOf(c), publicOrigin))
-      return c.json({ error: "Connect starts only from this Instance's own Settings page" }, 403);
-
-    const sessionId = sessionIdOf(c);
-
-    if (sessionId === undefined) return c.json({ error: "Sign in to connect" }, 409);
-
-    const started = await startOpenRouterConnect(ports, { sessionId, ...c.req.valid("json") });
+    const started = await startOpenRouterConnect(ports, {
+      sender: senderOf(c),
+      sessionId: sessionIdOf(c),
+      ...c.req.valid("json"),
+    });
 
     switch (started.kind) {
       case "started":
@@ -75,6 +66,12 @@ function registerStart(app: OpenAPIHono, ports: Ports): void {
           { authorizationUrl: started.authorizationUrl, expiresAt: started.expiresAt },
           201,
         );
+      case "no-origin":
+        return c.json({ error: "Connect needs THREADSIFT_PUBLIC_ORIGIN" }, 503);
+      case "not-own-page":
+        return c.json({ error: "Connect starts only from this Instance's own Settings page" }, 403);
+      case "no-session":
+        return c.json({ error: "Sign in to connect" }, 409);
       case "stale":
         return c.json({ error: "The AI settings changed. Reload and try again" }, 409);
       case "unavailable":
@@ -90,17 +87,12 @@ function registerStart(app: OpenAPIHono, ports: Ports): void {
 
 function registerCallback(app: OpenAPIHono, ports: Ports): void {
   app.openapi(callbackRoute, async (c) => {
-    const sessionId = sessionIdOf(c);
-
     if (c.req.method !== "GET") return c.body(null, 405);
 
-    const notice =
-      sessionId === undefined
-        ? "incomplete"
-        : await completeOpenRouterConnect(ports, {
-            sessionId,
-            search: new URL(c.req.url).search,
-          });
+    const notice = await completeOpenRouterConnect(ports, {
+      sessionId: sessionIdOf(c),
+      search: new URL(c.req.url).search,
+    });
 
     return c.redirect(returnAddress(notice), 303);
   });

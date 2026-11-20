@@ -163,6 +163,8 @@ export interface AiTaskRequest<Result> {
   readonly maxOutputTokens: number;
 }
 
+export const SETTINGS_CHANGED = "settings-changed";
+
 export const AI_INPUT_BYTES = 14_000;
 
 export const AI_LIST_OUTPUT_TOKENS = 4096;

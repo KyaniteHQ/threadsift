@@ -135,8 +135,6 @@ export interface JobClosing {
     | undefined;
 }
 
-export const CLAIM_MARGIN_MS = 120_000;
-
 export function settled<Outcome extends JobOutcome>(outcome: Outcome) {
   return { kind: "settled", outcome } as const;
 }
