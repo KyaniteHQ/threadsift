@@ -1,9 +1,11 @@
 import { desc, eq, sql } from "drizzle-orm";
+import { z } from "zod";
 
 import type { Database } from "./database.ts";
 import { FILE_LIST_LIMIT, restoreFilesPrefix } from "./file-keys.ts";
 import type { FileStore } from "./file-store.ts";
 import type { JobPorts } from "./job-outcome.ts";
+import { COPY_RESTORE_PHASES } from "./kinds.ts";
 import {
   CountsSchema,
   KEPT_HIGHLIGHTS,
@@ -11,7 +13,10 @@ import {
   RESTORED_FILES,
   type RestoreStatus,
 } from "./restore-contract.ts";
+import { cancelling, resumable, undoFailed } from "./restore-hold.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
+
+const CopyPhaseSchema = z.enum(COPY_RESTORE_PHASES);
 
 const PART_NAME = /\/part-(?<part>[1-9][0-9]{0,9})$/u;
 
@@ -26,22 +31,6 @@ export async function libraryIsEmpty(db: Database): Promise<boolean> {
   const [found] = await db.select({ empty: sql<number>`${EMPTY_LIBRARY}` }).from(sql`(select 1)`);
 
   return found?.empty === 1;
-}
-
-export const NEWEST_RESTORE = sql`${restoreRuns.id} = (select max(${restoreRuns.id}) from ${restoreRuns})`;
-
-export const RESUMABLE_RESTORE = sql`${restoreRuns.state} = 'failed' and ${restoreRuns.failure} = 'gave-up' and ${restoreRuns.phase} <> 'undoing'`;
-
-export const HOLDS_LIBRARY = sql`(${restoreRuns.state} = 'running' or (${restoreRuns.state} = 'failed' and ${restoreRuns.failure} = 'gave-up')) and ${NEWEST_RESTORE}`;
-
-export async function restoreHoldsLibrary(db: Database): Promise<boolean> {
-  const [found] = await db
-    .select({ one: sql<number>`1` })
-    .from(restoreRuns)
-    .where(HOLDS_LIBRARY)
-    .limit(1);
-
-  return found !== undefined;
 }
 
 async function newestRestore(db: Database): Promise<RestoreRow | null> {
@@ -83,10 +72,6 @@ export async function holdsEveryPart(
   const received = new Set(await receivedParts(files, id));
 
   return Array.from({ length: parts }, (_, at) => at + 1).every((part) => received.has(part));
-}
-
-export function resumable(run: Readonly<Pick<RestoreRow, "state" | "phase" | "failure">>): boolean {
-  return run.state === "failed" && run.failure === "gave-up" && run.phase !== "undoing";
 }
 
 function countsOf(run: Readonly<RestoreRow>) {
@@ -136,7 +121,7 @@ async function failedStatus(
     id,
     failure: run.failure,
     resumable: resumable(run) && (await holdsEveryPart(files, run)),
-    cancelFailed: run.phase === "undoing",
+    cancelFailed: undoFailed(run),
   };
 }
 
@@ -152,11 +137,11 @@ export async function restoreStatus(ports: StatusPorts): Promise<RestoreStatus> 
     case "uploading":
       return uploadingStatus(ports, run, libraryEmpty);
     case "running": {
-      if (run.phase === "upload") throw new Error(`Restore ${String(id)} runs in its upload phase`);
+      if (cancelling(run)) return { state: "cancelling", libraryEmpty, id };
 
-      if (run.phase === "undoing") return { state: "cancelling", libraryEmpty, id };
+      const phase = CopyPhaseSchema.parse(run.phase);
 
-      return { state: "running", libraryEmpty, id, phase: run.phase, ...countsOf(run) };
+      return { state: "running", libraryEmpty, id, phase, ...countsOf(run) };
     }
 
     case "done": {

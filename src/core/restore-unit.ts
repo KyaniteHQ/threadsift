@@ -4,10 +4,9 @@ import type { Database } from "./database.ts";
 import { restorePartKey } from "./file-keys.ts";
 import type { JobOutcome, JobWrites, SettledOutcome } from "./job-outcome.ts";
 import { openingUnowned } from "./job-rows.ts";
-import type { RestoreFailure } from "./restore-contract.ts";
+import { type Ending, mirrorAfter } from "./restore-hold.ts";
 import { restoreById } from "./restore-state.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
-import { queueVaultLibrary } from "./vault-queue.ts";
 
 function partKeysOf(run: Readonly<Pick<RestoreRow, "id" | "parts">>): readonly string[] {
   return Array.from({ length: run.parts }, (_, at) => restorePartKey(run.id, at + 1));
@@ -67,14 +66,6 @@ export function steppedUnit(
   };
 }
 
-type Ending =
-  | {
-      readonly state: "done" | "cancelled";
-      readonly finishedAt: number;
-      readonly updatedAt: number;
-    }
-  | { readonly state: "failed"; readonly failure: RestoreFailure; readonly updatedAt: number };
-
 export function endedUnit(
   db: Database,
   run: Readonly<RestoreRow>,
@@ -85,7 +76,7 @@ export function endedUnit(
     writes: [
       ...before,
       db.update(restoreRuns).set(set).where(eq(restoreRuns.id, run.id)),
-      ...(set.state === "failed" ? [] : queueVaultLibrary(db)),
+      ...mirrorAfter(db, set.state),
     ],
     precondition: precondition(db, run),
     files: { written: [], superseded: partKeysOf(run) },

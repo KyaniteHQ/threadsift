@@ -1,7 +1,7 @@
 import { type UnknownToken, retryAfterSeconds } from "./agent-token-budget.ts";
 import { BUDGET_SPENT, type BudgetSpent, RESTORING_CODE } from "./kinds.ts";
-import type { Closed } from "./library-gate.ts";
 import type { Invalid, NotWaiting, Refused, ThreadKept, TooLarge } from "./paste-outcome.ts";
+import type { Closed } from "./restore-hold.ts";
 import type { UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
 import { UNKNOWN_TOKEN } from "./tokens.ts";
 
