@@ -20,7 +20,7 @@ const MIN_STEM = 3;
 
 const MIN_INITIALISM = 2;
 
-export function looseKey(key: string): string {
+function looseKey(key: string): string {
   const letters = key.replaceAll(NOT_ALPHANUMERIC, "");
   const characters = Array.from(letters);
 

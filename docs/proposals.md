@@ -22,7 +22,7 @@ Only `src/features/wiki/core/proposal-lifecycle.ts` moves a row between states o
 
 - **Reject.** A row of any kind moves from `open` to `rejected`.
 - **Apply.** The claim that starts an Accept (`proposalClaimed`) moves the row from `open` to `accepting` before any unit runs. A first unit that throws hands the row back to `open` (`handedBack`). `handedBack` matches only a row with no `cursor`, `moved`, or `unit_revision`. The columns `cursor`, `moved`, `unit_revision`, and `failed_runs` mean something only while the row is `accepting`. The row leaves with the Tag or Topic it names, in the last unit's batch, by the cascade.
-- **Remove.** An `open` row is deleted when Accept of an overview update or of a disagreement commits, and when a weekly stage finds that the row no longer holds. The row of a lost Highlight goes with the Highlight. `goneWithItem` deletes the rows of any state that name a deleted Item or its Highlights.
+- **Remove.** An `open` row is deleted when Accept of an overview update or of a disagreement commits, and when a weekly stage finds that the row no longer holds. The row of a lost Highlight goes with the Highlight. The cascade on `proposals.highlight_id`, `from_item_id` and `into_item_id` deletes the rows of any state that name a deleted Item or its Highlights.
 - **`declined`.** The weekly merge run inserts a row in this state for each pair the model did not return. A `declined` row never changes.
 - **Merge lock.** One merge runs at a time. `anyAccepting` holds while a row of any kind is `accepting`.
 
@@ -333,7 +333,7 @@ Every `proposals` and `pins` row has a generated id that is never reused (`AUTOI
 
 An Item delete changes no merge Pin and no merge row, because a Pin of a merge, a `merge` or `merge-topic` entry, and a merge Proposal name no Item.
 
-A disagreement Pin and an `items-disagree` row name two Items and go with either of them. The cascade on both Pin columns deletes the Pin. `deleteItem` deletes the row before the Item (`goneWithItem`), and the cascade on both columns would delete it too. The `highlight-lost` rows that name a Highlight of the Item go in any state in the same way, because the quote the row showed is the owner's own text, kept nowhere else.
+A disagreement Pin and an `items-disagree` row name two Items and go with either of them. The cascade on both Pin columns deletes the Pin. The cascade on both columns of `proposals` deletes the row with the Item. The `highlight-lost` rows that name a Highlight of the Item go in any state in the same way, because the quote the row showed is the owner's own text, kept nowhere else.
 
 The reason on a disagreement Pin is the agent's own sentence and cites no Item text beyond what the agent wrote. That claim is not verified (`docs/architecture/open-items-and-unverified-claims.md`). The Summaries a disagreement row showed stay in the Digests and in no row. The AI task's `inputs` keep the Item titles and Summaries of the Topics that were sent, until the owner Item or the task goes.
 

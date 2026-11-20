@@ -40,11 +40,11 @@ export const acceptStatus = async (instance: Instance, id: number) => {
   return [answer.status, JSON.parse(answer.body)] as const;
 };
 
+export const digestTokenStatements = (itemId: number, token: number): readonly string[] => [
+  `insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state) values (${String(token)}, 'digest', '{}', 0, 'caller', 1, 0, 'done')`,
+  `update digests set task_id = ${String(token)} where item_id = ${String(itemId)}`,
+];
+
 export function replaceDigestToken(instance: Instance, itemId: number, token: number): void {
-  exec(
-    instance,
-    "insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state) values (?, 'digest', '{}', 0, 'caller', 1, 0, 'done')",
-    token,
-  );
-  exec(instance, "update digests set task_id = ? where item_id = ?", token, itemId);
+  for (const statement of digestTokenStatements(itemId, token)) exec(instance, statement);
 }

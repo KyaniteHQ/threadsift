@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { exhaust } from "../src/core/compose/job-finish.ts";
-import { fetchHandler } from "../src/features/fetch/core/fetch-job.ts";
+import { runJob } from "../src/core/compose/jobs.ts";
+import { MAX_ATTEMPTS } from "../src/core/contract/job-contract.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
+import { exec } from "./related-fixtures.ts";
 import { sentIntake } from "./x-intake-fixtures.ts";
 
 describe("an X link task that the bot did not answer ends with its fetch job", () => {
@@ -20,7 +21,13 @@ describe("an X link task that the bot did not answer ends with its fetch job", (
   it("fails the running task as a timeout when the fetch job gives up, and ends the Item as gave-up", async () => {
     const task = await sentIntake(instance);
 
-    await exhaust(instance.core, task.job, fetchHandler, task.job.attempts + 1);
+    exec(
+      instance,
+      "update jobs set state = 'queued', attempts = ?, next_attempt_at = 0, claim_expires = null where id = ?",
+      MAX_ATTEMPTS,
+      task.job.id,
+    );
+    await runJob(instance.core, task.job.id);
 
     const row = taskRow(instance, task.id);
 

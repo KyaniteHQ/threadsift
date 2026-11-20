@@ -91,7 +91,7 @@ export function proxyTo(sqlite: DatabaseSync): RemoteCallback {
   return (sql, params, method) => promised(() => execute(sqlite, { sql, params, method }));
 }
 
-export function batchTo(sqlite: DatabaseSync): AsyncBatchRemoteCallback {
+function batchTo(sqlite: DatabaseSync): AsyncBatchRemoteCallback {
   return (queries) =>
     promised(() => inTransaction(sqlite, () => queries.map((query) => execute(sqlite, query))));
 }

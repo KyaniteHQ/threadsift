@@ -30,7 +30,7 @@ async function attemptFetch(ports: JobPorts, job: Readonly<ClaimedJob>): Promise
   };
 }
 
-export const fetchHandler = defineJob("fetch", {
+const fetchHandler = defineJob("fetch", {
   deadlineMs: X_FETCH_DEADLINE_MS,
   attempt: attemptFetch,
   exhausted: (db, job) => [failedFetch(db, job.itemId, "gave-up", botFailureNote(job.id))],

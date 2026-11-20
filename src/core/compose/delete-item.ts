@@ -1,6 +1,5 @@
 import { eq } from "drizzle-orm";
 
-import { goneWithItem } from "../../features/wiki/core/proposal-lifecycle.ts";
 import { itemFilesPrefix } from "../contract/file-keys.ts";
 import { logFailure } from "../kernel/failure-log.ts";
 import { listedKeys } from "../kernel/file-pages.ts";
@@ -31,7 +30,6 @@ export async function deleteItem(
 ): Promise<boolean> {
   const results = await db.batch([
     ...STALE.itemDeleted(db, id),
-    ...goneWithItem(db, id),
     db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
   ]);
 

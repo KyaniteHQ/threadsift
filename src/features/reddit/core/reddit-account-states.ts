@@ -22,7 +22,7 @@ import {
   releaseWaitingWhen,
 } from "./reddit-account-queue.ts";
 
-export const REFUSALS_TO_EXPIRE = 3;
+const REFUSALS_TO_EXPIRE = 3;
 
 const NO_THREADS = "[]";
 

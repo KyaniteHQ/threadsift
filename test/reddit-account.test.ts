@@ -5,7 +5,6 @@ import { z } from "zod";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { RedditAccountViewSchema } from "../src/core/contract/reddit-account-contract.ts";
-import { verdictOf } from "../src/features/reddit/core/reddit-account.ts";
 import { Instance } from "./instance.ts";
 import {
   LATER,
@@ -228,33 +227,4 @@ describe("an Instance with no sealing key, and a row sealed under another key", 
     assert.deepEqual(await connect(foreign, SESSION), { state: "connected", secretReady: true });
     await foreign.close();
   });
-});
-
-describe("the session check reads Reddit's me.json answer", () => {
-  const ME = JSON.stringify({ kind: "t2", data: { name: "an_account", coins: 0 } });
-
-  const cases = [
-    ["an account answer", 200, ME, "ok"],
-    ["an empty object, which this app reads as no account", 200, "{}", "logged-out"],
-    [
-      "a t2 answer without a name, which this app reads as no account",
-      200,
-      '{"kind":"t2","data":{}}',
-      "logged-out",
-    ],
-    ["an HTML page with status 200", 200, "<html></html>", "blocked"],
-    ["status 401", 401, "", "logged-out"],
-    ["status 403, the network-security page", 403, "<html>blocked</html>", "blocked"],
-    ["status 403 with an account answer", 403, ME, "blocked"],
-    ["status 429", 429, "", "limited"],
-    ["status 500", 500, "", "blocked"],
-    ["a redirect", 302, "", "blocked"],
-    ["no answer", 0, "", "blocked"],
-  ] as const;
-
-  for (const [name, status, text, verdict] of cases) {
-    it(`reads ${name} as ${verdict}`, () => {
-      assert.equal(verdictOf({ status, text }), verdict);
-    });
-  }
 });

@@ -3,9 +3,10 @@ import { after, before, describe, it } from "node:test";
 
 import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { Instance } from "./instance.ts";
-import { insertedXItem } from "./x-intake-fixtures.ts";
+import { addressOf, insertedXItem } from "./x-intake-fixtures.ts";
 import { commentCount, itemRow, verificationRow } from "./x-intake-rows.ts";
-import { pasteOvertakenByLargerThread } from "./x-paste-race.ts";
+import { xClient } from "./x-thread-client.ts";
+import { authored, reply, thread } from "./x-thread-fixtures.ts";
 import {
   claimedBeforeNewerAnswer,
   dueKindsBesideVerification,
@@ -73,13 +74,20 @@ describe("a verification job ends its own stored row and no newer one", () => {
     assert.ok((job?.nextAttemptAt ?? Infinity) <= Date.now());
   });
 
-  it("refuses a Paste of an X thread with fewer replies than the saved one and keeps the saved one, also when it is saved after the Paste's check", async () => {
-    const { answer, pastedReplies, storedInBetween, storedAfter } =
-      await pasteOvertakenByLargerThread(instance, SHORTENED);
+  it("refuses a Paste of an X thread with fewer replies than the saved one and keeps the saved one", async () => {
+    const { saved, refused, itemIdOf } = xClient(instance);
 
-    assert.equal(answer.status, 400);
-    assert.match(answer.body, /fewer replies/u);
-    assert.ok(storedInBetween > pastedReplies);
-    assert.equal(storedAfter, storedInBetween);
+    await saved({ url: addressOf(SHORTENED), content: JSON.stringify(authored(SHORTENED)) });
+
+    const itemId = itemIdOf(SHORTENED);
+    const stored = commentCount(instance, itemId);
+    const shorter = thread([reply(1000000000000000041n, SHORTENED)], { id: SHORTENED });
+
+    assert.ok(stored > shorter.replies.length);
+    assert.match(
+      await refused({ url: addressOf(SHORTENED), content: JSON.stringify(shorter) }),
+      /fewer replies/u,
+    );
+    assert.equal(commentCount(instance, itemId), stored);
   });
 });

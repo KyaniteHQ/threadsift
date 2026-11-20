@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import type { Database } from "../src/core/kernel/database.ts";
 import { refusedByGuard } from "../src/core/kernel/guards.ts";
 import { applyAnswer } from "./disagreement-apply.ts";
 import {
@@ -17,13 +18,12 @@ import {
   topicIdOf,
 } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { interrupted } from "./interrupted-database.ts";
 
 const REASON = "One says the setting is on, the other says it is off.";
 
 type Reading = Readonly<{
   instance: Instance;
-  db: ReturnType<typeof interrupted>;
+  db: Database;
   sent: Awaited<ReturnType<typeof sentTopics>>;
 }>;
 
@@ -39,7 +39,7 @@ async function start(): Promise<Reading> {
     { topic: "Other" },
   ]);
 
-  const db = interrupted(instance.databaseFile, () => false, {});
+  const { db } = instance.core;
 
   return { instance, db, sent: await sentTopics(db) };
 }

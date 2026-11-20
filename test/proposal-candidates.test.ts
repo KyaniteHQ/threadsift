@@ -8,7 +8,6 @@ import {
   MERGE_PAIRS_PER_RUN,
   candidatePairs,
   disjointPairs,
-  looseKey,
   pairKey,
 } from "../src/features/wiki/core/proposal-candidates.ts";
 import { proposalsInput } from "../src/features/wiki/core/proposal-input.ts";
@@ -27,10 +26,6 @@ function pairsOf(tags: readonly Candidate[], known: readonly string[] = []) {
 
 describe("the plain check picks the pairs of Tags that may name one concept, in a fixed order, at most 20 and none that has a row", () => {
   it("meets punctuation, spacing and a final s, and keeps accents apart", () => {
-    assert.equal(looseKey("machine-learning"), "machinelearning");
-    assert.equal(looseKey("llms"), "llm");
-    assert.equal(looseKey("gas"), "gas");
-    assert.equal(looseKey("cs"), "cs");
     assert.deepEqual(
       pairsOf([
         tag(1, "machine-learning"),
@@ -40,6 +35,10 @@ describe("the plain check picks the pairs of Tags that may name one concept, in 
         tag(5, "LLMs"),
         tag(6, "café"),
         tag(7, "cafe"),
+        tag(8, "gas"),
+        tag(9, "ga"),
+        tag(10, "cs"),
+        tag(11, "c"),
       ]),
       ["1-2", "1-3", "2-3", "4-5"],
     );

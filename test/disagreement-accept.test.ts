@@ -8,9 +8,14 @@ import {
   seedDigested,
   seedTopics,
 } from "./disagreement-fixtures.ts";
-import { acceptStatus, pinRows, replaceDigestToken } from "./disagreement-pin-fixtures.ts";
+import {
+  acceptStatus,
+  digestTokenStatements,
+  pinRows,
+  replaceDigestToken,
+} from "./disagreement-pin-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { interrupted, touchesProposals } from "./interrupted-database.ts";
+import { lockedWriter } from "./locked-writer.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, exec } from "./related-fixtures.ts";
 
@@ -175,8 +180,6 @@ describe("accepting a new row for a pair whose Pin is stale", () => {
   });
 });
 
-const GUARDED_BATCH = 3;
-
 describe("Accept of a disagreement writes the Pin only while both Digests are the ones it read", () => {
   let instance: Instance;
 
@@ -195,20 +198,12 @@ describe("Accept of a disagreement writes the Pin only while both Digests are th
   it("answers not-current and writes no Pin when a Digest changes between the read and the write, and keeps the row", async () => {
     const id = proposeDisagreement(instance, [1, 2]);
 
-    const answer = await instance.sendThrough(
-      interrupted(instance.databaseFile, touchesProposals, {
-        before: (call) => {
-          if (call === GUARDED_BATCH) replaceDigestToken(instance, 2, 900);
+    const writer = await lockedWriter(instance, digestTokenStatements(2, 900));
 
-          return Promise.resolve();
-        },
-      }),
-      "POST",
-      `/api/proposals/${String(id)}/accept`,
-    );
+    const answer = await acceptStatus(instance, id);
 
-    assert.equal(answer.status, 409);
-    assert.deepEqual(JSON.parse(answer.body), { error: "not-current" });
+    await writer.committed;
+    assert.deepEqual(answer, [409, { error: "not-current" }]);
     assert.deepEqual(pinRows(instance), []);
     assert.equal(
       disagreementRows(instance).some((row) => row.id === id),

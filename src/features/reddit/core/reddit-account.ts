@@ -129,7 +129,7 @@ export async function disconnectRedditAccount(
   return redditAccountState(ports);
 }
 
-export function verdictOf(answer: Readonly<Pick<RedditAnswer, "status" | "text">>): SessionVerdict {
+function verdictOf(answer: Readonly<Pick<RedditAnswer, "status" | "text">>): SessionVerdict {
   if (answer.status === RATE_LIMITED) return "limited";
 
   if (answer.status === LOGGED_OUT) return "logged-out";

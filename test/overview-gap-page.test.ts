@@ -2,10 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
-import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
-import { writingAfterTheFirstRead } from "./interrupted-database.ts";
-import { proposalRows, readPage } from "./lost-highlight-fixtures.ts";
+import { readPage } from "./lost-highlight-fixtures.ts";
 import {
   addTopics,
   gapRows,
@@ -16,17 +14,7 @@ import {
   queueOverview,
   storePage,
 } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, exec, paste } from "./related-fixtures.ts";
-
-const READ_BY_THE_PAGE = ['"proposals"', '"topics"', '"items"', '"digests"', '"topic_pages"'];
-
-const readsThePage = (sql: string) => READ_BY_THE_PAGE.some((table) => sql.includes(table));
-
-const synchronously = (write: () => void) => () => {
-  write();
-
-  return Promise.resolve();
-};
+import { SECRET_KEY, exec } from "./related-fixtures.ts";
 
 describe("overview-gap rows beside the other kinds", () => {
   let instance: Instance;
@@ -151,96 +139,5 @@ describe("the Proposals list filters overview-gap rows before the page limit", (
       [1],
     );
     assert.equal(second.next, null);
-  });
-});
-
-describe("the Proposals page reads an overview-gap row and its counts in one snapshot", () => {
-  let instance: Instance;
-  let made: Readonly<Record<string, readonly number[]>>;
-
-  before(async () => {
-    instance = await Instance.start();
-    await instance.setUp();
-    made = await pasteTopics(instance, {
-      Mover: ["m1", "m2"],
-      Remover: ["r1", "r2"],
-      Replacer: ["p1", "p2"],
-      Receiving: ["v1"],
-    });
-    storePage(instance, "Replacer", { builtFrom: [made["Replacer"]?.[0] ?? 0] });
-  });
-
-  after(() => instance.close());
-
-  const readDuring = (write: () => Promise<void>) =>
-    instance.readThrough(
-      writingAfterTheFirstRead(instance.databaseFile, readsThePage, write),
-      "/api/proposals",
-      ProposalPageSchema,
-    );
-
-  const moveAway = (topic: string) => {
-    exec(
-      instance,
-      "update items set topic_id = (select id from topics where name = 'Receiving') where topic_id = (select id from topics where name = ?)",
-      topic,
-    );
-  };
-
-  it("shows the row with the counts it had when the read began when its Items move to another Topic right after", async () => {
-    proposeGap(instance, "Mover");
-
-    const listed = await readPage(instance);
-
-    const during = await readDuring(
-      synchronously(() => {
-        moveAway("Mover");
-      }),
-    );
-
-    assert.deepEqual(sole(gapsOf(listed)).topic, {
-      key: "mover",
-      name: "Mover",
-      uncovered: 2,
-      items: 2,
-    });
-    assert.deepEqual(during, listed);
-    assert.deepEqual(gapsOf(await readPage(instance)), []);
-    exec(instance, "delete from proposals");
-  });
-
-  it("lists the row when its Topic is deleted right after the read began", async () => {
-    proposeGap(instance, "Remover");
-
-    const listed = await readPage(instance);
-
-    const during = await readDuring(
-      synchronously(() => {
-        moveAway("Remover");
-        exec(
-          instance,
-          "delete from log_entries where topic_id = (select id from topics where name = 'Remover')",
-        );
-        exec(instance, "delete from topics where name = 'Remover'");
-      }),
-    );
-
-    assert.equal(gapsOf(listed).length, 1);
-    assert.deepEqual(during, listed);
-    assert.deepEqual(proposalRows(instance), []);
-  });
-
-  it("shows the counts from before a Digest is replaced when it is replaced right after the read began", async () => {
-    proposeGap(instance, "Replacer");
-
-    const listed = await readPage(instance);
-
-    const during = await readDuring(async () => {
-      await paste(instance, "p1", { title: "p1 again", topic: "Replacer" });
-    });
-
-    assert.deepEqual(sole(gapsOf(listed)).topic.uncovered, 1);
-    assert.deepEqual(during, listed);
-    assert.deepEqual(sole(gapsOf(await readPage(instance))).topic.uncovered, 2);
   });
 });

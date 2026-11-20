@@ -94,7 +94,6 @@
       "merge-accept.ts",
       "proposal-job.ts",
       "proposal-kinds.ts",
-      "proposal-lifecycle.ts",
       "scheduled-claim.ts",
       "topic-index.ts",
       "topic-overview-job.ts",
@@ -154,7 +153,7 @@
     "github": [],
     "vault": [],
     "x": ["x-intake-writes.ts", "x-oembed.ts", "x-verify-state.ts"],
-    "reddit": ["archive-thread.ts", "reddit-account-states.ts", "reddit-account.ts"],
+    "reddit": ["archive-thread.ts", "reddit-account-states.ts"],
     "fetch": ["plugin-fetch.ts"],
     "digest": [
       "digest-hop.ts",
