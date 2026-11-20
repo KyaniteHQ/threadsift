@@ -51,11 +51,34 @@ const DATA_RUN: Construct = {
   },
 };
 
+const PARAGRAPH_EVENT_CAP = 20_000;
+
+const DELIMITER_OVERFLOW: Construct = {
+  name: "delimiterOverflow",
+  add: "before",
+  tokenize(effects, ok, nok) {
+    if (this.events.length < PARAGRAPH_EVENT_CAP) return nok;
+
+    return DATA_RUN.tokenize.call(this, effects, ok, nok);
+  },
+  resolveTo: DATA_RUN.resolveTo,
+};
+
 const remarkDataRun: Plugin = function remarkDataRun() {
   const data = this.data();
 
   data.micromarkExtensions ??= [];
-  data.micromarkExtensions.push({ text: { null: DATA_RUN } });
+  data.micromarkExtensions.push({
+    text: {
+      null: DATA_RUN,
+      33: DELIMITER_OVERFLOW,
+      42: DELIMITER_OVERFLOW,
+      91: DELIMITER_OVERFLOW,
+      93: DELIMITER_OVERFLOW,
+      95: DELIMITER_OVERFLOW,
+      126: DELIMITER_OVERFLOW,
+    },
+  });
 };
 
 export const GFM_PLUGINS = [remarkGfm, remarkDataRun];
