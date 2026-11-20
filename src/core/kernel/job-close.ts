@@ -1,4 +1,4 @@
-import { type SQLWrapper, and, eq, inArray, ne, sql } from "drizzle-orm";
+import { type SQLWrapper, and, eq, inArray, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { INTAKE_JOB_KINDS, type UnownedJobKind } from "../contract/job-contract.ts";
@@ -6,6 +6,7 @@ import { givenUpTasks, supersededTasks } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
 import type { JobCurrency } from "./job-outcome.ts";
 import { unownedAddress } from "./job-rows.ts";
+import { jobOpen } from "./job-tables.ts";
 import { type JobRow, aiTasks, jobs, xVerifications } from "./schema.ts";
 
 const CLOSED_JOB = {
@@ -33,10 +34,7 @@ export function closeJob(
 }
 
 function closeJobs(db: Database, which: Readonly<SQLWrapper> | undefined) {
-  return db
-    .update(jobs)
-    .set(CLOSED_JOB)
-    .where(and(which, ne(jobs.state, "done")));
+  return db.update(jobs).set(CLOSED_JOB).where(and(which, jobOpen()));
 }
 
 export function closeRunJobs(db: Database, kind: UnownedJobKind, runId: number) {

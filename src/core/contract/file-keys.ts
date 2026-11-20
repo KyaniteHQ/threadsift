@@ -2,12 +2,6 @@ import { IMAGE_EXTENSIONS } from "./image-type.ts";
 
 export const FILE_LIST_LIMIT = 1000;
 
-export const ITEM_FILES_ROOT = "items/";
-
-export const EXPORT_FILES_ROOT = "exports/";
-
-export const RESTORE_FILES_ROOT = "restores/";
-
 export class FileRefused extends Error {}
 
 export const TEMPORARY_BYTES = 12;
@@ -22,9 +16,33 @@ const EXPORT_NAME = /^(?:(?:part|dir)-[1-9][0-9]{0,9}-[0-9]{1,10}|tail-[0-9]{1,1
 
 const RESTORE_NAME = /^part-[1-9][0-9]{0,9}$/u;
 
+const ROOTS = [
+  { root: "items", name: null },
+  { root: "exports", name: EXPORT_NAME },
+  { root: "restores", name: RESTORE_NAME },
+] as const;
+
+export type StoreRoot = (typeof ROOTS)[number]["root"];
+
+function rootNamed(root: string | undefined) {
+  return ROOTS.find((each) => each.root === root)?.root;
+}
+
+function folderOf<Root extends StoreRoot>(root: Root) {
+  return `${root}/` as const;
+}
+
+export const ITEM_FILES_ROOT = folderOf("items");
+
+export const EXPORT_FILES_ROOT = folderOf("exports");
+
+export const RESTORE_FILES_ROOT = folderOf("restores");
+
+const ROOT_NAMES = ROOTS.map(({ root }) => root).join("|");
+
 function keyPattern(nameMax: number): RegExp {
   return new RegExp(
-    `^(?<root>${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT}|${RESTORE_FILES_ROOT})(?<ownerId>${OWNER_ID})/(?!\\.{1,2}$)(?<name>[A-Za-z0-9._-]{1,${nameMax}})$`,
+    `^(?<root>${ROOT_NAMES})/(?<ownerId>${OWNER_ID})/(?!\\.{1,2}$)(?<name>[A-Za-z0-9._-]{1,${nameMax}})$`,
     "u",
   );
 }
@@ -34,7 +52,7 @@ const KEY = keyPattern(FILE_NAME_MAX);
 const STORED_KEY = keyPattern(FOLDER_NAME_MAX);
 
 const TEMPORARY = new RegExp(
-  `^(?<folder>(?:${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT}|${RESTORE_FILES_ROOT})${OWNER_ID}/)\\.tmp-[0-9a-f]+-(?<name>.+)$`,
+  `^(?<folder>(?:${ROOT_NAMES})/${OWNER_ID}/)\\.tmp-[0-9a-f]+-(?<name>.+)$`,
   "u",
 );
 
@@ -51,10 +69,7 @@ const IMAGE = new RegExp(
   "u",
 );
 
-const PREFIX = new RegExp(
-  `^(?<root>${ITEM_FILES_ROOT}|${EXPORT_FILES_ROOT}|${RESTORE_FILES_ROOT})(?:(?<ownerId>${OWNER_ID})/)?$`,
-  "u",
-);
+const PREFIX = new RegExp(`^(?<root>${ROOT_NAMES})/(?:(?<ownerId>${OWNER_ID})/)?$`, "u");
 
 const OWNER_ID_ONLY = new RegExp(`^${OWNER_ID}$`, "u");
 
@@ -106,14 +121,6 @@ export interface FileKey {
   readonly name: string;
 }
 
-export type StoreRoot = "items" | "exports" | "restores";
-
-const STORE_ROOT_PREFIX = {
-  items: ITEM_FILES_ROOT,
-  exports: EXPORT_FILES_ROOT,
-  restores: RESTORE_FILES_ROOT,
-} as const satisfies Readonly<Record<StoreRoot, string>>;
-
 export interface StoreKey {
   readonly root: StoreRoot;
   readonly ownerId: string;
@@ -126,36 +133,29 @@ export interface StorePrefix {
 }
 
 export function storePrefixText({ root, ownerId }: Readonly<StorePrefix>): string {
-  return ownerId === null ? STORE_ROOT_PREFIX[root] : `${STORE_ROOT_PREFIX[root]}${ownerId}/`;
+  return ownerId === null ? folderOf(root) : `${folderOf(root)}${ownerId}/`;
 }
 
 export function storeKeyText(key: Readonly<StoreKey>): string {
   return `${storePrefixText(key)}${key.name}`;
 }
 
-function storeRootOf(root: string): StoreRoot | null {
-  if (root === ITEM_FILES_ROOT) return "items";
-
-  if (root === EXPORT_FILES_ROOT) return "exports";
-
-  return root === RESTORE_FILES_ROOT ? "restores" : null;
-}
-
 function storeKeyOf(pattern: Readonly<RegExp>, key: string): StoreKey | null {
-  const { root, ownerId, name } = pattern.exec(key)?.groups ?? {};
-  const kind = root === undefined ? null : storeRootOf(root);
+  const groups = pattern.exec(key)?.groups;
+  const root = rootNamed(groups?.["root"]);
+  const { ownerId, name } = groups ?? {};
 
-  if (kind === null || ownerId === undefined || name === undefined) return null;
-
-  return { root: kind, ownerId, name };
+  return root === undefined || ownerId === undefined || name === undefined
+    ? null
+    : { root, ownerId, name };
 }
 
 function named(parsed: Readonly<StoreKey> | null): StoreKey | null {
-  if (parsed?.root === "exports") return EXPORT_NAME.test(parsed.name) ? parsed : null;
+  const misnamed = ROOTS.some(
+    ({ root, name }) => root === parsed?.root && name !== null && !name.test(parsed.name),
+  );
 
-  if (parsed?.root === "restores") return RESTORE_NAME.test(parsed.name) ? parsed : null;
-
-  return parsed;
+  return misnamed ? null : parsed;
 }
 
 export function parseStoredKey(key: string): StoreKey | null {
@@ -168,6 +168,13 @@ export function parseStoredKey(key: string): StoreKey | null {
   if (stored === null) return null;
 
   return TEMPORARY.test(key) && named(storeKeyOf(KEY, finalKeyOf(key))) !== null ? stored : null;
+}
+
+export function ownerIdOf(key: string, root: StoreRoot): number | null {
+  const parsed = parseStoredKey(key);
+  const id = Number(parsed?.ownerId);
+
+  return parsed?.root === root && Number.isSafeInteger(id) ? id : null;
 }
 
 export function exportFilesPrefix(exportId: number | string): string {
@@ -242,14 +249,14 @@ export function isOwnerId(id: string): boolean {
 }
 
 export function requireFilePrefix(prefix: string): StorePrefix {
-  const { root, ownerId } = PREFIX.exec(prefix)?.groups ?? {};
-  const kind = root === undefined ? null : storeRootOf(root);
+  const groups = PREFIX.exec(prefix)?.groups;
+  const root = rootNamed(groups?.["root"]);
 
-  if (kind === null) {
+  if (root === undefined) {
     throw new FileRefused(`${JSON.stringify(prefix)} is not a file prefix`);
   }
 
-  return { root: kind, ownerId: ownerId ?? null };
+  return { root, ownerId: groups?.["ownerId"] ?? null };
 }
 
 export function requireListLimit(limit: number): number {

@@ -2,9 +2,10 @@ import { type SQLWrapper, and, eq, exists, isNull, not, or, sql } from "drizzle-
 
 import type { Database } from "./database.ts";
 import { hasDigestSource } from "./digest-source.ts";
+import { hasDigest } from "./digest-stored.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { providerSet } from "./provider-saved.ts";
-import { type JobRow, digests, items } from "./schema.ts";
+import { type JobRow, items } from "./schema.ts";
 
 function setMarker(
   db: Database,
@@ -53,9 +54,7 @@ export function keptNotUpdated(
   itemId: number | Readonly<SQLWrapper>,
   when: Readonly<SQLWrapper> = sql`1`,
 ) {
-  const kept = exists(
-    db.select({ id: digests.itemId }).from(digests).where(eq(digests.itemId, items.id)),
-  );
+  const kept = hasDigest(items.id);
 
   return [
     markDigest(db, itemId, "cleared"),

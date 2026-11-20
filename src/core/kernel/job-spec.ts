@@ -21,7 +21,7 @@ export interface InputFact {
   readonly pending?: SQLiteColumn;
 }
 
-export interface ItemDeclaration {
+interface ItemDeclaration {
   readonly deadlineMs: number;
   readonly attempt: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<JobOutcome>;
   readonly blockedBy?: readonly JobKind[];
@@ -35,7 +35,7 @@ export interface ItemDeclaration {
   ) => Promise<void>;
 }
 
-export interface UnownedDeclaration<Kind extends UnownedJobKind> {
+interface UnownedDeclaration<Kind extends UnownedJobKind> {
   readonly deadlineMs: number;
   readonly attempt: (ports: JobPorts, job: Readonly<ClaimedUnowned<Kind>>) => Promise<JobOutcome>;
   readonly exhausted?: (db: Database, runId: number) => JobWrites;

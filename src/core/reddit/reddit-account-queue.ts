@@ -1,24 +1,11 @@
-import {
-  type SQL,
-  type SQLWrapper,
-  and,
-  asc,
-  eq,
-  gte,
-  isNull,
-  lte,
-  ne,
-  notExists,
-  or,
-  sql,
-} from "drizzle-orm";
+import { type SQL, and, asc, eq, gte, isNull, lte, not, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { CLAIM_MARGIN_MS } from "../contract/job-contract.ts";
 import { FILL_DEADLINE_MS } from "../contract/request-waits.ts";
 import type { Database } from "../kernel/database.ts";
 import type { Closing, JobPorts } from "../kernel/job-outcome.ts";
-import { enqueueQuietly, holding } from "../kernel/job-rows.ts";
+import { enqueueQuietly, holding, jobIsOpen } from "../kernel/job-rows.ts";
 import { waitingFor, wokenJobs } from "../kernel/job-waiting.ts";
 import { ACCOUNT_ROW, type AccountRow, redditAccount } from "../kernel/reddit-account-tables.ts";
 import { type JobRow, jobs } from "../kernel/schema.ts";
@@ -29,14 +16,7 @@ const WAITING = and(eq(jobs.kind, "fetch"), waitingFor("reddit-limit"));
 
 const OLDEST_WAITING = sql`(select min(${jobs.id}) from ${jobs} where ${WAITING})`;
 
-function jobIsOpen(db: Database, id: SQLWrapper) {
-  return db
-    .select({ one: sql`1` })
-    .from(jobs)
-    .where(and(eq(jobs.id, sql`${id}`), ne(jobs.state, "done")));
-}
-
-function turnIsFree(db: Database, jobId: number, now: number): SQL | undefined {
+function turnIsFree(jobId: number, now: number): SQL | undefined {
   return and(
     eq(redditAccount.id, ACCOUNT_ROW),
     eq(redditAccount.state, "connected"),
@@ -55,11 +35,11 @@ function turnIsFree(db: Database, jobId: number, now: number): SQL | undefined {
   );
 }
 
-function queueAllows(db: Database, jobId: number): SQL | undefined {
+function queueAllows(jobId: number): SQL | undefined {
   return or(
     isNull(redditAccount.queueHead),
     gte(redditAccount.queueHead, jobId),
-    notExists(jobIsOpen(db, redditAccount.queueHead)),
+    not(jobIsOpen(redditAccount.queueHead)),
   );
 }
 
@@ -105,7 +85,7 @@ export async function takeTurn(
       busyUntil: now + FILL_DEADLINE_MS + CLAIM_MARGIN_MS,
       queueHead: sql`(select min(${jobs.id}) from ${jobs} where ${WAITING} and ${jobs.id} <> ${jobId})`,
     })
-    .where(and(turnIsFree(db, jobId, now), queueAllows(db, jobId), holding(run)))
+    .where(and(turnIsFree(jobId, now), queueAllows(jobId), holding(run)))
     .returning();
 
   return taken ?? null;
@@ -140,7 +120,7 @@ function wakeOldest(db: Database, run: TurnRun, now: number): BatchItem<"sqlite"
 
 function deferTurn(db: Database, run: TurnRun, waits: boolean): BatchItem<"sqlite"> {
   const jobId = run.id;
-  const headStays = sql`${redditAccount.queueHead} is not null and ${redditAccount.queueHead} < ${jobId} and exists (select 1 from ${jobs} where ${jobs.id} = ${redditAccount.queueHead} and ${jobs.state} <> 'done')`;
+  const headStays = sql`${redditAccount.queueHead} is not null and ${redditAccount.queueHead} < ${jobId} and ${jobIsOpen(redditAccount.queueHead)}`;
   const holds = sql`${ownedBy(run)}`;
 
   return db
@@ -157,7 +137,7 @@ function deferTurn(db: Database, run: TurnRun, waits: boolean): BatchItem<"sqlit
 }
 
 function wakeWhenFree(db: Database, run: TurnRun, now: number): BatchItem<"sqlite"> {
-  const takeable = and(turnIsFree(db, run.id, now), queueAllows(db, run.id));
+  const takeable = and(turnIsFree(run.id, now), queueAllows(run.id));
 
   return wokenJobs(
     db,

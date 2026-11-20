@@ -8,7 +8,7 @@ import { type AiTaskRow, acceptsAnswer } from "../kernel/ai-task-state.ts";
 import type { Database } from "../kernel/database.ts";
 import { closeItemJobs } from "../kernel/job-close.ts";
 import type { JobPorts, JobWrites } from "../kernel/job-outcome.ts";
-import { enqueueQuietly } from "../kernel/job-rows.ts";
+import { enqueueQuietly, jobIsOpen } from "../kernel/job-rows.ts";
 import { wokenJob } from "../kernel/job-waiting.ts";
 import { items, jobs } from "../kernel/schema.ts";
 import { queuedVerification } from "./x-verify-store.ts";
@@ -21,7 +21,7 @@ export type IntakeTask = Readonly<
 >;
 
 export function intakeLive(task: IntakeTask) {
-  return sql`${acceptsAnswer(task)} and exists (select 1 from ${jobs} where ${jobs.id} = ${task.jobId} and ${jobs.state} <> 'done') and exists (select 1 from ${items} where ${items.id} = ${task.itemId} and ${items.generation} = ${task.inputRevision})`;
+  return sql`${acceptsAnswer(task)} and ${jobIsOpen(task.jobId)} and exists (select 1 from ${items} where ${items.id} = ${task.itemId} and ${items.generation} = ${task.inputRevision})`;
 }
 
 export async function intakeItem(db: Database, task: IntakeTask) {

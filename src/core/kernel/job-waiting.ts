@@ -1,14 +1,15 @@
-import { type SQL, type SQLWrapper, and, eq, ne, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
 import { INTAKE_JOB_KINDS, type WaitReason } from "../contract/job-contract.ts";
 import type { Database } from "./database.ts";
+import { jobIs, jobOpen } from "./job-tables.ts";
 import { listed } from "./schema-checks.ts";
 import { items, jobs } from "./schema.ts";
 
 export function waitingFor(reason?: WaitReason): SQL {
   return reason === undefined
-    ? sql`${jobs.state} = 'queued' and ${jobs.waitReason} is not null`
-    : sql`${jobs.state} = 'queued' and ${jobs.waitReason} = ${reason}`;
+    ? sql`${jobIs("queued")} and ${jobs.waitReason} is not null`
+    : sql`${jobIs("queued")} and ${jobs.waitReason} = ${reason}`;
 }
 
 const WAITING_JOB = sql`${jobs.itemId} = ${items.id} and ${jobs.kind} in (${listed(INTAKE_JOB_KINDS)}) and ${waitingFor()}`;
@@ -28,5 +29,5 @@ export function wokenJobs(db: Database, now: number, where: SQL | undefined) {
 }
 
 export function wokenJob(db: Database, jobId: number, now: number, when?: Readonly<SQLWrapper>) {
-  return wokenJobs(db, now, and(eq(jobs.id, jobId), ne(jobs.state, "done"), when && sql`${when}`));
+  return wokenJobs(db, now, and(eq(jobs.id, jobId), jobOpen(), when && sql`${when}`));
 }
