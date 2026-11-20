@@ -81,6 +81,7 @@ const RESTORE_ERROR_CODES = [
   ...RESTORE_REFUSALS,
   "library-not-empty",
   "restore-open",
+  "not-uploading",
   "vault-busy",
 ] as const;
 
@@ -90,6 +91,14 @@ export const RestoreErrorSchema = z.object({
 });
 
 export type RestoreErrorCode = (typeof RESTORE_ERROR_CODES)[number];
+
+type RestoreAnswerCode = RestoreErrorCode | "finished" | "superseded" | "not-resumable";
+
+export function restoreAnswerSchema<
+  const Codes extends readonly [RestoreAnswerCode, ...RestoreAnswerCode[]],
+>(...codes: Codes) {
+  return z.object({ error: z.string(), code: z.enum(codes) });
+}
 
 export const RESTORE_FAILURES = [...RESTORE_REFUSALS, "gave-up"] as const;
 

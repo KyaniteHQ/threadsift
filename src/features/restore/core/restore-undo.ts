@@ -8,6 +8,7 @@ import {
 } from "../../../core/contract/restore-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
+import { wroteNothing } from "../../../core/kernel/restore-hold.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
 import { RESTORE_ORDER, type TableSpec, tableSpec } from "./restore-registry.ts";
 import { endedUnit, steppedUnit } from "./restore-unit.ts";
@@ -35,10 +36,6 @@ function undoTables(run: Readonly<RestoreRow>): readonly Undone[] {
   ];
 }
 
-function restoredNothing(run: Readonly<RestoreRow>): boolean {
-  return Object.keys(CountsSchema.parse(JSON.parse(run.restored))).length === 0;
-}
-
 function cancelledUnit(db: Database, run: Readonly<RestoreRow>): JobOutcome {
   const now = Date.now();
 
@@ -62,7 +59,7 @@ export async function undoUnit(
   { db, files }: Pick<JobPorts, "db" | "files">,
   run: Readonly<RestoreRow>,
 ): Promise<JobOutcome> {
-  if (restoredNothing(run)) return cancelledUnit(db, run);
+  if (wroteNothing(run)) return cancelledUnit(db, run);
 
   const units = UndoCursorSchema.parse(JSON.parse(run.cursor)).units + 1;
   const stepped = steppedUnit(db, run, { cursor: JSON.stringify({ units }) });

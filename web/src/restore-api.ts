@@ -37,8 +37,21 @@ export async function createRestore(
   return { kind: "created", ...(await parsedBody(response, StartedRestoreSchema)) };
 }
 
-export async function sendPart(id: number, part: number, bytes: Readonly<Blob>): Promise<void> {
-  await callOk(put(NO_DEADLINE), `${ENDPOINT}/${String(id)}/parts/${String(part)}`, { bytes });
+export async function sendPart(
+  id: number,
+  part: number,
+  bytes: Readonly<Blob>,
+): Promise<Readonly<{ kind: "sent" }> | Refused> {
+  const response = await callOk(
+    put(NO_DEADLINE),
+    `${ENDPOINT}/${String(id)}/parts/${String(part)}`,
+    {
+      bytes,
+      tolerates: [409],
+    },
+  );
+
+  return response.status === 409 ? refusalOf(response) : { kind: "sent" };
 }
 
 export async function startRestore(id: number): Promise<Readonly<{ kind: "started" }> | Refused> {

@@ -38,7 +38,7 @@ function statusLine(view: RestoreStatus, progress: Progress | null): string | nu
     case "done":
       return RESTORE_TEXT.done;
     case "cancelled":
-      return RESTORE_TEXT.cancelled;
+      return view.libraryEmpty ? RESTORE_TEXT.cancelled : RESTORE_TEXT.cancelledKept;
     case "none":
     case "uploading":
     case "failed":

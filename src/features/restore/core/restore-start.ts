@@ -56,6 +56,18 @@ function opened(db: Database, id: number) {
   ]);
 }
 
+async function refusedWhileUploading(
+  db: Database,
+  id: number,
+  refusal: StartedRestore,
+): Promise<StartedRestore> {
+  const run = await restoreById(db, id);
+
+  if (run === null) return { kind: "missing" };
+
+  return run.state === "uploading" ? refusal : { kind: "not-uploading" };
+}
+
 export async function startRestore(ports: JobPorts, id: number): Promise<StartedRestore> {
   const { db } = ports;
   const run = await restoreById(db, id);
@@ -64,9 +76,13 @@ export async function startRestore(ports: JobPorts, id: number): Promise<Started
 
   if (run.state !== "uploading") return { kind: "not-uploading" };
 
-  if (!(await libraryIsEmpty(db))) return { kind: "library-not-empty" };
+  if (!(await libraryIsEmpty(db))) {
+    return refusedWhileUploading(db, id, { kind: "library-not-empty" });
+  }
 
-  if (!(await holdsEveryPart(ports.files, run))) return { kind: "incomplete-upload" };
+  if (!(await holdsEveryPart(ports.files, run))) {
+    return refusedWhileUploading(db, id, { kind: "incomplete-upload" });
+  }
 
   const [[current], jobs] = await opened(db, id);
 

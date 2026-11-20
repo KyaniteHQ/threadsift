@@ -16,9 +16,12 @@ type Standing = Readonly<{
   gaveUp?: true;
   undoing?: boolean;
   pastCheck?: boolean;
+  wrote?: boolean;
 }>;
 
-type Condition = Readonly<Pick<RestoreRow, "state" | "phase" | "failure">>;
+const NOTHING_WRITTEN = "{}";
+
+type Condition = Readonly<Pick<RestoreRow, "state" | "phase" | "failure" | "restored">>;
 
 const HOLDING: readonly Standing[] = [{ state: "running" }, { state: "failed", gaveUp: true }];
 
@@ -30,8 +33,8 @@ const UNDOABLE: readonly Standing[] = [
 ];
 
 const UNWRITTEN: readonly Standing[] = [
-  { state: "failed", pastCheck: false },
-  { state: "running", pastCheck: false },
+  { state: "failed", undoing: false, wrote: false },
+  { state: "running", undoing: false, wrote: false },
 ];
 
 const UNDOING: readonly Standing[] = [{ state: "running", undoing: true }];
@@ -40,7 +43,7 @@ const UNDO_FAILED: readonly Standing[] = [{ state: "failed", undoing: true }];
 
 const NEEDING_PARTS: readonly Standing[] = [{ state: "running" }, ...RESUMABLE];
 
-function conditionsOf({ state, gaveUp, undoing, pastCheck }: Standing): readonly SQL[] {
+function conditionsOf({ state, gaveUp, undoing, pastCheck, wrote }: Standing): readonly SQL[] {
   return [
     sql`${restoreRuns.state} = ${listed([state])}`,
     ...(gaveUp === true ? [sql`${restoreRuns.failure} = 'gave-up'`] : []),
@@ -50,6 +53,13 @@ function conditionsOf({ state, gaveUp, undoing, pastCheck }: Standing): readonly
     ...(pastCheck === undefined
       ? []
       : [pastCheck ? sql`${restoreRuns.phase} <> 'check'` : sql`${restoreRuns.phase} = 'check'`]),
+    ...(wrote === undefined
+      ? []
+      : [
+          wrote
+            ? sql`${restoreRuns.restored} <> ${NOTHING_WRITTEN}`
+            : sql`${restoreRuns.restored} = ${NOTHING_WRITTEN}`,
+        ]),
   ];
 }
 
@@ -76,11 +86,12 @@ function standingSql(standings: readonly Standing[]): SQL {
 
 function inStanding(run: Readonly<Condition>, standings: readonly Standing[]): boolean {
   return standings.some(
-    ({ state, gaveUp, undoing, pastCheck }) =>
+    ({ state, gaveUp, undoing, pastCheck, wrote }) =>
       run.state === state &&
       (gaveUp !== true || run.failure === "gave-up") &&
       (undoing === undefined || (run.phase === "undoing") === undoing) &&
-      (pastCheck === undefined || (run.phase !== "check") === pastCheck),
+      (pastCheck === undefined || (run.phase !== "check") === pastCheck) &&
+      (wrote === undefined || (run.restored !== NOTHING_WRITTEN) === wrote),
   );
 }
 
@@ -95,6 +106,10 @@ export const UNWRITTEN_RESTORE = standingSql(UNWRITTEN);
 export const UNDOING_RESTORE = standingSql(UNDOING);
 
 export const HOLDS_LIBRARY = sql`${standingSql(HOLDING)} and ${NEWEST_RESTORE}`;
+
+export function wroteNothing(run: Readonly<Pick<RestoreRow, "restored">>): boolean {
+  return run.restored === NOTHING_WRITTEN;
+}
 
 export function resumable(run: Readonly<Condition>): boolean {
   return inStanding(run, RESUMABLE);
