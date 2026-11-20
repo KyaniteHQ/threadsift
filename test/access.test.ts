@@ -29,6 +29,10 @@ describe("the owner takes a new Instance from first run to a signed-in session w
     assert.equal((await instance.send("GET", "/api/items")).status, 401);
   });
 
+  it("answers a HEAD of the session check as its GET without the body", async () => {
+    assert.deepEqual(await instance.send("HEAD", "/api/session"), { status: 200, body: "" });
+  });
+
   it("refuses a wrong setup code and creates no owner", async () => {
     const refused = await instance.send("POST", "/api/setup", {
       code: WRONG_SETUP_CODE,
