@@ -1,9 +1,9 @@
-import remarkGfm from "remark-gfm";
 import remarkParse from "remark-parse";
 import { unified } from "unified";
 import { z } from "zod";
 
 import { collapsed } from "../contract/format.ts";
+import { GFM_PLUGINS } from "../contract/gfm-markdown.ts";
 
 interface Offset {
   readonly offset?: number | undefined;
@@ -31,7 +31,7 @@ export const MarkdownImageSchema = z
 
 export type MarkdownImage = z.infer<typeof MarkdownImageSchema>;
 
-const PROCESSOR = unified().use(remarkParse).use(remarkGfm);
+const PROCESSOR = unified().use(remarkParse).use(GFM_PLUGINS);
 
 const ALT_SPECIALS = /[\\`*_~[\]<>&|]/gu;
 
