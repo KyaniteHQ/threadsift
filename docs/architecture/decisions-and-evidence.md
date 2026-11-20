@@ -136,3 +136,39 @@ The sweep ran with the first four keys. The cost of these shapes grows in propor
 A parse below the cap is the parse without the construct. A differential run compared the mdast and the hast, positions included, of `main` and of the cap on 471,958 documents: 300,000 strings of 1 to 40 random characters, 125,000 documents of 1 to 30 Markdown fragments, 36,000 longer ones (24,000 strings of 200 to 2,000 characters and 12,000 documents of 100 to 1,000 fragments), 10,000 inline-only documents of 100 to 6,000 fragments and 958 Markdown files. No document below the cap differed. 20 of the 10,000 inline documents reach the cap, and each of them differs. A copy of the cap set to 5,000 differed on 111 of 300 inline documents that stay below 20,000, so the corpus sees a wrong cap.
 
 A page of about 1 MB with one `*emphasis*` pair on each 80-character line took 2.4 s with `projectText` before the cap and 1.8 s with it.
+
+## Worker: ports and app built for each request
+
+`src/targets/worker/index.ts` builds the ports with `build(env)` for each API request, each valid queue message and each Cron run, and calls `createApp` for each API request. It keeps no value derived from `env` in module scope. Before, it kept the ports for the life of the isolate and the app in a second variable keyed by `PASSWORD_RESET_CODE`.
+
+**Why.** Cloudflare's [bindings page](https://developers.cloudflare.com/workers/runtime-apis/bindings/#making-changes-to-bindings) says that "Cloudflare may reuse existing isolates that are already running your Worker" when a deploy changes only bindings, that "Anything you create there might continue to exist despite making changes to any underlying bindings", and that "The correct approach would be to create a new client instance for each request." The ports hold `drizzle(env.DB)`, the file store, the queue sender, the secret key, the setup code, the public origin and the reset code, so every one of them is derived from `env`. The old code refreshed only the reset code.
+
+**The stale value, shown.** On 2026-11-20, two `wrangler dev --local` servers each ran a 6-line entry that calls the real `fetch(request, env)` and, for a request with the header `x-no-setup: 1`, passes `{ ...env, SETUP_CODE: undefined }`, the call that a reused isolate makes after a binding change. `GET /api/session` three times (plain, `x-no-setup: 1`, plain) answered `"code":"set"` three times on the old entry (`183eceb7`), and `"set"`, `"missing"`, `"set"` on this change.
+
+**The cost rule.** The owner's rule is to build per request when the build adds at most 5 ms of CPU per request, half of the 10 ms of the Workers Free plan, the smallest per-request CPU limit on Cloudflare's [limits page](https://developers.cloudflare.com/workers/platform/limits/#cpu-time). The page puts the average Worker at about 2.2 ms. The drop rests on the bindings guidance and on the bug above, and the bound only checks that its cost stays small. The Workers Paid plan the app needs allows 30 s by default, and `wrangler.jsonc` sets `limits.cpu_ms` to 300000.
+
+**Measured cost.** `tools/worker-build-cost-wall-time.ts` and `tools/worker-build-cost-cpu-time.ts` start two Workers side by side with `worker-local`, as `playwright.config.ts` does (`--ip 127.0.0.1 --inspector-port 0 --env-file`), on ports 8841 (baseline) and 8842 (candidate), with state under `.wrangler/`. They create an owner and an agent token, send only GETs of the routes in the tables, call no AI model, and read each request to its end. `--baseline` takes a git ref of `src/targets/worker/index.ts` or a file, `--candidate` a file (default: the working tree). Run them inside the devenv shell, after `pnpm run build`:
+
+- `node tools/worker-build-cost-wall-time.ts --baseline 4cc5f0d4` alternates one request to each Worker, 60 warm-up pairs and 400 measured pairs for each route, and prints the median, p95 and p99 of each Worker and of the per-pair difference.
+- `node tools/worker-build-cost-cpu-time.ts --baseline 4cc5f0d4` reads `utime` plus `stime` of the `workerd` processes of each Worker from `/proc`, around 1,500 sequential requests (375 for `GET /api/openapi.json`), 200 warm-up requests before each round, 4 rounds with the Worker order alternated.
+
+Wall time, 3 runs on 2026-11-20 against `4cc5f0d4` (Node 26.13.1, 16 cores). A run counts when the 1-minute load average is under 8 at its start and its end; it ranged from 4 to 9 inside the runs. Each cell is the median of the 3 run medians, with the lowest and highest run in brackets. The tail columns are the p95 and p99 of the per-pair difference, which holds the noise of two requests; the static page, which no change reaches, shows how large that noise is.
+
+| Route | Baseline median, ms | Added, ms | Added, share of baseline | Added p95, ms | Added p99, ms |
+|---|---|---|---|---|---|
+| `GET /api/session` | 8.53 | 2.03 (1.79 to 2.45) | 23.8 % | 9.33 (5.23 to 11.27) | 15.84 (11.90 to 17.36) |
+| `GET /api/items`, agent token | 11.48 | 2.03 (1.81 to 2.21) | 17.6 % | 7.76 (7.10 to 9.95) | 16.99 (10.50 to 19.48) |
+| `GET /api/openapi.json`, agent token | 49.58 | 1.00 (0.95 to 2.00) | 2.0 % | 17.41 (17.03 to 18.69) | 26.16 (24.01 to 30.12) |
+| `GET /` (the assets serve it, no Worker code) | 4.69 | 0.00 (-0.09 to 0.01) | 0.0 % | 3.03 (1.86 to 3.47) | 5.79 (3.56 to 5.84) |
+
+CPU time, 3 runs against `4cc5f0d4` with the load average under 8 at the start and the end of each run, ms of CPU per request, the median of 4 rounds in each run. Each cell is the median of the 3 run values, with the lowest and highest run in brackets:
+
+| Route | Baseline | Added | Added, share of baseline |
+|---|---|---|---|
+| `GET /api/session` | 6.50 | 2.41 (0.64 to 3.17) | 37 % |
+| `GET /api/items` | 8.99 | 3.37 (3.29 to 5.75) | 38 % |
+| `GET /api/openapi.json` | 55.73 | 3.09 (3.09 to 3.81) | 6 % |
+
+The median added CPU is under 5 ms on every route, and the highest single run, 5.75 ms on `GET /api/items`, is above it. On `GET /api/session`, the cheapest route, the added CPU is 37 % of the request's own CPU. The CPU figures depend on the load of the machine: the same tool on a loaded machine (load average 14 to 55) gave +9.4 and +14.7 ms on `GET /api/openapi.json`, and a run at load 7 to 9 gave +5.6 ms. The counters include every `workerd` thread, which Cloudflare's CPU meter probably leaves out, so they err high. Local D1 has no network wait, so the shares overstate what the owner sees from a browser. The runs use one sequential client on a machine that other work shares, and no deployed Worker was measured, so Cloudflare's coarse timers could not be compared.
+
+**Where the cost sits.** A new app builds its Hono router matcher on its first request (`buildAllMatchers` in `hono/dist/router/reg-exp-router/router.js`, hono 4.13.18), so the cost is more than `createApp` alone. A queue message or a Cron run builds the ports only. The same two commands with `--candidate` set to a copy of `index.ts` that builds the ports for each request and builds the app once for the isolate give, against `183eceb7`: a wall-time difference of 0.00 (-0.21 to 1.19), 0.22 (-0.71 to 0.75) and -0.78 ms (-0.80 to -0.25) on the three API routes, 3 runs, and a CPU difference of 0.20, -2.22 and 0.72 ms, 1 run. The negative values show that the build of the ports is below what these runs resolve, so a queue message or a Cron run pays well under 1 ms (inferred from the HTTP routes, because the tools send no queue message and no Cron trigger). Several requests at once, which make several short-lived apps in one 128 MB isolate, were not measured.
