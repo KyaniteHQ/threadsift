@@ -30,7 +30,7 @@ function useLogin(signedIn: () => void) {
     (result: Attempt) => {
       if (result.kind === "ok") {
         signedIn();
-      } else if (result.kind === "wrong") {
+      } else if (result.kind === "wrong-password") {
         clear();
         hide();
         fail(LOGIN.wrong);

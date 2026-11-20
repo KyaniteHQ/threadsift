@@ -18,7 +18,10 @@ import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 export type Session = z.infer<typeof SessionStateSchema>;
 
 export type Refusal =
-  | { readonly kind: "wrong" }
+  | { readonly kind: "wrong-setup-code" }
+  | { readonly kind: "wrong-password" }
+  | { readonly kind: "wrong-current-password" }
+  | { readonly kind: "wrong-reset-code" }
   | { readonly kind: "locked"; readonly retryAfter: number }
   | { readonly kind: "unavailable"; readonly reason: SetupCodeProblem }
   | { readonly kind: "owner-exists" }
@@ -35,7 +38,10 @@ const UNAUTHORIZED = 401;
 const NOT_FOUND = 404;
 
 const REFUSALS = {
-  wrong: { kind: "wrong" },
+  "wrong-setup-code": { kind: "wrong-setup-code" },
+  "wrong-password": { kind: "wrong-password" },
+  "wrong-current-password": { kind: "wrong-current-password" },
+  "wrong-reset-code": { kind: "wrong-reset-code" },
   "owner-exists": { kind: "owner-exists" },
   "setup-missing": { kind: "unavailable", reason: "missing" },
   "setup-short": { kind: "unavailable", reason: "short" },

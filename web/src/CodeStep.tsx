@@ -39,7 +39,7 @@ function useCodeStep({ wrong, go, exists }: Readonly<CodeStepProps>) {
     (result: Attempt) => {
       if (result.kind === "ok") {
         go({ name: "password", code: value });
-      } else if (result.kind === "wrong") {
+      } else if (result.kind === "wrong-setup-code") {
         fail(SETUP.codeWrong);
       } else {
         refuse(result);

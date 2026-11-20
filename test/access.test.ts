@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { SessionStateSchema } from "../src/core/contract/access-wire.ts";
+import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { Instance, PASSWORD, SETUP_CODE } from "./instance.ts";
 
 const WRONG_SETUP_CODE = "a-wrong-setup-code-of-sixteen";
@@ -34,7 +35,8 @@ describe("the owner takes a new Instance from first run to a signed-in session w
       password: PASSWORD,
     });
 
-    assert.equal(refused.status, 401);
+    assert.equal(refused.status, 403);
+    assert.equal(ErrorResponseSchema.parse(JSON.parse(refused.body)).code, "wrong-setup-code");
     assert.equal(await sessionState(), "setup");
   });
 
@@ -67,7 +69,8 @@ describe("the owner takes a new Instance from first run to a signed-in session w
   it("refuses a wrong password and stays signed out", async () => {
     const refused = await instance.send("POST", "/api/login", { password: WRONG_PASSWORD });
 
-    assert.equal(refused.status, 401);
+    assert.equal(refused.status, 403);
+    assert.equal(ErrorResponseSchema.parse(JSON.parse(refused.body)).code, "wrong-password");
     assert.equal(await sessionState(), "signed-out");
   });
 

@@ -7,7 +7,7 @@ import { usePasswordVisibility } from "./PasswordField.tsx";
 import { useField, useLock, useSubmit } from "./use-form.ts";
 
 function codeMessage(result: Readonly<Refusal>): string | null {
-  if (result.kind === "wrong") {
+  if (result.kind === "wrong-reset-code") {
     return RESET.codeWrong;
   }
 

@@ -36,7 +36,7 @@ function useServerOutcome(
         done();
       } else if (result.kind === "password") {
         fail(LENGTH_PROBLEM[result.length]);
-      } else if (result.kind === "wrong") {
+      } else if (result.kind === "wrong-setup-code") {
         go({ name: "code-wrong" });
       } else {
         refuse(result);
