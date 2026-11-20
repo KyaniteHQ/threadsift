@@ -9,8 +9,7 @@ import {
 } from "drizzle-orm/sqlite-core";
 
 import { items } from "./item-tables.ts";
-
-export const COMMENT_KINDS = ["comment", "more"] as const;
+import { COMMENT_KINDS } from "./reddit-contract.ts";
 
 export const redditThreads = sqliteTable(
   "reddit_threads",

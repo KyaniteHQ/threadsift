@@ -1,8 +1,8 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { hasDigestSource } from "./digest-input.ts";
 import { type Digest, parseStoredDigest } from "./digest-schema.ts";
+import { hasDigestSource } from "./digest-source.ts";
 import type { DigestOutcome } from "./item-contract.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { digests, items, topics } from "./schema.ts";

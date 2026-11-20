@@ -1,8 +1,8 @@
 import { and, eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { currentDisagreementPin } from "./disagreement-pins.ts";
 import { DISAGREEMENT } from "./disagreement-rows.ts";
+import { currentDisagreementPin } from "./disagreement-sql.ts";
 import { guardedResults } from "./guards.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { removedOpen } from "./proposal-lifecycle.ts";

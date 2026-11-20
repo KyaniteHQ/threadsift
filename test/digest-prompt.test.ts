@@ -5,8 +5,9 @@ import { z } from "zod";
 
 import { AI_INPUT_BYTES } from "../src/core/ai-contract.ts";
 import { chooseCandidateLink } from "../src/core/candidate-link.ts";
-import { type CommentCandidate, type LinkedPage, digestPrompt } from "../src/core/digest-prompt.ts";
+import { type LinkedPage, digestPrompt } from "../src/core/digest-prompt.ts";
 import { utf8Length } from "../src/core/encoding.ts";
+import type { CommentCandidate } from "../src/core/thread-selection.ts";
 
 const NO_CATALOG = { topics: [], tags: [] };
 

@@ -1,14 +1,10 @@
 import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
-import { storedTaskIs } from "./digest-stored.ts";
+import { currentDisagreementPin } from "./disagreement-sql.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { pins, proposals } from "./schema.ts";
 import { among } from "./sql-expressions.ts";
-
-export function currentDisagreementPin(): SQL {
-  return sql`${pins.kind} = 'items-disagree' and ${storedTaskIs(pins.fromItemId, pins.fromDigest)} and ${storedTaskIs(pins.intoItemId, pins.intoDigest)}`;
-}
 
 export function pairPinned(first: Readonly<SQLWrapper>, second: Readonly<SQLWrapper>): SQL {
   return sql`exists (select 1 from ${pins} where ${currentDisagreementPin()} and ${pins.fromItemId} = min(${first}, ${second}) and ${pins.intoItemId} = max(${first}, ${second}))`;

@@ -9,6 +9,7 @@ const CONTRACT_FILES = [
   ":(top)src/core/digest-schema.ts",
   ":(top)src/core/digest-text.ts",
   ":(top)src/core/digest-prompt.ts",
+  ":(top)src/core/catalog-budget.ts",
   ":(top)src/core/plain-text.ts",
 ];
 

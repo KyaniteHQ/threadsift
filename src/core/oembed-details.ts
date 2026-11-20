@@ -1,8 +1,11 @@
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
-import type { Concluded } from "./details.ts";
+import { type Concluded, fetchedOf } from "./details.ts";
+import { guardedFetch } from "./fetch-guard.ts";
+import { SMALL_POLICY } from "./fetch-policies.ts";
 import { collapsed } from "./format.ts";
+import type { Network } from "./network.ts";
 import { parsedJson } from "./parsed-json.ts";
 
 const SUBREDDIT_LINK = /^https:\/\/www\.reddit\.com\/r\/(?<name>[^/?#]+)\//u;
@@ -49,4 +52,19 @@ export function detailsOfOembed(text: string): Concluded {
       content: null,
     },
   };
+}
+
+export async function fetchedOfOembed(
+  network: Network,
+  normalizedUrl: string,
+  deadline: AbortSignal,
+): Promise<Concluded> {
+  const outcome = await guardedFetch(
+    network,
+    `https://www.reddit.com/oembed?url=${encodeURIComponent(normalizedUrl)}`,
+    SMALL_POLICY,
+    deadline,
+  );
+
+  return fetchedOf(outcome, ({ text }) => detailsOfOembed(text), "unreadable");
 }

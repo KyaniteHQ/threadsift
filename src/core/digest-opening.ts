@@ -14,8 +14,8 @@ import {
 import { expireAiTasks } from "./ai-task-rows.ts";
 import { refusedAs } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
-import { hasDigestSource } from "./digest-input.ts";
 import { keptNotUpdated } from "./digest-marker.ts";
+import { hasDigestSource } from "./digest-source.ts";
 import { NOT_FAILED } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
 import { grokBotChosen, providerSet } from "./provider-saved.ts";

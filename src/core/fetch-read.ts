@@ -1,7 +1,7 @@
 import type { Concluded, Fetched } from "./details.ts";
-import { type LinkRoute, fetchedOfRoute, linkRouteOf, suppliedDetails } from "./fetch-link.ts";
+import { fetchedOfRoute, linkRouteOf, suppliedDetails } from "./fetch-link.ts";
 import type { ClaimedJob, JobPorts } from "./job-outcome.ts";
-import { takesPage } from "./links.ts";
+import { type LinkRoute, takesPage } from "./links.ts";
 import { pluginPage } from "./plugin-fetch.ts";
 import { fetchedWithThread } from "./reddit-fetch.ts";
 import { FETCH_DEADLINE_MS, X_FETCH_DEADLINE_MS } from "./request-waits.ts";
