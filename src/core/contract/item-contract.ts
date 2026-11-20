@@ -13,6 +13,8 @@ export const REDDIT_KINDS = ["reddit-post", "reddit-comment"] as const;
 
 export const READ_STATES = ["unread", "read"] as const;
 
+export const SEARCH_MAX = 200;
+
 const ITEM_STATUSES = ["processing", "ready", "failed"] as const;
 
 export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"] as const;

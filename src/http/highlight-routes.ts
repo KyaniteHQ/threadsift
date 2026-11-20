@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { CONTEXT_CODE_POINTS } from "../core/contract/highlight-anchor.ts";
 import {
   CreateHighlightRequestSchema,
@@ -11,7 +12,7 @@ import { DEFAULT_CAP, access, tooLarge } from "./access.ts";
 import { registerHighlightsPageRoute } from "./highlights-page-route.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
-import { ErrorResponseSchema, HighlightParamsSchema, IdParamSchema } from "./schemas.ts";
+import { HighlightParamsSchema, IdParamSchema } from "./route-input.ts";
 
 const NO_COMMENT = "The thread the Reader shows has no such comment";
 

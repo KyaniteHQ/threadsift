@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
 import { Instance } from "./instance.ts";
 

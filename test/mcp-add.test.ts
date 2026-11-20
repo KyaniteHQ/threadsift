@@ -4,11 +4,11 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { Client } from "@modelcontextprotocol/client";
 
+import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import {
-  ErrorResponseSchema,
   ItemReadResponseSchema,
   SavedItemResponseSchema,
-} from "../src/http/schemas.ts";
+} from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
 import {
   type Agents,

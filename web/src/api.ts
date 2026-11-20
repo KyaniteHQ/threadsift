@@ -1,5 +1,21 @@
+import { ErrorResponseSchema } from "../../src/core/contract/error-wire.ts";
 import { refreshedOf } from "../../src/core/contract/fetch-results.ts";
+import {
+  HighlightsPageResponseSchema,
+  type HighlightsPage,
+} from "../../src/core/contract/highlights-page-wire.ts";
 import type { ReadState } from "../../src/core/contract/item-contract.ts";
+import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
+import {
+  ItemDetailResponseSchema,
+  ItemListResponseSchema,
+  ItemPageResponseSchema,
+  ItemResponseSchema,
+  SavedItemResponseSchema,
+  type ItemList,
+  type ItemPage,
+} from "../../src/core/contract/item-route-wire.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import {
   OverviewRetryResponseSchema,
   type Overview,
@@ -7,22 +23,6 @@ import {
   type TopicPage,
 } from "../../src/core/contract/topic-overview-contract.ts";
 import { topicApiPath } from "../../src/core/contract/topic-path.ts";
-import {
-  HighlightsPageResponseSchema,
-  type HighlightsPage,
-} from "../../src/http/highlights-page-schemas.ts";
-import {
-  ErrorResponseSchema,
-  ItemDetailResponseSchema,
-  ItemListResponseSchema,
-  ItemPageResponseSchema,
-  ItemResponseSchema,
-  SavedItemResponseSchema,
-  type Item,
-  type ItemDetail,
-  type ItemList,
-  type ItemPage,
-} from "../../src/http/schemas.ts";
 import {
   callOk,
   del,

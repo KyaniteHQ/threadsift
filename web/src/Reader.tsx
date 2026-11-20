@@ -1,6 +1,6 @@
 import { type RefObject, Suspense, useMemo, useState } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { type BarMode, ReaderBar } from "./ReaderBar.tsx";
 import { ReaderBody } from "./ReaderBody.tsx";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";

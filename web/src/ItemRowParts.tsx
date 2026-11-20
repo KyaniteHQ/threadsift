@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { whereOf } from "../../src/core/contract/link-place.ts";
-import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { offersFetchRetry } from "./paste-card.ts";
 import { countLabel } from "./reader-text.ts";

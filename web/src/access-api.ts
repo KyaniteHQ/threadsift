@@ -1,17 +1,17 @@
 import { z } from "zod";
 
 import type { RefusalCode } from "../../src/core/contract/access-contract.ts";
-import type { Scope } from "../../src/core/contract/agent-token-contract.ts";
-import type { PasswordProblem } from "../../src/core/contract/passwords.ts";
-import type { SetupCodeProblem } from "../../src/core/contract/setup-code.ts";
 import {
   CreatedTokenResponseSchema,
-  ErrorResponseSchema,
   SessionStateSchema,
   TokenListResponseSchema,
   TokenSummaryResponseSchema,
   type Token,
-} from "../../src/http/schemas.ts";
+} from "../../src/core/contract/access-wire.ts";
+import type { Scope } from "../../src/core/contract/agent-token-contract.ts";
+import { ErrorResponseSchema } from "../../src/core/contract/error-wire.ts";
+import type { PasswordProblem } from "../../src/core/contract/passwords.ts";
+import type { SetupCodeProblem } from "../../src/core/contract/setup-code.ts";
 import { type JsonBody, call, callOk, del, parsedFrom, patch, post } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 

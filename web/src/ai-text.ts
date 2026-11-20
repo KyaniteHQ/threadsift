@@ -1,5 +1,6 @@
-import { GROK_BOT_FIRST } from "../../src/core/contract/grok-bot-contract.ts";
+import { GROK_BOT_FIRST, VERIFY_WAIT_MS } from "../../src/core/contract/grok-bot-contract.ts";
 import type { CliProvider } from "../../src/core/contract/provider-families.ts";
+import { SECOND_MS } from "../../src/core/contract/time-units.ts";
 
 export const AI_TEXT = {
   "key-needed":
@@ -28,8 +29,7 @@ export const AI_TEXT = {
   grokBotKey:
     "No API key is needed. Grok Bot uses the address and key saved in the Grok Bot section.",
   verifyingBot: "Waiting for bot…",
-  botTimeout:
-    "The Grok Bot did not answer in 60 seconds. Check that the bot's routine is on and try Verify again.",
+  botTimeout: `The Grok Bot did not answer in ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds. Check that the bot's routine is on and try Verify again.`,
   botBusy: "The Grok Bot answered with an error or is busy. Try Verify later.",
   workersAiHelp:
     "Workers AI runs on this Instance's Cloudflare account. No URL or API key is needed.",

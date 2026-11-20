@@ -1,6 +1,9 @@
 import { type Page, expect } from "@playwright/test";
 
-import { ItemDetailResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
+import {
+  ItemDetailResponseSchema,
+  SavedItemResponseSchema,
+} from "../src/core/contract/item-route-wire.ts";
 import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
 
 const THREAD_ID = "3000000000000000001";

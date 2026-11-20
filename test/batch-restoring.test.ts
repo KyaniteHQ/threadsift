@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
+import { UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
-import { ItemReadResponseSchema, UnavailableResponseSchema } from "../src/http/schemas.ts";
+import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;

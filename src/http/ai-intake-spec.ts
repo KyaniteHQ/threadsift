@@ -1,12 +1,12 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { byteSize } from "../core/contract/format.ts";
 import { MAX_ROW_BYTES } from "../core/contract/limits.ts";
 import { IntakeAnswerSchema } from "../core/contract/x-intake-contract.ts";
 import { ITEM_CAP, access, tooLarge } from "./access.ts";
 import { countedRefusals } from "./intake-body.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 import { CREDENTIAL_REFUSALS, UNSUPPORTED_TASK } from "./task-credential.ts";
 
 export const intakeRoute = createRoute({

@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { CommentsButton } from "./CommentsButton.tsx";
 import { DeleteItem } from "./DeleteItem.tsx";
 import { Icon } from "./Icon.tsx";

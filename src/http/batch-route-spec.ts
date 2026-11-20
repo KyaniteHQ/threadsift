@@ -1,10 +1,14 @@
 import { createRoute } from "@hono/zod-openapi";
 
-import { IMPORT_CURSOR_MAX, IMPORT_NAME_MAX } from "../core/contract/import-contract.ts";
+import { BatchRequestSchema, BatchResponseSchema } from "../core/contract/batch-wire.ts";
+import { ErrorResponseSchema, UnavailableResponseSchema } from "../core/contract/error-wire.ts";
+import {
+  BATCH_LINKS_MAX,
+  IMPORT_CURSOR_MAX,
+  IMPORT_NAME_MAX,
+} from "../core/contract/import-contract.ts";
 import { DEFAULT_CAP, access, tooLarge } from "./access.ts";
-import { BATCH_LINKS_MAX, BatchRequestSchema, BatchResponseSchema } from "./batch-schemas.ts";
 import { budgetRefusal, jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { ErrorResponseSchema, UnavailableResponseSchema } from "./schemas.ts";
 
 const BATCH_DIGEST_SCOPE =
   " An entry with a `digest` needs the `digest` scope as well, and the call saves nothing without it.";

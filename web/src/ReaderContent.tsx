@@ -1,4 +1,4 @@
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { HighlightsProvider } from "./Highlights.tsx";
 import { NoteBox } from "./NoteBox.tsx";
 import { READER_FAILED, READER_STALE } from "./reader-text.ts";

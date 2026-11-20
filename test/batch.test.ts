@@ -4,9 +4,9 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
+import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
-import { BatchResponseSchema } from "../src/http/batch-schemas.ts";
-import { ErrorResponseSchema } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";

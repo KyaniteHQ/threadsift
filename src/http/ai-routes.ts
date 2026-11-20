@@ -9,6 +9,7 @@ import {
   AiSaveResponseSchema,
   VerifyResultSchema,
 } from "../core/contract/ai-settings-contract.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import {
   VERIFY_WAIT_MS,
   GROK_BOT_FIRST,
@@ -18,7 +19,6 @@ import { SECOND_MS } from "../core/contract/time-units.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 
 const readRoute = createRoute({
   method: "get",

@@ -3,8 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";

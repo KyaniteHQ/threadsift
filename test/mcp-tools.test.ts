@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { ItemDetailResponseSchema, ItemReadResponseSchema } from "../src/http/schemas.ts";
+import {
+  ItemDetailResponseSchema,
+  ItemReadResponseSchema,
+} from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
 import {
   type Agents,

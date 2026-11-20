@@ -1,12 +1,12 @@
 import { z } from "zod";
 
-import { CommentCountSchema } from "../core/contract/comment-view.ts";
-import { FETCH_RESULTS } from "../core/contract/fetch-results.ts";
-import { DIGEST_OUTCOMES, KINDS, READ_STATES, SOURCES } from "../core/contract/item-contract.ts";
-import { WAIT_REASONS } from "../core/contract/job-contract.ts";
-import { withShownStatus } from "../core/contract/shown-status.ts";
-import { X_READ_NOTES } from "../core/contract/x-read-note.ts";
+import { CommentCountSchema } from "./comment-view.ts";
+import { FETCH_RESULTS } from "./fetch-results.ts";
+import { DIGEST_OUTCOMES, KINDS, READ_STATES, SOURCES } from "./item-contract.ts";
 import { ItemImageSchema } from "./item-image.ts";
+import { WAIT_REASONS } from "./job-contract.ts";
+import { withShownStatus } from "./shown-status.ts";
+import { X_READ_NOTES } from "./x-read-note.ts";
 
 export const HttpUrlSchema = z.url({ protocol: /^https?$/u });
 
@@ -37,3 +37,5 @@ export const ItemBaseSchema = z.object({
 });
 
 export const ItemSchema = withShownStatus(ItemBaseSchema);
+
+export type Item = z.infer<typeof ItemSchema>;

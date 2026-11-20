@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { PAGE_SIZE } from "../core/contract/paging.ts";
 import {
   DISAGREEMENTS_SHOWN,
@@ -14,7 +15,7 @@ import { retryOverview } from "../core/wiki/topic-retry.ts";
 import { access } from "./access.ts";
 import { jsonBody, scopeNote, scopeRefusal } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
-import { ErrorResponseSchema, ItemQuerySchema } from "./schemas.ts";
+import { ItemQuerySchema } from "./route-input.ts";
 
 const TopicQuerySchema = ItemQuerySchema.pick({ cursor: true });
 

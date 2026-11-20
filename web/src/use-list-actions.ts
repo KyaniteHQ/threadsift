@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import type { SaveResult, SaveTarget } from "./api.ts";
 import type { Attention } from "./ItemRow.tsx";
 import { type ListState, readFor } from "./list-state.ts";

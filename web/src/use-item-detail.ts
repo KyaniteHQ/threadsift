@@ -9,7 +9,8 @@ import {
 } from "react";
 
 import type { HighlightsView } from "../../src/core/contract/highlight-contract.ts";
-import type { Item, ItemDetail } from "../../src/http/schemas.ts";
+import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { fetchItemDetail } from "./api.ts";
 
 export type DetailState =

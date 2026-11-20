@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { CreatedTokenResponseSchema, TokenListResponseSchema } from "../src/http/schemas.ts";
+import {
+  CreatedTokenResponseSchema,
+  TokenListResponseSchema,
+} from "../src/core/contract/access-wire.ts";
 import { Instance, type Json } from "./instance.ts";
 import { addLink, budgetOf, makeToken } from "./token-budget-fixtures.ts";
 

@@ -3,7 +3,10 @@ import { mock } from "node:test";
 
 import { z } from "zod";
 
-import { CreatedTokenResponseSchema, TokenListResponseSchema } from "../src/http/schemas.ts";
+import {
+  CreatedTokenResponseSchema,
+  TokenListResponseSchema,
+} from "../src/core/contract/access-wire.ts";
 import type { Instance, Json } from "./instance.ts";
 
 const FIRST_STATUS = 5_000_000_000;

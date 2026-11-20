@@ -1,11 +1,12 @@
-import type { ExportFailure } from "../../src/core/contract/export-contract.ts";
+import { EXPORT_KEEP_MS, type ExportFailure } from "../../src/core/contract/export-contract.ts";
 import { groupedNumber } from "../../src/core/contract/format.ts";
+import { MAX_ATTEMPTS } from "../../src/core/contract/job-contract.ts";
+import { HOUR_MS } from "../../src/core/contract/time-units.ts";
 import { filled } from "./text.ts";
 
 export const EXPORT_TEXT = {
   sectionTitle: "Backup",
-  intro:
-    "The Export makes one zip file of the whole library, every Item and the records around it, and runs best when no Import is running. A finished Export is kept on this Instance for 24 hours and then deleted.",
+  intro: `The Export makes one zip file of the whole library, every Item and the records around it, and runs best when no Import is running. A finished Export is kept on this Instance for ${String(EXPORT_KEEP_MS / HOUR_MS)} hours and then deleted.`,
   caution:
     "The zip is not encrypted, and a viewer that renders raw HTML would run what a page author wrote.",
   loadFailed: "Couldn’t load the Export state. Reload the page.",
@@ -26,7 +27,7 @@ const PROGRESS = { one: "1 file, {size} so far", many: "{files} files, {size} so
 const READY_DETAIL = { one: "1 file, {size}", many: "{files} files, {size}" } as const;
 
 const FAILURE_TEXT = {
-  "gave-up": "The Export failed because a step failed 3 times. Start it again.",
+  "gave-up": `The Export failed because a step failed ${String(MAX_ATTEMPTS)} times. Start it again.`,
   "list-changed":
     "The Instance was updated while the Export ran, so the Export stopped. Start it again.",
   cancelled: "The Export was stopped before it finished. Start it again.",

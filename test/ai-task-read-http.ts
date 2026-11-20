@@ -1,4 +1,4 @@
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { type BotLibrary, SECRET_KEY, relatedLibrary, saveBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 

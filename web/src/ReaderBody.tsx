@@ -1,6 +1,6 @@
 import { type RefObject, use } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { postTextModule } from "./post-text-module.ts";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { ReaderContent } from "./ReaderContent.tsx";

@@ -1,7 +1,7 @@
 import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
 import { useCallback, useId } from "react";
 
-import { SEARCH_MAX } from "../../src/http/schemas.ts";
+import { SEARCH_MAX } from "../../src/core/contract/item-contract.ts";
 import { Icon } from "./Icon.tsx";
 
 function useHandlers(search: (text: string) => void, leave: () => void) {

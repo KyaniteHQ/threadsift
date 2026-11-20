@@ -1,4 +1,4 @@
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ScriptFolder } from "./bot-script-run.ts";
 import { type Listening, listening } from "./bot-script-server.ts";
 import { intakeExample } from "./bot-skills-examples.ts";

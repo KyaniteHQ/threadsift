@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { RedditSettingsSchema } from "../src/core/contract/reddit-contract.ts";
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 
 describe("the owner turns the Reddit archive fill on and off, and only the owner can", () => {

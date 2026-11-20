@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { type ItemRead, readStatus } from "./item-reads.ts";
 import type { Ticket } from "./use-ticket.ts";
 

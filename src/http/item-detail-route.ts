@@ -1,11 +1,13 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
+import { ItemDetailResponseSchema } from "../core/contract/item-route-wire.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { readItem } from "./item-read.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
-import { ErrorResponseSchema, IdParamSchema, ItemDetailResponseSchema } from "./schemas.ts";
+import { IdParamSchema } from "./route-input.ts";
 
 const getItemRoute = createRoute({
   method: "get",

@@ -1,6 +1,6 @@
 import { type RefObject, useEffect, useEffectEvent } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 
 const ROWS_BEFORE_END = 10;
 

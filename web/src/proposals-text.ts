@@ -5,6 +5,7 @@ import type {
   MergeProposal,
   Proposal,
 } from "../../src/core/contract/proposal-contract.ts";
+import { ADDED_READ_LIMIT } from "../../src/core/contract/topic-overview-contract.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { plural } from "./plural.ts";
 import { NEWEST_FIRST, filled } from "./text.ts";
@@ -132,8 +133,7 @@ export const PROPOSAL_WORDS = {
   rejectFailed: "Couldn’t reject this proposal.",
   alreadyDecided: ALREADY_DECIDED,
   overviewCounts: "Items not in the overview: {uncovered} of {items}",
-  overviewCost:
-    "Accept writes the topic’s overview again: each call covers up to 40 items, so many items can take several calls, and the run stops when a call fails.",
+  overviewCost: `Accept writes the topic’s overview again: each call covers up to ${String(ADDED_READ_LIMIT)} items, so many items can take several calls, and the run stops when a call fails.`,
   noProvider:
     "Save a provider in the instance settings to update the overview; this row stays and Accept works after that.",
   disagreementKept:

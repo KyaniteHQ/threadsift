@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useEffect, useId, useRef } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { Alert } from "./Alert.tsx";
 import { CLOSED, type DeleteEvent, type DeleteFlow, reduceDelete } from "./delete-flow.ts";
 import { Icon } from "./Icon.tsx";

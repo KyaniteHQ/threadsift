@@ -1,5 +1,6 @@
 import { createRoute, z } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { MAX_ATTEMPTS } from "../core/contract/job-contract.ts";
 import {
   RESTORE_MAX_BYTES,
@@ -10,7 +11,7 @@ import {
 } from "../core/contract/restore-contract.ts";
 import { access, PART_CAP } from "./access.ts";
 import { OWNER_SESSION_REFUSALS, jsonBody, jsonRequest, noContent } from "./openapi.ts";
-import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
+import { IdParamSchema } from "./route-input.ts";
 
 const PartParamsSchema = IdParamSchema.extend({ part: z.coerce.number().int().positive() });
 

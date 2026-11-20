@@ -6,7 +6,10 @@ import { type APIRequestContext, expect, test } from "@playwright/test";
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
-import { ItemDetailResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
+import {
+  ItemDetailResponseSchema,
+  SavedItemResponseSchema,
+} from "../src/core/contract/item-route-wire.ts";
 
 const RELAY = "https://webhook.site";
 

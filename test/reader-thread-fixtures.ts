@@ -1,5 +1,8 @@
 import type { CommentsView } from "../src/core/contract/comment-view.ts";
-import { ItemReadResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
+import {
+  ItemReadResponseSchema,
+  SavedItemResponseSchema,
+} from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
 
 export const TARGET = "http://127.0.0.1:9/page";

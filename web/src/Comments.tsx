@@ -5,13 +5,14 @@ import type {
   CommentNode,
   CommentsFilter,
 } from "../../src/core/contract/comment-view.ts";
+import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import {
   COMMENTS_TITLE,
   CONTEXT_LABEL,
   STUB_TEXTS,
   handleOf,
 } from "../../src/core/contract/reader-text.ts";
-import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
 import { useOpenOnReveal } from "./highlights-context.ts";

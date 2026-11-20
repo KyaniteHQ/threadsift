@@ -3,8 +3,8 @@ import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 import { failureOf, overviewJobs, queueOverview, storePage } from "./overview-gap-fixtures.ts";
 import { saveProvider } from "./related-fixtures.ts";

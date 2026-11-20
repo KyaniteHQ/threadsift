@@ -5,7 +5,10 @@ import {
   type CountColumns,
   commentCountOf,
 } from "../core/contract/comment-view.ts";
+import { fileRouteOf } from "../core/contract/file-keys.ts";
+import type { ItemImageSchema } from "../core/contract/item-image.ts";
 import { itemPath } from "../core/contract/item-path.ts";
+import type { WaitSchema } from "../core/contract/item-wire.ts";
 import type { WaitReason } from "../core/contract/job-contract.ts";
 import {
   type ShownStatus,
@@ -13,8 +16,18 @@ import {
   shownStatus,
 } from "../core/contract/shown-status.ts";
 import type { ItemRow } from "../core/kernel/schema.ts";
-import { type ImageColumns, type ItemImageSchema, imageOf } from "./item-image.ts";
-import type { WaitSchema } from "./item-wire.ts";
+
+interface ImageColumns {
+  readonly imageKey: string | null;
+  readonly imageAlt: string | null;
+}
+
+function imageOf({
+  imageKey,
+  imageAlt,
+}: Readonly<ImageColumns>): z.infer<typeof ItemImageSchema> | null {
+  return imageKey === null ? null : { url: fileRouteOf(imageKey), alt: imageAlt ?? "" };
+}
 
 interface ViewInputs extends Pick<ShownStatusInput, "digestSource">, ImageColumns, CountColumns {
   readonly waitReason: WaitReason | null;

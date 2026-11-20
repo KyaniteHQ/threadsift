@@ -1,8 +1,9 @@
 import { useEffect, useRef } from "react";
 
+import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { shownUrl, whereOf } from "../../src/core/contract/link-place.ts";
 import { handleOf } from "../../src/core/contract/reader-text.ts";
-import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { DIGEST_PENDING, READER_LOADING, postedLabel } from "./reader-text.ts";
 import { HeadNote, Note } from "./ReaderNote.tsx";
 import { ReaderSummary } from "./ReaderSummary.tsx";

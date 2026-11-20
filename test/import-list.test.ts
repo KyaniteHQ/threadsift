@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { BatchRequestSchema } from "../src/core/contract/batch-wire.ts";
 import { BATCH_LINKS_MAX } from "../src/core/contract/import-contract.ts";
 import {
   importNameOf,
@@ -9,7 +10,6 @@ import {
   resumeOf,
 } from "../src/core/contract/import-list.ts";
 import { BODY_LIMIT_BYTES } from "../src/core/contract/limits.ts";
-import { BatchRequestSchema } from "../src/http/batch-schemas.ts";
 
 describe("the Import list parser turns literal text into the links the batch call takes", () => {
   it("reads a Reddit saved_posts.csv with relative and absolute permalinks", () => {

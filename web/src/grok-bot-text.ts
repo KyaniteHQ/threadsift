@@ -1,6 +1,8 @@
 import { groupedNumber } from "../../src/core/contract/format.ts";
 import { GROK_BOT_IN_USE, type GrokBotResult } from "../../src/core/contract/grok-bot-contract.ts";
+import { HOP_DEADLINE_MS } from "../../src/core/contract/request-waits.ts";
 import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
+import { SECOND_MS } from "../../src/core/contract/time-units.ts";
 import { AI_TEXT } from "./ai-text.ts";
 
 export const GROK_BOT_TEXT = {
@@ -44,7 +46,7 @@ export const GROK_BOT_TEXT = {
   resultNotFound: "The Grok Bot has no routine at that address. Check the address and save again.",
   resultBotError: "The Grok Bot answered with an error. Try Test again later.",
   resultUnreachable: "The Grok Bot did not answer. Check the address and connection.",
-  resultTimeout: "The Grok Bot did not answer in 8 seconds. Try again.",
+  resultTimeout: `The Grok Bot did not answer in ${String(HOP_DEADLINE_MS / SECOND_MS)} seconds. Try again.`,
   resultRefused:
     "Threadsift will not send to this address, which must be public https. Save a different one.",
   resultNotConfigured: "Save an address and key first, then press Test.",

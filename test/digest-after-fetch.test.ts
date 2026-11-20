@@ -3,7 +3,7 @@ import { describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { botProviderInstance } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { addressOf, threadOf, toolsOf } from "./one-hop-fixtures.ts";

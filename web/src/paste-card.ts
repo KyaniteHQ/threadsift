@@ -1,5 +1,5 @@
 import type { FetchResult } from "../../src/core/contract/fetch-results.ts";
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { type NoteKey, type NoticeKey, failureTitleOf } from "./text.ts";
 
 export type CardView =

@@ -1,7 +1,7 @@
 import { type FocusEvent, useState } from "react";
 
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { shownUrl, whereOf } from "../../src/core/contract/link-place.ts";
-import type { Item } from "../../src/http/schemas.ts";
 import { Icon } from "./Icon.tsx";
 import { type CardView, viewOf } from "./paste-card.ts";
 import { PASTE_OPEN } from "./reader-text.ts";

@@ -1,13 +1,14 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { LogPageSchema } from "../core/contract/log-contract.ts";
 import { CURSOR_DIGITS, PAGE_SIZE, parseNumberCursor } from "../core/contract/paging.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { readLog } from "../core/wiki/log-page.ts";
 import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
-import { ErrorResponseSchema, cursorParam } from "./schemas.ts";
+import { cursorParam } from "./route-input.ts";
 
 const LogQuerySchema = z.object({ cursor: cursorParam(parseNumberCursor) });
 

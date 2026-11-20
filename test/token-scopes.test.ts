@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
+import { TokenListResponseSchema } from "../src/core/contract/access-wire.ts";
 import {
   ItemReadResponseSchema,
   SavedItemResponseSchema,
-  TokenListResponseSchema,
-} from "../src/http/schemas.ts";
+} from "../src/core/contract/item-route-wire.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";

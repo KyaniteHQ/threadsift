@@ -11,7 +11,7 @@ import {
   useState,
 } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import type { SaveTarget } from "./api.ts";
 import { type Shown, faceOf } from "./PasteCard.tsx";
 import { ShareContext } from "./share-handoff.ts";

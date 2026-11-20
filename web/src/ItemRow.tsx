@@ -1,8 +1,8 @@
 import { type RefObject, memo, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { itemPath } from "../../src/core/contract/item-path.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { shownUrl } from "../../src/core/contract/link-place.ts";
-import type { Item } from "../../src/http/schemas.ts";
 import { Meta, type RowIds, Status, controlName, linkName, rowIds } from "./ItemRowParts.tsx";
 import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";

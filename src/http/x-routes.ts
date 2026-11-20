@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import {
   X_READER_NOT_OFFERED,
   XReaderInputSchema,
@@ -9,7 +10,6 @@ import type { Ports } from "../core/kernel/ports.ts";
 import { chooseXReader, readXSettings } from "../core/x/x-settings.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 
 const readRoute = createRoute({
   method: "get",

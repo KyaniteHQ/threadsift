@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { groupedNumber } from "../core/contract/format.ts";
 import {
   NoteConflictSchema,
@@ -12,7 +13,7 @@ import type { Ports } from "../core/kernel/ports.ts";
 import { DEFAULT_CAP, access, tooLarge } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
-import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
+import { IdParamSchema } from "./route-input.ts";
 
 const STALE =
   "The Note changed after it was read. The answer holds the current Note and its revision";

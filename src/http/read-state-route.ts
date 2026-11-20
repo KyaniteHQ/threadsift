@@ -1,17 +1,14 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
+import { ItemResponseSchema, ReadStateRequestSchema } from "../core/contract/item-route-wire.ts";
 import { setReadState } from "../core/item/read-state.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { itemView } from "./item-view.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
-import {
-  ErrorResponseSchema,
-  IdParamSchema,
-  ItemResponseSchema,
-  ReadStateRequestSchema,
-} from "./schemas.ts";
+import { IdParamSchema } from "./route-input.ts";
 
 const setReadStateRoute = createRoute({
   method: "put",

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
 import { rows } from "./related-fixtures.ts";
 

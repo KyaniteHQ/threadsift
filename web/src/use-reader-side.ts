@@ -1,6 +1,6 @@
 import { type RefObject, useCallback } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { Writes } from "./library.ts";
 import type { ListState } from "./list-state.ts";

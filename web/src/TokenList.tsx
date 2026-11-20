@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useMemo, useRef } from "react";
 
-import type { Token } from "../../src/http/schemas.ts";
+import type { Token } from "../../src/core/contract/access-wire.ts";
 import { changeBudget, revokeToken } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";

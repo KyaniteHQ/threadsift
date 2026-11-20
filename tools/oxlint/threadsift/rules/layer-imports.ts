@@ -4,8 +4,11 @@ import { z } from "zod";
 
 import { repositoryPath } from "../shared/bindings.ts";
 import {
+  isBrowserSide,
   isCorePath,
   isPlaced,
+  isServerPath,
+  SERVER_ROOTS,
   placeOf,
   resolveSpecifier,
   violationOf,
@@ -52,6 +55,17 @@ function reachesCore(importer: string, fragment: string): boolean {
   return target !== null && isCorePath(target);
 }
 
+function reachesServer(importer: string, fragment: string): boolean {
+  if (!isBrowserSide(importer)) return false;
+
+  if (!fragment.startsWith("."))
+    return SERVER_ROOTS.some((root) => fragment.includes(root.slice(0, -1)));
+
+  const target = resolveSpecifier(importer, fragment);
+
+  return target !== null && isServerPath(target);
+}
+
 function checkLoaded(context: Context, node: ESTree.Node, argument: ESTree.Node | undefined): void {
   const plain =
     argument?.type === "Literal" ||
@@ -67,8 +81,12 @@ function checkLoaded(context: Context, node: ESTree.Node, argument: ESTree.Node 
 
   const importer = repositoryPath(context.filename);
 
-  if (stringsIn(argument).some((fragment) => reachesCore(importer, fragment))) {
+  const fragments = stringsIn(argument);
+
+  if (fragments.some((fragment) => reachesCore(importer, fragment))) {
     context.report({ node, messageId: "computed", data: { importer } });
+  } else if (fragments.some((fragment) => reachesServer(importer, fragment))) {
+    context.report({ node, messageId: "computedServer", data: { importer } });
   }
 }
 
@@ -97,6 +115,10 @@ export const layerImportsRule = defineRule({
         "{{target}} is not an entry of {{to}}. Code outside {{to}} imports only the entries listed for it in tools/core-layout.json; import an entry, or add this module to entries (testEntries when only test/, tools/ or smoke/ import it) when the callers need it.",
       browser:
         "{{importer}} runs in the browser or the Extension, which import only src/core/contract; {{target}} is in {{to}}.",
+      server:
+        "{{importer}} runs in the browser or the Extension, which cannot import src/http or src/targets; {{target}} is server code. Put the shape both sides read in src/core/contract.",
+      computedServer:
+        "{{importer}} runs in the browser or the Extension and loads a module with a computed source that reaches src/http or src/targets, which it cannot import. Give import() or require() a plain string, and put the shape both sides read in src/core/contract.",
       unplaced:
         "{{importer}} is not listed under the folder it sits in, in modules of tools/core-layout.json. Every src/core module sits in one folder of order and is listed there.",
       computed:

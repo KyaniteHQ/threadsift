@@ -1,5 +1,6 @@
+import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { SECTION_TITLES } from "../../src/core/contract/reader-text.ts";
-import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { Comments } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";

@@ -1,7 +1,7 @@
 import { type Browser, type Locator, type Page, expect } from "@playwright/test";
 
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";

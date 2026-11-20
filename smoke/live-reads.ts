@@ -1,9 +1,12 @@
 import { type APIRequestContext, expect } from "@playwright/test";
 
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
+import {
+  ItemDetailResponseSchema,
+  ItemResponseSchema,
+} from "../src/core/contract/item-route-wire.ts";
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/contract/topic-path.ts";
-import { ItemDetailResponseSchema, ItemResponseSchema } from "../src/http/schemas.ts";
 
 export function digestStates(request: APIRequestContext, ids: readonly number[]) {
   return Promise.all(

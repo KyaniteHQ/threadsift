@@ -1,10 +1,10 @@
 import { z } from "zod";
 
-import { DigestSchema } from "../core/contract/digest-schema.ts";
-import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "../core/contract/supplied-page.ts";
-import { ThreadAnswersSchema } from "../core/contract/thread-answers.ts";
+import { DigestSchema } from "./digest-schema.ts";
+import { ErrorResponseSchema } from "./error-wire.ts";
 import { HttpUrlSchema } from "./item-wire.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
+import { SuppliedPageSchema, UNSUPPORTED_PAGE_LINK } from "./supplied-page.ts";
+import { ThreadAnswersSchema } from "./thread-answers.ts";
 
 export const SaveItemRequestSchema = z.object({
   content: ThreadAnswersSchema.optional(),

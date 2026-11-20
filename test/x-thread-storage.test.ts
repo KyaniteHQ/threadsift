@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ItemReadResponseSchema } from "../src/http/schemas.ts";
+import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
 import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";

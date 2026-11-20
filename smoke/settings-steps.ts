@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 
 import { type Browser, type Page, expect, test } from "@playwright/test";
 
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { OBSIDIAN_TEXT } from "../web/src/obsidian-text.ts";
 import { backupFlow } from "./backup-flow.ts";
 import { grokBotFlow } from "./grok-bot-flow.ts";

@@ -1,29 +1,29 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import {
-  DEFAULT_SCOPES,
-  DEFAULT_TOKEN_BUDGET,
-  SCOPES,
-} from "../core/contract/agent-token-contract.ts";
-import { access } from "./access.ts";
-import { codeList, jsonBody, jsonRequest, noContent } from "./openapi.ts";
-import { PASSWORD_RULE } from "./refusals.ts";
-import {
   ChangeBudgetRequestSchema,
   ChangePasswordRequestSchema,
   CreateTokenRequestSchema,
   CreatedTokenResponseSchema,
-  ErrorResponseSchema,
   LoginRequestSchema,
   ResetPasswordRequestSchema,
   SessionStateSchema,
   SetupCodeRequestSchema,
   SetupRequestSchema,
-  IdParamSchema,
   TOKEN_NAME_MAX,
   TokenListResponseSchema,
   TokenSummaryResponseSchema,
-} from "./schemas.ts";
+} from "../core/contract/access-wire.ts";
+import {
+  DEFAULT_SCOPES,
+  DEFAULT_TOKEN_BUDGET,
+  SCOPES,
+} from "../core/contract/agent-token-contract.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
+import { access } from "./access.ts";
+import { codeList, jsonBody, jsonRequest, noContent } from "./openapi.ts";
+import { PASSWORD_RULE } from "./refusals.ts";
+import { IdParamSchema } from "./route-input.ts";
 
 const errorBody = (description: string) => jsonBody(ErrorResponseSchema, description);
 

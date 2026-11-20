@@ -1,5 +1,5 @@
 import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import type { Filters } from "./filters.ts";
 
 function moved<Key extends string>(

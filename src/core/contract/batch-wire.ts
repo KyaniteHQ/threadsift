@@ -1,12 +1,8 @@
 import { z } from "zod";
 
-import {
-  BATCH_LINKS_MAX,
-  ImportSchema,
-  ImportWriteSchema,
-} from "../core/contract/import-contract.ts";
-import { SaveItemRequestSchema } from "./save-schemas.ts";
-import { SavedItemResponseSchema } from "./schemas.ts";
+import { BATCH_LINKS_MAX, ImportSchema, ImportWriteSchema } from "./import-contract.ts";
+import { SavedItemResponseSchema } from "./item-route-wire.ts";
+import { SaveItemRequestSchema } from "./save-wire.ts";
 
 const BatchLinkSchema = z.strictObject({
   url: SaveItemRequestSchema.shape.url,
@@ -27,9 +23,3 @@ export const BatchResponseSchema = z.object({
   results: z.array(ResultSchema).readonly(),
   import: ImportSchema.nullable(),
 });
-
-export {
-  BATCH_LINKS_MAX,
-  ImportNameSchema,
-  ImportStateSchema,
-} from "../core/contract/import-contract.ts";
