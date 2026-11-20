@@ -460,6 +460,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 `GET /api/openapi.json` describes the REST routes with their bodies and status codes. `docs/architecture/http-interfaces.md` holds the rules around them, and its MCP and Web Share Target sections cover `/mcp` and `/share`, which the document leaves out.
 
 - The paste box, the Extension and agents use the same HTTP API.
+- An id in a path, such as `/api/items/{id}`, and each number in a cursor is a whole number written in decimal digits: no sign, no leading zero, no space and no exponent, from 1 to 9007199254740991. Any other text, `0` included, answers 400, so one record has one address. The MCP tool `read` takes the same range as a JSON number. Two answers stay as they were: the three Grok Bot task routes answer 401, because the credential is checked first and holds the task id, and an image address answers 404, because its id is part of a storage key.
 - Every call needs the owner's session or an agent token, except the session check, the first-run setup, the sign-in, the password reset and the three Grok Bot task routes, which take the task's own callback credential.
 - The owner's session alone calls `/api/settings`, `/api/tokens`, `/api/password`, the sign-out, a Read state change, a Highlight and a Note.
 - The MCP endpoint `/mcp` offers `search`, `read` and `add` to an agent token, and cannot write a Highlight, a Note or a Read state.

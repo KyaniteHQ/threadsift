@@ -13,7 +13,7 @@ import { readItemPage } from "../../../http/item-read.ts";
 import { itemView } from "../../../http/item-view.ts";
 import { jsonBody, scopeNote, scopeRefusal } from "../../../http/openapi.ts";
 import { notFound } from "../../../http/refusals.ts";
-import { IdParamSchema, ItemQuerySchema } from "../../../http/route-input.ts";
+import { ID_REFUSAL, IdParamSchema, ItemQuerySchema } from "../../../http/route-input.ts";
 import { retryDigest } from "../../digest/core/digest-retry.ts";
 import { getListedItem } from "../core/item-selection.ts";
 
@@ -40,6 +40,7 @@ const getItemStatusRoute = createRoute({
   middleware: access("read"),
   request: { params: IdParamSchema },
   responses: {
+    ...ID_REFUSAL,
     200: jsonBody(
       ItemResponseSchema,
       "The Item as the list shows it, without its post text and posted date. Poll this until `status` leaves `processing`.",
@@ -57,6 +58,7 @@ const retryDigestRoute = createRoute({
   description: `Queue a Digest again.${scopeNote(RETRY_DIGEST)}`,
   request: { params: IdParamSchema },
   responses: {
+    ...ID_REFUSAL,
     ...scopeRefusal(RETRY_DIGEST),
     200: jsonBody(
       ItemResponseSchema,

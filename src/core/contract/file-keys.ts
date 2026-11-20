@@ -1,3 +1,4 @@
+import { CANONICAL_NUMBER_SOURCE } from "./canonical-number.ts";
 import { IMAGE_EXTENSIONS } from "./image-type.ts";
 
 export const FILE_LIST_LIMIT = 1000;
@@ -10,7 +11,7 @@ const FOLDER_NAME_MAX = 255;
 
 const FILE_NAME_MAX = FOLDER_NAME_MAX - temporaryPrefix("0".repeat(TEMPORARY_BYTES * 2)).length;
 
-const OWNER_ID = "[1-9][0-9]{0,18}";
+const OWNER_ID = CANONICAL_NUMBER_SOURCE;
 
 const EXPORT_NAME = /^(?:(?:part|dir)-[1-9][0-9]{0,9}-[0-9]{1,10}|tail-[0-9]{1,10})$/u;
 

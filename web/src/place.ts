@@ -1,3 +1,4 @@
+import { CanonicalNumberTextSchema } from "../../src/core/contract/canonical-number.ts";
 import { itemPath } from "../../src/core/contract/item-path.ts";
 
 export type Place = { readonly kind: "highlight"; readonly id: number } | { readonly kind: "note" };
@@ -13,9 +14,9 @@ export function placePath(itemId: number, place: Readonly<Place>): string {
 
 export function arrivalPlace(): Place | null {
   const query = new URLSearchParams(window.location.search);
-  const id = Number(query.get(HIGHLIGHT));
+  const id = CanonicalNumberTextSchema.safeParse(query.get(HIGHLIGHT));
 
-  if (Number.isSafeInteger(id) && id > 0) return { kind: "highlight", id };
+  if (id.success) return { kind: "highlight", id: id.data };
 
   return query.has(NOTE) ? { kind: "note" } : null;
 }

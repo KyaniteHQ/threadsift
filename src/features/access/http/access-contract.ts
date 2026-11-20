@@ -23,7 +23,7 @@ import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import { access } from "../../../http/access.ts";
 import { codeList, jsonBody, jsonRequest, noContent } from "../../../http/openapi.ts";
 import { PASSWORD_RULE } from "../../../http/refusals.ts";
-import { IdParamSchema } from "../../../http/route-input.ts";
+import { ID_REFUSAL, IdParamSchema } from "../../../http/route-input.ts";
 
 const errorBody = (description: string) => jsonBody(ErrorResponseSchema, description);
 
@@ -167,6 +167,7 @@ export const revokeTokenRoute = createRoute({
   middleware: access("owner"),
   request: { params: IdParamSchema },
   responses: {
+    ...ID_REFUSAL,
     204: noContent("The token is revoked and its next use gets 401."),
     404: errorBody("No such token."),
   },

@@ -48,7 +48,7 @@ export const UNSUPPORTED_TASK = "unsupported-task";
 export const CREDENTIAL_REFUSALS = {
   401: jsonBody(
     ErrorResponseSchema,
-    `${CREDENTIAL_REQUIRED}: the header is missing or malformed, the task does not exist, or the credential belongs to another task or to an earlier send of this task. The answer is the same for all of them.`,
+    `${CREDENTIAL_REQUIRED}: the header is missing or malformed, the task does not exist (an \`id\` that is not a whole number counts), or the credential belongs to another task or to an earlier send of this task. The answer is the same for all of them.`,
   ),
   403: jsonBody(
     ErrorResponseSchema,

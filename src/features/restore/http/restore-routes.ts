@@ -1,5 +1,6 @@
 import { createRoute, z, type OpenAPIHono } from "@hono/zod-openapi";
 
+import { CanonicalNumberTextSchema } from "../../../core/contract/canonical-number.ts";
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import { MAX_ATTEMPTS } from "../../../core/contract/job-contract.ts";
 import {
@@ -13,13 +14,13 @@ import type { Ports } from "../../../core/kernel/ports.ts";
 import { access, PART_CAP } from "../../../http/access.ts";
 import { OWNER_SESSION_REFUSALS, jsonBody, jsonRequest, noContent } from "../../../http/openapi.ts";
 import { notFound } from "../../../http/refusals.ts";
-import { IdParamSchema } from "../../../http/route-input.ts";
+import { ID_REFUSAL, IdParamSchema } from "../../../http/route-input.ts";
 import { cancelRestore } from "../core/restore-cancel.ts";
 import { resumeRestore, startRestore } from "../core/restore-start.ts";
 import { restoreStatus } from "../core/restore-state.ts";
 import { createRestore, storePart } from "../core/restore-upload.ts";
 
-const PartParamsSchema = IdParamSchema.extend({ part: z.coerce.number().int().positive() });
+const PartParamsSchema = IdParamSchema.extend({ part: CanonicalNumberTextSchema });
 
 const OWNER_ONLY =
   " Only the owner's session may call this; an agent token gets 403, because a leaked token must not write a whole library.";
@@ -136,6 +137,7 @@ const cancelRoute = createRoute({
   middleware: access("owner"),
   request: { params: IdParamSchema },
   responses: {
+    ...ID_REFUSAL,
     202: jsonBody(
       StartedRestoreSchema.pick({ id: true }),
       `The restore was \`running\` or \`failed\` and had got past its \`check\` phase, so it is now \`cancelling\`, and jobs now delete every restored row, one bounded unit after another in the reverse of the table order, then every file under \`items/\`, and then the uploaded parts. \`GET /api/restore\` shows \`cancelled\` when the library is empty again. The ids the restore used are not reused. A restore that had written no library record answers 204 instead. A repeat while an undo runs answers 202 again. A cancel that fails ${String(MAX_ATTEMPTS)} times shows \`failed\` with \`cancelFailed\` true, and a cancel again continues it.${OWNER_ONLY}`,

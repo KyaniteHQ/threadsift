@@ -1,4 +1,4 @@
-import { createRoute, z, type OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 import type { Context } from "hono";
 
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
@@ -9,6 +9,7 @@ import { IntakeAnswerSchema, refusedBodyOf } from "../../../core/contract/x-inta
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access, RESULT_CAP, tooLarge, ITEM_CAP } from "../../../http/access.ts";
 import { jsonBody, jsonRequest, noContent } from "../../../http/openapi.ts";
+import { IdParamSchema } from "../../../http/route-input.ts";
 import { CREDENTIAL_REFUSALS, UNSUPPORTED_TASK } from "../../../http/task-credential.ts";
 import { TaskReadSchema, readableTask } from "../../bot/core/ai-task-read.ts";
 import { BotAnswerSchema, acceptBotAnswer, type AnswerOutcome } from "../../bot/core/bot-answer.ts";
@@ -19,7 +20,7 @@ const readRoute = createRoute({
   method: "get",
   path: "/api/ai-tasks/{id}",
   middleware: access("callback", { body: RESULT_CAP, cache: "no-store" }),
-  request: { params: z.object({ id: z.string() }) },
+  request: { params: IdParamSchema },
   responses: {
     200: jsonBody(
       TaskReadSchema,
@@ -42,7 +43,7 @@ const resultRoute = createRoute({
   path: "/api/ai-tasks/{id}/result",
   middleware: access("callback", { body: RESULT_CAP }),
   request: {
-    params: z.object({ id: z.string() }),
+    params: IdParamSchema,
     body: jsonRequest(BotAnswerSchema),
   },
   responses: {
@@ -67,7 +68,7 @@ const intakeRoute = createRoute({
   path: "/api/ai-tasks/{id}/intake",
   middleware: [access("callback", { body: ITEM_CAP }), countedRefusals] as const,
   request: {
-    params: z.object({ id: z.string() }),
+    params: IdParamSchema,
     body: jsonRequest(IntakeAnswerSchema),
   },
   responses: {

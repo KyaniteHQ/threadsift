@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import { SOURCES } from "./item-contract.ts";
-import { NUMBER_TEXT } from "./paging.ts";
 
 export const MERGE_KINDS = ["tag-merge", "topic-merge"] as const;
 
@@ -120,8 +119,6 @@ export const ProposalPageSchema = z
     next: z.string().nullable(),
   })
   .readonly();
-
-export const ProposalIdParamSchema = z.object({ id: z.string().regex(NUMBER_TEXT) });
 
 export const ProposalStateSchema = z.object({ state: z.enum(PROPOSAL_STATES) }).readonly();
 

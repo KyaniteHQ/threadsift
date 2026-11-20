@@ -143,8 +143,8 @@ describe("the Log is paged newest first by id", () => {
     );
   });
 
-  it("answers 400 for a cursor that is malformed, not a safe integer or over 16 digits", async () => {
-    const cursors = ["abc", "-1", "1.5", "9007199254740993", "12345678901234567", ""];
+  it("answers 400 for a cursor that is malformed, has a leading zero, is not a safe integer or is over 16 digits", async () => {
+    const cursors = ["abc", "-1", "1.5", "0", "0016", "9007199254740993", "12345678901234567", ""];
 
     const answers = await Promise.all(
       cursors.map((cursor) => instance.send("GET", `/api/log?cursor=${cursor}`)),
