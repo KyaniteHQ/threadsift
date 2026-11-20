@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
+import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
-import { BatchResponseSchema } from "../src/http/batch-schemas.ts";
-import { BudgetRefusalSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 import {
   addBatch,

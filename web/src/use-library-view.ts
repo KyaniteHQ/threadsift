@@ -1,7 +1,7 @@
 import { type RefObject, useCallback, useRef } from "react";
 
 import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { useLibrary } from "./library.ts";
 import { countsOf } from "./list-state.ts";
 import type { Route } from "./routing.ts";

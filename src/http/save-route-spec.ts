@@ -1,7 +1,9 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { WIRE_ID_MAX } from "../core/contract/comment-id.ts";
+import { ErrorResponseSchema, UnavailableResponseSchema } from "../core/contract/error-wire.ts";
 import { byteSize } from "../core/contract/format.ts";
+import { SavedItemResponseSchema } from "../core/contract/item-route-wire.ts";
 import {
   INLINE_TEXT_BYTES,
   MAX_THREAD_ANSWERS,
@@ -9,6 +11,7 @@ import {
   THREAD_CONTENT_BYTES,
   X_REPLIES_MAX,
 } from "../core/contract/limits.ts";
+import { SaveItemRequestSchema, SaveRefusalSchema } from "../core/contract/save-wire.ts";
 import { PAGE_BYTES } from "../core/contract/supplied-page.ts";
 import { DEFAULT_CAP, ITEM_CAP, access } from "./access.ts";
 import {
@@ -19,12 +22,6 @@ import {
   scopeNote,
   scopeRefusal,
 } from "./openapi.ts";
-import { SaveItemRequestSchema, SaveRefusalSchema } from "./save-schemas.ts";
-import {
-  ErrorResponseSchema,
-  SavedItemResponseSchema,
-  UnavailableResponseSchema,
-} from "./schemas.ts";
 
 const SAVE_ITEM = access("add", { body: ITEM_CAP });
 

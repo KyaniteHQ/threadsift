@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
 import type { Instance, Json } from "./instance.ts";
 
 export const KEPT_ARTICLE = "https://example.com/guides/kept-highlight";

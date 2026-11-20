@@ -5,7 +5,7 @@ import { itemFilters } from "../core/item/item-filters.ts";
 import { listItems } from "../core/item/item-selection.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { itemView } from "./item-view.ts";
-import type { ItemQuerySchema } from "./schemas.ts";
+import type { ItemQuerySchema } from "./route-input.ts";
 
 export async function readItemPage(ports: Ports, query: Readonly<z.infer<typeof ItemQuerySchema>>) {
   const { cursor = null, ...typed } = query;

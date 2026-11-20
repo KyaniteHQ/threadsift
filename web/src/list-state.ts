@@ -1,7 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { isEmptyResult } from "./filters.ts";
 import { countedWith } from "./list-counts.ts";
 import { type More, newer } from "./list-paging.ts";

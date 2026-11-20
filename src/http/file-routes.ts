@@ -1,5 +1,6 @@
 import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { FILE_ROUTE, itemFileKey } from "../core/contract/file-keys.ts";
 import { IMAGE_TYPES } from "../core/contract/image-type.ts";
 import type { Ports } from "../core/kernel/ports.ts";
@@ -7,7 +8,6 @@ import { servedImage } from "../core/media/image-serving.ts";
 import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 
 const FileParamsSchema = z.object({ id: z.string(), name: z.string() });
 

@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { Client, StreamableHTTPClientTransport } from "@modelcontextprotocol/client";
 import { z } from "zod";
 
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import type { Instance, Json } from "./instance.ts";
 
 export const MCP_URL = "http://localhost/mcp";

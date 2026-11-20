@@ -1,12 +1,7 @@
 import { z } from "zod";
 
-import { EntrySchema, parseCursor } from "../core/contract/highlights-page-contract.ts";
-import { FILTER_FIELDS, FilterCountsSchema, cursorParam } from "./schemas.ts";
-
-export const HighlightsQuerySchema = z.object({
-  ...FILTER_FIELDS,
-  cursor: cursorParam(parseCursor),
-});
+import { FilterCountsSchema } from "./filter-counts-contract.ts";
+import { EntrySchema } from "./highlights-page-contract.ts";
 
 export const HighlightsPageResponseSchema = z.object({
   entries: z.array(EntrySchema).readonly(),

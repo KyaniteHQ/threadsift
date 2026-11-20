@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
-import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import {
-  ErrorResponseSchema,
   ItemReadResponseSchema,
   SavedItemResponseSchema,
-} from "../src/http/schemas.ts";
+} from "../src/core/contract/item-route-wire.ts";
+import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { Instance, type Json } from "./instance.ts";
 import { addressOf, comment, threadOf } from "./reader-thread-fixtures.ts";
 

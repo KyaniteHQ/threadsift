@@ -3,8 +3,9 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
+import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
-import { CreatedTokenResponseSchema, ItemReadResponseSchema } from "../src/http/schemas.ts";
 import {
   accept,
   count,

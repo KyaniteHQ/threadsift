@@ -1,7 +1,8 @@
 import { groupedNumber } from "../../src/core/contract/format.ts";
+import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { spellingOf } from "../../src/core/contract/link-place.ts";
 import { repositoryRef } from "../../src/core/contract/repository-ref.ts";
-import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { GITHUB_TOPICS_LABEL, NONE_STATED, REPOSITORY_LABELS } from "./reader-text.ts";
 import { ageLabel } from "./saved-label.ts";
 

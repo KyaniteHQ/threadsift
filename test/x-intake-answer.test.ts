@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { CreatedTokenResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";

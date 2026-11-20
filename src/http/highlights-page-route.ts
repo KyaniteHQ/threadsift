@@ -1,13 +1,15 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
+import { HighlightsPageResponseSchema } from "../core/contract/highlights-page-wire.ts";
+import { SEARCH_MAX } from "../core/contract/item-contract.ts";
 import { PAGE_SIZE } from "../core/contract/paging.ts";
 import { highlightsPage } from "../core/item/highlights-page.ts";
 import { itemFilters } from "../core/item/item-filters.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
-import { HighlightsPageResponseSchema, HighlightsQuerySchema } from "./highlights-page-schemas.ts";
 import { jsonBody } from "./openapi.ts";
-import { ErrorResponseSchema, SEARCH_MAX } from "./schemas.ts";
+import { HighlightsQuerySchema } from "./route-input.ts";
 
 const listHighlightsRoute = createRoute({
   method: "get",

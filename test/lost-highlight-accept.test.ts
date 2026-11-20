@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { HighlightsPageResponseSchema } from "../src/http/highlights-page-schemas.ts";
+import { HighlightsPageResponseSchema } from "../src/core/contract/highlights-page-wire.ts";
 import { Instance } from "./instance.ts";
 import {
   highlightStatus,

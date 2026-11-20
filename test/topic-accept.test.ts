@@ -3,8 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
-import { CreatedTokenResponseSchema, ItemReadResponseSchema } from "../src/http/schemas.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { seedLogEntries } from "./pin-fixtures.ts";
@@ -25,13 +25,11 @@ const JsonTopicSchema = z.object({ topic: z.string() });
 
 const byNumber = (first: number, second: number): number => first - second;
 
+const ItemIdsSchema = z.object({ items: z.array(z.object({ id: z.number() })) });
+
 const itemsWithTopic = async (instance: Instance, name: string) =>
   (
-    await instance.read(
-      "GET",
-      `/api/items?topic=${encodeURIComponent(name)}`,
-      ItemReadResponseSchema,
-    )
+    await instance.read("GET", `/api/items?topic=${encodeURIComponent(name)}`, ItemIdsSchema)
   ).items.map(({ id }) => id);
 
 const CatalogVersionSchema = z.object({ version: z.number() });

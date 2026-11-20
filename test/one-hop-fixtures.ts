@@ -2,7 +2,7 @@ import { DatabaseSync } from "node:sqlite";
 
 import { z } from "zod";
 
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance, type Json } from "./instance.ts";
 
 export const DIGEST = {

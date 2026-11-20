@@ -1,6 +1,7 @@
 import type { CommentCount, UnfilteredCause } from "../../src/core/contract/comment-view.ts";
 import { collapsed, groupedNumber } from "../../src/core/contract/format.ts";
 import type { Source } from "../../src/core/contract/item-contract.ts";
+import { NOTE_MAX_CODE_POINTS } from "../../src/core/contract/note-contract.ts";
 import { UNTITLED } from "../../src/core/contract/reader-text.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/contract/reader-url.ts";
 import { plural } from "./plural.ts";
@@ -86,7 +87,7 @@ export const KEEP_STALE =
 export const NOTE_SAVE = "Save";
 export const NOTE_SAVED = "Saved";
 export const NOTE_FAILED = "Couldn’t save this note. Your text is still here. Try again.";
-export const NOTE_TOO_LONG = "This note is over the limit of 10,000 characters.";
+export const NOTE_TOO_LONG = `This note is over the limit of ${groupedNumber(NOTE_MAX_CODE_POINTS)} characters.`;
 export const NOTE_CHANGED = "This note changed somewhere else. The newer version follows.";
 export const NOTE_NEWER_EMPTY = "The newer version is empty.";
 export const NOTE_KEEP_MINE = "Keep mine";

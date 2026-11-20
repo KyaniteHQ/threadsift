@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ItemDetailResponseSchema } from "../src/http/schemas.ts";
+import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
 import { type Agents, connectBoth, createAgentToken, sameAsRest } from "./mcp-client.ts";
 import { SECRET_KEY, exec, pairsOf, paste, rows } from "./related-fixtures.ts";

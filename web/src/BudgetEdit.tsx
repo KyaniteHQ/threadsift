@@ -1,6 +1,6 @@
 import { useCallback, useId } from "react";
 
-import type { Token } from "../../src/http/schemas.ts";
+import type { Token } from "../../src/core/contract/access-wire.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import { BudgetField, useBudgetField } from "./BudgetField.tsx";

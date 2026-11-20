@@ -2,6 +2,7 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import { completeOpenRouterConnect } from "../core/ai/openrouter-callback.ts";
 import { startOpenRouterConnect } from "../core/ai/openrouter-connect.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import {
   CONNECT_CALLBACK_PATH,
   CONNECT_START_PATH,
@@ -12,7 +13,6 @@ import {
 import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 import { senderOf } from "./sender.ts";
 import { sessionIdOf } from "./session-cookie.ts";
 

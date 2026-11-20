@@ -2,11 +2,12 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { CATALOG_KEY_MAX } from "../src/core/contract/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { TopicIndexSchema } from "../src/core/contract/topic-index-contract.ts";
 import { topicApiPath } from "../src/core/contract/topic-path.ts";
-import { CreatedTokenResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";
 
 const SENTENCE =

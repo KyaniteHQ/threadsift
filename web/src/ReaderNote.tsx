@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { noteOf, offersFetchRetry } from "./paste-card.ts";
 import { NOTICES, RETRY_LABEL, failureTitleOf } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";

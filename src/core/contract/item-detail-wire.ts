@@ -1,13 +1,13 @@
 import { z } from "zod";
 
-import { CommentsViewSchema } from "../core/contract/comment-view.ts";
-import { ReaderDigestSchema } from "../core/contract/digest-schema.ts";
-import { HighlightsViewSchema } from "../core/contract/highlight-contract.ts";
-import { NoteViewSchema } from "../core/contract/note-contract.ts";
-import { RelatedSchema } from "../core/contract/related-contract.ts";
-import { withShownStatus } from "../core/contract/shown-status.ts";
+import { CommentsViewSchema } from "./comment-view.ts";
+import { ReaderDigestSchema } from "./digest-schema.ts";
+import { HighlightsViewSchema } from "./highlight-contract.ts";
 import { SizedImageSchema } from "./item-image.ts";
 import { HttpUrlSchema, ItemBaseSchema } from "./item-wire.ts";
+import { NoteViewSchema } from "./note-contract.ts";
+import { RelatedSchema } from "./related-contract.ts";
+import { withShownStatus } from "./shown-status.ts";
 
 const RepositorySchema = z.object({
   description: z.string().nullable(),
@@ -32,3 +32,5 @@ export const ItemDetailSchema = withShownStatus(
     related: RelatedSchema,
   }),
 );
+
+export type ItemDetail = z.infer<typeof ItemDetailSchema>;

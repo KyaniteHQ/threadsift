@@ -1,11 +1,11 @@
 import { useCallback, useState } from "react";
 
+import { TOKEN_NAME_MAX, type Token } from "../../src/core/contract/access-wire.ts";
 import {
   DEFAULT_SCOPES,
   SCOPES,
   type Scope,
 } from "../../src/core/contract/agent-token-contract.ts";
-import { TOKEN_NAME_MAX, type Token } from "../../src/http/schemas.ts";
 import { createToken } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { BudgetField, DEFAULT_BUDGET_TEXT, useBudgetField } from "./BudgetField.tsx";

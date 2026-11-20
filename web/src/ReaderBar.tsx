@@ -1,6 +1,6 @@
 import { type RefObject, useEffect, useRef } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import type { BarStep } from "./bar-fit.ts";
 import { Icon } from "./Icon.tsx";
 import { leaveOf } from "./reader-text.ts";

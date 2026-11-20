@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { useAfter } from "./use-form.ts";
 import { waitText } from "./wait-text.ts";
 

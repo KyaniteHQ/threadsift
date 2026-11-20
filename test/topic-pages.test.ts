@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/contract/topic-path.ts";
-import { CreatedTokenResponseSchema, SavedItemResponseSchema } from "../src/http/schemas.ts";
 import { Instance, type Json } from "./instance.ts";
 
 function digestFor(topic: string, title: string, summary: string): Json {

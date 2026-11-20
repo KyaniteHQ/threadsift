@@ -1,6 +1,6 @@
+import { BatchResponseSchema } from "../../src/core/contract/batch-wire.ts";
 import { type ImportState, ImportStateSchema } from "../../src/core/contract/import-contract.ts";
 import type { ImportRequest } from "../../src/core/contract/import-list.ts";
-import { BatchResponseSchema } from "../../src/http/batch-schemas.ts";
 import { call, parsedBody, parsedOrNull, post } from "./calls.ts";
 import { isRestoring } from "./unavailable.ts";
 import { IMPORT_BATCH_DEADLINE_MS } from "./write-deadlines.ts";

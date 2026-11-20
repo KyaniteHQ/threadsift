@@ -1,5 +1,5 @@
 import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import type { SaveTarget } from "./api.ts";
 import { Brand } from "./Brand.tsx";
 import type { Choice, Filters } from "./filters.ts";

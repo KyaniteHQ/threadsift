@@ -2,7 +2,7 @@ import { type RefObject, useCallback, useState } from "react";
 import { flushSync } from "react-dom";
 
 import type { ReadState } from "../../src/core/contract/item-contract.ts";
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import {
   type SaveTarget,
   type SaveResult,

@@ -1,7 +1,7 @@
 import type { ZodType } from "zod";
 
 import { BUDGET_SPENT, type Scope } from "../core/contract/agent-token-contract.ts";
-import { BudgetRefusalSchema, ErrorResponseSchema } from "./schemas.ts";
+import { BudgetRefusalSchema, ErrorResponseSchema } from "../core/contract/error-wire.ts";
 
 export const PASTE_DIGEST_SCOPE = " A body with a `digest` needs the `digest` scope as well.";
 

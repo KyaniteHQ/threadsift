@@ -6,8 +6,11 @@ import { setTimeout as delay } from "node:timers/promises";
 import type { z } from "zod";
 
 import { tick } from "../src/core/compose/tick.ts";
+import {
+  ItemDetailResponseSchema,
+  ItemResponseSchema,
+} from "../src/core/contract/item-route-wire.ts";
 import { createApp } from "../src/http/app.ts";
-import { ItemDetailResponseSchema, ItemResponseSchema } from "../src/http/schemas.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { nodeEnvironment } from "../src/targets/node/environment.ts";
 import { startNode } from "../src/targets/node/ports.ts";

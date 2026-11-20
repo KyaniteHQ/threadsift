@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
 
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { fetcherFile } from "./fetcher-record.ts";
 import { Instance } from "./instance.ts";
 

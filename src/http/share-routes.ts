@@ -1,6 +1,7 @@
 import type { OpenAPIHono } from "@hono/zod-openapi";
 
 import { refreshedOf } from "../core/contract/fetch-results.ts";
+import { SaveItemRequestSchema } from "../core/contract/save-wire.ts";
 import {
   SHARE_PATH,
   type ShareArrival,
@@ -11,7 +12,6 @@ import { type SharedContent, sharedContentOf } from "../core/contract/shared-lin
 import type { Ports } from "../core/kernel/ports.ts";
 import { pasteLink } from "../core/paste/paste.ts";
 import { access } from "./access.ts";
-import { SaveItemRequestSchema } from "./save-schemas.ts";
 import { fieldsOf } from "./share-fields.ts";
 import { isTrustedShare } from "./share-trust.ts";
 

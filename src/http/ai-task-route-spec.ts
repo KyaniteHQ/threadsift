@@ -2,10 +2,10 @@ import { createRoute, z } from "@hono/zod-openapi";
 
 import { TaskReadSchema } from "../core/bot/ai-task-read.ts";
 import { BotAnswerSchema } from "../core/bot/bot-answer.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { ERROR_TEXT_MAX } from "../core/contract/grok-bot-contract.ts";
 import { access, RESULT_CAP, tooLarge } from "./access.ts";
 import { jsonBody, jsonRequest, noContent } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 import { CREDENTIAL_REFUSALS, UNSUPPORTED_TASK } from "./task-credential.ts";
 
 export const readRoute = createRoute({

@@ -1,4 +1,5 @@
 import { groupedNumber } from "../../src/core/contract/format.ts";
+import { MAX_ATTEMPTS } from "../../src/core/contract/job-contract.ts";
 import type {
   RestoreErrorCode,
   RestoreFailure,
@@ -80,14 +81,11 @@ const REFUSAL_TEXT = {
     "The Vault mirror is finishing a write. Wait a moment and choose the same zip again to start the Restore.",
 } as const satisfies Record<RestoreErrorCode, string>;
 
-const GAVE_UP =
-  "The Restore stopped because a step failed 3 times. Some records are already restored. Resume continues from the last finished step, and Cancel removes them.";
+const GAVE_UP = `The Restore stopped because a step failed ${String(MAX_ATTEMPTS)} times. Some records are already restored. Resume continues from the last finished step, and Cancel removes them.`;
 
-const CANCEL_STOPPED =
-  "The Cancel stopped because a step failed 3 times. Some restored records are still in the library. Cancel again removes them from where it stopped.";
+const CANCEL_STOPPED = `The Cancel stopped because a step failed ${String(MAX_ATTEMPTS)} times. Some restored records are still in the library. Cancel again removes them from where it stopped.`;
 
-const GAVE_UP_NO_ZIP =
-  "The Restore stopped because a step failed 3 times. Some records are already restored, and the Export zip is no longer on the Instance. Cancel removes the restored records so you can choose the zip again.";
+const GAVE_UP_NO_ZIP = `The Restore stopped because a step failed ${String(MAX_ATTEMPTS)} times. Some records are already restored, and the Export zip is no longer on the Instance. Cancel removes the restored records so you can choose the zip again.`;
 
 export function refusalLabel(code: RestoreErrorCode): string {
   return REFUSAL_TEXT[code];

@@ -1,12 +1,12 @@
 import type { CallToolResult } from "@modelcontextprotocol/server";
 import type { z } from "zod";
 
-import { logFailure } from "../core/kernel/failure-log.ts";
 import type {
   ItemDetailResponseSchema,
   ItemReadResponseSchema,
   SavedItemResponseSchema,
-} from "./schemas.ts";
+} from "../core/contract/item-route-wire.ts";
+import { logFailure } from "../core/kernel/failure-log.ts";
 
 type Structured =
   | z.infer<typeof ItemReadResponseSchema>

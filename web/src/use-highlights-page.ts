@@ -1,6 +1,6 @@
 import { useCallback } from "react";
 
-import type { HighlightsPage } from "../../src/http/highlights-page-schemas.ts";
+import type { HighlightsPage } from "../../src/core/contract/highlights-page-wire.ts";
 import { fetchHighlightsPage } from "./api.ts";
 import type { Filters } from "./filters.ts";
 import { type Paged, type PagedReady, usePagedRead } from "./use-paged-read.ts";

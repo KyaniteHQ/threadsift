@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { SavedItemResponseSchema, CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance, type Json } from "./instance.ts";
 import { SECRET_KEY } from "./related-fixtures.ts";
 import { xClient } from "./x-thread-client.ts";

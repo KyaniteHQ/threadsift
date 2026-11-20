@@ -7,13 +7,13 @@ import {
 } from "../src/core/contract/ai-settings-contract.ts";
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
 import { DigestSchema } from "../src/core/contract/digest-schema.ts";
-import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
-import { topicApiPath } from "../src/core/contract/topic-path.ts";
 import {
   ItemDetailResponseSchema,
   ItemResponseSchema,
   SavedItemResponseSchema,
-} from "../src/http/schemas.ts";
+} from "../src/core/contract/item-route-wire.ts";
+import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
+import { topicApiPath } from "../src/core/contract/topic-path.ts";
 import { digestStates, digestedTopic, itemIdle, overviewText, relatedOf } from "./live-reads.ts";
 import { savedXThreadThroughIntake } from "./x-live-flow.ts";
 

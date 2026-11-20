@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { fetchItems, fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
 import { useMore } from "./list-more.ts";

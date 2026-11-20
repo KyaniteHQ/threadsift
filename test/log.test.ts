@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { Instance } from "./instance.ts";
 import { lines, paste, readLog, seedEntries } from "./log-fixtures.ts";
 import { rows } from "./related-fixtures.ts";

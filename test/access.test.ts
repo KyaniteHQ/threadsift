@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { SessionStateSchema } from "../src/http/schemas.ts";
+import { SessionStateSchema } from "../src/core/contract/access-wire.ts";
 import { Instance, PASSWORD, SETUP_CODE } from "./instance.ts";
 
 const WRONG_SETUP_CODE = "a-wrong-setup-code-of-sixteen";

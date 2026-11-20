@@ -1,6 +1,6 @@
 import { useContext, useEffect, useId, useRef } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { FieldVoiceContext } from "./FieldAnnouncer.tsx";
 import { Icon } from "./Icon.tsx";
 import { PasteCard, announcementsOf, type faceOf } from "./PasteCard.tsx";

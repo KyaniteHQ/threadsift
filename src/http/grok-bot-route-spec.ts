@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import { SETTINGS_CHANGED } from "../core/contract/ai-contract.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { groupedNumber } from "../core/contract/format.ts";
 import {
   GrokBotInUseSchema,
@@ -14,7 +15,6 @@ import { SECRET_INPUT_MAX } from "../core/contract/secret-input.ts";
 import { SECOND_MS } from "../core/contract/time-units.ts";
 import { access } from "./access.ts";
 import { jsonBody, jsonRequest } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 
 export const readRoute = createRoute({
   method: "get",

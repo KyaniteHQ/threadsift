@@ -1,9 +1,12 @@
 import type { ZodType } from "zod";
 
+import type {
+  ChangeBudgetRequest,
+  CreateTokenRequest,
+} from "../../src/core/contract/access-wire.ts";
 import { within } from "../../src/core/contract/deadline.ts";
 import type { CreateHighlightRequest } from "../../src/core/contract/highlight-contract.ts";
 import type { ImportRequest } from "../../src/core/contract/import-list.ts";
-import type { ChangeBudgetRequest, CreateTokenRequest } from "../../src/http/schemas.ts";
 
 let unauthorized: (() => void) | null = null;
 

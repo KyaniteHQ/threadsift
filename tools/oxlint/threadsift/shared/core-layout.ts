@@ -5,7 +5,14 @@ import { z } from "zod";
 
 import { REPOSITORY_ROOT } from "./bindings.ts";
 
-export type MessageId = "higher" | "hidden" | "browser" | "unplaced" | "computed";
+export type MessageId =
+  | "higher"
+  | "hidden"
+  | "browser"
+  | "server"
+  | "unplaced"
+  | "computed"
+  | "computedServer";
 
 export interface Violation {
   messageId: MessageId;
@@ -23,6 +30,7 @@ const CORE = "src/core/";
 const CONTRACT = "contract";
 const TEST_SIDE_ROOTS = ["test/", "tools/", "smoke/"];
 const BROWSER_ROOTS = ["web/", "extension/", "design/"];
+export const SERVER_ROOTS = ["src/http/", "src/targets/"];
 const EXTENSION_ROOT = "extension";
 const EXTENSION_ALIAS = /^(?:@@?|~~?)\//u;
 
@@ -102,10 +110,14 @@ function isOpenTo(importer: string, { folder, name }: Place): boolean {
   return (layout.entries[folder] ?? []).includes(name) || testEntries.includes(name);
 }
 
+export function isBrowserSide(importer: string): boolean {
+  return BROWSER_ROOTS.some((root) => importer.startsWith(root));
+}
+
 function violationOutsideCore(importer: string, target: string, to: Place): Violation | null {
   const data = { importer, target, to: to.folder };
 
-  if (BROWSER_ROOTS.some((root) => importer.startsWith(root))) {
+  if (isBrowserSide(importer)) {
     return to.folder === CONTRACT ? null : { messageId: "browser", data };
   }
 
@@ -129,10 +141,20 @@ function violationInsideCore(
   return isOpenTo(importer, to) ? null : { messageId: "hidden", data };
 }
 
+export function isServerPath(path: string): boolean {
+  return SERVER_ROOTS.some((root) => `${path}/`.startsWith(root));
+}
+
+function violationOutsideSrcCore(importer: string, target: string): Violation | null {
+  return isServerPath(target) && isBrowserSide(importer)
+    ? { messageId: "server", data: { importer, target } }
+    : null;
+}
+
 export function violationOf(importer: string, target: string): Violation | null {
   const to = placeOf(target);
 
-  if (to === null) return null;
+  if (to === null) return violationOutsideSrcCore(importer, target);
 
   const from = placeOf(importer);
 

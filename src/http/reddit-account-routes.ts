@@ -2,6 +2,7 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import type { BlankEnv } from "hono/types";
 
 import type { Scope } from "../core/contract/agent-token-contract.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { groupedNumber } from "../core/contract/format.ts";
 import {
   REDDIT_SESSION_MAX,
@@ -20,7 +21,6 @@ import {
 } from "../core/reddit/reddit-account.ts";
 import { type Gate, access } from "./access.ts";
 import { jsonBody, jsonRequest, scopeNote, scopeRefusal } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 
 const SETTINGS_PATH = "/api/settings/reddit-account";
 

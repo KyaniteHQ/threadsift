@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { SavedItemResponseSchema } from "../src/http/schemas.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
 import { Instance } from "./instance.ts";
 import { ownPrivateHostName } from "./own-host-name.ts";

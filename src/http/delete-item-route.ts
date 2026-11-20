@@ -1,11 +1,12 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import { deleteItem } from "../core/compose/delete-item.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { access } from "./access.ts";
 import { jsonBody, noContent, scopeNote, scopeRefusal } from "./openapi.ts";
 import { notFound } from "./refusals.ts";
-import { ErrorResponseSchema, IdParamSchema } from "./schemas.ts";
+import { IdParamSchema } from "./route-input.ts";
 
 const DELETE_ITEM = access("delete");
 

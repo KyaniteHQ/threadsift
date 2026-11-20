@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
 import { Instance } from "./instance.ts";
 import { writingAfterTheFirstRead } from "./interrupted-database.ts";
 import { proposalRows, readPage } from "./lost-highlight-fixtures.ts";

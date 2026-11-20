@@ -1,8 +1,12 @@
-import type {
-  RedditAccountView,
-  RedditVerifyResult,
+import { groupedNumber } from "../../src/core/contract/format.ts";
+import {
+  REDDIT_SESSION_MAX,
+  type RedditAccountView,
+  type RedditVerifyResult,
 } from "../../src/core/contract/reddit-account-contract.ts";
 import type { RedditConnectState } from "../../src/core/contract/reddit-relay-contract.ts";
+import { REQUEST_DEADLINE_MS } from "../../src/core/contract/request-waits.ts";
+import { SECOND_MS } from "../../src/core/contract/time-units.ts";
 import { AI_TEXT } from "./ai-text.ts";
 
 export const REDDIT_ACCOUNT_GUIDE_URL =
@@ -36,15 +40,14 @@ export const REDDIT_ACCOUNT_TEXT = {
   pasteLead:
     "Pasting the cookie by hand is the other way to connect when the Extension is not available.",
   valueNeeded: "Enter a session cookie to connect.",
-  invalidValue:
-    "Enter 1 to 4,096 characters using only letters, digits and . _ ~ + / = % -, with no spaces, semicolons or line breaks.",
+  invalidValue: `Enter 1 to ${groupedNumber(REDDIT_SESSION_MAX)} characters using only letters, digits and . _ ~ + / = % -, with no spaces, semicolons or line breaks.`,
   resultOk: "Reddit accepted the session.",
   resultLoggedOut: "Reddit says the session is logged out. Connect again with a new value.",
   resultBlocked:
     "Reddit refused this request, which does not by itself mean the session is dead. Try again later.",
   resultLimited: "Reddit is limiting requests, so try again in a few minutes.",
   resultUnreachable: "Reddit did not answer. Try again.",
-  resultTimeout: "Reddit did not answer in 15 seconds. Try again.",
+  resultTimeout: `Reddit did not answer in ${String(REQUEST_DEADLINE_MS / SECOND_MS)} seconds. Try again.`,
   resultNotConfigured: "Connect a Reddit account first, then press Verify.",
   connectExtension: "Connect with the Extension",
   connectingExtension: "Connecting with the Extension…",

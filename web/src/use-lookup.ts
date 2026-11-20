@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { lookUp } from "./item-reads.ts";
 import type { ListState } from "./list-state.ts";
 import type { Route } from "./routing.ts";

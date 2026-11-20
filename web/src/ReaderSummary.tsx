@@ -1,5 +1,6 @@
+import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { KEY_POINTS_LABEL, SUMMARY_LABEL } from "../../src/core/contract/reader-text.ts";
-import type { Item, ItemDetail } from "../../src/http/schemas.ts";
 import { keyed } from "./keyed.ts";
 import { tagHue } from "./tag-hue.ts";
 import { TopicLink } from "./TopicLink.tsx";

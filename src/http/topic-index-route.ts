@@ -2,13 +2,13 @@ import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 import { z } from "zod";
 
 import { CATALOG_KEY_MAX } from "../core/contract/catalog-key-limit.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { PAGE_SIZE } from "../core/contract/paging.ts";
 import { TopicIndexSchema } from "../core/contract/topic-index-contract.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { readTopicIndex } from "../core/wiki/topic-index.ts";
 import { access } from "./access.ts";
 import { jsonBody } from "./openapi.ts";
-import { ErrorResponseSchema } from "./schemas.ts";
 
 const IndexQuerySchema = z.object({ cursor: z.string().max(CATALOG_KEY_MAX).optional() });
 

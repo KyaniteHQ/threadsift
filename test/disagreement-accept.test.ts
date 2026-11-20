@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import {
   disagreementRows,
   proposeDisagreement,

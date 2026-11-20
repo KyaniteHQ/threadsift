@@ -3,7 +3,7 @@ import { after, before, beforeEach, describe, it, mock } from "node:test";
 
 import { z } from "zod";
 
-import { CreatedTokenResponseSchema } from "../src/http/schemas.ts";
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import {
   type BotLibrary,
   SECRET_KEY,

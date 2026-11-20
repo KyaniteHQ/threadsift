@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useId, useRef } from "react";
 
-import type { Token } from "../../src/http/schemas.ts";
+import type { Token } from "../../src/core/contract/access-wire.ts";
 import { SETTINGS } from "./access-text.ts";
 import { BudgetEdit } from "./BudgetEdit.tsx";
 import { ageLabel } from "./saved-label.ts";

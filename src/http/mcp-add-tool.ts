@@ -6,13 +6,13 @@ import {
 import { z } from "zod";
 
 import { pasteScopes } from "../core/contract/agent-token-contract.ts";
+import { SavedItemResponseSchema } from "../core/contract/item-route-wire.ts";
+import { SaveItemRequestSchema } from "../core/contract/save-wire.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { refusalOf } from "../core/paste/paste-refusal.ts";
 import { pasteLink } from "../core/paste/paste.ts";
 import { savedView } from "./item-view.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
-import { SaveItemRequestSchema } from "./save-schemas.ts";
-import { SavedItemResponseSchema } from "./schemas.ts";
 
 const AddInputSchema = SaveItemRequestSchema.pick({ url: true, digest: true });
 

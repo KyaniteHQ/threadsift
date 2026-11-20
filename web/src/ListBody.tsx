@@ -1,6 +1,6 @@
 import { type RefObject, memo, useEffect, useRef } from "react";
 
-import type { Item } from "../../src/http/schemas.ts";
+import type { Item } from "../../src/core/contract/item-wire.ts";
 import { isEmptyResult } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";

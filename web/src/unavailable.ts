@@ -1,4 +1,4 @@
-import { UnavailableResponseSchema } from "../../src/http/schemas.ts";
+import { UnavailableResponseSchema } from "../../src/core/contract/error-wire.ts";
 import { parsedBody } from "./calls.ts";
 
 export async function isRestoring(response: Response): Promise<boolean> {
