@@ -29,7 +29,7 @@ COPY package.json ./
 COPY src src
 COPY migrations migrations
 COPY --from=web-build /app/dist/web dist/web
-RUN mkdir -p /data/cli /data/claude /data/codex /data/grok && chmod 700 /data/codex /data/grok && chown -R node:node /data
+RUN mkdir -p /data/cli /data/claude /data/codex /data/grok && chmod 700 /data/codex /data/grok && chown -R node:node /data && ln -s /data /app/.data
 VOLUME /data
 USER node
 EXPOSE 8080

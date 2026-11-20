@@ -57,7 +57,7 @@ The code is cut into folders that import each other in one direction, and the po
 
 ## How a target builds its ports
 
-Both targets turn their variables into `Ports` with the same two functions. `settingsOf` (`src/targets/shared/settings.ts`) reads the five variables both targets share (`SettingVariables`) and returns `Settings`. `portsOf` (`src/targets/shared/ports.ts`) takes `Settings` and the target's own adapters (`TargetAdapters`) and returns `Ports`: it seals the secret key, passes `nodeCrypto`, checks the public origin (`publicOriginOf`, `src/targets/shared/public-origin.ts`) and fills `Ports.config` and `Ports.ai`. The container copies the values it reads from `process.env` once through `nodeEnvironment` (`src/targets/node/environment.ts`), which takes the names of the shared variables from `settingVariablesOf` (`src/targets/shared/settings.ts`), and `startNode` (`src/targets/node/ports.ts`) passes the result on. The Worker's `Env` extends `SettingVariables` and `workerAdapters` (`src/targets/worker/ports.ts`) builds its adapters from the bindings, so the name of a shared variable exists once.
+Both targets turn their variables into `Ports` with the same two functions. `settingsOf` (`src/targets/shared/settings.ts`) reads the five variables both targets share (`SettingVariables`, which `settingVariablesOf` takes from `process.env` or from `Env`) and returns `Settings`. `portsOf` (`src/targets/shared/ports.ts`) takes `Settings` and the target's own adapters (`TargetAdapters`) and returns `Ports`: it seals the secret key, passes `nodeCrypto`, checks the public origin (`publicOriginOf`, `src/targets/shared/public-origin.ts`) and fills `Ports.config` and `Ports.ai`. The container copies the values it reads from `process.env` once through `nodeEnvironment` (`src/targets/node/environment.ts`), which takes the names of the shared variables from `settingVariablesOf` (`src/targets/shared/settings.ts`), and `startNode` (`src/targets/node/ports.ts`) passes the result on. The Worker's `Env` extends `SettingVariables` and `workerAdapters` (`src/targets/worker/ports.ts`) builds its adapters from the bindings, so the name of a shared variable exists once.
 
 - **A new shared setting** is a name in `SETTING_NAMES` (the keys of `SettingVariables`, which `nodeEnvironment` copies from `process.env`), a field in `Settings` and a line in `settingsOf`. When the core reads it, it is also a field of `InstanceConfig` (`src/core/contract/instance-config.ts`), and `portsOf` forwards it. A setting only the container reads goes in `nodeEnvironment`, and one only the Worker reads goes in `Env` and `workerAdapters`.
 - **`Ports.config`** holds `setupCode`, `resetCode` and `publicOrigin`, plain values and not ports. The core reads them as `ports.config.setupCode` and so on.
@@ -67,19 +67,9 @@ Both targets turn their variables into `Ports` with the same two functions. `set
 
 ### Empty variables
 
-`unsetWhenEmpty` (`src/targets/shared/settings.ts`) makes an empty value unset. `settingsOf`, `nodeEnvironment`, the Worker's `apiApp` and `tools/provider-comparison-providers.ts` call it, and they call it for exactly the variables in the first table. The variables in the second table do not use it, and an empty value does what the table says. The two tables list a difference between variables that is kept as it is, so a change to either table changes behaviour.
+A variable that Threadsift reads (`SETTING_NAMES` and the ones `nodeEnvironment` lists) and that is set to the empty string counts as unset: its default applies, or the setting is absent. Each variable goes through one step.
 
-| Variable | Empty value |
-|---|---|
-| `SETUP_CODE`, `PASSWORD_RESET_CODE`, `CLAUDE_CONFIG_DIR`, `CLAUDE_CODE_OAUTH_TOKEN`, `CODEX_HOME` | unset |
-| `THREADSIFT_PUBLIC_ORIGIN` | unset, so `publicOrigin` is `null`; a value of spaces is an error |
+- **Container.** `nodeEnvironment` (`src/targets/node/environment.ts`) drops every empty entry of `process.env`, so an empty `PORT` is `8080`, an empty `DATA_DIR` is the `.data` folder in the repository root (in the image, a link to `/data`), and an empty `GROK_HOME` or `THREADSIFT_FETCHERS` is absent. The five shared variables go through `settingVariablesOf` instead.
+- **Worker.** `settingVariablesOf` (`src/targets/shared/settings.ts`) applies `unsetWhenEmpty` to the five shared variables, and the Worker reads them, `PASSWORD_RESET_CODE` included, only through it.
 
-| Variable | Empty value |
-|---|---|
-| `THREADSIFT_FETCHERS` | no plug-in is loaded, as for a value of spaces (`loadFetchers`) |
-| `THREADSIFT_SECRET_KEY` | no secrets, because it is not 64 hex digits |
-| `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` | a `ZodError`; only `true` and `false` are valid, and unset means `false` |
-| `GROK_HOME` | kept, so the auth file is `auth.json` in the working folder |
-| `DATA_DIR` | kept, so the data folder is the working folder |
-| `PORT` | `0`, so the container listens on a free port |
-| `PATH` | kept, and it finds no CLI binary |
+`tools/provider-comparison-providers.ts` calls `unsetWhenEmpty` for the Claude Code and Codex variables it reads. A nonempty `THREADSIFT_PUBLIC_ORIGIN` of spaces, or a nonempty `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` other than `true` or `false`, is still an error, a `ZodError` for the second.
