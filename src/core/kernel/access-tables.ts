@@ -33,10 +33,9 @@ export const agentTokens = sqliteTable("agent_tokens", {
   digest: text("digest").notNull().unique(),
   createdAt: integer("created_at").notNull(),
   lastUsedAt: integer("last_used_at"),
-  scopes: text("scopes", { mode: "json" })
-    .$type<readonly string[]>()
+  scopes: text("scopes")
     .notNull()
-    .default([...STORED_DEFAULT_SCOPES]),
+    .default(JSON.stringify([...STORED_DEFAULT_SCOPES])),
   dailyBudget: integer("daily_budget"),
 });
 

@@ -7,6 +7,8 @@ import {
   DEFAULT_TOKEN_BUDGET,
 } from "../../../core/contract/agent-token-contract.ts";
 import { digestOf, randomSecret } from "../../../core/contract/encoding.ts";
+import { report } from "../../../core/kernel/failure-log.ts";
+import { parsedJson } from "../../../core/kernel/parsed-json.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { type AgentTokenRow, agentTokens } from "../../../core/kernel/schema.ts";
 import { budgetOf, tokenItemsToday } from "./agent-token-budget.ts";
@@ -31,15 +33,23 @@ const summary = {
 
 type SummaryRow = Omit<AgentTokenRow, "digest"> & { readonly added: number };
 
+function scopesOf(tokenId: number, stored: AgentTokenRow["scopes"]): readonly Scope[] {
+  const scopes = parsedJson(ScopeListSchema, stored);
+
+  if (scopes !== null) return scopes;
+
+  report("token-scopes-unreadable", { tokenId });
+
+  return [];
+}
+
 function summaryOf(
   { dailyBudget, added, ...row }: Readonly<SummaryRow>,
   now: number,
 ): TokenSummary {
-  const scopes = ScopeListSchema.safeParse(row.scopes);
-
   return {
     ...row,
-    scopes: scopes.success ? scopes.data : [],
+    scopes: scopesOf(row.id, row.scopes),
     budget: budgetOf(dailyBudget, added, now),
   };
 }
@@ -64,7 +74,7 @@ export async function createToken(
       name,
       digest: digestOf(ports.crypto, value),
       createdAt: Date.now(),
-      scopes: [...new Set(scopes)],
+      scopes: JSON.stringify([...new Set(scopes)]),
       dailyBudget,
     })
     .returning(summary);
@@ -152,5 +162,5 @@ export async function verifyToken(ports: Ports, value: string): Promise<Verified
       );
   }
 
-  return { id: row.id, name: row.name, scopes: ScopeListSchema.parse(row.scopes) };
+  return { id: row.id, name: row.name, scopes: scopesOf(row.id, row.scopes) };
 }
