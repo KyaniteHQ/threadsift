@@ -26,7 +26,28 @@ export const BuiltFromSchema = z
 
 export type BuiltFrom = z.infer<typeof BuiltFromSchema>;
 
-const CITATION = /\[(\d{1,19})\]/gu;
+const CITED_ID = String.raw`\d{1,19}`;
+
+const CITATION = new RegExp(String.raw`\[(${CITED_ID})\]`, "gu");
+
+const CITATION_TOKEN = new RegExp(String.raw`(\[${CITED_ID}\])`, "u");
+
+const CITATION_ALONE = new RegExp(String.raw`^\[(${CITED_ID})\]$`, "u");
+
+const CITATION_WITH_SPACE = new RegExp(String.raw`\s*\[${CITED_ID}\]`, "gu");
+
+const SOURCED_LINE = new RegExp(String.raw`^(.*?\S)\s*((?:\[${CITED_ID}\])+)$`, "u");
+
+export interface OverviewLine {
+  readonly text: string;
+  readonly items: readonly number[];
+}
+
+export function overviewText({ lines }: Readonly<{ lines: readonly Readonly<OverviewLine>[] }>) {
+  return lines
+    .map(({ text, items }) => `${text} ${items.map((id) => `[${String(id)}]`).join("")}`)
+    .join("\n");
+}
 
 export function citedIds(text: string): readonly number[] {
   return [...new Set([...text.matchAll(CITATION)].map(([, id = ""]) => Number(id)))].filter(
@@ -34,9 +55,23 @@ export function citedIds(text: string): readonly number[] {
   );
 }
 
+export function overviewTokens(line: string): readonly string[] {
+  return line.split(CITATION_TOKEN);
+}
+
+export function citationId(token: string): number | null {
+  const id = CITATION_ALONE.exec(token)?.[1];
+
+  return id === undefined ? null : Number(id);
+}
+
 const LINE_BREAK = /\r\n|\r|\n/u;
 
-const CITATION_WITH_SPACE = /\s*\[\d{1,19}\]/gu;
+export function sourcedLine(row: string): Readonly<OverviewLine> | null {
+  const [, text = "", sources = ""] = SOURCED_LINE.exec(row.trim()) ?? [];
+
+  return text === "" ? null : { text, items: citedIds(sources) };
+}
 
 export function overviewLines(text: string): readonly string[] {
   return text.split(LINE_BREAK).filter((line) => line.trim() !== "");

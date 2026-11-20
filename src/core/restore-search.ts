@@ -12,15 +12,8 @@ import {
 } from "./restore-contract.ts";
 import { snapshotted, steppedUnit } from "./restore-unit.ts";
 import { type RestoreRow, digests, githubRepos, itemTags, items, tags } from "./schema.ts";
-import {
-  commentPartWrites,
-  digestPartWrites,
-  fetchedPartWrites,
-  highlightPartWrites,
-  notePartWrites,
-  repositoryPartWrites,
-  repositoryText,
-} from "./search.ts";
+import { rebuiltPartWrites } from "./search-parts.ts";
+import { repositoryText } from "./search.ts";
 import { keptBodies, keptCommentIds } from "./thread-selection.ts";
 
 function tagNamesOfItem() {
@@ -71,17 +64,8 @@ async function restoredPartWrites(
       ? []
       : await keptBodies(db, { itemId: row.id, generation: row.digestGeneration });
 
-  const writes = [
-    ...fetchedPartWrites(db, scope, postText),
-    ...digestPartWrites(db, scope),
-    ...commentPartWrites(db, scope, comments),
-    ...repositoryPartWrites(db, scope),
-    ...highlightPartWrites(db, scope),
-    ...notePartWrites(db, scope),
-  ];
-
   return {
-    writes,
+    writes: rebuiltPartWrites(db, scope, { postText, comments }),
     commentBytes: comments.reduce((sum, body) => sum + utf8Length(body), 0),
   };
 }

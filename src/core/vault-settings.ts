@@ -12,7 +12,7 @@ import {
 } from "./vault-contract.ts";
 import { VaultFailure, refusalReason } from "./vault-failure.ts";
 import { vaultGithub } from "./vault-github.ts";
-import { queueVaultLibrary } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 import { VAULT_CLOCK, vaultFolderIdleAt, vaultIdleAt } from "./vault-state.ts";
 import { mirrorFiles, mirrorNotes, vaultDestination, vaultSettings } from "./vault-tables.ts";
 
@@ -117,7 +117,7 @@ export async function saveVaultSettings(ports: VaultPorts, input: Readonly<Vault
           scanPending: true,
         },
       }),
-    ...queueVaultLibrary(db),
+    ...STALE.library(db),
   ]);
   return saved ? readVaultSettings(ports) : refused("vault-busy");
 }

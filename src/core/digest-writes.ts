@@ -8,7 +8,7 @@ import { providerSet } from "./provider-saved.ts";
 import { digests, items } from "./schema.ts";
 import { commentPartWrites, digestPartWrites } from "./search.ts";
 import { selectionWrites } from "./thread-selection.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 interface KeptSelection {
   readonly ids: readonly string[];
@@ -42,6 +42,6 @@ export function digestWrites(db: Database, { stored, entries, kept }: Readonly<D
     ...commentPartWrites(db, eq(items.id, itemId), kept.bodies),
     db.update(items).set({ pendingDigest: null }).where(eq(items.id, itemId)),
     markDigest(db, itemId, "cleared"),
-    queueVaultItems(db, eq(items.id, itemId)),
+    ...STALE.itemChanged(db, eq(items.id, itemId)),
   ];
 }

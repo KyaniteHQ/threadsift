@@ -4,7 +4,7 @@ import type { Database } from "./database.ts";
 import type { ReadState } from "./item-contract.ts";
 import { LISTED_COLUMNS, type ListedItemRow, selectItems } from "./item-selection.ts";
 import { items } from "./schema.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 export async function setReadState(
   db: Database,
@@ -14,7 +14,7 @@ export async function setReadState(
   const itemId = eq(items.id, id);
   const changed = sql`${itemId} and ${items.readState} <> ${readState}`;
   const [, , [item]] = await db.batch([
-    queueVaultItems(db, changed),
+    ...STALE.itemChanged(db, changed),
     db.update(items).set({ readState }).where(changed),
     selectItems(db, LISTED_COLUMNS).where(itemId),
   ]);

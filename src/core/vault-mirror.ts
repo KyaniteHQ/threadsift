@@ -42,13 +42,7 @@ async function publish(
     files: batch.files,
     current,
   });
-  await acknowledgeVault(ports.db, {
-    lease,
-    pending: batch.complete,
-    files: batch.progress,
-    oversized: batch.oversized,
-    logMonthsChanged: batch.logMonthsChanged,
-  });
+  await acknowledgeVault(ports.db, lease, batch);
 }
 
 async function publishCurrent(input: Drain, pending: readonly PendingVaultNote[]): Promise<void> {

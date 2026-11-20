@@ -7,13 +7,9 @@ import { loggedVaultFile } from "./log-writes.ts";
 import { HOLDS_LIBRARY } from "./restore-hold.ts";
 import { restoreRuns } from "./schema.ts";
 import { among } from "./sql-expressions.ts";
-import {
-  type PendingVaultNote,
-  parkedUntil,
-  queueVaultLibrary,
-  queueVaultLog,
-  queueVaultNotes,
-} from "./vault-queue.ts";
+import type { VaultBatch } from "./vault-files.ts";
+import { type PendingVaultNote, parkedUntil, queueVaultNotes } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 import {
   mirrorFiles,
   mirrorNotes,
@@ -128,7 +124,7 @@ export async function seedVaultInventory(
   subjects: readonly VaultSubject[],
 ): Promise<void> {
   await guardedBatch(db, activeVault(lease), [
-    ...(lease.wikiPending ? queueVaultLibrary(db) : []),
+    ...(lease.wikiPending ? STALE.library(db) : []),
     queueVaultNotes(db, {
       kind: sql`json_extract(remote.value, '$.kind')`,
       id: sql`json_extract(remote.value, '$.subjectId')`,
@@ -182,15 +178,14 @@ function fileWrites(
 
 export async function acknowledgeVault(
   db: Database,
-  input: Readonly<{
-    lease: VaultLease;
-    pending: readonly PendingVaultNote[];
-    files: readonly VaultProgress[];
-    oversized: readonly string[];
-    logMonthsChanged: boolean;
-  }>,
+  lease: VaultLease,
+  {
+    complete: pending,
+    progress: files,
+    oversized,
+    logMonthsChanged,
+  }: Readonly<Pick<VaultBatch, "complete" | "progress" | "oversized" | "logMonthsChanged">>,
 ): Promise<void> {
-  const { lease, pending, files, oversized, logMonthsChanged } = input;
   const held = sql`exists (select 1 from ${vaultSettings} where ${vaultHolding(lease)})`;
   const sameSettings = sql`exists (select 1 from ${vaultSettings} where ${sameVaultTarget(lease)})`;
   await db.batch([
@@ -212,7 +207,7 @@ export async function acknowledgeVault(
         ),
     ),
     ...oversized.flatMap((path) => loggedVaultFile(db, "vault-file-skipped", path, held)),
-    ...(logMonthsChanged ? [queueVaultLog(db, held)] : []),
+    ...(logMonthsChanged ? STALE.monthNoteListed(db, held) : []),
   ]);
 }
 

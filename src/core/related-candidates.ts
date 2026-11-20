@@ -2,18 +2,12 @@ import { asc, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { digests, searchParts } from "./schema.ts";
-import type { SearchPartKind } from "./search-tables.ts";
+import { PART_GROUPS } from "./search-part-groups.ts";
 import { searchTerms } from "./search-terms.ts";
 
 const TERMS_MAX = 12;
 
 const CANDIDATES_MAX = 20;
-
-const MATCHING_PARTS = [
-  "digest-title",
-  "summary",
-  "tags",
-] as const satisfies readonly SearchPartKind[];
 
 export function relatedTerms({
   title,
@@ -28,7 +22,7 @@ function scoredParts(sourceId: number, terms: readonly string[]) {
   const query = terms.map((term) => `"${term}"`).join(" OR ");
 
   const kinds = sql.join(
-    MATCHING_PARTS.map((kind) => sql`${kind}`),
+    PART_GROUPS.digest.map((kind) => sql`${kind}`),
     sql`, `,
   );
 

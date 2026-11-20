@@ -26,6 +26,7 @@ import {
   searchParts,
   tags,
 } from "./schema.ts";
+import { PART_GROUPS } from "./search-part-groups.ts";
 import type { SearchPartKind } from "./search-tables.ts";
 import { jsonArrays } from "./thread-rows.ts";
 
@@ -33,12 +34,6 @@ export const siblingTags = alias(itemTags, "sibling");
 
 const CHUNK_UNITS = 125_000;
 const CHUNK_TRIGGER_BYTES = 500_000;
-
-const DIGEST_KINDS = [
-  "digest-title",
-  "summary",
-  "tags",
-] as const satisfies readonly SearchPartKind[];
 
 function lastSeparatorBefore(text: string, limit: number): number {
   for (let at = limit; at > 0; at -= 1) {
@@ -139,13 +134,13 @@ export function fetchedPartWrites(
   scope: Readonly<SQLWrapper>,
   postText: string | null | undefined,
 ): readonly BatchItem<"sqlite">[] {
-  const title = [replacing(db, scope, ["title"]), titlePart(db, scope)];
+  const title = [replacing(db, scope, PART_GROUPS.title), titlePart(db, scope)];
 
   if (postText === undefined) return title;
 
   return [
     ...title,
-    replacing(db, scope, ["post-text"]),
+    replacing(db, scope, PART_GROUPS.postText),
     ...(postText === null ? [] : chunkPostText(postText)).map((chunk) =>
       chunkPart(db, scope, chunk),
     ),
@@ -198,7 +193,7 @@ export function commentPartWrites(
   const parts = bodies.flatMap((body) => chunkPostText(body)).map((part) => JSON.stringify(part));
 
   return [
-    replacing(db, scope, ["comment"]),
+    replacing(db, scope, PART_GROUPS.comments),
     ...jsonArrays(parts).map((json) => commentPartInsert(db, scope, json)),
   ];
 }
@@ -207,7 +202,7 @@ export function tagPartWrites(
   db: Database,
   scope: Readonly<SQLWrapper>,
 ): readonly BatchItem<"sqlite">[] {
-  return [replacing(db, scope, ["tags"]), tagsPart(db, scope)];
+  return [replacing(db, scope, PART_GROUPS.tags), tagsPart(db, scope)];
 }
 
 export function digestPartWrites(
@@ -215,7 +210,7 @@ export function digestPartWrites(
   scope: Readonly<SQLWrapper>,
 ): readonly BatchItem<"sqlite">[] {
   return [
-    replacing(db, scope, DIGEST_KINDS),
+    replacing(db, scope, PART_GROUPS.digest),
     digestFieldPart(db, scope, "digest-title"),
     digestFieldPart(db, scope, "summary"),
     tagsPart(db, scope),
@@ -241,7 +236,7 @@ export function highlightPartWrites(db: Database, scope: Readonly<SQLWrapper>) {
       .where(
         and(
           inArray(searchParts.itemId, owners),
-          eq(searchParts.kind, "highlight"),
+          eq(searchParts.kind, PART_GROUPS.highlights[0]),
           notExists(current),
         ),
       ),
@@ -258,7 +253,7 @@ export function highlightPartWrites(db: Database, scope: Readonly<SQLWrapper>) {
 
 export function notePartWrites(db: Database, scope: Readonly<SQLWrapper>) {
   return [
-    replacing(db, scope, ["note"]),
+    replacing(db, scope, PART_GROUPS.notes),
     db.insert(searchParts).select(
       db
         .select(partOf("note", notes.body))
@@ -278,7 +273,7 @@ export function repositoryPartWrites(
   scope: Readonly<SQLWrapper>,
 ): readonly BatchItem<"sqlite">[] {
   return [
-    replacing(db, scope, ["repository"]),
+    replacing(db, scope, PART_GROUPS.repository),
     db.insert(searchParts).select(
       db
         .select(partOf("repository", repositoryText()))

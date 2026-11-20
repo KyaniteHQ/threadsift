@@ -2,11 +2,11 @@ import { eq, sql } from "drizzle-orm";
 
 import type { Database } from "./database.ts";
 import { loggedOverview } from "./log-writes.ts";
-import { topicPages, topics } from "./schema.ts";
+import { topicPages } from "./schema.ts";
 import { overviewLine } from "./topic-overview-contract.ts";
 import type { OverviewBasis, OverviewSent } from "./topic-overview-input.ts";
 import { continuingOverview, overviewStored } from "./topic-overview-run.ts";
-import { queueVaultIndex, queueVaultTopics } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 function revisedPage(
   topicId: number,
@@ -57,11 +57,11 @@ export async function storedPage(
         added: prompt.included.length,
         removed: read.removed.length,
       }),
-      ...(overview === previous ? [] : [queueVaultTopics(db, eq(topics.id, topicId))]),
+      ...(overview === previous ? [] : STALE.overviewText(db, topicId)),
       ...((overview === null ? null : overviewLine(overview)) ===
       (previous === null ? null : overviewLine(previous))
         ? []
-        : [queueVaultIndex(db, sql`1`)]),
+        : STALE.overviewLine(db)),
     ],
     continuation: [continuingOverview(db, topicId, sql`1`)],
   };

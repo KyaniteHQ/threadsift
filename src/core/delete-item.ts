@@ -1,4 +1,4 @@
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { logFailure } from "./failure-log.ts";
 import { itemFilesPrefix } from "./file-keys.ts";
@@ -6,26 +6,8 @@ import { listedKeys } from "./file-pages.ts";
 import type { FileStore } from "./file-store.ts";
 import type { Ports } from "./ports.ts";
 import { goneWithItem } from "./proposal-lifecycle.ts";
-import {
-  aiTasks,
-  digests,
-  githubRepos,
-  highlights,
-  itemAliases,
-  itemTags,
-  items,
-  jobs,
-  logEntries,
-  media,
-  notes,
-  pins,
-  redditComments,
-  redditThreads,
-  relatedItems,
-  searchParts,
-  xVerifications,
-} from "./schema.ts";
-import { queueVaultItemDeletion } from "./vault-wiki-writes.ts";
+import { items } from "./schema.ts";
+import { STALE } from "./vault-stale.ts";
 
 async function deleteFilesQuietly(files: FileStore, itemId: number): Promise<void> {
   try {
@@ -48,24 +30,8 @@ export async function deleteItem(
   id: number,
 ): Promise<boolean> {
   const results = await db.batch([
-    ...queueVaultItemDeletion(db, id),
-    db.delete(redditComments).where(eq(redditComments.itemId, id)),
-    db.delete(redditThreads).where(eq(redditThreads.itemId, id)),
-    db.delete(githubRepos).where(eq(githubRepos.itemId, id)),
-    db.delete(xVerifications).where(eq(xVerifications.itemId, id)),
-    db.delete(searchParts).where(eq(searchParts.itemId, id)),
+    ...STALE.itemDeleted(db, id),
     ...goneWithItem(db, id),
-    db.delete(pins).where(or(eq(pins.fromItemId, id), eq(pins.intoItemId, id))),
-    db.delete(highlights).where(eq(highlights.itemId, id)),
-    db.delete(media).where(eq(media.itemId, id)),
-    db.delete(notes).where(eq(notes.itemId, id)),
-    db.delete(relatedItems).where(or(eq(relatedItems.itemId, id), eq(relatedItems.relatedId, id))),
-    db.delete(logEntries).where(eq(logEntries.itemId, id)),
-    db.delete(itemTags).where(eq(itemTags.itemId, id)),
-    db.delete(itemAliases).where(eq(itemAliases.itemId, id)),
-    db.delete(digests).where(eq(digests.itemId, id)),
-    db.delete(aiTasks).where(eq(aiTasks.itemId, id)),
-    db.delete(jobs).where(eq(jobs.itemId, id)),
     db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
   ]);
 

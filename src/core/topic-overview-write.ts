@@ -6,8 +6,9 @@ import { guardedOutcome } from "./guarded-outcome.ts";
 import type { SettledOutcome } from "./job-outcome.ts";
 import { inputsHold, removedItemIds, uncoveredCount } from "./topic-coverage.ts";
 import type { OverviewContext } from "./topic-overview-context.ts";
+import { overviewText } from "./topic-overview-contract.ts";
 import type { OverviewBasis, OverviewSent } from "./topic-overview-input.ts";
-import { type OverviewResult, overviewText } from "./topic-overview-task.ts";
+import type { OverviewResult } from "./topic-overview-task.ts";
 import { storedPage } from "./topic-page-store.ts";
 
 export function idleOutcome(

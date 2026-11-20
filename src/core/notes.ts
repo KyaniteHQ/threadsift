@@ -5,7 +5,7 @@ import { guardedBatch } from "./guards.ts";
 import { type NoteView, type SaveNoteRequest, storedNoteBody } from "./note-contract.ts";
 import { items, notes } from "./schema.ts";
 import { notePartWrites } from "./search.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 type SavedNote =
   | { readonly kind: "saved" | "stale"; readonly note: NoteView }
@@ -46,7 +46,7 @@ export async function saveNote(
   const next: NoteView = { body: storedNoteBody(body), revision: revision + 1 };
   const changed = sql`(select ${notes.body} from ${notes} where ${notes.itemId} = ${itemId}) is not ${next.body}`;
   const written = await guardedBatch(db, revisionHolds(itemId, revision), [
-    queueVaultItems(db, sql`${item} and ${changed}`),
+    ...STALE.itemChanged(db, sql`${item} and ${changed}`),
     noteUpsert(db, itemId, next),
     ...notePartWrites(db, item),
   ]);

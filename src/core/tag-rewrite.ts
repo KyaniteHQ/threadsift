@@ -17,7 +17,7 @@ import type { Side } from "./merge-unit.ts";
 import { digests, items, itemTags } from "./schema.ts";
 import { siblingTags, tagPartWrites } from "./search.ts";
 import { among } from "./sql-expressions.ts";
-import { queueVaultItems } from "./vault-queue.ts";
+import { STALE } from "./vault-stale.ts";
 
 export const REWRITE_UNIT_ITEMS = 100;
 
@@ -143,7 +143,7 @@ export async function readRewrite(
     last: itemIds.at(-1) ?? 0,
     moving: sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${from.id} and ${unchanged(itemTags.itemId)})`,
     writes: [
-      queueVaultItems(
+      ...STALE.itemChanged(
         db,
         sql`${among(
           items.id,
