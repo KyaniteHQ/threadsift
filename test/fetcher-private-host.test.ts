@@ -7,7 +7,7 @@ import { fetcherFile, recordOf } from "./fetcher-record.ts";
 import { Instance } from "./instance.ts";
 import { ownPrivateHostName } from "./own-host-name.ts";
 
-const MODULE = fetcherFile("claims-every-address.mts");
+const MODULE = fetcherFile("private-host.mts");
 
 describe("a link whose host resolves only to addresses the Instance may not reach is refused before any plug-in is asked", () => {
   let instance: Instance;

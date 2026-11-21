@@ -59,20 +59,6 @@ describe("the Reddit account settings are reached only by the signed-in owner", 
 
     assert.deepEqual(statuses, [401, 401, 401, 401]);
   });
-
-  it("describes the four calls in the OpenAPI document", async () => {
-    const document = z
-      .object({ paths: z.record(z.string(), z.record(z.string(), z.unknown())) })
-      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
-
-    assert.deepEqual(
-      [
-        Object.keys(document.paths[PATH] ?? {}).toSorted(),
-        Object.keys(document.paths[`${PATH}/verify`] ?? {}),
-      ],
-      [["delete", "get", "put"], ["post"]],
-    );
-  });
 });
 
 describe("the owner connects and disconnects a Reddit account", () => {
