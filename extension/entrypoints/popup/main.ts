@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 
 import { applyLook, button, element, replaceControls, say } from "../../lib/page-look.ts";
+import { SAVE_PORT } from "../../lib/ports.ts";
 import {
   type RedditView,
   loadReddit,
@@ -11,7 +12,7 @@ import {
   redditTone,
 } from "../../lib/reddit-setting.ts";
 import { SAVE_STATE_FACTS, opensItem } from "../../lib/save-state-facts.ts";
-import { SAVE_PORT, type SaveState, SaveStateSchema, ask } from "../../lib/state.ts";
+import { type SaveState, SaveStateSchema, ask } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
 
 const SAVE_DEADLINE_MS = 240_000;

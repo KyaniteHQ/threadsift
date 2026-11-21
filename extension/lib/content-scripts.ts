@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 
-import { REDDIT_HOSTS, hasRedditAccess, hostPattern } from "./config.ts";
-import { fillWanted, loadConfig } from "./credentials.ts";
+import { REDDIT_HOSTS, holdsInstanceAccess, hostPattern } from "./config.ts";
+import { fillActive, loadConfig } from "./credentials.ts";
 import { logFailure } from "./log.ts";
 import { oneAtATime } from "./one-at-a-time.ts";
 
@@ -12,7 +12,7 @@ interface Script {
 }
 
 async function fillMatches(): Promise<readonly string[] | null> {
-  return (await hasRedditAccess()) && (await fillWanted()) ? REDDIT_HOSTS : null;
+  return (await fillActive()) ? REDDIT_HOSTS : null;
 }
 
 async function relayMatches(): Promise<readonly string[] | null> {
@@ -20,9 +20,7 @@ async function relayMatches(): Promise<readonly string[] | null> {
 
   if (config === null) return null;
 
-  const matches = [hostPattern(config.origin)];
-
-  return (await browser.permissions.contains({ origins: matches })) ? matches : null;
+  return (await holdsInstanceAccess(config.origin)) ? [hostPattern(config.origin)] : null;
 }
 
 const SCRIPTS: readonly Script[] = [

@@ -24,16 +24,6 @@ export const SaveStateSchema = z.discriminatedUnion("kind", [
 
 export type SaveState = z.infer<typeof SaveStateSchema>;
 
-export const SAVE_PORT = "save";
-
-export const CONFIG_PORT = "config";
-
-export const FILL_PORT = "fill";
-
-export const SETTINGS_PORT = "settings";
-
-export const REDDIT_PORT = "reddit";
-
 export const ANSWER_DEADLINE_MS = 10_000;
 
 export const ConfigViewSchema = z.object({

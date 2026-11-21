@@ -5,7 +5,6 @@ import {
   type Candidate,
   type Posted,
   REDDIT_DEADLINE_MS,
-  RELAY_PORT,
   type RedditConnectState,
   relayAnswer,
   relayWorking,
@@ -13,6 +12,7 @@ import {
   workerAnswerState,
   workerIsWorking,
 } from "../../src/core/contract/reddit-relay-contract.ts";
+import { RELAY_PORT } from "../lib/ports.ts";
 
 function askWorker(working: () => void): Promise<RedditConnectState | null> {
   const port = browser.runtime.connect({ name: RELAY_PORT });

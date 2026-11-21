@@ -4,16 +4,9 @@ import { defineBackground } from "wxt/utils/define-background";
 import { exclusive, reconcileAccess } from "../lib/access.ts";
 import { syncScripts } from "../lib/content-scripts.ts";
 import { restrictStorage, settleFill } from "../lib/credentials.ts";
-import { cancelFills, fillOpenedThread } from "../lib/fill.ts";
+import { cancelFills } from "../lib/fill.ts";
 import { logFailure } from "../lib/log.ts";
-import { FILL_PORT } from "../lib/state.ts";
 import { servePort } from "../lib/worker-ports.ts";
-
-function fillFrom(tabId: number | undefined, frameId: number | undefined, url: string | undefined) {
-  if (tabId !== undefined && frameId === 0 && url !== undefined) {
-    void fillOpenedThread({ id: tabId, url });
-  }
-}
 
 async function followAccess(): Promise<void> {
   try {
@@ -42,19 +35,6 @@ export default defineBackground({
       void followAccess();
     });
 
-    browser.runtime.onConnect.addListener((port) => {
-      const { sender } = port;
-
-      if (sender?.id !== browser.runtime.id) return;
-
-      if (port.name === FILL_PORT) {
-        fillFrom(sender.tab?.id, sender.frameId, sender.tab?.url);
-        port.disconnect();
-
-        return;
-      }
-
-      servePort(port);
-    });
+    browser.runtime.onConnect.addListener(servePort);
   },
 });

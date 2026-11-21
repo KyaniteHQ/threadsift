@@ -1,29 +1,31 @@
 import { type Browser, browser } from "wxt/browser";
 
-import { RELAY_PORT, WORKER_WORKING } from "../../src/core/contract/reddit-relay-contract.ts";
+import { WORKER_WORKING } from "../../src/core/contract/reddit-relay-contract.ts";
 import { changeSettings } from "./change.ts";
 import type { Config } from "./config.ts";
 import { loadConfig, loadConfigView } from "./credentials.ts";
+import { fillOpenedThread } from "./fill.ts";
 import { logFailure } from "./log.ts";
-import { newestRequest } from "./newest-request.ts";
-import { connectReddit, disconnectReddit, readRedditState } from "./reddit-account.ts";
-import { SAVE_STATE_FACTS } from "./save-state-facts.ts";
-import { savePage } from "./save.ts";
 import {
   CONFIG_PORT,
+  FILL_PORT,
+  REDDIT_PORT,
+  RELAY_PORT,
+  SAVE_PORT,
+  SETTINGS_PORT,
+} from "./ports.ts";
+import { connectReddit, disconnectReddit, readRedditState } from "./reddit-account.ts";
+import { serveSave } from "./save-port.ts";
+import {
   type ChangeAnswer,
   type ConfigView,
-  REDDIT_PORT,
   type RedditAnswer,
   type RedditRequest,
   RedditRequestSchema,
-  SAVE_PORT,
-  SETTINGS_PORT,
   SettingsRequestSchema,
-  type SaveState,
 } from "./state.ts";
 
-type Answer = SaveState | ConfigView | ChangeAnswer | RedditAnswer;
+type Answer = ConfigView | ChangeAnswer | RedditAnswer;
 
 type Port = Browser.runtime.Port;
 
@@ -35,55 +37,6 @@ async function serve(port: Port, compute: () => Promise<Answer>): Promise<void> 
     logFailure(`${port.name}-answer-failed`, cause);
     port.disconnect();
   }
-}
-
-const trackSave = newestRequest();
-
-async function showBadge(text: string): Promise<void> {
-  try {
-    await browser.action.setBadgeText({ text });
-  } catch (cause) {
-    logFailure("save-badge-failed", cause);
-  }
-}
-
-// oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a browser Port holds mutable listener state, so it cannot be deeply readonly.
-async function serveSave(port: Port): Promise<void> {
-  const isNewest = trackSave();
-  void showBadge("");
-  let popupOpen = true;
-
-  port.onDisconnect.addListener(() => {
-    popupOpen = false;
-  });
-
-  let state: SaveState;
-
-  try {
-    state = await savePage();
-  } catch (cause) {
-    logFailure(`${port.name}-answer-failed`, cause);
-
-    if (popupOpen) {
-      port.disconnect();
-
-      return;
-    }
-
-    state = { kind: "failed" };
-  }
-
-  if (popupOpen) {
-    try {
-      port.postMessage(state);
-
-      return;
-    } catch (cause) {
-      logFailure(`${port.name}-answer-failed`, cause);
-    }
-  }
-
-  if (isNewest()) await showBadge(SAVE_STATE_FACTS[state.kind].badge);
 }
 
 const REDDIT_CALLS = {
@@ -114,13 +67,25 @@ async function relayed(
   return { state: await connectReddit(config) };
 }
 
+function fillFrom(tabId: number | undefined, frameId: number | undefined, url: string | undefined) {
+  if (tabId !== undefined && frameId === 0 && url !== undefined) {
+    void fillOpenedThread({ id: tabId, url });
+  }
+}
+
+const CONTENT_SCRIPT_PORTS: ReadonlySet<string> = new Set([FILL_PORT, RELAY_PORT]);
+
 function fromOwnPage(url: string | undefined): boolean {
   return URL.parse(url ?? "")?.origin === new URL(browser.runtime.getURL("/")).origin;
 }
 
 // oxlint-disable-next-line typescript/prefer-readonly-parameter-types -- a browser Port holds mutable listener state, so it cannot be deeply readonly.
 export function servePort(port: Port): void {
-  if (port.name !== RELAY_PORT && !fromOwnPage(port.sender?.url)) {
+  const { sender } = port;
+
+  if (sender?.id !== browser.runtime.id) return;
+
+  if (!CONTENT_SCRIPT_PORTS.has(port.name) && !fromOwnPage(sender.url)) {
     port.disconnect();
 
     return;
@@ -143,9 +108,13 @@ export function servePort(port: Port): void {
         void serve(port, () => reddit(RedditRequestSchema.parse(message)));
       });
       break;
+    case FILL_PORT:
+      fillFrom(sender.tab?.id, sender.frameId, sender.tab?.url);
+      port.disconnect();
+      break;
     case RELAY_PORT:
       void serve(port, () =>
-        relayed({ url: port.sender?.url, frameId: port.sender?.frameId }, () => {
+        relayed({ url: sender.url, frameId: sender.frameId }, () => {
           port.postMessage(WORKER_WORKING);
         }),
       );

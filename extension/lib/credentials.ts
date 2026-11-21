@@ -34,8 +34,12 @@ export async function restrictStorage(): Promise<void> {
   }
 }
 
-export async function fillWanted(): Promise<boolean> {
+async function fillWanted(): Promise<boolean> {
   return (await stored()).fill === true;
+}
+
+export async function fillActive(): Promise<boolean> {
+  return (await hasRedditAccess()) && (await fillWanted());
 }
 
 export async function settleFill(): Promise<void> {
@@ -59,6 +63,6 @@ export async function loadConfigView(): Promise<ConfigView> {
   return {
     origin: instanceOrigin(instance ?? ""),
     hasToken: token !== undefined && token !== "",
-    fill: (await fillWanted()) && (await hasRedditAccess()),
+    fill: await fillActive(),
   };
 }

@@ -2,14 +2,13 @@ import { browser } from "wxt/browser";
 
 import { hostPattern, instanceOrigin, requestAccess } from "./config.ts";
 import { logFailure } from "./log.ts";
+import { CONFIG_PORT, SETTINGS_PORT } from "./ports.ts";
 import {
   ANSWER_DEADLINE_MS,
-  CONFIG_PORT,
   type ChangeAnswer,
   ChangeAnswerSchema,
   type ConfigView,
   ConfigViewSchema,
-  SETTINGS_PORT,
   type SettingsRequest,
   ask,
 } from "./state.ts";
