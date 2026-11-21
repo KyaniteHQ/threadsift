@@ -7,7 +7,6 @@ import { Instance } from "./instance.ts";
 import {
   DIGEST,
   LINKED,
-  redditAddressOf,
   commentsOf,
   postOf,
   SECRET_KEY,
@@ -18,6 +17,7 @@ import {
   warningsDuring,
   withoutComments,
 } from "./one-hop-fixtures.ts";
+import { redditAddressOf } from "./reader-thread-fixtures.ts";
 import { saveProvider } from "./related-fixtures.ts";
 
 describe("a Reddit post that links to a page stores one candidate link for the Digest", () => {

@@ -106,6 +106,8 @@ export type RestoreFailure = (typeof RESTORE_FAILURES)[number];
 
 export const CountsSchema = z.record(z.string(), WholeCount).readonly();
 
+export type Counts = z.infer<typeof CountsSchema>;
+
 const EntrySchema = z.object({ table: z.string(), start: WholeCount, size: WholeCount }).readonly();
 
 export const CursorSchema = z

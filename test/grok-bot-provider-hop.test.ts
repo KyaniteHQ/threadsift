@@ -6,13 +6,13 @@ import { Instance } from "./instance.ts";
 import {
   LINKED,
   SECRET_KEY,
-  redditAddressOf,
   hopResults,
   seedGithubCooldown,
   toolsOf,
   warningsDuring,
   withoutComments,
 } from "./one-hop-fixtures.ts";
+import { redditAddressOf } from "./reader-thread-fixtures.ts";
 import { until } from "./related-fixtures.ts";
 
 describe("the linked-page hop of a Digest runs when Grok Bot is the Provider", () => {

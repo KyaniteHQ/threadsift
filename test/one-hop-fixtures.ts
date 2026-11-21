@@ -6,8 +6,6 @@ import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts
 import { Instance, type Json } from "./instance.ts";
 import { redditAddressOf, listing, postListing } from "./reader-thread-fixtures.ts";
 
-export { redditAddressOf, redditAddressOf as addressOf };
-
 export const DIGEST = {
   title: "A linked page",
   topic: "Links",

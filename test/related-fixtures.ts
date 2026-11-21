@@ -143,7 +143,10 @@ export const catalogVersion = (instance: Instance): number =>
   ).version;
 
 export function count(instance: Instance, query: string, ...params: readonly (string | number)[]) {
-  return CountSchema.parse(rows(instance, CountSchema, query, ...params)[0]).n;
+  const [row] = rows(instance, CountSchema, query, ...params);
+  if (row === undefined) throw new Error("The count query returned no row");
+
+  return row.n;
 }
 
 export function rows<Schema extends z.ZodType>(

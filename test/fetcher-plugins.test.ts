@@ -10,7 +10,7 @@ import {
 } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
-import { Instance, type Json } from "./instance.ts";
+import { Instance, type Json, SETTLE_DEADLINE_MS } from "./instance.ts";
 
 interface Supplied {
   readonly page?: Json;
@@ -134,20 +134,24 @@ describe("a self-hoster's fetcher plug-in reads the links it claims, and only th
   });
 
   it("reads a page of 89,000 short lines in one paragraph as an Article", async () => {
+    const started = Date.now();
     const reader = await pasted("https://first.test/one-paragraph", {
       page: { markdown: ONE_PARAGRAPH, title: "One paragraph" },
     });
 
+    assert.equal(Date.now() - started < SETTLE_DEADLINE_MS, true);
     assert.equal(reader.fetch, "ok");
     assert.equal(reader.kind, "article");
     assert.equal(reader.postText === ONE_PARAGRAPH, true);
   });
 
   it("reads a page that is one paragraph of links, images, closing and stray delimiters as an Article", async () => {
+    const started = Date.now();
     const reader = await pasted("https://first.test/one-paragraph-of-delimiters", {
       page: { markdown: ONE_PARAGRAPH_OF_DELIMITERS, title: "One paragraph of delimiters" },
     });
 
+    assert.equal(Date.now() - started < SETTLE_DEADLINE_MS, true);
     assert.equal(reader.fetch, "ok");
     assert.equal(reader.kind, "article");
     assert.equal(reader.postText === ONE_PARAGRAPH_OF_DELIMITERS, true);

@@ -79,7 +79,7 @@ describe("a Restore that failed and still holds the library refuses a second upl
     const status = await instance.read("GET", "/api/restore", RestoreStatusSchema);
 
     assert.equal(status.state, "uploading");
-    assert.equal(status.id, started.id);
+    assert.deepEqual([started.id, status.id], [2, 2]);
   });
 });
 

@@ -6,7 +6,8 @@ import { z } from "zod";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { inOrder } from "./grok-bot-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { redditAddressOf, hopThreadOf, toolsOf } from "./one-hop-fixtures.ts";
+import { hopThreadOf, toolsOf } from "./one-hop-fixtures.ts";
+import { redditAddressOf } from "./reader-thread-fixtures.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
 const STRANDED = 45;

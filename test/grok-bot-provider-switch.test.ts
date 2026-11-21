@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { claimNextDue, executeClaimed } from "../src/core/compose/jobs.ts";
-import { VerifyResultSchema } from "../src/core/contract/ai-settings-contract.ts";
 import {
   type BotLibrary,
   answerOf,
@@ -16,11 +15,13 @@ import {
 import { answered } from "./bot-task-http.ts";
 import { startedTask } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
-import { sentVerifyTask, waitingIntake } from "./grok-bot-provider-fixtures.ts";
+import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
+import type { Instance } from "./instance.ts";
 import { exec, pairsOf, saveProvider } from "./related-fixtures.ts";
+import { waitingIntake } from "./x-intake-fixtures.ts";
 
 describe("a Related pick on Grok Bot follows the lifecycle through the production runner, and a change of Provider abandons what is open", () => {
-  let instance: Awaited<ReturnType<typeof botInstance>>;
+  let instance: Instance;
   let library: BotLibrary;
 
   const firstCandidate = () => {
@@ -54,6 +55,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     const done = jobRow(instance, job.id);
 
     assert.deepEqual([done.state, done.attempts], ["done", 2]);
+    assert.equal(rowCount(instance, "related_items"), 1);
     assert.deepEqual(
       pairsOf(instance, library.source).map(({ related_id }) => related_id),
       [firstCandidate()],
@@ -72,6 +74,10 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     await executeClaimed(instance.core, job);
     assert.equal(jobRow(instance, job.id).next_attempt_at, taskRow(instance, task.id).deadline);
 
+    assert.ok(jobRow(instance, job.id).next_attempt_at > Date.now() + 30 * 60_000);
+    const intakeDue = jobRow(instance, intake.job.id).next_attempt_at;
+    assert.ok(intakeDue > Date.now() + 30 * 60_000);
+
     await saveProvider(instance);
 
     for (const abandoned of [task.id, verifying.id]) {
@@ -81,6 +87,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     }
 
     assert.equal(taskRow(instance, intake.id).state, "running");
+    assert.equal(jobRow(instance, intake.job.id).next_attempt_at, intakeDue);
     assert.equal(
       jobRow(instance, intake.job.id).next_attempt_at,
       taskRow(instance, intake.id).deadline,
@@ -132,7 +139,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     const free = await instance.send("POST", "/api/settings/ai/verify");
 
     assert.equal(free.status, 200);
-    assert.deepEqual(VerifyResultSchema.parse(JSON.parse(free.body)), {
+    assert.deepEqual(JSON.parse(free.body), {
       kind: "refused",
       reason: "unreachable",
       status: null,

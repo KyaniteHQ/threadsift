@@ -10,8 +10,6 @@ import { acceptedByBot, botInstance, selectGrokBot } from "./bot-task-fixtures.t
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
-export { waitingIntake } from "./x-intake-fixtures.ts";
-
 export const VERIFY_PATH = "/api/settings/ai/verify";
 
 export const VERIFY_ANSWER = { ...DIGEST_ANSWER, keptComments: [] };
