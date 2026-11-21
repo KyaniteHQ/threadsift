@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { escapeRegExp, readRepository, readText } from "./doc-lines.ts";
 import { checkReads } from "./docs-skip-reads.ts";
+import { calledWorkflowsAndActions } from "./docs-skip-workflows.ts";
 
 const workflow = ".github/workflows/gate.yml";
 const gate = readText(workflow);
@@ -98,12 +99,10 @@ function checkWords(file: string, line: number, command: string): void {
   }
 }
 
+const workflowInputs = calledWorkflowsAndActions(workflow, files);
 const taskCommands = [
   readText("devenv.nix"),
-  gate,
-  ...[...files].flatMap((file) =>
-    file.startsWith(".github/actions/") && /\.ya?ml$/u.test(file) ? [readText(file)] : [],
-  ),
+  ...Array.from(workflowInputs, (file) => readText(file)),
 ].join("\n");
 const scripts = new Map<string, { file: string; command: string }[]>();
 for (const file of files) {
@@ -133,7 +132,7 @@ function calledScripts(command: string): string[] {
     ([, script]) => script ?? "",
   ).filter((script) => script !== "check");
 }
-const inputs = new Set<string>();
+const inputs = new Set(workflowInputs);
 const activeScripts = new Set(calledScripts(taskCommands));
 for (const name of activeScripts) {
   for (const { file, command } of scripts.get(name) ?? []) {
@@ -150,7 +149,12 @@ function requireFiles(glob: string): void {
 const sourceType = /\.[cm]?[jt]sx?$/u;
 const commandType = /\.(?:sh|sql|nix|ya?ml)$/u;
 for (const file of files) {
-  if (file.startsWith("tools/") || file === "oxlint.config.ts" || file === "pnpm-lock.yaml")
+  if (
+    file.startsWith(".github/") ||
+    file.startsWith("tools/") ||
+    file === "oxlint.config.ts" ||
+    file === "pnpm-lock.yaml"
+  )
     continue;
   if (
     sourceType.test(file) ||
@@ -213,9 +217,18 @@ for (const file of inputs) {
       !/^\s*(?:- )?(?:run|path|paths|file|uses|working-directory):/u.test(line)
     )
       return;
-    checkWords(file, i + 1, line);
+    const operands =
+      /(?:==|!=)\s*(?:"[\w./-]+"|'[\w./-]+')|(?:"[\w./-]+"|'[\w./-]+')\s*(?:==|!=)/gu;
+    const command = line
+      .replaceAll(operands, "")
+      .replaceAll(
+        /(?:^|\s)\w+=(['"])([^'"$`]*?\s[^'"$`]*)\1/gu,
+        (_assignment, _quote, value: string) => {
+          checkPath(file, i + 1, value);
+          return " ";
+        },
+      );
+    checkWords(file, i + 1, command);
   });
   discoverTools(file, executable);
-  for (const match of executable.matchAll(/(?:uses:\s*\.\/)([\w./-]+)/gu))
-    requireFiles(`${match[1]}/action.y{a,}ml`);
 }
