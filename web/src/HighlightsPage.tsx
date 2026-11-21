@@ -5,7 +5,7 @@ import type { Look } from "./use-root.ts";
 
 export function HighlightsPage({ look }: Readonly<{ look: Look }>) {
   return (
-    <div className="pg hp">
+    <div className="pg">
       <PageBar title={HIGHLIGHTS_PAGE.title} />
       <HighlightsMain look={look} />
     </div>

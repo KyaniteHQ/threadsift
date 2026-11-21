@@ -1,10 +1,11 @@
 import { useRef } from "react";
 
 import { InternalLink } from "./InternalLink.tsx";
+import { LIBRARY_PATH } from "./routing.ts";
 import { BACK_TO_LIBRARY } from "./text.ts";
 import { useFocusOnMount } from "./use-form.ts";
 
-const LIBRARY_BACK = { href: "/", label: BACK_TO_LIBRARY };
+const LIBRARY_BACK = { href: LIBRARY_PATH, label: BACK_TO_LIBRARY };
 
 export function PageBar({
   title,

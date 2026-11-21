@@ -28,7 +28,7 @@ export interface Route {
   readonly leave: () => void;
 }
 
-const LIBRARY_PATH = "/";
+export const LIBRARY_PATH = "/";
 
 const TRAVERSAL_WAIT_MS = 1000;
 

@@ -5,8 +5,8 @@ import { FormField } from "./FormField.tsx";
 import { InternalLink } from "./InternalLink.tsx";
 import { PasswordField, UsernameHint } from "./PasswordField.tsx";
 import { ResetInstructions } from "./ResetInstructions.tsx";
+import { LIBRARY_PATH } from "./routing.ts";
 import { SwapButton } from "./SwapButton.tsx";
-import { useFocusOnMount } from "./use-form.ts";
 import { useReset } from "./use-reset.ts";
 
 const CODE_INPUT = {
@@ -20,7 +20,6 @@ const CODE_INPUT = {
 export function ResetScreen({ done }: Readonly<{ done: () => void }>) {
   const { code, password, confirm, lock, visibility, alert, busy, onSubmit } = useReset(done);
   const { shown, toggle } = visibility;
-  useFocusOnMount(code.ref);
 
   return (
     <AuthShell>
@@ -52,7 +51,7 @@ export function ResetScreen({ done }: Readonly<{ done: () => void }>) {
           busy={busy}
           blocked={lock.locked}
         />
-        <InternalLink className="btn btn-plain btn-flush" to="/">
+        <InternalLink className="btn btn-plain btn-flush" to={LIBRARY_PATH}>
           {RESET.back}
         </InternalLink>
       </form>

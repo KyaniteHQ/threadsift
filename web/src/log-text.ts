@@ -41,6 +41,6 @@ export function mergeLabel(from: string, into: string): string {
   return filled("{from} into {into}", { from, into });
 }
 
-export function itemsLabel(items: number): string {
+export function logItemsLabel(items: number): string {
   return plural(items, "1 Item", "{count} Items");
 }

@@ -8,21 +8,14 @@ import { PasteCard } from "./PasteCard.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import {
   ADD_LABEL,
-  NOTICES,
+  INPUT_ERRORS,
   PASTE_LABEL,
   PASTE_PLACEHOLDER,
   SAVING_LABEL,
   SAVING_STATUS,
 } from "./text.ts";
 import { useEscape } from "./use-form.ts";
-import {
-  type PasteQueue,
-  type Save,
-  useCardFace,
-  useOpenShown,
-  usePaste,
-  usePasteRequest,
-} from "./use-paste.ts";
+import { type PasteQueue, type Save, usePaste } from "./use-paste.ts";
 
 function PasteForm({
   field,
@@ -104,15 +97,12 @@ export function PasteBox({
   queue: PasteQueue;
   open: (id: number) => void;
 }>) {
-  const paste = usePaste({ save, focusOnMount, items, open });
-  const { shown, saving, close, dismiss, retry } = paste;
+  const paste = usePaste({ save, focusOnMount, items, queue, open });
+  const { shown, face, saving, close, dismiss, retry, openShown } = paste;
 
-  const openShown = useOpenShown(paste, open);
-  const face = useCardFace(paste, items);
   const root = useRef<HTMLDivElement>(null);
   const cardId = useId();
   useEscape(dismiss, root, shown !== null);
-  usePasteRequest(queue, paste);
 
   return (
     <div ref={root} className="paste">
@@ -123,7 +113,7 @@ export function PasteBox({
         change={paste.change}
         submit={paste.submit}
         describedBy={face === null ? undefined : cardId}
-        invalid={shown?.kind === "notice" && NOTICES[shown.key].kind === "input-error"}
+        invalid={shown?.kind === "notice" && INPUT_ERRORS.has(shown.key)}
       />
       <Announcements face={face} saving={saving} />
       {shown === null || face === null ? null : (

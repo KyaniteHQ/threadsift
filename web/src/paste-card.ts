@@ -107,7 +107,7 @@ function savedFace(item: Readonly<Item>, refreshed: boolean): Face {
     ...savedLook(note, refreshed),
     title: CARD_TITLES[refreshed ? "refreshed" : "added"],
     name: item.title ?? whereOf(item),
-    note: note === null ? null : NOTICES[note].text,
+    note: note === null ? null : NOTICES[note],
     wait: null,
     itemTitle: item.title,
     alert: false,
@@ -164,12 +164,12 @@ function itemFace(item: Readonly<Item>, refreshed: boolean): Face {
   }
 }
 
-export function faceOf(shown: Readonly<Shown>, item: Readonly<Item> | undefined): Face | null {
+export function faceOf(shown: Readonly<Shown>, items: readonly Item[]): Face | null {
   if (shown.kind === "notice") {
     return {
       icon: "warn",
       tone: "tone-warn",
-      title: NOTICES[shown.key].text,
+      title: NOTICES[shown.key],
       name: null,
       note: null,
       wait: null,
@@ -179,6 +179,8 @@ export function faceOf(shown: Readonly<Shown>, item: Readonly<Item> | undefined)
       actions: "dismiss",
     };
   }
+
+  const item = items.find((each) => each.id === shown.itemId);
 
   return item === undefined ? null : itemFace(item, shown.refreshed);
 }

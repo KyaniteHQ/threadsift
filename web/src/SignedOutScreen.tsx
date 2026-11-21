@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import { LoginScreen } from "./LoginScreen.tsx";
 import { useNavigate } from "./navigate-context.ts";
 import { ResetScreen } from "./ResetScreen.tsx";
+import { LIBRARY_PATH } from "./routing.ts";
 
 export function SignedOutScreen({
   name,
@@ -17,7 +18,7 @@ export function SignedOutScreen({
 
   const resetDone = useCallback(() => {
     setJustReset(true);
-    navigate("/");
+    navigate(LIBRARY_PATH);
   }, [navigate]);
 
   return name === "reset" ? (
