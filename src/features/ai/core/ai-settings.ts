@@ -11,7 +11,7 @@ import type { Database } from "../../../core/kernel/database.ts";
 import { requeuedDigests } from "../../../core/kernel/digest-opening.ts";
 import { guardHolds, guardedBatch } from "../../../core/kernel/guards.ts";
 import type { JobWrites } from "../../../core/kernel/job-outcome.ts";
-import type { SettingsPorts } from "../../../core/kernel/ports.ts";
+import type { Ports, SettingsPorts } from "../../../core/kernel/ports.ts";
 import { settings } from "../../../core/kernel/schema.ts";
 import { type LoadedAi, type Snapshot, loadAiConfig } from "./ai-load.ts";
 import { type ModelSettingsInput, nextSettings } from "./ai-next-settings.ts";
@@ -111,8 +111,20 @@ type SavedAi =
   | { readonly kind: "provider-not-offered" }
   | BotFirst;
 
+export async function saveWithDigests(
+  ports: Pick<Ports, "db" | "jobs">,
+  guard: SQL,
+  writes: JobWrites,
+): Promise<boolean> {
+  const saved = await guardedBatch(ports.db, guard, [...writes, ...requeuedDigests(ports.db)]);
+
+  if (saved) ports.jobs.wake();
+
+  return saved;
+}
+
 export async function saveAiSettings(
-  ports: SettingsPorts,
+  ports: SettingsPorts & Pick<Ports, "jobs">,
   input: Readonly<AiSettingsInput>,
 ): Promise<SavedAi> {
   if (!providersOf(ports.ai).includes(input.provider)) return { kind: "provider-not-offered" };
@@ -121,10 +133,7 @@ export async function saveAiSettings(
 
   if ("kind" in prepared) return prepared;
 
-  const written = await guardedBatch(ports.db, prepared.guard, [
-    ...prepared.writes,
-    ...requeuedDigests(ports.db),
-  ]);
+  const written = await saveWithDigests(ports, prepared.guard, prepared.writes);
 
   if (written) return { kind: "saved", view: await readAiSettings(ports) };
 

@@ -214,6 +214,8 @@ Not verified, because no real run can make OpenRouter or the Instance behave so.
 - A malformed `THREADSIFT_PUBLIC_ORIGIN` on the Worker, a TLS-terminating proxy that rewrites `Host`, and a password reset that ends the owner's sessions before the callback.
 - The `activation-pending` path after the 45 second bound runs out. OpenRouter did not stay inactive that long in any run, and the bound has no setting.
 
+The container wake after a successful Connect is also unverified. The code opens Digest jobs and wakes the loop after the key becomes active. No end-to-end Connect run measured that wake.
+
 ## Grok Bot task runs
 
 On the owner's container Instance, all six Provider task kinds (`digest`, `topic_overview`, `related_pick`, `proposals`, `topic_proposals`, `disagreement_proposals`) ended `done` with no refusal (2026-11-18, 2026-11-19), and the X link read stored 46 of a post's 351 replies. One Grok Bot answers one Instance.

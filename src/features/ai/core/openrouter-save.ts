@@ -3,10 +3,8 @@ import { sql } from "drizzle-orm";
 import { SETTINGS_CHANGED } from "../../../core/contract/ai-contract.ts";
 import type { ConnectNotice } from "../../../core/contract/openrouter-contract.ts";
 import { CURRENT_REVISION } from "../../../core/kernel/ai-settings-revision.ts";
-import { requeuedDigests } from "../../../core/kernel/digest-opening.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
 import { guardedBatch } from "../../../core/kernel/guards.ts";
-import type { JobWrites } from "../../../core/kernel/job-outcome.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { DATABASE_NOW } from "../../../core/kernel/sql-expressions.ts";
 import { sessionIsLive } from "../../access/core/sessions.ts";
@@ -15,6 +13,7 @@ import {
   holdsSettings,
   prepareAiSettings,
   providerWrites,
+  saveWithDigests,
   storedSettings,
 } from "./ai-settings.ts";
 import type { Claimed } from "./openrouter-claim.ts";
@@ -60,13 +59,12 @@ async function committed(
   }
 }
 
-async function stillStored(
+async function openConnectedDigests(
   ports: Ports,
   row: Readonly<PreparedSave["row"]>,
-  writes: JobWrites,
 ): Promise<boolean> {
   try {
-    return await guardedBatch(ports.db, storedSettings(row), writes);
+    return await saveWithDigests(ports, storedSettings(row), []);
   } catch (error) {
     logFailure("openrouter-connect-digests-failed", {}, error);
 
@@ -81,9 +79,11 @@ async function afterActivation(
 ): Promise<ConnectNotice> {
   const active = await awaitOpenRouterActivation(ports.ai, key);
 
-  const requeued = active ? requeuedDigests(ports.db) : [];
+  const stored = active
+    ? await openConnectedDigests(ports, row)
+    : await holdsSettings(ports.db, row);
 
-  if (!(await stillStored(ports, row, requeued))) return SETTINGS_CHANGED;
+  if (!stored) return SETTINGS_CHANGED;
 
   return active ? "connected" : "activation-pending";
 }

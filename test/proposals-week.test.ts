@@ -21,41 +21,52 @@ async function seedLibrary(instance: Instance): Promise<number> {
 const MODEL_TASKS = ["proposals", "topic_proposals", "disagreement_proposals"] as const;
 
 describe("each weekly model check has its own claim", () => {
-  for (const task of MODEL_TASKS) {
-    it(`claims ${task} only with a saved Provider and a Digest, once per week`, async (t) => {
-      const instance = await Instance.start({ secretKey: SECRET_KEY });
+  let library: Instance;
+  let owner: number;
 
-      t.after(() => instance.close());
-      await instance.setUp();
-      await saveProvider(instance);
-      await nextTick(instance);
-      assert.deepEqual([claims(instance, task), jobsOf(instance, task)], [[], []]);
+  before(async () => {
+    const withoutDigest = await Instance.start({ secretKey: SECRET_KEY });
+    try {
+      await withoutDigest.setUp();
+      await paste(withoutDigest, "without-digest", { title: "No Digest", noDigest: true });
+      await saveProvider(withoutDigest);
+      await nextTick(withoutDigest);
+      for (const task of MODEL_TASKS) {
+        assert.deepEqual([claims(withoutDigest, task), jobsOf(withoutDigest, task)], [[], []]);
+      }
+    } finally {
+      await withoutDigest.close();
+    }
 
-      const library = await Instance.start({ secretKey: SECRET_KEY });
-
-      t.after(() => library.close());
-      await library.setUp();
-      const owner = await seedLibrary(library);
-
-      await nextTick(library);
+    library = await Instance.start({ secretKey: SECRET_KEY });
+    await library.setUp();
+    owner = await seedLibrary(library);
+    await nextTick(library);
+    for (const task of MODEL_TASKS) {
       assert.deepEqual([claims(library, task), jobsOf(library, task)], [[], []]);
+    }
 
-      await saveProvider(library);
-      await nextTick(library);
+    await saveProvider(library);
+    await nextTick(library);
+  });
+
+  after(() => library.close());
+
+  MODEL_TASKS.forEach((task) => {
+    it(`claims ${task} only with a saved Provider and a Digest, once per week`, async () => {
       const claimed = claims(library, task);
       const others = MODEL_TASKS.filter((other) => other !== task);
       const otherClaims = () => others.map((other) => claims(library, other));
       const untouched = otherClaims();
 
       assert.equal(claimed.length, 1);
-      for (const kind of MODEL_TASKS) {
-        assert.deepEqual(
-          jobsOf(library, kind).map(({ item_id }) => item_id),
-          [owner],
-        );
-      }
+      assert.deepEqual(
+        jobsOf(library, task).map(({ item_id }) => item_id),
+        [owner],
+      );
 
       const otherJobs = () => others.map((kind) => jobsOf(library, kind).length);
+      const priorJobs = otherJobs();
       const close = () => {
         exec(
           library,
@@ -72,7 +83,7 @@ describe("each weekly model check has its own claim", () => {
       close();
       moveClaimBack(library, task);
       await nextTick(library);
-      assert.deepEqual(otherJobs(), [1, 1]);
+      assert.deepEqual(otherJobs(), priorJobs);
       assert.equal(jobsOf(library, task).length, 2);
       assert.deepEqual(otherClaims(), untouched);
 
@@ -84,7 +95,7 @@ describe("each weekly model check has its own claim", () => {
         task,
       );
       await nextTick(library);
-      assert.deepEqual(otherJobs(), [1, 1]);
+      assert.deepEqual(otherJobs(), priorJobs);
       assert.equal(jobsOf(library, task).length, 3);
       assert.ok((claims(library, task)[0]?.last_run_at ?? Infinity) <= Date.now());
 
@@ -93,7 +104,7 @@ describe("each weekly model check has its own claim", () => {
       await nextTick(library);
       assert.equal(jobsOf(library, task).length, 4);
       assert.deepEqual(otherClaims(), untouched);
-      assert.deepEqual(otherJobs(), [1, 1]);
+      assert.deepEqual(otherJobs(), priorJobs);
 
       assert.notEqual(jobsOf(library, task).at(-1)?.state, "done");
       moveClaimBack(library, task);
@@ -102,7 +113,7 @@ describe("each weekly model check has its own claim", () => {
       assert.equal(jobsOf(library, task).length, 4);
       assert.ok((claims(library, task)[0]?.last_run_at ?? 0) > (old ?? 0));
     });
-  }
+  });
 });
 
 describe("deleting the Item that owns the weekly job", () => {

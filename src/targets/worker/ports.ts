@@ -1,5 +1,6 @@
 import { drizzle } from "drizzle-orm/d1";
 
+import { NOTHING } from "../../core/contract/nothing.ts";
 import { batchesOf } from "../../core/kernel/batches.ts";
 import type { TargetAdapters } from "../shared/ports.ts";
 import type { SettingVariables } from "../shared/settings.ts";
@@ -36,6 +37,7 @@ export function workerAdapters(env: Env): TargetAdapters {
     redditSession: workerRedditSession,
     pages: workerPageReader,
     jobs: {
+      wake: NOTHING,
       enqueue: async (jobIds: readonly number[], delayMs: number) => {
         await Promise.all(
           batchesOf(jobIds, QUEUE_BATCH_MESSAGES).map((batch) =>

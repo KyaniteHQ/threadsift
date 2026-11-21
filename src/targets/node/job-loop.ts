@@ -19,6 +19,9 @@ function reportFailure(what: string, error: Readonly<Error>): void {
 
 export class JobLoop {
   readonly queue: JobQueue = {
+    wake: () => {
+      this.wake();
+    },
     enqueue: () => {
       this.wake();
 
