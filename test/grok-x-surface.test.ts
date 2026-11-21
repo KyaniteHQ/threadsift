@@ -20,18 +20,19 @@ import {
 const listed = (...names: readonly string[]): ToolList => ({ kind: "listed", names });
 
 describe("the run surface is proven by the version and the empty local tool list", () => {
-  const LIST = JSON.stringify([{ function: { name: "grep" } }, { function: { name: "write" } }]);
+  const LIST = JSON.stringify([{ function: { name: "write" } }, { function: { name: "grep" } }]);
   const binary = { path: "/data/grok/bin/grok", size: 10, modifiedMs: 5 };
 
   it("proves only the exact proven version string", () => {
     assert.deepEqual(
       [
         isProvenVersion(PROVEN_VERSION),
-        isProvenVersion("grok 1.0.78 (abc)"),
+        isProvenVersion(PROVEN_VERSION.slice(0, -1)),
+        isProvenVersion(PROVEN_VERSION.toUpperCase()),
         isProvenVersion(`${PROVEN_VERSION} `),
         isProvenVersion(null),
       ],
-      [true, false, false, false],
+      [true, false, false, false, false],
     );
   });
 

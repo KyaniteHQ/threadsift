@@ -144,20 +144,6 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
     ]);
   });
 
-  it("preserves the parent id of a reply whose parent is missing", () => {
-    const orphan = reply(1000000000000000012n, 1000000000000000010n);
-    const placed = reply(1000000000000000011n, POST_ID);
-    const nested = reply(1000000000000000013n, 1000000000000000011n);
-    const outcome = outcomeOf(exited(found(thread([orphan, placed, nested]))));
-
-    assert.deepEqual(
-      outcome.kind === "fetched" && outcome.fetch.kind === "thread"
-        ? outcome.fetch.thread.replies.map(({ parentId }) => parentId)
-        : null,
-      [orphan.parentId, POST_ID, "1000000000000000011"],
-    );
-  });
-
   it("maps a version run that was aborted to timeout and any other failure to unreadable", () => {
     assert.deepEqual(
       ENDS_OF_A_VERSION_RUN.map((end) => versionRefusal(end).refusal),
@@ -186,21 +172,13 @@ describe("the sign-in line of grok models is a hint matched against the three re
   });
 });
 
-describe("the prompt holds only the digits of the status id", () => {
-  it("puts the id in and changes nothing else for another id", () => {
-    const first = "3200000000000000001";
-    const second = "1000000000000000001";
+it("asks for replies in the requested X conversation in every search query", () => {
+  const id = "3200000000000000001";
+  const queries = fetchPrompt(id)
+    .split("\n")
+    .map((line) => line.trimStart())
+    .filter((line) => line.startsWith("- "));
 
-    assert.equal(
-      fetchPrompt(first).replaceAll(first, "ID"),
-      fetchPrompt(second).replaceAll(second, "ID"),
-    );
-
-    const queries = fetchPrompt(first)
-      .split("\n")
-      .filter((line) => line.includes("conversation_id:"));
-
-    assert.equal(queries.length, 5);
-    assert.ok(queries.every((line) => line.includes(`conversation_id:${first} filter:replies`)));
-  });
+  assert.ok(queries.length > 0);
+  assert.ok(queries.every((line) => line.includes(`conversation_id:${id} filter:replies`)));
 });

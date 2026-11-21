@@ -93,7 +93,7 @@ describe("Grok Bot is selected as the Provider only when the Grok Bot settings c
     assert.equal(taskRows(instance).length, known);
   });
 
-  it("clears the flag when another Provider is saved, and that Provider runs", async () => {
+  it("clears the flag and lists the saved Provider when it replaces Grok Bot", async () => {
     exec(instance, "delete from grok_bot_settings");
     await saveBot(instance);
     assert.equal((await chooseGrokBot(instance)).status, 200);
