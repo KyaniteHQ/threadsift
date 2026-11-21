@@ -120,14 +120,16 @@ The `deploy` job of the gate workflow runs only on a push to `main`, after `gate
 checkout -> main still at this SHA? --no--> skip every later step
                | yes
                v
-   build web bundle -> wrangler d1 migrations apply DB --remote --env live
+   build web bundle -> try to record the current deployment
+                    -> apply migrations
                     -> wrangler deploy --env live --keep-vars
-                    -> GET /api/session, up to 11 tries, 5 s apart, until 200
+                    -> GET /api/session at the reported deploy target, up to 11 tries, 5 s apart, until 200
+             deploy or session check fails -> check rollback conditions below
 ```
 
 - Skip when `main` moved. The first step compares the run's SHA with the head of `main`, so two quick merges end on the newer one. The check is a step of `deploy` and not a job before it, because a job that `deploy` needs finishes before `deploy` waits in the concurrency group. A run that then waited behind another deploy would publish an older commit ([`jobs.<job_id>.needs`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)).
-- Queue. The concurrency group `live-deploy` never cancels a running deploy and sets `queue: max`, so it holds up to 100 pending runs and replaces none. Without `queue: max`, a later run replaces the pending one, whatever its commit, and the newest merge could lose its deploy to a rerun of an older commit ([`concurrency`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)).
-- Failure. A failed deploy fails the run on `main`. It is not retried.
+- The `live-deploy` concurrency group never cancels a running deploy and sets `queue: max`, so it holds up to 100 pending runs and replaces none. Without `queue: max`, a later run replaces the pending one, whatever its commit, and the newest merge could lose its deploy to a rerun of an older commit ([`concurrency`](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax)).
+- Failure. A deploy or health-check failure fails the run on `main`, even after a successful [rollback](#rollback). Wrangler can publish the version before it finishes setting up triggers.
 - Migrations first, so a failed migration never publishes code that needs the new schema. Wrangler rolls the failing migration back and keeps the earlier ones (`wrangler d1 migrations apply --help`, Wrangler 4.162.0).
 
 This order has a cost, because the Worker that is still live runs on the new schema until `wrangler deploy` ends. A migration that adds a `NOT NULL` column with no default, or a foreign key, makes that Worker's writes to the table fail with `NOT NULL constraint failed` or `FOREIGN KEY constraint failed`. The migration that added `source` to the thread tables was one: every thread write fails in that window, and its job retries up to `MAX_ATTEMPTS` (3) attempts. An Export that the old Worker finishes in the window names the new migration in its manifest but holds records without `source`, so no Restore accepts it. Take no Export while such a deploy runs, and Export again after it. The container applies a migration in the one process that then serves, so it has no window.
@@ -189,6 +191,12 @@ Verified on 2026-11-17 with two pre-release runs ([first](https://github.com/Kya
 ## Rollback
 
 The container can run an older image tag. Cloudflare can restore an older Worker version with `wrangler rollback`. Neither undoes a migration.
+
+Before migrating, the live job tries to record the version serving all traffic. A first deploy, split traffic or a failed lookup leaves rollback unavailable. Migrations, publication and the session check still run. Both session checks use the target Wrangler reports for this deploy. If Wrangler reports no usable URL, the job fails before probing or rolling back.
+
+A failed health check or a deploy error starts recovery. The recorded deployment must come from outside this run and must postdate the newest D1 migration. D1 records whole seconds, so a deployment in the same second cannot qualify. The deployment history must show this attempt serving all traffic immediately after the recorded deployment. A migration read error, an intervening deployment or a current deployment from another run requires manual recovery. After rollback, the job verifies the version ID and checks the same session URL for HTTP 200.
+
+The `live-deploy` concurrency group serializes these jobs. Dashboard and CLI deploys bypass it. Keep manual deploys out of the period from the final history check until `wrangler rollback` finishes, because Wrangler cannot make its write conditional on the current deployment.
 
 An older build cannot write the rows of a table whose migration added a `NOT NULL` column or a key. After such a migration, a rollback needs data from before it:
 

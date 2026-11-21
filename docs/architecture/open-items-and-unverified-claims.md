@@ -25,6 +25,7 @@ The deploy button deployed `release` on Workers Paid (2026-11-19), and `pnpm run
 
 Not verified:
 
+- Automatic [Worker rollback](ci-releases-and-rollback.md#rollback) on Cloudflare. A hosted run must restore the recorded version after a failed session check, confirm HTTP 200 and still fail the job. A run that applied a migration must skip recovery.
 - Why the deploy button omitted workflow files from the private copy.
 - A working preview build. The [self-hosting guide](../guides/self-hosting.md) turns off preview builds because the update pull request's preview failed.
 - The update workflow when the copy's token lacks Contents, Workflows or Pull requests write access. Each refusal needs a token that lacks that one permission.
