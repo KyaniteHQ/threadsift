@@ -1,4 +1,5 @@
 import { FieldAnnouncer } from "./FieldAnnouncer.tsx";
+import { NavigateContext } from "./navigate-context.ts";
 import type { Route } from "./routing.ts";
 import { type ScreenState, isSignedInScreen } from "./screens.ts";
 import { SetupScreen } from "./SetupScreen.tsx";
@@ -27,7 +28,6 @@ function ScreenContent({
   route: Route;
 }>) {
   const { refresh, signedIn } = session;
-  const { navigate } = route;
 
   if (isSignedInScreen(screen)) {
     return (
@@ -43,17 +43,10 @@ function ScreenContent({
 
   switch (screen.name) {
     case "setup":
-      return (
-        <SetupScreen
-          problem={screen.problem}
-          refresh={refresh}
-          signedIn={signedIn}
-          navigate={navigate}
-        />
-      );
+      return <SetupScreen problem={screen.problem} refresh={refresh} signedIn={signedIn} />;
     case "login":
     case "reset":
-      return <SignedOutScreen name={screen.name} signedIn={signedIn} navigate={navigate} />;
+      return <SignedOutScreen name={screen.name} signedIn={signedIn} />;
     case "unreachable":
       return <Unreachable retry={refresh} />;
     case "loading":
@@ -65,8 +58,10 @@ function ScreenContent({
 
 export function Screen(props: Parameters<typeof ScreenContent>[0]) {
   return (
-    <FieldAnnouncer>
-      <ScreenContent {...props} />
-    </FieldAnnouncer>
+    <NavigateContext value={props.route.navigate}>
+      <FieldAnnouncer>
+        <ScreenContent {...props} />
+      </FieldAnnouncer>
+    </NavigateContext>
   );
 }

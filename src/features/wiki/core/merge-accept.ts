@@ -1,6 +1,6 @@
 import { asc, eq, sql } from "drizzle-orm";
 
-import { MERGE_KINDS } from "../../../core/contract/proposal-contract.ts";
+import { type Acceptance, MERGE_KINDS } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { proposals } from "../../../core/kernel/schema.ts";
@@ -12,7 +12,7 @@ import { proposalClaimed, revisionOf } from "./proposal-lifecycle.ts";
 
 const UNITS_PER_RUN = 50;
 
-export type MergeAcceptance = "done" | "accepting" | "unknown" | "not-open" | "merge-busy";
+type MergeAcceptance = Exclude<Acceptance, "not-current" | "no-provider">;
 
 interface Progress {
   readonly units: number;

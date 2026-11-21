@@ -1,4 +1,11 @@
-import { type Dispatch, type SetStateAction, useCallback, useEffect, useState } from "react";
+import {
+  type Dispatch,
+  type SetStateAction,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
 import type { More } from "./list-paging.ts";
 import { useLatest } from "./use-latest.ts";
@@ -47,20 +54,63 @@ function appended<Page extends PagedPage>(
   return page === null ? { ...now, more: "failed" } : readyFrom(joined(now, page));
 }
 
+async function readThrough<Page extends PagedPage>(
+  read: (cursor: string | null) => Promise<Page>,
+  joined: (shown: Readonly<Page>, added: Readonly<Page>) => Page,
+  covers: (shown: Readonly<Page>) => boolean,
+  shown: Readonly<Page>,
+): Promise<Page | null> {
+  if (shown.next === null || covers(shown)) return shown;
+
+  const added = await attempt(read, shown.next);
+
+  return added === null ? null : readThrough(read, joined, covers, joined(shown, added));
+}
+
+async function reloaded<Page extends PagedPage>(
+  read: (cursor: string | null) => Promise<Page>,
+  joined: (shown: Readonly<Page>, added: Readonly<Page>) => Page,
+  covers: (shown: Readonly<Page>) => boolean,
+): Promise<Page | null> {
+  const first = await attempt(read, null);
+
+  return first === null ? null : readThrough(read, joined, covers, first);
+}
+
 async function firstRead<Page extends PagedPage>(
   read: (cursor: string | null) => Promise<Page>,
   ticket: Ticket,
   setState: Dispatch<SetStateAction<Paged<Page>>>,
-  keepOnFailure = false,
 ): Promise<void> {
   const mine = ticket.take();
   const page = await attempt(read, null);
 
-  if (ticket.matches(mine)) {
-    setState((now) =>
-      page === null ? (keepOnFailure && now.status === "ready" ? now : FAILED) : readyFrom(page),
-    );
-  }
+  if (ticket.matches(mine)) setState(page === null ? FAILED : readyFrom(page));
+}
+
+function useFirstRead<Page extends PagedPage>(
+  read: (cursor: string | null) => Promise<Page>,
+  ticket: Ticket,
+  setState: Dispatch<SetStateAction<Paged<Page>>>,
+) {
+  const reloading = useRef(0);
+
+  useEffect(() => {
+    void firstRead(read, ticket, setState);
+  }, [read, setState, ticket]);
+
+  const retry = useCallback(async () => {
+    reloading.current += 1;
+    setState((now) => (now.status === "ready" ? now : LOADING));
+
+    try {
+      await firstRead(read, ticket, setState);
+    } finally {
+      reloading.current -= 1;
+    }
+  }, [read, setState, ticket]);
+
+  return { retry, reloading };
 }
 
 export function usePagedRead<Page extends PagedPage>(
@@ -71,16 +121,22 @@ export function usePagedRead<Page extends PagedPage>(
   const ticket = useTicket();
   const latest = useLatest(state);
 
-  useEffect(() => {
-    void firstRead(read, ticket, setState);
-  }, [read, ticket]);
+  const { retry, reloading } = useFirstRead(read, ticket, setState);
 
-  const retry = useCallback(
-    async (keepOnFailure = false) => {
-      setState((now) => (now.status === "ready" ? now : LOADING));
-      await firstRead(read, ticket, setState, keepOnFailure);
+  const refresh = useCallback(
+    async (covers: (shown: Readonly<Page>, loaded: Readonly<Page>) => boolean) => {
+      const loaded = latest.current;
+
+      if (loaded.status !== "ready" || loaded.more === "loading" || reloading.current > 0) return;
+
+      const mine = ticket.now();
+      const page = await reloaded(read, joined, (shown) => covers(shown, loaded));
+
+      if (page === null || !ticket.matches(mine)) return;
+
+      setState((now) => (now.status === "ready" ? { ...readyFrom(page), more: now.more } : now));
     },
-    [read, ticket],
+    [joined, latest, read, reloading, ticket],
   );
 
   const loadMore = useCallback((): boolean => {
@@ -102,5 +158,5 @@ export function usePagedRead<Page extends PagedPage>(
     return true;
   }, [joined, latest, read, ticket]);
 
-  return { state, retry, loadMore };
+  return { state, retry, refresh, loadMore };
 }

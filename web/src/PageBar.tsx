@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-import { useInternalLink } from "./routing.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { BACK_TO_LIBRARY } from "./text.ts";
 import { useFocusOnMount } from "./use-form.ts";
 
@@ -8,17 +8,15 @@ const LIBRARY_BACK = { href: "/", label: BACK_TO_LIBRARY };
 
 export function PageBar({
   title,
-  back,
   ready = true,
   backLink = LIBRARY_BACK,
 }: Readonly<{
   title: string;
-  back: () => void;
   ready?: boolean;
   backLink?: Readonly<{ href: string; label: string }>;
 }>) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const follow = useInternalLink(back);
+  const follow = useNavigateLink(backLink.href);
 
   useFocusOnMount(heading, ready);
 

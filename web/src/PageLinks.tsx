@@ -3,6 +3,7 @@ import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { IMPORT } from "./import-text.ts";
 import { INDEX_PAGE } from "./index-text.ts";
 import { LOG_PAGE } from "./log-text.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { PROPOSALS_PAGE } from "./proposals-text.ts";
 import {
   HIGHLIGHTS_PATH,
@@ -10,17 +11,11 @@ import {
   INDEX_PATH,
   LOG_PATH,
   PROPOSALS_PATH,
-  type Pages,
   SETTINGS_PATH,
-  useInternalLink,
 } from "./routing.ts";
 
-function PageLinkItem({
-  path,
-  label,
-  open,
-}: Readonly<{ path: string; label: string; open: () => void }>) {
-  const follow = useInternalLink(open);
+function PageLinkItem({ path, label }: Readonly<{ path: string; label: string }>) {
+  const follow = useNavigateLink(path);
 
   return (
     <li>
@@ -31,28 +26,16 @@ function PageLinkItem({
   );
 }
 
-export function PageLinks({ pages }: Readonly<{ pages: Pages }>) {
+export function PageLinks() {
   return (
     <nav className="st-more">
       <ul role="list">
-        <PageLinkItem
-          path={HIGHLIGHTS_PATH}
-          label={HIGHLIGHTS_PAGE.masthead}
-          open={pages.highlights}
-        />
-        <PageLinkItem path={IMPORT_PATH} label={IMPORT.settingsLink} open={pages.import} />
-        <PageLinkItem path={INDEX_PATH} label={INDEX_PAGE.masthead} open={pages.index} />
-        <PageLinkItem path={LOG_PATH} label={LOG_PAGE.masthead} open={pages.log} />
-        <PageLinkItem
-          path={PROPOSALS_PATH}
-          label={PROPOSALS_PAGE.masthead}
-          open={pages.proposals}
-        />
-        <PageLinkItem
-          path={SETTINGS_PATH}
-          label={SETTINGS.instanceSettings}
-          open={pages.settings}
-        />
+        <PageLinkItem path={HIGHLIGHTS_PATH} label={HIGHLIGHTS_PAGE.masthead} />
+        <PageLinkItem path={IMPORT_PATH} label={IMPORT.settingsLink} />
+        <PageLinkItem path={INDEX_PATH} label={INDEX_PAGE.masthead} />
+        <PageLinkItem path={LOG_PATH} label={LOG_PAGE.masthead} />
+        <PageLinkItem path={PROPOSALS_PATH} label={PROPOSALS_PAGE.masthead} />
+        <PageLinkItem path={SETTINGS_PATH} label={SETTINGS.instanceSettings} />
       </ul>
     </nav>
   );

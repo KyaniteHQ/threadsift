@@ -4,7 +4,6 @@ import { DEFAULTS } from "../../design/system/settings.ts";
 import { Icon } from "./Icon.tsx";
 import { PageLinks } from "./PageLinks.tsx";
 import { PANEL_CLASS } from "./panel-dom.ts";
-import type { Pages } from "./routing.ts";
 import { SettingsRows } from "./SettingsRows.tsx";
 import {
   CLOSE_LABEL,
@@ -80,11 +79,7 @@ function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void 
   );
 }
 
-export function SettingsPanel({
-  look,
-  pages,
-  panel: state,
-}: Readonly<{ look: Look; pages: Pages; panel: PanelState }>) {
+export function SettingsPanel({ look, panel: state }: Readonly<{ look: Look; panel: PanelState }>) {
   const { settings, themeNote, narrow: modal, pick: choose, reset } = look;
   const idBase = useId();
   const panelId = `${idBase}-panel`;
@@ -113,7 +108,7 @@ export function SettingsPanel({
               choose={choose}
             />
           </div>
-          <PageLinks pages={pages} />
+          <PageLinks />
           <Footer noteId={`${idBase}-reset-note`} reset={reset} />
         </dialog>
       ) : null}

@@ -5,6 +5,7 @@ import { SETUP } from "./access-text.ts";
 import { AuthShell } from "./AuthShell.tsx";
 import { CodeStep } from "./CodeStep.tsx";
 import { Command } from "./Command.tsx";
+import { useNavigate } from "./navigate-context.ts";
 import { PasswordStep } from "./PasswordStep.tsx";
 import { SETTINGS_PATH } from "./routing.ts";
 import type { SetupStep } from "./setup-step.ts";
@@ -55,13 +56,12 @@ export function SetupScreen({
   problem,
   refresh,
   signedIn,
-  navigate,
 }: Readonly<{
   problem: SetupCodeProblem | null;
   refresh: () => void;
   signedIn: () => void;
-  navigate: (to: string) => void;
 }>) {
+  const navigate = useNavigate();
   const [step, setStep] = useState<SetupStep>(
     problem === null ? { name: "code" } : { name: "unavailable", reason: problem },
   );

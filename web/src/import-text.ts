@@ -2,7 +2,8 @@ import { groupedNumber } from "../../src/core/contract/format.ts";
 import type { SkipReason } from "../../src/core/contract/import-list.ts";
 import { REDDIT_WINDOW_REQUESTS } from "../../src/core/contract/limits.ts";
 import type { CliProvider } from "../../src/core/contract/provider-families.ts";
-import { RETRY_LABEL, filled } from "./text.ts";
+import { filled } from "./filled.ts";
+import { RETRY_LABEL } from "./text.ts";
 
 export const IMPORT = {
   settingsLink: "Import",

@@ -6,7 +6,8 @@ import { CodeText } from "./CodeText.tsx";
 import { FormField } from "./FormField.tsx";
 import type { GoTo } from "./setup-step.ts";
 import { StepForm } from "./StepForm.tsx";
-import { useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
+import { useField, useFocusOnMount, useSubmit } from "./use-form.ts";
+import { useLock } from "./use-lock.ts";
 import { useOutcome } from "./use-outcome.ts";
 
 const CODE_INPUT = {

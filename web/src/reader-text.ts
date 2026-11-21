@@ -4,9 +4,10 @@ import type { Source } from "../../src/core/contract/item-contract.ts";
 import { NOTE_MAX_CODE_POINTS } from "../../src/core/contract/note-contract.ts";
 import { UNTITLED } from "../../src/core/contract/reader-text.ts";
 import { STORED_PICTURE_TEXT } from "../../src/core/contract/reader-url.ts";
+import { filled } from "./filled.ts";
 import { plural } from "./plural.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
-import { CLOSE_LABEL, filled } from "./text.ts";
+import { CLOSE_LABEL } from "./text.ts";
 
 export const READER_PLACEHOLDER = "Select an item";
 export const MARK_READ = "Mark read";

@@ -2,9 +2,9 @@ import { FIELDS, RESET, SETUP } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import { AuthShell } from "./AuthShell.tsx";
 import { FormField } from "./FormField.tsx";
+import { useNavigateLink } from "./navigate-context.ts";
 import { PasswordField, UsernameHint } from "./PasswordField.tsx";
 import { ResetInstructions } from "./ResetInstructions.tsx";
-import { useInternalLink } from "./routing.ts";
 import { SwapButton } from "./SwapButton.tsx";
 import { useFocusOnMount } from "./use-form.ts";
 import { useReset } from "./use-reset.ts";
@@ -17,10 +17,10 @@ const CODE_INPUT = {
   mono: true,
 } as const;
 
-export function ResetScreen({ done, back }: Readonly<{ done: () => void; back: () => void }>) {
+export function ResetScreen({ done }: Readonly<{ done: () => void }>) {
   const { code, password, confirm, lock, visibility, alert, busy, onSubmit } = useReset(done);
   const { shown, toggle } = visibility;
-  const follow = useInternalLink(back);
+  const follow = useNavigateLink("/");
   useFocusOnMount(code.ref);
 
   return (

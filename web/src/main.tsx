@@ -24,6 +24,7 @@ import { createRoot } from "react-dom/client";
 
 import { App } from "./App.tsx";
 import { preloadPage } from "./lazy-pages.tsx";
+import { currentPath } from "./routing.ts";
 import { storedSettings } from "./use-settings.ts";
 
 const container = document.querySelector("#root");
@@ -32,7 +33,7 @@ if (container === null) {
   throw new Error("web/index.html has no #root element");
 }
 
-preloadPage(window.location.pathname);
+preloadPage(currentPath());
 
 const settings = storedSettings();
 

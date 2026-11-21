@@ -33,23 +33,16 @@ function More({
 function EntryList({
   entries,
   now,
-  navigate,
   list,
 }: Readonly<{
   entries: Ready["entries"];
   now: number;
-  navigate: (to: string) => void;
   list: RefObject<HTMLOListElement | null>;
 }>) {
   return (
     <ol ref={list} role="list" className="hp-list" aria-labelledby={RESULTS_ID}>
       {entries.map((entry) => (
-        <HighlightEntry
-          key={`${entry.kind}:${String(entry.id)}`}
-          entry={entry}
-          now={now}
-          navigate={navigate}
-        />
+        <HighlightEntry key={`${entry.kind}:${String(entry.id)}`} entry={entry} now={now} />
       ))}
     </ol>
   );
@@ -60,7 +53,6 @@ function Listed({
   head,
   filters,
   now,
-  navigate,
   loadMore,
   clearAll,
   list,
@@ -69,7 +61,6 @@ function Listed({
   head: string;
   filters: Filters;
   now: number;
-  navigate: (to: string) => void;
   loadMore: () => boolean;
   clearAll: () => void;
   list: RefObject<HTMLOListElement | null>;
@@ -92,7 +83,7 @@ function Listed({
           alert={false}
         />
       ) : (
-        <EntryList entries={state.entries} now={now} navigate={navigate} list={list} />
+        <EntryList entries={state.entries} now={now} list={list} />
       )}
       <More state={state} filters={filters} loadMore={more} />
     </>
@@ -108,7 +99,6 @@ export function HighlightsBody({
   head: string;
   filters: Filters;
   now: number;
-  navigate: (to: string) => void;
   retry: () => void;
   loadMore: () => boolean;
   clearAll: () => void;

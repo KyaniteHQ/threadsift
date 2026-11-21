@@ -3,6 +3,7 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { SECTION_TITLES } from "../../src/core/contract/reader-text.ts";
 import { Comments } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { PostTextView } from "./post-text-module.ts";
 import { FILL_NOTE, NO_POST_TEXT, NO_README, archiveNote } from "./reader-text.ts";
 import { Related } from "./Related.tsx";
@@ -26,10 +27,12 @@ function missingTextNote(item: Readonly<Item>, hasLink: boolean): string | null 
 }
 
 function TokenRefused({ text }: Readonly<{ text: string }>) {
+  const follow = useNavigateLink(SETTINGS_PATH);
+
   return (
     <>
       <p className="rd-note">{text}</p>
-      <a className="btn" href={SETTINGS_PATH}>
+      <a className="btn" href={SETTINGS_PATH} onClick={follow}>
         {TOKEN_REFUSED.link}
       </a>
     </>

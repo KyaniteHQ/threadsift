@@ -3,7 +3,6 @@ import { ListBody, Notice } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
 import { Masthead } from "./Masthead.tsx";
 import { HINT_LIST } from "./reader-text.ts";
-import type { Pages } from "./routing.ts";
 import { SkipButton } from "./SkipButton.tsx";
 import { LOAD_FAILED, RETRY_LABEL } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";
@@ -45,13 +44,11 @@ export function ListColumn({
   look,
   arrived,
   openId,
-  pages,
 }: Readonly<{
   view: LibraryView;
   look: Look;
   arrived: boolean;
   openId: number | null;
-  pages: Pages;
 }>) {
   const { library, side, covered, openItem, listPane, searchField } = view;
 
@@ -60,7 +57,6 @@ export function ListColumn({
       <SkipButton pane={listPane} />
       <Masthead
         look={look}
-        pages={pages}
         counts={view.counts}
         loading={library.list.status === "loading"}
         filters={library.filters}

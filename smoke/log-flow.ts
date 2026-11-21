@@ -119,7 +119,18 @@ export async function logFlow(page: Page, browser: Browser): Promise<void> {
 
   await page.setViewportSize({ width: 1280, height: 800 });
   await visitSignedOut(browser, "/log");
+  await expectSlashAddresses(page, id);
   await deleteAndReload(page, id);
+}
+
+async function expectSlashAddresses(page: Page, id: number): Promise<void> {
+  await page.goto("/log/");
+  await expect(page.getByRole("heading", { level: 1, name: LOG_PAGE.title })).toBeVisible();
+
+  await page.goto(`/items/${String(id)}/`);
+  await expect(page).toHaveURL(new RegExp(`/items/${String(id)}/$`, "u"));
+  await expect(page).toHaveTitle(`${LONG_TITLE}, Threadsift`);
+  await expect(page.getByRole("button", { name: DELETE_LABEL, exact: true })).toBeVisible();
 }
 
 async function deleteAndReload(page: Page, id: number): Promise<void> {

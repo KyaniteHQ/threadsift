@@ -5,7 +5,6 @@ import { HIGHLIGHTS_HEAD, headLabel } from "./head-label.ts";
 import { HighlightsBody } from "./HighlightsBody.tsx";
 import { HighlightsTools } from "./HighlightsTools.tsx";
 import { matchedCount } from "./list-counts.ts";
-import type { Route } from "./routing.ts";
 import { SettledAnnouncement } from "./SettledAnnouncement.tsx";
 import { useEntryKeys } from "./use-highlights-focus.ts";
 import { type Ready, useHighlightsPage } from "./use-highlights-page.ts";
@@ -23,7 +22,7 @@ function highlightsHeadText(state: Readonly<Ready>, filters: Readonly<Filters>):
   return headLabel(HIGHLIGHTS_HEAD, { total: state.counts.total, shown }, text);
 }
 
-export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Route }>) {
+export function HighlightsMain({ look }: Readonly<{ look: Look }>) {
   const field = useRef<HTMLInputElement>(null);
   const list = useRef<HTMLOListElement>(null);
   const [now] = useState(Date.now);
@@ -57,7 +56,6 @@ export function HighlightsMain({ look, route }: Readonly<{ look: Look; route: Ro
         head={head}
         filters={filters}
         now={now}
-        navigate={route.navigate}
         retry={retryLoad}
         loadMore={loadMore}
         clearAll={clearAll}

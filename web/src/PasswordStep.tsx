@@ -6,7 +6,8 @@ import { LENGTH_PROBLEM, checkNewPassword } from "./password-length.ts";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import type { GoTo } from "./setup-step.ts";
 import { StepForm } from "./StepForm.tsx";
-import { type FieldState, useField, useFocusOnMount, useLock, useSubmit } from "./use-form.ts";
+import { type FieldState, useField, useFocusOnMount, useSubmit } from "./use-form.ts";
+import { useLock } from "./use-lock.ts";
 import { useOutcome } from "./use-outcome.ts";
 
 interface PasswordStepProps {

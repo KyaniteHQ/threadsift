@@ -5,7 +5,6 @@ import { ArrivalsContext, useNewArrivals } from "./place-arrival.ts";
 import { Reader } from "./Reader.tsx";
 import { Placed } from "./ReaderPlaced.tsx";
 import { Placeholder } from "./ReaderPlaceholder.tsx";
-import type { Pages } from "./routing.ts";
 import type { SheetNav } from "./Sheet.tsx";
 import type { Announcement as AnnouncementState } from "./use-announcement.ts";
 import { useHeldPanelState } from "./use-panel.ts";
@@ -17,7 +16,6 @@ export function ReaderPane({
   controls,
   nav,
   look,
-  pages,
   tryAgain,
   announcement,
 }: Readonly<{
@@ -25,7 +23,6 @@ export function ReaderPane({
   controls: ReaderControls;
   nav: SheetNav;
   look: Look;
-  pages: Pages;
   tryAgain: (item: Item) => void;
   announcement: AnnouncementState;
 }>) {
@@ -45,7 +42,6 @@ export function ReaderPane({
         controls={controls}
         look={look}
         titleId={titleId}
-        pages={pages}
         panel={panel}
         tryAgain={tryAgain}
       />

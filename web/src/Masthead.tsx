@@ -5,7 +5,6 @@ import { Brand } from "./Brand.tsx";
 import type { Choice, Filters } from "./filters.ts";
 import { FilterPane } from "./Filters.tsx";
 import { PasteBox } from "./PasteBox.tsx";
-import type { Pages } from "./routing.ts";
 import type { PasteQueue, SaveOutcome } from "./use-paste.ts";
 import type { Look } from "./use-root.ts";
 
@@ -50,7 +49,6 @@ function FilterSlot({
 
 export function Masthead({
   look,
-  pages,
   counts,
   loading,
   filters,
@@ -64,7 +62,6 @@ export function Masthead({
   open,
 }: Readonly<{
   look: Look;
-  pages: Pages;
   counts: FilterCounts | null;
   loading: boolean;
   filters: Filters;
@@ -81,7 +78,7 @@ export function Masthead({
 
   return (
     <header className="mast">
-      <Brand look={look} pages={pages} total={total} />
+      <Brand look={look} total={total} />
       <PasteBox save={save} focusOnMount={focusOnMount} items={items} queue={queue} open={open} />
       <FilterSlot
         counts={counts}

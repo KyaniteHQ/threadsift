@@ -1,22 +1,14 @@
-import { useCallback } from "react";
-
 import { topicPath } from "../../src/core/contract/topic-path.ts";
-import { useInternalLink } from "./routing.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 
 export function TopicEffect({
   effect,
   topic,
-  openTopic,
 }: Readonly<{
   effect: Readonly<{ before: string; after: string }>;
   topic: Readonly<{ key: string; name: string }>;
-  openTopic: (key: string) => void;
 }>) {
-  const go = useInternalLink(
-    useCallback(() => {
-      openTopic(topic.key);
-    }, [openTopic, topic.key]),
-  );
+  const go = useNavigateLink(topicPath(topic.key));
 
   return (
     <h3 className="rl-title pr-effect">

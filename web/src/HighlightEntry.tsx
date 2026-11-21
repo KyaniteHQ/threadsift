@@ -3,9 +3,9 @@ import { memo, useId } from "react";
 import type { Entry } from "../../src/core/contract/highlights-page-contract.ts";
 import { NOT_FOUND } from "../../src/core/contract/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { type Place, placePath } from "./place.ts";
 import { QuoteText } from "./QuoteText.tsx";
-import { useNavigateLink } from "./routing.ts";
 import { ageLabel } from "./saved-label.ts";
 import { SavedTime } from "./SavedTime.tsx";
 import { SOURCE_LABELS } from "./text.ts";
@@ -40,15 +40,14 @@ function Kind({ entry, now }: Readonly<{ entry: Entry; now: number }>) {
 export const HighlightEntry = memo(function HighlightEntry({
   entry,
   now,
-  navigate,
-}: Readonly<{ entry: Entry; now: number; navigate: (to: string) => void }>) {
+}: Readonly<{ entry: Entry; now: number }>) {
   const textId = useId();
   const goneId = useId();
   const { item } = entry;
   const to = placePath(item.id, placeOf(entry));
   const gone = entry.kind === "highlight" && !entry.found;
 
-  const open = useNavigateLink(navigate, to);
+  const open = useNavigateLink(to);
 
   return (
     <li>

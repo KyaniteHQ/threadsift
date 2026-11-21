@@ -1,18 +1,10 @@
 import type { FetchFailure } from "../../src/core/contract/fetch-results.ts";
-import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
 import { groupedNumber } from "../../src/core/contract/format.ts";
 import type { FailureReason, ReadState, Source } from "../../src/core/contract/item-contract.ts";
 import type { WaitReason } from "../../src/core/contract/job-contract.ts";
 import type { XReadNote } from "../../src/core/contract/x-read-note.ts";
-import { ITEM_HEAD, headLabel as filledHeadLabel } from "./head-label.ts";
+import { filled } from "./filled.ts";
 import { type XNoticeKey, X_NOTICES } from "./x-text.ts";
-
-export function filled(template: string, values: Readonly<Record<string, string>>): string {
-  return Object.entries(values).reduce(
-    (text, [key, value]) => text.replaceAll(`{${key}}`, () => value),
-    template,
-  );
-}
 
 export const PASTE_LABEL = "Paste a link to save";
 export const PASTE_PLACEHOLDER = "Paste a link";
@@ -223,14 +215,6 @@ export function namedOption(name: string, count: number): string {
 }
 
 export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
-
-export function headLabel(
-  counts: Readonly<Pick<FilterCounts, "total" | "unread">>,
-  shown: number | null,
-  text: string,
-): string {
-  return filledHeadLabel(ITEM_HEAD, { ...counts, shown }, text);
-}
 
 export const NO_RESULTS = "No items match";
 export const CLEAR_ALL = "Clear search and filters";

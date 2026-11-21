@@ -1,16 +1,16 @@
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { TopicPage } from "../../src/core/contract/topic-overview-contract.ts";
-import { useNavigateLink } from "./routing.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 
 type Disagreement = TopicPage["disagreements"][number];
 
 type Side = Disagreement["items"][number];
 
-function SideLink({ side, navigate }: Readonly<{ side: Side; navigate: (to: string) => void }>) {
+function SideLink({ side }: Readonly<{ side: Side }>) {
   const to = itemPath(side.id);
 
-  const open = useNavigateLink(navigate, to);
+  const open = useNavigateLink(to);
 
   return (
     <li>
@@ -21,10 +21,7 @@ function SideLink({ side, navigate }: Readonly<{ side: Side; navigate: (to: stri
   );
 }
 
-function Entry({
-  disagreement,
-  navigate,
-}: Readonly<{ disagreement: Disagreement; navigate: (to: string) => void }>) {
+function Entry({ disagreement }: Readonly<{ disagreement: Disagreement }>) {
   return (
     <li className="tp-dis">
       <p className="tp-line" dir="auto">
@@ -32,7 +29,7 @@ function Entry({
       </p>
       <ul role="list" className="tp-dis-items" aria-label={TOPIC_PAGE.disagreementsEntryLabel}>
         {disagreement.items.map((side) => (
-          <SideLink key={side.id} side={side} navigate={navigate} />
+          <SideLink key={side.id} side={side} />
         ))}
       </ul>
     </li>
@@ -41,8 +38,7 @@ function Entry({
 
 export function KnownDisagreements({
   disagreements,
-  navigate,
-}: Readonly<{ disagreements: TopicPage["disagreements"]; navigate: (to: string) => void }>) {
+}: Readonly<{ disagreements: TopicPage["disagreements"] }>) {
   if (disagreements.length === 0) return null;
 
   return (
@@ -50,7 +46,7 @@ export function KnownDisagreements({
       <h2 className="label">{TOPIC_PAGE.disagreementsHeading}</h2>
       <ul role="list" className="tp-dis-list">
         {disagreements.map((disagreement) => (
-          <Entry key={disagreement.id} disagreement={disagreement} navigate={navigate} />
+          <Entry key={disagreement.id} disagreement={disagreement} />
         ))}
       </ul>
     </section>

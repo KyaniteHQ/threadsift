@@ -1,4 +1,3 @@
-import type { Pages } from "./routing.ts";
 import { SettingsPanel } from "./SettingsPanel.tsx";
 import { totalName } from "./text.ts";
 import { usePanelState } from "./use-panel.ts";
@@ -13,18 +12,14 @@ function Total({ count }: Readonly<{ count: number }>) {
   );
 }
 
-export function Brand({
-  look,
-  pages,
-  total,
-}: Readonly<{ look: Look; pages: Pages; total: number | null }>) {
+export function Brand({ look, total }: Readonly<{ look: Look; total: number | null }>) {
   const panel = usePanelState();
 
   return (
     <div className="brand">
       <h1>Threadsift</h1>
       {total === null ? null : <Total count={total} />}
-      <SettingsPanel look={look} pages={pages} panel={panel} />
+      <SettingsPanel look={look} panel={panel} />
     </div>
   );
 }

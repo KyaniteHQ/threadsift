@@ -3,12 +3,7 @@ import { useCallback, useRef, useState } from "react";
 import type { Proposal } from "../../src/core/contract/proposal-contract.ts";
 import { stateAfterWaiting } from "./proposal-check.ts";
 import { type Busy, type Failure, isBusy, sendAccept, sendReject } from "./proposals-api.ts";
-import {
-  type AcceptableProposal,
-  PROPOSAL_WORDS,
-  acceptedAnnouncement,
-  rejectedAnnouncement,
-} from "./proposals-text.ts";
+import { PROPOSAL_WORDS, acceptedAnnouncement, rejectedAnnouncement } from "./proposals-text.ts";
 
 export type RowState =
   | { readonly kind: "idle" }
@@ -37,7 +32,7 @@ async function check(proposal: Readonly<Proposal>, action: Failure): Promise<Res
   };
 }
 
-async function accept(proposal: Readonly<AcceptableProposal>): Promise<Result> {
+async function accept(proposal: Readonly<Proposal>): Promise<Result> {
   const outcome = await sendAccept(proposal.id);
 
   if (outcome === "done") return { row: IDLE, text: acceptedAnnouncement(proposal) };
@@ -93,7 +88,7 @@ export function usePresses({ begin, finish }: Readonly<Presses>) {
   );
 
   const pressAccept = useCallback(
-    (proposal: Readonly<AcceptableProposal>) => {
+    (proposal: Readonly<Proposal>) => {
       void decide(proposal, () => accept(proposal));
     },
     [decide],

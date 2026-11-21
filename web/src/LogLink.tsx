@@ -1,12 +1,11 @@
-import { useInternalLink } from "./routing.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 
 export function LogLink({
   href,
-  open,
   label,
   text,
-}: Readonly<{ href: string; open: () => void; label?: string; text: string }>) {
-  const follow = useInternalLink(open);
+}: Readonly<{ href: string; label?: string; text: string }>) {
+  const follow = useNavigateLink(href);
 
   return (
     <a className="lg-link" href={href} aria-label={label} onClick={follow}>

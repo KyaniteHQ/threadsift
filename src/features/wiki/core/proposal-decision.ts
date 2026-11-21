@@ -1,9 +1,9 @@
 import { eq } from "drizzle-orm";
 
+import type { Acceptance } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { proposals } from "../../../core/kernel/schema.ts";
-import type { Acceptance } from "./proposal-kind.ts";
 import { PROPOSAL } from "./proposal-kinds.ts";
 import { rejection } from "./proposal-lifecycle.ts";
 

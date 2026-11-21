@@ -18,13 +18,11 @@ function Body({
   retry,
   loadMore,
   write,
-  navigate,
 }: Readonly<{
   state: TopicState;
   retry: () => void;
   loadMore: () => void;
   write: () => void;
-  navigate: (to: string) => void;
 }>) {
   switch (state.status) {
     case "loading":
@@ -40,10 +38,9 @@ function Body({
             overview={state.overview}
             itemCount={state.topic.itemCount}
             write={write}
-            navigate={navigate}
           />
-          <KnownDisagreements disagreements={state.disagreements} navigate={navigate} />
-          <TopicItemsSection state={state} loadMore={loadMore} navigate={navigate} />
+          <KnownDisagreements disagreements={state.disagreements} />
+          <TopicItemsSection state={state} loadMore={loadMore} />
         </>
       );
     default:
@@ -51,26 +48,16 @@ function Body({
   }
 }
 
-export function TopicPage({
-  topicKey,
-  route,
-  back,
-}: Readonly<{ topicKey: string; route: Route; back: () => void }>) {
+export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; route: Route }>) {
   const { state, retry, loadMore, writeOverview } = useTopicPage(topicKey, route.replace);
   const name = state.status === "ready" ? state.topic.name : "";
   usePageName(name);
 
   return (
     <div className="pg tp">
-      <PageBar title={name} back={back} ready={state.status !== "loading"} />
+      <PageBar title={name} ready={state.status !== "loading"} />
       <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
-        <Body
-          state={state}
-          retry={retry}
-          loadMore={loadMore}
-          write={writeOverview}
-          navigate={route.navigate}
-        />
+        <Body state={state} retry={retry} loadMore={loadMore} write={writeOverview} />
       </main>
     </div>
   );

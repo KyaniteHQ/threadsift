@@ -1,4 +1,4 @@
-import { filled } from "./text.ts";
+import { filled } from "./filled.ts";
 
 export const ITEM_HEAD = {
   one: "1 item, {unread} unread",

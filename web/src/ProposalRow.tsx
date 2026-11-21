@@ -67,41 +67,30 @@ function MergeBody({
 
 function ProposalBody({
   proposal,
-  open,
-  openTopic,
   overviewFollows,
-  openItem,
-}: Readonly<
-  Pick<RowControls, "proposal" | "open" | "openTopic" | "openItem" | "overviewFollows">
->) {
+}: Readonly<Pick<RowControls, "proposal" | "overviewFollows">>) {
   switch (proposal.kind) {
     case "tag-merge":
     case "topic-merge":
       return <MergeBody proposal={proposal} overviewFollows={overviewFollows} />;
     case "highlight-lost":
-      return <LostHighlightBody proposal={proposal} open={open} />;
+      return <LostHighlightBody proposal={proposal} />;
     case "overview-gap":
-      return <OverviewGapBody proposal={proposal} openTopic={openTopic} />;
+      return <OverviewGapBody proposal={proposal} />;
     case "items-disagree":
-      return <ItemsDisagreeBody proposal={proposal} openItem={openItem} openTopic={openTopic} />;
+      return <ItemsDisagreeBody proposal={proposal} />;
     default:
       return proposal satisfies never;
   }
 }
 
 export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowControls>) {
-  const { proposal, open, openTopic, openItem, overviewFollows } = controls;
+  const { proposal, overviewFollows } = controls;
 
   return (
     <li>
       <article className="rl-row pr-row" id={rowId(proposal.id)}>
-        <ProposalBody
-          proposal={proposal}
-          open={open}
-          openTopic={openTopic}
-          openItem={openItem}
-          overviewFollows={overviewFollows}
-        />
+        <ProposalBody proposal={proposal} overviewFollows={overviewFollows} />
         <Actions {...controls} />
       </article>
     </li>

@@ -8,13 +8,21 @@ import { usePresses } from "./use-proposal-presses.ts";
 
 const SILENT = "";
 
+function coversLoaded(shown: Readonly<ProposalPage>, loaded: Readonly<ProposalPage>) {
+  const loadedLast = loaded.proposals.at(-1);
+  const shownLast = shown.proposals.at(-1);
+
+  return loadedLast === undefined || shownLast === undefined || shownLast.id <= loadedLast.id;
+}
+
 function withMoreProposals(shown: Readonly<ProposalPage>, added: Readonly<ProposalPage>) {
   return { ...added, proposals: [...shown.proposals, ...added.proposals] };
 }
 
 export function useProposalsPage() {
   const source = usePagedRead(fetchProposals, withMoreProposals);
-  const { state, retry } = source;
+  const { state, retry, refresh } = source;
+  const reload = useCallback(() => refresh(coversLoaded), [refresh]);
   const [focusResult, setFocusResult] = useState(false);
   const [announcement, setAnnouncement] = useState(SILENT);
   const [notice, setNotice] = useState<string | null>(null);
@@ -41,11 +49,9 @@ export function useProposalsPage() {
 
   const { rowFor, ...press } = usePresses({ begin, finish });
 
-  const poll = useCallback(() => retry(true), [retry]);
-
   usePolling(
     state.status === "ready" && state.proposals.some(({ state: each }) => each === "accepting"),
-    poll,
+    reload,
   );
 
   return { source, rowFor, announcement, notice, focusResult, focusedResult, press };

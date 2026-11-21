@@ -5,7 +5,7 @@ import { IndexPage } from "./IndexPage.tsx";
 import { ImportPage, SettingsPage, LogPage, ProposalsPage, ObsidianPage } from "./lazy-pages.tsx";
 import { Library } from "./Library.tsx";
 import { ModuleBoundary } from "./ModuleBoundary.tsx";
-import { type Route, usePages } from "./routing.ts";
+import type { Route } from "./routing.ts";
 import type { SignedInState } from "./screens.ts";
 import { TopicPage } from "./TopicPage.tsx";
 import type { Look } from "./use-root.ts";
@@ -25,12 +25,6 @@ function SignedInContent({
 }>) {
   const { navigate } = route;
 
-  const toLibrary = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
-
-  const pages = usePages(navigate);
-
   const leave = useCallback(() => {
     navigate("/");
     loggedOut();
@@ -38,23 +32,23 @@ function SignedInContent({
 
   switch (screen.name) {
     case "obsidian":
-      return <ObsidianPage back={pages.settings} />;
+      return <ObsidianPage />;
     case "settings":
-      return <SettingsPage back={toLibrary} loggedOut={leave} openObsidian={pages.obsidian} />;
+      return <SettingsPage loggedOut={leave} />;
     case "highlights":
-      return <HighlightsPage look={look} route={route} back={toLibrary} />;
+      return <HighlightsPage look={look} />;
     case "import":
-      return <ImportPage pages={pages} back={toLibrary} />;
+      return <ImportPage />;
     case "index":
-      return <IndexPage pages={pages} back={toLibrary} />;
+      return <IndexPage />;
     case "log":
-      return <LogPage pages={pages} back={toLibrary} />;
+      return <LogPage />;
     case "proposals":
-      return <ProposalsPage pages={pages} back={toLibrary} />;
+      return <ProposalsPage />;
     case "topic":
-      return <TopicPage key={screen.key} topicKey={screen.key} route={route} back={toLibrary} />;
+      return <TopicPage key={screen.key} topicKey={screen.key} route={route} />;
     case "library":
-      return <Library look={look} arrived={arrived} route={route} pages={pages} />;
+      return <Library look={look} arrived={arrived} route={route} />;
     default:
       return screen satisfies never;
   }

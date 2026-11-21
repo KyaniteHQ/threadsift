@@ -6,19 +6,16 @@ import {
   overviewTokens,
 } from "../../src/core/contract/topic-overview-contract.ts";
 import { keyed } from "./keyed.ts";
-import { useNavigateLink } from "./routing.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { RETRY_LABEL } from "./text.ts";
 import { TOPIC_PAGE, builtFromLabel, citationLabel } from "./topic-text.ts";
 
 type Cited = Overview["cited"][number];
 
-function Citation({
-  source,
-  navigate,
-}: Readonly<{ source: Cited; navigate: (to: string) => void }>) {
+function Citation({ source }: Readonly<{ source: Cited }>) {
   const to = itemPath(source.id);
 
-  const open = useNavigateLink(navigate, to);
+  const open = useNavigateLink(to);
 
   return (
     <a
@@ -36,11 +33,9 @@ function Citation({
 function Line({
   line,
   cited,
-  navigate,
 }: Readonly<{
   line: string;
   cited: Overview["cited"];
-  navigate: (to: string) => void;
 }>) {
   return (
     <p className="tp-line" dir="auto">
@@ -51,20 +46,15 @@ function Line({
 
         const source = cited.find((candidate) => candidate.id === id);
 
-        return source === undefined ? null : (
-          <Citation key={key} source={source} navigate={navigate} />
-        );
+        return source === undefined ? null : <Citation key={key} source={source} />;
       })}
     </p>
   );
 }
 
-function Lines({
-  overview,
-  navigate,
-}: Readonly<{ overview: Overview; navigate: (to: string) => void }>) {
+function Lines({ overview }: Readonly<{ overview: Overview }>) {
   return keyed(overviewLines(overview.text ?? "")).map(({ key, text }) => (
-    <Line key={key} line={text} cited={overview.cited} navigate={navigate} />
+    <Line key={key} line={text} cited={overview.cited} />
   ));
 }
 
@@ -102,17 +92,15 @@ export function TopicOverview({
   overview,
   itemCount,
   write,
-  navigate,
 }: Readonly<{
   overview: Overview;
   itemCount: number;
   write: () => void;
-  navigate: (to: string) => void;
 }>) {
   return (
     <section className="rd-agent tp-overview">
       <h2 className="label">{TOPIC_PAGE.overviewHeading}</h2>
-      {overview.text === null ? null : <Lines overview={overview} navigate={navigate} />}
+      {overview.text === null ? null : <Lines overview={overview} />}
       <Status overview={overview} write={write} />
       {overview.text === null ? null : (
         <p className="rd-note">{builtFromLabel(overview.builtFrom, itemCount)}</p>

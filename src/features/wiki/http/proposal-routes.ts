@@ -3,6 +3,7 @@ import { createRoute, z, type OpenAPIHono } from "@hono/zod-openapi";
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import { PAGE_SIZE, parseNumberCursor } from "../../../core/contract/paging.ts";
 import {
+  type AcceptRefusal,
   AcceptedSchema,
   ProposalPageSchema,
   ProposalStateSchema,
@@ -119,24 +120,15 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
     const { id } = c.req.valid("param");
     const outcome = await acceptProposal(ports, id);
 
-    switch (outcome) {
-      case "done":
-        return c.json({ state: "done" as const }, 200);
-      case "accepting":
-        return c.json({ state: "accepting" as const }, 202);
-      case "unknown":
-        return notFound(c);
-      case "not-open":
-      case "not-current":
-      case "no-provider":
-      case "merge-busy":
-        return c.json({ error: outcome }, 409);
-      default: {
-        const exhaustive: never = outcome;
+    if (outcome === "done") return c.json({ state: "done" as const }, 200);
 
-        return exhaustive;
-      }
-    }
+    if (outcome === "accepting") return c.json({ state: "accepting" as const }, 202);
+
+    if (outcome === "unknown") return notFound(c);
+
+    const refusal: AcceptRefusal = outcome;
+
+    return c.json({ error: refusal }, 409);
   });
 }
 

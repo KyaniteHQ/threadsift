@@ -3,6 +3,7 @@ import { useCallback } from "react";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { whereOf } from "../../src/core/contract/link-place.ts";
 import { Icon } from "./Icon.tsx";
+import { useNavigateLink } from "./navigate-context.ts";
 import { offersFetchRetry } from "./paste-card.ts";
 import { countLabel } from "./reader-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
@@ -96,13 +97,15 @@ function Failed({
 }
 
 function TokenRefused() {
+  const follow = useNavigateLink(SETTINGS_PATH);
+
   return (
     <div className="it-fail">
       <p>
         <Icon name="warn" className="ic ic-s tone-warn" />
         {TOKEN_REFUSED.row}
       </p>
-      <a className="btn" href={SETTINGS_PATH}>
+      <a className="btn" href={SETTINGS_PATH} onClick={follow}>
         {TOKEN_REFUSED.link}
       </a>
     </div>
