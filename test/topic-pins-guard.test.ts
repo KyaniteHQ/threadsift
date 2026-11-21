@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { after, before, beforeEach, describe, it } from "node:test";
 
 import { guardHolds } from "../src/core/kernel/guards.ts";
 import { pinnedDigest } from "../src/features/wiki/core/pins.ts";
@@ -33,6 +33,10 @@ describe("the Pin resolution condition fails when the Topic or Tag Pins it read 
     database = openDatabase(instance.databaseFile, MIGRATIONS);
   });
 
+  beforeEach(() => {
+    sqlite("delete from pins");
+  });
+
   after(async () => {
     database.close();
     await instance.close();
@@ -53,8 +57,6 @@ describe("the Pin resolution condition fails when the Topic or Tag Pins it read 
   });
 
   it("fails when a Pin appeared after the read", async () => {
-    sqlite("delete from pins");
-
     const read = await pinnedDigest(database.db, digest);
 
     sqlite(topicPin(2, 1));
@@ -63,6 +65,7 @@ describe("the Pin resolution condition fails when the Topic or Tag Pins it read 
   });
 
   it("fails when the Pin it read was repointed or removed after the read", async () => {
+    sqlite(topicPin(2, 1));
     const read = await pinnedDigest(database.db, digest);
 
     sqlite("update pins set into_topic_id = 2 where id = 2");

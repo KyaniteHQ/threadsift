@@ -1,10 +1,11 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { type CommentRow, commentsViewOf } from "../src/core/contract/comment-view.ts";
+import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import { Instance, type Json } from "./instance.ts";
-import { FACT, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
+import { FACT, causeOf, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, until } from "./related-fixtures.ts";
+import { restoreLibrary } from "./restoring-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
 
@@ -205,33 +206,30 @@ describe("the Reader shows the comments that pass the script's first step until 
   });
 });
 
-const row = (id: string, readable: boolean): CommentRow => ({
-  id,
-  parentId: null,
-  depth: 0,
-  kind: "comment",
-  eligible: true,
-  kept: false,
-  readable,
-  author: readable ? "someone" : null,
-  body: readable ? "A comment." : null,
-  score: readable ? 1 : null,
-  postedAt: readable ? 1_700_000_000_000 : null,
-});
+it("shows the older Digest cause when a restored thread has newer comments than its page Digest", async (context) => {
+  const source = await botInstance();
+  context.after(() => source.close());
+  const restored = await Instance.start();
+  context.after(() => restored.close());
+  await restored.setUp();
 
-describe("the view of a thread whose stored Digest does not cover it", () => {
-  it("names the cause 'older' whatever the Provider and the outcome say", () => {
-    const { view } = commentsViewOf([row("t1_a", true), row("t1_b", true)], {
-      reported: 2,
-      archive: null,
-      published: false,
-      digest: { outcome: "none", stored: true, provider: false },
-    });
+  const { paste, view } = readerOf(() => source);
+  const id = await paste("older1", {
+    page: { title: "Page", markdown: FACT.repeat(12) },
+    digest: DIGEST,
+  });
+  await until(
+    () => source.detail(id),
+    (detail) => detail.digest !== null,
+  );
+  await selectGrokBot(source);
+  await paste("older1", { content: threadOf("older1") });
+  assert.equal(causeOf(await view(id)), "pending");
 
-    assert.deepEqual(view, {
-      filter: "unfiltered",
-      cause: "older",
-      count: { filter: "unfiltered", shown: 2, total: 2 },
-    });
+  await restoreLibrary({ from: source, into: restored });
+  assert.deepEqual((await restored.detail(id)).comments.view, {
+    filter: "unfiltered",
+    cause: "older",
+    count: { filter: "unfiltered", shown: 3, total: 6 },
   });
 });

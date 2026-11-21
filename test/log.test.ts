@@ -89,7 +89,7 @@ describe("the Log records a first Digest, a second Item and a Digest sent again"
     assert.equal((await instance.send("GET", `/api/topics/${early.topic.key}`)).status, 200);
   });
 
-  it("records two publications that race for one new Topic as one topic entry and one version step", async () => {
+  it("records one topic entry and one version step for two concurrent Pastes naming the same new Topic", async () => {
     const versionBefore = catalogVersion(instance);
 
     await Promise.all(

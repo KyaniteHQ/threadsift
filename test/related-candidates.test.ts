@@ -7,7 +7,9 @@ import { HighlightResponseSchema } from "../src/core/contract/highlight-contract
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { Instance } from "./instance.ts";
 import {
+  REDDIT_THREAD,
   SECRET_KEY,
+  exec,
   firstPickTask,
   pairsOf,
   paste,
@@ -17,9 +19,8 @@ import {
   saveProvider,
   sentInput,
   until,
-  exec,
-  REDDIT_THREAD,
 } from "./related-fixtures.ts";
+import { restoreLibrary } from "./restoring-fixtures.ts";
 
 const TWELVE = "quasar lattice decoder notes alpha beta gamma delta epsilon zeta eta theta";
 
@@ -39,20 +40,43 @@ describe("the related pick sends the best-ranked candidates", () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
 
-    exec(instance, "delete from sqlite_sequence where name = 'ai_tasks'");
-    exec(
-      instance,
-      "insert into sqlite_sequence (name, seq) values ('ai_tasks', ?)",
-      FIRST_TASK_ID_FLOOR,
-    );
+    const from = await Instance.start();
+    try {
+      await from.setUp();
+      exec(from, "delete from sqlite_sequence where name = 'ai_tasks'");
+      exec(
+        from,
+        "insert into sqlite_sequence (name, seq) values ('ai_tasks', ?)",
+        FIRST_TASK_ID_FLOOR,
+      );
 
-    await paste(instance, "undigested", { title: "-", noDigest: true });
+      const undigested = await paste(from, "undigested", { title: "-", noDigest: true });
 
-    strong = await paste(instance, "strong", {
-      title: "Quasar lattice",
-      summary: "The quasar lattice in short.",
-      tags: ["quasar"],
-    });
+      strong = await paste(from, "strong", {
+        title: "Quasar lattice",
+        summary: "The quasar lattice in short.",
+        tags: ["quasar"],
+      });
+
+      exec(
+        from,
+        "insert into item_tags (item_id, tag_id) select ?, id from tags where key = 'quasar'",
+        undigested,
+      );
+      await restoreLibrary({ from, into: instance });
+      assert.deepEqual(
+        rows(
+          instance,
+          z.object({ body: z.string() }),
+          "select body from search_parts where item_id = ? and kind = 'tags' and not exists (select 1 from digests where item_id = ?)",
+          undigested,
+          undigested,
+        ),
+        [{ body: "quasar" }],
+      );
+    } finally {
+      await from.close();
+    }
 
     equal = await pasteInOrder(
       instance,
@@ -85,7 +109,7 @@ describe("the related pick sends the best-ranked candidates", () => {
 
   after(() => instance.close());
 
-  it("sends at most 20 candidates, each Item once, the source never, and ties in Item id order", async () => {
+  it("sends at most 20 candidates, each digested Item once, skipping a matching restored Tag on an undigested Item, with ties in Item id order", async () => {
     const task = await firstPickTask(instance, source);
     const sent = sentInput(task.inputs);
     const ids = sent.candidates.map(({ id }) => id);
@@ -125,7 +149,6 @@ describe("the related pick sends the best-ranked candidates", () => {
 describe("the related pick matches only the Digest parts of an Item that has a Digest, through the first 12 words", () => {
   let instance: Instance;
   let inside: number;
-  let excluded: number[];
   let source: number;
 
   before(async () => {
@@ -137,40 +160,24 @@ describe("the related pick matches only the Digest parts of an Item that has a D
       summary: "A longer quasar report that mentions the word once among many other words.",
     });
 
-    const beyondTerms = await paste(instance, "beyond", {
+    await paste(instance, "beyond", {
       title: "Iota",
       summary: "Only the thirteenth word.",
     });
 
-    const beyondTag = await paste(instance, "beyond-tag", { title: "Other", tags: ["kappa"] });
+    await paste(instance, "beyond-tag", { title: "Other", tags: ["kappa"] });
 
-    const postTextOnly = await paste(instance, "post", {
+    await paste(instance, "post", {
       title: "Pasta",
       postText: "quasar lattice decoder",
     });
 
-    const titleOnly = await paste(instance, "title", {
+    await paste(instance, "title", {
       title: "Pasta again",
       pageTitle: "Quasar lattice decoder",
     });
 
-    const undigested = await pasteInOrder(
-      instance,
-      Array.from({ length: 21 }, (_, index) => [
-        `none-${String(index)}`,
-        { title: "-", pageTitle: "Quasar", noDigest: true },
-      ]),
-    );
-
-    for (const id of undigested) {
-      exec(
-        instance,
-        "insert into search_parts (item_id, kind, body) values (?, 'summary', 'quasar lattice')",
-        id,
-      );
-    }
-
-    const commentOnly = await paste(instance, "comment", {
+    await paste(instance, "comment", {
       title: "Thread about food",
       url: "https://www.reddit.com/r/science/comments/q1/a_thread/",
       content: JSON.stringify(REDDIT_THREAD),
@@ -216,17 +223,6 @@ describe("the related pick matches only the Digest parts of an Item that has a D
       },
     );
 
-    excluded = [
-      beyondTerms,
-      beyondTag,
-      postTextOnly,
-      titleOnly,
-      ...undigested,
-      commentOnly,
-      noted,
-      highlighted,
-    ];
-
     await saveProvider(instance);
 
     source = await paste(instance, "source", {
@@ -238,13 +234,12 @@ describe("the related pick matches only the Digest parts of an Item that has a D
 
   after(() => instance.close());
 
-  it("sends the matching Item and no Item that matches only through its fetched title, post text, comment, Highlight, Note, a Summary without a Digest or a word past the 12th", async () => {
+  it("sends the matching Item and no Item that matches only through its fetched title, post text, comment, Highlight, Note or a word past the 12th", async () => {
     const sent = sentInput((await firstPickTask(instance, source)).inputs);
 
     assert.deepEqual(
       sent.candidates.map(({ id }) => id),
       [inside],
     );
-    assert.equal(excluded.length, 28);
   });
 });

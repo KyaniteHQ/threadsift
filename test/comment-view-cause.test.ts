@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { commentsOf, threadReads } from "../src/features/thread/core/thread-read.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { chooseGrokBot } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { causeOf, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, saveProvider, until } from "./related-fixtures.ts";
+import { restoreLibrary } from "./restoring-fixtures.ts";
 
 const RETRY_STEP_MS = 150_000;
 
@@ -72,7 +72,7 @@ describe("the Reader does not say that no Provider is saved once the Grok Bot is
 
   after(() => instance.close());
 
-  it("names 'no-provider' while the Grok Bot is set up but not chosen, then 'not-run' or 'pending'", async () => {
+  it("names 'no-provider' while the Grok Bot is set up but not chosen, then 'pending'", async () => {
     const { paste, view } = readerOf(() => instance);
     const id = await paste("bot1", { content: threadOf("bot1") });
 
@@ -83,15 +83,29 @@ describe("the Reader does not say that no Provider is saved once the Grok Bot is
 
     assert.equal(chosen.status, 200, chosen.body);
 
-    const cause = causeOf(await view(id));
+    assert.deepEqual(await view(id), {
+      filter: "unfiltered",
+      cause: "pending",
+      count: { filter: "unfiltered", shown: 3, total: 6 },
+    });
+  });
+});
 
-    assert.ok(cause === "not-run" || cause === "pending", String(cause));
+it("shows not-run for a restored thread with no Digest in an Instance with a Provider", async (context) => {
+  const from = await Instance.start();
+  context.after(() => from.close());
+  await from.setUp();
+  const into = await Instance.start({ secretKey: SECRET_KEY });
+  context.after(() => into.close());
+  await into.setUp();
+  await saveProvider(into);
+  const id = await readerOf(() => from).paste("fresh1", { content: threadOf("fresh1") });
+  await from.settledItem(id);
 
-    const [rows, report] = await Promise.all(threadReads(instance.core.db, id));
-
-    assert.equal(
-      causeOf(commentsOf(rows, report, 0, { outcome: "none", stored: false }).view),
-      "not-run",
-    );
+  await restoreLibrary({ from, into });
+  assert.deepEqual((await into.detail(id)).comments.view, {
+    filter: "unfiltered",
+    cause: "not-run",
+    count: { filter: "unfiltered", shown: 3, total: 6 },
   });
 });

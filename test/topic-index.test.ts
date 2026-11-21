@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
@@ -9,6 +8,7 @@ import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts
 import { TopicIndexSchema } from "../src/core/contract/topic-index-contract.ts";
 import { topicApiPath } from "../src/core/contract/topic-path.ts";
 import { Instance, type Json } from "./instance.ts";
+import { storePage } from "./overview-gap-fixtures.ts";
 
 const SENTENCE =
   "Copying the database file while the writer is busy can tear a page, so take the copy with the online backup command instead.";
@@ -37,25 +37,6 @@ async function save(instance: Instance, slug: string, topic: string): Promise<nu
   return item.id;
 }
 
-function storeOverview(
-  instance: Instance,
-  key: string,
-  overview: string,
-  failure: string | null,
-): void {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    database
-      .prepare(
-        "insert into topic_pages (topic_id, overview, revision, built_from, failure, updated_at) values ((select id from topics where key = ?), ?, 1, '[]', ?, ?)",
-      )
-      .run(key, overview, failure, Date.now());
-  } finally {
-    database.close();
-  }
-}
-
 const cursorPath = (length: number) => `/api/topics?cursor=${"a".repeat(length)}`;
 
 const read = (instance: Instance, query = "") =>
@@ -76,13 +57,15 @@ describe("the Index lists every Topic once, ascending by key, with its Item coun
     await save(instance, "plain", "Zebras");
     gone = await save(instance, "gone", "Gone");
 
-    storeOverview(
-      instance,
-      "istanbul",
-      `\nFerries cross the Bosphorus all day [${String(ferries)}] [12]\nThe bridges join the two shores [3]`,
-      null,
-    );
-    storeOverview(instance, "ai/ml", "Vectors for text [the docs] [12][13]", "gave-up");
+    storePage(instance, "İstanbul", {
+      builtFrom: [],
+      overview: `\nFerries cross the Bosphorus all day [${String(ferries)}] [12]\nThe bridges join the two shores [3]`,
+    });
+    storePage(instance, "AI/ML", {
+      builtFrom: [],
+      overview: "Vectors for text [the docs] [12][13]",
+      failure: "gave-up",
+    });
   });
 
   after(() => instance.close());

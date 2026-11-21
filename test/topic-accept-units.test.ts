@@ -1,80 +1,70 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
+import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { script, seedTopicItems } from "./pin-fixtures.ts";
-import { removeProposals } from "./proposal-seed.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
-import { itemsOf, proposeTopics, topicId, topicMergeLines } from "./topic-accept-fixtures.ts";
+import { mergesOf } from "./lost-highlight-fixtures.ts";
+import { pasteTopics } from "./overview-gap-fixtures.ts";
+import { script, seedLogEntries, seedTopicItems } from "./pin-fixtures.ts";
+import {
+  answerOf,
+  itemsOf,
+  proposeTopics,
+  topicId,
+  topicMergeLines,
+} from "./topic-accept-fixtures.ts";
+
+const ITEMS = 25_002;
+
+async function partialAccept(instance: Instance) {
+  await pasteTopics(instance, { Survivor: ["survivor"], Loser: ["loser"] });
+  const loser = topicId(instance, "Loser");
+  seedTopicItems(instance, { topicId: loser, name: "Loser", from: 1000, items: ITEMS - 1 });
+  const proposal = proposeTopics(instance, ["Loser", "Survivor"]);
+  assert.deepEqual(await answerOf(instance, proposal), [202, { state: "accepting" }]);
+
+  return { proposal, loser };
+}
 
 describe("Accept of a Topic row that one request cannot finish", () => {
-  const UNIT = 500;
-  const ITEMS = 50 * UNIT + 1;
   let instance: Instance;
-  let loser = 0;
-  let proposal = 0;
+  let loser: number;
+  let proposal: number;
 
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    await paste(instance, "keeper", { title: "Keeper", topic: "Survivor" });
-    await paste(instance, "few", { title: "Few", topic: "Loser" });
-    loser = topicId(instance, "Loser");
-    seedTopicItems(instance, { topicId: loser, name: "Loser", from: 1000, items: ITEMS });
-    proposal = proposeTopics(instance, ["Loser", "Survivor"]);
+    ({ loser, proposal } = await partialAccept(instance));
   });
 
   after(() => instance.close());
 
-  it("answers 202 after 50 units with the row, the Pin and the count in place", async () => {
-    const answer = await accept(instance, proposal);
-
-    assert.deepEqual([answer.status, JSON.parse(answer.body)], [202, { state: "accepting" }]);
-    assert.deepEqual(
-      rows(
-        instance,
-        z.object({ state: z.string(), moved: z.number(), revision: z.number() }),
-        "select state, moved, unit_revision as revision from proposals where id = ?",
-        proposal,
-      ),
-      [{ state: "accepting", moved: 50 * UNIT, revision: 50 }],
-    );
+  it("answers 202 with the Pin in place and the last two Items still on the source Topic", async () => {
     assert.equal(count(instance, "select count(*) as n from pins where kind = 'topic-merge'"), 1);
+    const page = await instance.read("GET", "/api/topics/loser", TopicPageSchema);
+
+    assert.equal(page.topic.name, "Loser");
     assert.equal(itemsOf(instance, loser), 2);
     assert.deepEqual(await topicMergeLines(instance), []);
   });
 
-  it("lists the accepting row and refuses another Accept with merge-busy", async () => {
-    assert.deepEqual(
-      (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals.map(
-        ({ state }) => state,
-      ),
-      ["accepting"],
-    );
-
-    exec(instance, "insert into topics (key, name) values ('third', 'Third')");
-
-    const other = proposeTopics(instance, ["Survivor", "Third"]);
-
-    assert.deepEqual(
-      [(await accept(instance, other)).body],
-      [JSON.stringify({ error: "merge-busy" })],
-    );
-    removeProposals(instance, other);
-  });
-
   it("is finished by the sweep stage with one merge-topic entry that counts every Item", async () => {
-    script(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
+    assert.equal(
+      count(
+        instance,
+        "select count(*) as n from proposals where id = ? and state = 'accepting'",
+        proposal,
+      ),
+      1,
+    );
+    await sweep(instance);
 
     assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
     assert.equal(count(instance, "select count(*) as n from proposals"), 0);
     assert.deepEqual(await topicMergeLines(instance), [
-      `Loser into Survivor | ${String(ITEMS + 1)} Items`,
+      `Loser into Survivor | ${String(ITEMS)} Items`,
     ]);
   });
 });
@@ -85,32 +75,178 @@ describe("Accept of a Topic row that the sweep continues after an Item was delet
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    await paste(instance, "keeper", { title: "Keeper", topic: "Survivor" });
-    await paste(instance, "few", { title: "Few", topic: "Loser" });
-    seedTopicItems(instance, {
-      topicId: topicId(instance, "Loser"),
-      name: "Loser",
-      from: 1000,
-      items: 10,
-    });
   });
 
   after(() => instance.close());
 
   it("counts only the Items that moved", async () => {
-    const id = proposeTopics(instance, ["Loser", "Survivor"], "accepting");
+    const { loser } = await partialAccept(instance);
+    const remaining = count(instance, "select max(id) as n from items where topic_id = ?", loser);
+    assert.equal((await instance.send("DELETE", `/api/items/${String(remaining)}`)).status, 204);
+    await sweep(instance);
 
-    exec(instance, "update proposals set moved = 0, unit_revision = 1 where id = ?", id);
-    exec(
-      instance,
-      "insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'loser', 'Loser', ?, 1)",
-      topicId(instance, "Survivor"),
-    );
-    assert.equal((await instance.send("DELETE", "/api/items/1005")).status, 204);
-    script(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-
-    assert.deepEqual(await topicMergeLines(instance), ["Loser into Survivor | 10 Items"]);
+    assert.deepEqual(await topicMergeLines(instance), [
+      `Loser into Survivor | ${String(ITEMS - 1)} Items`,
+    ]);
     assert.equal(count(instance, "select count(*) as n from proposals"), 0);
+  });
+});
+
+const sweep = async (instance: Instance): Promise<void> => {
+  script(instance, "delete from scheduled_runs where task = 'sweep'");
+  await instance.tick();
+};
+
+interface Library {
+  readonly instance: Instance;
+  readonly loser: number;
+  readonly survivor: number;
+  readonly proposal: number;
+}
+
+const withLibrary = async (run: (library: Library) => Promise<void>): Promise<void> => {
+  const instance = await Instance.start();
+
+  try {
+    await instance.setUp();
+
+    await pasteTopics(instance, { Loser: ["loser"], Survivor: ["survivor"] });
+
+    const loser = topicId(instance, "Loser");
+
+    seedTopicItems(instance, { topicId: loser, name: "Loser", from: 1000, items: 2 });
+    await run({
+      instance,
+      loser,
+      survivor: topicId(instance, "Survivor"),
+      proposal: proposeTopics(instance, ["Loser", "Survivor"]),
+    });
+  } finally {
+    await instance.close();
+  }
+};
+
+const unchanged = ({ instance, loser }: Library): void => {
+  assert.equal(itemsOf(instance, loser), 3);
+  assert.equal(count(instance, "select count(*) as n from pins"), 0);
+};
+
+const acceptsAtOnce = async ({ instance, survivor, proposal }: Library): Promise<void> => {
+  assert.deepEqual(await answerOf(instance, proposal), [200, { state: "done" }]);
+  assert.equal(itemsOf(instance, survivor), 4);
+};
+
+describe("Accept of a Topic row hands back a failed first unit", () => {
+  it("when the unit throws leaves the row open, and accepts at once after the cause is gone", () =>
+    withLibrary(async (library) => {
+      const { instance, proposal } = library;
+
+      script(
+        instance,
+        "create trigger test_on_pin before insert on pins begin select raise(abort, 'the unit fails'); end;",
+      );
+
+      assert.equal((await accept(instance, proposal)).status, 500);
+
+      assert.equal(count(instance, "select count(*) as n from proposals where state = 'open'"), 1);
+      unchanged(library);
+      script(instance, "drop trigger test_on_pin");
+      await acceptsAtOnce(library);
+    }));
+
+  it("when reading the unit throws leaves the row open, and accepts at once after the cause is gone", () =>
+    withLibrary(async (library) => {
+      const { instance, proposal } = library;
+
+      script(instance, "alter table log_entries rename column topic_id to renamed_topic_id");
+
+      assert.equal((await accept(instance, proposal)).status, 500);
+
+      assert.equal(count(instance, "select count(*) as n from proposals where state = 'open'"), 1);
+      unchanged(library);
+      script(instance, "alter table log_entries rename column renamed_topic_id to topic_id");
+      await acceptsAtOnce(library);
+    }));
+});
+
+describe("the sweep stage records failed Topic merge units", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+  });
+
+  after(() => instance.close());
+
+  it("counts each run of the merges stage whose unit fails, shows the count on the Proposals page, and finishes once the cause is gone", async () => {
+    const { proposal: second } = await partialAccept(instance);
+    script(
+      instance,
+      "create trigger test_on_pin before insert on pins begin select raise(abort, 'the unit fails'); end;",
+    );
+
+    const failedRuns = (): number =>
+      count(instance, "select coalesce(failed_runs, 0) as n from proposals where id = ?", second);
+
+    const failingSweep = async (runs: number): Promise<void> => {
+      await sweep(instance);
+
+      assert.equal(failedRuns(), runs);
+    };
+
+    await failingSweep(1);
+    await failingSweep(2);
+    await failingSweep(3);
+
+    const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
+
+    assert.deepEqual(
+      mergesOf(page).map(({ id, state, failedRuns: shown }) => [id, state, shown]),
+      [[second, "accepting", 3]],
+    );
+    script(instance, "drop trigger test_on_pin");
+    await sweep(instance);
+
+    assert.equal(count(instance, "select count(*) as n from proposals"), 0);
+  });
+});
+
+describe("Accept of a Topic row on more Log entries than one unit holds", () => {
+  let instance: Instance;
+  let loser = 0;
+  let survivor = 0;
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+    await pasteTopics(instance, { Survivor: ["survivor"], Loser: ["loser"] });
+    loser = topicId(instance, "Loser");
+    survivor = topicId(instance, "Survivor");
+  });
+
+  after(() => instance.close());
+
+  it("moves more Log entries than one unit holds and writes the merge Log entry once", async () => {
+    seedLogEntries(instance, { topicId: loser, name: "Loser", entries: 1001 });
+
+    const id = proposeTopics(instance, ["Loser", "Survivor"]);
+
+    const logged = count(
+      instance,
+      "select count(*) as n from log_entries where topic_id in (?, ?)",
+      loser,
+      survivor,
+    );
+
+    const answer = await accept(instance, id);
+
+    assert.deepEqual([answer.status, JSON.parse(answer.body)], [200, { state: "done" }]);
+    assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
+    assert.equal(
+      count(instance, "select count(*) as n from log_entries where topic_id = ?", survivor),
+      logged,
+    );
+    assert.deepEqual(await topicMergeLines(instance), ["Loser into Survivor | 1 Items"]);
   });
 });

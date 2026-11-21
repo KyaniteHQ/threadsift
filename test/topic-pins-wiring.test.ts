@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { sql } from "drizzle-orm";
 
-import { guardedBatch } from "../src/core/kernel/guards.ts";
+import { guardedBatch, refusedByGuard } from "../src/core/kernel/guards.ts";
 import {
   publishedByCaller,
   readForPublishing,
@@ -73,7 +73,7 @@ describe("each publication path refuses its batch when a Topic Pin appeared afte
 
     sqlite(topicPin(1, 1));
 
-    await assert.rejects(guardedBatch(database.db, sql`1`, writes), /guards_hold/u);
+    await assert.rejects(guardedBatch(database.db, sql`1`, writes), refusedByGuard);
     assert.equal(topicNameOf(instance, 2), null);
   });
 });

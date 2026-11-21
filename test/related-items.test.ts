@@ -4,9 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
-import { type Agents, connectBoth, createAgentToken, sameAsRest } from "./mcp-client.ts";
 import { SECRET_KEY, exec, pairsOf, paste, rows } from "./related-fixtures.ts";
 
 const COUNT_SCHEMA = z.object({ count: z.number() });
@@ -44,9 +42,8 @@ function count(instance: Instance): number {
   return rows(instance, COUNT_SCHEMA, "select count(*) as count from related_items")[0]?.count ?? 0;
 }
 
-describe("an Item's Related Items are read through the API and the MCP read tool and leave with either Item", () => {
+describe("an Item's Related Items are read through the API and leave with either Item", () => {
   let instance: Instance;
-  let agents: Agents;
   let source: number;
   let first: number;
   let digestless: number;
@@ -57,7 +54,6 @@ describe("an Item's Related Items are read through the API and the MCP read tool
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
-    agents = await connectBoth(instance, await createAgentToken(instance, "related"));
     source = await paste(instance, "source", { title: "The source" });
     first = await paste(instance, "first", { title: "First Digest title" });
     digestless = await paste(instance, "digestless", {
@@ -74,11 +70,7 @@ describe("an Item's Related Items are read through the API and the MCP read tool
     seed(instance, source, digestless, 1, "Reason of the second");
   });
 
-  after(async () => {
-    await agents.legacy.close();
-    await agents.modern.close();
-    await instance.close();
-  });
+  after(() => instance.close());
 
   const readRelated = async (id: number) => (await instance.detail(id)).related;
 
@@ -102,17 +94,6 @@ describe("an Item's Related Items are read through the API and the MCP read tool
   it("answers an empty list for an Item with none, and does not list the pick in the other Item's Reader", async () => {
     assert.deepEqual(await readRelated(alone), []);
     assert.deepEqual(await readRelated(first), []);
-  });
-
-  it("gives the MCP read tool the same answer as the HTTP route", async () => {
-    const { item } = ItemDetailResponseSchema.parse(
-      await sameAsRest(instance, agents, `/api/items/${String(source)}`, "read", { id: source }),
-    );
-
-    assert.deepEqual(
-      item.related.map(({ id }) => id),
-      [first, digestless, gap, last],
-    );
   });
 
   it("removes a pair when either Item is deleted, and renumbers nothing", async () => {

@@ -18,6 +18,7 @@ import {
   sameAsRest,
 } from "./mcp-client.ts";
 import { KEPT_ARTICLE, type Library, NOTE_BODY, NOTE_WORD, seedLibrary } from "./mcp-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 const MISSING_ID = 999_999;
 
@@ -41,6 +42,14 @@ describe("an agent searches and reads Items through /mcp with the same answers a
     await instance.setUp();
     agents = await connectBoth(instance, await createAgentToken(instance, "mcp tools"));
     library = await seedLibrary(instance);
+    exec(
+      instance,
+      "insert into related_items (item_id, related_id, position, reason) values (?, ?, 1, 'Shared reference'), (?, ?, 0, 'Same subject')",
+      library.keptId,
+      library.lostId,
+      library.keptId,
+      library.threadId,
+    );
   });
 
   after(async () => {
@@ -167,6 +176,10 @@ describe("an agent searches and reads Items through /mcp with the same answers a
     const item = await sameRead(library.keptId);
 
     assert.equal(item.digest?.summary.startsWith("Use the online backup command"), true);
+    assert.deepEqual(
+      item.related.map(({ id }) => id),
+      [library.threadId, library.lostId],
+    );
     assert.equal(item.note.body, NOTE_BODY);
     assert.deepEqual(
       item.highlights.items.map(({ status }) => status),

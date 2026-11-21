@@ -54,14 +54,11 @@ export function seedProposal(
   }
 }
 
-export function removeProposals(instance: Instance, id?: number): void {
+export function removeProposals(instance: Instance): void {
   const database = new DatabaseSync(instance.databaseFile);
 
   try {
-    for (const kind of PROPOSAL_KINDS) {
-      if (id === undefined) database.prepare(`delete from ${subjectTable(kind)}`).run();
-      else database.prepare(`delete from ${subjectTable(kind)} where proposal_id = ?`).run(id);
-    }
+    for (const kind of PROPOSAL_KINDS) database.prepare(`delete from ${subjectTable(kind)}`).run();
   } finally {
     database.close();
   }
