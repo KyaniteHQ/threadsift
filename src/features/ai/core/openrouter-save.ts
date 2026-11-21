@@ -59,15 +59,12 @@ async function committed(
   }
 }
 
-async function stillStored(
+async function openConnectedDigests(
   ports: Ports,
   row: Readonly<PreparedSave["row"]>,
-  active: boolean,
 ): Promise<boolean> {
   try {
-    return active
-      ? await saveWithDigests(ports, storedSettings(row), [])
-      : await guardedBatch(ports.db, storedSettings(row), []);
+    return await saveWithDigests(ports, storedSettings(row), []);
   } catch (error) {
     logFailure("openrouter-connect-digests-failed", {}, error);
 
@@ -82,7 +79,11 @@ async function afterActivation(
 ): Promise<ConnectNotice> {
   const active = await awaitOpenRouterActivation(ports.ai, key);
 
-  if (!(await stillStored(ports, row, active))) return SETTINGS_CHANGED;
+  const stored = active
+    ? await openConnectedDigests(ports, row)
+    : await holdsSettings(ports.db, row);
+
+  if (!stored) return SETTINGS_CHANGED;
 
   return active ? "connected" : "activation-pending";
 }

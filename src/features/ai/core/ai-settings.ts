@@ -118,7 +118,7 @@ export async function saveWithDigests(
 ): Promise<boolean> {
   const saved = await guardedBatch(ports.db, guard, [...writes, ...requeuedDigests(ports.db)]);
 
-  if (saved) ports.jobs.wake?.();
+  if (saved) ports.jobs.wake();
 
   return saved;
 }

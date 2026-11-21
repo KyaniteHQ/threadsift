@@ -162,7 +162,7 @@ Only the failure marker is stored. `pending` comes from an open Digest job.
 - The Item view carries its retry action (`paste`, `digest` or none), so the UI follows one server rule. `shownStatus` gives a ready Item with a failure marker `digest` when `hasDigestSource` holds for it, and `paste` when it does not.
 - `POST /api/items/{id}/digest` opens one job over existing text at attempt 0. It leaves an already-open Digest or a failed Item unchanged, because the statements that clear the pending Digest and open the job both name `NOT_FAILED`, so an Item that fails between the read and the batch gets no job ([HTTP interfaces](http-interfaces.md), Digest, status and reads).
 - A refresh that stores new text without opening a Digest job marks an older Digest as failed in the same batch.
-- `saveAiSettings` opens older non-failed Items that have a Digest source but no Digest and no open Digest job (`requeuedDigests`), through one `INSERT ... SELECT` in its save batch, which also sets those Items `processing`. Items with a failure marker are left out unless the latest Digest task failed as `wrong-key`. This costs one model call for each eligible Item, at the existing runner concurrency.
+- A Provider save and an active OpenRouter Connect use `saveWithDigests`. One `INSERT ... SELECT` opens Digest jobs for older Items with a Digest source, no stored Digest and no open Digest job, setting them to `processing`. An Item failure marker always excludes the Item. A Digest failure excludes it unless its latest Digest task was refused as `wrong-key`. The container wakes its loop after the batch commits. An eligible Item with usable text can incur a model call at the existing runner concurrency.
 
 ## Owed Digests
 

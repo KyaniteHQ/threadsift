@@ -29,13 +29,13 @@ async function partialAccept(instance: Instance) {
 }
 
 async function acceptingProposal(instance: Instance) {
-  await pasteTopics(instance, { Survivor: ["moved"], Loser: ["left", "last"] });
+  await pasteTopics(instance, { Survivor: ["moved-1", "moved-2"], Loser: ["left", "last"] });
   const proposal = proposeTopics(instance, ["Loser", "Survivor"], "accepting");
   const loser = topicId(instance, "Loser");
   const survivor = topicId(instance, "Survivor");
   script(
     instance,
-    `update proposals set moved = 1, unit_revision = 1 where id = ${String(proposal)};
+    `update proposals set moved = 2, unit_revision = 1 where id = ${String(proposal)};
      insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'loser', 'Loser', ${String(survivor)}, 1);`,
   );
 
@@ -99,7 +99,7 @@ describe("Accept of a Topic row that the sweep continues after an Item was delet
     assert.equal((await instance.send("DELETE", `/api/items/${String(remaining)}`)).status, 204);
     await sweep(instance);
 
-    assert.deepEqual(await topicMergeLines(instance), ["Loser into Survivor | 2 Items"]);
+    assert.deepEqual(await topicMergeLines(instance), ["Loser into Survivor | 3 Items"]);
     assert.equal(count(instance, "select count(*) as n from proposals"), 0);
   });
 });

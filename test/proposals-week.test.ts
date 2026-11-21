@@ -25,16 +25,17 @@ describe("each weekly model check has its own claim", () => {
   let owner: number;
 
   before(async () => {
-    const empty = await Instance.start({ secretKey: SECRET_KEY });
+    const withoutDigest = await Instance.start({ secretKey: SECRET_KEY });
     try {
-      await empty.setUp();
-      await saveProvider(empty);
-      await nextTick(empty);
+      await withoutDigest.setUp();
+      await paste(withoutDigest, "without-digest", { title: "No Digest", noDigest: true });
+      await saveProvider(withoutDigest);
+      await nextTick(withoutDigest);
       for (const task of MODEL_TASKS) {
-        assert.deepEqual([claims(empty, task), jobsOf(empty, task)], [[], []]);
+        assert.deepEqual([claims(withoutDigest, task), jobsOf(withoutDigest, task)], [[], []]);
       }
     } finally {
-      await empty.close();
+      await withoutDigest.close();
     }
 
     library = await Instance.start({ secretKey: SECRET_KEY });
