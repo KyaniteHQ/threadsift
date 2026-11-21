@@ -2,15 +2,12 @@ import type { OverviewGapProposal } from "../../src/core/contract/proposal-contr
 import { OVERVIEW_GAP_EFFECT, PROPOSAL_WORDS, overviewCounts } from "./proposals-text.ts";
 import { TopicEffect } from "./TopicEffect.tsx";
 
-export function OverviewGapBody({
-  proposal,
-  openTopic,
-}: Readonly<{ proposal: OverviewGapProposal; openTopic: (key: string) => void }>) {
+export function OverviewGapBody({ proposal }: Readonly<{ proposal: OverviewGapProposal }>) {
   const { topic } = proposal;
 
   return (
     <>
-      <TopicEffect effect={OVERVIEW_GAP_EFFECT} topic={topic} openTopic={openTopic} />
+      <TopicEffect effect={OVERVIEW_GAP_EFFECT} topic={topic} />
       <p className="rl-sum pr-gap">{overviewCounts(topic)}</p>
       <p className="rl-sum pr-overview">{PROPOSAL_WORDS.overviewCost}</p>
     </>

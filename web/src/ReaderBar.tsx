@@ -6,7 +6,6 @@ import { Icon } from "./Icon.tsx";
 import { leaveOf } from "./reader-text.ts";
 import { ReaderActions } from "./ReaderActions.tsx";
 import { followProgress } from "./reading-progress.ts";
-import type { Pages } from "./routing.ts";
 import { useBarFit } from "./use-bar-fit.ts";
 import type { PanelState } from "./use-panel.ts";
 import type { ReaderControls } from "./use-reader-controls.ts";
@@ -58,13 +57,11 @@ export function ReaderBar({
   item,
   controls,
   look,
-  pages,
   panel,
 }: Readonly<{
   item: Item;
   controls: ReaderControls;
   look: Look;
-  pages: Pages;
   panel: PanelState;
 }>) {
   const { mode, settingsKey, close, hintPlaced } = controls;
@@ -85,7 +82,7 @@ export function ReaderBar({
           </span>
         </button>
       )}
-      <ReaderActions item={item} controls={controls} look={look} pages={pages} panel={panel} />
+      <ReaderActions item={item} controls={controls} look={look} panel={panel} />
       <i className="rd-progress" aria-hidden="true" />
     </div>
   );

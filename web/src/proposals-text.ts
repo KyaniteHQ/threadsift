@@ -6,9 +6,10 @@ import type {
   Proposal,
 } from "../../src/core/contract/proposal-contract.ts";
 import { ADDED_READ_LIMIT } from "../../src/core/contract/topic-overview-contract.ts";
+import { filled } from "./filled.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { plural } from "./plural.ts";
-import { NEWEST_FIRST, filled } from "./text.ts";
+import { NEWEST_FIRST } from "./text.ts";
 
 export const PROPOSALS_PAGE = {
   masthead: "Proposals",
@@ -102,18 +103,10 @@ const ACCEPT_WORDS = {
     accepted:
       "Accepted keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
   },
-} as const satisfies Partial<Record<ProposalKind, Record<AcceptWording, string>>>;
-
-type AcceptableKind = keyof typeof ACCEPT_WORDS;
-
-export type AcceptableProposal = Extract<Proposal, { readonly kind: AcceptableKind }>;
+} as const satisfies Record<ProposalKind, Record<AcceptWording, string>>;
 
 export function isMerge(proposal: Readonly<Proposal>): proposal is MergeProposal {
   return proposal.kind === "tag-merge" || proposal.kind === "topic-merge";
-}
-
-export function isAcceptable(proposal: Readonly<Proposal>): proposal is AcceptableProposal {
-  return proposal.kind in ACCEPT_WORDS;
 }
 
 export const PROPOSAL_WORDS = {

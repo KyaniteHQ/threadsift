@@ -4,7 +4,8 @@ import { type Attempt, type Refusal, resetPassword } from "./access-api.ts";
 import { RESET } from "./access-text.ts";
 import { LENGTH_PROBLEM, checkNewPassword } from "./password-length.ts";
 import { usePasswordVisibility } from "./PasswordField.tsx";
-import { useField, useLock, useSubmit } from "./use-form.ts";
+import { useField, useSubmit } from "./use-form.ts";
+import { useLock } from "./use-lock.ts";
 
 function codeMessage(result: Readonly<Refusal>): string | null {
   if (result.kind === "wrong-reset-code") {

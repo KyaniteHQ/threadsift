@@ -8,9 +8,6 @@ import {
   useState,
 } from "react";
 
-import { WAIT, waitLabel } from "./access-text.ts";
-import { filled } from "./text.ts";
-
 export interface FieldState {
   readonly value: string;
   readonly error: string | null;
@@ -120,40 +117,4 @@ export function useSubmit(run: () => Promise<void>, blocked = false) {
   );
 
   return { busy, onSubmit };
-}
-
-const TICK_MS = 1000;
-
-export function useLock() {
-  const [until, setUntil] = useState(0);
-  const [now, setNow] = useState(0);
-  const ticking = now < until;
-
-  useEffect(() => {
-    const timer = ticking
-      ? window.setInterval(() => {
-          setNow(Date.now());
-        }, TICK_MS)
-      : 0;
-
-    return () => {
-      window.clearInterval(timer);
-    };
-  }, [ticking]);
-
-  const start = useCallback((wait: number) => {
-    const current = Date.now();
-    setNow(current);
-    setUntil(current + wait * TICK_MS);
-  }, []);
-
-  const dismiss = useCallback(() => {
-    setUntil(0);
-  }, []);
-
-  const remaining = ticking ? Math.ceil((until - now) / TICK_MS) : 0;
-  const over = until !== 0 && !ticking;
-  const waiting = ticking ? filled(WAIT.message, { wait: waitLabel(remaining) }) : null;
-
-  return { locked: ticking, message: waiting ?? (over ? WAIT.over : null), start, dismiss };
 }

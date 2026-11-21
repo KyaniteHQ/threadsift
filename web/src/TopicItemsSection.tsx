@@ -7,10 +7,7 @@ import { TOPIC_PAGE, itemsLabel } from "./topic-text.ts";
 import { TopicItemRow } from "./TopicItems.tsx";
 import type { TopicReady } from "./use-topic-page.ts";
 
-function ItemList({
-  state,
-  navigate,
-}: Readonly<{ state: TopicReady; navigate: (to: string) => void }>) {
+function ItemList({ state }: Readonly<{ state: TopicReady }>) {
   const [now] = useState(Date.now);
   const listed = state.overview.text !== null;
 
@@ -21,13 +18,7 @@ function ItemList({
   return (
     <ol role="list" className="rl-list">
       {state.items.map((item) => (
-        <TopicItemRow
-          key={item.id}
-          item={item}
-          now={now}
-          flagged={listed && !item.inOverview}
-          navigate={navigate}
-        />
+        <TopicItemRow key={item.id} item={item} now={now} flagged={listed && !item.inOverview} />
       ))}
     </ol>
   );
@@ -36,15 +27,14 @@ function ItemList({
 export function TopicItemsSection({
   state,
   loadMore,
-  navigate,
-}: Readonly<{ state: TopicReady; loadMore: () => void; navigate: (to: string) => void }>) {
+}: Readonly<{ state: TopicReady; loadMore: () => void }>) {
   return (
     <section className="rl-items">
       <header className="list-head">
         <h2 className="results">{itemsLabel(state.topic.itemCount)}</h2>
         <p className="label">{SORT_LABEL}</p>
       </header>
-      <ItemList state={state} navigate={navigate} />
+      <ItemList state={state} />
       {state.next === null ? null : (
         <LoadMore
           more={state.more}

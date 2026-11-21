@@ -6,7 +6,8 @@ import { Alert } from "./Alert.tsx";
 import { LENGTH_PROBLEM, checkNewPassword } from "./password-length.ts";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
 import { SwapButton } from "./SwapButton.tsx";
-import { useField, useLock, useSubmit } from "./use-form.ts";
+import { useField, useSubmit } from "./use-form.ts";
+import { useLock } from "./use-lock.ts";
 
 function usePasswordChange() {
   const current = useField();

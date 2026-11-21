@@ -1,12 +1,13 @@
 import type { RefObject } from "react";
 
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
+import { ITEM_HEAD, headLabel } from "./head-label.ts";
 import { matchedCount } from "./list-counts.ts";
 import { type ListState, type Ready, countsOf, readFor } from "./list-state.ts";
 import { ListHead } from "./ListBody.tsx";
 import { SearchField } from "./SearchField.tsx";
 import { SettledAnnouncement } from "./SettledAnnouncement.tsx";
-import { SEARCH_LABEL, SEARCH_PLACEHOLDER, SORT_LABEL, headLabel } from "./text.ts";
+import { SEARCH_LABEL, SEARCH_PLACEHOLDER, SORT_LABEL } from "./text.ts";
 
 interface ListToolsProps {
   readonly list: ListState;
@@ -25,7 +26,7 @@ function headText(list: Readonly<Ready>, filters: Readonly<Filters>): string {
   const shown = list.next === null ? list.items.length : matchedCount(list.counts, filters);
   const text = isSearching(filters) ? filters.q.trim() : "";
 
-  return headLabel(list.counts, isFiltered(filters) ? shown : null, text);
+  return headLabel(ITEM_HEAD, { ...list.counts, shown: isFiltered(filters) ? shown : null }, text);
 }
 
 function Tools({

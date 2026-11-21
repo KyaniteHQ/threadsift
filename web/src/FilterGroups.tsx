@@ -1,6 +1,7 @@
 import { type ChangeEvent, useCallback, useId } from "react";
 
 import type { CountedName } from "../../src/core/contract/filter-counts-contract.ts";
+import { filled } from "./filled.ts";
 import { Icon } from "./Icon.tsx";
 import {
   ALL_CHOICE,
@@ -9,7 +10,6 @@ import {
   FILTER_GROUPS,
   NO_ROWS,
   SHOW_FEWER,
-  filled,
   namedOption,
 } from "./text.ts";
 import { TopicPageLink } from "./TopicLink.tsx";

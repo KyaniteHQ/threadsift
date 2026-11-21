@@ -15,24 +15,20 @@ function Loading() {
   );
 }
 
-export function SettingsPage({
-  back,
-  loggedOut,
-  openObsidian,
-}: Readonly<{ back: () => void; loggedOut: () => void; openObsidian: () => void }>) {
+export function SettingsPage({ loggedOut }: Readonly<{ loggedOut: () => void }>) {
   const loaded = useSettingsLoad();
 
   useHashTarget(loaded !== null);
 
   return (
     <div className="pg">
-      <PageBar title={SETTINGS.title} back={back} />
+      <PageBar title={SETTINGS.title} />
       <main className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? (
           <Loading />
         ) : (
           <>
-            <ObsidianLink open={openObsidian} />
+            <ObsidianLink />
             <SettingsSections loaded={loaded} loggedOut={loggedOut} />
           </>
         )}

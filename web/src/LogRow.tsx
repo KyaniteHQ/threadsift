@@ -1,4 +1,4 @@
-import { type ReactNode, memo, useCallback } from "react";
+import { type ReactNode, memo } from "react";
 
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import { LOG } from "../../src/core/contract/log-actions.ts";
@@ -7,7 +7,6 @@ import { topicPath } from "../../src/core/contract/topic-path.ts";
 import { localStamp } from "./log-date.ts";
 import { LOG_WORDS, addedRemoved, itemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
 import { LogLink } from "./LogLink.tsx";
-import type { Pages } from "./routing.ts";
 import { topicLinkLabel } from "./topic-text.ts";
 
 function Separator() {
@@ -32,54 +31,31 @@ function Parts({ children }: Readonly<{ children: readonly Part[] }>) {
   ));
 }
 
-function ItemLink({
-  item,
-  pages,
-}: Readonly<{ item: { readonly id: number; readonly title: string }; pages: Pages }>) {
-  const { id } = item;
-
-  const open = useCallback(() => {
-    pages.item(id);
-  }, [pages, id]);
-
-  return <LogLink href={itemPath(id)} open={open} text={item.title} />;
+function ItemLink({ item }: Readonly<{ item: { readonly id: number; readonly title: string } }>) {
+  return <LogLink href={itemPath(item.id)} text={item.title} />;
 }
 
-function TopicRef({
-  topic,
-  pages,
-}: Readonly<{ topic: { readonly key: string; readonly name: string }; pages: Pages }>) {
-  const { key } = topic;
-
-  const open = useCallback(() => {
-    pages.topic(key);
-  }, [pages, key]);
-
+function TopicRef({ topic }: Readonly<{ topic: { readonly key: string; readonly name: string } }>) {
   return (
-    <LogLink
-      href={topicPath(key)}
-      open={open}
-      label={topicLinkLabel(topic.name)}
-      text={topic.name}
-    />
+    <LogLink href={topicPath(topic.key)} label={topicLinkLabel(topic.name)} text={topic.name} />
   );
 }
 
-function itemPart(item: { readonly id: number; readonly title: string }, pages: Pages): Part {
-  return { key: "item", node: <ItemLink item={item} pages={pages} /> };
+function itemPart(item: { readonly id: number; readonly title: string }): Part {
+  return { key: "item", node: <ItemLink item={item} /> };
 }
 
-function topicPart(topic: { readonly key: string; readonly name: string }, pages: Pages): Part {
-  return { key: "topic", node: <TopicRef topic={topic} pages={pages} /> };
+function topicPart(topic: { readonly key: string; readonly name: string }): Part {
+  return { key: "topic", node: <TopicRef topic={topic} /> };
 }
 
-function digestedParts(entry: Readonly<Extract<LogEntry, { tags: unknown }>>, pages: Pages) {
+function digestedParts(entry: Readonly<Extract<LogEntry, { tags: unknown }>>) {
   const labelled: Part = {
     key: "topic",
     node: (
       <>
         <span className="lg-word">{LOG_WORDS.topic} </span>
-        <TopicRef topic={entry.topic} pages={pages} />
+        <TopicRef topic={entry.topic} />
       </>
     ),
   };
@@ -93,7 +69,7 @@ function digestedParts(entry: Readonly<Extract<LogEntry, { tags: unknown }>>, pa
     ),
   };
 
-  return [itemPart(entry.item, pages), labelled, ...(entry.tags.length === 0 ? [] : [tags])];
+  return [itemPart(entry.item), labelled, ...(entry.tags.length === 0 ? [] : [tags])];
 }
 
 function mergeParts(
@@ -114,23 +90,23 @@ function mergeParts(
   ];
 }
 
-function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
+function body(entry: Readonly<LogEntry>): readonly Part[] {
   const action: Part = { key: "action", node: entry.action };
 
   switch (entry.action) {
     case "ingest":
     case "digest":
-      return [action, ...digestedParts(entry, pages)];
+      return [action, ...digestedParts(entry)];
     case "topic":
-      return [action, topicPart(entry.topic, pages)];
+      return [action, topicPart(entry.topic)];
     case "overview":
       return [
         action,
-        topicPart(entry.topic, pages),
+        topicPart(entry.topic),
         { key: "counts", node: addedRemoved(entry.added, entry.removed) },
       ];
     case "related":
-      return [action, itemPart(entry.item, pages), { key: "picks", node: picksLabel(entry.picks) }];
+      return [action, itemPart(entry.item), { key: "picks", node: picksLabel(entry.picks) }];
     case "merge":
       return mergeParts(LOG_WORDS.tag, entry);
     case "merge-topic":
@@ -146,10 +122,7 @@ function body(entry: Readonly<LogEntry>, pages: Pages): readonly Part[] {
   }
 }
 
-export const LogRow = memo(function LogRow({
-  entry,
-  pages,
-}: Readonly<{ entry: LogEntry; pages: Pages }>) {
+export const LogRow = memo(function LogRow({ entry }: Readonly<{ entry: LogEntry }>) {
   return (
     <li>
       <article className="rl-row">
@@ -157,7 +130,7 @@ export const LogRow = memo(function LogRow({
           <time className="lg-date" dateTime={new Date(entry.at).toISOString()}>
             [{localStamp(entry.at)}]
           </time>{" "}
-          <Parts>{body(entry, pages)}</Parts>
+          <Parts>{body(entry)}</Parts>
         </p>
       </article>
     </li>

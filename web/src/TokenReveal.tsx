@@ -2,7 +2,7 @@ import { useCallback, useId, useRef, useState } from "react";
 
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
-import { filled } from "./text.ts";
+import { filled } from "./filled.ts";
 import { useAfter, useFocusOnMount } from "./use-form.ts";
 
 const COPIED_MS = 2000;

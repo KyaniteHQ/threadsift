@@ -1,4 +1,4 @@
-const TOPIC_PATH = /^\/topics\/([^/]+)\/?$/u;
+const TOPIC_PATH = /^\/topics\/([^/]+)$/u;
 
 const DOTS_ONLY = /^~*\.+$/u;
 

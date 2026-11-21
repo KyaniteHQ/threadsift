@@ -4,7 +4,6 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { ReaderBar } from "./ReaderBar.tsx";
 import { ReaderBody } from "./ReaderBody.tsx";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
-import type { Pages } from "./routing.ts";
 import { usePageName } from "./use-document-title.ts";
 import { useFocusMoved } from "./use-focus-moved.ts";
 import { refreshKey, useItemDetail } from "./use-item-detail.ts";
@@ -97,7 +96,6 @@ export function Reader({
   controls,
   look,
   titleId,
-  pages,
   panel,
   tryAgain,
 }: Readonly<{
@@ -106,7 +104,6 @@ export function Reader({
   controls: ReaderControls;
   look: Look;
   titleId: string;
-  pages: Pages;
   panel: PanelState;
   tryAgain: (item: Item) => void;
 }>) {
@@ -114,7 +111,7 @@ export function Reader({
 
   return (
     <section className="reader" aria-labelledby={titleId}>
-      <ReaderBar item={item} controls={controls} look={look} pages={pages} panel={panel} />
+      <ReaderBar item={item} controls={controls} look={look} panel={panel} />
       <ReaderCol
         item={item}
         slot={slot}

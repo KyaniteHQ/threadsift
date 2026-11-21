@@ -105,16 +105,13 @@ export function ListPage<Page extends PagedPage, Row>({
   source,
   listing,
   draw,
-  back,
   notice = null,
-}: Readonly<
-  { source: Source<Page>; back: () => void; notice?: string | null } & Shown<Page, Row>
->) {
+}: Readonly<{ source: Source<Page>; notice?: string | null } & Shown<Page, Row>>) {
   const loading = source.state.status === "loading";
 
   return (
     <div className="pg">
-      <PageBar title={listing.text.title} back={back} ready={!loading} />
+      <PageBar title={listing.text.title} ready={!loading} />
       <main className="pg-col rl-col" aria-busy={loading}>
         {notice === null ? null : <p className="rd-note">{notice}</p>}
         <Body source={source} listing={listing} draw={draw} />

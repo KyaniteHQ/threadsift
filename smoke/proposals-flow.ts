@@ -22,6 +22,9 @@ export async function proposalsFlow(page: Page, browser: Browser): Promise<void>
   await page.reload();
   await expectEmptyWithoutProvider(page);
 
+  await page.goto("/proposals/");
+  await expectEmptyWithoutProvider(page);
+
   await page.setViewportSize(PHONE);
   await page.goto("/proposals");
   await expectEmptyWithoutProvider(page);

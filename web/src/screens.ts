@@ -80,7 +80,7 @@ function signedInScreen(path: string): ScreenState {
 
   if (path === IMPORT_PATH) return { name: "import" };
 
-  if (path === INDEX_PATH || path === `${INDEX_PATH}/`) return { name: "index" };
+  if (path === INDEX_PATH) return { name: "index" };
 
   if (path === LOG_PATH) return { name: "log" };
 

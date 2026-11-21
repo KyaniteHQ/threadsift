@@ -2,7 +2,7 @@ import { memo, useId } from "react";
 
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { TopicItem } from "../../src/core/contract/topic-overview-contract.ts";
-import { useNavigateLink } from "./routing.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { SavedTime } from "./SavedTime.tsx";
 import { READ_LABELS, SOURCE_LABELS } from "./text.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
@@ -30,19 +30,17 @@ export const TopicItemRow = memo(function TopicItemRow({
   item,
   now,
   flagged,
-  navigate,
 }: Readonly<{
   item: TopicItem;
   now: number;
   flagged: boolean;
-  navigate: (to: string) => void;
 }>) {
   const base = useId();
   const summaryId = `${base}-sum`;
   const unreadId = `${base}-unread`;
   const to = itemPath(item.id);
 
-  const open = useNavigateLink(navigate, to);
+  const open = useNavigateLink(to);
 
   return (
     <li>

@@ -1,22 +1,14 @@
-import { memo, useCallback, useId } from "react";
+import { memo, useId } from "react";
 
 import type { IndexTopic } from "../../src/core/contract/topic-index-contract.ts";
 import { topicPath } from "../../src/core/contract/topic-path.ts";
-import { useInternalLink } from "./routing.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { itemsLabel, topicLinkLabel } from "./topic-text.ts";
 
-export const IndexRow = memo(function IndexRow({
-  topic,
-  open,
-}: Readonly<{ topic: IndexTopic; open: (key: string) => void }>) {
+export const IndexRow = memo(function IndexRow({ topic }: Readonly<{ topic: IndexTopic }>) {
   const lineId = useId();
   const { key, name, itemCount, overviewLine } = topic;
-
-  const follow = useInternalLink(
-    useCallback(() => {
-      open(key);
-    }, [key, open]),
-  );
+  const follow = useNavigateLink(topicPath(key));
 
   return (
     <li>

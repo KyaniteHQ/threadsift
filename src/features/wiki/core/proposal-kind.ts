@@ -1,12 +1,13 @@
 import type { SQLWrapper } from "drizzle-orm";
 
-import type { ProposalKind, Proposal } from "../../../core/contract/proposal-contract.ts";
+import type {
+  Acceptance,
+  ProposalKind,
+  Proposal,
+} from "../../../core/contract/proposal-contract.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import type { MergeAcceptance } from "./merge-accept.ts";
 import type { PageRow } from "./proposal-rows.ts";
 import type { WeeklyCheck } from "./weekly-check.ts";
-
-export type Acceptance = MergeAcceptance | "not-current" | "no-provider";
 
 type ProposalOf<Kind extends ProposalKind> = Proposal extends infer Listed
   ? Listed extends { readonly kind: infer Kinds }

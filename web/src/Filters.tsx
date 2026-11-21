@@ -2,6 +2,7 @@ import { useCallback, useId } from "react";
 
 import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
 import type { ReadState, Source } from "../../src/core/contract/item-contract.ts";
+import { filled } from "./filled.ts";
 import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
@@ -13,7 +14,6 @@ import {
   FILTER_GROUPS,
   READ_LABELS,
   SOURCE_LABELS,
-  filled,
 } from "./text.ts";
 import { useToggle } from "./use-toggle.ts";
 

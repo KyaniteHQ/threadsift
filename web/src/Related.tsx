@@ -1,21 +1,14 @@
-import { memo, use, useCallback, useId } from "react";
+import { memo, useId } from "react";
 
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { Related as RelatedEntries } from "../../src/core/contract/related-contract.ts";
-import { PagesScope } from "./pages-scope.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { RELATED } from "./reader-text.ts";
-import { useInternalLink } from "./routing.ts";
 import { SOURCE_LABELS } from "./text.ts";
 
 const Entry = memo(function Entry({ entry }: Readonly<{ entry: RelatedEntries[number] }>) {
-  const pages = use(PagesScope);
   const reasonId = useId();
-
-  const open = useInternalLink(
-    useCallback(() => {
-      pages?.item(entry.id);
-    }, [pages, entry.id]),
-  );
+  const open = useNavigateLink(itemPath(entry.id));
 
   return (
     <li className="rel-entry">

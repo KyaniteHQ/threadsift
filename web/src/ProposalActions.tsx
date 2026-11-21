@@ -4,12 +4,10 @@ import type { Proposal } from "../../src/core/contract/proposal-contract.ts";
 import { ACCEPT_CLASS, REJECT_CLASS, rowDescription } from "./proposal-dom.ts";
 import type { Busy } from "./proposals-api.ts";
 import {
-  type AcceptableProposal,
   PROPOSAL_WORDS,
   acceptLabel,
   acceptRetryLabel,
   applyFailedNote,
-  isAcceptable,
   isMerge,
   rejectLabel,
   rejectRetryLabel,
@@ -21,11 +19,8 @@ export interface RowControls {
   readonly proposal: Proposal;
   readonly overviewFollows: boolean;
   readonly row: RowState;
-  readonly accept: (proposal: AcceptableProposal) => void;
+  readonly accept: (proposal: Proposal) => void;
   readonly reject: (proposal: Proposal) => void;
-  readonly open: (itemId: number, highlightId: number) => void;
-  readonly openTopic: (key: string) => void;
-  readonly openItem: (id: number) => void;
 }
 
 function Note({ children, alert }: Readonly<{ children: string; alert: boolean }>) {
@@ -82,7 +77,7 @@ export function Actions({ proposal, row, accept, reject }: Readonly<RowControls>
   const failure = row.kind === "failed" ? row.failure : undefined;
 
   const pressAccept = useCallback(() => {
-    if (!locked && isAcceptable(proposal)) accept(proposal);
+    if (!locked) accept(proposal);
   }, [accept, locked, proposal]);
 
   const pressReject = useCallback(() => {
@@ -91,18 +86,16 @@ export function Actions({ proposal, row, accept, reject }: Readonly<RowControls>
 
   return (
     <div className="pr-actions">
-      {isAcceptable(proposal) && (
-        <button
-          type="button"
-          className={`btn btn-acc ${ACCEPT_CLASS}`}
-          aria-label={(failure === "accept" ? acceptRetryLabel : acceptLabel)(proposal)}
-          aria-describedby={rowDescription(proposal)}
-          aria-disabled={locked}
-          onClick={pressAccept}
-        >
-          {failure === "accept" ? RETRY_LABEL : PROPOSAL_WORDS.accept}
-        </button>
-      )}
+      <button
+        type="button"
+        className={`btn btn-acc ${ACCEPT_CLASS}`}
+        aria-label={(failure === "accept" ? acceptRetryLabel : acceptLabel)(proposal)}
+        aria-describedby={rowDescription(proposal)}
+        aria-disabled={locked}
+        onClick={pressAccept}
+      >
+        {failure === "accept" ? RETRY_LABEL : PROPOSAL_WORDS.accept}
+      </button>
       <button
         type="button"
         className={`btn ${REJECT_CLASS}`}

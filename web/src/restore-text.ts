@@ -5,7 +5,7 @@ import type {
   RestoreFailure,
   RunningPhase,
 } from "../../src/core/contract/restore-contract.ts";
-import { filled } from "./text.ts";
+import { filled } from "./filled.ts";
 
 export const RESTORE_TEXT = {
   lede: "A Restore reads an Export zip into this Instance and brings every Item and the records around it back. It works only while the library is empty.",

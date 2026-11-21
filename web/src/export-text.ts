@@ -5,7 +5,7 @@ import {
 import { groupedNumber } from "../../src/core/contract/format.ts";
 import { MAX_ATTEMPTS } from "../../src/core/contract/job-contract.ts";
 import { HOUR_MS } from "../../src/core/contract/time-units.ts";
-import { filled } from "./text.ts";
+import { filled } from "./filled.ts";
 
 export const EXPORT_TEXT = {
   sectionTitle: "Backup",

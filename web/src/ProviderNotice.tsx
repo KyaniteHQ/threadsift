@@ -1,10 +1,11 @@
 import { IMPORT, planNoticeLabel } from "./import-text.ts";
-import { type Pages, SETTINGS_PATH, useInternalLink } from "./routing.ts";
+import { useNavigateLink } from "./navigate-context.ts";
+import { SETTINGS_PATH } from "./routing.ts";
 import { useProviderNotice } from "./use-provider-notice.ts";
 
-export function ProviderNotice({ pages }: Readonly<{ pages: Pages }>) {
+export function ProviderNotice() {
   const notice = useProviderNotice();
-  const follow = useInternalLink(pages.settings);
+  const follow = useNavigateLink(SETTINGS_PATH);
 
   if (notice.kind === "none") return null;
 

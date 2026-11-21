@@ -1,5 +1,6 @@
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import { WAITING, filled } from "./text.ts";
+import { filled } from "./filled.ts";
+import { WAITING } from "./text.ts";
 
 type Wait = NonNullable<Item["wait"]>;
 

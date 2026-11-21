@@ -28,7 +28,7 @@ function ObsidianLoaded({ initial }: Readonly<{ initial: Loaded<VaultView> }>) {
   );
 }
 
-export function ObsidianPage({ back }: Readonly<{ back: () => void }>) {
+export function ObsidianPage() {
   const [loaded, setLoaded] = useState<Loaded<VaultView> | null>(null);
   useEffect(() => {
     const controller = new AbortController();
@@ -48,7 +48,7 @@ export function ObsidianPage({ back }: Readonly<{ back: () => void }>) {
   }, []);
   return (
     <div className="pg">
-      <PageBar title={TEXT.title} back={back} backLink={SETTINGS_BACK} />
+      <PageBar title={TEXT.title} backLink={SETTINGS_BACK} />
       <main className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? (
           <div className="pg-ghost it-ghost" aria-hidden="true">

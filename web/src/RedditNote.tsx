@@ -1,7 +1,8 @@
 import { IMPORT, redditNoteLabel } from "./import-text.ts";
+import { useNavigateLink } from "./navigate-context.ts";
 import { REDDIT_ACCOUNT_TEXT } from "./reddit-account-text.ts";
 import { REDDIT_TEXT } from "./reddit-text.ts";
-import { type Pages, SETTINGS_PATH, useInternalLink } from "./routing.ts";
+import { SETTINGS_PATH } from "./routing.ts";
 import { redditLinkCount, useRedditNote } from "./use-reddit-note.ts";
 
 const ARCHIVE_FILLED = {
@@ -17,12 +18,11 @@ function notConnectedText(state: keyof typeof ARCHIVE_FILLED, archiveFill: boole
 }
 
 export function RedditNote({
-  pages,
   links,
   finished,
-}: Readonly<{ pages: Pages; links: readonly string[]; finished: boolean }>) {
+}: Readonly<{ links: readonly string[]; finished: boolean }>) {
   const note = useRedditNote();
-  const follow = useInternalLink(pages.settings);
+  const follow = useNavigateLink(SETTINGS_PATH);
   const count = redditLinkCount(links);
 
   if (note.state === "unknown" || note.state === "missing" || count === 0) return null;

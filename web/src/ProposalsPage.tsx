@@ -7,7 +7,6 @@ import { localDate } from "./log-date.ts";
 import { REJECT_SELECTOR } from "./proposal-dom.ts";
 import { ProposalRow } from "./ProposalRow.tsx";
 import { PROPOSALS_PAGE, proposalsEmptyLine } from "./proposals-text.ts";
-import type { Pages } from "./routing.ts";
 import { useProposalsPage } from "./use-proposals-page.ts";
 
 const LISTING: Listing<ProposalPage, Proposal> = {
@@ -30,7 +29,7 @@ function useResultFocus(requested: boolean, done: () => void) {
   }, [requested, done]);
 }
 
-export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: () => void }>) {
+export function ProposalsPage() {
   const { source, rowFor, announcement, notice, focusResult, focusedResult, press } =
     useProposalsPage();
 
@@ -47,17 +46,14 @@ export function ProposalsPage({ pages, back }: Readonly<{ pages: Pages; back: ()
         row={rowFor(proposal.id)}
         accept={press.accept}
         reject={press.reject}
-        open={pages.highlight}
-        openTopic={pages.topic}
-        openItem={pages.item}
       />
     ),
-    [rowFor, overviewFollows, press, pages],
+    [rowFor, overviewFollows, press],
   );
 
   return (
     <>
-      <ListPage source={source} listing={LISTING} draw={draw} back={back} notice={notice} />
+      <ListPage source={source} listing={LISTING} draw={draw} notice={notice} />
       <Announcement text={announcement} failed={false} />
     </>
   );

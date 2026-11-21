@@ -1,9 +1,7 @@
-import { type MouseEvent, useCallback, useEffect, useMemo, useRef } from "react";
+import { type MouseEvent, useCallback, useEffect, useRef } from "react";
 import { z } from "zod";
 
-import { itemIdOf, itemPath } from "../../src/core/contract/item-path.ts";
-import { topicPath } from "../../src/core/contract/topic-path.ts";
-import { placePath } from "./place.ts";
+import { itemIdOf } from "../../src/core/contract/item-path.ts";
 import { useScreenState } from "./use-screen-state.ts";
 
 export const SETTINGS_PATH = "/settings";
@@ -21,19 +19,6 @@ export const LOG_PATH = "/log";
 export const PROPOSALS_PATH = "/proposals";
 
 export const RESET_PATH = "/reset";
-
-export interface Pages {
-  readonly settings: () => void;
-  readonly obsidian: () => void;
-  readonly highlights: () => void;
-  readonly index: () => void;
-  readonly log: () => void;
-  readonly proposals: () => void;
-  readonly topic: (key: string) => void;
-  readonly item: (id: number) => void;
-  readonly highlight: (itemId: number, highlightId: number) => void;
-  readonly import: () => void;
-}
 
 export interface Route {
   readonly path: string;
@@ -56,18 +41,26 @@ function waiting(leaving: Leaving | null): leaving is Leaving {
   return leaving !== null && performance.now() - leaving.at < TRAVERSAL_WAIT_MS;
 }
 
+function withoutTrailingSlash(pathname: string): string {
+  return pathname.length > 1 && pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
+}
+
+export function currentPath(): string {
+  return withoutTrailingSlash(window.location.pathname);
+}
+
 export function onItem(): boolean {
-  return itemIdOf(window.location.pathname) !== null;
+  return itemIdOf(currentPath()) !== null;
 }
 
 function pathOf(to: string): string {
-  return new URL(to, window.location.origin).pathname;
+  return withoutTrailingSlash(new URL(to, window.location.origin).pathname);
 }
 
 function addressOf(to: string): string {
-  const { pathname, search, hash } = new URL(to, window.location.origin);
+  const { search, hash } = new URL(to, window.location.origin);
 
-  return `${pathname}${search}${hash}`;
+  return `${pathOf(to)}${search}${hash}`;
 }
 
 const EntrySchema = z.object({ from: z.string() });
@@ -86,7 +79,7 @@ function usePopstate(show: (path: string) => void): void {
       window.clearTimeout(pending);
       // React renders a transition that starts inside a popstate event synchronously, which shows a Suspense fallback: https://github.com/react/react/blob/v19.3.1/packages/react-dom-bindings/src/client/ReactFiberConfigDOM.js#L788
       pending = window.setTimeout(() => {
-        show(window.location.pathname);
+        show(currentPath());
       }, 0);
     };
 
@@ -135,7 +128,7 @@ function useClosing(replace: Route["replace"], setPath: (path: string) => void) 
 }
 
 export function usePath() {
-  const [path, setPath] = useScreenState(window.location.pathname);
+  const [path, setPath] = useScreenState(currentPath);
 
   const navigate = useCallback(
     (to: string) => {
@@ -162,44 +155,6 @@ export function usePath() {
   return { path, navigate, replace, leave, closeItem };
 }
 
-export function usePages(navigate: Route["navigate"]): Pages {
-  return useMemo(
-    () => ({
-      obsidian: () => {
-        navigate(OBSIDIAN_PATH);
-      },
-      settings: () => {
-        navigate(SETTINGS_PATH);
-      },
-      highlights: () => {
-        navigate(HIGHLIGHTS_PATH);
-      },
-      index: () => {
-        navigate(INDEX_PATH);
-      },
-      log: () => {
-        navigate(LOG_PATH);
-      },
-      proposals: () => {
-        navigate(PROPOSALS_PATH);
-      },
-      topic: (key) => {
-        navigate(topicPath(key));
-      },
-      item: (id) => {
-        navigate(itemPath(id));
-      },
-      highlight: (itemId, highlightId) => {
-        navigate(placePath(itemId, { kind: "highlight", id: highlightId }));
-      },
-      import: () => {
-        navigate(IMPORT_PATH);
-      },
-    }),
-    [navigate],
-  );
-}
-
 export function useInternalLink(open: () => void) {
   return useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
@@ -213,13 +168,5 @@ export function useInternalLink(open: () => void) {
       open();
     },
     [open],
-  );
-}
-
-export function useNavigateLink(navigate: (to: string) => void, to: string) {
-  return useInternalLink(
-    useCallback(() => {
-      navigate(to);
-    }, [navigate, to]),
   );
 }

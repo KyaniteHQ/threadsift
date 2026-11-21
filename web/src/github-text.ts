@@ -2,7 +2,7 @@ import { groupedNumber } from "../../src/core/contract/format.ts";
 import type { GithubRefused } from "../../src/core/contract/github-contract.ts";
 import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
 import { AI_TEXT } from "./ai-text.ts";
-import { filled } from "./text.ts";
+import { filled } from "./filled.ts";
 
 export const GITHUB_TEXT = {
   sectionTitle: "GitHub token",

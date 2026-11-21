@@ -3,9 +3,9 @@ import { type RefObject, useCallback, useId, useRef } from "react";
 import type { Token } from "../../src/core/contract/access-wire.ts";
 import { SETTINGS } from "./access-text.ts";
 import { BudgetEdit } from "./BudgetEdit.tsx";
+import { filled } from "./filled.ts";
 import { ageLabel } from "./saved-label.ts";
 import { SCOPE_NAMES } from "./ScopePicker.tsx";
-import { filled } from "./text.ts";
 import type { RowBudget } from "./token-budget.ts";
 import { useEscape, useFocusOnMount } from "./use-form.ts";
 

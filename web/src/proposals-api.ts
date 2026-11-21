@@ -1,6 +1,9 @@
 import { z } from "zod";
 
 import {
+  ACCEPT_REFUSALS,
+  type Acceptance,
+  AcceptedSchema,
   type ProposalState,
   type ProposalPage,
   ProposalPageSchema,
@@ -9,18 +12,16 @@ import {
 import { call, parsedFrom, parsedOrGone, post, withCursor } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
-const BUSY_ANSWERS = ["merge-busy", "no-provider"] as const;
+const BUSY = ["merge-busy", "no-provider"] as const satisfies readonly Acceptance[];
 
-export type Busy = (typeof BUSY_ANSWERS)[number];
+export type Busy = (typeof BUSY)[number];
 
 export type Failure = "accept" | "reject";
 
-export type Acceptance = "done" | "accepting" | Busy | "not-current" | "unknown";
-
-const RefusalSchema = z.object({ error: z.enum([...BUSY_ANSWERS, "not-current"]) });
+const RefusalSchema = z.object({ error: z.enum(ACCEPT_REFUSALS) });
 
 export function isBusy(outcome: Acceptance): outcome is Busy {
-  return BUSY_ANSWERS.some((each) => each === outcome);
+  return BUSY.some((busy) => busy === outcome);
 }
 
 export function fetchProposals(cursor: string | null): Promise<ProposalPage> {
@@ -44,11 +45,6 @@ export async function sendReject(id: number): Promise<"rejected" | "unknown"> {
   }
 }
 
-const ANSWERS = new Map<number, Acceptance>([
-  [200, "done"],
-  [202, "accepting"],
-]);
-
 export async function sendAccept(id: number): Promise<Acceptance> {
   try {
     const response = await call(
@@ -56,11 +52,17 @@ export async function sendAccept(id: number): Promise<Acceptance> {
       `/api/proposals/${String(id)}/accept`,
     );
 
-    if (response.status !== 409) return ANSWERS.get(response.status) ?? "unknown";
+    const body: unknown = await response.json().catch(() => null);
 
-    const refusal = RefusalSchema.safeParse(await response.json().catch(() => null));
+    if (response.status === 409) {
+      const refusal = RefusalSchema.safeParse(body);
 
-    return refusal.success ? refusal.data.error : "unknown";
+      return refusal.success ? refusal.data.error : "unknown";
+    }
+
+    const accepted = AcceptedSchema.safeParse(body);
+
+    return response.ok && accepted.success ? accepted.data.state : "unknown";
   } catch {
     return "unknown";
   }

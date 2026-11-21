@@ -126,6 +126,12 @@ export const RejectedSchema = z.object({ state: z.literal("rejected") }).readonl
 
 export const AcceptedSchema = z.object({ state: z.enum(["done", "accepting"]) }).readonly();
 
+export const ACCEPT_REFUSALS = ["not-open", "not-current", "no-provider", "merge-busy"] as const;
+
+export type AcceptRefusal = (typeof ACCEPT_REFUSALS)[number];
+
+export type Acceptance = z.infer<typeof AcceptedSchema>["state"] | "unknown" | AcceptRefusal;
+
 export type Proposal = z.infer<typeof ProposalSchema>;
 
 export type MergeProposal = z.infer<typeof MergeProposalSchema>;

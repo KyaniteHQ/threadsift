@@ -1,37 +1,28 @@
 import { useCallback, useState } from "react";
 
 import { LoginScreen } from "./LoginScreen.tsx";
+import { useNavigate } from "./navigate-context.ts";
 import { ResetScreen } from "./ResetScreen.tsx";
-import { RESET_PATH } from "./routing.ts";
 
 export function SignedOutScreen({
   name,
   signedIn,
-  navigate,
-}: Readonly<{
-  name: "login" | "reset";
-  signedIn: () => void;
-  navigate: (to: string) => void;
-}>) {
+}: Readonly<{ name: "login" | "reset"; signedIn: () => void }>) {
+  const navigate = useNavigate();
   const [justReset, setJustReset] = useState(false);
 
-  const openReset = useCallback(() => {
+  const forgetReset = useCallback(() => {
     setJustReset(false);
-    navigate(RESET_PATH);
-  }, [navigate]);
-
-  const toLogin = useCallback(() => {
-    navigate("/");
-  }, [navigate]);
+  }, []);
 
   const resetDone = useCallback(() => {
     setJustReset(true);
-    toLogin();
-  }, [toLogin]);
+    navigate("/");
+  }, [navigate]);
 
   return name === "reset" ? (
-    <ResetScreen done={resetDone} back={toLogin} />
+    <ResetScreen done={resetDone} />
   ) : (
-    <LoginScreen signedIn={signedIn} reset={justReset} openReset={openReset} />
+    <LoginScreen signedIn={signedIn} reset={justReset} forgetReset={forgetReset} />
   );
 }

@@ -1,5 +1,5 @@
+import { filled } from "./filled.ts";
 import { plural } from "./plural.ts";
-import { filled } from "./text.ts";
 
 export const TOPIC_PAGE = {
   overviewHeading: "Overview",

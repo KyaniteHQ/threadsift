@@ -3,7 +3,7 @@ import { useEffect, useRef } from "react";
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
-import type { Route } from "./routing.ts";
+import { type Route, currentPath } from "./routing.ts";
 
 export function useAutoOpen({
   list,
@@ -25,7 +25,7 @@ export function useAutoOpen({
   useEffect(() => {
     if (settled.current || list.status !== "ready") return;
 
-    if (window.location.pathname !== path) return;
+    if (currentPath() !== path) return;
 
     settled.current = true;
 

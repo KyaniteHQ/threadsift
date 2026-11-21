@@ -1,5 +1,6 @@
+import { filled } from "./filled.ts";
 import { plural } from "./plural.ts";
-import { NEWEST_FIRST, filled } from "./text.ts";
+import { NEWEST_FIRST } from "./text.ts";
 
 export const LOG_PAGE = {
   masthead: "Log",

@@ -4,8 +4,9 @@ import type { Token } from "../../src/core/contract/access-wire.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import { BudgetField, useBudgetField } from "./BudgetField.tsx";
+import { filled } from "./filled.ts";
 import { SwapButton } from "./SwapButton.tsx";
-import { SAVING_LABEL, filled } from "./text.ts";
+import { SAVING_LABEL } from "./text.ts";
 import { useEscape, useFocusOnMount, useSubmit } from "./use-form.ts";
 
 function limitText(budget: Token["budget"]): string {
