@@ -128,7 +128,7 @@ export async function proposeLost(
   const [row] = rows(
     instance,
     IdSchema,
-    "select id from proposals where kind = 'highlight-lost' and highlight_id = ?",
+    "select proposal_id as id from highlight_lost_proposals where highlight_id = ?",
     highlightId,
   );
 

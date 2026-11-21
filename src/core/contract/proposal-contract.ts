@@ -39,6 +39,8 @@ const SubjectRefSchema = z
 
 export const ListedStateSchema = z.enum(["open", "accepting"]);
 
+export type ListedState = z.infer<typeof ListedStateSchema>;
+
 const MergeProposalSchema = z
   .object({
     id: z.number().int(),

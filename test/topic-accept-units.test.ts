@@ -7,6 +7,7 @@ import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { script, seedTopicItems } from "./pin-fixtures.ts";
+import { removeProposals } from "./proposal-seed.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 import { itemsOf, proposeTopics, topicId, topicMergeLines } from "./topic-accept-fixtures.ts";
 
@@ -63,7 +64,7 @@ describe("Accept of a Topic row that one request cannot finish", () => {
       [(await accept(instance, other)).body],
       [JSON.stringify({ error: "merge-busy" })],
     );
-    exec(instance, "delete from proposals where id = ?", other);
+    removeProposals(instance, other);
   });
 
   it("is finished by the sweep stage with one merge-topic entry that counts every Item", async () => {

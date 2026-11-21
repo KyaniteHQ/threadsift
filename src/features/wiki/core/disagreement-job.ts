@@ -4,9 +4,9 @@ import { AI_DEADLINE_MS, AI_LIST_OUTPUT_TOKENS } from "../../../core/contract/ai
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobWrites } from "../../../core/kernel/job-outcome.ts";
 import { defineJob } from "../../../core/kernel/job-spec.ts";
-import { proposals, topicChecks } from "../../../core/kernel/schema.ts";
+import { topicChecks } from "../../../core/kernel/schema.ts";
 import { membersOf, readDisagreementInput } from "./disagreement-input.ts";
-import { pairPinned } from "./disagreement-pins.ts";
+import { pairPinned, pairStored } from "./disagreement-pins.ts";
 import { clearedStaleDisagreements } from "./disagreement-rows.ts";
 import {
   DISAGREEMENT_TASK_KIND,
@@ -15,7 +15,7 @@ import {
   SentTopicsSchema,
   disagreementTask,
 } from "./disagreement-task.ts";
-import { proposalRow } from "./proposal-lifecycle.ts";
+import { insertedProposals } from "./proposal-lifecycle.ts";
 import { type WeeklyRun, storedField, weeklyKind } from "./weekly-kind.ts";
 
 type Sent = readonly Readonly<SentTopic>[];
@@ -49,32 +49,22 @@ function pairRows(sent: Sent, { disagreements }: Readonly<DisagreementsResult>) 
 function storedPairs(db: Database, sent: Sent, result: Readonly<DisagreementsResult>): JobWrites {
   if (result.disagreements.length === 0) return [];
 
-  return [
-    db
-      .insert(proposals)
-      .select(
-        db
-          .select(
-            proposalRow(
-              {
-                kind: "items-disagree",
-                state: sql`'open'`,
-                reason: storedField("reason"),
-                createdAt: Date.now(),
-              },
-              {
-                fromItemId: storedField("from"),
-                intoItemId: storedField("into"),
-                fromDigest: storedField("fromDigest"),
-                intoDigest: storedField("intoDigest"),
-              },
-            ),
-          )
-          .from(sql`json_each(${JSON.stringify(pairRows(sent, result))}) as stored`)
-          .where(sql`not ${pairPinned(storedField("from"), storedField("into"))}`),
-      )
-      .onConflictDoNothing(),
-  ];
+  const from = storedField("from");
+  const into = storedField("into");
+
+  return insertedProposals(db, "items-disagree", Date.now(), {
+    state: sql`'open'`,
+    reason: storedField("reason"),
+    subjects: {
+      fromItemId: from,
+      intoItemId: into,
+      fromDigest: storedField("fromDigest"),
+      intoDigest: storedField("intoDigest"),
+    },
+    from: sql`json_each(${JSON.stringify(pairRows(sent, result))}) as stored`,
+    where: sql`not ${pairPinned(from, into)} and not ${pairStored(from, into)}`,
+    order: sql`stored.key`,
+  });
 }
 
 function checkedTopics(db: Database, sent: Sent): JobWrites {

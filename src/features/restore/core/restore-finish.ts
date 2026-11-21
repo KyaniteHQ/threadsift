@@ -1,15 +1,20 @@
-import { eq, notExists, sql } from "drizzle-orm";
+import { and, eq, not, notExists, sql } from "drizzle-orm";
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
-import type { RestoreRow } from "../../../core/kernel/schema.ts";
+import {
+  type RestoreRow,
+  hasSubject,
+  proposals,
+  restoreRuns,
+} from "../../../core/kernel/schema.ts";
 import type { Manifest } from "../../export/core/export-format.ts";
 import type { ZipSource } from "../../export/core/zip-read.ts";
 import { EMBEDDED_JOB_ID } from "./named-files.ts";
 import { recordFiles } from "./restore-records.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
-import { endedUnit } from "./restore-unit.ts";
+import { endedUnit, tallied } from "./restore-unit.ts";
 
 const sqliteSequence = sqliteTable("sqlite_sequence", {
   name: text("name"),
@@ -59,6 +64,19 @@ function jobKeyWrites(db: Database) {
   ];
 }
 
+function proposalsWithoutSubject(db: Database, run: Readonly<RestoreRow>) {
+  return [
+    db.delete(proposals).where(not(hasSubject())),
+    db
+      .update(restoreRuns)
+      .set({
+        restored: tallied("restored", "proposals", sql`-changes()`),
+        dropped: tallied("dropped", "proposals", sql`changes()`),
+      })
+      .where(and(eq(restoreRuns.id, run.id), sql`changes() > 0`)),
+  ];
+}
+
 function singletonResets(db: Database, manifest: Readonly<Manifest>) {
   return RESTORE_TABLES.flatMap((name) => {
     const spec = tableSpec(name);
@@ -81,6 +99,7 @@ export async function finishUnit(
     ...sequenceWrites(db, manifest),
     ...jobKeyWrites(db),
     ...singletonResets(db, manifest),
+    ...proposalsWithoutSubject(db, run),
   ];
 
   return endedUnit(

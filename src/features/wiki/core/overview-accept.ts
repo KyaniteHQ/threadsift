@@ -1,7 +1,7 @@
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { proposals } from "../../../core/kernel/schema.ts";
+import { overviewGapProposals, proposals } from "../../../core/kernel/schema.ts";
 import { startOverview } from "./overview-start.ts";
 import { removedOpen } from "./proposal-lifecycle.ts";
 import { hasUncovered, overviewGap } from "./topic-coverage.ts";
@@ -9,7 +9,7 @@ import { hasUncovered, overviewGap } from "./topic-coverage.ts";
 type OverviewGapAcceptance = "done" | "unknown" | "not-open" | "no-provider" | "not-current";
 
 function stillOpen(id: number, topicId: number) {
-  return sql`exists (select 1 from ${proposals} where ${proposals.id} = ${id} and ${proposals.kind} = 'overview-gap' and ${proposals.state} = 'open' and ${proposals.topicId} = ${topicId}) and ${hasUncovered(topicId)}`;
+  return sql`exists (select 1 from ${proposals} join ${overviewGapProposals} on ${overviewGapProposals.proposalId} = ${proposals.id} where ${proposals.id} = ${id} and ${proposals.state} = 'open' and ${overviewGapProposals.topicId} = ${topicId}) and ${hasUncovered(topicId)}`;
 }
 
 export async function acceptOverviewGap(
@@ -19,25 +19,30 @@ export async function acceptOverviewGap(
   const { db } = ports;
 
   const [row] = await db
-    .select({ state: proposals.state, topicId: proposals.topicId })
+    .select({ state: proposals.state, topicId: overviewGapProposals.topicId })
     .from(proposals)
-    .where(and(eq(proposals.id, id), eq(proposals.kind, "overview-gap")));
+    .innerJoin(overviewGapProposals, eq(overviewGapProposals.proposalId, proposals.id))
+    .where(eq(proposals.id, id));
 
-  if (row === undefined || row.topicId === null) return "unknown";
+  if (row === undefined) return "unknown";
 
   if (row.state !== "open") return "not-open";
 
   const started = await startOverview(ports, row.topicId, {
     when: stillOpen(id, row.topicId),
-    after: [removedOpen(db, eq(proposals.id, id), sql`changes() > 0`)],
+    after: [removedOpen(db, "overview-gap", eq(proposals.id, id), sql`changes() > 0`)],
   });
 
   if (started.kind === "started") return "done";
 
   const [now] = await db
-    .select({ state: proposals.state, current: sql<number>`${overviewGap(proposals.topicId)}` })
+    .select({
+      state: proposals.state,
+      current: sql<number>`${overviewGap(overviewGapProposals.topicId)}`,
+    })
     .from(proposals)
-    .where(and(eq(proposals.id, id), eq(proposals.kind, "overview-gap")));
+    .innerJoin(overviewGapProposals, eq(overviewGapProposals.proposalId, proposals.id))
+    .where(eq(proposals.id, id));
 
   if (now === undefined) return "unknown";
 

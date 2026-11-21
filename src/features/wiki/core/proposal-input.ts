@@ -4,7 +4,6 @@ import { AI_INPUT_BYTES } from "../../../core/contract/ai-contract.ts";
 import { utf8Length } from "../../../core/contract/encoding.ts";
 import type { MergeKind } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { proposals } from "../../../core/kernel/schema.ts";
 import { MERGE } from "./merge-kinds.ts";
 import {
   type Candidate,
@@ -49,14 +48,9 @@ function usedSubjects(db: Database, kind: MergeKind): Promise<readonly NamedCand
 async function knownPairs(db: Database, kind: MergeKind): Promise<ReadonlySet<string>> {
   const spec = MERGE[kind];
 
-  const rows = await db
-    .select({ from: spec.from, into: spec.into })
-    .from(proposals)
-    .where(eq(proposals.kind, kind));
+  const rows = await db.select({ from: spec.from, into: spec.into }).from(spec.subject);
 
-  return new Set(
-    rows.flatMap(({ from, into }) => (from === null || into === null ? [] : [pairKey(from, into)])),
-  );
+  return new Set(rows.map(({ from, into }) => pairKey(from, into)));
 }
 
 function proposalsJson(pairs: readonly Readonly<SentPair>[]): string {

@@ -6,7 +6,10 @@ import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
+import { seedProposal } from "./proposal-seed.ts";
+import { paste, rows } from "./related-fixtures.ts";
+
+export { removeProposals } from "./proposal-seed.ts";
 
 const IdSchema = z.object({ id: z.number() });
 
@@ -22,20 +25,14 @@ export function proposeTopics(
   instance: Instance,
   [from, into]: readonly [string, string],
   state = "open",
+  reason = "Same subject.",
 ): number {
-  exec(
+  return seedProposal(
     instance,
-    "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', ?, ?, 'Same subject.', ?, 1)",
-    topicId(instance, from),
-    topicId(instance, into),
-    state,
+    "topic-merge",
+    { from_topic_id: topicId(instance, from), into_topic_id: topicId(instance, into) },
+    { reason, state },
   );
-
-  const [row] = rows(instance, IdSchema, "select max(id) as id from proposals");
-
-  if (row === undefined) throw new Error("no Proposal was stored");
-
-  return row.id;
 }
 
 export const topicMergeLines = async (instance: Instance): Promise<readonly string[]> =>

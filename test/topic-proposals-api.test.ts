@@ -7,6 +7,7 @@ import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts"
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
@@ -29,24 +30,23 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
   let token: string;
 
   const seedTopic = (from: string, into: string, state: string, reason: string | null) => {
-    exec(
+    seedProposal(
       instance,
-      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', ?, ?, ?, ?, 1)",
-      idOf(instance, "topics", from),
-      idOf(instance, "topics", into),
-      reason,
-      state,
+      "topic-merge",
+      {
+        from_topic_id: idOf(instance, "topics", from),
+        into_topic_id: idOf(instance, "topics", into),
+      },
+      { reason, state },
     );
   };
 
   const seedTag = (from: string, into: string, state: string, reason: string | null) => {
-    exec(
+    seedProposal(
       instance,
-      "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values ('tag-merge', ?, ?, ?, ?, 1)",
-      idOf(instance, "tags", from),
-      idOf(instance, "tags", into),
-      reason,
-      state,
+      "tag-merge",
+      { from_tag_id: idOf(instance, "tags", from), into_tag_id: idOf(instance, "tags", into) },
+      { reason, state },
     );
   };
 

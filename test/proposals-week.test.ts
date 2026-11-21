@@ -4,6 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { Instance } from "./instance.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -220,11 +221,16 @@ describe("the run sends no pair that already has a row, whichever way round the 
       return found.id;
     };
 
-    const insert =
-      "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values ('tag-merge', ?, ?, ?, ?, 1)";
+    const seedDecided = (from: string, into: string, reason: string | null, state: string) =>
+      seedProposal(
+        instance,
+        "tag-merge",
+        { from_tag_id: tagId(from), into_tag_id: tagId(into) },
+        { reason, state },
+      );
 
-    exec(instance, insert, tagId("llms"), tagId("llm"), "The same concept.", "rejected");
-    exec(instance, insert, tagId("machine learning"), tagId("machine-learning"), null, "declined");
+    seedDecided("llms", "llm", "The same concept.", "rejected");
+    seedDecided("machine learning", "machine-learning", null, "declined");
     await instance.tick();
 
     const [task] = await until(

@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import type { PinKind, ProposalKind } from "../src/core/contract/proposal-contract.ts";
+import type { PinKind } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import { paste } from "./related-fixtures.ts";
 
@@ -53,92 +53,28 @@ describe("Proposals and Pins refuse unknown values and mismatched subjects", () 
 
   const insertTags = (): readonly [number, number] => insertSubjects("tags");
 
-  const insertHighlight = (): readonly [number] => {
-    saved += 1;
-
-    const rows = database
-      .prepare(
-        `insert into highlights (item_id, exact, prefix, suffix, hint, created_at, status, start)
-         select id, ?, '', '', 0, 0, 'gone', null from items limit 1 returning id`,
-      )
-      .all(`quote ${String(saved)}`);
-
-    return [z.array(z.object({ id: z.number() })).parse(rows)[0]?.id ?? 0];
-  };
-
-  const PROPOSAL_SUBJECTS = {
-    "tag-merge": {
-      columns: ["from_tag_id", "into_tag_id"],
-      create: () => insertSubjects("tags"),
-    },
-    "topic-merge": {
-      columns: ["from_topic_id", "into_topic_id"],
-      create: () => insertSubjects("topics"),
-    },
-    "highlight-lost": { columns: ["highlight_id"], create: insertHighlight },
-    "overview-gap": { columns: ["topic_id"], create: () => [insertSubjects("topics")[0]] },
-    "items-disagree": {
-      columns: ["from_item_id", "into_item_id", "from_digest", "into_digest"],
-      create: () => [...insertSubjects("items"), 1, 2],
-    },
-  } as const satisfies Readonly<Record<ProposalKind, Subjects>>;
-
-  const proposalInsert = (kind: ProposalKind) => {
-    const { columns } = PROPOSAL_SUBJECTS[kind];
-    const marks = columns.map(() => "?").join(", ");
-
-    return database.prepare(
-      `insert into proposals (kind, ${columns.join(", ")}, reason, state, created_at) values (?, ${marks}, 'a reason', ?, 0)`,
-    );
-  };
-
   it("refuses a proposal with a kind or state the code does not list, on insert and on update", () => {
-    const [from, into] = insertTags();
-    const insert = proposalInsert("tag-merge");
-
-    assert.throws(() => insert.run("unknown", from, into, "open"), /proposals_values/u);
-    assert.throws(() => insert.run("tag-merge", from, into, "unknown"), /proposals_values/u);
-
-    insert.run("tag-merge", from, into, "open");
-
-    const update = database.prepare(
-      "update proposals set kind = ?, state = ? where from_tag_id = ?",
+    const insert = database.prepare(
+      "insert into proposals (kind, reason, state, created_at) values (?, 'a reason', ?, 0)",
     );
 
-    assert.throws(() => update.run("unknown", "open", from), /proposals_values/u);
-    assert.throws(() => update.run("tag-merge", "unknown", from), /proposals_values/u);
+    assert.throws(() => insert.run("unknown", "open"), /proposals_values/u);
+    assert.throws(() => insert.run("tag-merge", "unknown"), /proposals_values/u);
+
+    const id = Number(insert.run("tag-merge", "open").lastInsertRowid);
+    const update = database.prepare("update proposals set kind = ?, state = ? where id = ?");
+
+    assert.throws(() => update.run("unknown", "open", id), /proposals_values/u);
+    assert.throws(() => update.run("tag-merge", "unknown", id), /proposals_values/u);
   });
 
-  it("refuses a proposal whose subject columns do not match its kind, on insert and on update", () => {
-    const [fromTag, intoTag] = insertTags();
-    const [fromTopic, intoTopic] = insertSubjects("topics");
-
-    assert.throws(
-      () => proposalInsert("tag-merge").run("topic-merge", fromTag, intoTag, "open"),
-      /proposals_subject/u,
-    );
-    assert.throws(
-      () => proposalInsert("topic-merge").run("tag-merge", fromTopic, intoTopic, "open"),
-      /proposals_subject/u,
+  it("refuses a state that only a merge kind holds on any other kind", () => {
+    const insert = database.prepare(
+      "insert into proposals (kind, reason, state, created_at) values ('overview-gap', 'a reason', ?, 0)",
     );
 
-    proposalInsert("tag-merge").run("tag-merge", fromTag, intoTag, "open");
-    proposalInsert("topic-merge").run("topic-merge", fromTopic, intoTopic, "open");
-
-    assert.throws(
-      () =>
-        database
-          .prepare("update proposals set kind = 'topic-merge' where from_tag_id = ?")
-          .run(fromTag),
-      /proposals_subject/u,
-    );
-    assert.throws(
-      () =>
-        database
-          .prepare("update proposals set from_tag_id = ? where from_topic_id = ?")
-          .run(fromTag, fromTopic),
-      /proposals_subject/u,
-    );
+    assert.throws(() => insert.run("declined"), /proposals_state_check/u);
+    assert.throws(() => insert.run("accepting"), /proposals_state_check/u);
   });
 
   const PIN_SUBJECTS = {
@@ -248,33 +184,4 @@ describe("Proposals and Pins refuse unknown values and mismatched subjects", () 
       pinInsert("topic-merge").run("topic-merge", "shared key", intoTopic);
     }, /UNIQUE/u);
   });
-
-  for (const kind of ["tag-merge", "topic-merge"] as const) {
-    it(`keeps one ${kind} Proposal for an unordered pair`, () => {
-      const [from, into] = PROPOSAL_SUBJECTS[kind].create();
-      const insert = proposalInsert(kind);
-
-      insert.run(kind, from, into, "open");
-      assert.throws(() => insert.run(kind, into, from, "open"), /UNIQUE constraint failed/u);
-    });
-
-    it(`refuses a ${kind} Proposal with the same subject twice`, () => {
-      const [from] = PROPOSAL_SUBJECTS[kind].create();
-
-      assert.throws(
-        () => proposalInsert(kind).run(kind, from, from, "open"),
-        /proposals_(?:topic_)?distinct/u,
-      );
-    });
-  }
-
-  for (const kind of ["highlight-lost", "overview-gap"] as const) {
-    it(`keeps one ${kind} Proposal for its subject`, () => {
-      const subjects = PROPOSAL_SUBJECTS[kind].create();
-      const insert = proposalInsert(kind);
-
-      insert.run(kind, ...subjects, "open");
-      assert.throws(() => insert.run(kind, ...subjects, "open"), /UNIQUE constraint failed/u);
-    });
-  }
 });

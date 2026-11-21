@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { OverviewGapProposal, ProposalPage } from "../src/core/contract/proposal-contract.ts";
 import type { Instance } from "./instance.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
@@ -15,35 +16,27 @@ const GapSchema = z.object({
   reason: z.string().nullable(),
 });
 
-const IdSchema = z.object({ id: z.number() });
-
 export const gapRows = (instance: Instance) =>
   rows(
     instance,
     GapSchema,
-    "select id, topic_id, state, reason from proposals where kind = 'overview-gap' order by id",
+    "select id, topic_id, state, reason from proposals join overview_gap_proposals on proposal_id = id order by id",
   );
 
 export const gapTopics = (instance: Instance): readonly string[] =>
   rows(
     instance,
     z.object({ name: z.string() }),
-    "select topics.name as name from proposals join topics on topics.id = proposals.topic_id where proposals.kind = 'overview-gap' order by proposals.id",
+    "select topics.name as name from proposals join overview_gap_proposals on proposal_id = proposals.id join topics on topics.id = topic_id order by proposals.id",
   ).map(({ name }) => name);
 
 export function proposeGap(instance: Instance, topic: string, state = "open"): number {
-  exec(
+  return seedProposal(
     instance,
-    "insert into proposals (kind, topic_id, reason, state, created_at) values ('overview-gap', ?, 'plain-check', ?, 1)",
-    topicId(instance, topic),
-    state,
+    "overview-gap",
+    { topic_id: topicId(instance, topic) },
+    { reason: "plain-check", state },
   );
-
-  const [row] = rows(instance, IdSchema, "select max(id) as id from proposals");
-
-  if (row === undefined) throw new Error("no Proposal was stored");
-
-  return row.id;
 }
 
 export function pasteInto(instance: Instance, topic: string, slugs: readonly string[]) {

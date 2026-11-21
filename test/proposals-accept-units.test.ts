@@ -12,6 +12,7 @@ import {
   tagsOfDigest,
 } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
 const DigestTagsSchema = z.object({ tags: z.string() });
@@ -31,10 +32,8 @@ describe("Accept on a Tag with more Items than one unit holds", () => {
     linkVolume(instance, { tag: "bigger", items: 40, from: 191 });
     linkVolume(instance, { tag: "other", items: 5, from: 1 });
     exec(instance, "update digests set digest = 'not a digest' where item_id = 100005");
-    exec(
-      instance,
-      "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values ('tag-merge', 1, 2, 'Same.', 'open', 1), ('tag-merge', 1, 3, 'Other.', 'open', 1)",
-    );
+    seedProposal(instance, "tag-merge", { from_tag_id: 1, into_tag_id: 2 }, { reason: "Same." });
+    seedProposal(instance, "tag-merge", { from_tag_id: 1, into_tag_id: 3 }, { reason: "Other." });
   });
 
   after(() => instance.close());
@@ -92,9 +91,16 @@ describe("the sweep finishes a merge that a request left open", () => {
     );
     seedVolume(instance, { tags: ["ML"], items: 150, from: 1 });
     linkVolume(instance, { tag: "ml", items: 150, from: 1 });
-    exec(
+    seedProposal(
       instance,
-      "insert into proposals (id, kind, from_tag_id, into_tag_id, reason, state, created_at, cursor, moved, unit_revision) values (7, 'tag-merge', 1, 2, 'Same.', 'accepting', 1, 100, 100, 1)",
+      "tag-merge",
+      { from_tag_id: 1, into_tag_id: 2 },
+      {
+        id: 7,
+        reason: "Same.",
+        state: "accepting",
+        run: { cursor: 100, moved: 100, unitRevision: 1 },
+      },
     );
     exec(
       instance,
@@ -134,9 +140,11 @@ describe("an Accept that ends on the last unit of a request answers 200", () => 
     );
     seedVolume(instance, { tags: ["big"], items: ITEMS, from: 1 });
     linkVolume(instance, { tag: "big", items: ITEMS, from: 1 });
-    exec(
+    seedProposal(
       instance,
-      "insert into proposals (id, kind, from_tag_id, into_tag_id, reason, state, created_at) values (1, 'tag-merge', 1, 2, 'Same.', 'open', 1)",
+      "tag-merge",
+      { from_tag_id: 1, into_tag_id: 2 },
+      { id: 1, reason: "Same." },
     );
   });
 

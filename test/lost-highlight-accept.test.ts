@@ -15,6 +15,7 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
+import { removeProposals } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
@@ -123,7 +124,7 @@ describe("Accept of a lost-Highlight row", () => {
       [[id, "open"]],
     );
     assert.deepEqual(await listedIds(instance), []);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 });
 

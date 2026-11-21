@@ -7,8 +7,9 @@ import {
   items,
   logEntries,
   pins,
-  proposals,
+  tagMergeProposals,
   tags,
+  topicMergeProposals,
   topics,
 } from "../../../core/kernel/schema.ts";
 import type { MergeKindSpec, MergeSpecs } from "./merge-unit.ts";
@@ -19,8 +20,9 @@ import { planTopicUnit } from "./topic-merge.ts";
 export const MERGE: MergeSpecs = {
   "tag-merge": {
     table: tags,
-    from: proposals.fromTagId,
-    into: proposals.intoTagId,
+    subject: tagMergeProposals,
+    from: tagMergeProposals.fromTagId,
+    into: tagMergeProposals.intoTagId,
     subjects: (from, into) => ({ fromTagId: from, intoTagId: into }),
     pin: { column: pins.intoTagId, set: (id) => ({ intoTagId: id }) },
     itemLink: { entry: itemTags.tagId, item: itemTags.itemId },
@@ -35,8 +37,9 @@ export const MERGE: MergeSpecs = {
   },
   "topic-merge": {
     table: topics,
-    from: proposals.fromTopicId,
-    into: proposals.intoTopicId,
+    subject: topicMergeProposals,
+    from: topicMergeProposals.fromTopicId,
+    into: topicMergeProposals.intoTopicId,
     subjects: (from, into) => ({ fromTopicId: from, intoTopicId: into }),
     pin: { column: pins.intoTopicId, set: (id) => ({ intoTopicId: id }) },
     itemLink: { entry: items.topicId, item: items.id },

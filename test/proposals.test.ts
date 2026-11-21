@@ -7,6 +7,7 @@ import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts"
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 const TagSchema = z.object({ id: z.number(), name: z.string() });
@@ -19,20 +20,13 @@ function tagIds(instance: Instance): ReadonlyMap<string, number> {
   );
 }
 
-function seedProposal(
+function seedMerge(
   instance: Instance,
   [from, into]: readonly [number, number],
   state: string,
   reason: string | null,
 ): void {
-  exec(
-    instance,
-    "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values ('tag-merge', ?, ?, ?, ?, 1)",
-    from,
-    into,
-    reason,
-    state,
-  );
+  seedProposal(instance, "tag-merge", { from_tag_id: from, into_tag_id: into }, { reason, state });
 }
 
 const states = (instance: Instance) =>
@@ -75,10 +69,10 @@ describe("the Proposals routes", () => {
   });
 
   it("lists open rows newest first with live Item counts and none that are decided", async () => {
-    seedProposal(instance, [id("ml"), id("machine learning")], "open", "Short form of the name.");
-    seedProposal(instance, [id("llms"), id("llm")], "open", "Plural of the same word.");
-    seedProposal(instance, [id("llm"), id("ml")], "declined", null);
-    seedProposal(instance, [id("llms"), id("ml")], "rejected", "Not the same.");
+    seedMerge(instance, [id("ml"), id("machine learning")], "open", "Short form of the name.");
+    seedMerge(instance, [id("llms"), id("llm")], "open", "Plural of the same word.");
+    seedMerge(instance, [id("llm"), id("ml")], "declined", null);
+    seedMerge(instance, [id("llms"), id("ml")], "rejected", "Not the same.");
 
     const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
 
@@ -219,7 +213,11 @@ describe("the Proposals list is paged at 50 rows", () => {
     );
     exec(
       instance,
-      "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) select 'tag-merge', id, id + 1, 'The same concept.', 'open', id from tags where id % 2 = 1",
+      "insert into proposals (id, kind, reason, state, created_at) select (id + 1) / 2, 'tag-merge', 'The same concept.', 'open', id from tags where id % 2 = 1",
+    );
+    exec(
+      instance,
+      "insert into tag_merge_proposals (proposal_id, kind, from_tag_id, into_tag_id) select (id + 1) / 2, 'tag-merge', id, id + 1 from tags where id % 2 = 1",
     );
   });
 

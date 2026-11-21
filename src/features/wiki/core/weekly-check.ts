@@ -1,4 +1,4 @@
-import { type SQLWrapper, eq, sql } from "drizzle-orm";
+import { type SQLWrapper, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import type { OwnedJobKind } from "../../../core/contract/job-contract.ts";
@@ -6,8 +6,13 @@ import { type ProposalKind, WEEKLY_TASK } from "../../../core/contract/proposal-
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { enqueueRows, opening } from "../../../core/kernel/job-rows.ts";
-import { items, proposals } from "../../../core/kernel/schema.ts";
-import { type OwnSubjects, proposalRow, removedOpen } from "./proposal-lifecycle.ts";
+import { items } from "../../../core/kernel/schema.ts";
+import {
+  type Proposed,
+  insertedProposals,
+  removedOpen,
+  whereSubject,
+} from "./proposal-lifecycle.ts";
 import { NEWEST_DIGESTED_ITEM, claimedAt, claimingWeek } from "./scheduled-claim.ts";
 
 const PLAIN_CHECK = "plain-check";
@@ -18,12 +23,10 @@ type ModelKind = {
 
 type PlainKind = Exclude<ProposalKind, ModelKind>;
 
-export type PlainRow<Kind extends PlainKind> = (
-  subjects: OwnSubjects<Kind>,
-) => ReturnType<typeof proposalRow>;
+export type PlainRows<Kind extends PlainKind> = Omit<Proposed<Kind>, "state" | "reason">;
 
 interface PlainWeek<Kind extends PlainKind> {
-  readonly inserted: (db: Database, row: PlainRow<Kind>) => BatchItem<"sqlite">;
+  readonly proposed: (db: Database) => PlainRows<Kind>;
   readonly closedWhen: (db: Database) => Readonly<SQLWrapper>;
 }
 
@@ -34,23 +37,23 @@ export interface WeeklyCheck<Kind extends ProposalKind> {
 
 export function plainCheck<Kind extends PlainKind>(
   kind: Kind,
-  { inserted, closedWhen }: Readonly<PlainWeek<Kind>>,
+  { proposed, closedWhen }: Readonly<PlainWeek<Kind>>,
 ): WeeklyCheck<Kind> {
   const task = WEEKLY_TASK[kind];
 
   return {
     kind,
     run: async ({ db }, now) => {
-      const row: PlainRow<Kind> = (subjects) =>
-        proposalRow(
-          { kind, state: sql`'open'`, reason: sql`${PLAIN_CHECK}`, createdAt: now },
-          subjects,
-        );
-
       await db.batch([
         claimingWeek(db, now, task),
-        inserted(db, row),
-        removedOpen(db, claimedAt(task, now), eq(proposals.kind, kind), closedWhen(db)),
+        ...insertedProposals(
+          db,
+          kind,
+          now,
+          { ...proposed(db), state: sql`'open'`, reason: sql`${PLAIN_CHECK}` },
+          sql`changes() > 0`,
+        ),
+        removedOpen(db, kind, claimedAt(task, now), whereSubject(kind, closedWhen(db))),
       ]);
     },
   };

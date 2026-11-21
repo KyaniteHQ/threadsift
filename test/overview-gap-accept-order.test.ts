@@ -17,6 +17,7 @@ import {
   rowStates,
   storePage,
 } from "./overview-gap-fixtures.ts";
+import { removeProposals } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
 
 describe("Accept of an overview-gap row chooses the run's owner from the Topic as it is when the call is made", () => {
@@ -82,7 +83,7 @@ describe("Accept of an overview-gap row chooses the run's owner from the Topic a
     assert.deepEqual([answer.status, answer.body], [409, body("not-current")]);
     assert.deepEqual(overviewJobs(instance), jobs);
     assert.deepEqual(rowStates(instance).at(-1), [id, "open"]);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 
   it("answers not-current when a run is queued on another Item of the Topic after the row was read", async () => {
@@ -99,7 +100,7 @@ describe("Accept of an overview-gap row chooses the run's owner from the Topic a
     assert.deepEqual([answer.status, answer.body], [409, body("not-current")]);
     assert.equal(overviewJobs(instance).length, jobs.length + 1);
     assert.deepEqual(rowStates(instance).at(-1), [id, "open"]);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 
   it("clears the failure marker, starts one run for the newest Item and deletes the row", async () => {

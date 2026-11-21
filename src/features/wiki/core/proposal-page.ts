@@ -1,24 +1,19 @@
-import { and, eq, inArray, max, or, sql } from "drizzle-orm";
+import { and, eq, inArray, max, sql } from "drizzle-orm";
 
 import { PAGE_SIZE, pageTail } from "../../../core/contract/paging.ts";
-import {
-  PROPOSAL_KINDS,
-  type ProposalState,
-  WEEKLY_TASK,
-} from "../../../core/contract/proposal-contract.ts";
+import { type ProposalState, WEEKLY_TASK } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { providerSet } from "../../../core/kernel/provider-saved.ts";
-import { proposals, scheduledRuns } from "../../../core/kernel/schema.ts";
+import { hasSubject, proposals, scheduledRuns } from "../../../core/kernel/schema.ts";
 import { PROPOSAL } from "./proposal-kinds.ts";
-import { pageQuery } from "./proposal-rows.ts";
-
-const LISTABLE = or(
-  ...PROPOSAL_KINDS.map((kind) => and(eq(proposals.kind, kind), PROPOSAL[kind].listedWhile)),
-);
 
 export async function readProposalPage(db: Database, cursor: number | null) {
-  const [rows, [run], [provider]] = await db.batch([
-    pageQuery(db, cursor, LISTABLE),
+  const [tagMerges, topicMerges, lost, gaps, disagreements, [run], [provider]] = await db.batch([
+    PROPOSAL["tag-merge"].page(db, cursor),
+    PROPOSAL["topic-merge"].page(db, cursor),
+    PROPOSAL["highlight-lost"].page(db, cursor),
+    PROPOSAL["overview-gap"].page(db, cursor),
+    PROPOSAL["items-disagree"].page(db, cursor),
     db
       .select({ at: max(scheduledRuns.lastRunAt) })
       .from(scheduledRuns)
@@ -26,10 +21,18 @@ export async function readProposalPage(db: Database, cursor: number | null) {
     db.select({ set: sql<number>`${providerSet()}` }).from(sql`(select 1)`),
   ]);
 
-  const { items, next } = pageTail(rows, PAGE_SIZE, ({ id }) => String(id));
+  const entries = [
+    ...tagMerges.map((row) => PROPOSAL["tag-merge"].pageEntry(row)),
+    ...topicMerges.map((row) => PROPOSAL["topic-merge"].pageEntry(row)),
+    ...lost.map((row) => PROPOSAL["highlight-lost"].pageEntry(row)),
+    ...gaps.map((row) => PROPOSAL["overview-gap"].pageEntry(row)),
+    ...disagreements.map((row) => PROPOSAL["items-disagree"].pageEntry(row)),
+  ].toSorted((a, b) => b.id - a.id);
+
+  const { items, next } = pageTail(entries, PAGE_SIZE, ({ id }) => String(id));
 
   return {
-    proposals: items.map((row) => PROPOSAL[row.kind].pageEntry(row)),
+    proposals: items,
     checkedAt: run?.at ?? null,
     provider: provider?.set === 1,
     next,
@@ -43,7 +46,7 @@ export async function readProposalState(
   const [row] = await db
     .select({ state: proposals.state })
     .from(proposals)
-    .where(eq(proposals.id, id));
+    .where(and(eq(proposals.id, id), hasSubject()));
 
   return row?.state;
 }

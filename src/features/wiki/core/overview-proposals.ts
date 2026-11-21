@@ -1,16 +1,16 @@
 import { and, asc, desc, eq, notExists, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
-import { proposals, topics } from "../../../core/kernel/schema.ts";
+import { overviewGapProposals, proposals, topics } from "../../../core/kernel/schema.ts";
 import { acceptOverviewGap } from "./overview-accept.ts";
 import type { ProposalKindSpec } from "./proposal-kind.ts";
-import type { PageRow } from "./proposal-rows.ts";
-import { overviewGap, uncoveredCount } from "./topic-coverage.ts";
-import { type PlainRow, plainCheck } from "./weekly-check.ts";
+import { HEAD_COLUMNS, PAGE_ROWS, listedAfter } from "./proposal-rows.ts";
+import { digestedCount, overviewGap, uncoveredCount } from "./topic-coverage.ts";
+import { type PlainRows, plainCheck } from "./weekly-check.ts";
 
 const OVERVIEW_GAPS_PER_WEEK = 20;
 
-const GAP = overviewGap(proposals.topicId);
+const GAP = overviewGap(overviewGapProposals.topicId);
 
 function mostBehind(db: Database) {
   return db
@@ -22,8 +22,8 @@ function mostBehind(db: Database) {
         notExists(
           db
             .select({ one: sql`1` })
-            .from(proposals)
-            .where(and(eq(proposals.kind, "overview-gap"), eq(proposals.topicId, topics.id))),
+            .from(overviewGapProposals)
+            .where(eq(overviewGapProposals.topicId, topics.id)),
         ),
       ),
     )
@@ -32,25 +32,40 @@ function mostBehind(db: Database) {
     .as("most_behind");
 }
 
-function insertedRows(db: Database, row: PlainRow<"overview-gap">) {
+function proposedRows(db: Database): PlainRows<"overview-gap"> {
   const picked = mostBehind(db);
 
-  return db
-    .insert(proposals)
-    .select(
-      db
-        .select(row({ topicId: sql<number>`${picked.id}` }))
-        .from(picked)
-        .where(sql`changes() > 0`)
-        .orderBy(asc(picked.uncovered), desc(picked.id)),
-    )
-    .onConflictDoNothing();
+  return {
+    subjects: { topicId: picked.id },
+    from: picked,
+    where: undefined,
+    order: sql`${picked.uncovered} asc, ${picked.id} desc`,
+  };
 }
 
-function gapOf(row: Readonly<PageRow>) {
+function gapPage(db: Database, cursor: number | null) {
+  return db
+    .select({
+      ...HEAD_COLUMNS,
+      topicKey: topics.key,
+      topicName: topics.name,
+      uncovered: sql<number>`${uncoveredCount(topics.id)}`.as("uncovered"),
+      digested: sql<number>`${digestedCount(topics.id)}`.as("digested"),
+    })
+    .from(proposals)
+    .innerJoin(overviewGapProposals, eq(overviewGapProposals.proposalId, proposals.id))
+    .innerJoin(topics, eq(topics.id, overviewGapProposals.topicId))
+    .where(listedAfter("overview-gap", cursor, GAP))
+    .orderBy(desc(proposals.id))
+    .limit(PAGE_ROWS);
+}
+
+type GapRow = Awaited<ReturnType<typeof gapPage>>[number];
+
+function gapOf(row: Readonly<GapRow>) {
   return {
     id: row.id,
-    kind: row.kind,
+    kind: "overview-gap" as const,
     state: row.state,
     topic: {
       key: row.topicKey,
@@ -61,13 +76,13 @@ function gapOf(row: Readonly<PageRow>) {
   };
 }
 
-export const OVERVIEW_GAP: ProposalKindSpec<"overview-gap"> = {
+export const OVERVIEW_GAP = {
   stage: "overview-proposals",
   accept: acceptOverviewGap,
-  listedWhile: GAP,
+  page: gapPage,
   pageEntry: gapOf,
   weekly: plainCheck("overview-gap", {
-    inserted: insertedRows,
+    proposed: proposedRows,
     closedWhen: () => sql`not (${GAP})`,
   }),
-};
+} satisfies ProposalKindSpec<"overview-gap">;

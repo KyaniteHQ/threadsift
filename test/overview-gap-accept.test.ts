@@ -19,6 +19,7 @@ import {
   rowStates,
   storePage,
 } from "./overview-gap-fixtures.ts";
+import { removeProposals } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
 
 const reject = (instance: Instance, id: number) =>
@@ -89,7 +90,7 @@ describe("Accept of an overview-gap row", () => {
     assert.deepEqual(overviewJobs(instance), jobs);
     assert.equal(failureOf(instance, "Providerless"), "gave-up");
     assert.deepEqual(rowStates(instance).at(-1), [id, "open"]);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 
   it("answers 409 not-current when a queued run is open on another Item of the Topic, with no second job", async () => {
@@ -108,7 +109,7 @@ describe("Accept of an overview-gap row", () => {
     assert.deepEqual(overviewJobs(instance), jobs);
     assert.deepEqual(rowStates(instance), [[id, "open"]]);
     assert.deepEqual((await readPage(instance)).proposals, []);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 
   it("answers 409 not-current when every Item with a Digest is in the overview", async () => {
@@ -121,7 +122,7 @@ describe("Accept of an overview-gap row", () => {
     assert.deepEqual([answer.status, answer.body], [409, body("not-current")]);
     assert.deepEqual(overviewJobs(instance), jobs);
     assert.deepEqual(rowStates(instance), [[id, "open"]]);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 
   it("answers 409 not-open for a rejected row, and 403 to a token, 401 signed out and 404 for an unknown id", async () => {
@@ -151,7 +152,7 @@ describe("Accept of an overview-gap row", () => {
       rowStates(instance).map(([, state]) => state),
       ["rejected", "open"],
     );
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 });
 

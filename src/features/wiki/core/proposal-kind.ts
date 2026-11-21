@@ -1,35 +1,28 @@
-import type { SQLWrapper } from "drizzle-orm";
-
 import type {
   Acceptance,
-  ProposalKind,
   Proposal,
+  ProposalKind,
 } from "../../../core/contract/proposal-contract.ts";
+import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import type { PageRow } from "./proposal-rows.ts";
 import type { WeeklyCheck } from "./weekly-check.ts";
 
-type ProposalOf<Kind extends ProposalKind> = Proposal extends infer Listed
-  ? Listed extends { readonly kind: infer Kinds }
+export type ProposalOf<Kind extends ProposalKind> = Proposal extends infer Entry
+  ? Entry extends { readonly kind: infer Kinds }
     ? Kind extends Kinds
-      ? Listed
+      ? Entry
       : never
     : never
   : never;
 
-type Nullable<Value> = Value extends string
-  ? string | null
-  : Value extends number
-    ? number | null
-    : { readonly [Key in keyof Value]: Nullable<Value[Key]> };
-
-type PageEntry<Kind extends ProposalKind> = Pick<PageRow, "kind" | "state"> &
-  Nullable<Omit<ProposalOf<Kind>, "kind" | "state">>;
+export interface ListedRow {
+  readonly id: number;
+}
 
 export interface ProposalKindSpec<Kind extends ProposalKind> {
   readonly stage: string;
   readonly accept: (ports: JobPorts, id: number) => Promise<Acceptance>;
-  readonly listedWhile: Readonly<SQLWrapper> | undefined;
-  readonly pageEntry: (row: Readonly<PageRow>) => PageEntry<Kind>;
+  page(db: Database, cursor: number | null): PromiseLike<readonly ListedRow[]>;
+  pageEntry(row: ListedRow): ProposalOf<Kind>;
   readonly weekly: WeeklyCheck<Kind>;
 }

@@ -4,6 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
+import { tagId } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
   keepLostHighlight,
@@ -13,7 +14,9 @@ import {
   readPage,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, exec, paste, rows } from "./related-fixtures.ts";
+import { seedProposal } from "./proposal-seed.ts";
+import { SECRET_KEY, paste, rows } from "./related-fixtures.ts";
+import { topicId } from "./topic-accept-fixtures.ts";
 
 const ColumnsSchema = z.object({
   id: z.number(),
@@ -49,13 +52,20 @@ describe("lost-Highlight Proposals beside Tag and Topic rows", () => {
       topic: "Machine learning",
       tags: ["llm", "llms"],
     });
-    exec(
+    seedProposal(
       instance,
-      "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) select 'tag-merge', (select id from tags where name = 'llms'), (select id from tags where name = 'llm'), 'Plural.', 'open', 1",
+      "tag-merge",
+      { from_tag_id: tagId(instance, "llms"), into_tag_id: tagId(instance, "llm") },
+      { reason: "Plural." },
     );
-    exec(
+    seedProposal(
       instance,
-      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) select 'topic-merge', (select id from topics where name = 'ML'), (select id from topics where name = 'Machine learning'), 'Short form.', 'open', 1",
+      "topic-merge",
+      {
+        from_topic_id: topicId(instance, "ML"),
+        into_topic_id: topicId(instance, "Machine learning"),
+      },
+      { reason: "Short form." },
     );
 
     const bareItem = await paste(instance, "bare", {

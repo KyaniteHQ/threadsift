@@ -1,9 +1,20 @@
-import { type SQL, type SQLWrapper, and, eq, isNull, sql } from "drizzle-orm";
+import {
+  type SQL,
+  type SQLWrapper,
+  type Subquery,
+  and,
+  eq,
+  getTableColumns,
+  inArray,
+  isNull,
+  sql,
+} from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
+import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import type { ProposalKind, ProposalState } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import type { SUBJECTS } from "../../../core/kernel/proposal-tables.ts";
-import { proposals } from "../../../core/kernel/schema.ts";
+import { SUBJECT_TABLE, hasSubject, proposals } from "../../../core/kernel/schema.ts";
 
 const MOVES = {
   reject: { from: "open", to: "rejected" },
@@ -22,12 +33,17 @@ function anyAccepting(): SQL {
   return sql`exists (select 1 from ${proposals} where ${eq(proposals.state, MOVES.apply.to)})`;
 }
 
-export function proposalClaimed(db: Database, id: number) {
+export function proposalClaimed(db: Database, id: number, kind: ProposalKind) {
   return db
     .update(proposals)
     .set({ state: MOVES.claim.to })
     .where(
-      and(eq(proposals.id, id), eq(proposals.state, MOVES.claim.from), sql`not ${anyAccepting()}`),
+      and(
+        eq(proposals.id, id),
+        eq(proposals.state, MOVES.claim.from),
+        whereSubject(kind, sql`1`),
+        sql`not ${anyAccepting()}`,
+      ),
     )
     .returning({ id: proposals.id });
 }
@@ -52,7 +68,7 @@ export function rejection(db: Database, id: number) {
   return db
     .update(proposals)
     .set({ state: MOVES.reject.to })
-    .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.reject.from)))
+    .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.reject.from), hasSubject()))
     .returning({ id: proposals.id });
 }
 
@@ -85,56 +101,138 @@ export function unitFailed(db: Database, id: number, revision: number) {
     .where(and(eq(proposals.id, id), eq(proposals.state, MOVES.apply.to), atRevision(revision)));
 }
 
-export function removedOpen(db: Database, ...conditions: readonly Readonly<SQLWrapper>[]) {
-  return db
-    .delete(proposals)
-    .where(and(eq(proposals.state, MOVES.remove.from), ...conditions.map((each) => sql`${each}`)));
+export function removedOpen<Kind extends ProposalKind>(
+  db: Database,
+  kind: Kind,
+  ...conditions: readonly Readonly<SQLWrapper>[]
+) {
+  const table = SUBJECT_TABLE[kind];
+
+  return db.delete(table).where(
+    inArray(
+      table.proposalId,
+      db
+        .select({ id: proposals.id })
+        .from(proposals)
+        .where(
+          and(eq(proposals.state, MOVES.remove.from), ...conditions.map((each) => sql`${each}`)),
+        ),
+    ),
+  );
 }
 
 type Subject = Readonly<SQLWrapper>;
 
-type SubjectColumn = (typeof SUBJECTS)[ProposalKind][number];
-
-type Subjects = { readonly [Column in SubjectColumn]: Subject };
-
-interface Row<Kind extends ProposalKind> {
-  readonly kind: Kind;
-  readonly state: Subject;
-  readonly reason: Subject;
-  readonly createdAt: number;
-}
-
-const NONE = sql`null`;
+type SubjectInsert<Kind extends ProposalKind> = (typeof SUBJECT_TABLE)[Kind]["$inferInsert"];
 
 export type OwnSubjects<Kind extends ProposalKind> = Kind extends ProposalKind
-  ? { readonly [Column in (typeof SUBJECTS)[Kind][number]]: Subject }
+  ? { readonly [Column in Exclude<keyof SubjectInsert<Kind>, "proposalId" | "kind">]: Subject }
   : never;
 
-export function proposalRow<Kind extends ProposalKind>(
-  { kind, state, reason, createdAt }: Readonly<Row<Kind>>,
-  own: OwnSubjects<Kind>,
-) {
-  const subjects: Readonly<Partial<Subjects>> = own;
+export interface Proposed<Kind extends ProposalKind> {
+  readonly state: Subject;
+  readonly reason: Subject;
+  readonly subjects: OwnSubjects<Kind>;
+  readonly from: SQLiteTable | Subquery | SQL;
+  readonly where: SQL | undefined;
+  readonly order: SQL;
+}
 
-  return {
-    id: sql<null>`null`.as("id"),
-    kind: sql<ProposalKind>`${kind}`.as("kind"),
-    fromTagId: sql<number | null>`${subjects.fromTagId ?? NONE}`.as("from_tag_id"),
-    intoTagId: sql<number | null>`${subjects.intoTagId ?? NONE}`.as("into_tag_id"),
-    fromTopicId: sql<number | null>`${subjects.fromTopicId ?? NONE}`.as("from_topic_id"),
-    intoTopicId: sql<number | null>`${subjects.intoTopicId ?? NONE}`.as("into_topic_id"),
-    reason: sql<string | null>`${reason}`.as("reason"),
-    state: sql<ProposalState>`${state}`.as("state"),
-    createdAt: sql<number>`${createdAt}`.as("created_at"),
-    cursor: sql<null>`null`.as("cursor"),
-    moved: sql<null>`null`.as("moved"),
-    unitRevision: sql<null>`null`.as("unit_revision"),
-    failedRuns: sql<null>`null`.as("failed_runs"),
-    highlightId: sql<number | null>`${subjects.highlightId ?? NONE}`.as("highlight_id"),
-    topicId: sql<number | null>`${subjects.topicId ?? NONE}`.as("topic_id"),
-    fromItemId: sql<number | null>`${subjects.fromItemId ?? NONE}`.as("from_item_id"),
-    intoItemId: sql<number | null>`${subjects.intoItemId ?? NONE}`.as("into_item_id"),
-    fromDigest: sql<number | null>`${subjects.fromDigest ?? NONE}`.as("from_digest"),
-    intoDigest: sql<number | null>`${subjects.intoDigest ?? NONE}`.as("into_digest"),
+export function whereSubject(kind: ProposalKind, condition: Subject): SQL {
+  const table = SUBJECT_TABLE[kind];
+
+  return sql`${proposals.id} in (select ${table.proposalId} from ${table} where ${condition})`;
+}
+
+function proposedRows<Kind extends ProposalKind>(
+  db: Database,
+  { state, reason, subjects, from, where, order }: Readonly<Proposed<Kind>>,
+) {
+  const own: Readonly<Partial<Record<string, Subject>>> = subjects;
+
+  return db
+    .select({
+      seq: sql<number>`row_number() over (order by ${order})`.as("seq"),
+      state: sql<ProposalState>`${state}`.as("state"),
+      reason: sql<string | null>`${reason}`.as("reason"),
+      ...Object.fromEntries(
+        Object.entries(own).flatMap(([name, value]) =>
+          value === undefined ? [] : [[name, sql`${value}`.as(name)] as const],
+        ),
+      ),
+    })
+    .from(from)
+    .where(where);
+}
+
+function insertedHeads(
+  db: Database,
+  kind: ProposalKind,
+  createdAt: number,
+  rows: Readonly<Proposed<ProposalKind>>,
+  only: SQL | undefined,
+) {
+  const proposed = proposedRows(db, rows).as("proposed");
+
+  return db.insert(proposals).select(
+    db
+      .select({
+        id: sql<null>`null`.as("id"),
+        kind: sql<ProposalKind>`${kind}`.as("kind"),
+        reason: proposed.reason,
+        state: proposed.state,
+        createdAt: sql<number>`${createdAt}`.as("created_at"),
+        cursor: sql<null>`null`.as("cursor"),
+        moved: sql<null>`null`.as("moved"),
+        unitRevision: sql<null>`null`.as("unit_revision"),
+        failedRuns: sql<null>`null`.as("failed_runs"),
+      })
+      .from(proposed)
+      .where(only)
+      .orderBy(sql`seq`),
+  );
+}
+
+function insertedSubjects(
+  db: Database,
+  kind: ProposalKind,
+  rows: Readonly<Proposed<ProposalKind>>,
+) {
+  const table = SUBJECT_TABLE[kind];
+
+  const inserted = db
+    .select({
+      id: proposals.id,
+      seq: sql<number>`row_number() over (order by ${proposals.id})`.as("seq"),
+    })
+    .from(proposals)
+    .where(
+      and(
+        eq(proposals.kind, kind),
+        sql`${proposals.id} in (select id from ${proposals} order by id desc limit changes())`,
+      ),
+    );
+
+  const valueOf = (name: string): SQL => {
+    if (name === "proposalId") return sql`u.id`;
+
+    return name === "kind" ? sql`${kind}` : sql`p.${sql.identifier(name)}`;
   };
+
+  return db.insert(table).select(
+    sql`select ${sql.join(
+      Object.keys(getTableColumns(table)).map((name) => valueOf(name)),
+      sql`, `,
+    )} from (${inserted.getSQL()}) as u inner join (${proposedRows(db, rows).getSQL()}) as p on p.seq = u.seq`,
+  );
+}
+
+export function insertedProposals<Kind extends ProposalKind>(
+  db: Database,
+  kind: Kind,
+  createdAt: number,
+  proposed: Readonly<Proposed<Kind>>,
+  only?: SQL,
+): readonly BatchItem<"sqlite">[] {
+  return [insertedHeads(db, kind, createdAt, proposed, only), insertedSubjects(db, kind, proposed)];
 }

@@ -9,7 +9,13 @@ import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { seedLogEntries } from "./pin-fixtures.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
-import { itemsOf, proposeTopics, topicId, topicMergeLines } from "./topic-accept-fixtures.ts";
+import {
+  itemsOf,
+  proposeTopics,
+  removeProposals,
+  topicId,
+  topicMergeLines,
+} from "./topic-accept-fixtures.ts";
 
 const StateSchema = z.object({ state: z.string() });
 
@@ -72,7 +78,7 @@ describe("Accept of a Topic row answers by the row's state and refuses the wrong
     assert.deepEqual([agent.status, signedOut.status], [403, 401]);
     assert.equal((await accept(instance, 9999)).status, 404);
     assert.equal(count(instance, "select count(*) as n from pins"), 0);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 
   it("answers not-open for a decided row and merge-busy while another row of either kind is accepting, and lists the accepting Topic row", async () => {
@@ -100,7 +106,7 @@ describe("Accept of a Topic row answers by the row's state and refuses the wrong
       ],
     );
     assert.equal(count(instance, "select count(*) as n from pins"), 0);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 });
 
@@ -123,14 +129,8 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
     loser = topicId(instance, "ML");
     survivor = topicId(instance, "Machine learning");
     exec(instance, "update digests set digest = 'not json' where item_id = ?", ids[1] ?? 0);
-    exec(
-      instance,
-      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', ?, ?, 'Other.', 'open', 1), ('topic-merge', ?, ?, 'Kept.', 'open', 1)",
-      loser,
-      topicId(instance, "Games"),
-      survivor,
-      topicId(instance, "Games"),
-    );
+    proposeTopics(instance, ["ML", "Games"], "open", "Other.");
+    proposeTopics(instance, ["Machine learning", "Games"], "open", "Kept.");
     exec(
       instance,
       "insert into topic_pages (topic_id, overview, revision, built_from, updated_at) values (?, 'About ML.', 1, '[]', 1)",

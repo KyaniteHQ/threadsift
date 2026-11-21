@@ -4,6 +4,7 @@ import { after, before, describe, it } from "node:test";
 
 import type { ProposalKind } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
+import { subjectTable } from "./proposal-seed.ts";
 
 const BUSY_TIMEOUT_MS = 5000;
 
@@ -23,6 +24,12 @@ const SUBJECTS = {
 } as const satisfies Readonly<
   Record<ProposalKind, (n: number) => readonly [columns: string, values: string]>
 >;
+
+const insertion = (kind: ProposalKind, state: string, column = ""): string => {
+  const extra = column === "" ? ["", ""] : [`, ${column}`, ", 5"];
+
+  return `insert into proposals (kind, reason, state, created_at${extra[0] ?? ""}) values ('${kind}', 'r', '${state}', 0${extra[1] ?? ""})`;
+};
 
 const setting = (id: number, assignment: string): string =>
   `update proposals set ${assignment} where id = ${String(id)}`;
@@ -55,19 +62,19 @@ describe("the proposal constraints keep a state with the kinds that hold it and 
     await instance.close();
   });
 
-  const insertion = (kind: ProposalKind, state: string, column = ""): string => {
+  const stored = (kind: ProposalKind, state: string, column = ""): number => {
+    const row = database.prepare(`${insertion(kind, state, column)} returning id`).get();
+    const id = Number(row?.["id"]);
+
     used += 2;
 
     const [columns, values] = SUBJECTS[kind](used);
-    const extra = column === "" ? ["", ""] : [`, ${column}`, ", 5"];
 
-    return `insert into proposals (kind, ${columns}, reason, state, created_at${extra[0] ?? ""}) values ('${kind}', ${values}, 'r', '${state}', 0${extra[1] ?? ""})`;
-  };
+    database.exec(
+      `insert into ${subjectTable(kind)} (proposal_id, kind, ${columns}) values (${String(id)}, '${kind}', ${values})`,
+    );
 
-  const stored = (kind: ProposalKind, state: string, column = ""): number => {
-    const row = database.prepare(`${insertion(kind, state, column)} returning id`).get();
-
-    return Number(row?.["id"]);
+    return id;
   };
 
   const refuses = (title: string, statement: () => string, message: RegExp): void => {
