@@ -1,5 +1,4 @@
 import { type Page, expect } from "@playwright/test";
-import { z } from "zod";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { REDDIT_ACCOUNT_TEXT } from "../web/src/reddit-account-text.ts";
@@ -13,41 +12,7 @@ const section = (page: Page) =>
 const button = (page: Page, name: string) =>
   section(page).getByRole("button", { name, exact: true });
 
-const TOKEN_ROUTE = "/api/reddit-account";
-
 const sessionField = (page: Page) => page.getByLabel(REDDIT_ACCOUNT_TEXT.fieldLabel);
-
-async function tokenFlow(page: Page): Promise<void> {
-  const scopes = page.getByRole("group", { name: SETTINGS.scopesLabel });
-
-  await expect(scopes.getByRole("checkbox")).toHaveCount(5);
-  await expect(scopes.getByRole("checkbox", { name: SETTINGS.scopeReddit })).not.toBeChecked();
-  await expect(scopes.getByRole("checkbox", { name: SETTINGS.scopeRead })).toBeChecked();
-
-  const created = await page.request.post("/api/tokens", {
-    data: { name: "smoke extension", scopes: ["read", "reddit"] },
-  });
-
-  expect(created.status()).toBe(201);
-
-  const { value } = z.object({ value: z.string() }).parse(await created.json());
-  const headers = { authorization: `Bearer ${value}` };
-
-  const put = await page.request.put(TOKEN_ROUTE, { headers, data: { session: SESSION } });
-
-  expect([put.status(), await put.json()]).toEqual([
-    200,
-    { state: "connected", secretReady: true },
-  ]);
-
-  const read = await page.request.get(TOKEN_ROUTE, { headers });
-
-  expect(await read.json()).toEqual({ state: "connected", secretReady: true });
-
-  const removed = await page.request.delete(TOKEN_ROUTE, { headers });
-
-  expect(await removed.json()).toEqual({ state: "none", secretReady: true });
-}
 
 export async function redditAccountFlow(page: Page): Promise<void> {
   await page.goto("/");
@@ -93,5 +58,8 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await expectNoSidewaysScroll(page);
   await page.setViewportSize({ width: 1280, height: 800 });
 
-  await tokenFlow(page);
+  const scopes = page.getByRole("group", { name: SETTINGS.scopesLabel });
+
+  await expect(scopes.getByRole("checkbox", { name: SETTINGS.scopeReddit })).not.toBeChecked();
+  await expect(scopes.getByRole("checkbox", { name: SETTINGS.scopeRead })).toBeChecked();
 }

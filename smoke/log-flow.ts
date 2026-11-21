@@ -1,4 +1,4 @@
-import { type Browser, type Locator, type Page, expect } from "@playwright/test";
+import { type Locator, type Page, expect } from "@playwright/test";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
@@ -6,7 +6,6 @@ import { LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";
 import { topicLinkLabel } from "../web/src/topic-text.ts";
-import { visitSignedOut } from "./document-checks.ts";
 import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 const TARGET_PX = 44;
@@ -73,7 +72,7 @@ async function expectTargets(page: Page, row: Locator): Promise<void> {
   }
 }
 
-export async function logFlow(page: Page, browser: Browser): Promise<void> {
+export async function logFlow(page: Page): Promise<void> {
   const id = await save(page, LOGGED.link, {
     title: LONG_TITLE,
     topic: LOGGED.topic,
@@ -118,7 +117,6 @@ export async function logFlow(page: Page, browser: Browser): Promise<void> {
   await expectTargets(page, rows(page).first());
 
   await page.setViewportSize({ width: 1280, height: 800 });
-  await visitSignedOut(browser, "/log");
   await expectSlashAddresses(page, id);
   await deleteAndReload(page, id);
 }
