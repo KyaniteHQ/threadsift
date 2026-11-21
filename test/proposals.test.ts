@@ -63,14 +63,12 @@ describe("the Proposals routes", () => {
 
   after(() => instance.close());
 
-  it("answers an empty list to the owner and an agent token, and 401 signed out", async () => {
+  it("answers an empty list to the owner, and 401 signed out", async () => {
     const owner = await instance.read("GET", "/api/proposals", ProposalPageSchema);
-    const agent = await instance.sendWithToken(token, "GET", "/api/proposals");
     const signedOut = await instance.fetch("/api/proposals");
 
     assert.deepEqual(owner, { proposals: [], checkedAt: null, provider: false, next: null });
-    assert.deepEqual([agent.status, signedOut.status], [200, 401]);
-    assert.equal(agent.body, JSON.stringify(owner));
+    assert.equal(signedOut.status, 401);
   });
 
   it("lists open rows newest first with live Item counts and none that are decided", async () => {
@@ -80,6 +78,10 @@ describe("the Proposals routes", () => {
     seedMerge(instance, [id("llms"), id("ml")], "rejected", "Not the same.");
 
     const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
+
+    const agent = await instance.sendWithToken(token, "GET", "/api/proposals");
+    assert.equal(agent.status, 200);
+    assert.equal(agent.body, JSON.stringify(page));
 
     assert.deepEqual(
       mergesOf(page).map(({ from, into, reason, state, kind }) => ({

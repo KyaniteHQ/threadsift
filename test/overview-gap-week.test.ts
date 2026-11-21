@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { Instance } from "./instance.ts";
-import { claims, moveClaimBack, nextTick, readPage } from "./lost-highlight-fixtures.ts";
+import { readPage } from "./lost-highlight-fixtures.ts";
 import {
   addTopics,
   gapRows,
@@ -17,6 +17,7 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { SECRET_KEY, exec, rows, saveProvider } from "./related-fixtures.ts";
+import { claims, moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
 
 const TASK = "overview_proposals";
 

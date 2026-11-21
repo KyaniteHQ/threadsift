@@ -4,8 +4,6 @@ import { after, before, describe, it } from "node:test";
 
 import type { ProposalKind } from "../src/core/contract/proposal-contract.ts";
 import {
-  ITEM_COLUMNS,
-  INVALID_PINS,
   type SubjectStorage,
   subjectStorage,
   openStorage,
@@ -21,7 +19,7 @@ describe("jobs and the Log accept only known values", () => {
     database = storage.database;
   });
 
-  after(() => storage.close());
+  after(() => storage?.close());
 
   it("refuses a Log entry with an action the code does not list, on insert and on update", () => {
     assert.throws(() => {
@@ -69,7 +67,7 @@ describe("the proposal constraints keep a state with the kinds that hold it and 
   before(async () => {
     storage = await subjectStorage();
   });
-  after(() => storage.close());
+  after(() => storage?.close());
 
   const stored = (kind: ProposalKind, state: string, column = ""): number => {
     const id = Number(
@@ -149,34 +147,60 @@ describe("the Pin constraints hold which columns each Pin kind uses", () => {
     `);
   });
 
-  after(() => storage.close());
+  after(() => storage?.close());
+
+  const ITEM_COLUMNS = ["from_item_id", "into_item_id", "from_digest", "into_digest"] as const;
+  const INVALID_PINS = [
+    [
+      "a disagreement Pin without a token",
+      "items-disagree",
+      ["from_item_id", "into_item_id"],
+      [1, 2],
+    ],
+    [
+      "a disagreement Pin without an Item",
+      "items-disagree",
+      ["from_digest", "into_digest"],
+      [1, 2],
+    ],
+    ["a disagreement Pin that names one Item twice", "items-disagree", ITEM_COLUMNS, [1, 1, 1, 2]],
+    [
+      "a disagreement Pin that names a Tag",
+      "items-disagree",
+      [...ITEM_COLUMNS, "into_tag_id"],
+      [1, 2, 1, 2, 1],
+    ],
+    [
+      "a disagreement Pin that names a Topic",
+      "items-disagree",
+      [...ITEM_COLUMNS, "into_topic_id"],
+      [1, 2, 1, 2, 1],
+    ],
+    ["a Tag Pin that names an Item", "tag-merge", ["into_tag_id", "from_item_id"], [1, 1]],
+    ["a Topic Pin that holds a token", "topic-merge", ["into_topic_id", "into_digest"], [1, 3]],
+  ] as const;
 
   INVALID_PINS.forEach(([name, kind, columns, values]) => {
     it(`refuses ${name} on insert`, () => {
-      assert.throws(
-        () => storage.insertPin(kind, "refused", columns.split(", "), values),
-        /pins_subject/u,
-      );
+      assert.throws(() => storage.insertPin(kind, "refused", columns, values), /pins_subject/u);
     });
   });
 
   it("refuses an update that breaks a Pin of each kind", () => {
-    storage.insertPin("items-disagree", "refused", ITEM_COLUMNS.split(", "), [1, 2, 1, 2]);
+    storage.insertPin("items-disagree", "refused", ITEM_COLUMNS, [1, 2, 1, 2]);
     database.exec(
       "insert into pins (kind, from_key, from_name, into_tag_id, created_at) values ('tag-merge', 'tag', 'a name', 1, 0)",
     );
 
-    const db = database;
-
-    for (const statement of [
+    [
       "update pins set into_item_id = from_item_id where kind = 'items-disagree'",
       "update pins set into_tag_id = 1 where kind = 'items-disagree'",
       "update pins set from_digest = 3 where kind = 'tag-merge'",
-    ]) {
+    ].forEach((statement) => {
       assert.throws(() => {
-        db.exec(statement);
+        database.exec(statement);
       }, /pins_subject/u);
-    }
+    });
   });
 });
 
@@ -187,7 +211,7 @@ describe("Proposals and Pins refuse unknown values and mismatched subjects", () 
     storage = await subjectStorage();
   });
 
-  after(() => storage.close());
+  after(() => storage?.close());
 
   it("refuses a proposal with a kind or state the code does not list, on insert and on update", () => {
     const insert = storage.database.prepare(
@@ -268,32 +292,5 @@ describe("Proposals and Pins refuse unknown values and mismatched subjects", () 
     assert.throws(() => {
       storage.insertPin("topic-merge", "shared key", ["into_topic_id"], [intoTopic]);
     }, /UNIQUE/u);
-  });
-
-  (["tag-merge", "topic-merge", "items-disagree"] as const).forEach((kind) => {
-    it(`keeps one ${kind} Proposal for an unordered pair`, () => {
-      const [from = 0, into = 0, ...rest] = storage.subjectsOf(kind);
-
-      storage.proposed(kind, [from, into, ...rest]);
-      assert.throws(
-        () => storage.proposed(kind, [into, from, ...rest]),
-        /UNIQUE constraint failed/u,
-      );
-    });
-
-    it(`refuses a ${kind} Proposal with the same subject twice`, () => {
-      const [from = 0, , ...rest] = storage.subjectsOf(kind);
-
-      assert.throws(() => storage.proposed(kind, [from, from, ...rest]), /_proposals_distinct/u);
-    });
-  });
-
-  (["highlight-lost", "overview-gap"] as const).forEach((kind) => {
-    it(`keeps one ${kind} Proposal for its subject`, () => {
-      const subjects = storage.subjectsOf(kind);
-
-      storage.proposed(kind, subjects);
-      assert.throws(() => storage.proposed(kind, subjects), /UNIQUE constraint failed/u);
-    });
   });
 });

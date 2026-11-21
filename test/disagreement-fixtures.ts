@@ -4,6 +4,7 @@ import type { Instance } from "./instance.ts";
 import { script } from "./pin-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
 import { exec, paste, rows, until } from "./related-fixtures.ts";
+import { jobsOf } from "./weekly-claim-fixtures.ts";
 
 export interface Seeded {
   readonly id: number;
@@ -128,14 +129,6 @@ export const tasksOf = (instance: Instance) =>
 export const sentOf = (instance: Instance) =>
   tasksOf(instance).map(({ inputs }) => InputSchema.parse(JSON.parse(inputs)));
 
-export const jobsOf = (instance: Instance, kind = "disagreement_proposals") =>
-  rows(
-    instance,
-    z.object({ id: z.number(), item_id: z.number(), state: z.string() }),
-    "select id, item_id, state from jobs where kind = ? order by id",
-    kind,
-  );
-
 export async function runWeek(instance: Instance): Promise<void> {
   const before = tasksOf(instance).length;
 
@@ -148,7 +141,8 @@ export async function runWeek(instance: Instance): Promise<void> {
   await until(
     () => ({
       tasks: tasksOf(instance).length,
-      open: jobsOf(instance).filter(({ state }) => state !== "done").length,
+      open: jobsOf(instance, "disagreement_proposals").filter(({ state }) => state !== "done")
+        .length,
     }),
     ({ tasks, open }) => tasks > before || open === 0,
   );

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { applyBotResult, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
-import { sentDisagreement, answerDisagreement } from "./disagreement-answer.ts";
 import {
   disagreementRows,
   proposeDisagreement,
@@ -31,10 +31,16 @@ describe("the guarded store of a weekly disagreement answer, applied to the outc
   after(() => instance.close());
 
   it("stores a returned pair that has no current Pin and drops the returned pair that has one, named in the reverse order", async () => {
-    await answerDisagreement(instance, await sentDisagreement(instance, 4), [
-      { a: 2, b: 1, reason: REASON },
-      { a: 3, b: 4, reason: REASON },
-    ]);
+    const sent = await sentTask(
+      instance,
+      await openJobOf(instance, { kind: "disagreement_proposals", itemId: 4 }),
+    );
+    await applyBotResult(instance, sent, {
+      disagreements: [
+        { a: 2, b: 1, reason: REASON },
+        { a: 3, b: 4, reason: REASON },
+      ],
+    });
 
     assert.deepEqual(
       disagreementRows(instance).map((row) => [row.from_item_id, row.into_item_id, row.state]),
@@ -48,9 +54,11 @@ describe("the guarded store of a weekly disagreement answer, applied to the outc
 
   it("stores the pair again once either Digest of its Pin has changed, with the new Digest tokens", async () => {
     replaceDigestToken(instance, 1, 900);
-    await answerDisagreement(instance, await sentDisagreement(instance, 4), [
-      { a: 1, b: 2, reason: REASON },
-    ]);
+    const sent = await sentTask(
+      instance,
+      await openJobOf(instance, { kind: "disagreement_proposals", itemId: 4 }),
+    );
+    await applyBotResult(instance, sent, { disagreements: [{ a: 1, b: 2, reason: REASON }] });
 
     assert.deepEqual(
       disagreementRows(instance)

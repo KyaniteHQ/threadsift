@@ -5,11 +5,11 @@ import { z } from "zod";
 
 import {
   disagreementRows,
-  jobsOf,
   pasteItems,
   proposeDisagreement,
   replaceDigest,
   runWeek,
+  sentOf,
   tasksOf,
   topicIdOf,
 } from "./disagreement-fixtures.ts";
@@ -17,6 +17,7 @@ import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, rows, saveProvider } from "./related-fixtures.ts";
+import { jobsOf } from "./weekly-claim-fixtures.ts";
 
 const listedIds = async (instance: Instance): Promise<readonly number[]> =>
   (await readPage(instance)).proposals.flatMap(({ id, kind }) =>
@@ -114,6 +115,11 @@ describe("a disagreement row stays only while the pair was judged on the Digests
     assert.equal(disagreementRows(instance).length, 3);
 
     await runWeek(instance);
+    assert.ok(
+      sentOf(instance)
+        .at(-1)
+        ?.decided.some(([first, second]) => first === 5 && second === 6) === true,
+    );
 
     assert.deepEqual(
       disagreementRows(instance).map(({ id }) => id),
@@ -173,10 +179,16 @@ describe("deleting an Item that a disagreement row names", () => {
 
   it("removes the open job and the AI task of the weekly run when the Item that owns them is deleted", async () => {
     await runWeek(instance);
-    assert.deepEqual([jobsOf(instance).length, tasksOf(instance).length], [1, 1]);
+    assert.deepEqual(
+      [jobsOf(instance, "disagreement_proposals").length, tasksOf(instance).length],
+      [1, 1],
+    );
     assert.equal(tasksOf(instance)[0]?.item_id, 5);
     assert.equal((await instance.send("DELETE", "/api/items/5")).status, 204);
-    assert.deepEqual([jobsOf(instance).length, tasksOf(instance).length], [0, 0]);
+    assert.deepEqual(
+      [jobsOf(instance, "disagreement_proposals").length, tasksOf(instance).length],
+      [0, 0],
+    );
     assert.deepEqual(
       rows(
         instance,

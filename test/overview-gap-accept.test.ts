@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { accept } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { moveClaimBack, nextTick, proposalRows, readPage } from "./lost-highlight-fixtures.ts";
+import { proposalRows, readPage } from "./lost-highlight-fixtures.ts";
 import {
   body,
   failureOf,
@@ -20,6 +20,7 @@ import {
 } from "./overview-gap-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
+import { moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
 
 const reject = (instance: Instance, id: number) =>
   instance.send("POST", `/api/proposals/${String(id)}/reject`);

@@ -13,7 +13,7 @@ import {
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
-import type { Instance } from "./instance.ts";
+import type { Instance, Json } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 
 export { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
@@ -102,13 +102,20 @@ export async function answeredAs(
 
   const result = empty ? kindCase.empty?.(sent.context) : kindCase.fits(sent.context);
 
-  const response = await answered(
-    instance,
-    { id: sent.id, token: sent.token },
-    { result: result ?? null },
-  );
-
-  if (response.status !== 204) throw new Error(`the answer was refused: ${response.text}`);
-
+  await postResult(instance, sent, result ?? null);
   return sent;
+}
+
+async function postResult(instance: Instance, sent: Readonly<Sent>, result: Json): Promise<void> {
+  const response = await answered(instance, sent, { result });
+  assert.equal(response.status, 204, response.text);
+}
+
+export async function applyBotResult(
+  instance: Instance,
+  sent: Readonly<Sent>,
+  result: Json,
+): Promise<void> {
+  await postResult(instance, sent, result);
+  await executeClaimed(instance.core, sent.job);
 }

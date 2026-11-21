@@ -28,7 +28,7 @@ describe("deleting a Proposal or its subject", () => {
     storage = await subjectStorage();
   });
 
-  after(() => storage.close());
+  after(() => storage?.close());
 
   const goesWithParent = (kind: ProposalKind, side: number): void => {
     const subjects = storage.subjectsOf(kind);
@@ -148,14 +148,14 @@ describe("a Proposal head with no subject row", () => {
 const otherKind = (kind: ProposalKind): ProposalKind =>
   PROPOSAL_KINDS[(PROPOSAL_KINDS.indexOf(kind) + 1) % PROPOSAL_KINDS.length] ?? kind;
 
-describe("the Proposal foreign keys and required subject columns", () => {
+describe("the constraints and unique indexes on Proposal subject rows", () => {
   let storage: SubjectStorage;
 
   before(async () => {
     storage = await subjectStorage();
   });
 
-  after(() => storage.close());
+  after(() => storage?.close());
 
   const refusesNull = (kind: ProposalKind): void => {
     const id = storage.proposed(kind, storage.subjectsOf(kind));
@@ -223,4 +223,31 @@ describe("the Proposal foreign keys and required subject columns", () => {
       refusesSecondSubject(kind);
     });
   }
+
+  (["tag-merge", "topic-merge", "items-disagree"] as const).forEach((kind) => {
+    it(`keeps one ${kind} Proposal for an unordered pair`, () => {
+      const [from = 0, into = 0, ...rest] = storage.subjectsOf(kind);
+
+      storage.proposed(kind, [from, into, ...rest]);
+      assert.throws(
+        () => storage.proposed(kind, [into, from, ...rest]),
+        /UNIQUE constraint failed/u,
+      );
+    });
+
+    it(`refuses a ${kind} Proposal with the same subject twice`, () => {
+      const [from = 0, , ...rest] = storage.subjectsOf(kind);
+
+      assert.throws(() => storage.proposed(kind, [from, from, ...rest]), /_proposals_distinct/u);
+    });
+  });
+
+  (["highlight-lost", "overview-gap"] as const).forEach((kind) => {
+    it(`keeps one ${kind} Proposal for its subject`, () => {
+      const subjects = storage.subjectsOf(kind);
+
+      storage.proposed(kind, subjects);
+      assert.throws(() => storage.proposed(kind, subjects), /UNIQUE constraint failed/u);
+    });
+  });
 });

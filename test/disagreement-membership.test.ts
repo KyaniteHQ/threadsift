@@ -1,17 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import {
-  jobsOf,
-  runWeek,
-  seedDigested,
-  seedTopics,
-  sentOf,
-  tasksOf,
-} from "./disagreement-fixtures.ts";
+import { runWeek, seedDigested, seedTopics, sentOf, tasksOf } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { claims } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
+import { jobsOf, claims } from "./weekly-claim-fixtures.ts";
 
 const span = (from: number, count: number): readonly number[] =>
   Array.from({ length: count }, (_, at) => from + at);
@@ -66,7 +59,7 @@ describe("a Topic is read again only when the exact list of its newest 12 Items 
 
     assert.equal(claims(instance, "disagreement_proposals").length, 1);
     assert.deepEqual(
-      jobsOf(instance).map(({ state }) => state),
+      jobsOf(instance, "disagreement_proposals").map(({ state }) => state),
       ["done"],
     );
     assert.deepEqual(tasksOf(instance), []);
@@ -78,7 +71,15 @@ describe("a Topic is read again only when the exact list of its newest 12 Items 
       "insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state) values (900, 'digest', '{}', 0, 'caller', 1, 0, 'done'), (901, 'digest', '{}', 0, 'caller', 1, 0, 'done')",
     );
     exec(instance, "update digests set task_id = 900 where item_id = 130");
+    const task = "disagreement_proposals";
+    const previous = claims(instance, task)[0]?.last_run_at ?? 0;
+    const previousStates = jobsOf(instance, task).map(({ state }) => state);
     await runWeek(instance);
+    assert.ok((claims(instance, task)[0]?.last_run_at ?? 0) > previous);
+    assert.deepEqual(
+      jobsOf(instance, task).map(({ state }) => state),
+      [...previousStates, "done"],
+    );
     assert.deepEqual(tasksOf(instance), []);
 
     exec(instance, "update digests set task_id = 901 where item_id = 142");

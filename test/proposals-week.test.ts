@@ -3,16 +3,15 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { jobsOf } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { claims, moveClaimBack, nextTick, WEEK_MS } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
+import { jobsOf, claims, moveClaimBack, nextTick, WEEK_MS } from "./weekly-claim-fixtures.ts";
 
 async function seedLibrary(instance: Instance): Promise<number> {
   await paste(instance, "a", { title: "A", topic: "Game", tags: ["machine learning", "ml"] });
   await paste(instance, "b", { title: "B", topic: "Games", tags: ["machine-learning"] });
-  const newest = await paste(instance, "c", { title: "C", tags: ["llm", "llms"] });
+  const newest = await paste(instance, "c", { title: "C", topic: "Game", tags: ["llm", "llms"] });
 
   await paste(instance, "d", { title: "No Digest", noDigest: true });
 
@@ -56,8 +55,13 @@ describe("each weekly model check has its own claim", () => {
         );
       }
 
+      const otherJobs = () => others.map((kind) => jobsOf(library, kind).length);
       const close = () => {
-        exec(library, "update jobs set state = 'done', claim_expires = null where kind = ?", task);
+        exec(
+          library,
+          "update jobs set state = 'done', claim_expires = null where kind in (?, ?, ?)",
+          ...MODEL_TASKS,
+        );
       };
 
       close();
@@ -65,8 +69,10 @@ describe("each weekly model check has its own claim", () => {
       assert.equal(jobsOf(library, task).length, 1);
       assert.deepEqual(claims(library, task), claimed);
 
+      close();
       moveClaimBack(library, task);
       await nextTick(library);
+      assert.deepEqual(otherJobs(), [1, 1]);
       assert.equal(jobsOf(library, task).length, 2);
       assert.deepEqual(otherClaims(), untouched);
 
@@ -78,6 +84,7 @@ describe("each weekly model check has its own claim", () => {
         task,
       );
       await nextTick(library);
+      assert.deepEqual(otherJobs(), [1, 1]);
       assert.equal(jobsOf(library, task).length, 3);
       assert.ok((claims(library, task)[0]?.last_run_at ?? Infinity) <= Date.now());
 
@@ -86,18 +93,14 @@ describe("each weekly model check has its own claim", () => {
       await nextTick(library);
       assert.equal(jobsOf(library, task).length, 4);
       assert.deepEqual(otherClaims(), untouched);
-      assert.deepEqual(
-        others.map((kind) => jobsOf(library, kind).length),
-        [1, 1],
-      );
+      assert.deepEqual(otherJobs(), [1, 1]);
 
-      if (task === "proposals") {
-        moveClaimBack(library, task);
-        const old = claims(library, task)[0]?.last_run_at;
-        await nextTick(library);
-        assert.equal(jobsOf(library, task).length, 4);
-        assert.ok((claims(library, task)[0]?.last_run_at ?? 0) > (old ?? 0));
-      }
+      assert.notEqual(jobsOf(library, task).at(-1)?.state, "done");
+      moveClaimBack(library, task);
+      const old = claims(library, task)[0]?.last_run_at;
+      await nextTick(library);
+      assert.equal(jobsOf(library, task).length, 4);
+      assert.ok((claims(library, task)[0]?.last_run_at ?? 0) > (old ?? 0));
     });
   }
 });

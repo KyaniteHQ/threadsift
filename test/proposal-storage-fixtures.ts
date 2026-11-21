@@ -2,7 +2,8 @@ import { DatabaseSync } from "node:sqlite";
 
 import { z } from "zod";
 
-import type { ProposalKind } from "../src/core/contract/proposal-contract.ts";
+import type { PinKind, ProposalKind } from "../src/core/contract/proposal-contract.ts";
+import { bestEffort } from "../src/core/kernel/failure-log.ts";
 import { Instance } from "./instance.ts";
 import { subjectTable } from "./proposal-seed.ts";
 import { paste } from "./related-fixtures.ts";
@@ -26,11 +27,17 @@ const IdsSchema = z.array(z.object({ id: z.number() }));
 
 export async function openStorage() {
   const instance = await Instance.start();
-  await instance.setUp();
-  const database = new DatabaseSync(instance.databaseFile, { timeout: 5000 });
+  let database: DatabaseSync;
+  try {
+    await instance.setUp();
+    database = new DatabaseSync(instance.databaseFile, { timeout: 5000 });
+  } catch (error) {
+    await bestEffort({ event: "test-setup-cleanup-failed", fields: {} }, () => instance.close());
+    throw error;
+  }
 
   const insertPin = (
-    kind: string,
+    kind: PinKind,
     key: string,
     columns: readonly string[],
     values: readonly number[],
@@ -46,8 +53,11 @@ export async function openStorage() {
     instance,
     database,
     close: async () => {
-      database.close();
-      await instance.close();
+      try {
+        database.close();
+      } finally {
+        await instance.close();
+      }
     },
   };
 }
@@ -57,7 +67,12 @@ export type Storage = Awaited<ReturnType<typeof openStorage>>;
 export async function subjectStorage() {
   const storage = await openStorage();
   const { instance, database } = storage;
-  await paste(instance, "subject", { title: "A subject" });
+  try {
+    await paste(instance, "subject", { title: "A subject" });
+  } catch (error) {
+    await bestEffort({ event: "test-setup-cleanup-failed", fields: {} }, () => storage.close());
+    throw error;
+  }
   let saved = 0;
   const parents = (table: keyof typeof INSERTS): readonly [number, number] => {
     saved += 1;
@@ -138,24 +153,3 @@ export async function subjectStorage() {
 }
 
 export type SubjectStorage = Awaited<ReturnType<typeof subjectStorage>>;
-
-export const ITEM_COLUMNS = "from_item_id, into_item_id, from_digest, into_digest";
-export const INVALID_PINS = [
-  ["a disagreement Pin without a token", "items-disagree", "from_item_id, into_item_id", [1, 2]],
-  ["a disagreement Pin without an Item", "items-disagree", "from_digest, into_digest", [1, 2]],
-  ["a disagreement Pin that names one Item twice", "items-disagree", ITEM_COLUMNS, [1, 1, 1, 2]],
-  [
-    "a disagreement Pin that names a Tag",
-    "items-disagree",
-    `${ITEM_COLUMNS}, into_tag_id`,
-    [1, 2, 1, 2, 1],
-  ],
-  [
-    "a disagreement Pin that names a Topic",
-    "items-disagree",
-    `${ITEM_COLUMNS}, into_topic_id`,
-    [1, 2, 1, 2, 1],
-  ],
-  ["a Tag Pin that names an Item", "tag-merge", "into_tag_id, from_item_id", [1, 1]],
-  ["a Topic Pin that holds a token", "topic-merge", "into_topic_id, into_digest", [1, 3]],
-] as const;

@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { type TestContext, describe, it } from "node:test";
 
+import { applyBotResult, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
-import { answerDisagreement, sentDisagreement } from "./disagreement-answer.ts";
 import {
   checksOf,
   disagreementRows,
@@ -19,9 +19,9 @@ import type { Instance } from "./instance.ts";
 
 const REASON = "One says the setting is on, the other says it is off.";
 
-async function start(): Promise<Instance> {
+async function readingLibrary(t: Readonly<TestContext>): Promise<Instance> {
   const instance = await botInstance();
-
+  t.after(() => instance.close());
   await pasteItems(instance, [
     { topic: "Reading" },
     { topic: "Reading" },
@@ -29,28 +29,23 @@ async function start(): Promise<Instance> {
     { topic: "Other" },
     { topic: "Other" },
   ]);
-
   return instance;
 }
 
 describe("a disagreement answer", () => {
-  let instance: Instance;
-
-  beforeEach(async () => {
-    instance = await start();
-  });
-
-  afterEach(() => instance.close());
-
-  it("stores a returned pair as an open row with both Digest tokens, writes the membership of every sent Topic and completes the task", async () => {
-    const sent = await sentDisagreement(instance, 5);
+  it("stores a returned pair as an open row with both Digest tokens, writes the membership of every sent Topic and completes the task", async (t) => {
+    const instance = await readingLibrary(t);
+    const sent = await sentTask(
+      instance,
+      await openJobOf(instance, { kind: "disagreement_proposals", itemId: 5 }),
+    );
 
     assert.deepEqual(
       sentOf(instance)[0]?.topics.map(({ name }) => name),
       ["Other", "Reading"],
     );
 
-    await answerDisagreement(instance, sent, [{ a: 2, b: 1, reason: REASON }]);
+    await applyBotResult(instance, sent, { disagreements: [{ a: 2, b: 1, reason: REASON }] });
 
     assert.deepEqual(
       disagreementRows(instance).map((row) => [
@@ -71,38 +66,52 @@ describe("a disagreement answer", () => {
   });
 
   ["open", "rejected"].forEach((state) => {
-    it(`keeps the existing ${state} row when an answer names the same two Items again`, async () => {
-      const sent = await sentDisagreement(instance, 5);
+    it(`keeps the existing ${state} row when an answer names the same two Items again`, async (t) => {
+      const instance = await readingLibrary(t);
+      const sent = await sentTask(
+        instance,
+        await openJobOf(instance, { kind: "disagreement_proposals", itemId: 5 }),
+      );
       proposeDisagreement(instance, [1, 2], state);
       const existing = disagreementRows(instance);
 
-      await answerDisagreement(instance, sent, [{ a: 2, b: 1, reason: "A second reason." }]);
+      await applyBotResult(instance, sent, {
+        disagreements: [{ a: 2, b: 1, reason: "A second reason." }],
+      });
 
       assert.deepEqual(disagreementRows(instance), existing);
       assert.equal(taskState(instance, sent.id), "done");
     });
   });
 
-  it("writes nothing and fails the task as stale when a Digest of a sent Topic was replaced after the read", async () => {
-    const sent = await sentDisagreement(instance, 5);
+  it("writes nothing and fails the task as stale when a Digest of a sent Topic was replaced after the read", async (t) => {
+    const instance = await readingLibrary(t);
+    const sent = await sentTask(
+      instance,
+      await openJobOf(instance, { kind: "disagreement_proposals", itemId: 5 }),
+    );
     const unchanged = checksOf(instance);
 
     await replaceDigest(instance, 2, { topic: "Reading", summary: "A replaced summary." });
-    await answerDisagreement(instance, sent, [{ a: 1, b: 2, reason: REASON }]);
+    await applyBotResult(instance, sent, { disagreements: [{ a: 1, b: 2, reason: REASON }] });
 
     assert.deepEqual(disagreementRows(instance), []);
     assert.deepEqual(checksOf(instance), unchanged);
     assert.equal(taskState(instance, sent.id), "failed");
   });
 
-  it("replaces the hidden open row of the same pair with a row on the new Digest tokens", async () => {
+  it("replaces the hidden open row of the same pair with a row on the new Digest tokens", async (t) => {
+    const instance = await readingLibrary(t);
     const stale = proposeDisagreement(instance, [1, 2]);
 
     await replaceDigest(instance, 2, { topic: "Reading", summary: "A replaced summary." });
 
-    const sent = await sentDisagreement(instance, 5);
+    const sent = await sentTask(
+      instance,
+      await openJobOf(instance, { kind: "disagreement_proposals", itemId: 5 }),
+    );
 
-    await answerDisagreement(instance, sent, [{ a: 1, b: 2, reason: REASON }]);
+    await applyBotResult(instance, sent, { disagreements: [{ a: 1, b: 2, reason: REASON }] });
 
     const stored = disagreementRows(instance);
 
