@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import { CATALOG_KEY_MAX } from "../src/core/contract/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
+import { SHORT_TEXT_MAX } from "../src/core/contract/digest-text.ts";
 import { itemIdOf } from "../src/core/contract/item-path.ts";
 import { overviewLine } from "../src/core/contract/topic-overview-contract.ts";
 import { readArticle } from "../src/core/kernel/article.ts";
@@ -196,6 +197,7 @@ describe("the overview line is the first line of an overview without its citatio
 
   it("returns the text unchanged when it has no mark, and null when no line is left", () => {
     assert.equal(overviewLine("No marks here"), "No marks here");
+    assert.equal(overviewLine("Read [the docs]"), "Read [the docs]");
     assert.equal(overviewLine(""), null);
     assert.equal(overviewLine("\n  \n"), null);
   });
@@ -226,8 +228,8 @@ function worstExpansion(): number {
 }
 
 describe("the catalog key limit covers the longest key a Topic name can make", () => {
-  it("is the worst expansion of one UTF-16 unit of a name, measured over every code point", () => {
-    assert.equal(worstExpansion(), 18);
+  it("covers a maximum-length name at the worst measured expansion per UTF-16 unit", () => {
+    assert.equal(worstExpansion() * SHORT_TEXT_MAX, CATALOG_KEY_MAX);
   });
 
   it("holds the key of a longest name made of the worst character", () => {

@@ -15,8 +15,8 @@ describe("the budget form on a token row keeps the answer of the save that is cu
   it("ignores the answer of an older save and takes the answer of the current one", () => {
     const current = saving(3, 2);
 
-    assert.deepEqual(reduceBudget(current, { kind: "saved", id: 3, request: 1 }), current);
-    assert.deepEqual(reduceBudget(current, { kind: "refuse", id: 3, request: 1 }), current);
+    assert.equal(reduceBudget(current, { kind: "saved", id: 3, request: 1 }), current);
+    assert.equal(reduceBudget(current, { kind: "refuse", id: 3, request: 1 }), current);
     assert.deepEqual(reduceBudget(current, { kind: "saved", id: 3, request: 2 }), {
       kind: "idle",
       focus: 3,
@@ -30,8 +30,8 @@ describe("the budget form on a token row keeps the answer of the save that is cu
   it("keeps the save in flight when the owner presses Cancel or opens another row", () => {
     const current = saving(3, 2);
 
-    assert.deepEqual(reduceBudget(current, { kind: "cancel", id: 3 }), current);
-    assert.deepEqual(reduceBudget(current, { kind: "edit", id: 4 }), current);
+    assert.equal(reduceBudget(current, { kind: "cancel", id: 3 }), current);
+    assert.equal(reduceBudget(current, { kind: "edit", id: 4 }), current);
     assert.equal(rowBudget(current, 3), "saving");
     assert.equal(rowBudget(current, 4), "idle");
     assert.equal(rowBudget(BUDGET_START, 3), "idle");

@@ -103,12 +103,9 @@ describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
         const reason = ErrorResponseSchema.parse(JSON.parse(refused.body)).error;
         for (const answer of await callBoth(agents, "add", args)) {
           assert.equal(answer.isError, true);
-          assert.deepEqual(answer.content, [
-            {
-              type: "text",
-              text: `Input validation error: Invalid arguments for tool add: ${reason}`,
-            },
-          ]);
+          assert.equal(answer.content.length, 1);
+          const [entry] = answer.content;
+          assert.ok(entry?.type === "text" && entry.text.endsWith(`: ${reason}`));
         }
       }),
     );

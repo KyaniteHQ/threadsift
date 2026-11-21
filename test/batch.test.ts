@@ -7,7 +7,7 @@ import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
 import { ItemListResponseSchema } from "../src/core/contract/item-route-wire.ts";
-import { fetcherFile } from "./fetcher-record.ts";
+import { calls } from "./fetchers/batch.mts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
@@ -40,12 +40,20 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
   };
 
   before(async () => {
-    instance = await Instance.start({ fetchers: fetcherFile("first.mts") });
+    instance = await Instance.start({
+      fetchers: new URL("./fetchers/batch.mts", import.meta.url).href,
+    });
     await instance.setUp();
     agent = (await createAgentToken(instance, "routine")).value;
   });
 
-  after(() => instance.close());
+  after(async () => {
+    try {
+      await instance.close();
+    } finally {
+      calls.length = 0;
+    }
+  });
 
   it("answers each link in the order sent, and answers known, with no refresh, for the repeat of a settled call", async () => {
     const sent = ["https://first.test/settled", "http://localhost/private", xLink(3000000002)];
@@ -98,6 +106,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
 
     assert.ok(firstItem && "item" in firstItem);
     await instance.settledItem(firstItem.item.id);
+    assert.equal(calls.filter((url) => url === sent[0]).length, 1);
     assert.equal((await instance.detail(firstItem.item.id)).digest, null);
     for (const result of again.results) {
       if ("item" in result) assert.equal(result.item.status, "ready");
