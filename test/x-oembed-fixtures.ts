@@ -15,7 +15,7 @@ const AnswerSchema = z.looseObject({ url: z.string(), author_url: z.string(), ht
 
 export const CUT_BARE_ID = "3100000000000000011";
 
-const recorded = (name: string) =>
+export const recorded = (name: string) =>
   readFileSync(new URL(`x-oembed/${name}`, import.meta.url), "utf8");
 
 export const postOf = (name: string) => {
@@ -28,7 +28,7 @@ export const postOf = (name: string) => {
   return answer.post;
 };
 
-const answerJson = (name: string) => AnswerSchema.parse(JSON.parse(recorded(name)));
+export const answerJson = (name: string) => AnswerSchema.parse(JSON.parse(recorded(name)));
 
 export const withParagraph = (name: string, html: string): string =>
   JSON.stringify({ ...answerJson(name), html: `<blockquote><p>${html}</p></blockquote>` });
@@ -121,64 +121,3 @@ export const verdictOf = (body: string, id: string, author: string, text: string
 
 export const mediaOnly = (text: string) =>
   verdict("reply-media-only.json", MEDIA_ID, "mossy_reply", text);
-
-export const RECIPIENT_CASES = [
-  ["@a @b_9\tHello", "Hello", "Hello"],
-  [" \n @a\u00A0Hello", "Hello", "Hello"],
-  ["@abcdefghijklmno Hello", "Hello", "Hello"],
-  ["@abcdefghijklmnop Hello", "Hello", null],
-  ["@aHello", "Hello", null],
-  ["@a Hello x", "Hello", null],
-  ["@b Hello", "@b Hello", "@b Hello"],
-  ["@a evil Hello", "Hello", null],
-  ["@a Hellx", "Hello", null],
-  ["@a @b Hello", "@b Hello", "@b Hello"],
-  ["@a Hello", "@b Hello", null],
-  ["@a.b Hello", "Hello", null],
-  ["@a\u200BHello", "Hello", null],
-  ["＠a Hello", "Hello", null],
-  ["@a @b", "", null],
-  ["@a @b  ", "", null],
-  ["@a    ", '<a href="https://t.co/abc">pic.x.com/abc</a>', null],
-  [
-    "@a https://t.co/abc rest",
-    '<a href="https://t.co/abc">https://example.org</a> rest',
-    "https://t.co/abc rest",
-  ],
-  ["@a hi\n@c there", "hi<a>@c</a> there", "hi\n@c there"],
-  [
-    `@a ${CUT_BARE_HEAD} the end.`,
-    `${CUT_BARE_HEAD}…`,
-    `${CUT_BARE_HEAD} the end.`,
-    "tail-unverified",
-  ],
-] as const;
-export const statusCases = () =>
-  [
-    [404, recorded("status-404.html"), "absent"],
-    [410, "", "absent"],
-    [403, recorded("status-403.json"), "absent"],
-    [
-      403,
-      JSON.stringify({ error: "Sorry, you are not authorized to use the embed service." }),
-      "unavailable",
-    ],
-    [403, "<html><title>Access denied</title></html>", "unavailable"],
-    [403, "", "unavailable"],
-    [429, "", "unavailable"],
-    [500, "", "unavailable"],
-    [200, "not json", "unusable"],
-    [200, recorded("reply-short.json"), "post"],
-  ] as const;
-
-export function malformedAnswers() {
-  const name = "reply-short.json";
-  const answer = answerJson(name);
-  return [
-    JSON.stringify({ ...answer, url: "not-a-url" }),
-    JSON.stringify({ ...answer, author_url: "not-a-url" }),
-    withParagraph(name, "Send <span>no</span> money."),
-    withParagraph(name, "Send <!-- no --> money."),
-    withParagraph(name, "Send <a href='https://t.co/x'><b>https://t.co/x</b></a>"),
-  ];
-}

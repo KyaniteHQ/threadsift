@@ -15,7 +15,14 @@ import {
   selectGrokBot,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { applied, reclaimed, startedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
+import {
+  applied,
+  reclaimed,
+  startedTask,
+  sentRelatedTask,
+  step,
+  taskAfterStart,
+} from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { exec, pairsOf, paste } from "./related-fixtures.ts";
@@ -96,9 +103,8 @@ describe("botStep takes the step the latest task of the job calls for and spends
   });
 
   it("spends no attempt on a stray wake and holds the job until the deadline", async () => {
-    const task = await taskAfterStart(instance, library.source);
+    const task = await sentRelatedTask(instance, library.source);
 
-    exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     await applied(instance, task.job, await step(instance, task.job));
 
     const job = jobRow(instance, task.job.id);
@@ -139,9 +145,8 @@ describe("botStep takes the step the latest task of the job calls for and spends
   });
 
   it("fails an unanswered task past its deadline timeout in one batch and throws", async () => {
-    const task = await taskAfterStart(instance, library.source);
+    const task = await sentRelatedTask(instance, library.source);
 
-    exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     pastDeadline(instance, task.id);
 
     await assert.rejects(step(instance, task.job), /deadline/u);
@@ -153,11 +158,10 @@ describe("botStep takes the step the latest task of the job calls for and spends
   });
 
   it("applies an answer to the job's third send, at attempts 2, and writes the picks", async () => {
-    const task = await taskAfterStart(instance, library.source);
+    const task = await sentRelatedTask(instance, library.source);
     const third = { ...task.job, attempts: 2 };
 
     exec(instance, "update jobs set attempts = 2 where id = ?", task.job.id);
-    exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
       204,
@@ -199,11 +203,10 @@ describe("an answer that no longer fits fails the task, and the job starts a new
   const answeredTask = async (candidates: readonly number[]) => {
     retireTasks(instance);
 
-    const task = await taskAfterStart(instance, library.source);
+    const task = await sentRelatedTask(instance, library.source);
     const job = { ...task.job, attempts: 1 };
 
     exec(instance, "update jobs set attempts = 1 where id = ?", job.id);
-    exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
 
     const [first] = candidates;
 

@@ -1,3 +1,5 @@
+import assert from "node:assert/strict";
+
 import { applyOutcome } from "../src/core/compose/job-finish.ts";
 import { HANDLERS } from "../src/core/compose/job-handlers.ts";
 import type { JobOutcome } from "../src/core/kernel/job-outcome.ts";
@@ -6,7 +8,7 @@ import { botStep } from "../src/features/ai/core/bot-step.ts";
 import { sendBotTask } from "../src/features/ai/core/bot-task-send.ts";
 import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts";
 import { relatedKind } from "../src/features/related/core/related-kind.ts";
-import { openJob, selectGrokBot } from "./bot-task-fixtures.ts";
+import { acceptedByBot, openJob, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, until } from "./related-fixtures.ts";
 
@@ -36,6 +38,12 @@ export async function taskAfterStart(instance: Instance, itemId: number) {
   const job = await openJob(instance, itemId);
 
   return { job, ...(await startedTask(instance, job)) };
+}
+
+export async function sentRelatedTask(instance: Instance, itemId: number) {
+  const task = await taskAfterStart(instance, itemId);
+  await assert.rejects(step(instance, task.job), /send failed: unreachable/u);
+  return { job: task.job, ...acceptedByBot(instance, task.id) };
 }
 
 export function step(instance: Instance, job: Readonly<ClaimedJob>) {

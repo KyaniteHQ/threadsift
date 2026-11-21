@@ -10,6 +10,7 @@ import { answerOf, contentOf, digestOf } from "./x-intake-bodies.ts";
 import {
   advancedContent,
   closedJob,
+  failedIntake,
   intakeTo,
   sentIntake,
   stepOf,
@@ -90,8 +91,10 @@ describe("refusing an X link answer records its reason and wakes the job after t
   }
 
   it("preserves the task and job deadline when the task no longer takes an answer", async () => {
-    const task = await waitingIntake(instance);
-    assert.equal((await intakeTo(instance, task, { unavailable: true })).status, 204);
+    const task = await failedIntake(instance);
+    assert.equal(taskRow(instance, task.id).state, "failed");
+    assert.equal(jobRow(instance, task.job.id).state, "running");
+    assert.ok(taskRow(instance, task.id).deadline > Date.now());
     await refusesWithoutRescheduling(task);
 
     const late = await waitingIntake(instance);

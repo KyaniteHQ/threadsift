@@ -81,7 +81,9 @@ describe("an X thread is read into the stored thread by parseXThread", () => {
   });
 
   it("takes exactly 500 replies", () => {
-    assert.equal(parsed(some(500)).kind, "thread");
+    const result = parsed(some(500));
+    assert.equal(result.kind, "thread");
+    assert.equal(result.thread.nodes.length, 500);
   });
 });
 

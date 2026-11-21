@@ -52,7 +52,7 @@ describe("an X link stays Link-only until a Grok Bot is saved", () => {
 
   after(() => instance.close());
 
-  it("settles the link with fetch result not-requested and sends no task", async () => {
+  it("keeps the link Link-only without sending a task, with no note under auto and bot-not-set-up when the owner chooses the unconfigured bot", async () => {
     const saved = await instance.send("POST", "/api/items", { url: X_LINK });
     const id = savedId(saved.body);
 

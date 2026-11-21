@@ -18,10 +18,10 @@ import {
   saveBot,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { sendFor, settle, step, taskAfterStart } from "./bot-task-lifecycle.ts";
+import { sendFor, settle, sentRelatedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { exec, pairsOf } from "./related-fixtures.ts";
+import { pairsOf } from "./related-fixtures.ts";
 
 describe("an accepted answer survives a lost claim, a failing send, a timeout check and a resend", () => {
   let instance: Instance;
@@ -108,9 +108,8 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
   });
 
   it("keeps an accepted answer when the runner that applies it lost its claim", async () => {
-    const task = await taskAfterStart(instance, library.source);
+    const task = await sentRelatedTask(instance, library.source);
 
-    exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
       204,
@@ -133,9 +132,8 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
   });
 
   it("does not time out a task that got an answer, and leaves a lost claim alone", async () => {
-    const task = await taskAfterStart(instance, library.source);
+    const task = await sentRelatedTask(instance, library.source);
 
-    exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
       204,

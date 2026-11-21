@@ -6,10 +6,11 @@ import { z } from "zod";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { jobs } from "../src/core/kernel/schema.ts";
 import { botStep } from "../src/features/ai/core/bot-step.ts";
+import { sendBotTask } from "../src/features/ai/core/bot-task-send.ts";
+import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts";
 import { xIntakeKind } from "../src/features/x/core/x-intake.ts";
 import { acceptedByBot, claimedNew } from "./bot-task-fixtures.ts";
 import type { Credential } from "./bot-task-http.ts";
-import { taskRows } from "./bot-task-rows.ts";
 import type { Instance, Json } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
@@ -66,16 +67,31 @@ export async function latestFetchJob(instance: Instance, itemId: number) {
   return job;
 }
 
-export async function sentIntake(instance: Instance): Promise<IntakeTask> {
+export async function failedIntake(instance: Instance): Promise<IntakeTask> {
   nextStatus += 1n;
 
   const statusId = String(nextStatus);
   const itemId = insertedXItem(instance, statusId);
   const job = await claimedFetchJob(instance, itemId, addressOf(statusId));
-  await assert.rejects(stepOf(instance, job), /Grok Bot send failed/u);
-  const [task] = taskRows(instance, "job_id = ?", job.id);
-  assert.ok(task !== undefined);
-  return { itemId, job, ...acceptedByBot(instance, task.id), statusId };
+  const prepared = await xIntakeKind.prepare(instance.core, job);
+  assert.equal(prepared.kind, "ask");
+  const owner = ownerOf(job);
+  const started = await startBotTask(instance.core, owner, prepared.start);
+  assert.equal(started.kind, "started");
+  const { task, token } = started;
+  const send = await sendBotTask(instance.core, {
+    kind: xIntakeKind,
+    task,
+    token,
+    claim: owner.claim,
+  });
+  assert.equal(send.kind, "failed");
+  return { itemId, job, id: task.id, token, statusId };
+}
+
+export async function sentIntake(instance: Instance): Promise<IntakeTask> {
+  const task = await failedIntake(instance);
+  return { ...task, ...acceptedByBot(instance, task.id) };
 }
 
 export function intakeTo(
