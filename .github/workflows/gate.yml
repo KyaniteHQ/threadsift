@@ -53,9 +53,6 @@ jobs:
               esac
             done < "$paths"
           }
-          if [[ "$GITHUB_EVENT_NAME" == push && "$(git rev-parse "$GITHUB_SHA^@")" != "$BASE" ]]; then
-            exit 0
-          fi
           if [[ -z "$BASE" ]] || ! docs_diff "$BASE" "$GITHUB_SHA"; then
             exit 0
           fi
