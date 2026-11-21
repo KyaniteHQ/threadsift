@@ -1,129 +1,221 @@
+import { statSync } from "node:fs";
 import { posix } from "node:path";
 
+import { visit } from "jsonc-parser";
+import { z } from "zod";
+
 import { escapeRegExp, readRepository, readText } from "./doc-lines.ts";
+import { checkReads } from "./docs-skip-reads.ts";
 
 const workflow = ".github/workflows/gate.yml";
 const gate = readText(workflow);
-const classifier = gate.match(/^ +docs_diff\(\) \{\n([\s\S]*?)^ +\}$/mu)?.[1];
-const arm = classifier?.match(
-  /^ +case "\$path" in\s+([\w./*?-]+(?:\|[\w./*?-]+)*)\) ;;\s+\*\) return 1 ;;\s+esac$/mu,
-)?.[1];
-if (arm === undefined)
+const classifier = gate.match(/^ +docs_diff\(\) \{\n[\s\S]*?^ +\}$/mu)?.[0];
+const arm = classifier
+  ?.replaceAll("\\\n", "")
+  .match(/^ +case "\$path" in\s+([^()\n]+)\)\s*;;\s+\*\) return 1 ;;\s+esac$/mu)?.[1];
+if (classifier === undefined || arm === undefined)
   throw new Error(`${workflow}: cannot read the docs_diff skip list; check its case arms`);
 
-const patterns = arm.split("|").map((pattern) => {
-  const expression = escapeRegExp(pattern).replaceAll("\\*", ".*").replaceAll("\\?", ".");
-
+const patterns = arm.split("|").map((part) => {
+  const token = part.trim();
+  const match = /^(?:([\w./*?-]+)|"([\w./*?-]+)"|'([\w./*?-]+)')$/u.exec(token);
+  if (!match) throw new Error(`${workflow}: unsupported docs_diff skip list pattern ${token}`);
+  const literal = escapeRegExp(match[1] ?? match[2] ?? match[3] ?? "");
+  const expression =
+    match[1] === undefined ? literal : literal.replaceAll("\\*", ".*").replaceAll("\\?", ".");
   return new RegExp(`^${expression}$`, "u");
 });
-const { files } = readRepository();
-const skipped = new Set(
-  [...files].filter((file) => patterns.some((pattern) => pattern.test(file))),
-);
 
-function report(file: string, line: number, path: string): void {
-  process.stderr.write(`${file}:${String(line)}: remove ${path} from the docs-only skip list\n`);
+const { files } = readRepository();
+const skipped = [...files].filter((path) => patterns.some((pattern) => pattern.test(path)));
+if (skipped.length === 0)
+  throw new Error(`${workflow}: the docs-only skip list matches no repository files`);
+
+function fail(file: string, line: number, message: string): void {
+  process.stderr.write(`${file}:${String(line)}: ${message}\n`);
   process.exitCode = 1;
 }
 
-const inputs = [
-  "{test,smoke,src,web,extension}/**/*.{ts,tsx,js,mjs,cjs,mts,cts,json,sh}",
-  "{vite,drizzle,playwright}.config.ts",
-  "{devenv.nix,devenv.yaml,wrangler.jsonc,pnpm-workspace.yaml,tsconfig.json,package.json}",
-  "tools/{test-shards,shard-reporter,check-worker-size,check-font-faces,deploy-worker,theme-script,worker-headers}.ts",
-  "tools/{bot-release,image-digest,start-check}.sh",
-];
-
-function checkLine(file: string, number: number, line: string, previous = ""): void {
-  for (const token of line.matchAll(/[\w./-]+/gu)) {
-    const path = token[0];
-    const local = posix.join(posix.dirname(file), path);
-    if (skipped.has(local)) {
-      report(file, number, local);
-      continue;
-    }
-    const bareRead = /\b(?:readFile(?:Sync)?|open(?:Sync)?|createReadStream)\(\s*["'`]?$/u.test(
-      previous + "\n" + line.slice(0, token.index),
+const ignoreFile = files.has(".containerignore") ? ".containerignore" : ".dockerignore";
+const ignoreRules = readText(ignoreFile)
+  .split("\n")
+  .flatMap((line, i) => {
+    const rule = line.trim();
+    if (rule === "" || rule.startsWith("#")) return [];
+    const path = rule.replace(/^!/u, "").replaceAll(/^\/|\/$/gu, "");
+    if (!/^[\w./*?-]+$/u.test(path))
+      throw new Error(
+        `${ignoreFile}:${String(i + 1)}: cannot verify image exclusion pattern ${rule}`,
+      );
+    const glob = posix.normalize(path).replace(/\/$/u, "");
+    const segments = glob.match(/\*\*\/|\*\*|\*|\?|[^*?]+/gu) ?? [];
+    const expression = segments
+      .map((part) => {
+        if (part === "**/") return "(?:.*/)?";
+        if (part === "**") return ".*";
+        if (part === "*") return "[^/]*";
+        if (part === "?") return "[^/]";
+        return escapeRegExp(part);
+      })
+      .join("");
+    return [
+      {
+        matches: new RegExp(`^${expression}(?:/|$)`, "u"),
+        include: rule.startsWith("!"),
+        line: i + 1,
+      },
+    ];
+  });
+for (const path of skipped) {
+  const last = ignoreRules.findLast((rule) => rule.matches.test(path));
+  if (!last || last.include)
+    fail(
+      ignoreFile,
+      last?.line ?? 1,
+      `exclude ${path} from the image build context or remove it from the docs-only skip list`,
     );
-    if (
-      (path.includes("/") || bareRead || !/\.[cm]?[jt]sx?$/u.test(file)) &&
-      skipped.has(posix.normalize(path))
-    ) {
-      report(file, number, posix.normalize(path));
-    }
+}
+
+function checkPath(file: string, line: number, input: string): void {
+  const path = posix.normalize(input).replace(/\/$/u, "");
+  const hit = patterns.some((pattern) => pattern.test(path))
+    ? path
+    : skipped.find(
+        (entry) =>
+          input === "." ||
+          entry === path ||
+          entry.startsWith(`${path}/`) ||
+          (/[?*[{]/u.test(path) && posix.matchesGlob(entry, path)),
+      );
+  if (hit !== undefined)
+    fail(file, line, `remove ${hit} from the docs-only skip list (input ${input})`);
+}
+
+function checkWords(file: string, line: number, command: string): void {
+  for (const [word] of command.matchAll(/[\w./*?-]+/gu)) {
+    if (word !== "." && word !== "/" && word !== "*" && !word.startsWith("-"))
+      checkPath(file, line, word);
   }
 }
 
+const taskCommands = [
+  readText("devenv.nix"),
+  gate,
+  ...[...files].flatMap((file) =>
+    file.startsWith(".github/actions/") && /\.ya?ml$/u.test(file) ? [readText(file)] : [],
+  ),
+].join("\n");
+const scripts = new Map<string, { file: string; command: string }[]>();
 for (const file of files) {
-  if (inputs.some((glob) => posix.matchesGlob(file, glob)))
-    readText(file)
-      .split("\n")
-      .forEach((line, i, lines) => {
-        checkLine(file, i + 1, line, lines[i - 1]);
-      });
+  if (posix.basename(file) !== "package.json" && file !== "wrangler.jsonc") continue;
+  visit(readText(file), {
+    onLiteralValue(raw, _offset, _length, line, _column, location) {
+      const keys = location();
+      const command = z.string().safeParse(raw).data;
+      if (command === undefined) return;
+      if (keys[0] === "scripts") {
+        const key = String(keys[1]);
+        scripts.set(key, [...(scripts.get(key) ?? []), { file, command }]);
+        checkWords(file, line + 1, command);
+      } else if (
+        keys[0] === "files" ||
+        (file === "wrangler.jsonc" &&
+          keys.some((key) => ["assets", "build", "main", "migrations_dir"].includes(String(key))))
+      ) {
+        checkWords(file, line + 1, command);
+      }
+    },
+  });
+}
+function calledScripts(command: string): string[] {
+  return Array.from(
+    command.matchAll(/\bpnpm\s+(?:--filter\s+\S+\s+)?(?:run\s+)?([\w:-]+)/gu),
+    ([, script]) => script ?? "",
+  ).filter((script) => script !== "check");
+}
+const inputs = new Set<string>();
+const activeScripts = new Set(calledScripts(taskCommands));
+for (const name of activeScripts) {
+  for (const { file, command } of scripts.get(name) ?? []) {
+    discoverTools(file, command);
+    for (const child of calledScripts(command)) activeScripts.add(child);
+  }
+}
+function requireFiles(glob: string): void {
+  const matched = [...files].filter((file) => posix.matchesGlob(file, glob));
+  if (matched.length === 0)
+    throw new Error(`No repository inputs match ${glob}; check the docs-only scan scope`);
 }
 
-let skippedJob = false;
-gate.split("\n").forEach((line, i) => {
-  const job = /^  ([\w-]+):$/u.exec(line)?.[1];
-  if (job !== undefined) skippedJob = ["check", "smoke", "deploy", "image"].includes(job);
-  if (skippedJob) checkLine(workflow, i + 1, line);
+const sourceType = /\.[cm]?[jt]sx?$/u;
+const commandType = /\.(?:sh|sql|nix|ya?ml)$/u;
+for (const file of files) {
+  if (file.startsWith("tools/") || file === "oxlint.config.ts" || file === "pnpm-lock.yaml")
+    continue;
+  if (
+    sourceType.test(file) ||
+    commandType.test(file) ||
+    (taskCommands.includes(file) &&
+      posix.extname(file) === "" &&
+      statSync(file).isFile() &&
+      readText(file).startsWith("#!"))
+  )
+    inputs.add(file);
+}
+for (const glob of [
+  "extension/**/*.{ts,tsx}",
+  "migrations/**/*.sql",
+  ".github/actions/**/action.y{a,}ml",
+])
+  requireFiles(glob);
+visit(readText("tsconfig.json"), {
+  onLiteralValue(raw, _offset, _length, _line, _column, location) {
+    const value = z.string().safeParse(raw).data;
+    if (location()[0] === "include" && value !== undefined) {
+      requireFiles(value);
+      checkPath("tsconfig.json", _line + 1, value);
+    }
+  },
 });
 
-const ignore = readText(".dockerignore")
-  .split("\n")
-  .map((line) => line.trim())
-  .filter((line) => line !== "" && !line.startsWith("#"));
-
-function parents(path: string): string[] {
-  const paths = [path];
-  for (let dir = posix.dirname(path); dir !== "."; dir = posix.dirname(dir)) paths.push(dir);
-
-  return paths;
+function addTool(file: string, path: string): void {
+  const target = posix.normalize(path);
+  if (!target.startsWith("tools/") || !/\.(?:[cm]?[jt]sx?|sh)$/u.test(target)) return;
+  if (!files.has(target)) throw new Error(`${file}: missing tool input ${target}`);
+  inputs.add(target);
 }
 
-function ignored(paths: readonly string[]): boolean {
-  const rule = ignore.findLast((entry) => {
-    const glob = entry.replace(/^!/u, "").replaceAll(/^\/|\/$/gu, "");
-
-    return paths.some((path) => posix.matchesGlob(path, glob));
-  });
-
-  return rule !== undefined && !rule.startsWith("!");
-}
-
-const imageLines = readText("Containerfile").split("\n");
-for (let i = 0; i < imageLines.length; i++) {
-  const number = i + 1;
-  let line = imageLines[i] ?? "";
-  while (line.endsWith("\\") && i + 1 < imageLines.length) {
-    i++;
-    line = line.slice(0, -1) + (imageLines[i] ?? "");
+function discoverTools(file: string, executable: string): void {
+  for (const [path] of executable.matchAll(/(?<![\w./-])tools\/[\w./-]+\.(?:[cm]?[jt]s|sh)\b/gu)) {
+    addTool(file, path);
   }
-  const args = /^\s*(?:COPY|ADD)\s+(.+)$/iu.exec(line)?.[1];
-  if (args === undefined) {
-    checkLine("Containerfile", number, line);
+}
+
+for (const file of inputs) {
+  const source = readText(file);
+  const check = (path: string, line: number): void => {
+    checkPath(file, line, path);
+    addTool(file, path);
+  };
+  let executable = source;
+  if (file === workflow)
+    executable = source.replace(classifier, classifier.replaceAll(/[^\n]/gu, " "));
+  if (sourceType.test(file)) {
+    checkReads(file, source, check);
     continue;
   }
-  if (/(?:^|\s)--from=/u.test(args)) continue;
-  const sources =
-    args
-      .match(/"[^"]*"|[^\s,[\]"]+/gu)
-      ?.filter((word) => !word.startsWith("--"))
-      .slice(0, -1) ?? [];
-  for (const source of sources) {
-    const glob =
-      posix.normalize(source.replaceAll('"', "").replace(/^\/+/u, "")).replace(/\/$/u, "") || ".";
-    for (const path of skipped) {
-      const paths = parents(path);
-      if (
-        path === glob ||
-        (paths.includes(glob) && ignored([glob])) ||
-        ((glob === "." || paths.some((part) => posix.matchesGlob(part, glob))) && !ignored(paths))
-      ) {
-        report("Containerfile", number, path);
-        break;
-      }
-    }
-  }
+  executable.split("\n").forEach((line, i) => {
+    if (/^\s*(?:#|--)/u.test(line)) return;
+    if (
+      /\.ya?ml$/u.test(file) &&
+      /^\s*(?:- )?[\w-]+:/u.test(line) &&
+      !line.includes("hashFiles(") &&
+      !/^\s*(?:- )?(?:run|path|paths|file|uses|working-directory):/u.test(line)
+    )
+      return;
+    checkWords(file, i + 1, line);
+  });
+  discoverTools(file, executable);
+  for (const match of executable.matchAll(/(?:uses:\s*\.\/)([\w./-]+)/gu))
+    requireFiles(`${match[1]}/action.y{a,}ml`);
 }

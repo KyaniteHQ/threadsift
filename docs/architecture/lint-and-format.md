@@ -82,7 +82,7 @@ It reports an `await`, a `for await` or an `await using` that runs before a `cat
 
 ## Whole-repository checks
 
-Lint sees one file at a time, so two scripts read the whole repository. Both are part of `pnpm run check`, so of `ci:gate`.
+Lint sees one file at a time, so `pnpm run check` runs three scripts that check files together.
 
 ### `pnpm run check:core-layout`
 
@@ -106,6 +106,10 @@ The script reads every tracked Markdown file except these:
 - the `impeccable` skill and agents, which name the paths of other projects.
 
 It refuses a path, a link, a symbol paired with a path, or a line number that the code no longer matches. The tables `OTHER_PROJECT_SPANS` and `OTHER_PROJECT_SYMBOLS` in the script list, by doc, the spans that name another project's files.
+
+### `pnpm run check:docs-skip`
+
+The check reads the docs-only skip list from the gate and verifies that the image build context excludes every matching file. It checks file reads in code, commands and build inputs. A JavaScript or TypeScript string counts when a file operation consumes it, including through a constant, a joined path, a module-relative URL or a template with a root variable. Directory and glob reads count when they cover a skipped file. A path supplied at runtime can escape detection. If a skipped job needs a file, remove it from the docs-only skip list.
 
 ### `pnpm docs:impact [base]`
 
