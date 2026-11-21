@@ -1,16 +1,29 @@
 # Set up a Provider
 
-An API Provider needs only the fields Settings shows. Fill them in, press **Save**, then press **Verify**. This guide covers the Providers that need more setup: Claude Code and Codex, which run as command-line tools inside the container, and Grok Bot.
+An API Provider needs only the fields Settings shows. Fill them in, press **Save**, then press **Verify**. This guide covers the Providers that need more setup: Claude Code and Codex, which run as command-line tools inside the container, and Grok Bot. It also covers the grok CLI that fetches X posts, and the tool that compares Providers.
+
+- [Choose a model and effort](#choose-a-model-and-effort)
+- [Use Claude Code on the container](#use-claude-code-on-the-container)
+- [Use Codex on the container](#use-codex-on-the-container)
+- [Connect Grok Bot](#connect-grok-bot)
+- [Use the grok CLI for X posts on the container](#use-the-grok-cli-for-x-posts-on-the-container)
+- [Compare Providers](#compare-providers)
 
 The container image ships no AI command-line tool. Everything you install or sign in to stays in its `/data` volume. In the commands below, replace `<container>` with the container's name, which is `threadsift` if you followed the README.
 
-For Claude Code and Codex, use **Model and effort** in Settings to choose what runs.
+## Choose a model and effort
 
-- **Recommended** runs the pair named in Settings. This choice appears when the installed CLI supports the pair.
-- **CLI defaults** lets the CLI choose its model and effort, including after a CLI update.
-- **Custom** requires a **Model**, an **Effort**, or both. Enter just a model to use its default effort. Enter just an effort to use the recommended model. If there is no recommendation, Claude Code chooses its model and Codex uses the first visible model by bundled catalog priority.
+For Claude Code and Codex, use **Model and effort** in Settings to choose what runs. The saved choice applies to Verify and to every other AI task.
 
-The saved choice applies to Verify and all other AI tasks. Claude Code accepts the levels in `podman exec <container> claude --help` through `--effort <level>`. Codex uses `-c model_reasoning_effort=<level>`. Its levels and defaults are under `supported_reasoning_levels` and `default_reasoning_level` in `podman exec <container> codex debug models --bundled`.
+| Choice | What runs | Fields |
+|---|---|---|
+| Recommended | The pair named in Settings. It appears when the installed CLI supports the pair. | None |
+| CLI defaults | The CLI's own model and effort, also after a CLI update. | None |
+| Custom | The Model, the Effort, or both. | Model, Effort |
+
+With Custom, a model alone uses the CLI's default effort, and an effort alone uses the recommended model. When there is no recommendation, Claude Code chooses its model and Codex uses the first visible model of its bundled catalog.
+
+Claude Code accepts the levels that `podman exec <container> claude --help` lists. Codex lists its levels and defaults under `supported_reasoning_levels` and `default_reasoning_level` in the output of `podman exec <container> codex debug models --bundled`.
 
 ## Use Claude Code on the container
 
@@ -42,7 +55,9 @@ The saved choice applies to Verify and all other AI tasks. Claude Code accepts t
 
 4. Open Settings, choose "Claude Code on this server" as the Provider, press **Save**, then press **Verify**.
 
-Installing, updating or removing Claude Code needs a restart. [Claude Code's model configuration](https://code.claude.com/docs/en/model-config#model-aliases) gives the minimum version for Sonnet 5.5. npm 12 skips the install script unless you allow it, so on npm 12 run `podman exec -it <container> npm config set "allow-scripts=@anthropic-ai/claude-code" --location=user` first. The image's npm is 11.20.0 and needs no change. If Claude Code rejects the token, Verify shows it.
+Installing, updating or removing Claude Code needs a restart. [Claude Code's model configuration](https://code.claude.com/docs/en/model-config#model-aliases) gives the minimum version for Sonnet 5.5. If Claude Code rejects the token, Verify shows it.
+
+npm 12 skips the install script unless you allow it. On npm 12, run `podman exec -it <container> npm config set "allow-scripts=@anthropic-ai/claude-code" --location=user` first. The image's npm is 11.20.0 and needs no change.
 
 ## Use Codex on the container
 
@@ -66,36 +81,38 @@ Installing, updating or removing Claude Code needs a restart. [Claude Code's mod
 
    Codex prints a link and a code. Open the link on any device, enter the code and approve. Codex has no token variable. The login is saved in `/data/codex/auth.json` in the volume.
 
-4. Open Settings, choose "Codex on this server" as the Provider, press **Save**, then press **Verify**. Settings shows a recommendation when the installed Codex lists the recommended model and its effort. A model you type must be listed by `podman exec <container> codex debug models --bundled`.
+4. Open Settings, choose "Codex on this server" as the Provider, press **Save**, then press **Verify**. Settings shows a recommendation when the installed Codex lists the recommended model and its effort. A model you type must appear in the output of `podman exec <container> codex debug models --bundled`.
 
 Installing, updating or removing Codex needs a restart, because the app reads Codex's model list once at start. At most 2 AI tasks run at once across Claude Code and Codex together. The app never reads or stores the login.
 
 ### When the app refuses Codex
 
-Before every task the app checks what Codex would load. The task is refused, and the Provider shows "This Provider is not available on this Instance", when the machine has either of these:
+Before every task, the app checks what Codex would load. The Provider shows "This Provider is not available on this Instance", and the log names the extra tools, when the machine has either of these:
 
 - a Codex config file in `/etc/codex` with extra tools or instructions
 - an administrator requirement
 
-The app then logs `codex-surface-refused` with the names of the extra tools. Remove the extra configuration, or choose another Provider.
+Remove the extra configuration, or choose another Provider.
 
-The app keeps `AGENTS.md`, `AGENTS.override.md` and `skills` in `/data/codex` empty on purpose, so Codex loads no instructions from them. The app deletes nothing. If it finds an `AGENTS.md` or `AGENTS.override.md` that is not an empty folder, or a `skills` that is not an empty file, it does not offer Codex and logs `codex-home-refused` with the path.
+The app keeps `AGENTS.md`, `AGENTS.override.md` and `skills` in `/data/codex` empty on purpose, so Codex loads no instructions from them. It deletes nothing. It does not offer Codex, and the log names the path, when it finds an `AGENTS.md` or `AGENTS.override.md` that is not an empty folder, or a `skills` that is not an empty file.
 
-Run no `codex` command in that home before step 2. A Codex command that runs there before the app has made its empty `skills` file creates a `skills/.system` folder, and the app then refuses the home. If that happened, remove `/data/codex/skills` yourself and restart.
+Run no `codex` command in that home before step 2. A Codex command that runs there first creates a `skills/.system` folder, and the app then refuses the home. If that happened, remove `/data/codex/skills` yourself and restart.
 
 ### Follow OpenAI's sign-in rules
 
-Under [OpenAI's CI guide](https://learn.chatgpt.com/docs/auth/ci-cd-auth), OpenAI allows ChatGPT-account sign-in only on trusted private infrastructure, such as your own home server. Use one `auth.json` per machine. Never share it between machines, and never put it in logs, a repository or public artifacts. OpenAI recommends API keys for automation, so choose an API Provider for an Import. If Verify says the sign-in was rejected, run the login command again.
+[OpenAI's CI guide](https://learn.chatgpt.com/docs/auth/ci-cd-auth) allows ChatGPT-account sign-in only on trusted private infrastructure, such as your own home server. Use one `auth.json` per machine. Never share it between machines, and never put it in logs, a repository or public artifacts. OpenAI recommends API keys for automation, so choose an API Provider for an Import. If Verify says the sign-in was rejected, run the login command again.
 
 ## Connect Grok Bot
 
-Threadsift hands X links to Grok Bot, which reads the posts and replies and saves them back. [bot/README.md](../../bot/README.md) says how to install and update the bot.
+Threadsift hands X links to Grok Bot, which reads the posts and replies and saves them back. The [Grok Bot README](../../bot/README.md) says how to install and update the bot.
 
-Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**. In Settings, the X posts section chooses which reader fetches X links. With the default, Auto, every pasted X link goes to the saved bot first; without a saved bot, a container fetches the link with the grok CLI when it is set up (the section "Use the grok CLI for X posts on the container" below), and otherwise the link stays a Link-only Item. A saved bot is never skipped under Auto, and a bot that does not answer is not retried through the CLI. Choose Grok Bot or grok CLI to use that reader alone: when it cannot be used, the link stays a Link-only Item and its note names the cause, and the other reader is not tried.
+Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**.
+
+The X posts section in Settings chooses the reader for X links: Auto (the default), Grok Bot or the grok CLI. Auto sends a pasted link to the saved bot when its settings can send. Otherwise the container fetches it with the grok CLI when that is set up, and the link stays a Link-only Item when it is not. [Fetchers](../architecture/fetchers.md), X, holds the rules of each choice.
 
 ## Use the grok CLI for X posts on the container
 
-When no Grok Bot is saved, or when you choose the grok CLI in the X posts section, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. The image ships no grok CLI, and nothing in the app installs it. Everything is kept in the folder `/data/grok` of the volume. On the Cloudflare Worker install there is no such tool, and a pasted X link stays a Link-only Item there unless a Grok Bot is saved.
+When no usable Grok Bot is saved, or when you choose the grok CLI in the X posts section, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. The image ships no grok CLI, and nothing in the app installs it. Everything stays in the folder `/data/grok` of the volume. The Cloudflare Worker install has no such tool, so a pasted X link stays a Link-only Item there unless a Grok Bot is saved.
 
 1. Install the grok CLI into the volume (the image has `curl` for the installer):
 
@@ -115,40 +132,52 @@ When no Grok Bot is saved, or when you choose the grok CLI in the X posts sectio
    podman exec -it -e HOME=/data/grok <container> grok login --device-auth
    ```
 
-   The tool prints a link and a code; open the link on any device, enter the code and approve. The login is saved in `/data/grok/auth.json` in the volume.
+   The tool prints a link and a code. Open the link on any device, enter the code and approve. The login is saved in `/data/grok/auth.json` in the volume.
 
-4. Open Settings. The "X posts" section shows the grok CLI as signed in. Paste an X link; the Item shows the post and its replies like a Reddit thread.
+4. Open Settings. The "X posts" section shows the grok CLI as signed in. Paste an X link. The Item shows the post and its replies like a Reddit thread.
 
-Installing, updating or removing the CLI needs a restart.
+Installing, updating or removing the CLI needs a restart. A signed-out CLI leaves a Link-only Item with no Try again button. Sign in, then paste the link again.
 
-Every fetch is one run on the owner's Grok plan, and it counts against that plan's usage. At most 2 fetches run at once.
+### Cost and risk
 
-A fetch run can reach xAI's web search and page-open tools, which grok 1.0.77 cannot turn off without losing the X tools. A hostile reply could make the run search or open a public web page, which sends public post text and the Grok account's saved rules to that page. For this reason use a Grok account kept for this server, with no private rules saved in it. The run reaches no tool of the server. [Fetchers](../architecture/fetchers.md) holds the isolation rule.
+Every fetch is one run on the owner's Grok plan and counts against its usage. At most 2 fetches run at once.
 
-Threadsift shows a thread only after it checks each post against X's public embed answer, as Fetchers describes. A reply that fails is left out, and the Item ends with a note that further replies were not saved. If the post itself fails, the Item stays a Link-only Item. When X cannot be reached or limits requests, Threadsift tries again a little later, up to two more times; after that, the link stays a Link-only Item.
+A fetch run can reach xAI's web search and page-open tools, which grok 1.0.77 cannot turn off without losing the X tools. A hostile reply could make the run open a public web page, which sends public post text and the Grok account's saved rules to that page. Use a Grok account kept for this server, with no private rules saved in it. The run reaches no tool of the server, and the app never reads or copies the login file. [Fetchers](../architecture/fetchers.md) holds the isolation rule.
 
-The app makes one test run before the first fetch after it starts, and again whenever the installed binary changes. It refuses the fetch unless the tool is the checked version, 1.0.77. A newer version stays refused. Restarting the Instance with `podman restart <container>` only repeats the test run, so you need either the checked version or an app release that checks the newer one. The Item stays Link-only, the log shows `x-fetch-refused` with the category `surface-unproven`, and Settings shows "Not proven" with the version. The app never reads or copies the login file.
+### When the app refuses the grok CLI
 
-The run asks the model to make at most 6 reply searches, besides the reads of the post's thread and quoted posts. That is a request, not a limit the app enforces; the 3-minute run deadline (`X_RUN_DEADLINE_MS` in `src/core/contract/request-waits.ts`) is the limit. A post with very many replies stores only the replies the first lookups return, the Reader then shows that further replies were not saved, and a later fetch never replaces a stored thread with one that has fewer replies.
+The app makes one test run before the first fetch after it starts, and again whenever the installed binary changes. It refuses the CLI unless it is the checked version, 1.0.77. While it refuses, X links stay Link-only Items and Settings shows "Not proven" with the version. Install the checked version, or update Threadsift to a release that checks the newer one. Restarting the Instance only repeats the test run.
 
-A signed-out CLI leaves a Link-only Item with no Try again button. Sign in, then paste the link again.
+When X cannot be reached or limits requests, Threadsift tries again a little later, up to two more times, and then leaves a Link-only Item. A reply that fails the check against X is left out, and the Item says that further replies were not saved.
 
 ## Compare Providers
 
-Run `tools/provider-comparison.ts` from this checkout with Node from `direnv exec .`. The run records results without choosing a default model.
+The comparison tool runs the same Digest task through several Providers and records the results. It chooses no default model. Run it from this checkout with Node, through `direnv exec .`, as the steps below show.
 
-1. Choose 20 Items from the owner's library. Put their numeric Item ids, or their original or normalized URLs, in a JSON array outside every git checkout. The capture reuses a current model Digest input when one exists. Otherwise it reads the Item and its post text file, comments and catalog, and follows its linked page through the app's core functions, then freezes the prepared input. An Item without usable content gets a reason in each Provider's record. Capture changes no library data. If linked GitHub pages need the library's saved GitHub token, inject that Instance's `THREADSIFT_SECRET_KEY` for capture. If capture reports `Duplicate Items`, remove the repeated selector and capture again.
-2. Make an output folder outside every git checkout. Keep the Item list there as `items.json`. Capture the inputs from the container's SQLite database, with read access to the data volume:
+Workers AI bills by use. Leave `CLOUDFLARE_WORKERS_AI_TOKEN` unset in a comparison run, so that the `workers-ai` row records `workers-ai-credentials-missing` and no call is sent. No comparison run calls Workers AI, the owner's included.
+
+1. Choose 20 Items from the owner's library. Put their numeric Item ids, or their original or normalized URLs, in a JSON array outside every git checkout.
+2. Make an output folder outside every git checkout, and keep the Item list there as `items.json`. Capture the inputs from the container's SQLite database, with read access to the data volume:
 
    ```sh
    mkdir -m 700 /tmp/threadsift-comparison
    direnv exec . node tools/provider-comparison.ts capture /path/to/data/threadsift.db /tmp/threadsift-comparison/items.json /tmp/threadsift-comparison
    ```
 
-   The command prints the capture folder. Keep its `inputs.json`: it freezes the app's selected comments, catalog and linked-page text together. Use that same file in later runs, even if the library changes.
-3. Create `providers.json` outside the checkout. `ProvidersSchema` in `tools/provider-comparison-providers.ts` defines the fields. Each row has a unique `id`, a `provider` and a `model`. A Claude Code or Codex row may include an `effort`. Use different ids to compare two efforts on the same model. The manifest and each record include the supplied effort. Use `claude-code`, `codex`, `workers-ai`, `openrouter` and `grok-bot` for the five Provider kinds. Add another row with a different id to compare another model without changing the Item list. Every Provider row needs an explicit model. OpenRouter accepts only model ids ending in `:free` and sends the app's zero-price routing limit as well. Its free router and the CLI defaults are unsuitable here because the executors do not report which model actually answered. Keep the key's own free-only guardrail enabled.
-4. Sign in to the CLIs with their own commands, as this guide describes. Set `CLAUDE_CONFIG_DIR` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code, and `CODEX_HOME` for the reserved Codex home. Keep both CLI home paths outside every git checkout. The tool checks their location before starting a CLI and uses the app's isolation checks without reading login files. A `cli-missing` record means the executable was not found. For `cli-setup-refused`, read the adapter's category on stderr for the exact cause. Inject `OPENROUTER_API_KEY` from the secret store into the environment. Workers AI bills by use: inject `CLOUDFLARE_WORKERS_AI_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` only when you accept that cost. With either one unset, the `workers-ai` row records `workers-ai-credentials-missing` and no call is sent; an agent leaves the token unset (`AGENTS.md`, Spending). Put no secret in either JSON file or a command argument.
-5. Start the comparison, replacing the capture path with the one printed in step 2:
+   The command prints the capture folder. Keep its `inputs.json`, which freezes the app's selected comments, catalog and linked-page text together. Use that same file in later runs, even if the library changes.
+
+   Capture changes no library data. It reuses a current model Digest input when one exists, and otherwise prepares one from the Item and its linked page through the app's core functions. An Item without usable content gets a reason in each Provider's record. If linked GitHub pages need the library's saved GitHub token, inject that Instance's `THREADSIFT_SECRET_KEY` for capture. If capture reports `Duplicate Items`, remove the repeated selector and capture again.
+
+3. Create `providers.json` outside the checkout. `ProvidersSchema` defines the fields. Each row has a unique `id`, a `provider` and an explicit `model`. A Claude Code or Codex row may include an `effort`.
+   - Use `claude-code`, `codex`, `workers-ai`, `openrouter` and `grok-bot` as the `provider` values.
+   - Use different ids to compare two efforts on one model without changing the Item list.
+   - OpenRouter accepts only model ids that end in `:free`, and the tool sends the app's zero-price routing limit as well. The free router and the CLI defaults are unsuitable here, because the executors do not report which model actually answered. Keep the key's own free-only guardrail enabled.
+4. Sign in to the CLIs with their own commands, as this guide describes.
+   - Set `CLAUDE_CONFIG_DIR` or `CLAUDE_CODE_OAUTH_TOKEN` for Claude Code, and `CODEX_HOME` for the reserved Codex home. Keep both CLI home paths outside every git checkout. The tool checks their location before it starts a CLI, and it uses the app's isolation checks without reading login files.
+   - A `cli-missing` record means the executable was not found. For `cli-setup-refused`, read the adapter's category on stderr for the exact cause.
+   - Inject `OPENROUTER_API_KEY` from the secret store into the environment.
+   - Put no secret in either JSON file or in a command argument.
+5. Start the comparison, and replace the capture path with the one printed in step 2:
 
    ```sh
    direnv exec . node tools/provider-comparison.ts run /tmp/threadsift-comparison/inputs-XXXXXX/inputs.json /tmp/threadsift-comparison/providers.json /tmp/threadsift-comparison
@@ -156,8 +185,12 @@ Run `tools/provider-comparison.ts` from this checkout with Node from `direnv exe
 
    The command prints a new run folder. Run it again with the same files to get a second set. Direct any captured terminal output to a file outside the repository too.
 
-Each run folder holds `inputs.json`, `manifest.json` and `records.jsonl`. The snapshot hash, source revision and Provider models in the manifest identify comparable runs. Item references belong to the captured library: a refreshed Item keeps its id but can have a different generation, and an unrelated library can reuse the id. The captured text and snapshot hash keep the comparison tied to its original inputs. Capture and run require committed Digest-contract files. The manifest keeps both the capture revision and the run revision. If the contract paths checked in `tools/provider-comparison-source.ts` changed between those revisions, capture the Item list again; this includes readable-text refinements that JSON Schema cannot express. Provider or model changes can reuse a capture when those paths stay unchanged.
+### Read the results
 
-The records retain the model's Digest and, separately, the Kept comment ids the app would publish after its submitted-id filter. Every pair has an elapsed time measured with `performance.now()` around the same executor call and result check. Provider startup, input capture and disk writes are outside that interval. The first HTTP call also includes loading the HTTP adapter module. An unavailable pair records the time spent deciding it cannot run. Calls run one at a time, with the app's `AI_DEADLINE_MS` deadline and no comparison retry. A refusal or a missing login does not end the run.
+Each run folder holds `inputs.json`, `manifest.json` and `records.jsonl`. The snapshot hash, the source revision and the Provider models in the manifest identify comparable runs.
 
-Workers AI uses Cloudflare's REST transport with the app's binding adapter and Digest schema. It sends a call only when both of its variables are set. Grok Bot records `bot-callback-fixed-to-live-instance`: its installed routine answers the live Instance and cannot answer this separate run without a different callback destination. The comparison sends it no webhook and changes no bot settings.
+- Item references belong to the captured library. A refreshed Item keeps its id but can have a different generation, and an unrelated library can reuse the id. The captured text and the snapshot hash keep the comparison tied to its original inputs.
+- Capture and run need committed Digest-contract files, and the manifest keeps both revisions. If those files changed between the two revisions, capture the Item list again. A Provider or model change can reuse a capture while they stay unchanged.
+- Records hold the model's Digest and the Kept comment ids the app would publish. Each pair has an elapsed time around the executor call and its result check, which leaves out Provider startup, input capture and disk writes.
+- Calls run one at a time, with the app's AI call deadline and no retry. A refusal or a missing login does not end the run.
+- Workers AI sends a call only when both of its variables are set. Grok Bot records `bot-callback-fixed-to-live-instance`, because its routine answers the live Instance. The comparison sends it no webhook and changes no bot settings.

@@ -1,21 +1,120 @@
 # Lint and format
 
-oxlint and oxfmt run directly, not through Vite+. Vite+ 1.5.0 bundles the same oxlint and oxfmt, but its docs advise against `oxlint.config.ts` and `.oxfmtrc.json` and document only `--fix`, `--type-aware` and `-c` for `vp lint` (viteplus.dev/guide/lint, read 2026-11-04). Direct use keeps every oxlint flag and lets oxlint update on its own schedule. `oxlint.config.ts` and `.oxfmtrc.json` hold the rules; what they cannot show:
+oxlint lints the code and reports TypeScript errors, and oxfmt formats it. Both run directly and not through Vite+, which advises against a separate oxlint configuration and oxfmt configuration ([viteplus.dev lint guide](https://viteplus.dev/guide/lint)). Direct use keeps every oxlint flag and lets oxlint update on its own schedule.
 
-- **No separate `tsc` step.** `options.typeCheck` makes `oxlint-tsgolint` report TypeScript errors with the lint, and it needs TypeScript 7.
-- **Rule plugins in `tools/oxlint/`.** `anti-slop/` is dmmulroy/anti-slop, vendored (its `UPSTREAM.md`); `oxlint.config.ts` and `.oxfmtrc.json` ignore it and `tsconfig.json` excludes it, so the repository's strict options do not apply to upstream code. `threadsift/` holds `no-comments` (`docs/agents/changing-code.md`, No comments), `no-item-insert` (below), `static-import-source` (`docs/agents/changing-code.md`, Design), `layer-imports` and `no-await-before-rethrow` (both below). Its folder is exempt from `prefer-readonly-parameter-types`, because ESTree nodes are mutable by construction and no `allow` entry exempts the node types. Anti-slop's assertion rules are omitted because `typescript/consistent-type-assertions` set to `never` bans the assertion itself; its safety-comment rule is omitted because comments are restricted.
-- **`fetch` belongs to `web/src/calls.ts`.** An override in `oxlint.config.ts` refuses it in `web/**` and excludes `web/src/calls.ts`. A destructured `fetch` is not seen, and the Extension and `smoke/` sit outside `web/`, so the rule does not reach them. The reason for the single call module is in `docs/architecture/web-app.md` (Read and write deadlines).
-- **`itemInsert` is the one door for an insert into `items`.** The rule `threadsift/no-item-insert`, on in `src/**` except `src/features/item/core/item-rows.ts`, refuses a call `<expression>.insert(items)`. `itemInsert` puts the Restore guard in front of the insert, and since the trigger `items_restoring` was dropped nothing else refuses an Item while a Restore holds the library (`export-backup-and-restore.md`, While it runs). The rule matches the identifier `items` as the first argument, so an alias (`const table = items`) and the registry insert of the Restore (`insertRows` in `src/features/restore/core/restore-rows.ts`, which takes its table from `spec.table` and writes the Restore's own rows) are not seen. A scratch `db.insert(items)` in `src/` is reported with the message that names `itemInsert`.
-- **`vault-queue.ts` belongs to the vault modules.** An override in `oxlint.config.ts` refuses an import of it in `src/core/`, `src/features/` and `src/http/` and exempts `src/core/*/vault-*.ts` and `src/features/*/core/vault-*.ts`, so outside the vault modules a writer queues a Vault note only through an entry of `STALE` in `src/core/kernel/vault-stale.ts`. Inside them `vault-state.ts` calls `queueVaultNotes` itself for the inventory seed and for the lease recovery. The rule reads only imports, so a write of a table that feeds a note and queues nothing is not refused, because the statements come from Drizzle builders in many modules.
-- **The core imports no web framework, runtime module or adapter.** Overrides in `oxlint.config.ts` refuse `hono` and `@hono/*` in `src/core/` and in the core halves, and `node:*`, `cloudflare:*` and `targets/` in `src/core/`, `src/features/` and `src/http/`. Hono stays free in `src/http/` and the http halves. Each pattern list is declared once, and `restrictImports` in `oxlint.config.ts` hands it to two rules. `eslint/no-restricted-imports` refuses an `import`, an `export ... from` (type-only ones included), a bare `import "x"` and an `import()` with a string source. It does not visit an `import()` type (`type T = import("x")`, `typeof import("x")`), so `threadsift/no-restricted-import-types` refuses that form with the same message. `typescript/consistent-type-imports` is not used for this: its `disallowTypeAnnotations` option (https://oxc.rs/docs/guide/usage/linter/rules/typescript/consistent-type-imports.html) bans every `import()` type and carries no message per pattern. `require` is refused as a Node global, and `import x = require("x")` by TypeScript's `erasableSyntaxOnly` (TS1294).
-- **`threadsift/layer-imports`.** It reads `tools/core-layout.json` when the plugin loads and takes no option. The plugin refuses to load while a feature folder of `order` has no key in `entries` and `testEntries`, or when `order` does not run `contract`, `kernel`, the features, `compose`. The root of the repository comes from the plugin's own location (`REPOSITORY_ROOT` in `tools/oxlint/threadsift/shared/bindings.ts`), so oxlint run from `web/` or any other folder reports the same violations; `no-await-before-rethrow` uses the same root. The rule reports an import, an export-from, a `require()`, an `import()` and an `import()` type, type-only ones included, that breaks the layout of `src/core/`, `src/features/` and `src/http/` (`docs/architecture/repository-layout.md`, The tree under `src`): a module that imports a folder that ranks after its own (`contract`, `kernel`, the core halves in `order`, `compose`, `src/http/`, the http halves, then `routes.ts` and `app.ts`); an http half that imports the http half of another feature; an import of an http half from outside its own http half by anything but `routes.ts` and `app.ts`; a core half module that is not in the feature's `entries` and is imported from outside the feature, or from `test/`, `tools/` and `smoke/` without being in `entries` or `testEntries` (every other importer, the http halves of other features, `src/http/`, `src/targets/`, `bot/` and the root config files included, gets `entries` only, and the http half of the feature itself imports its core half freely); a file under `src/core/`, `src/features/` or `src/http/` outside the places the layout names (`src/http/` is flat); and an import from `web/`, `extension/` or `design/` of any `src/core` folder but `contract`, of a core half, of a module in an http half, under `src/http/` or under `src/targets/`. A template literal without `${}` counts as a plain string. It resolves relative specifiers and the Extension's WXT aliases `@/`, `~/`, `@@/` and `~~/`, which `extension/.wxt/tsconfig.json` maps to `extension/`; the root `tsconfig.json`, `vite.config.ts` and the web app define no alias, and the Extension defines no other. A `require()`, `createRequire(...)()` or `import()` whose source is computed is reported when a string in it names a path under `src/core` or `src/features` (`import(`../src/core/${name}.ts`)`), or, in a file of `web/`, `extension/` or `design/`, a path under `src/http` or `src/targets`; a source with no such string, such as `import(pathToFileURL(path).href)` in `src/targets/node/fetcher-modules.ts`, is not seen. `new URL(..., import.meta.url)` and `import.meta.resolve` load nothing and are not checked. No code outside `design/prototype/` calls `require` or `createRequire` today. It applies to every linted file, so it has no `files` override and no exception. The package a browser may load is the job of `threadsift/no-server-value-import`, not of this rule.
-- **`pnpm run check:core-layout`.** Lint sees one file at a time, so it cannot see a stale list. `tools/check-core-layout.ts` (part of `pnpm run check`, so of `ci:gate`) reads every tracked code file and fails when a file sits outside the places the layout names, when a feature of `order` has no core half or a basename repeats within the core side or the http side, when `entries` or `testEntries` names a module that is not in the core half of that feature or that no importer outside `src/features/<feature>/` uses (`entries`: a file under `src/` or a root config; `testEntries`: a file in `test/`, `tools/` or `smoke/`), when a name is in both lists, or when a file of `src/http/` is imported only by the http half of one feature, which then owns it. It follows `tools/doc-refs.ts` as the repository's other whole-repository check; the import scan is a regular expression like the one of `threadsift/no-server-value-import`.
-- **`threadsift/no-server-value-import`.** It reports a value import whose chain reaches a server module (the `forbidden` option in `oxlint.config.ts` lists them), because the bundler ships every module a value import reaches. The walk reads the other files itself, because a plugin rule sees only the file it lints; it scans their import statements with regular expressions and follows only relative `.ts`, `.tsx` and `.mts` paths. The plugin docs (oxc.rs, Writing JS plugins) do not mention reading files, and the installed `@oxlint/plugins` 1.93.0 types give a rule `context.cwd` and `context.filename` (`index.d.ts`); the plugin runs in Node, so `node:fs` works, as `pnpm run lint` shows. The rule sees no path alias, no `require` and no import in a file the walk cannot scan as TypeScript; the repository has none of those, and `tsconfig.json` sets no `paths`. `wxt.config.ts` and `vite.config.ts` run in Node, so the folders above exclude them.
-- **`threadsift/no-await-before-rethrow`.** It reports an `await`, a `for await` or an `await using` that runs before a `catch` block throws the caught error, because a failure there replaces the error the caller needs; with `finalizers` on, which `oxlint.config.ts` sets for `src/`, it also reports an `await` in a `finally`. A call passes when its callee is a function the `cannotThrow` option names for its declaring module; a listed name that its module does not declare is reported, so a stale entry fails lint. What it does not see: a nested `catch` that throws, a rethrow of a wrapped error or of any expression other than the caught name, a rethrow inside a helper that the `catch` calls, a `catch` with no parameter or a destructured one, a promise handled with `.then`, and the real exits of a `break` (it treats `break` as the end of the path). The listed functions must catch and log their own failure; nothing checks that.
-- **Drizzle types are exempt from `prefer-readonly-parameter-types`.** Its `allow` list in `oxlint.config.ts` names `SQL`, `SQLWrapper`, `SQLiteColumn`, `SQLiteTable` and `Subquery` from `drizzle-orm`, because their members are mutable by construction; a table, column or subquery parameter needs no inline disable. The rule offers no form that matches the named type alone: tsgolint 7.0.2005 also matches any member of an intersection (`TypeMatchesSomeSpecifier` in `internal/utils/type_matches_specifier.go`), so `p: SQL & { extra: string[] }` passes while `p: { extra: string[] }` fails, and a reviewer reads a parameter typed as such an intersection by hand. A disable directive that suppresses nothing is itself an error, so delete a directive when the config starts to cover its line.
-- **`ol` and `ul` may carry `role="list"`.** `jsx-a11y/no-redundant-roles` has an `ol` and `ul` exception in `oxlint.config.ts`, because VoiceOver in Safari drops list semantics from a list with `list-style: none` unless the element carries the role.
-- **`import/max-dependencies` counts value imports only.** `ignoreTypeImports` skips type imports, because `import type` is erased and adds no runtime or bundle coupling. `typescript/no-import-type-side-effects` refuses `import { type X }` with no value beside it, which `verbatimModuleSyntax` keeps as an import of the module and the cap would not count. Counting type imports made code reach a type through `ComponentProps<typeof X>` or `Parameters<typeof f>[0]`, keep a re-export, or copy a helper to stay under the cap. The cap is 10 value imports, 14 in `src/http/` and the http halves of the features, and none in `src/http/routes.ts`. A route module holds its route declarations and its handlers, so it imports the contract schemas, the core functions and the shared HTTP helpers of its routes, and `routes.ts` imports each top-level register function, so its imports grow with the route list.
-- **Only safe fixes run unattended.** The commit hook and the agent hook (`.claude/hooks/lint-fix.sh`, after each edit to a file in the project or in one of its git worktrees, linted with that checkout's own `node_modules`) apply safe fixes; suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
-- **`check:doc-refs` ends `pnpm run check`.** `tools/doc-refs.ts` reads every tracked Markdown file except the dated records (`docs/research/`, `docs/design/reviews/`, `bot/CHANGELOG.md`, `docs/design/claude-design-prompts.md`), the `UPSTREAM.md` provenance files and the impeccable skill and agents (`.claude/skills/impeccable/`, `.agents/skills/impeccable/`, `.claude/agents/impeccable-*`), which name the paths of other projects. It refuses a path, a link, a `Symbol` in `path` pair or a `path:N` line number that the code no longer matches; a line that says "not built" only loses the missing-path result, and a line number that points at the wrong line inside the file is not read. `OTHER_PROJECT_SPANS` and `OTHER_PROJECT_SYMBOLS` in the script list the spans, by doc, that name another project's files. `pnpm docs:impact [base]` lists the doc lines a change may make untrue.
-- **Markdown is not formatted.** oxfmt pads every table column to its widest cell, so a one-cell change in a doc would rewrite the whole table.
-- **`design/` is mostly outside the lint.** `design/prototype/` is reference code, and the CSS in `design/system/` keeps its one-line rule layout, so both stay out of oxlint and oxfmt. `design/system/settings.ts` is app code: oxlint, oxfmt and the TypeScript `include` cover it.
+The oxlint configuration and the oxfmt configuration hold the rules. This page holds the reasons they do not show, the import boundaries and the whole-repository checks.
+
+## Contents
+
+- [Reasons the configuration does not show](#reasons-the-configuration-does-not-show)
+- [Import boundaries](#import-boundaries)
+- [Custom rules](#custom-rules)
+- [Whole-repository checks](#whole-repository-checks)
+- [Fixes that run without review](#fixes-that-run-without-review)
+- [Outside the lint](#outside-the-lint)
+
+## Reasons the configuration does not show
+
+- oxfmt does not check Markdown, so `pnpm exec oxfmt --check <doc>` passes without reading it. oxfmt pads every table column to its widest cell, so a one-cell change in a doc would rewrite the whole table.
+- Type check. `oxlint-tsgolint` reports TypeScript errors with the lint, so there is no separate `tsc` step. It needs TypeScript 7.
+- `reportUnusedDisableDirectives` is `error`, so a disable directive that suppresses nothing fails the lint. Delete the directive when the configuration starts to cover its line.
+- Plugin folders. `anti-slop` is vendored from dmmulroy/anti-slop, and the lint, the formatter and the root TypeScript configuration leave it out, so the repository's strict options do not apply to upstream code. The `threadsift` folder is exempt from `typescript/prefer-readonly-parameter-types`, because ESTree nodes are mutable by construction and no `allow` entry exempts the node types.
+- Drizzle types are exempt from `prefer-readonly-parameter-types`. The `allow` list names `SQL`, `SQLWrapper`, `SQLiteColumn`, `SQLiteTable` and `Subquery` from `drizzle-orm`, because their members are mutable by construction. A table, column or subquery parameter needs no inline disable. The rule offers no form that matches the named type alone. `p: SQL & { extra: string[] }` passes, while `p: { extra: string[] }` fails, so a reviewer reads a parameter typed as such an intersection by hand.
+- `ol` and `ul` may carry `role="list"`. VoiceOver in Safari drops list semantics from a list with `list-style: none` unless the element carries the role.
+- `import/max-dependencies` counts value imports only. `ignoreTypeImports` skips type imports, because `import type` is erased and adds no runtime or bundle coupling. `typescript/no-import-type-side-effects` refuses `import { type X }` with no value beside it, which `verbatimModuleSyntax` keeps as an import of the module and the cap would not count. Counting type imports made code reach a type through `ComponentProps<typeof X>` or `Parameters<typeof f>[0]`, keep a re-export, or copy a helper to stay under the cap. A route module imports the contract schemas, the core functions and the shared HTTP helpers of its routes, and the route list imports each top-level register function, so its imports grow with the route list.
+- Anti-slop leaves out four upstream rules. `no-chained-type-assertions` and `no-widen-then-assert` are not needed, because `typescript/consistent-type-assertions` set to `never` bans the assertion itself. `require-safety-comment-for-type-assertion` conflicts with the comment policy, and `require-readable-spacing` is left out as well.
+
+## Import boundaries
+
+The oxlint configuration declares each import ban once, and `restrictImports` hands it to two rules. `eslint/no-restricted-imports` refuses an `import`, an `export ... from` (type-only ones included), a bare `import "x"` and an `import()` with a string source. It does not visit an `import()` type (`type T = import("x")`, `typeof import("x")`), so `threadsift/no-restricted-import-types` refuses that form with the same message. `typescript/consistent-type-imports` is not used, because its `disallowTypeAnnotations` option bans every `import()` type and carries no message for each pattern ([the rule's docs](https://oxc.rs/docs/guide/usage/linter/rules/typescript/consistent-type-imports.html)). `require` is refused as a Node global, and `import x = require("x")` by TypeScript's `erasableSyntaxOnly` (TS1294).
+
+| Where | Refused |
+|---|---|
+| `src/core`, `src/features`, `src/http` | `node:*`, `cloudflare:*` and `targets/` (a runtime module belongs in an adapter under `src/targets/`), and the vault queue module outside the vault modules |
+| `src/core` and the core halves | `hono` and `@hono/*`, so the code that needs them moves into an http half or `src/http/` |
+| the vault modules in `src/core` and the core halves | the same bans as above, with the vault queue module allowed |
+| `web/**` | `node:*` and `cloudflare:*` |
+| `web/**` except the call module | `fetch`, `globalThis.fetch`, `window.fetch` and `self.fetch`. The web app calls the server through one module, which gives every read its deadline and makes every write name one ([Web app](web-app.md), Read and write deadlines). A destructured `fetch` is not seen, and the Extension and `smoke/` sit outside `web/`, so the rule does not reach them |
+| `web/src/**`, Extension entrypoints and libraries | a value import whose chain reaches `drizzle-orm`, `hono`, `@hono/*`, `node:*` or `cloudflare:*` (`threadsift/no-server-value-import`) |
+
+The vault queue module belongs to the vault modules. Outside them, a writer queues a Vault note only through an entry of `STALE` (the stale-notes declaration in `kernel`). Inside them, the vault state module calls `queueVaultNotes` itself, for the inventory seed and for the lease recovery. The rule reads only imports, so a write of a table that feeds a note and queues nothing is not refused, because the statements come from Drizzle builders in many modules ([Vault mirror](vault-mirror.md), Queue).
+
+### `threadsift/layer-imports`
+
+The rule reads the layout file when the plugin loads and takes no option. The plugin refuses to load while a feature folder of `order` has no key in `entries` and `testEntries`, or when `order` does not run `contract`, `kernel`, the features, `compose`. The root of the repository comes from the plugin's own location, so oxlint run from `web/` or any other folder reports the same violations.
+
+It reports an import, an export-from, a `require()`, an `import()` and an `import()` type, type-only ones included, that breaks the import rules of [Repository layout](repository-layout.md), The tree under src.
+
+Details of the matching:
+
+- A template literal without `${}` counts as a plain string.
+- It resolves relative specifiers and the Extension's WXT aliases `@/`, `~/`, `@@/` and `~~/`, which the Extension's generated tsconfig maps to the Extension folder. The root TypeScript configuration, the Vite configuration and the web app define no alias, and the Extension defines no other.
+- A `require()`, `createRequire(...)()` or `import()` whose source is computed is reported when a string in it names a path under `src/core` or `src/features`, or, in a file of `web/`, `extension/` or `design/`, a path under `src/http` or `src/targets`. A source with no such string, such as `import(pathToFileURL(path).href)` in the container's fetcher module loader, is not seen.
+- `new URL(..., import.meta.url)` and `import.meta.resolve` load nothing and are not checked.
+- No code outside `design/prototype/` calls `require` or `createRequire`.
+- The rule applies to every linted file, so it has no `files` override and no exception. The packages a browser may load are the job of `threadsift/no-server-value-import`.
+
+## Custom rules
+
+### `threadsift/no-comments`
+
+It refuses a prose comment. It keeps a shebang and the kinds that [Changing code](../agents/changing-code.md), No comments, lists.
+
+### `threadsift/no-item-insert`
+
+`itemInsert` is the one door for an insert into `items`. The rule is on in `src/**` except the Item rows module that defines `itemInsert`. It refuses a call `<expression>.insert(items)`. `itemInsert` puts the Restore guard in front of the insert, and nothing else refuses an Item while a Restore holds the library ([Export, backup and restore](export-backup-and-restore.md), While it runs).
+
+The rule matches the identifier `items` as the first argument. It does not see an alias (`const table = items`), nor the registry insert of the Restore (`insertRows`, which takes its table from `spec.table` and writes the Restore's own rows). A scratch `db.insert(items)` in `src/` gets the message that names `itemInsert`.
+
+### `threadsift/no-server-value-import`
+
+It reports a value import whose chain reaches a server module (the `forbidden` option in the oxlint configuration lists them), because the bundler ships every module a value import reaches. A plugin rule sees only the file it lints, so the walk reads the other files itself. It scans their import statements with regular expressions and follows only relative `.ts`, `.tsx` and `.mts` paths. The plugin runs in Node, so `node:fs` works, as `pnpm lint` shows. The plugin docs ([Writing JS plugins](https://oxc.rs/docs/guide/usage/linter/js-plugins)) do not mention reading files, and the `@oxlint/plugins` types give a rule `context.cwd` and `context.filename`.
+
+The rule sees no path alias, no `require` and no import in a file that the walk cannot scan as TypeScript. The repository has none of those, and the root TypeScript configuration sets no `paths`. The WXT and Vite configurations run in Node, so the folders above exclude them.
+
+### `threadsift/no-await-before-rethrow`
+
+It reports an `await`, a `for await` or an `await using` that runs before a `catch` block throws the caught error, because a failure there replaces the error the caller needs. With `finalizers` on, which the config sets for `src/`, it also reports an `await` in a `finally`.
+
+- A call passes when its callee is a function that the `cannotThrow` option names for its declaring module. A listed name that its module does not declare is reported, so a stale entry fails lint.
+- The listed functions must catch and log their own failure. Nothing checks that.
+- The rule does not see: a nested `catch` that throws, a rethrow of a wrapped error or of any expression other than the caught name, a rethrow inside a helper that the `catch` calls, a `catch` with no parameter or a destructured one, a promise handled with `.then`, and the real exits of a `break` (it treats `break` as the end of the path).
+
+## Whole-repository checks
+
+Lint sees one file at a time, so two scripts read the whole repository. Both are part of `pnpm run check`, so of `ci:gate`.
+
+### `pnpm run check:core-layout`
+
+The script reads every tracked code file and fails in these cases:
+
+- A file sits outside the places the layout names.
+- A feature of `order` has no core half.
+- A basename repeats within the core side or the http side.
+- `entries` or `testEntries` names a module that is not in the core half of that feature, or that no importer outside the feature uses (`entries`: a file under `src/` or a root config. `testEntries`: a file in `test/`, `tools/` or `smoke/`).
+- A name is in both lists.
+- A file of `src/http/` is imported only by the http half of one feature, which then owns it.
+
+Its import scan is a regular expression, like the one of `threadsift/no-server-value-import`.
+
+### `pnpm run check:doc-refs`
+
+The script reads every tracked Markdown file except these:
+
+- the dated records (the research notes, the design reviews, the bot changelog and the Claude Design prompts),
+- the provenance files of vendored code,
+- the `impeccable` skill and agents, which name the paths of other projects.
+
+It refuses a path, a link, a symbol paired with a path, or a line number that the code no longer matches. The tables `OTHER_PROJECT_SPANS` and `OTHER_PROJECT_SYMBOLS` in the script list, by doc, the spans that name another project's files.
+
+### `pnpm docs:impact [base]`
+
+The command lists the doc lines that a change may make untrue ([Changing code](../agents/changing-code.md), Finish).
+
+## Fixes that run without review
+
+The commit hook and the agent hook apply safe fixes only. The agent hook runs after each edit to a file in the project or in one of its git worktrees, and lints with that checkout's own `node_modules`. Suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
+
+## Outside the lint
+
+`design/prototype/` is reference code, and the CSS of the design system keeps its one-line rule layout, so both stay out of oxlint and oxfmt. The TypeScript of the design system is app code: oxlint, oxfmt and the TypeScript `include` cover it.

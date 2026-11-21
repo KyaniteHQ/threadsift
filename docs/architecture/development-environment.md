@@ -1,15 +1,35 @@
 # Development environment
 
-devenv owns everything a contributor or CI runs. A contributor needs Nix, devenv and direnv, and runs `direnv allow` once per clone or worktree; the agent edit hook finds Node through that shell, and the git hooks run through the `with-node` script in `devenv.nix`.
+devenv owns everything a contributor or CI runs. You need Nix, devenv and direnv, and run `direnv allow` once for each clone or worktree. The agent edit hook finds Node through that shell, and the git hooks run through the `with-node` script of the devenv configuration.
 
-| devenv feature | Use |
+## What devenv provides
+
+| Feature | What it does |
 |---|---|
-| `languages.javascript` and `packages` | `nodejs_26`, and pnpm through corepack, so the shell, CI and Workers Builds run the pnpm version in `packageManager`. Corepack comes from the unmodified `pkgs.corepack`, whose launcher uses Node 24 and is available from `cache.nixos.org`; app commands still use `nodejs_26`. Overriding Corepack to use Node 26 changes its derivation and forces each cold runner to build it and run its install checks |
-| `processes` with automatic ports | `devenv up` starts the Node server, the Vite web app (proxying `/api` to that server) and `wrangler dev` (which waits for the `web:build` task, so it serves the current bundle), each on its own allocated port, in any number of worktrees at once; `devenv processes list` prints the ports |
-| `scripts` | `worker-local <state dir> <port> [flags]` applies the D1 migrations and starts `wrangler dev --local`. The `worker` process runs it on `.wrangler/state`, and the `webServer` in `playwright.config.ts` runs it on a fresh `.wrangler/smoke` |
-| `tasks` | the gate is `devenv tasks run ci:gate`, which runs `ci:check`, `ci:test`, `ci:build`, `ci:audit` and `design:check`. `devenv test` is not the gate, because it also starts the dev `processes`; it still runs the commit hooks on every file. GitHub Actions runs `ci:gate` in the `check` job, `smoke:worker` and `smoke:container` in `smoke`, and `live:worker` and `live:container` in `live-check`. `web:build` builds the web bundle that `ci:build`, the worker smoke and live tasks and the deploy share, and `container:build` builds the image that `smoke:container` and `live:container` start, tagged for the checkout (Smoke, `testing.md`) |
-| `env` | `CONTAINERS_STORAGE_CONF` points at a storage.conf from `devenv.nix` that holds only an empty `[storage]` table. With the variable set, Podman reads no other storage.conf ([`options.go`](https://github.com/podman-container-tools/container-libs/blob/storage/v1.64.2/storage/types/options.go#L142), `storage/v1.64.2`, the storage version Podman 6.1.4 uses), so rootless Podman keeps its default paths under `~/.local/share/containers/storage` and `$XDG_RUNTIME_DIR/containers` on every host. Without it, Podman 6 takes `graphroot` from the host's `/etc/containers/storage.conf` for rootless runs as well ([`options.go`](https://github.com/podman-container-tools/container-libs/blob/storage/v1.64.2/storage/types/options.go#L245-L253)). The GitHub `ubuntu-26.04` runner's file names `/var/lib/containers/storage`, which the runner user cannot write, so `container:build` failed with `mkdir /var/lib/containers/storage: permission denied`. The variable also hides a contributor's own `~/.config/containers/storage.conf` inside the shell. |
-| `git-hooks` | before each commit, `oxlint --fix` and `oxfmt` on the staged files; before each push, `pnpm run check` and `pnpm test` |
-| `packages` | Playwright browsers pinned from nixpkgs, because the npm `@playwright/test` version must match `playwright-driver`. `devenv.nix` overrides `playwright-driver.browsers` with `withFirefox = false` and `withWebkit = false`, so the shell holds Chromium, its headless shell and ffmpeg only. Both specs in `smoke/` drive Chromium, and every CI job fetched Firefox (1.0 GiB) and WebKit (1.1 GiB) without starting them. The override keeps the headless shell, which `playwright-driver.browsers-chromium` drops and headless Chromium runs in. `nix path-info -rS .devenv/profile` gives the profile's closure: 2.61 GiB before, of which 2.19 GiB the browsers, and 1.55 GiB after, of which 0.94 GiB the browsers (locked nixpkgs `d97234e`, 2026-11-10). The host has no `/etc/containers/policy.json`, so `podman pull` and `podman build` fail there; the `container:build` task passes `--signature-policy` to `podman build` with a file from the Nix store (podman 5.8.9, 2026-11-04) |
+| `languages.javascript`, `packages` | `nodejs_26`, and pnpm through corepack, so the shell, CI and Workers Builds run the pnpm version of `packageManager` |
+| `processes` | `devenv up` starts the Node server, the Vite web app (it proxies `/api` to that server) and `wrangler dev`, each on its own allocated port. `devenv processes list` prints the ports, and any number of worktrees can run at once |
+| `scripts` | `worker-local <state dir> <port> [flags]` applies the D1 migrations and starts `wrangler dev --local` |
+| `tasks` | the gate, the builds, the smoke and live runs (below) |
+| `git-hooks` | before each commit, `oxlint --fix` and `oxfmt` on the staged files. Before each push, `pnpm run check` and `pnpm test` |
+| `env` | `CONTAINERS_STORAGE_CONF` and the Playwright browser path (below) |
 
-Not built: the `secretspec` block that declares the live-test secrets for the planned CLI and additional Providers, and its `secretspec.toml`. The container live check reads `CLAUDE_CODE_OAUTH_TOKEN` from the `main`-only GitHub environment `post-merge` in CI (Secrets and forks) and from the owner's secret store locally.
+`worker-local` is the one script. The `worker` process runs it on a persistent state folder, and the Playwright `webServer` runs it on a fresh one.
+
+## Tasks
+
+`devenv tasks run ci:gate` is the gate. It runs `ci:check`, `ci:test`, `ci:build`, `ci:audit` and `design:check`. `devenv test` is not the gate, because it also starts the dev processes. It does run the commit hooks on every file.
+
+`devenv tasks list` shows every task. [Testing](testing.md) lists the smoke and live runs, and [CI, releases and rollback](ci-releases-and-rollback.md) describes the jobs that run them.
+
+## Corepack and Node
+
+Corepack comes from the unmodified `pkgs.corepack`, whose launcher uses Node 24. App commands still use `nodejs_26`. `cache.nixos.org` serves the unmodified package, so a cold runner skips its build and install checks. Overriding Corepack to use Node 26 changes its derivation and loses that.
+
+## Playwright browsers
+
+The npm `@playwright/test` version must match nixpkgs' `playwright-driver`, so the shell takes the browsers from nixpkgs. The `playwright-driver.browsers` override turns off Firefox and WebKit, because both smoke specs drive Chromium only. The shell keeps Chromium, its headless shell and ffmpeg. The override cuts the profile's closure by about 1 GiB.
+
+## Podman storage and signature policy
+
+- Storage. `CONTAINERS_STORAGE_CONF` points at a `storage.conf` that holds only an empty `[storage]` table. With the variable set, Podman reads no other `storage.conf`, so rootless Podman keeps its default paths on every host. Without it, Podman 6 takes `graphroot` from the host's `/etc/containers/storage.conf` for rootless runs too, and the GitHub `ubuntu-26.04` runner's file names `/var/lib/containers/storage`, which the runner user cannot write. The variable also hides your own `~/.config/containers/storage.conf` inside the shell. The source is `Options` in [containers/container-libs, storage v1.64.2](https://github.com/podman-container-tools/container-libs/blob/storage/v1.64.2/storage/types/options.go#L142), the storage version of Podman 6.1.4.
+- Signature policy. The CI host has no `/etc/containers/policy.json`, so `podman pull` and `podman build` fail there. The image build tasks pass `--signature-policy` with a policy file from the Nix store.

@@ -1,9 +1,21 @@
 # Dependency updates
 
-Renovate, the GitHub App, is the one update bot; `renovate.json` holds its rules.
+Renovate, the GitHub App, is the one update bot. Its configuration holds the schedule, the grouping and the release-age rule, and Renovate never merges a PR on its own. The Dependency Dashboard issue lists every pending and waiting update. `pnpm outdated` lists the npm updates before Renovate's next run.
 
-- **Schedule.** Every minor and patch npm update arrives in one PR on Monday morning (Istanbul time), except for `oxlint`, `@oxlint/plugins` and `@playwright/test`; each major gets its own PR. `oxlint` and `@oxlint/plugins` always move together in their own PR at every update type, because they must share one exact version. Renovate never updates `@playwright/test`, which must stay on the version of nixpkgs' `playwright-driver` and so moves by hand with the `devenv.lock` update. Lock file maintenance refreshes the indirect packages on the first day of each month. The Dependency Dashboard issue lists every pending and waiting update, so it is where an update is noticed. Renovate never merges on its own.
-- **Release age.** Renovate proposes an npm version only once it is 3 days old, the same wait as pnpm's `minimumReleaseAge` in `pnpm-workspace.yaml`, so a PR never asks for a version pnpm refuses.
-- **Security.** GitHub's Dependabot alerts and the OSV database feed Renovate's security PRs, which open at any time and skip the wait (Renovate docs, `vulnerabilityAlerts`, read 2026-11-04). A fix younger than 3 days still fails pnpm's install, so that PR also adds the package to `minimumReleaseAgeExclude` in `pnpm-workspace.yaml`. Dependabot's own version and security PRs stay off, because both bots would open a PR for the same bump.
-- **Local check.** `pnpm outdated` lists the npm updates before Renovate's next run. Renovate leaves `devenv.lock` unchanged because `renovate.json` enables no Nix manager or custom updater. Run `devenv update` by hand to update `devenv.lock`, then align `@playwright/test` with nixpkgs' `playwright-driver` and run the gate and both smoke targets before committing the update.
-- **devenv CLI.** `.github/actions/setup-devenv` installs the `devenv` CLI from the `nixpkgs` input that `devenv.lock` pins, which `jq` reads from the lock's root node, so the CLI moves when `devenv.lock` is updated. Renovate has no devenv rule. The action needs that input to be a `github` input. The locked `cachix/devenv-nixpkgs` ships devenv 2.4.0 (`nix eval --raw github:cachix/devenv-nixpkgs/<rev>#devenv.version`) from `cache.nixos.org` (`nix path-info --store https://cache.nixos.org <outPath>`, 2026-11-10), and the shell evaluation needs that nixpkgs anyway, so the install adds no source tree of its own (CI, Nix input downloads).
+- `oxlint` and `@oxlint/plugins` get their own PR at every update type, because both must stay on one exact version.
+- `@playwright/test` is never updated by Renovate. It must match the version of nixpkgs' `playwright-driver`, whose browsers the devenv shell provides, so it moves with the `devenv.lock` update.
+- Renovate proposes an npm version only when it is 3 days old. This equals pnpm's `minimumReleaseAge`, so a PR never asks for a version that pnpm refuses to install.
+
+## Security fixes
+
+GitHub's Dependabot alerts and the OSV database feed Renovate's security PRs, which skip the 3-day wait. A fix younger than 3 days still fails pnpm's install, so that PR also adds the package to `minimumReleaseAgeExclude` in the pnpm workspace settings. Dependabot's own version and security PRs stay off, because both bots would open a PR for the same bump.
+
+## Update `devenv.lock` by hand
+
+Renovate has no Nix manager or devenv rule, so it leaves `devenv.lock` alone.
+
+1. Run `devenv update`.
+2. Set `@playwright/test` to the version of the new `playwright-driver`.
+3. Run the gate and both smoke targets (`devenv tasks run ci:gate`, `devenv tasks run smoke:worker`, `devenv tasks run smoke:container`).
+
+The `devenv` CLI that the CI workflows install comes from the `nixpkgs` input that `devenv.lock` pins, so the CLI version moves with the lock.

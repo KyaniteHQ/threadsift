@@ -1,26 +1,56 @@
 # Cloudflare deploy button
 
-The button at the top of the [README](../../README.md) deploys from the `release` branch. Follow the [self-hosting guide](../guides/self-hosting.md#deploy-with-the-cloudflare-button) to create an Instance and set up updates.
+The button at the top of the [README](../../README.md) deploys the `release` branch to Cloudflare. To create an Instance and set up updates, follow the [self-hosting guide](../guides/self-hosting.md#deploy-with-the-cloudflare-button). This page explains how the button, the CLI deploy and the update workflow work.
 
-- The button address ends in `tree/release`. The branch moves only when a release is cut. Cloudflare provisions the D1 database, R2 bucket, and Queue named in `wrangler.jsonc`. Cloudflare supports deploy buttons for Workers in public source repositories on github.com and gitlab.com. [Cloudflare deploy buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/)
-- Cloudflare reads the secret names from `.dev.vars.example` and shows the `cloudflare.bindings` descriptions from `package.json` on the form. The button reads from `release`, so changes to those descriptions appear after the next release. [Cloudflare support for variables and secrets](https://developers.cloudflare.com/changelog/post/2025-07-01-workers-deploy-button-supports-environment-variables-and-secrets/)
-- For CLI deployment, create a private `secrets.json` outside the repository with both secrets as JSON strings. Run `pnpm run deploy --secrets-file /path/to/secrets.json`. The CLI accepts JSON only and passes the file to Wrangler unchanged. Wrangler's JSON path applies no environment override or expansion. The CLI refuses empty values. If you omit a secret, it must already be set on the Worker. Keep the encryption key for the lifetime of the Instance.
-- `THREADSIFT_PUBLIC_ORIGIN` is a Worker variable, not a secret: the deployed `https://` origin. `wrangler.jsonc` does not hold it, because the origin differs for each deployment and an absent value means no public origin is configured; the deployer sets it as a variable of the Worker. The Worker reads it for OpenRouter Connect (see AI tasks and Providers in `ai-tasks-and-providers.md`).
-- `pnpm run deploy` runs `tools/deploy-worker.ts`. D1 must exist before Wrangler can apply migrations; provisioning during the Worker deploy happens too late. Invoking the command approves its migrations, which run without a confirmation prompt. For an offline build and configuration check, run `pnpm run deploy --dry-run --secrets-file /path/to/secrets.json` with both required secrets in the file; an offline check cannot verify inherited secrets.
-- The Workers Paid plan ($5 a month) is needed: extracting one 362 KB article page with Defuddle took 236 ms on local workerd (spike, 2026-11-04), and the free plan allows 10 ms of CPU per request (Workers docs, Limits). On the free plan Cloudflare refuses the upload of the committed configuration, because it sets `limits.cpu_ms` (error 100328, 2026-11-17). A copy deployed there without that line fetched one article and digested it after one canceled Digest invocation and a retry about 15 minutes later. After 8 Pastes within 4 seconds, 4 of its 24 Queue invocations ended `exceededCpu` (Workers telemetry query API, view `invocations`, field `$workers.outcome`). 7.9 minutes after the first Paste, 4 of the 8 Items were still not fetched, not counting a GitHub repository Item that waited on its rate limit (2026-11-18).
-- **Updates.** The button copies the repository into the deployer's own GitHub account, "where they can continue development after deploying", and writes the provisioned resource ids into that copy's `wrangler.jsonc` (Workers docs, Deploy buttons). To receive later releases, follow [Update a Cloudflare copy](../guides/self-hosting.md#update-a-cloudflare-copy). The repository ships `.github/workflows/update-from-upstream.yml`, which runs weekly or on demand in standalone copies and skips the upstream repository and its forks:
-  1. It fetches `refs/heads/release` from `https://github.com/KyaniteHQ/threadsift` and lays that tree over the copy's tree, so it needs no shared history.
-  2. It writes the copy's own resource ids back into the new `wrangler.jsonc` by binding name, and lists new bindings in the pull request. The release supplies the config updater. Its command-line arguments must keep their order so older copies can call it: copy config, release config, pull request body.
-  3. It opens a pull request with a fine-grained token the deployer adds as `UPDATE_TOKEN` (contents, pull requests and workflows on the copy), because Actions' own `GITHUB_TOKEN` may not change files under `.github/workflows/`. The deployer merges it; Workers Builds deploys the merge, and the deploy script runs the new migrations. The update replaces the bot branch `threadsift-update` on each change. The diff shows copy-only edits as removals or reversions. Merging drops those edits. If the release no longer differs from the copy, the workflow closes the open pull request with a comment.
-  4. When a step fails, the run fails and opens an issue in the copy, and comments on the same open issue if the failure recurs.
+## What the button does
 
-  Every other workflow in the repository runs only when `github.repository == 'KyaniteHQ/threadsift'`, so a copy runs none of the project's gate or release jobs.
+The button address ends in `tree/release`. The `release` branch moves only when a release is cut. Cloudflare provisions the D1 database, R2 bucket and Queue that the Worker configuration names. Cloudflare supports deploy buttons for Workers in public repositories on github.com and gitlab.com ([Cloudflare deploy buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/)).
+
+The button copies the repository into the deployer's own GitHub account, "where they can continue development after deploying", and writes the provisioned resource ids into that copy's Worker configuration ([Deploy buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/)).
+
+## Secrets and variables
+
+- Secrets. Cloudflare reads the secret names from `.dev.vars.example` and shows the descriptions under `cloudflare.bindings` in the package manifest on the form. The button reads from `release`, so a changed description appears after the next release ([Cloudflare support for variables and secrets](https://developers.cloudflare.com/changelog/post/2025-07-01-workers-deploy-button-supports-environment-variables-and-secrets/)). The two secrets are `THREADSIFT_SECRET_KEY` and `SETUP_CODE`; [Keep the secret key](../guides/self-hosting.md#keep-the-secret-key) says why the key must outlive the Instance.
+- Public origin. `THREADSIFT_PUBLIC_ORIGIN` is a Worker variable, not a secret, and its value is the deployed `https://` origin. The Worker configuration does not hold it, because the origin differs for each deployment and an absent value means no public origin. The deployer sets it as a variable of the Worker. [AI tasks and Providers](ai-tasks-and-providers.md) says what needs it.
+
+## The CLI deploy
+
+`pnpm run deploy` builds the web app and deploys the Worker. D1 must exist before Wrangler can apply migrations, and provisioning during the Worker deploy happens too late. The command therefore creates a missing D1 database, applies the migrations without a confirmation prompt, and then runs `wrangler deploy --keep-vars`. The [self-hosting guide](../guides/self-hosting.md#deploy-on-cloudflare-with-the-cli) lists the steps.
+
+- It accepts JSON only and passes the secrets file to Wrangler unchanged. Wrangler's JSON path applies no environment override or expansion.
+- It refuses an empty `THREADSIFT_SECRET_KEY` or `SETUP_CODE`. If you leave a secret out of the file, the Worker must already hold it, or the command stops.
+- `--dry-run` checks the build and configuration offline. The file must hold both secrets, because an offline check cannot verify inherited ones.
+
+## Workers Paid
+
+The Worker needs the Workers Paid plan ($5 a month). Two measurements support this:
+
+- Extracting one 362 KB article page with Defuddle took 236 ms on local workerd (2026-11-04). The free plan allows 10 ms of CPU for each request ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)).
+- On the free plan, Cloudflare refuses the upload of the committed configuration, because it sets `limits.cpu_ms` (error 100328, 2026-11-17). A copy deployed there without that line fetched one article and digested it after one canceled Digest invocation and a retry about 15 minutes later. After 8 Pastes within 4 seconds, 4 of its 24 Queue invocations ended `exceededCpu` (Workers telemetry query API, view `invocations`, field `$workers.outcome`). 7.9 minutes after the first Paste, 4 of the 8 Items were still not fetched, not counting a GitHub repository Item that waited on its rate limit (2026-11-18).
+
+## Updates
+
+A copy made by the button receives later releases through the update workflow. The [self-hosting guide](../guides/self-hosting.md#update-a-cloudflare-copy) says how to set it up. The workflow runs weekly or on demand in standalone copies, and skips the upstream repository and its forks. Every other workflow of the repository runs only in the upstream repository, so a copy runs none of the project's gate or release jobs.
+
+```text
+upstream release branch
+        |  fetch, lay its tree over the copy's tree (no shared history needed)
+        v
+   update branch  threadsift-update   (one PR into the copy's default branch)
+        |  the deployer merges
+        v
+   Workers Builds deploys the merge, and the deploy command runs new migrations
+```
+
+- The workflow writes the copy's own resource ids back into the new Worker configuration by binding name, and lists new bindings in the pull request. The release supplies the config updater. Its command-line arguments keep their order, so older copies can call it: copy config, release config, pull request body.
+- It opens the pull request with a fine-grained token that the deployer adds as `UPDATE_TOKEN` (contents, pull requests and workflows on the copy), because Actions' own `GITHUB_TOKEN` may not change files under the workflows folder.
+- The branch `threadsift-update` is replaced on each change. The diff shows copy-only edits as removals or reversions, and merging drops them. If the release no longer differs from the copy, the workflow closes the open pull request with a comment.
+- When a step fails, the run fails and opens an issue in the copy. It comments on the same open issue if the failure recurs.
 
 ## Live run on 2026-11-19
 
-- Cloudflare's 2020 announcement described a plan badge and notice for `paid=true`. On 2026-11-19, `/button?paid=true` and `/button` returned identical images, and the deploy form with `&paid=true` showed no plan notice. The README states the Workers Paid requirement beside the button. [Cloudflare's 2020 announcement](https://blog.cloudflare.com/introducing-deploy-buttons/)
-- The form reported expired GitHub authorization. Revoking and granting authorization again and widening the existing app installation both failed. Uninstalling the app and reinstalling it through **New GitHub connection** with **All repositories** let the deploy proceed.
-- The button deployed `release` at `caa6ed0` into the owner's Cloudflare account on Workers Paid. The owner selected **Create private Git repository**, and Cloudflare created a private GitHub copy. `GET /api/session` returned 200 with `state: setup` and `code: set`. Owner setup returned 204. An article Paste reached `ready` with `fetch: ok` and the Reader showed its full text.
-- The form showed the D1 description from `package.json`. The deployed Worker had the Workers AI binding `AI`. The copy's `GET /api/settings/ai` listed `openai-compatible`, `openrouter`, `anthropic`, `openai`, `xai`, `workers-ai`, and `grok-bot`. The run saved no Provider and made no call to Workers AI.
-- The copy's default branch was `master`. The copy contained `.github/actions` and the pull request template, with no files in `.github/workflows/`. The cause of the omission is unconfirmed. The owner added the update workflow to the default branch and set the `UPDATE_TOKEN` Actions secret.
-- A second pre-release advanced `release` to `85dc4a1`. A manual run of **Update from upstream** opened one pull request and preserved the copy's resource ids in `wrangler.jsonc`. The deploy button enabled non-production builds, so the pull request triggered a preview build. The build failed because `npx wrangler preview` required a `previews` block. The production build reached **Ready** after the merge. The served scripts contained the later changes and the Item remained in the library. [Cloudflare's Workers Builds announcement](https://developers.cloudflare.com/changelog/post/2025-04-08-deploy-to-cloudflare-button/)
+The owner ran the whole path on Workers Paid: the form, a private copy, owner setup, an article Paste that reached `ready`, and an update pull request that deployed after the merge. [Open items and unverified claims](open-items-and-unverified-claims.md) lists what the run did not prove.
+
+- The deploy form shows no plan notice, with or without `paid=true`, so the README states the Workers Paid requirement beside the button ([Cloudflare's 2020 announcement](https://blog.cloudflare.com/introducing-deploy-buttons/) describes a badge that the button did not return).
+- An expired GitHub authorization needs the app uninstalled and reinstalled ([fix](../guides/self-hosting.md#fix-an-expired-github-authorization)).
+- The update pull request's preview build failed, so the guide turns preview builds off ([Cloudflare's Workers Builds announcement](https://developers.cloudflare.com/changelog/post/2025-04-08-deploy-to-cloudflare-button/)).

@@ -1,14 +1,63 @@
 # Testing
 
-The testing policy for this repository; it overrides broader testing instructions. Read it before writing, changing or deleting a test. `docs/architecture/testing.md` says how the suites are built.
+Read this page before you write, change or delete a test. It overrides broader testing instructions. [Testing architecture](architecture/testing.md) says how the suites are built.
+
+## Policy
 
 - Tests run the real code on a real database and real runtimes. The app has no mocks, stubs, fakes, replayed recordings or test-only seams. A vendor's own local runtime (`wrangler dev` with local D1, R2 and Queues, Podman, Chromium) counts as real.
-- Core tests in `test/*.test.ts` start the real app in process on a temp database with the real `migrations/` and call it through `app.request`. They reach no host on the internet with two exceptions: a test that stores an X thread through an intake answer (`test/x-intake-answer.test.ts`, `test/bot-script-tasks.test.ts`, `test/x-reader-switch.test.ts`) lets the `x_verify` job ask `publish.x.com` for the post, and `test/fetcher-plugins.test.ts` looks up `www.reddit.com`. Otherwise they name only reserved `.test` and `.invalid` names, which a resolver answers with no address, and the machine's own name, and connect only to a refused local port (a test that saves a Provider points it at `http://127.0.0.1:9`) and to the listener a test starts on `127.0.0.1` to run a script of `bot/` against the real app (`test/bot-script-server.ts`; those tests need `python3` and `curl` on the machine). The suite passes with only the loopback interface up (`unshare -rn`), so no test needs a host. They reach no working Provider, and each file states the requirement it proves. Two of them, through `test/own-host-name.ts`, need the machine's own host name to resolve only to private addresses, as it does on a GitHub runner and on a host whose `/etc/hosts` maps the name to a loopback address; on a machine where it resolves to a public address they fail, and so do `pnpm test`, the pre-push hook and the `check` job, until an `/etc/hosts` line maps the name to `127.0.0.1`. Run the core suite with `pnpm test`, as the `check` job and the pre-push hook do. If shard `i/N` fails, run `pnpm test N` with the same files to reproduce its layout. Use `pnpm test 1` to check that all files can share a process, or `node --test test/<file>` to run one file. Each file must close its resources, restore process globals and keep its own mutable fixtures. A parser that takes literal input, such as `readArticle` and `catalogKey` in `test/parsers.test.ts`, is also tested by calling it directly, because its input and output are values and no request reaches it; any rule that a request can meet, such as the refusal of a host, is tested through `POST /api/items`. The failed-short-link budget test and the Restore hold test (`test/restoring.test.ts`) call `saveUnresolved` (`src/features/paste/core/short-link-save.ts`) on the real database, because a request would need a short-link host to fail on the network. The plug-in wrapper's refusal of a `.localhost` name is tested by calling `matches` of the loaded plug-in in `test/fetcher-private-host.test.ts`, because a Paste refuses that link before any plug-in is asked. `test/reddit-account-queue.test.ts` claims each job with `claimNextDue`, and its turn-queue cases call `takeTurn` and `redditClosing` on the claimed job, because a run that takes the Reddit turn goes on to request reddit.com, and its close wakes the next waiting job, which the Instance's job loop would run at once. A test drives the clock by replacing `Date.now` for the length of one call, because the code has no clock port.
-- The status mapping and the body of a Grok Bot task are unproven. `postToGrokBot` (`src/features/ai/core/grok-bot-post.ts`) maps the answer of the bot's webhook (200 is ok, 401 and 403 are wrong-key, 404 is not-found, anything else is bot-error) and sends `{taskId, kind, callbackToken}` (`WebhookBody`, `src/core/contract/grok-bot-contract.ts`). The settings route accepts only a public https address and the Node network refuses a private host, so no listener a test starts can answer as the bot. Tests that need a sent task run the real send, which fails, and mark the task accepted with `acceptedByBot` in `test/bot-task-fixtures.ts`. The send of the last attempt gives the job up when it fails, so `sentTask` (`test/bot-kinds-fixtures.ts`) runs that send at attempt 0 and writes the task's `attempts` itself.
-- The gate without the browser smoke is `devenv tasks run ci:gate`, and the `check` job runs the same command. `devenv test` is not the gate, because it starts the dev `processes`.
-- One browser smoke spec, `smoke/smoke.spec.ts`, runs on both install targets on every pull request. Run it with `devenv tasks run smoke:worker` and `devenv tasks run smoke:container`. Each checkout builds and runs its own image, `localhost/threadsift:smoke-<slot>`, on its own port, so two worktrees can run it at once (`docs/architecture/testing.md`, Smoke).
-- The start check, `tools/start-check.sh <image>`, runs an image with a fresh volume and `PORT=8080` and asks `GET /api/session` until it answers 200, for at most 60 s after the container starts. The `image` job runs it on every image it publishes before `:main` moves. Run it by hand on a local build with `devenv tasks run image:build`, which tags the build `localhost/threadsift:publish` (one tag for every checkout), then `tools/start-check.sh localhost/threadsift:publish`. A `workflow_dispatch` run with `publish: false` runs it on amd64 and pushes nothing (`docs/architecture/ci-releases-and-rollback.md`, Image).
-- The live check, `smoke/live.spec.ts`, reaches the internet when run by hand before a release and blocks neither a pull request nor the deploy. On the container it also calls a real model, the owner's Claude subscription through the Provider "Claude Code on this server". The Worker run calls no model: its Pastes carry a caller-sent Digest. Run them with `devenv tasks run live:worker` and `devenv tasks run live:container`. `live:container` needs `CLAUDE_CODE_OAUTH_TOKEN` from `claude setup-token` and fails at once without it; it installs Claude Code in the container, so it needs the network.
-- Only the `deploy` job in `.github/workflows/gate.yml` targets `--env live`. A machine signed in to Wrangler reaches the live account, and `CI=true` skips Wrangler's confirmation prompt, so a local check uses `--local`.
-- A change is proven by running the real program the way its caller does, and the command and its output are kept as the artifact. A bug fix is proven by one reproduction that fails before the fix and passes after it.
-- A flaky run is rerun, and its cause is fixed in the test, not hidden behind a retry or a sleep.
+- Prove a change by running the real program the way its caller does, and keep the command and its output as the artifact.
+- Prove a bug fix with one reproduction that fails before the fix and passes after it.
+- Fix the cause of a flaky run in the test, because a retry or a sleep hides it.
+
+## Commands
+
+| Command | What it runs |
+|---|---|
+| `pnpm test` | The core tests, in shards. The `check` job and the pre-push hook run them too. |
+| `pnpm test N` | The core tests in `N` shards. When shard `i/N` fails, run this with the same files to reproduce its layout; `pnpm test 1` checks that all files can share one process. |
+| `node --test test/<file>` | One test file. |
+| `devenv tasks run ci:gate` | The gate without the browser smoke. The `check` job runs the same command. `devenv test` is not the gate, because it starts the dev `processes`. |
+| `devenv tasks run smoke:worker`, `devenv tasks run smoke:container` | The browser smoke on each install target. |
+| `devenv tasks run image:build` | Builds the image that the start check runs, tagged `localhost/threadsift:publish` (one tag for every checkout). |
+| `tools/start-check.sh <image>` | The start check. |
+| `devenv tasks run live:worker`, `devenv tasks run live:container` | The live check, by hand before a release. |
+
+## Core tests
+
+A core test starts the real app in process on a temp database with the real migrations and calls it through `app.request`. Each file states the requirement it proves. Files in a shard share one process, so each file closes its resources, restores process globals and keeps its own mutable fixtures.
+
+A core test reaches no host on the internet, with two exceptions:
+
+- A test that stores an X thread through an intake answer lets the `x_verify` job ask X's public oEmbed endpoint (`publish.x.com`) for the post.
+- The fetcher plug-in test looks up `www.reddit.com`.
+
+Every other host a core test names is reserved (`.test`, `.invalid`), the machine's own, or a refused local port (a test that saves a Provider points it at `http://127.0.0.1:9`). The one listener a test starts runs a script of the Grok Bot template on `127.0.0.1` against the real app, so those tests need `python3` and `curl`. No core test reaches a working Provider. The suite passes with only the loopback interface up (`unshare -rn`).
+
+**The machine's own host name.** Two tests, through `ownPrivateHostName`, need the machine's own host name to resolve only to private addresses, as it does on a GitHub runner and on a host whose `/etc/hosts` maps the name to a loopback address. Where the name resolves to a public address they fail, and so do `pnpm test`, the pre-push hook and the `check` job, until an `/etc/hosts` line maps the name to `127.0.0.1`.
+
+**Where a test calls code directly.** A request reaches every rule a request can meet, so test that rule through the route, such as the refusal of a host through `POST /api/items`. A test calls code directly only when no request reaches it:
+
+- a parser that takes literal input (`readArticle`, `catalogKey`);
+- `saveUnresolved` on the real database, for the failed-short-link budget and the Restore hold, because a request would need a short-link host to fail on the network;
+- `matches` of a loaded plug-in, for the refusal of a `.localhost` name, because a Paste refuses that link before any plug-in is asked;
+- `claimNextDue`, then `takeTurn` and `redditClosing` on the claimed job, for the Reddit turn queue, because a run that takes the turn goes on to request reddit.com and its close wakes the next job at once.
+
+A test drives the clock by replacing `Date.now` for one call, because the code has no clock port.
+
+**The Grok Bot webhook.** The answer of the bot's webhook is unproven offline: the settings route accepts only a public https address and the Node network refuses a private host, so no listener a test starts can answer as the bot. A test that needs a sent task runs the real send, which fails, and marks the task accepted with `acceptedByBot`. [AI tasks and Providers](architecture/ai-tasks-and-providers.md), The send and the states, owns the status mapping.
+
+## Browser smoke
+
+Each checkout builds and runs its own image, `localhost/threadsift:smoke-<slot>`, on its own port, so two worktrees can run it at once ([Testing architecture](architecture/testing.md), Smoke).
+
+## Start check
+
+The start check runs an image with a fresh volume and asks `GET /api/session` until it answers 200, for at most 60 s after the container starts. To run it by hand, build the image with `devenv tasks run image:build`, then run the start check on `localhost/threadsift:publish`. [CI, releases and rollback](architecture/ci-releases-and-rollback.md), Start check and Image, says when CI runs it and how to run it without a push.
+
+## Live check
+
+The live check reaches the internet when you run it by hand before a release, and it blocks neither a pull request nor the deploy. The Worker run calls no model, because its Pastes carry a caller-sent Digest. On the container it calls a real model through the Provider "Claude Code on this server", and `live:container` fails at once without `CLAUDE_CODE_OAUTH_TOKEN` ([CI, releases and rollback](architecture/ci-releases-and-rollback.md), Live check).
+
+## Live deployment guard
+
+Only the `deploy` job of the gate workflow targets `--env live`. A machine signed in to Wrangler reaches the live account, and `CI=true` skips Wrangler's confirmation prompt, so a local check uses `--local`.

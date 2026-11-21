@@ -1,40 +1,44 @@
 # Threadsift: architecture
 
-| State | Part |
-|---|---|
-| Partly verified | The Cloudflare deploy button deployed `release` on Workers Paid on 2026-11-19. The copy took a later release and kept its Item after the owner added the update workflow. The cause of the missing workflow files and a working preview build remain open (`docs/architecture/cloudflare-deploy-button.md`). |
-| Built | The Vault mirror keeps Item notes and the library wiki current on GitHub or in a mounted folder on the container (`docs/architecture/vault-mirror.md`) |
-| Partly built | The Restore of every library record, the stored images and post text files, the search parts and the Highlight anchors is built (`docs/architecture/export-backup-and-restore.md`). Cancel, resume, the cleanup of abandoned parts and the setup page step are built |
-| Partly verified | Grok Bot completed all six Provider task kinds on the owner's container Instance. The Worker Queue wake after a bot result remains unverified (`docs/architecture/open-items-and-unverified-claims.md`, Grok Bot task runs). |
-| Partly verified | The Grok CLI read X links on the owner's container Instance on 2026-11-15 and 2026-11-16. Grok Bot answered X link sends on both targets. Which reader the deployed Worker's rule chose, and why, remains unverified. The container checks did not observe 10 of the 15 cause notes on a real Item (`docs/architecture/open-items-and-unverified-claims.md`, Grok Bot task runs). |
+These pages say what Threadsift is built with, where each part runs and why. [The spec](spec.md) says what v1 does, one bullet per behaviour.
 
-The table lists implementation and verification status. "Partly verified" means a live run proved part of the behaviour and other checks remain open. A section that names a file or binding that does not exist yet says "Not built". Each bullet in `docs/spec.md` describes what v1 does and matches the code. The files under `docs/architecture/` say what it is built with and where each part runs. Unless a section dates its own check, versions named in those files were checked on 2026-11-04.
+## Status
+
+A live run proved part of each behaviour below, and other checks remain open. [Open items and unverified claims](architecture/open-items-and-unverified-claims.md) lists every open check.
+
+| Part | Status |
+|---|---|
+| [Cloudflare deploy button](architecture/cloudflare-deploy-button.md) | Deployed `release` on 2026-11-19; the update workflow and the preview build are open |
+| [Vault mirror](architecture/vault-mirror.md) | Works; a real GitHub `Retry-After` wait is unverified |
+| [Export, backup and Restore](architecture/export-backup-and-restore.md) | Built; large zips on a deployed Worker and Restore behind a reverse proxy are unverified |
+| Grok Bot as a Provider ([AI tasks and Providers](architecture/ai-tasks-and-providers.md)) | All six task kinds ran on a container Instance; the Worker Queue wake is unverified |
+| X reader ([Fetchers](architecture/fetchers.md)) | Ran on a container Instance; the Worker's reader choice is unverified |
 
 ## Sections
 
-| Section | File |
+| Section | Covers |
 |---|---|
-| The stack at a glance | [`docs/architecture/the-stack-at-a-glance.md`](architecture/the-stack-at-a-glance.md) |
-| One codebase, two install targets | [`docs/architecture/one-codebase-two-install-targets.md`](architecture/one-codebase-two-install-targets.md) |
-| Repository layout | [`docs/architecture/repository-layout.md`](architecture/repository-layout.md) |
-| Database and search | [`docs/architecture/database-and-search.md`](architecture/database-and-search.md) |
-| Data model outline | [`docs/architecture/data-model-outline.md`](architecture/data-model-outline.md) |
-| Files | [`docs/architecture/files.md`](architecture/files.md) |
-| Jobs, leases and the schedule | [`docs/architecture/jobs-leases-and-the-schedule.md`](architecture/jobs-leases-and-the-schedule.md) |
-| Fetchers | [`docs/architecture/fetchers.md`](architecture/fetchers.md) |
-| AI tasks and Providers | [`docs/architecture/ai-tasks-and-providers.md`](architecture/ai-tasks-and-providers.md) |
-| Access: owner login, agent tokens, MCP | [`docs/architecture/access-owner-login-agent-tokens-mcp.md`](architecture/access-owner-login-agent-tokens-mcp.md) |
-| Web app | [`docs/architecture/web-app.md`](architecture/web-app.md) |
-| Extension and Threadsift bot | [`docs/architecture/extension-and-threadsift-bot.md`](architecture/extension-and-threadsift-bot.md) |
-| Vault mirror | [`docs/architecture/vault-mirror.md`](architecture/vault-mirror.md) |
-| Export, backup and restore | [`docs/architecture/export-backup-and-restore.md`](architecture/export-backup-and-restore.md) |
-| Container image | [`docs/architecture/container-image.md`](architecture/container-image.md) |
-| Cloudflare deploy button | [`docs/architecture/cloudflare-deploy-button.md`](architecture/cloudflare-deploy-button.md) |
-| Development environment | [`docs/architecture/development-environment.md`](architecture/development-environment.md) |
-| Lint and format | [`docs/architecture/lint-and-format.md`](architecture/lint-and-format.md) |
-| Dependency updates | [`docs/architecture/dependency-updates.md`](architecture/dependency-updates.md) |
-| CI, releases and rollback | [`docs/architecture/ci-releases-and-rollback.md`](architecture/ci-releases-and-rollback.md) |
-| Testing | [`docs/architecture/testing.md`](architecture/testing.md) |
-| Decisions and evidence | [`docs/architecture/decisions-and-evidence.md`](architecture/decisions-and-evidence.md) |
-| HTTP interfaces | [`docs/architecture/http-interfaces.md`](architecture/http-interfaces.md) |
-| Open items and unverified claims | [`docs/architecture/open-items-and-unverified-claims.md`](architecture/open-items-and-unverified-claims.md) |
+| [The stack at a glance](architecture/the-stack-at-a-glance.md) | The tool for each concern, on both targets |
+| [One codebase, two install targets](architecture/one-codebase-two-install-targets.md) | The core, its ports and the two adapter sets |
+| [Repository layout](architecture/repository-layout.md) | Where files go and why |
+| [Database and search](architecture/database-and-search.md) | SQLite, guarded batches, migrations, search |
+| [Data model outline](architecture/data-model-outline.md) | Tables, Highlights, media, Proposals, Item identity |
+| [Files](architecture/files.md) | The file store port and its adapters |
+| [Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md) | Background steps, leases, retries, the sweep |
+| [Fetchers](architecture/fetchers.md) | How a link becomes an Item's content |
+| [AI tasks and Providers](architecture/ai-tasks-and-providers.md) | Every model call and its Providers |
+| [Access: owner login, agent tokens, MCP](architecture/access-owner-login-agent-tokens-mcp.md) | Who may call the Instance |
+| [Web app](architecture/web-app.md) | The single-page app and its build |
+| [Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md) | The two clients of the HTTP API |
+| [Vault mirror](architecture/vault-mirror.md) | The one-way Markdown copy into Obsidian |
+| [Export, backup and restore](architecture/export-backup-and-restore.md) | The library zip and its Restore |
+| [Container image](architecture/container-image.md) | The image and its start-up |
+| [Cloudflare deploy button](architecture/cloudflare-deploy-button.md) | The deploy path and the update workflow |
+| [Development environment](architecture/development-environment.md) | devenv, tasks, hooks |
+| [Lint and format](architecture/lint-and-format.md) | The tools and their rules |
+| [Dependency updates](architecture/dependency-updates.md) | The update bot and its schedule |
+| [CI, releases and rollback](architecture/ci-releases-and-rollback.md) | The gate, the release, the live deploy |
+| [Testing](architecture/testing.md) | How the suites are built |
+| [Decisions and evidence](architecture/decisions-and-evidence.md) | Reasons and measurements behind product decisions |
+| [HTTP interfaces](architecture/http-interfaces.md) | The rules around the routes |
+| [Open items and unverified claims](architecture/open-items-and-unverified-claims.md) | What is not built or not proven |
