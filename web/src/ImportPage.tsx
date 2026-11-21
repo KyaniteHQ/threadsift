@@ -16,7 +16,7 @@ export function ImportPage() {
   const finished = state.phase === "ended" && state.outcome.ending === "finished";
 
   return (
-    <div className="pg imp">
+    <div className="pg">
       <PageBar title={IMPORT.title} />
       <main className="pg-col imp-col">
         <ListSection input={input} list={list} locked={runner.state.phase === "running"} />

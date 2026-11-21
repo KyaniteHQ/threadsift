@@ -6,15 +6,11 @@ import type { LogEntry } from "../../src/core/contract/log-contract.ts";
 import { topicPath } from "../../src/core/contract/topic-path.ts";
 import { InternalLink } from "./InternalLink.tsx";
 import { localStamp } from "./log-date.ts";
-import { LOG_WORDS, addedRemoved, itemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
+import { LOG_WORDS, addedRemoved, logItemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
 import { topicLinkLabel } from "./topic-text.ts";
 
 function Separator() {
-  return (
-    <span className="lg-sep" aria-hidden="true">
-      {" | "}
-    </span>
-  );
+  return <span aria-hidden="true">{" | "}</span>;
 }
 
 interface Part {
@@ -64,8 +60,7 @@ function digestedParts(entry: Readonly<Extract<LogEntry, { tags: unknown }>>) {
     key: "topic",
     node: (
       <>
-        <span className="lg-word">{LOG_WORDS.topic} </span>
-        <TopicRef topic={entry.topic} />
+        {LOG_WORDS.topic} <TopicRef topic={entry.topic} />
       </>
     ),
   };
@@ -73,9 +68,9 @@ function digestedParts(entry: Readonly<Extract<LogEntry, { tags: unknown }>>) {
   const tags: Part = {
     key: "tags",
     node: (
-      <span className="lg-tags">
+      <>
         {LOG_WORDS.tags} {entry.tags.join(", ")}
-      </span>
+      </>
     ),
   };
 
@@ -91,12 +86,12 @@ function mergeParts(
     {
       key: "names",
       node: (
-        <span>
+        <>
           {word} {mergeLabel(entry.from, entry.into)}
-        </span>
+        </>
       ),
     },
-    { key: "items", node: itemsLabel(entry.items) },
+    { key: "items", node: logItemsLabel(entry.items) },
   ];
 }
 

@@ -10,7 +10,6 @@ export const TOPIC_PAGE = {
   noProvider:
     "No overview is written until a Provider is set in Instance settings. The items still show below.",
   builtFromOne: "Built from 1 item",
-  itemsOne: "1 item",
   notInOverview: "Not in overview yet",
   loading: "Loading topic…",
   loadFailed: "Couldn’t load this topic.",
@@ -26,6 +25,7 @@ export const TOPIC_PAGE = {
 
 const BUILT_FROM_SOME = "Built from {built} of {total} items";
 const BUILT_FROM_ALL = "Built from all {total} items";
+const ITEMS_ONE = "1 item";
 const ITEMS_MANY = "{count} items";
 const CITATION_LABEL = "Open item {title}";
 const TOPIC_LINK = "Open topic page for {name}";
@@ -39,7 +39,7 @@ export function builtFromLabel(built: number, total: number): string {
 }
 
 export function itemsLabel(count: number): string {
-  return plural(count, TOPIC_PAGE.itemsOne, ITEMS_MANY);
+  return plural(count, ITEMS_ONE, ITEMS_MANY);
 }
 
 export function citationLabel(title: string): string {

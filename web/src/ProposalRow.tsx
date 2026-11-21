@@ -6,7 +6,8 @@ import { LostHighlightBody } from "./LostHighlightBody.tsx";
 import { OverviewGapBody } from "./OverviewGapBody.tsx";
 import { rowId } from "./proposal-dom.ts";
 import { Actions, type RowControls } from "./ProposalActions.tsx";
-import { PROPOSAL_WORDS, itemCount, mergeEffect } from "./proposals-text.ts";
+import { PROPOSAL_WORDS, mergeEffect } from "./proposals-text.ts";
+import { itemsLabel } from "./topic-text.ts";
 
 const SLOT = /\{(from|into)\}/u;
 
@@ -34,7 +35,7 @@ function Count({ name, items }: Readonly<{ name: string; items: number }>) {
       <dt>
         <bdi dir="auto">{name}</bdi>
       </dt>
-      <dd>{itemCount(items)}</dd>
+      <dd>{itemsLabel(items)}</dd>
     </div>
   );
 }
@@ -89,7 +90,7 @@ export const ProposalRow = memo(function ProposalRow(controls: Readonly<RowContr
 
   return (
     <li>
-      <article className="rl-row pr-row" id={rowId(proposal.id)}>
+      <article className="rl-row" id={rowId(proposal.id)}>
         <ProposalBody proposal={proposal} overviewFollows={overviewFollows} />
         <Actions {...controls} />
       </article>

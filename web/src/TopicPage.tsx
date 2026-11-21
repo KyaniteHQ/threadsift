@@ -54,7 +54,7 @@ export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; rout
   usePageName(name);
 
   return (
-    <div className="pg tp">
+    <div className="pg">
       <PageBar title={name} ready={state.status !== "loading"} />
       <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
         <Body state={state} retry={retry} loadMore={loadMore} write={writeOverview} />

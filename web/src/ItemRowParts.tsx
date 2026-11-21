@@ -74,7 +74,7 @@ function Failed({
         {item.status === "failed"
           ? failureTitleOf(item)
           : offersFetchRetry(item)
-            ? NOTICES[item.xNote].text
+            ? NOTICES[item.xNote]
             : item.digestTitle === null
               ? NO_DIGEST
               : DIGEST_NOT_UPDATED}

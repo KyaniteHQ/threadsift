@@ -12,7 +12,7 @@ function noteTextOf(item: Readonly<Item>): string | null {
 
   const key = noteOf(item);
 
-  return key === null ? null : NOTICES[key].text;
+  return key === null ? null : NOTICES[key];
 }
 
 export function Note({

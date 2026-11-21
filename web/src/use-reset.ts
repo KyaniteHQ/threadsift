@@ -4,7 +4,7 @@ import { type Attempt, type Refusal, resetPassword } from "./access-api.ts";
 import { RESET } from "./access-text.ts";
 import { LENGTH_PROBLEM, checkNewPassword } from "./password-length.ts";
 import { usePasswordVisibility } from "./PasswordField.tsx";
-import { useField, useSubmit } from "./use-form.ts";
+import { useField, useFocusOnMount, useSubmit } from "./use-form.ts";
 import { useLock } from "./use-lock.ts";
 
 function codeMessage(result: Readonly<Refusal>): string | null {
@@ -25,6 +25,7 @@ function codeMessage(result: Readonly<Refusal>): string | null {
 
 export function useReset(done: () => void) {
   const code = useField();
+  useFocusOnMount(code.ref);
   const password = useField();
   const confirm = useField();
   const lock = useLock();

@@ -24,67 +24,30 @@ export type NoticeKey =
   | XNoticeKey
   | "private";
 
-export interface Notice {
-  readonly text: string;
-  readonly kind: "input-error" | "save-error" | "save-note";
-}
+export const INPUT_ERRORS: ReadonlySet<NoticeKey> = new Set(["empty", "invalid", "private"]);
 
-export const NOTICES: Readonly<Record<NoticeKey, Notice>> = {
-  empty: { text: "Paste a link first.", kind: "input-error" },
-  invalid: {
-    text: "That doesn’t look like a link. Links must start with https:// or http://.",
-    kind: "input-error",
-  },
-  failed: { text: "Couldn’t save this link.", kind: "save-error" },
-  restoring: {
-    text: "A Restore is running, so this link wasn’t saved. Paste the link again when the Restore has finished.",
-    kind: "save-error",
-  },
-  refused: {
-    text: "This link leads to a private network or your computer, so it was saved without a title.",
-    kind: "save-note",
-  },
-  unsupported: {
-    text: "This link redirected to an address that isn’t a web page, so it was saved without a title.",
-    kind: "save-note",
-  },
-  "redirect-limit": {
-    text: "This link redirected too many times, so it was saved without a title.",
-    kind: "save-note",
-  },
-  "redirect-stopped": {
-    text: "This link redirected to Reddit or X, so it was saved without a title.",
-    kind: "save-note",
-  },
-  unresolved: {
-    text: "Couldn’t find the post or comment this link points to, so it was saved as it is, without a title.",
-    kind: "save-note",
-  },
-  status: {
-    text: "The website answered with an error, so this link was saved without a title.",
-    kind: "save-note",
-  },
-  "no-title": {
-    text: "This page has no title, so the link was saved without one.",
-    kind: "save-note",
-  },
-  unreadable: {
-    text: "Couldn’t read the website’s answer, so this link was saved without a title.",
-    kind: "save-note",
-  },
-  "github-token": {
-    text: "GitHub rejected the saved token, so this Item wasn’t updated. Replace or remove the token in Settings, then paste the link again.",
-    kind: "save-note",
-  },
+export const NOTICES: Readonly<Record<NoticeKey, string>> = {
+  empty: "Paste a link first.",
+  invalid: "That doesn’t look like a link. Links must start with https:// or http://.",
+  failed: "Couldn’t save this link.",
+  restoring:
+    "A Restore is running, so this link wasn’t saved. Paste the link again when the Restore has finished.",
+  refused:
+    "This link leads to a private network or your computer, so it was saved without a title.",
+  unsupported:
+    "This link redirected to an address that isn’t a web page, so it was saved without a title.",
+  "redirect-limit": "This link redirected too many times, so it was saved without a title.",
+  "redirect-stopped": "This link redirected to Reddit or X, so it was saved without a title.",
+  unresolved:
+    "Couldn’t find the post or comment this link points to, so it was saved as it is, without a title.",
+  status: "The website answered with an error, so this link was saved without a title.",
+  "no-title": "This page has no title, so the link was saved without one.",
+  unreadable: "Couldn’t read the website’s answer, so this link was saved without a title.",
+  "github-token":
+    "GitHub rejected the saved token, so this Item wasn’t updated. Replace or remove the token in Settings, then paste the link again.",
   ...X_NOTICES,
-  "title-kept": {
-    text: "Couldn’t update the title for this link, so the title saved earlier was kept.",
-    kind: "save-note",
-  },
-  private: {
-    text: "Links to a private network or your own computer can’t be saved.",
-    kind: "input-error",
-  },
+  "title-kept": "Couldn’t update the title for this link, so the title saved earlier was kept.",
+  private: "Links to a private network or your own computer can’t be saved.",
 };
 
 export const TOKEN_REFUSED = {
@@ -115,7 +78,7 @@ export function failureTitleOf({
   reason,
   xNote,
 }: Readonly<{ reason: FailureReason; xNote: XReadNote | null }>): string {
-  return xNote === null ? FAILURE_TITLES[reason] : NOTICES[xNote].text;
+  return xNote === null ? FAILURE_TITLES[reason] : NOTICES[xNote];
 }
 
 export const WAITING = {

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from "react";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { lookUp } from "./item-reads.ts";
 import type { ListState } from "./list-state.ts";
-import type { Route } from "./routing.ts";
+import { LIBRARY_PATH, type Route } from "./routing.ts";
 
 export function useLookup(
   list: ListState,
@@ -27,7 +27,7 @@ export function useLookup(
 
       if (!current) return;
 
-      if (found === "gone") replace("/");
+      if (found === "gone") replace(LIBRARY_PATH);
       else if (found === "failed") setFailedFor(openId);
       else know(found);
     };

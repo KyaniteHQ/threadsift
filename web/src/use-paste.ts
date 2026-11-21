@@ -54,21 +54,16 @@ function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Show
     : { kind: "notice", key: outcome.notice, url, seq };
 }
 
-function useSaveValue({
-  save,
-  setValue,
-  setShown,
-  focusField,
-  release,
-  open,
-}: Readonly<{
+type SaveInputs = Readonly<{
   save: Save;
   setValue: Dispatch<SetStateAction<string>>;
   setShown: (shown: Shown | null) => void;
   focusField: () => void;
   release: () => void;
   open: (id: number) => void;
-}>) {
+}>;
+
+function useSaveValue({ save, setValue, setShown, focusField, release, open }: SaveInputs) {
   const sequence = useRef(0);
 
   return useCallback(
@@ -139,24 +134,17 @@ type PasteOptions = Readonly<{
   save: Save;
   focusOnMount: boolean;
   items: readonly Item[];
+  queue: PasteQueue;
   open: (id: number) => void;
 }>;
 
-export function usePaste({ save, focusOnMount, items, open }: PasteOptions) {
-  const handoff = useContext(ShareContext);
-  const { release } = handoff;
-  const { shown, show: setShown, prefill } = useShownCard(handoff, items);
-  const [value, setValue] = useState(prefill);
-  const field = useRef<HTMLInputElement>(null);
-
-  const focusField = useCallback(() => {
-    field.current?.focus();
-  }, []);
-
-  useFocusOnMount(field, focusOnMount);
-
-  const saveValue = useSaveValue({ save, setValue, setShown, focusField, release, open });
-
+function usePasteSaving({
+  value,
+  shown,
+  queue: { next, taken },
+  ...inputs
+}: Readonly<SaveInputs & { value: string; shown: Readonly<Shown> | null; queue: PasteQueue }>) {
+  const saveValue = useSaveValue(inputs);
   const { busy: saving, guard } = useGuard();
 
   const submit = useCallback(
@@ -173,6 +161,64 @@ export function usePaste({ save, focusOnMount, items, open }: PasteOptions) {
     [guard, saveValue, saving, value],
   );
 
+  const retry = useCallback(() => {
+    if (shown !== null) {
+      guard(() => saveValue({ kind: "paste", url: shown.url }, "card"));
+    }
+  }, [guard, saveValue, shown]);
+
+  const run = useEffectEvent((target: SaveTarget) => {
+    guard(() => saveValue(target, "queue"));
+  });
+
+  useEffect(() => {
+    if (next !== null && !saving) {
+      taken(next.seq);
+      run(next);
+    }
+  }, [next, saving, taken]);
+
+  return { saving, submit, retry };
+}
+
+function useOpenShown(
+  shown: Readonly<Shown> | null,
+  close: () => void,
+  open: (id: number) => void,
+) {
+  return useCallback(() => {
+    if (shown?.kind === "item") {
+      close();
+      open(shown.itemId);
+    }
+  }, [close, open, shown]);
+}
+
+export function usePaste({ save, focusOnMount, items, queue, open }: PasteOptions) {
+  const handoff = useContext(ShareContext);
+  const { release } = handoff;
+  const { shown, show: setShown, prefill } = useShownCard(handoff, items);
+  const [value, setValue] = useState(prefill);
+  const field = useRef<HTMLInputElement>(null);
+
+  const focusField = useCallback(() => {
+    field.current?.focus();
+  }, []);
+
+  useFocusOnMount(field, focusOnMount);
+
+  const { saving, submit, retry } = usePasteSaving({
+    value,
+    shown,
+    queue,
+    save,
+    setValue,
+    setShown,
+    focusField,
+    release,
+    open,
+  });
+
   const { close, dismiss } = useCloseCard({ shown, items, setShown, focusField, release });
 
   const change = useCallback(
@@ -184,52 +230,8 @@ export function usePaste({ save, focusOnMount, items, open }: PasteOptions) {
     [release, setShown],
   );
 
-  const retry = useCallback(() => {
-    if (shown !== null) {
-      guard(() => saveValue({ kind: "paste", url: shown.url }, "card"));
-    }
-  }, [guard, saveValue, shown]);
+  const face = shown === null ? null : faceOf(shown, items);
+  const openShown = useOpenShown(shown, close, open);
 
-  return { field, value, shown, saving, change, close, dismiss, submit, retry, guard, saveValue };
-}
-
-export function usePasteRequest(
-  { next, taken }: Readonly<PasteQueue>,
-  {
-    guard,
-    saveValue,
-    saving,
-  }: Readonly<Pick<ReturnType<typeof usePaste>, "guard" | "saveValue" | "saving">>,
-) {
-  const run = useEffectEvent((target: SaveTarget) => {
-    guard(() => saveValue(target, "queue"));
-  });
-
-  useEffect(() => {
-    if (next !== null && !saving) {
-      taken(next.seq);
-      run(next);
-    }
-  }, [next, saving, taken]);
-}
-
-export function useCardFace(
-  { shown }: Readonly<Pick<ReturnType<typeof usePaste>, "shown">>,
-  items: readonly Item[],
-) {
-  const item = shown?.kind === "item" ? items.find((each) => each.id === shown.itemId) : undefined;
-
-  return shown === null ? null : faceOf(shown, item);
-}
-
-export function useOpenShown(
-  { shown, close }: Readonly<Pick<ReturnType<typeof usePaste>, "shown" | "close">>,
-  open: (id: number) => void,
-) {
-  return useCallback(() => {
-    if (shown?.kind === "item") {
-      close();
-      open(shown.itemId);
-    }
-  }, [close, open, shown]);
+  return { field, value, shown, face, saving, change, close, dismiss, submit, retry, openShown };
 }
