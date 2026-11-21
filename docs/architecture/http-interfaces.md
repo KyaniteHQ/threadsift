@@ -1,6 +1,6 @@
 # HTTP interfaces
 
-`GET /api/openapi.json` describes the REST routes with their bodies and status codes, and it is the contract for them. It leaves out `/mcp` and `/share`, which the MCP and Web Share Target sections below cover. This page holds what the schema cannot show: who may call, what a refusal means and which limits apply. [The spec](../spec.md) (Interfaces) lists the behaviour the owner sees.
+`GET /api/openapi.json` describes the REST routes with their bodies and status codes, and it is the contract for them. It omits its own route and the catch-all `ALL /api/*`. It also leaves out `/mcp` and `/share`, which the MCP and Web Share Target sections below cover. This page holds what the schema cannot show: who may call, what a refusal means and which limits apply. [The spec](../spec.md) (Interfaces) lists the behaviour the owner sees.
 
 Contents: [Callers and shared rules](#callers-and-shared-rules), [The Item list](#the-item-list), [A Paste](#a-paste), [Batches and the import cursor](#batches-and-the-import-cursor), [Digest, status and reads](#digest-status-and-reads), [Read state, Highlights and Notes](#read-state-highlights-and-notes), [The Index, the Log and Proposals](#the-index-the-log-and-proposals), [MCP](#mcp), [Settings routes](#settings-routes), [The Grok Bot task routes](#the-grok-bot-task-routes), [The Web Share Target](#the-web-share-target), [Export and Restore](#export-and-restore).
 

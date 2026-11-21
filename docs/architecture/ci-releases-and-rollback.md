@@ -44,10 +44,22 @@ The gate workflow runs on every pull request and on every push to `main`.
 - A failed `check` uploads per-shard JUnit reports and a text diagnosis for each failed shard as the `core-tests` artifact for 7 days. The parent process records a shard's signal even if the shard stops before it finishes its XML. Set `THREADSIFT_JUNIT_DIR` to an empty directory to collect the reports locally.
 - Fail-fast is off, so a failed target leaves the other running. A failed smoke run uploads Playwright's `test-results` as the artifact `smoke-<target>` for 7 days.
 - A newer push cancels the older run of the same pull request.
-- One job runs check, build, audit, the design check and the core tests, because each separate job pays about 32 seconds of setup (gate runs of 2026-11-10).
+- The core tests share the `check` job with the build, audit and design check. Container smoke finished last in each of three hosted gate runs on 2026-11-21, so splitting the core tests into another job would duplicate setup while the gate still waited for the container.
+- The job loop's 5 s poll does not explain the container smoke's longer time. An ordinary enqueue already wakes the loop, and the smoke saves no Provider. On 2026-11-21 the container smoke took 1.1 minutes of Playwright time in each of two local runs, one with the Provider-save wake and one without.
+- The bot script's random-byte failure is reachable. On 2026-11-21 a local run with an empty random-byte source in a private mount namespace printed `failed` and exited with status 2. The hosted `check` job lacks unprivileged user namespaces, so CI leaves that branch unproven.
 - The image builds while `ci:install` runs, because the `container:build` task reads only the `Containerfile` and the source tree, so the build does not wait behind the install.
-- The image build passes `--jobs 0`, so Podman builds the stages in parallel (28 s against 42 s without it, `smoke (container)` logs of 2026-11-10).
-- The container start gets 60 s in the Playwright configuration, about 12 times a normal start, so Playwright fails before the job's budget ends. A start timeout leaves no test output, and the job log records the failure.
+- The image build passes `--jobs 0`, so Podman builds the stages in parallel.
+- The container start gets 60 s in the Playwright configuration, so Playwright fails before the job's budget ends. A start timeout leaves no test output, and the job log records the failure.
+
+The hosted runs on 2026-11-21 measured the following wall times, in seconds. The core test task is part of `check`.
+
+| Gate run | Check | Core test task | Container smoke | Worker smoke |
+|---|---|---|---|---|
+| [44931363097](https://github.com/KyaniteHQ/threadsift/actions/runs/44931363097) | 167 | 87.5 | 171 | 98 |
+| [44934357522](https://github.com/KyaniteHQ/threadsift/actions/runs/44934357522) | 139 | 61.4 | 159 | 100 |
+| [44934665337](https://github.com/KyaniteHQ/threadsift/actions/runs/44934665337) | 167 | 91.4 | 198 | 109 |
+
+The devenv setup step took 50 to 53 s in `check`, 32 to 56 s in container smoke and 45 to 57 s in Worker smoke across those runs.
 
 ## Setup action and caches
 
@@ -55,7 +67,15 @@ The setup action installs Nix and the `devenv` CLI, and caches the pnpm store an
 
 - Corepack. The unmodified `pkgs.corepack` is available from `cache.nixos.org`, so cold runners avoid its build and install checks.
 - pnpm store. pnpm 12 reads `pnpm_config_store_dir` for the cached store and ignores `npm_config_store_dir`.
-- No Nix store cache. A restored store was no faster than the binary caches: with `nix-community/cache-nix-action` v7.0.2 the setup took 42 to 49 s for each job, against 37 to 58 s without it (gate runs of 2026-11-10).
+- Nix store. The setup action uses binary caches. Restoring a cached devenv closure increased the median setup time in every job in five alternating pairs of manual gate runs on one commit on 2026-11-21. Every restore hit the cache.
+
+| Hosted setup step | Binary caches alone, median (range) | With cached closure, median (range) |
+|---|---|---|
+| Check | 53 s (40–61 s) | 58 s (54–68 s) |
+| Container smoke | 52 s (43–69 s) | 57 s (53–68 s) |
+| Worker smoke | 55 s (50–60 s) | 61 s (48–79 s) |
+
+In 40 hosted `check` logs read on 2026-11-21, `nix profile add` alone took a median of 36.4 s and ranged from 14.8 to 49.7 s.
 
 ## Nix input downloads
 

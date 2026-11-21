@@ -42,7 +42,7 @@ The deploy applies a migration before it deploys the Worker, so the previous Wor
 
 ## Consistency constraints
 
-The Drizzle table definitions declare row-local value and subject rules as `CHECK` constraints. Their value lists come from constants, and the subject-column matching comes from the schema-check helpers. A failed check rolls back its batch on both targets. The tests `consistency-triggers*` and `proposal-subject-tables` exercise these storage contracts.
+The Drizzle table definitions declare row-local value and subject rules as `CHECK` constraints. Their value lists come from constants, and the subject-column matching comes from the schema-check helpers. A failed check rolls back its batch on both targets. The storage tests exercise the CHECK constraints and unique indexes. The Proposal subject tests also delete subject rows to exercise the triggers that remove their Proposal.
 
 Triggers remain where a rule reads another table or maintains derived data: the FTS5 search triggers, the settings revision triggers, and the five `<kind>_proposals_gone` triggers that delete the `proposals` row of a deleted subject row. [Data model outline](data-model-outline.md), Proposals and Pins, holds the rules of the Proposal tables. D1 refuses a statement whose trigger programs nest more than 10 levels, so a table that reaches D1 through a cascade and a trigger needs a run on local D1 (Trigger depth on D1 in [Decisions and evidence](decisions-and-evidence.md)).
 

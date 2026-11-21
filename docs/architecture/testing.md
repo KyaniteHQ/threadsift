@@ -1,12 +1,16 @@
 # Testing
 
-[Testing](../testing.md) is the testing policy: real code, a real database and real runtimes, with no mocks, fakes or recordings. This page says how the suites are built.
+[Testing](../testing.md) explains how tests use the real app and when they can observe a diagnostic or a queue call.
 
 ## Core tests
 
-`pnpm test` runs the core tests in shards: one Node process per available CPU, capped at the number of test files. Files in a shard share a process, so they pay the app import cost once. On the owner's 16-CPU workstation with Node 26.13.1, the command took 63.6 s on 2026-11-21.
+`pnpm test` runs the core tests in shards: one Node process per available CPU, capped at the number of test files. Files in a shard share a process, so they pay the app import cost once.
 
-- They reach no working Provider and no external host except the two that [Testing](../testing.md) names. The save route takes the page and the Digest from the caller, and an X link stores a Link-only Item without a fetch.
+On 2026-11-21, on the owner's 16-core machine with Node 26, `pnpm test` passed 993 tests in 140 files. Two default runs took 31.1 s and 28.8 s wall time. One run of `taskset -c 0-3 pnpm test` took 59.8 s. A separate single-process measurement of the same suite and session setup took 324 s with `pnpm test 1`. The runs computed 29 password hashes at 16 shards, 17 at four and 14 in one process. Each shard hashes the template owner's password once. Tests of sign-in account for the rest.
+
+- Core tests reach no working Provider and no external host except the two that [Testing](../testing.md) names. The save route takes the page and the Digest from the caller, and an X link stores a Link-only Item without a fetch.
+- The signed-out route check reads the served API document and requests each protected route without a credential. It also checks the paths beside the task callback routes.
+- The Reddit archive setting tests check who may change the setting and whether the owner can read it back. They do not run an archive fill.
 - Real fetcher plug-in modules sit in a folder beside the tests, and the tests load them through the production loader.
 - The fetcher deadline test aborts `pluginPage` after all three fixture fetches start, because the job's own deadline is the fetch deadline ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
 - The Reddit-with-a-thread rule is not in the core tests, because the built-in route it falls back to requests reddit.com.
@@ -15,6 +19,7 @@
 
 The smoke spec drives Chromium through the main flows of the app on both install targets. Its `test.step` calls, and those of the flow modules it imports, name every step.
 
+- **Export.** The core Restore tests download an Export and upload its bytes to another Instance. The browser smoke also opens the downloaded zip and checks the Item IDs in the files named by its manifest.
 - **Headers and policy.** The run fails when the document at `/` or `/log` differs from a header of `DOCUMENT_HEADERS`, or when a page reports a `securitypolicyviolation` event. Each watched context ends with a script that the policy blocks on purpose, and the run fails when that violation does not arrive. This shows the collector works and that every earlier report has arrived.
 - **Targets.** The Playwright configuration starts the target that `THREADSIFT_TARGET` names. The `worker` target runs `wrangler dev --local` through the `worker-local` script. The `container` target runs `podman run` on the image that `container:build` builds.
 - **One image and port per checkout.** Every smoke and live task derives its image tag and port from the checkout's path (`checkoutEnv` in the devenv configuration), so two worktrees build, run and serve their own image on their own port at once. Two checkouts can pick the same port (about 1 in 10000), and the second run then fails to start.
