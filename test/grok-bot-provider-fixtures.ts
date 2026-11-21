@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
+import type { TestContext } from "node:test";
+import { setImmediate } from "node:timers/promises";
 
-import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
 import { awaitVerifiedDigest } from "../src/features/bot/core/bot-verify-wait.ts";
-import { proxyTo } from "../src/targets/node/database.ts";
 import { acceptedByBot, botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
@@ -75,30 +74,20 @@ export async function sentVerifyTask(instance: Instance) {
 }
 
 export async function verifyingTask(
+  t: TestContext,
   instance: Instance,
   { id }: Readonly<{ id: number }>,
-  signal: AbortSignal = new AbortController().signal,
 ) {
-  const firstQuery = Promise.withResolvers<void>();
-  const sqlite = new DatabaseSync(instance.databaseFile);
-  const db = drizzle(proxyTo(sqlite), {
-    logger: {
-      logQuery: () => {
-        firstQuery.resolve();
-      },
-    },
-  });
-  const result = awaitVerifiedDigest(db, { taskId: id, signal }).finally(() => {
-    sqlite.close();
-  });
+  const caller = new AbortController();
+  const result = awaitVerifiedDigest(instance.core.db, { taskId: id, signal: caller.signal });
 
-  assert.equal(
-    await Promise.race([firstQuery.promise, result]),
-    undefined,
-    "Verify finished before its first query",
-  );
+  t.after(async () => {
+    caller.abort();
+    await result;
+  });
+  await setImmediate();
 
-  return { result };
+  return { result, caller };
 }
 
 export function occupyBot(instance: Instance, places: number): void {
