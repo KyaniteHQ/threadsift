@@ -15,6 +15,7 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { SECRET_KEY, exec } from "./related-fixtures.ts";
+import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 describe("overview-gap rows beside the other kinds", () => {
   let instance: Instance;
@@ -29,10 +30,7 @@ describe("overview-gap rows beside the other kinds", () => {
       Merged: ["m1"],
       "Merged into": ["i1"],
     });
-    exec(
-      instance,
-      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) select 'topic-merge', (select id from topics where name = 'Merged'), (select id from topics where name = 'Merged into'), 'Same subject.', 'open', 1",
-    );
+    proposeTopics(instance, ["Merged", "Merged into"]);
     proposeGap(instance, "Behind");
     ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
       name: "overview-gap-page",
@@ -115,7 +113,11 @@ describe("the Proposals list filters overview-gap rows before the page limit", (
     );
     exec(
       instance,
-      "insert into proposals (kind, topic_id, reason, state, created_at) select 'overview-gap', id, 'plain-check', 'open', 1 from topics order by id",
+      "insert into proposals (id, kind, reason, state, created_at) select id, 'overview-gap', 'plain-check', 'open', 1 from topics order by id",
+    );
+    exec(
+      instance,
+      "insert into overview_gap_proposals (proposal_id, kind, topic_id) select id, 'overview-gap', id from topics",
     );
     exec(
       instance,

@@ -53,7 +53,11 @@ describe("the Proposals list filters before the page limit", () => {
     );
     exec(
       instance,
-      "insert into proposals (kind, highlight_id, reason, state, created_at) select 'highlight-lost', id, 'plain-check', 'open', 1 from highlights order by id",
+      "insert into proposals (id, kind, reason, state, created_at) select id, 'highlight-lost', 'plain-check', 'open', 1 from highlights order by id",
+    );
+    exec(
+      instance,
+      "insert into highlight_lost_proposals (proposal_id, kind, highlight_id) select id, 'highlight-lost', id from highlights",
     );
   });
 

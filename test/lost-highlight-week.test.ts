@@ -31,7 +31,7 @@ const lostRows = (instance: Instance) =>
   rows(
     instance,
     LostSchema,
-    "select id, highlight_id, state, reason from proposals where kind = 'highlight-lost' order by id",
+    "select id, highlight_id, state, reason from proposals join highlight_lost_proposals on proposal_id = id order by id",
   );
 
 const highlightIds = (instance: Instance) =>

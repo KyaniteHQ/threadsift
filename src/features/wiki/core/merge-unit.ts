@@ -4,8 +4,8 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { MergeKind, ProposalState } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import type { SUBJECTS } from "../../../core/kernel/proposal-tables.ts";
-import type { pins, proposals, tags, topics } from "../../../core/kernel/schema.ts";
+import type { SUBJECT_TABLE, pins, tags, topics } from "../../../core/kernel/schema.ts";
+import type { OwnSubjects } from "./proposal-lifecycle.ts";
 import type { SentNames } from "./proposal-names.ts";
 import type { TagSubject, TopicSubject } from "./proposal-sent.ts";
 
@@ -57,26 +57,29 @@ interface MergeSubjects {
   readonly "topic-merge": TopicSubject;
 }
 
+interface MergeEnds {
+  readonly "tag-merge": readonly ["fromTagId", "intoTagId"];
+  readonly "topic-merge": readonly ["fromTopicId", "intoTopicId"];
+}
+
 interface MergeLogs {
   readonly "tag-merge": "merge";
   readonly "topic-merge": "merge-topic";
 }
 
-type Ends<Kind extends MergeKind> = (typeof SUBJECTS)[Kind];
-
 type Subject = Readonly<SQLWrapper>;
+
+type SubjectTable<Kind extends MergeKind> = (typeof SUBJECT_TABLE)[Kind];
 
 interface Spec<Kind extends MergeKind> {
   readonly table: MergeTables[Kind];
-  readonly from: (typeof proposals)[Ends<Kind>[0]];
-  readonly into: (typeof proposals)[Ends<Kind>[1]];
-  readonly subjects: (
-    from: Subject,
-    into: Subject,
-  ) => { readonly [Key in Ends<Kind>[number]]: Subject };
+  readonly subject: SubjectTable<Kind>;
+  readonly from: SubjectTable<Kind>[Extract<keyof SubjectTable<Kind>, MergeEnds[Kind][0]>];
+  readonly into: SubjectTable<Kind>[Extract<keyof SubjectTable<Kind>, MergeEnds[Kind][1]>];
+  readonly subjects: (from: Subject, into: Subject) => OwnSubjects<Kind>;
   readonly pin: {
-    readonly column: (typeof pins)[Ends<Kind>[1]];
-    readonly set: (id: number) => { readonly [Key in Ends<Kind>[1]]: number };
+    readonly column: (typeof pins)[MergeEnds[Kind][1]];
+    readonly set: (id: number) => { readonly [Key in MergeEnds[Kind][1]]: number };
   };
   readonly itemLink: Link;
   readonly alsoLinked: readonly SQLiteColumn[];

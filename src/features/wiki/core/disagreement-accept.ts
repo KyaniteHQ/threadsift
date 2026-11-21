@@ -1,9 +1,9 @@
-import { and, eq, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
 import { currentDisagreementPin } from "../../../core/kernel/disagreement-sql.ts";
 import { guardedResults } from "../../../core/kernel/guards.ts";
-import { pins, proposals } from "../../../core/kernel/schema.ts";
+import { itemsDisagreeProposals, pins, proposals } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { DISAGREEMENT } from "./disagreement-rows.ts";
 import { pairKey } from "./proposal-candidates.ts";
@@ -17,7 +17,7 @@ interface Side {
 }
 
 function stillCurrent(id: number) {
-  return sql`exists (select 1 from ${proposals} where ${proposals.id} = ${id} and ${proposals.kind} = 'items-disagree' and ${proposals.state} = 'open' and ${DISAGREEMENT.accepts})`;
+  return sql`exists (select 1 from ${proposals} join ${itemsDisagreeProposals} on ${itemsDisagreeProposals.proposalId} = ${proposals.id} where ${proposals.id} = ${id} and ${proposals.state} = 'open' and ${DISAGREEMENT.accepts})`;
 }
 
 function keptPair(db: Database, reason: string, [low, high]: readonly [Side, Side]) {
@@ -47,14 +47,9 @@ function keptPair(db: Database, reason: string, [low, high]: readonly [Side, Sid
     });
 }
 
-function sidesOf(row: Readonly<typeof proposals.$inferSelect>): readonly [Side, Side] | null {
-  const { fromItemId, intoItemId, fromDigest, intoDigest } = row;
-
-  if (fromItemId === null || intoItemId === null || fromDigest === null || intoDigest === null)
-    return null;
-
-  const first = { item: fromItemId, digest: fromDigest };
-  const second = { item: intoItemId, digest: intoDigest };
+function sidesOf(row: Readonly<typeof itemsDisagreeProposals.$inferSelect>): readonly [Side, Side] {
+  const first = { item: row.fromItemId, digest: row.fromDigest };
+  const second = { item: row.intoItemId, digest: row.intoDigest };
 
   return first.item < second.item ? [first, second] : [second, first];
 }
@@ -64,23 +59,29 @@ export async function acceptDisagreement(
   id: number,
 ): Promise<DisagreementAcceptance> {
   const [row] = await db
-    .select({ proposal: proposals, current: sql<number>`${DISAGREEMENT.accepts}` })
+    .select({
+      state: proposals.state,
+      reason: proposals.reason,
+      subject: itemsDisagreeProposals,
+      current: sql<number>`${DISAGREEMENT.accepts}`,
+    })
     .from(proposals)
-    .where(and(eq(proposals.id, id), eq(proposals.kind, "items-disagree")));
+    .innerJoin(itemsDisagreeProposals, eq(itemsDisagreeProposals.proposalId, proposals.id))
+    .where(eq(proposals.id, id));
 
   if (row === undefined) return "unknown";
 
-  if (row.proposal.state !== "open") return "not-open";
+  if (row.state !== "open") return "not-open";
 
-  const sides = sidesOf(row.proposal);
-  const { reason } = row.proposal;
+  const sides = sidesOf(row.subject);
+  const { reason } = row;
 
-  if (row.current === 0 || sides === null || reason === null) return "not-current";
+  if (row.current === 0 || reason === null) return "not-current";
 
   const accepted = await guardedResults(db, stillCurrent(id), [
     keptPair(db, reason, sides),
     ...STALE.disagreementAccepted(db, sides[0].item),
-    removedOpen(db, eq(proposals.id, id)),
+    removedOpen(db, "items-disagree", eq(proposals.id, id)),
   ]);
 
   return accepted === null ? "not-current" : "done";

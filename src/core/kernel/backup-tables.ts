@@ -14,6 +14,10 @@ export interface BackupTable {
   readonly rebuiltInto?: readonly string[];
 }
 
+function subjectOfProposal(...columns: readonly string[]): BackupTable {
+  return { scope: "whole-table", columns: ["proposal_id", "kind", ...columns], leftOut: [] };
+}
+
 export const BACKUP_TABLES = {
   items: {
     scope: "per-item",
@@ -219,28 +223,28 @@ export const BACKUP_TABLES = {
     columns: [
       "id",
       "kind",
-      "from_tag_id",
-      "into_tag_id",
-      "from_topic_id",
-      "into_topic_id",
       "reason",
       "state",
       "created_at",
       "cursor",
       "moved",
       "unit_revision",
-      "highlight_id",
-      "topic_id",
-      "from_item_id",
-      "into_item_id",
-      "from_digest",
-      "into_digest",
       "failed_runs",
     ],
     leftOut: [],
     mustBeEmpty: true,
     rewrites: PROPOSAL_REWRITES,
   },
+  tag_merge_proposals: subjectOfProposal("from_tag_id", "into_tag_id"),
+  topic_merge_proposals: subjectOfProposal("from_topic_id", "into_topic_id"),
+  highlight_lost_proposals: subjectOfProposal("highlight_id"),
+  overview_gap_proposals: subjectOfProposal("topic_id"),
+  items_disagree_proposals: subjectOfProposal(
+    "from_item_id",
+    "into_item_id",
+    "from_digest",
+    "into_digest",
+  ),
   pins: {
     scope: "whole-table",
     columns: [

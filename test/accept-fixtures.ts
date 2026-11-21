@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import type { Instance } from "./instance.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
@@ -31,19 +32,12 @@ export function propose(
   [from, into]: readonly [string, string],
   state = "open",
 ): number {
-  exec(
+  return seedProposal(
     instance,
-    "insert into proposals (kind, from_tag_id, into_tag_id, reason, state, created_at) values ('tag-merge', ?, ?, 'Same thing.', ?, 1)",
-    tagId(instance, from),
-    tagId(instance, into),
-    state,
+    "tag-merge",
+    { from_tag_id: tagId(instance, from), into_tag_id: tagId(instance, into) },
+    { reason: "Same thing.", state },
   );
-
-  const [row] = rows(instance, IdSchema, "select max(id) as id from proposals");
-
-  if (row === undefined) throw new Error("no Proposal was stored");
-
-  return row.id;
 }
 
 export function seedVolume(

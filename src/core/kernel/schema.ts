@@ -39,7 +39,16 @@ export { redditComments, redditSettings, redditThreads } from "./reddit-tables.t
 
 export { pins } from "./pin-tables.ts";
 
-export { proposals } from "./proposal-tables.ts";
+export {
+  SUBJECT_TABLE,
+  hasSubject,
+  highlightLostProposals,
+  itemsDisagreeProposals,
+  overviewGapProposals,
+  proposals,
+  tagMergeProposals,
+  topicMergeProposals,
+} from "./proposal-tables.ts";
 
 export { relatedItems } from "./related-tables.ts";
 

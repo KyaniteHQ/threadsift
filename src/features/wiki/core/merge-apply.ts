@@ -16,10 +16,10 @@ import { atRevision, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
 type Outcome = "ran" | "lost";
 
 function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
-  const { table, from, into } = MERGE[row.kind];
+  const { table, subject, from, into } = MERGE[row.kind];
   const names = sql`${proposals.id} = ${id} and ${from} = ${row.from.id} and ${into} = ${row.into.id} and exists (select 1 from ${table} where ${table.id} = ${row.from.id} and ${table.key} = ${row.from.key}) and exists (select 1 from ${table} where ${table.id} = ${row.into.id} and ${table.key} = ${row.into.key})`;
 
-  return sql`exists (select 1 from ${proposals} where ${names} and ${proposals.state} = 'accepting' and ${atRevision(row.revision)})`;
+  return sql`exists (select 1 from ${proposals} join ${subject} on ${subject.proposalId} = ${proposals.id} where ${names} and ${proposals.state} = 'accepting' and ${atRevision(row.revision)})`;
 }
 
 function unlinked(db: Database, spec: Readonly<MergeKindSpec>, id: number): SQL {

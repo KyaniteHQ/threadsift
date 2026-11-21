@@ -6,6 +6,7 @@ import type { Database } from "../src/core/kernel/database.ts";
 import { readDisagreementInput } from "../src/features/wiki/core/disagreement-input.ts";
 import type { Instance } from "./instance.ts";
 import { script } from "./pin-fixtures.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { exec, paste, rows, until } from "./related-fixtures.ts";
 
 export interface Seeded {
@@ -76,21 +77,17 @@ export function proposeDisagreement(
   [first, second]: readonly [number, number],
   state = "open",
 ): number {
-  exec(
+  return seedProposal(
     instance,
-    "insert into proposals (kind, from_item_id, into_item_id, from_digest, into_digest, reason, state, created_at) values ('items-disagree', ?, ?, ?, ?, 'They give opposite advice.', ?, 1)",
-    first,
-    second,
-    tokenOf(instance, first),
-    tokenOf(instance, second),
-    state,
+    "items-disagree",
+    {
+      from_item_id: first,
+      into_item_id: second,
+      from_digest: tokenOf(instance, first),
+      into_digest: tokenOf(instance, second),
+    },
+    { reason: "They give opposite advice.", state },
   );
-
-  const [row] = rows(instance, z.object({ id: z.number() }), "select max(id) as id from proposals");
-
-  if (row === undefined) throw new Error("no Proposal was stored");
-
-  return row.id;
 }
 
 export const disagreementRows = (instance: Instance) =>
@@ -105,7 +102,7 @@ export const disagreementRows = (instance: Instance) =>
       state: z.string(),
       reason: z.string().nullable(),
     }),
-    "select id, from_item_id, into_item_id, from_digest, into_digest, state, reason from proposals where kind = 'items-disagree' order by id",
+    "select id, from_item_id, into_item_id, from_digest, into_digest, state, reason from proposals join items_disagree_proposals on proposal_id = id order by id",
   );
 
 export const checksOf = (instance: Instance) =>

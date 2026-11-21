@@ -4,6 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { Instance } from "./instance.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
 
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
@@ -158,25 +159,16 @@ describe("the Topic job's input and its owner Item", () => {
   it("sends the undecided pairs, most used first, and leaves out a Topic with no Item and both decided pairs", async () => {
     exec(instance, "insert into topics (key, name) values ('game', 'Game')");
 
-    const insert =
-      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', ?, ?, ?, ?, 1)";
+    const decided = (from: string, into: string, reason: string | null, state: string) =>
+      seedProposal(
+        instance,
+        "topic-merge",
+        { from_topic_id: topicId(from), into_topic_id: topicId(into) },
+        { reason, state },
+      );
 
-    exec(
-      instance,
-      insert,
-      topicId("ML"),
-      topicId("Machine learning"),
-      "The same subject.",
-      "rejected",
-    );
-    exec(
-      instance,
-      insert,
-      topicId("machine-learning"),
-      topicId("Machine learning"),
-      null,
-      "declined",
-    );
+    decided("ML", "Machine learning", "The same subject.", "rejected");
+    decided("machine-learning", "Machine learning", null, "declined");
     await instance.tick();
 
     const [task] = await until(

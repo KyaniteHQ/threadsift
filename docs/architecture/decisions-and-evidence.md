@@ -73,6 +73,10 @@ The wiki follows the LLM wiki idea (https://gist.github.com/karpathy/442a6bf5559
 - Human corrections lost to regeneration: Pins.
 - Near-duplicate pages from parallel updates: overview revisions are accepted only while the Topic's inputs are still the ones the run read, with a second run refused and queued again, and Grok Bot starts one overview task per Topic at a time.
 
+## Trigger depth on D1
+
+D1 refuses a statement whose trigger programs nest more than 10 levels, with `triggers nested too deep: SQLITE_ERROR`, and it counts the nesting when it compiles the statement, so a trigger that never fires still counts (a project that hit it reports 10 levels and compile time in https://github.com/QNFO/qnfo-workers/issues/4678; the D1 limits page, https://developers.cloudflare.com/d1/platform/limits/, read 2026-11-21, does not mention triggers, so the number is unverified by Cloudflare). `node:sqlite` has no such limit, so a test on the container does not show it. Local D1 reproduced the error on a design where every subject table cascades from `proposals` and has a trigger back to it (`docs/proposals.md`, Probes). A table that cascades from `proposals` while a trigger of its own deletes `proposals` closes a loop that the five subject tables multiply, so the subject tables hold the reference to `proposals(id)` with no action, and a Proposal is removed through its subject row. A change that adds a trigger or a cascade to a table that an Item, Tag, Topic or Highlight delete reaches is run on local D1 with those deletes before it lands.
+
 ## Parse time of a page
 
 `projectText`, `scanMarkdown` and the Reader parse a page's Markdown with `GFM_PLUGINS` (`src/core/contract/gfm-markdown.ts`). One paragraph of many short lines of plain words used to take seconds to parse. `projectText` on about 1 MB of one paragraph (Node 26.13.1, 2026-11-20, load average 5 to 17):

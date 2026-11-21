@@ -26,7 +26,8 @@ describe("the Proposals list filters disagreement rows before the page limit", (
       pairs
         .map(
           ([low, high], at) =>
-            `insert into proposals (kind, from_item_id, into_item_id, from_digest, into_digest, reason, state, created_at) values ('items-disagree', ${String(low)}, ${String(high)}, ${String(at >= 55 ? 0 : tokenOf(instance, low))}, ${String(tokenOf(instance, high))}, 'Reason.', 'open', 1);`,
+            `insert into proposals (kind, reason, state, created_at) values ('items-disagree', 'Reason.', 'open', 1);
+             insert into items_disagree_proposals (proposal_id, kind, from_item_id, into_item_id, from_digest, into_digest) values (last_insert_rowid(), 'items-disagree', ${String(low)}, ${String(high)}, ${String(at >= 55 ? 0 : tokenOf(instance, low))}, ${String(tokenOf(instance, high))});`,
         )
         .join("\n"),
     );

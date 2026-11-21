@@ -16,6 +16,7 @@ import {
   tagsOfDigest,
 } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { removeProposals } from "./proposal-seed.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 
 const PinSchema = z.object({
@@ -74,7 +75,7 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
     assert.deepEqual([agent.status, signedOut.status], [403, 401]);
     assert.equal((await accept(instance, 9999)).status, 404);
     assert.equal(count(instance, "select count(*) as n from pins"), 0);
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 
   it("answers not-open for a decided row and merge-busy while another merge runs, and lists accepting rows", async () => {
@@ -95,7 +96,7 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
         [busy, "accepting"],
       ],
     );
-    exec(instance, "delete from proposals");
+    removeProposals(instance);
   });
 
   it("moves every link, rewrites the stored Digests, drops the Tag, keeps a Pin and writes one merge line", async () => {

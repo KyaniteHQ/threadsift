@@ -17,6 +17,7 @@ import {
 } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
+import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, rows, saveProvider } from "./related-fixtures.ts";
 
 const listedIds = async (instance: Instance): Promise<readonly number[]> =>
@@ -47,11 +48,14 @@ describe("disagreement rows beside the other kinds", () => {
       { topic: "Reading" },
       { topic: "Other" },
     ]);
-    exec(
+    seedProposal(
       instance,
-      "insert into proposals (kind, from_topic_id, into_topic_id, reason, state, created_at) values ('topic-merge', ?, ?, 'Same subject.', 'open', 1)",
-      topicIdOf(instance, "Reading"),
-      topicIdOf(instance, "Other"),
+      "topic-merge",
+      {
+        from_topic_id: topicIdOf(instance, "Reading"),
+        into_topic_id: topicIdOf(instance, "Other"),
+      },
+      { reason: "Same subject." },
     );
     proposeDisagreement(instance, [1, 2]);
     ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {

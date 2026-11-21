@@ -1,9 +1,9 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 
 import type { Acceptance } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { proposals } from "../../../core/kernel/schema.ts";
+import { hasSubject, proposals } from "../../../core/kernel/schema.ts";
 import { PROPOSAL } from "./proposal-kinds.ts";
 import { rejection } from "./proposal-lifecycle.ts";
 
@@ -23,7 +23,10 @@ export async function rejectProposal(db: Database, id: number): Promise<Rejectio
 
   if (moved.length > 0) return "rejected";
 
-  const [found] = await db.select({ id: proposals.id }).from(proposals).where(eq(proposals.id, id));
+  const [found] = await db
+    .select({ id: proposals.id })
+    .from(proposals)
+    .where(and(eq(proposals.id, id), hasSubject()));
 
   return found === undefined ? "unknown" : "not-open";
 }

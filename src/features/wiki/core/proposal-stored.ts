@@ -3,10 +3,9 @@ import { type SQL, sql } from "drizzle-orm";
 import type { MergeKind, ProposalState } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobWrites } from "../../../core/kernel/job-outcome.ts";
-import { proposals } from "../../../core/kernel/schema.ts";
 import { MERGE } from "./merge-kinds.ts";
 import { pairKey } from "./proposal-candidates.ts";
-import { proposalRow } from "./proposal-lifecycle.ts";
+import { insertedProposals } from "./proposal-lifecycle.ts";
 import type { Sent } from "./proposal-sent.ts";
 import type { ProposalsResult } from "./proposal-task.ts";
 import { storedField } from "./weekly-kind.ts";
@@ -48,27 +47,15 @@ export function storedMerges(
 
   if (rows.length === 0) return [];
 
-  const { subjects } = MERGE[kind];
+  const { subject, from, into, subjects } = MERGE[kind];
+  const stored = { from: storedField("from"), into: storedField("into") };
 
-  return [
-    db
-      .insert(proposals)
-      .select(
-        db
-          .select(
-            proposalRow(
-              {
-                kind,
-                state: storedField("state"),
-                reason: storedField("reason"),
-                createdAt: Date.now(),
-              },
-              subjects(storedField("from"), storedField("into")),
-            ),
-          )
-          .from(sql`json_each(${JSON.stringify(rows)}) as stored`)
-          .where(sql`true`),
-      )
-      .onConflictDoNothing(),
-  ];
+  return insertedProposals(db, kind, Date.now(), {
+    state: storedField("state"),
+    reason: storedField("reason"),
+    subjects: subjects(stored.from, stored.into),
+    from: sql`json_each(${JSON.stringify(rows)}) as stored`,
+    where: sql`not exists (select 1 from ${subject} where min(${from}, ${into}) = min(${stored.from}, ${stored.into}) and max(${from}, ${into}) = max(${stored.from}, ${stored.into}))`,
+    order: sql`stored.key`,
+  });
 }

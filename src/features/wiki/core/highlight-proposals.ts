@@ -1,12 +1,20 @@
-import { and, asc, desc, eq, exists, inArray, ne, not, notExists, sql } from "drizzle-orm";
+import { and, desc, eq, exists, inArray, ne, not, notExists, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
 import { guardedResults } from "../../../core/kernel/guards.ts";
-import { highlights, proposals } from "../../../core/kernel/schema.ts";
+import { itemTitle } from "../../../core/kernel/item-title.ts";
+import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
+import {
+  digests,
+  highlightLostProposals,
+  highlights,
+  items,
+  proposals,
+} from "../../../core/kernel/schema.ts";
 import { removalWrites } from "../../item/core/highlights.ts";
 import type { ProposalKindSpec } from "./proposal-kind.ts";
-import type { PageRow } from "./proposal-rows.ts";
-import { type PlainRow, plainCheck } from "./weekly-check.ts";
+import { HEAD_COLUMNS, PAGE_ROWS, listedAfter } from "./proposal-rows.ts";
+import { type PlainRows, plainCheck } from "./weekly-check.ts";
 
 type LostHighlightAcceptance = "done" | "unknown" | "not-open" | "not-current";
 
@@ -24,8 +32,8 @@ function newestWithoutRow(db: Database) {
         notExists(
           db
             .select({ one: sql`1` })
-            .from(proposals)
-            .where(eq(proposals.highlightId, highlights.id)),
+            .from(highlightLostProposals)
+            .where(eq(highlightLostProposals.highlightId, highlights.id)),
         ),
       ),
     )
@@ -33,22 +41,18 @@ function newestWithoutRow(db: Database) {
     .limit(LOST_HIGHLIGHTS_PER_WEEK);
 }
 
-function insertedRows(db: Database, row: PlainRow<"highlight-lost">) {
-  return db
-    .insert(proposals)
-    .select(
-      db
-        .select(row({ highlightId: sql<number>`${highlights.id}` }))
-        .from(highlights)
-        .where(and(inArray(highlights.id, newestWithoutRow(db)), sql`changes() > 0`))
-        .orderBy(asc(highlights.id)),
-    )
-    .onConflictDoNothing();
+function proposedRows(db: Database): PlainRows<"highlight-lost"> {
+  return {
+    subjects: { highlightId: highlights.id },
+    from: highlights,
+    where: inArray(highlights.id, newestWithoutRow(db)),
+    order: sql`${highlights.id}`,
+  };
 }
 
 function attachedAgain(db: Database) {
   return inArray(
-    proposals.highlightId,
+    highlightLostProposals.highlightId,
     db.select({ id: highlights.id }).from(highlights).where(not(LOST)),
   );
 }
@@ -58,7 +62,8 @@ function stillLost(db: Database, id: number) {
     db
       .select({ one: sql`1` })
       .from(proposals)
-      .innerJoin(highlights, eq(highlights.id, proposals.highlightId))
+      .innerJoin(highlightLostProposals, eq(highlightLostProposals.proposalId, proposals.id))
+      .innerJoin(highlights, eq(highlights.id, highlightLostProposals.highlightId))
       .where(and(eq(proposals.id, id), eq(proposals.state, "open"), LOST)),
   );
 }
@@ -72,7 +77,8 @@ async function acceptLostHighlight(db: Database, id: number): Promise<LostHighli
       lost: sql<number>`${LOST}`,
     })
     .from(proposals)
-    .innerJoin(highlights, eq(highlights.id, proposals.highlightId))
+    .innerJoin(highlightLostProposals, eq(highlightLostProposals.proposalId, proposals.id))
+    .innerJoin(highlights, eq(highlights.id, highlightLostProposals.highlightId))
     .where(eq(proposals.id, id));
 
   if (row === undefined) return "unknown";
@@ -90,10 +96,32 @@ async function acceptLostHighlight(db: Database, id: number): Promise<LostHighli
   return removed === null ? "not-current" : "done";
 }
 
-function lostOf(row: Readonly<PageRow>) {
+function lostPage(db: Database, cursor: number | null) {
+  return db
+    .select({
+      ...HEAD_COLUMNS,
+      highlightId: sql<number>`${highlights.id}`.as("highlight_id"),
+      quote: sql<string>`${highlights.exact}`.as("quote"),
+      itemId: sql<number>`${items.id}`.as("item_id"),
+      source: items.source,
+      title: itemTitle().as("title"),
+    })
+    .from(proposals)
+    .innerJoin(highlightLostProposals, eq(highlightLostProposals.proposalId, proposals.id))
+    .innerJoin(highlights, eq(highlights.id, highlightLostProposals.highlightId))
+    .innerJoin(items, eq(items.id, highlights.itemId))
+    .leftJoin(digests, eq(digests.itemId, items.id))
+    .where(listedAfter("highlight-lost", cursor, LOST))
+    .orderBy(desc(proposals.id))
+    .limit(PAGE_ROWS);
+}
+
+type LostRow = Awaited<ReturnType<typeof lostPage>>[number];
+
+function lostOf(row: Readonly<LostRow>) {
   return {
     id: row.id,
-    kind: row.kind,
+    kind: "highlight-lost" as const,
     state: row.state,
     highlight: {
       id: row.highlightId,
@@ -103,10 +131,10 @@ function lostOf(row: Readonly<PageRow>) {
   };
 }
 
-export const LOST_HIGHLIGHT: ProposalKindSpec<"highlight-lost"> = {
+export const LOST_HIGHLIGHT = {
   stage: "highlight-proposals",
-  accept: ({ db }, id) => acceptLostHighlight(db, id),
-  listedWhile: LOST,
+  accept: ({ db }: Readonly<JobPorts>, id: number) => acceptLostHighlight(db, id),
+  page: lostPage,
   pageEntry: lostOf,
-  weekly: plainCheck("highlight-lost", { inserted: insertedRows, closedWhen: attachedAgain }),
-};
+  weekly: plainCheck("highlight-lost", { proposed: proposedRows, closedWhen: attachedAgain }),
+} satisfies ProposalKindSpec<"highlight-lost">;

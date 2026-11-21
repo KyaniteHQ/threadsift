@@ -1,13 +1,17 @@
 import { asc, eq, sql } from "drizzle-orm";
 
-import { type Acceptance, MERGE_KINDS } from "../../../core/contract/proposal-contract.ts";
+import {
+  type Acceptance,
+  MERGE_KINDS,
+  type MergeKind,
+} from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { proposals } from "../../../core/kernel/schema.ts";
 import { applyUnit } from "./merge-apply.ts";
 import { recordingFailure } from "./merge-failure.ts";
-import { acrossKinds } from "./merge-kinds.ts";
-import type { MergeRow } from "./merge-unit.ts";
+import { MERGE } from "./merge-kinds.ts";
+import type { MergeKindSpec, MergeRow } from "./merge-unit.ts";
 import { proposalClaimed, revisionOf } from "./proposal-lifecycle.ts";
 
 const UNITS_PER_RUN = 50;
@@ -21,37 +25,50 @@ interface Progress {
 
 const NOTHING_RUN: Progress = { units: 0, ran: false };
 
-function nameOf(end: "from" | "into", field: "key" | "name") {
-  return acrossKinds<string>(
-    ({ table, from, into }) =>
-      sql`(select ${table[field]} from ${table} where ${table.id} = ${end === "from" ? from : into})`,
-  ).as(`${end}_${field}`);
-}
+function sideOf(spec: Readonly<MergeKindSpec>, end: "from" | "into") {
+  const { table } = spec;
+  const id = spec[end];
 
-function sideOf(end: "from" | "into") {
   return {
-    id: acrossKinds<number>((spec) => spec[end]).as(`${end}_id`),
-    key: nameOf(end, "key"),
-    name: nameOf(end, "name"),
+    id: sql<number>`${id}`.as(`${end}_id`),
+    key: sql<string>`(select ${table.key} from ${table} where ${table.id} = ${id})`.as(
+      `${end}_key`,
+    ),
+    name: sql<string>`(select ${table.name} from ${table} where ${table.id} = ${id})`.as(
+      `${end}_name`,
+    ),
   };
 }
 
-async function readRow(db: Database, id: number): Promise<MergeRow | undefined> {
+async function readRow(db: Database, id: number, kind: MergeKind): Promise<MergeRow | undefined> {
+  const spec: MergeKindSpec = MERGE[kind];
+
   const [row] = await db
     .select({
-      kind: proposals.kind,
       state: proposals.state,
       cursor: proposals.cursor,
       revision: sql<number>`${revisionOf()}`.as("revision"),
-      from: sideOf("from"),
-      into: sideOf("into"),
+      fromId: sideOf(spec, "from").id,
+      fromKey: sideOf(spec, "from").key,
+      fromName: sideOf(spec, "from").name,
+      intoId: sideOf(spec, "into").id,
+      intoKey: sideOf(spec, "into").key,
+      intoName: sideOf(spec, "into").name,
     })
     .from(proposals)
+    .innerJoin(spec.subject, eq(spec.subject.proposalId, proposals.id))
     .where(eq(proposals.id, id));
 
-  const kind = MERGE_KINDS.find((each) => each === row?.kind);
-
-  return row === undefined || kind === undefined ? undefined : { ...row, kind };
+  return row === undefined
+    ? undefined
+    : {
+        kind,
+        state: row.state,
+        cursor: row.cursor,
+        revision: row.revision,
+        from: { id: row.fromId, key: row.fromKey, name: row.fromName },
+        into: { id: row.intoId, key: row.intoKey, name: row.intoName },
+      };
 }
 
 async function runUnit(
@@ -64,7 +81,7 @@ async function runUnit(
     applyUnit(ports, id, row),
   );
 
-  return runUnits(ports, id, await readRow(ports.db, id), {
+  return runUnits(ports, id, await readRow(ports.db, id, row.kind), {
     units: progress.units + 1,
     ran: progress.ran || outcome === "ran",
   });
@@ -83,10 +100,14 @@ function runUnits(
   return runUnit(ports, id, row, progress);
 }
 
-export async function acceptMerge(ports: JobPorts, id: number): Promise<MergeAcceptance> {
+export async function acceptMerge(
+  ports: JobPorts,
+  id: number,
+  kind: MergeKind,
+): Promise<MergeAcceptance> {
   const { db } = ports;
-  const [claim] = await proposalClaimed(db, id);
-  const row = await readRow(db, id);
+  const [claim] = await proposalClaimed(db, id, kind);
+  const row = await readRow(db, id, kind);
 
   if (claim !== undefined) return row === undefined ? "done" : runUnit(ports, id, row, NOTHING_RUN);
 
@@ -97,13 +118,17 @@ export async function acceptMerge(ports: JobPorts, id: number): Promise<MergeAcc
 
 export async function continueMerges(ports: JobPorts): Promise<void> {
   const rows = await ports.db
-    .select({ id: proposals.id })
+    .select({ id: proposals.id, kind: proposals.kind })
     .from(proposals)
     .where(eq(proposals.state, "accepting"))
     .orderBy(asc(proposals.id));
 
-  await rows.reduce(async (earlier, { id }) => {
+  await rows.reduce(async (earlier, { id, kind }) => {
     await earlier;
-    await runUnits(ports, id, await readRow(ports.db, id), NOTHING_RUN);
+
+    const merge = MERGE_KINDS.find((each) => each === kind);
+
+    if (merge !== undefined)
+      await runUnits(ports, id, await readRow(ports.db, id, merge), NOTHING_RUN);
   }, Promise.resolve());
 }
