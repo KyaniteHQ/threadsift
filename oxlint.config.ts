@@ -209,6 +209,11 @@ export default defineConfig({
     },
     {
       files: ["src/**"],
+      excludeFiles: ["src/features/item/core/item-rows.ts"],
+      rules: { "threadsift/no-item-insert": "error" },
+    },
+    {
+      files: ["src/**"],
       rules: {
         "threadsift/no-await-before-rethrow": [
           "error",

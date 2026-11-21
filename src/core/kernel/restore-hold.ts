@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQLWrapper, sql } from "drizzle-orm";
 
 import type { RestoreFailure } from "../contract/restore-contract.ts";
 import type { Database } from "./database.ts";
@@ -91,23 +91,14 @@ export function restoreGuard(db: Database) {
 
 export type Closed = { readonly kind: "restoring" };
 
-class LibraryHeld extends Error {}
-
 function heldOrUnread(db: Database): Promise<boolean> {
   return readOrAssume(false, { event: "restore-hold-read-failed", fields: {} }, () =>
     restoreHoldsLibrary(db),
   );
 }
 
-export async function lostRaceUnlessHeld<Written>(
-  db: Database,
-  attempt: () => Promise<Written | null>,
-): Promise<Written | null> {
-  const written = await attempt();
-
-  if (written === null && (await heldOrUnread(db))) throw new LibraryHeld();
-
-  return written;
+export function orRestoreHolds(db: Database, condition: Readonly<SQLWrapper>) {
+  return sql`(${condition}) or not ${holdsNoRestore(db)}`;
 }
 
 export async function whileOpen<Result>(
@@ -117,7 +108,7 @@ export async function whileOpen<Result>(
   try {
     return await write();
   } catch (error) {
-    if (!(error instanceof LibraryHeld) && !(await heldOrUnread(db))) throw error;
+    if (!(await heldOrUnread(db))) throw error;
 
     return { kind: "restoring" };
   }

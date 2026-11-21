@@ -26,15 +26,17 @@ async function commit(
       ? precondition.holds
       : sql`(${precondition.holds}) and (${requirement.holds})`;
 
-  const inserted = await guardedItemWrite(db, holds, [
-    ...itemInsert(db, {
+  const inserted = await guardedItemWrite(
+    db,
+    holds,
+    itemInsert(db, {
       link: place,
       originalUrl: place.address,
       savedAt: Date.now(),
       addedByToken: place.addedByToken,
     }),
-    ...writes,
-  ]);
+    writes,
+  );
 
   if (inserted !== null) return { kind: "published", created: inserted.length > 0 };
 

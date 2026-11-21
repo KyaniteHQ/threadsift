@@ -1,19 +1,14 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
-import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
+import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import {
-  holdLibrary,
-  itemTotal,
-  pasteFailedShortLink,
-  pasteThroughEveryDoor,
-} from "./restoring-fixtures.ts";
+import { addressOf, threadOf } from "./reader-thread-fixtures.ts";
+import { holdLibrary, itemTotal } from "./restoring-fixtures.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
 
@@ -36,12 +31,7 @@ describe("a batch refused while a Restore holds the library keeps its old cursor
       import: { name, cursor: "old" },
     });
 
-    const database = new DatabaseSync(instance.databaseFile);
-
-    database.exec(
-      "insert into restores (state, phase, bytes, parts, part_bytes, created_at, updated_at) values ('running', 'tables', 1, 1, 1, 1, 1)",
-    );
-    database.close();
+    holdLibrary(instance, "running", null);
 
     const stopped = await instance.send("POST", "/api/items/batch", {
       links: [{ url: link }, { url: xLink(3500000002) }],
@@ -50,10 +40,7 @@ describe("a batch refused while a Restore holds the library keeps its old cursor
 
     assert.equal(stopped.status, 503);
     assert.equal(UnavailableResponseSchema.parse(JSON.parse(stopped.body)).code, "restoring");
-    assert.equal(
-      (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total,
-      1,
-    );
+    assert.equal(await itemTotal(instance), 1);
 
     const read = await instance.send("GET", `/api/imports/${name}`);
 
@@ -72,19 +59,14 @@ describe("a Restore that failed and still holds the library refuses a second upl
   after(() => instance.close());
 
   it("answers 409 restore-open for a gave-up run and accepts an upload after a refusal", async () => {
-    const database = new DatabaseSync(instance.databaseFile);
-
-    database.exec(
-      "insert into restores (state, phase, failure, bytes, parts, part_bytes, created_at, updated_at) values ('failed', 'check', 'gave-up', 1, 1, 1, 1, 1)",
-    );
+    holdLibrary(instance, "failed", "gave-up", "check");
 
     const refused = await instance.send("POST", "/api/restore", { bytes: 1, parts: 1 });
 
     assert.equal(refused.status, 409);
     assert.equal(RestoreErrorSchema.parse(JSON.parse(refused.body)).code, "restore-open");
 
-    database.exec("update restores set failure = 'no-manifest'");
-    database.close();
+    holdLibrary(instance, "failed", "no-manifest", "check");
 
     const accepted = await instance.send("POST", "/api/restore", { bytes: 1, parts: 1 });
 
@@ -105,28 +87,93 @@ describe("an Item is refused through every door while a Restore holds the librar
 
   after(() => instance.close());
 
-  it("answers 503 restoring and stores nothing for a Paste, a Paste with a page, a Paste with content, an agent token, a batch and a batch of a known link", async () => {
+  it("answers 503 restoring and stores nothing through each door", async () => {
     const known = xLink(3600000010);
+    const page = { markdown: "A page.", title: "A page" };
 
     await instance.send("POST", "/api/items", { url: known });
     holdLibrary(instance, "running", null);
 
-    const answers = await pasteThroughEveryDoor(instance, agentToken, known);
+    const stored = await itemTotal(instance);
 
-    assert.deepEqual(
-      answers.map(({ status }) => status),
-      answers.map(() => 503),
-    );
-    assert.deepEqual(
-      answers.map(({ body }) => UnavailableResponseSchema.parse(JSON.parse(body)).code),
-      answers.map(() => "restoring"),
-    );
-    assert.equal(await itemTotal(instance), 1);
+    const doors = [
+      {
+        door: "owner Paste",
+        send: () => instance.send("POST", "/api/items", { url: xLink(3600000001) }),
+      },
+      {
+        door: "Paste with a page",
+        send: () => instance.send("POST", "/api/items", { url: "https://held.test/page", page }),
+      },
+      {
+        door: "Paste with a Reddit page",
+        send: () => instance.send("POST", "/api/items", { url: addressOf("held2"), page }),
+      },
+      {
+        door: "Paste with content",
+        send: () =>
+          instance.send("POST", "/api/items", {
+            url: addressOf("held3"),
+            content: threadOf("held3"),
+          }),
+      },
+      {
+        door: "agent token Paste",
+        send: () =>
+          instance.sendWithToken(agentToken, "POST", "/api/items", { url: xLink(3600000002) }),
+      },
+      {
+        door: "batch of new links",
+        send: () =>
+          instance.send("POST", "/api/items/batch", {
+            links: [{ url: xLink(3600000003) }, { url: xLink(3600000004) }],
+          }),
+      },
+      {
+        door: "batch of a known link",
+        send: () => instance.send("POST", "/api/items/batch", { links: [{ url: known }] }),
+      },
+    ];
+
+    for (const { door, send } of doors) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Each door answers on its own, in the order listed.
+      const answer = await send();
+
+      assert.equal(answer.status, 503, door);
+      assert.equal(
+        UnavailableResponseSchema.parse(JSON.parse(answer.body)).code,
+        "restoring",
+        door,
+      );
+    }
+
+    assert.equal(await itemTotal(instance), stored);
   });
 
-  it("answers restoring for a short link whose resolution failed and stores nothing", async () => {
-    assert.deepEqual(await pasteFailedShortLink(instance), { kind: "restoring" });
-    assert.equal(await itemTotal(instance), 1);
+  it("stores no failed short link while a Restore holds the library and stores it once the run is no longer holding", async () => {
+    const short = "https://t.co/heldfailure";
+
+    const unresolved = () =>
+      saveUnresolved(instance.core, {
+        paste: { address: short, addedByToken: null },
+        link: { source: "other", kind: "link", normalizedUrl: short },
+        fetched: { status: "unresolved" },
+        existing: "refresh",
+      });
+
+    holdLibrary(instance, "running", null);
+
+    const stored = await itemTotal(instance);
+
+    await assert.rejects(unresolved());
+    assert.equal(await itemTotal(instance), stored);
+
+    holdLibrary(instance, "failed", "no-manifest");
+
+    const saved = await unresolved();
+
+    assert.equal(saved?.kind === "saved" && saved.created, true);
+    assert.equal(await itemTotal(instance), stored + 1);
   });
 
   it("refuses a Paste while a failed run that gave up holds the library and accepts it after a failure that does not", async () => {
@@ -134,17 +181,18 @@ describe("an Item is refused through every door while a Restore holds the librar
 
     holdLibrary(instance, "failed", "gave-up");
 
+    const stored = await itemTotal(instance);
     const refused = await instance.send("POST", "/api/items", link);
 
     assert.equal(refused.status, 503);
     assert.equal(UnavailableResponseSchema.parse(JSON.parse(refused.body)).code, "restoring");
-    assert.equal(await itemTotal(instance), 1);
+    assert.equal(await itemTotal(instance), stored);
 
     holdLibrary(instance, "failed", "no-manifest");
 
     const accepted = await instance.send("POST", "/api/items", link);
 
     assert.equal(accepted.status, 201);
-    assert.equal(await itemTotal(instance), 2);
+    assert.equal(await itemTotal(instance), stored + 1);
   });
 });

@@ -11,7 +11,7 @@ import {
 } from "../../../core/kernel/guards.ts";
 import { hasOpenJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { lostRaceUnlessHeld } from "../../../core/kernel/restore-hold.ts";
+import { orRestoreHolds } from "../../../core/kernel/restore-hold.ts";
 import { itemAliases, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import {
@@ -126,23 +126,24 @@ async function insertedFailure(
   const missing = holdsNoItem(db, normalizedUrl);
   const itemKey = eq(items.normalizedUrl, normalizedUrl);
 
-  const inserted = await lostRaceUnlessHeld(db, () =>
-    unlessRefused(db, missing, () =>
-      db.batch([
-        insertGuard(db, noAlias),
-        insertGuard(db, missing),
-        ...itemInsert(db, {
-          link,
-          originalUrl: address,
-          savedAt: now,
-          addedByToken,
-          fetched: settle(fetched, null, now),
-        }),
-        itemRead(db, itemKey),
-        ...STALE.itemChanged(db, itemKey),
-        db.delete(guards),
-      ]),
-    ),
+  const { heldGuard, insert } = itemInsert(db, {
+    link,
+    originalUrl: address,
+    savedAt: now,
+    addedByToken,
+    fetched: settle(fetched, null, now),
+  });
+
+  const inserted = await unlessRefused(db, orRestoreHolds(db, missing), () =>
+    db.batch([
+      insertGuard(db, noAlias),
+      insertGuard(db, missing),
+      heldGuard,
+      insert,
+      itemRead(db, itemKey),
+      ...STALE.itemChanged(db, itemKey),
+      db.delete(guards),
+    ]),
   );
 
   return inserted === null

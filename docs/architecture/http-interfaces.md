@@ -22,7 +22,7 @@ Each route states in its own declaration who may call it, how large its body may
 - `fill: true` saves a Reddit thread only into the Item with that link while it holds no saved thread.
 - `page` is the Extension's own-tab read, up to 1,000,000 bytes. It takes no X or GitHub link, no short link or Reddit share link (a page is saved at the address a short link leads to, so the caller sends it there, or sends the short link alone and the Paste resolves it) and no Reddit link that is not a post or comment (400 with `code: unsupported-link`).
 - A link whose host is not globally reachable answers 400.
-- The answer is 201 for a new Item and 200 for a known one it refreshed, 409 when a `page` meets a Reddit thread already saved, and 503 while a Restore holds the library.
+- The answer is 201 for a new Item and 200 for a known one it refreshed, 409 when a `page` meets a Reddit thread already saved, and 503 when a Restore holds the library and the write would store an Item.
 - `refusalOf` in `src/features/paste/core/paste-refusal.ts` gives the status, code and text of every refusal that `paste`, `pasteLink` and the whole-call refusals of a batch (unknown token, spent budget, Restore) answer with; the routes render it with `refusing` in `src/http/refusals.ts` and the MCP `add` tool reads its `kind`. A refused host inside a batch is an entry of its results, and a request that fails validation or scope answers before a Paste runs. `pasteLink` takes a link alone and answers only the kinds a link can meet, and `paste` takes `content`, `page` and `fill` as well.
 
 ## Batches and the import cursor
@@ -61,4 +61,4 @@ The Web Share Target is a form `POST /share` that the app handles on the server.
 
 ## Export and Restore
 
-The Export and Restore routes answer 403 to an agent token and 401 with no owner session, because a leaked token must not copy the library in one request. One export exists at a time, and a ready one is kept 24 hours. A restore starts only into an empty library, and while it runs `POST /api/items` and `POST /api/items/batch` answer 503 with `code: "restoring"` and the MCP `add` tool returns an error with the same text (`docs/architecture/export-backup-and-restore.md`). The limits of the download on the Worker are in `docs/architecture/export-backup-and-restore.md`.
+The Export and Restore routes answer 403 to an agent token and 401 with no owner session, because a leaked token must not copy the library in one request. One export exists at a time, and a ready one is kept 24 hours. A restore starts only into an empty library, and while it runs a write of `POST /api/items` or `POST /api/items/batch` that would store an Item answers 503 with `code: "restoring"`, and the MCP `add` tool returns an error with the same text (`docs/architecture/export-backup-and-restore.md`). The limits of the download on the Worker are in `docs/architecture/export-backup-and-restore.md`.
