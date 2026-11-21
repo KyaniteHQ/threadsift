@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { executeClaimed } from "../src/core/compose/jobs.ts";
+import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { KIND_CASES, type KindCase } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
@@ -17,8 +18,6 @@ import type { Instance } from "./instance.ts";
 const FIRST_RETRY_MS = 30_000;
 
 const SECOND_RETRY_MS = 120_000;
-
-const TOLERANCE_MS = 5000;
 
 const FAILURE_SHOWN = {
   digest: (instance: Instance, owner: number) =>
@@ -42,6 +41,23 @@ async function libraryOnBot(instance: Instance, kindCase: KindCase): Promise<num
   return owner;
 }
 
+async function retryAfterTimeout(instance: Instance, job: Readonly<ClaimedJob>) {
+  const clock = Date.now;
+  const now = clock();
+
+  Date.now = () => now;
+
+  try {
+    await executeClaimed(instance.core, job);
+  } finally {
+    Date.now = clock;
+  }
+
+  const retry = jobRow(instance, job.id);
+
+  return { state: retry.state, attempts: retry.attempts, delay: retry.next_attempt_at - now };
+}
+
 describe("with Grok Bot saved as the Provider the production runner counts a kind's attempts as the lifecycle says", () => {
   for (const kindCase of KIND_CASES) {
     it(`${kindCase.kind}: one job goes through three unanswered claims, 30 s then 2 minutes apart, and gives up with the kind's failure`, async () => {
@@ -59,28 +75,22 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
         const first = await unansweredClaim(instance, job);
 
         assert.equal(taskRow(instance, first.id).attempts, 1);
-        await executeClaimed(instance.core, first.job);
-
-        const afterFirst = jobRow(instance, job.id);
-
-        assert.deepEqual([afterFirst.state, afterFirst.attempts], ["queued", 1]);
-        assert.ok(
-          Math.abs(afterFirst.next_attempt_at - Date.now() - FIRST_RETRY_MS) < TOLERANCE_MS,
-        );
+        assert.deepEqual(await retryAfterTimeout(instance, first.job), {
+          state: "queued",
+          attempts: 1,
+          delay: FIRST_RETRY_MS,
+        });
         assert.equal(taskRow(instance, first.id).refusal, "timeout");
 
         const secondClaim = await claimedAgain(instance, job);
         const second = await unansweredClaim(instance, secondClaim);
 
         assert.equal(taskRow(instance, second.id).attempts, 2);
-        await executeClaimed(instance.core, second.job);
-
-        const afterSecond = jobRow(instance, job.id);
-
-        assert.deepEqual([afterSecond.state, afterSecond.attempts], ["queued", 2]);
-        assert.ok(
-          Math.abs(afterSecond.next_attempt_at - Date.now() - SECOND_RETRY_MS) < TOLERANCE_MS,
-        );
+        assert.deepEqual(await retryAfterTimeout(instance, second.job), {
+          state: "queued",
+          attempts: 2,
+          delay: SECOND_RETRY_MS,
+        });
         assert.equal(taskRow(instance, second.id).refusal, "timeout");
 
         const thirdClaim = await claimedAgain(instance, job);

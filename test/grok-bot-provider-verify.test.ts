@@ -35,9 +35,9 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
 
   after(() => instance.close());
 
-  it("returns the Digest and completes the task when the bot answers while Verify waits", async () => {
+  it("returns the Digest and completes the task when the bot answers while Verify waits", async (t) => {
     const task = await sentVerifyTask(instance);
-    const { result } = await verifyingTask(instance, task);
+    const { result } = await verifyingTask(t, instance, task);
 
     assert.equal((await answered(instance, task, { result: ANSWER })).status, 204);
 
@@ -61,9 +61,9 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
     assert.equal((await answered(instance, task, { result: ANSWER })).status, 204);
   });
 
-  it("returns the timeout when no answer comes before the deadline, and a late answer is 409", async () => {
+  it("returns the timeout when no answer comes before the deadline, and a late answer is 409", async (t) => {
     const task = await sentVerifyTask(instance);
-    const { result } = await verifyingTask(instance, task);
+    const { result } = await verifyingTask(t, instance, task);
 
     pastDeadline(instance, task.id);
 
@@ -87,18 +87,17 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
     assert.equal(taskRow(instance, task.id).answered_at, null);
   });
 
-  it("returns provider-busy when the bot answers with an error", async () => {
+  it("returns provider-busy when the bot answers with an error", async (t) => {
     const task = await sentVerifyTask(instance);
-    const { result } = await verifyingTask(instance, task);
+    const { result } = await verifyingTask(t, instance, task);
 
     assert.equal((await answered(instance, task, { error: "The routine failed" })).status, 204);
     assert.deepEqual(await result, { kind: "refused", reason: "provider-busy", status: null });
   });
 
-  it("stops waiting and closes the task when the caller goes away", async () => {
+  it("stops waiting and closes the task when the caller goes away", async (t) => {
     const task = await sentVerifyTask(instance);
-    const caller = new AbortController();
-    const { result } = await verifyingTask(instance, task, caller.signal);
+    const { result, caller } = await verifyingTask(t, instance, task);
 
     caller.abort();
 

@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
-import { setTimeout as delay } from "node:timers/promises";
+import type { TestContext } from "node:test";
+import { setImmediate } from "node:timers/promises";
 
 import { z } from "zod";
 
@@ -72,18 +73,21 @@ export async function sentVerifyTask(instance: Instance) {
   return acceptedByBot(instance, started.id);
 }
 
-const SETTLE_MS = 300;
-
 export async function verifyingTask(
+  t: TestContext,
   instance: Instance,
   { id }: Readonly<{ id: number }>,
-  signal: AbortSignal = new AbortController().signal,
 ) {
-  const result = awaitVerifiedDigest(instance.core.db, { taskId: id, signal });
+  const caller = new AbortController();
+  const result = awaitVerifiedDigest(instance.core.db, { taskId: id, signal: caller.signal });
 
-  await delay(SETTLE_MS);
+  t.after(async () => {
+    caller.abort();
+    await result;
+  });
+  await setImmediate();
 
-  return { result };
+  return { result, caller };
 }
 
 export function occupyBot(instance: Instance, places: number): void {
