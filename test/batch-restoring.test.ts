@@ -7,6 +7,13 @@ import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
 import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
 import { Instance } from "./instance.ts";
+import { createAgentToken } from "./mcp-client.ts";
+import {
+  holdLibrary,
+  itemTotal,
+  pasteFailedShortLink,
+  pasteThroughEveryDoor,
+} from "./restoring-fixtures.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
 
@@ -83,5 +90,61 @@ describe("a Restore that failed and still holds the library refuses a second upl
 
     assert.equal(accepted.status, 201);
     assert.equal(StartedRestoreSchema.parse(JSON.parse(accepted.body)).id, 2);
+  });
+});
+
+describe("an Item is refused through every door while a Restore holds the library", () => {
+  let instance: Instance;
+  let agentToken: string;
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+    agentToken = (await createAgentToken(instance, "agent")).value;
+  });
+
+  after(() => instance.close());
+
+  it("answers 503 restoring and stores nothing for a Paste, a Paste with a page, a Paste with content, an agent token, a batch and a batch of a known link", async () => {
+    const known = xLink(3600000010);
+
+    await instance.send("POST", "/api/items", { url: known });
+    holdLibrary(instance, "running", null);
+
+    const answers = await pasteThroughEveryDoor(instance, agentToken, known);
+
+    assert.deepEqual(
+      answers.map(({ status }) => status),
+      answers.map(() => 503),
+    );
+    assert.deepEqual(
+      answers.map(({ body }) => UnavailableResponseSchema.parse(JSON.parse(body)).code),
+      answers.map(() => "restoring"),
+    );
+    assert.equal(await itemTotal(instance), 1);
+  });
+
+  it("answers restoring for a short link whose resolution failed and stores nothing", async () => {
+    assert.deepEqual(await pasteFailedShortLink(instance), { kind: "restoring" });
+    assert.equal(await itemTotal(instance), 1);
+  });
+
+  it("refuses a Paste while a failed run that gave up holds the library and accepts it after a failure that does not", async () => {
+    const link = { url: xLink(3600000007) };
+
+    holdLibrary(instance, "failed", "gave-up");
+
+    const refused = await instance.send("POST", "/api/items", link);
+
+    assert.equal(refused.status, 503);
+    assert.equal(UnavailableResponseSchema.parse(JSON.parse(refused.body)).code, "restoring");
+    assert.equal(await itemTotal(instance), 1);
+
+    holdLibrary(instance, "failed", "no-manifest");
+
+    const accepted = await instance.send("POST", "/api/items", link);
+
+    assert.equal(accepted.status, 201);
+    assert.equal(await itemTotal(instance), 2);
   });
 });

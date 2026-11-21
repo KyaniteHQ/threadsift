@@ -1,10 +1,10 @@
 import { sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardHolds, guardedWrite } from "../../../core/kernel/guards.ts";
+import { guardHolds } from "../../../core/kernel/guards.ts";
 import type { AnchoredOutcome } from "../../../core/kernel/job-outcome.ts";
 import { publishSupplied } from "../../item/core/item-publish.ts";
-import { itemInsert } from "../../item/core/item-rows.ts";
+import { guardedItemWrite, itemInsert } from "../../item/core/item-rows.ts";
 import type { StoredThread } from "../../thread/core/stored-thread.ts";
 import {
   type Refusal,
@@ -26,17 +26,15 @@ async function commit(
       ? precondition.holds
       : sql`(${precondition.holds}) and (${requirement.holds})`;
 
-  const inserted = await guardedWrite(
-    db,
-    holds,
-    itemInsert(db, {
+  const inserted = await guardedItemWrite(db, holds, [
+    ...itemInsert(db, {
       link: place,
       originalUrl: place.address,
       savedAt: Date.now(),
       addedByToken: place.addedByToken,
     }),
-    writes,
-  );
+    ...writes,
+  ]);
 
   if (inserted !== null) return { kind: "published", created: inserted.length > 0 };
 
