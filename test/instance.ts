@@ -82,7 +82,7 @@ function requestOf(method: string, headers: Headers, body: Json): RequestInit {
 
 export class Instance {
   private cookie: string | null = null;
-  private readonly app: ReturnType<typeof createApp>;
+  readonly app: ReturnType<typeof createApp>;
   private readonly shutdown: () => Promise<void>;
 
   private readonly folder: string;

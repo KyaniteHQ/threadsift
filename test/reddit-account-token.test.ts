@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import {
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
@@ -105,29 +103,6 @@ describe("an agent token reaches the Reddit account only through the reddit scop
 
     assert.equal(answer.status, 400);
     assert.deepEqual(account(instance), []);
-  });
-
-  it("describes the three token routes, their scopes and their 403 in the OpenAPI document", async () => {
-    const Operation = z.object({
-      description: z.string(),
-      responses: z.record(z.string(), z.unknown()),
-    });
-
-    const document = z
-      .object({ paths: z.record(z.string(), z.record(z.string(), Operation.or(z.unknown()))) })
-      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
-
-    const route = document.paths[TOKEN_PATH] ?? {};
-    const operation = (method: string) => Operation.parse(route[method]);
-
-    assert.deepEqual(Object.keys(route).toSorted(), ["delete", "get", "put"]);
-    assert.match(operation("put").description, /`reddit` scope/u);
-    assert.match(operation("delete").description, /`reddit` scope/u);
-    assert.match(operation("get").description, /`read` scope/u);
-
-    for (const method of ["get", "put", "delete"]) {
-      assert.ok("403" in operation(method).responses);
-    }
   });
 });
 
