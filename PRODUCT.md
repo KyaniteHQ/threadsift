@@ -21,7 +21,7 @@ Two mechanisms carry the claim:
 - Sifted threads: an agent keeps a comment only when it adds something, so a saved Reddit or X thread reads as its useful part.
 - A library wiki: the agent keeps Topic pages, Related Items, an Index and a Log, so the library compounds as Items arrive.
 
-Karakeep, the closest open-source tool, has no comment-thread model, so a saved thread is flattened to text (`docs/research/prior-art.md`).
+Karakeep, the closest open-source tool, has no comment-thread model, so it would flatten a saved thread to text ([Decisions and evidence](docs/architecture/decisions-and-evidence.md), Build or adopt).
 
 ## Operating Context
 

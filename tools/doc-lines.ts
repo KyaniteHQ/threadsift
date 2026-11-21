@@ -6,7 +6,6 @@ import { fileURLToPath } from "node:url";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 
 const EXCLUDED_DOCS: readonly string[] = [
-  "docs/research/",
   "docs/design/reviews/",
   "bot/CHANGELOG.md",
   "docs/design/claude-design-prompts.md",

@@ -101,7 +101,7 @@ Its import scan is a regular expression, like the one of `threadsift/no-server-v
 
 The script reads every tracked Markdown file except these:
 
-- the dated records (the research notes, the design reviews, the bot changelog and the Claude Design prompts),
+- the dated records (the design reviews, the bot changelog and the Claude Design prompts),
 - the provenance files of vendored code,
 - the `impeccable` skill and agents, which name the paths of other projects.
 

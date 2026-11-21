@@ -1,6 +1,6 @@
 # Extension and Threadsift bot
 
-The Extension and the Threadsift bot are two clients of the Instance's HTTP API. The Extension saves the page in the owner's own browser tab. The bot saves links from chat and answers AI tasks for the Grok Bot Provider. Neither has a private interface: the OpenAPI document from `@hono/zod-openapi` is the contract of both.
+The Extension and the Threadsift bot are two clients of the Instance's HTTP API. The Extension saves the page in the owner's own browser tab. The bot saves links from chat and answers AI tasks for the Grok Bot Provider. Neither has a private interface, because the OpenAPI document from `@hono/zod-openapi` is the contract of both.
 
 Contents: [The Extension](#the-extension), [Publishing a sent page](#publishing-a-sent-page), [The Threadsift bot](#the-threadsift-bot), [Call deadlines](#call-deadlines).
 
@@ -190,7 +190,7 @@ Once the tag in `SKILL.md` exists in the repository (`check` and `refresh` fetch
 
 ### Keeping the files true
 
-The format has no typed link between the bot and the API. The bot tests are the link: they compare the script, the skill and the bot files with the OpenAPI document and the server's schemas, and run the script against a real Instance. The devenv shell provides the `python3` and `curl` they need, and [Testing](../testing.md) allows the listener on `127.0.0.1`. The release test runs `check` on the repository, so the gate fails when a change leaves `SHA256SUMS` or the pin out of date.
+The format has no typed link between the bot and the API. The bot tests are the link, because they compare the script, the skill and the bot files with the OpenAPI document and the server's schemas, and run the script against a real Instance. The devenv shell provides the `python3` and `curl` they need, and [Testing](../testing.md) allows the listener on `127.0.0.1`. The release test runs `check` on the repository, so the gate fails when a change leaves `SHA256SUMS` or the pin out of date.
 
 ## Call deadlines
 

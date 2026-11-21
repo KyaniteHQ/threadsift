@@ -88,7 +88,7 @@ One guarded batch inserts the Pin, queues the Topic page's Vault note when the P
 
 Accept starts an overview run through the same start as Try again. [The library wiki](wiki.md) (Topic pages, Try again) owns its guard, its owner choice and its answers. Accept adds two conditions to the guard: the row is `open` for this Topic, and the Topic still has an Item the overview was not built from. `not-current` also covers a Topic that already has an overview run open. After the job insert the batch deletes the row, which changes nothing unless a job was inserted. Accept of an overview update has no `accepting` state and no `merge-busy`.
 
-One run reads at most 40 uncovered Items and starts the next run itself until every Item is covered ([AI tasks and Providers](architecture/ai-tasks-and-providers.md), Continuation, holds the cost). The row shows the number of uncovered Items, so the owner sees the size before the press. A Topic whose uncovered Items have only unparsable Digests is never covered, so its row, once accepted, is proposed again in a later weekly check unless the owner rejects it. The design accepts that repeat.
+One run reads at most 40 uncovered Items and starts the next run itself until every Item is covered ([AI tasks and Providers](architecture/ai-tasks-and-providers.md), Continuation, holds the cost). The row shows the number of uncovered Items, so the owner sees the size before the press. A Topic whose uncovered Items have only unparsable Digests is never covered, so its row, once accepted, is proposed again in a later weekly check unless the owner rejects it. The design accepts that repeat as a known cost.
 
 ### Merge
 
@@ -162,7 +162,7 @@ Nothing in the check updates `highlights`. Publication stays the one writer of `
 
 ## The weekly overview check
 
-The `overview-proposals` sweep stage claims `overview_proposals` on the same rule and under the same conditions. The Provider condition is real here, because Accept starts an overview run and an overview run needs a Provider. The stage is one `db.batch` of three statements:
+The `overview-proposals` sweep stage claims `overview_proposals` on the same rule and under the same conditions. The Provider condition is needed here, because Accept starts an overview run and an overview run needs a Provider. The stage is one `db.batch` of three statements:
 
 1. The claim.
 2. The insert, with `WHERE changes() > 0` after the claim. It takes up to 20 Topics (`OVERVIEW_GAPS_PER_WEEK`) for which `overviewGap` holds and that have no `overview_gap_proposals` row in any state, so a Reject is final for the Topic. `overviewGap` holds on two conditions:
@@ -237,7 +237,7 @@ A `merge` entry holds the two Tag names as written when the merge finishes and t
 
 ## The reads of the run
 
-The run reads the Tags, or the Topics, that have an Item in pages of 1,000 by id, because D1 caps one result at 50 MB. It reads every row of the run's kind from its subject table in one query. A row is under 100 bytes and at most 20 rows are added a week, so 50 MB takes about 480 years of weeks (guess).
+The run reads the Tags, or the Topics, that have an Item in pages of 1,000 by id, because D1 caps one result at 50 MB. It reads every row of the run's kind from its subject table in one query. A row is under 100 bytes and at most 20 rows are added a week, so the rows need about 480 years to reach 50 MB (guess).
 
 ## Identity
 

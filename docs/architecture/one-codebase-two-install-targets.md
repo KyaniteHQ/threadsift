@@ -63,7 +63,7 @@ A port exists only when two production adapters need it. Four fields of `Ports` 
 | Field | Why it has fewer than two adapters |
 |---|---|
 | `crypto` | One adapter, `nodeCrypto`, serves both targets, because the Worker runs `node:crypto` through `nodejs_compat`. The port exists because the lint bans `node:` imports in the core, the features and the HTTP layer. |
-| `fetchers` | A list, not a behaviour port. It holds the fetcher plug-ins the container loaded ([Fetchers](fetchers.md), Plug-ins), and the Worker builds `fetchers: []` and has no loader, so no second production adapter can exist. A wrapper that made the empty Worker list look like one would be a test adapter in disguise. The core reads the list as data (`pluginPage`). |
+| `fetchers` | A list, not a behaviour port. It holds the fetcher plug-ins the container loaded ([Fetchers](fetchers.md), Plug-ins), and the Worker builds `fetchers: []` and has no loader, so no second production adapter can exist. A wrapper that made the empty Worker list look like a second production adapter would exist only for tests. The core reads the list as data (`pluginPage`). |
 | `xFetcher` | The container registers the grok X fetcher when `findBinary` finds `grok` on `PATH` at start, and the Worker builds `xFetcher: null`. The Grok Bot is a webhook and asynchronous, and shares no interface with it, so no second production adapter can exist. The core reads it as data (`fetchedByX`). |
 | `vaultFolder` | The container supplies the filesystem adapter, and the Worker supplies `null`. Both targets construct the GitHub adapter in the core through `Network`. Both writers implement `VaultTarget`. |
 
