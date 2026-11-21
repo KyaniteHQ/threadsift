@@ -4,7 +4,7 @@ Read this page before you write, change or delete a test. It overrides broader t
 
 ## Policy
 
-- Tests run the real code on a real database and real runtimes. Tests use the production app and adapters. A parser may take a captured response body as input. The suite does not replay a network exchange. A vendor's own local runtime (`wrangler dev` with local D1, R2 and Queues, Podman, Chromium) counts as real.
+- Tests run the real code on a real database and real runtimes. Use no mocks, stubs, fakes, replayed network exchanges or test-only seams in place of production behaviour. Tests may capture warnings, wrap the real queue method to observe its arguments, control the clock or pass a captured response body to a parser. A vendor's own local runtime (`wrangler dev` with local D1, R2 and Queues, Podman, Chromium) counts as real.
 - Prove a change by running the real program the way its caller does, and keep the command and its output as the artifact.
 - Prove a bug fix with one reproduction that fails before the fix and passes after it.
 - Fix the cause of a flaky run in the test, because a retry or a sleep hides it.
@@ -24,7 +24,9 @@ Read this page before you write, change or delete a test. It overrides broader t
 
 ## Core tests
 
-A core test calls the app in process through `app.request`. Each process builds its own database template with the real migrations, creates the owner through the setup route and signs out before taking the snapshot. An ordinary test Instance copies that database. Its `setUp` signs in by writing a new session through `prepareSession` and `sessionWrites`, without hashing a password. Tests of first-run state start with an empty migrated database.
+A core test that needs the app can call it in process through `app.request`. On the first ordinary Instance in a process, the test helper builds the database with the real migrations, creates the owner through the setup route and signs out before taking the snapshot. An ordinary test Instance copies that database. Its `setUp` signs in by writing a new session through `prepareSession` and `sessionWrites`, without hashing a password. Tests of first-run state start with an empty migrated database.
+
+The X Settings tests run in Node. They build the app with the Worker's public-only AI setting and no X fetcher to check which readers the owner can choose, how a saved grok CLI choice reads back and which writes the route accepts.
 
 Each file states the requirement it proves. Files in a shard share one process, so each file closes its resources, restores process globals and keeps its own mutable fixtures.
 
@@ -33,7 +35,7 @@ A core test reaches no host on the internet, with two exceptions:
 - A test that stores an X thread through an intake answer lets the `x_verify` job ask X's public oEmbed endpoint (`publish.x.com`) for the post.
 - The fetcher plug-in test looks up `www.reddit.com`.
 
-Every other host a core test names is reserved (`.test`, `.invalid`), the machine's own, or a refused local port (a test that saves a Provider points it at `http://127.0.0.1:9`). The Grok Bot script tests use `python3` and `curl` against the real app on loopback. One case closes the Instance to exercise a server failure. The bot release check also needs Bash, Git and `sha256sum` to verify the tagged release and its checksums. No core test reaches a working Provider. The suite passes with only the loopback interface up (`unshare -rn`).
+Every other host a core test names is reserved (`.test`, `.invalid`), the machine's own, or a refused local port (a test that saves a Provider points it at `http://127.0.0.1:9`). The Grok Bot script tests use `python3` and `curl` against the real app on loopback. Each bot script test setup also serves a closed Instance so the failure cases receive a real server error. The bot release check also needs Bash, Git and `sha256sum` to verify the tagged release and its checksums. No core test reaches a working Provider. The suite passes with only the loopback interface up (`unshare -rn`).
 
 **The machine's own host name.** Two tests, through `ownPrivateHostName`, need the machine's own host name to resolve only to private addresses, as it does on a GitHub runner and on a host whose `/etc/hosts` maps the name to a loopback address. Where the name resolves to a public address they fail, and so do `pnpm test`, the pre-push hook and the `check` job, until an `/etc/hosts` line maps the name to `127.0.0.1`.
 
@@ -41,17 +43,15 @@ Every other host a core test names is reserved (`.test`, `.invalid`), the machin
 
 - **Literal input.** Parsers, result schemas and selection rules take values. Give them exact inputs to check limits, ordering and refusals independently of a request. The X thread cases cover numeric ID ties, millisecond timestamps, eligible reply bodies, post fields and scores, the first nonblank title line, word boundaries and surrogate pairs. The Proposal cases check pair direction, disjoint subjects and input budgets. Literal oEmbed answers and verification verdicts cover responses a live service cannot reliably supply.
 - **External calls.** Use the real database to exercise the failed-short-link budget and Restore hold without a failing short-link service. Test a loaded plug-in's host rule directly when Paste refuses the link before the plug-in sees it. The Reddit queue tests claim a job and take its turn because executing the job would contact Reddit. They apply Reddit answers to the saved session and close the turn directly to observe which job the close wakes.
-- **Intermediate states and races.** Stage the competing writes on a real database when a request hides their order. The Pin and merge tests insert a change between the read and its guarded write. The bot tests distinguish a missing task from a sent task before its deadline, and check an answered task after its deadline and a lost claim. The result route refuses a late answer before storing it. The X refusal tests prepare the real deferral, post the refusals or move the stored deadline, then apply the prepared outcome.
+- **Intermediate states and races.** Stage the competing writes on a real database when a request hides their order. The Pin and merge tests insert a change between the read and its guarded write. The bot tests distinguish a missing task from a sent task before its deadline, and check an answered task after its deadline and a lost claim. A result request after the deadline gets 409 before any write, so the test stages the answer and deadline in that order. The X refusal tests prepare the real deferral, post the refusals or move the stored deadline, then apply the prepared outcome.
 
-Tests can advance the clock for a deadline or a polling interval. Restore process globals after each case.
+Tests can advance the clock for a deadline, the Daily budget's UTC day boundary or a polling interval. Restore process globals after each case.
 
-**What a test observes.** The X refusal, bot task route and one-hop tests capture `console.warn`. The refusal response can carry more detail than the log. Only the emitted warning shows which identifiers and issue codes were logged, whether the text was bounded and whether a private query leaked. A Digest row can reach the same state with or without a hop, so the one-hop tests observe the hop events. The X refusal race wraps the real `enqueue` to read its delay. The stored due time can be correct even if that argument is wrong, because the Node queue wakes the loop without reading the delay.
-
-The X Settings tests call the real route with public-only AI and no X fetcher. These are the Worker settings checked with `wrangler dev --local`: which readers the owner can choose, how a saved CLI choice reads back and which writes the route accepts.
+**What a test observes.** The X refusal, bot task route, task credential and one-hop tests capture `console.warn`. The task credential test reads the failed-send warning to check that the bot token and host stay out of the log. The refusal response can carry more detail than the log. Only the emitted warning shows which identifiers and issue codes were logged, whether the text was bounded and whether a private query leaked. A Digest row can reach the same state with or without a hop, so the one-hop tests observe the hop events. The X refusal race wraps the real `enqueue` to read its delay. The stored due time can be correct even if that argument is wrong, because the Node queue wakes the loop without reading the delay.
 
 **The Grok Bot webhook.** The answer of the bot's webhook is unproven offline: the settings route accepts only a public https address and the Node network refuses a private host, so no listener a test starts can answer as the bot. A test that needs a sent task runs the real send, which fails, and marks the task accepted with `acceptedByBot`. [AI tasks and Providers](architecture/ai-tasks-and-providers.md), The send and the states, owns the status mapping.
 
-The bot script can fail to read random bytes in `mark_word`. The hosted core suite cannot exercise that failure because the check job lacks unprivileged user namespaces. [CI, releases and rollback](architecture/ci-releases-and-rollback.md) gives the local evidence.
+No core test exercises the `failed` answer of the bot script's `mark` command. A local run on 2026-11-21 exercised it with an empty random-byte source. [Open items and unverified claims](architecture/open-items-and-unverified-claims.md#threadsift-bot-share-target-and-bot-script) gives the command and result.
 
 ## Browser smoke
 

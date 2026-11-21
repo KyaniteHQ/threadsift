@@ -24,7 +24,7 @@ The app is one core with ports, and each install target supplies an adapter per 
 
 - A module hides a lot of behaviour behind a small interface. A module whose interface is as big as its body is shallow: merge it into its caller or deepen it.
 - The code is cut into layers that import each other in one order, and lint refuses an import against it. Put a new module and a new route module where [Repository layout](../architecture/repository-layout.md) says, and reach the core half of another feature only through its entries.
-- A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because tests use no fakes ([Testing](../testing.md)). `Crypto`, `fetchers`, `xFetcher` and `vaultFolder` are the four accepted exceptions, and [One codebase, two install targets](../architecture/one-codebase-two-install-targets.md) gives the reason for each.
+- A port exists only when two production adapters need it, such as the Node and Worker targets or two Providers. A test adapter does not count, because [Testing](../testing.md) requires the production adapters. `Crypto`, `fetchers`, `xFetcher` and `vaultFolder` are the four accepted exceptions, and [One codebase, two install targets](../architecture/one-codebase-two-install-targets.md) gives the reason for each.
 - Names come from the [GLOSSARY](../../GLOSSARY.md).
 - Declare an enum list, a code or a limit once. It lives in the contract module of the feature that owns its meaning, or in the table module of the one table that reads it, and only when no screen, route or Extension reads the list. Tables, schemas, CHECKs, cursors and route text derive from it, so a second copy never drifts. `caseOf` builds a CHECK from a record, and `byteSize` writes a size.
 
@@ -74,7 +74,7 @@ Write them, the README and the guides included, by the `technical-writing` skill
 
 ## Tests
 
-[Testing](../testing.md) governs: real code, a real database and real runtimes, no fakes and no recordings. A change to a requirement that a core test or a smoke test names updates that test. Write a new test only when the owner asks for one.
+[Testing](../testing.md) defines the rules for real dependencies, observing calls and supplying parser inputs. A change to a requirement that a core test or a smoke test names updates that test. Write a new test only when the owner asks for one.
 
 ## Screens and browser code
 

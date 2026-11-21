@@ -19,6 +19,6 @@ Local changes:
   - `Shape` becomes `Figure`, `_exhaustive` becomes `exhaustive`, and `z.string().uuid()` becomes `z.uuid()`, because lint refuses "shape" in a name, a leading underscore and a deprecated call.
 - The time-range example no longer claims a negative duration cannot be written; it says the boundary schema refuses one.
 - The Structured telemetry row is removed, because no logger is chosen yet (`docs/architecture.md` names none) and no lint rule bans `console`.
-- The Real tests row defers to `docs/testing.md`, which allows no mocks at all.
+- The Real tests row follows [Testing](../../../docs/testing.md) for production dependencies and test observers.
 
 Update by diffing the upstream folder between the commit above and a newer one, applying what fits on top of the local changes, and moving the commit forward.

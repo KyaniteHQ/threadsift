@@ -25,6 +25,6 @@ Apply the Type System Discipline and Boundary Discipline sections of the `ub-mod
 | Boundary validation | Parse where data crosses in, into a named domain type. `Record<string, unknown>` (however spelled) stops at that parse. Trust types inside. |
 | Schema-derived types | Reach for `Pick`/`Omit`/`Parameters`/`ReturnType`/`Awaited`/`typeof` before declaring a new interface. |
 | Object args | Pass objects, not positional, so argument order is self-documenting. Skip on hot paths (per-frame render, tokenizers, parsers). |
-| Real tests | `docs/testing.md` governs: no mocks, stubs, fakes or recordings, and UI is verified in a running build. |
+| Real tests | [Testing](../../../docs/testing.md) defines which dependencies and observers a test may use. Verify UI in a running build. |
 
 Examples: `references/patterns.md`.

@@ -41,19 +41,19 @@ The gate workflow runs on every pull request and on every push to `main`.
 - A pull request qualifies for documentation checks only when both its branch changes since the common ancestor and its changes in the tested merge affect only allowlisted documentation. A push compares the old and new tips. Missing history, an empty comparison, a force-push or a manual run selects the full gate.
 - On `main`, the previous tip's push run must also have succeeded before the docs-only push arrived. Otherwise the full gate runs, including deployment and image publication after it passes, so docs cannot overtake an unfinished code deployment.
 - For a docs-only change, only `changes`, `docs` and `gate` run. Remove a path from the allowlist if a test, build or smoke starts reading it. The pre-push hook still runs the full core suite.
-- A failed `check` uploads per-shard JUnit reports and a text diagnosis for each failed shard as the `core-tests` artifact for 7 days. The parent process records a shard's signal even if the shard stops before it finishes its XML. Set `THREADSIFT_JUNIT_DIR` to an empty directory to collect the reports locally.
+- When `check` fails, the upload step collects whatever the shard runner wrote, including per-shard JUnit reports and a text diagnosis for each failed shard. The `core-tests` artifact expires after 7 days. If the job fails before the core tests start, the upload step warns that it found no files and produces no artifact. The parent process records a shard's signal even if the shard stops before it finishes its XML. Set `THREADSIFT_JUNIT_DIR` to an empty directory to collect the reports locally.
 - Fail-fast is off, so a failed target leaves the other running. A failed smoke run uploads Playwright's `test-results` as the artifact `smoke-<target>` for 7 days.
 - A newer push cancels the older run of the same pull request.
-- The core tests share the `check` job with the build, audit and design check. Container smoke finished last in each of three hosted gate runs on 2026-11-21, so splitting the core tests into another job would duplicate setup while the gate still waited for the container.
-- The job loop's 5 s poll does not explain the container smoke's longer time. An ordinary enqueue already wakes the loop, and the smoke saves no Provider. On 2026-11-21 the container smoke took 1.1 minutes of Playwright time in each of two local runs, one with the Provider-save wake and one without.
-- The bot script's random-byte failure is reachable. On 2026-11-21 a local run with an empty random-byte source in a private mount namespace printed `failed` and exited with status 2. The hosted `check` job lacks unprivileged user namespaces, so CI leaves that branch unproven.
+- The core tests share the `check` job with the build, audit and design check. Container smoke finished last among the jobs that `gate` waits for in each of three hosted runs on 2026-11-21.
+- On 2026-11-21, Playwright reported 1.1 minutes in each of two local runs of `devenv tasks run smoke:container`. Both runs used the same 5 s job-loop poll.
+- No core test exercises the random-byte failure of `mark`. The `check` job uses the default `unprivileged-userns: "false"` in the setup action. The smoke and image jobs enable it. A [local check on 2026-11-21](open-items-and-unverified-claims.md#threadsift-bot-share-target-and-bot-script) shows the command and the failure.
 - The image builds while `ci:install` runs, because the `container:build` task reads only the `Containerfile` and the source tree, so the build does not wait behind the install.
 - The image build passes `--jobs 0`, so Podman builds the stages in parallel.
 - The container start gets 60 s in the Playwright configuration, so Playwright fails before the job's budget ends. A start timeout leaves no test output, and the job log records the failure.
 
 The hosted runs on 2026-11-21 measured the following wall times, in seconds. The core test task is part of `check`.
 
-| Gate run | Check | Core test task | Container smoke | Worker smoke |
+| Gate run | `check` | Core test task | Container smoke | Worker smoke |
 |---|---|---|---|---|
 | [44931363097](https://github.com/KyaniteHQ/threadsift/actions/runs/44931363097) | 167 | 87.5 | 171 | 98 |
 | [44934357522](https://github.com/KyaniteHQ/threadsift/actions/runs/44934357522) | 139 | 61.4 | 159 | 100 |
@@ -67,15 +67,13 @@ The setup action installs Nix and the `devenv` CLI, and caches the pnpm store an
 
 - Corepack. The unmodified `pkgs.corepack` is available from `cache.nixos.org`, so cold runners avoid its build and install checks.
 - pnpm store. pnpm 12 reads `pnpm_config_store_dir` for the cached store and ignores `npm_config_store_dir`.
-- Nix store. The setup action uses binary caches. Restoring a cached devenv closure increased the median setup time in every job in five alternating pairs of manual gate runs on one commit on 2026-11-21. Every restore hit the cache.
+- Nix store. The setup action uses binary caches. Restoring a cached devenv closure increased the median setup time in every job in five alternating pairs of manual gate runs on 2026-11-21. Each pair ran the [action without a store cache](https://github.com/KyaniteHQ/threadsift/actions/runs/44926470981) at `039827b4` and the [cached variant](https://github.com/KyaniteHQ/threadsift/actions/runs/44926483697) on a branch that adds only the closure cache to that action. Every restore hit the cache.
 
 | Hosted setup step | Binary caches alone, median (range) | With cached closure, median (range) |
 |---|---|---|
-| Check | 53 s (40–61 s) | 58 s (54–68 s) |
-| Container smoke | 52 s (43–69 s) | 57 s (53–68 s) |
-| Worker smoke | 55 s (50–60 s) | 61 s (48–79 s) |
-
-In 40 hosted `check` logs read on 2026-11-21, `nix profile add` alone took a median of 36.4 s and ranged from 14.8 to 49.7 s.
+| `check` | 53 s (40 to 61 s) | 58 s (54 to 68 s) |
+| Container smoke | 52 s (43 to 69 s) | 57 s (53 to 68 s) |
+| Worker smoke | 55 s (50 to 60 s) | 61 s (48 to 79 s) |
 
 ## Nix input downloads
 

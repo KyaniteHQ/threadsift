@@ -6,10 +6,10 @@
 
 `pnpm test` runs the core tests in shards: one Node process per available CPU, capped at the number of test files. Files in a shard share a process, so they pay the app import cost once.
 
-On 2026-11-21, on the owner's 16-core machine with Node 26, `pnpm test` passed 993 tests in 140 files. Two default runs took 31.1 s and 28.8 s wall time. One run of `taskset -c 0-3 pnpm test` took 59.8 s. A separate single-process measurement of the same suite and session setup took 324 s with `pnpm test 1`. The runs computed 29 password hashes at 16 shards, 17 at four and 14 in one process. Each shard hashes the template owner's password once. Tests of sign-in account for the rest.
+On 2026-11-21, on the owner's 16-core machine with Node 26, `pnpm test` passed 993 tests in 140 files. Two default runs took 31.1 s and 28.8 s wall time. One run of `taskset -c 0-3 pnpm test` took 59.8 s. The runs computed 29 password hashes at 16 shards and 17 at four. Each shard hashes the template owner's password once. The remaining hashes come from tests that set up an owner on an empty Instance, sign in or change the password.
 
 - Core tests reach no working Provider and no external host except the two that [Testing](../testing.md) names. The save route takes the page and the Digest from the caller, and an X link stores a Link-only Item without a fetch.
-- The signed-out route check reads the served API document and requests each protected route without a credential. It also checks the paths beside the task callback routes.
+- The signed-out check requests every route in the served API document except the public routes and the three task callback routes. It also sends six requests with other paths or methods beside the callbacks. Each request must receive a 401 with a Bearer challenge.
 - The Reddit archive setting tests check who may change the setting and whether the owner can read it back. They do not run an archive fill.
 - Real fetcher plug-in modules sit in a folder beside the tests, and the tests load them through the production loader.
 - The fetcher deadline test aborts `pluginPage` after all three fixture fetches start, because the job's own deadline is the fetch deadline ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
