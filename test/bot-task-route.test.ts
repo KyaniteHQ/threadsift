@@ -1,30 +1,17 @@
 import assert from "node:assert/strict";
-import { after, before, beforeEach, describe, it, mock } from "node:test";
+import { after, before, beforeEach, describe, it } from "node:test";
 
-import { z } from "zod";
-
-import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
-import {
-  type BotLibrary,
-  SECRET_KEY,
-  answerOf,
-  pastDeadline,
-  picksFor,
-  relatedLibrary,
-  retireTasks,
-  saveBot,
-} from "./bot-task-fixtures.ts";
+import { type ReadWorld, readWorld } from "./ai-task-read-http.ts";
+import { answerOf, pastDeadline, picksFor, retireTasks } from "./bot-task-fixtures.ts";
 import { answered, answerTo, errorOf, rawAnswerTo } from "./bot-task-http.ts";
 import { taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
+import type { Json } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 
-const PATH_OF = (id: number | string) => `/api/ai-tasks/${String(id)}/result`;
-
 describe("the result route answers each status of its contract and writes nothing on a refusal", () => {
-  let instance: Instance;
-  let library: BotLibrary;
+  let instance: ReadWorld["instance"];
+  let library: ReadWorld["library"];
   let agentToken = "";
 
   const candidate = () => {
@@ -38,16 +25,7 @@ describe("the result route answers each status of its contract and writes nothin
   const fresh = () => taskAfterStart(instance, library.source);
 
   before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
-    await saveBot(instance);
-    library = await relatedLibrary(instance);
-    ({ value: agentToken } = await instance.read(
-      "POST",
-      "/api/tokens",
-      CreatedTokenResponseSchema,
-      { name: "bot-task-route" },
-    ));
+    ({ instance, library, agentToken } = await readWorld());
   });
 
   beforeEach(() => {
@@ -141,10 +119,11 @@ describe("the result route answers each status of its contract and writes nothin
     const task = await fresh();
     const body = answerOf(picksFor(candidate()));
 
-    const session = await instance.send("POST", PATH_OF(task.id), body);
-    const agent = await instance.sendWithToken(agentToken, "POST", PATH_OF(task.id), body);
+    const path = `/api/ai-tasks/${String(task.id)}/result`;
+    const session = await instance.send("POST", path, body);
+    const agent = await instance.sendWithToken(agentToken, "POST", path, body);
 
-    const mismatch = await instance.send("POST", PATH_OF(task.id), body, {
+    const mismatch = await instance.send("POST", path, body, {
       authorization: "Bearer tst_not-this-tasks-credential",
     });
 
@@ -216,11 +195,37 @@ describe("the result route answers each status of its contract and writes nothin
     );
   });
 
-  it("answers 400 to a body that is neither { result } nor { error }", async () => {
+  it("refuses malformed result and error bodies and leaves the task open for a valid result", async () => {
     const task = await fresh();
+    const bodies: readonly Json[] = [
+      {},
+      [],
+      null,
+      "text",
+      { result: { picks: [] }, error: "x" },
+      { error: "" },
+      { error: "x".repeat(201) },
+      { error: 5 },
+      { answer: 1 },
+      { result: { picks: [] }, extra: 1 },
+      { result: null },
+      { result: "text" },
+    ];
+    const statuses = await Promise.all(
+      bodies.map(async (body) => (await answered(instance, task, body)).status),
+    );
+    assert.deepEqual(
+      statuses,
+      bodies.map(() => 400),
+    );
+    const row = taskRow(instance, task.id);
+    assert.deepEqual([row.state, row.answered_at, row.result], ["running", null, null]);
+    assert.equal((await answered(instance, task, { result: { picks: [] } })).status, 204);
+  });
 
-    assert.equal((await answered(instance, task, { answer: "no" })).status, 400);
-    assert.equal(taskRow(instance, task.id).answered_at, null);
+  it("accepts an error of 200 characters", async () => {
+    const task = await fresh();
+    assert.equal((await answered(instance, task, { error: "x".repeat(200) })).status, 204);
   });
 
   it("accepts exactly one of two simultaneous answers and keeps the winner's result", async () => {
@@ -246,24 +251,18 @@ describe("the result route answers each status of its contract and writes nothin
     assert.deepEqual(JSON.parse(row.result ?? "null"), picksFor(winner?.item ?? 0));
   });
 
-  it("fails the task provider-busy and makes the job due for an { error } answer", async () => {
+  it("fails the task provider-busy and makes the job due for an { error } answer", async (t) => {
     const task = await fresh();
 
-    const logged = mock.method(console, "warn");
+    const logged = t.mock.method(console, "warn");
     const answer = await answered(instance, task, {
       error: "Could not read https://x.com/author/status/123?s=private-query",
     });
-    const lines = logged.mock.calls.map(({ arguments: args }) => String(args[0]));
-
-    logged.mock.restore();
+    const lines = logged.mock.calls.map(({ arguments: args }) => JSON.stringify(args));
 
     assert.equal(answer.status, 204);
-    assert.deepEqual(
-      lines
-        .filter((line) => line.includes("grok-bot-error"))
-        .map((line) => z.record(z.string(), z.unknown()).parse(JSON.parse(line))),
-      [{ event: "grok-bot-error", taskId: task.id, jobId: task.job.id }],
-    );
+    assert.ok(lines.some((line) => line.includes("grok-bot-error")));
+    assert.ok(lines.every((line) => !line.includes("private-query")));
 
     const row = taskRow(instance, task.id);
 

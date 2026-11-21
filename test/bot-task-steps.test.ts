@@ -69,6 +69,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
     const job = await openJob(instance, library.source);
 
     const failures = [
+      ["unreachable", null],
       ["timeout", 1],
       ["stale", 1],
       ["no-json", 1],

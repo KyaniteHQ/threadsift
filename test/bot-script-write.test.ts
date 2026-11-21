@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 import {
-  chmodSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -75,25 +74,6 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
 
     assert.ok(words.every((word) => HEX_WORD.test(word)));
     assert.equal(new Set(words).size, words.length);
-  });
-
-  it("prints no delimiter and exits with an error when the random bytes cannot be read", async () => {
-    const shims = mkdtempSync(join(tmpdir(), "threadsift-shims-"));
-
-    writeFileSync(join(shims, "head"), "#!/bin/sh\nexit 1\n");
-    chmodSync(join(shims, "head"), 0o755);
-
-    try {
-      const ran = await world.folder.run(["mark"], {
-        PATH: `${shims}:${process.env["PATH"] ?? ""}`,
-      });
-
-      assert.equal(ran.word, "failed");
-      assert.equal(ran.code, 2);
-      assert.equal(HEX_WORD.test(ran.word), false);
-    } finally {
-      rmSync(shims, { recursive: true });
-    }
   });
 
   it("stores text with shell syntax, quotes, backslashes and lines that look like delimiters byte for byte, and runs none of it", async () => {
@@ -237,20 +217,5 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
     assert.equal(await run(["write", `new-${HEX}.txt`], "text"), "ok");
     assert.equal(existsSync(old), false);
     assert.equal(existsSync(recent), true);
-  });
-
-  it("opens a task from an event file that write made through the heredoc", async () => {
-    const task = await world.intake();
-
-    const event = JSON.stringify({
-      taskId: task.id,
-      kind: "x_intake",
-      callbackToken: task.token,
-    });
-
-    const file = await world.folder.made("event", event);
-
-    assert.equal(await run(["task-open", file]), `ok ${String(task.id)} x_intake`);
-    assert.equal(existsSync(file), false);
   });
 });

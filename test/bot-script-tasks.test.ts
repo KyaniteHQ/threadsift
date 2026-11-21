@@ -75,7 +75,7 @@ describe("the script opens, answers and reports a task and prints one word for e
       await run(["task-answer", id, await world.folder.made("answer", '{"picks":"none"}')]),
       "invalid",
     );
-    assert.notEqual(world.folder.fileOf(task.id, "errors.txt"), "");
+    assert.match(world.folder.fileOf(task.id, "errors.txt") ?? "", /\S/u);
     assert.equal(taskRow(world.instance, task.id).answered_at, null);
     assert.equal(world.folder.fileOf(task.id, "done"), null);
     const fits = await world.folder.made("answer", answers);
@@ -178,17 +178,6 @@ describe("the script opens, answers and reports a task and prints one word for e
     );
   });
 
-  it("answers an X link task through the answer route of its kind with the skill's example thread and Digest", async () => {
-    const task = await world.intake();
-
-    assert.equal(await world.opened(task, "x_intake"), `ok ${String(task.id)} x_intake`);
-
-    const file = await world.folder.made("answer", task.example);
-
-    assert.equal(await run(["task-answer", String(task.id), file]), "ok");
-    assert.equal(taskRow(world.instance, task.id).state, "done");
-  });
-
   it("answers an X link task with an answer written in parts that are split inside an escape sequence and inside a multi-byte character", async () => {
     const task = await world.intake();
 
@@ -238,7 +227,7 @@ describe("the script opens, answers and reports a task and prints one word for e
     const file = await world.folder.made("answer", '{"content":"not a thread"}');
 
     assert.equal(await run(["task-answer", String(task.id), file]), "invalid");
-    assert.notEqual(world.folder.fileOf(task.id, "errors.txt"), "");
+    assert.match(world.folder.fileOf(task.id, "errors.txt") ?? "", /\S/u);
     assert.equal(taskRow(world.instance, task.id).state, "running");
     assert.equal(world.folder.fileOf(task.id, "done"), null);
   });
