@@ -18,7 +18,9 @@ jobs:
           path: ~/.impeccable/bin
           key: impeccable-engine-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.claude/skills/impeccable/scripts/VERSION') }}
       - uses: ./.github/actions/setup-devenv
-      - run: devenv tasks run ci:gate
+      - run: devenv tasks run ci:check
+      - run: tools/docs-skip.sh delete
+      - run: devenv tasks run ci:test ci:build ci:audit design:check
         env:
           THREADSIFT_JUNIT_DIR: ${{ runner.temp }}/core-tests
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

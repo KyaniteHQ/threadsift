@@ -44,14 +44,7 @@ jobs:
           BASE: ${{ github.event_name == 'pull_request' && format('{0}^1', github.sha) || github.event.before }}
         run: |
           docs_diff() {
-            local paths="$RUNNER_TEMP/changed-paths"
-            git diff --no-renames --name-only -z "$@" -- > "$paths" && [[ -s "$paths" ]] || return 1
-            while IFS= read -r -d '' path; do
-              case "$path" in
-                AGENTS.md|README.md|docs/*.md|docs/assets/*.png|docs/assets/*.gif) ;;
-                *) return 1 ;;
-              esac
-            done < "$paths"
+            git diff --no-renames --name-only -z "$@" -- | tools/docs-skip.sh classify
           }
           if [[ -z "$BASE" ]] || ! docs_diff "$BASE" "$GITHUB_SHA"; then
             exit 0
@@ -119,6 +112,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - run: tools/docs-skip.sh delete
       - uses: ./.github/actions/setup-devenv
         with:
           unprivileged-userns: "true"
@@ -172,6 +166,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - run: tools/docs-skip.sh delete
       - id: head
         uses: ./.github/actions/main-head
       - if: steps.head.outputs.current == 'true'
@@ -206,6 +201,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - run: tools/docs-skip.sh delete
       - id: head
         uses: ./.github/actions/main-head
       - id: mode

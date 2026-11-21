@@ -16,7 +16,7 @@ Read this page before you write, change or delete a test. It overrides broader t
 | `pnpm test` | The core tests, in shards. The `check` job and the pre-push hook run them too. |
 | `pnpm test N` | The core tests in `N` shards. When shard `i/N` fails, run this with the same files to reproduce its layout; `pnpm test 1` checks that all files can share one process. |
 | `node --test test/<file>` | One test file. |
-| `devenv tasks run ci:gate` | The gate without the browser smoke. The `check` job runs the same command. `devenv test` is not the gate, because it starts the dev `processes`. |
+| `devenv tasks run ci:gate` | The gate without the browser smoke. The CI `check` job runs `ci:check` on the full checkout, removes the tracked files on the docs-only skip list, then runs `ci:test`, `ci:build`, `ci:audit` and `design:check`. `devenv test` is not the gate, because it starts the dev `processes`. |
 | `devenv tasks run smoke:worker`, `devenv tasks run smoke:container` | The browser smoke on each install target. |
 | `devenv tasks run image:build` | Builds the image that the start check runs, tagged `localhost/threadsift:publish` (one tag for every checkout). |
 | `tools/start-check.sh <image>` | The start check. |

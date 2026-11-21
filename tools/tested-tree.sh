@@ -18,7 +18,7 @@ ref="refs/pull/$number/merge"
 reason='pull request changed gate inputs or its complete file list was unavailable'
 gh api "$repo/pulls/$number/files?per_page=100" --paginate --slurp | jq -e '
   def gate_input:
-    . == "devenv.nix" or . == "tools/tested-tree.sh" or
+    . == "devenv.nix" or . == "tools/tested-tree.sh" or . == "tools/docs-skip.sh" or
     startswith(".github/workflows/") or startswith(".github/actions/") or
     startswith(".claude/skills/impeccable/scripts/");
   select(type == "array" and length > 0 and all(.[]; type == "array")) | add |
