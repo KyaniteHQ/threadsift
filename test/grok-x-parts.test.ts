@@ -48,6 +48,45 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
     assert.equal(outcome.kind === "fetched" && outcome.fetch.kind, "thread");
   });
 
+  it("keeps the reply and its parent id when the parent is missing from the CLI answer", () => {
+    const outcome = outcomeOf(
+      exited(
+        envelope({
+          structuredOutput: {
+            found: true,
+            thread: {
+              post: {
+                id: "100",
+                author: "alice",
+                text: "Post",
+                postedAt: null,
+                replies: 1,
+                quoted: [],
+              },
+              replies: [
+                {
+                  id: "102",
+                  parentId: "101",
+                  author: "bob",
+                  text: "Reply",
+                  postedAt: null,
+                  likes: null,
+                  replies: null,
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    );
+
+    assert.ok(outcome.kind === "fetched" && outcome.fetch.kind === "thread");
+    assert.deepEqual(
+      outcome.fetch.thread.replies.map(({ id, parentId }) => [id, parentId]),
+      [["102", "101"]],
+    );
+  });
+
   it("reads only the last JSON answer when structured output is null", () => {
     const value = thread([], { text: 'The quoted "}" is followed by {{ in the post.' });
     const outcome = outcomeOf(exited(found(value)));
@@ -172,9 +211,14 @@ describe("the sign-in line of grok models is a hint matched against the three re
   });
 });
 
-it("asks for replies in the requested X conversation in every search query", () => {
+it("preserves the requested status id in the fetch prompt and scopes every reply query to its conversation", () => {
   const id = "3200000000000000001";
-  const queries = fetchPrompt(id)
+  const other = "1000000000000000001";
+  const prompt = fetchPrompt(id);
+
+  assert.equal(prompt.replaceAll(id, "ID"), fetchPrompt(other).replaceAll(other, "ID"));
+
+  const queries = prompt
     .split("\n")
     .map((line) => line.trimStart())
     .filter((line) => line.startsWith("- "));

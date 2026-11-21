@@ -27,12 +27,15 @@ describe("the run surface is proven by the version and the empty local tool list
     assert.deepEqual(
       [
         isProvenVersion(PROVEN_VERSION),
+        isProvenVersion(
+          PROVEN_VERSION.replace(/\d+(?= \()/u, (patch) => String(Number(patch) + 1)),
+        ),
         isProvenVersion(PROVEN_VERSION.slice(0, -1)),
         isProvenVersion(PROVEN_VERSION.toUpperCase()),
         isProvenVersion(`${PROVEN_VERSION} `),
         isProvenVersion(null),
       ],
-      [true, false, false, false, false],
+      [true, false, false, false, false, false],
     );
   });
 

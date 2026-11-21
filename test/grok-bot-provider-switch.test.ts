@@ -16,7 +16,7 @@ import { startedTask } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
 import {
   GROK_BOT_IN_FLIGHT,
-  chooseGrokBot,
+  selectGrokBot,
   sentVerifyTask,
   waitingIntake,
 } from "./grok-bot-provider-fixtures.ts";
@@ -40,7 +40,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
   before(async () => {
     instance = await botInstance();
     library = await relatedLibrary(instance);
-    assert.equal((await chooseGrokBot(instance)).status, 200);
+    await selectGrokBot(instance);
   });
 
   after(() => instance.close());
@@ -108,7 +108,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
   });
 
   it("frees the places the abandoned tasks held", async () => {
-    assert.equal((await chooseGrokBot(instance)).status, 200);
+    await selectGrokBot(instance);
 
     for (const slot of Array.from({ length: GROK_BOT_IN_FLIGHT }, (_, at) => at)) {
       exec(
@@ -127,7 +127,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     assert.match(busy.body, /provider-busy/u);
 
     await saveProvider(instance);
-    assert.equal((await chooseGrokBot(instance)).status, 200);
+    await selectGrokBot(instance);
 
     const free = await instance.send("POST", "/api/settings/ai/verify");
 

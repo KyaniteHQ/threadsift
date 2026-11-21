@@ -63,14 +63,17 @@ export async function sentVerifyTask(instance: Instance) {
 
   assert.equal(verified.status, 200, verified.body);
 
-  const [started] = rows(
+  const [started, ...others] = rows(
     instance,
     VerifyTask,
-    "select id from ai_tasks where id > ? and kind = 'digest' and job_id is null order by id desc limit 1",
+    "select id from ai_tasks where id > ? and kind = 'digest' and executor = 'grok-bot' and job_id is null",
     previous?.id ?? 0,
   );
 
-  assert.ok(started !== undefined, "Verify started no task");
+  assert.ok(
+    started !== undefined && others.length === 0,
+    "Verify must start exactly one Grok Bot Digest task",
+  );
 
   return acceptedByBot(instance, started.id);
 }
