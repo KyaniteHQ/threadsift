@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
-import { setTimeout as delay } from "node:timers/promises";
+import { DatabaseSync } from "node:sqlite";
 
+import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
 import { awaitVerifiedDigest } from "../src/features/bot/core/bot-verify-wait.ts";
+import { proxyTo } from "../src/targets/node/database.ts";
 import { acceptedByBot, botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
@@ -72,16 +74,29 @@ export async function sentVerifyTask(instance: Instance) {
   return acceptedByBot(instance, started.id);
 }
 
-const SETTLE_MS = 300;
-
 export async function verifyingTask(
   instance: Instance,
   { id }: Readonly<{ id: number }>,
   signal: AbortSignal = new AbortController().signal,
 ) {
-  const result = awaitVerifiedDigest(instance.core.db, { taskId: id, signal });
+  const firstQuery = Promise.withResolvers<void>();
+  const sqlite = new DatabaseSync(instance.databaseFile);
+  const db = drizzle(proxyTo(sqlite), {
+    logger: {
+      logQuery: () => {
+        firstQuery.resolve();
+      },
+    },
+  });
+  const result = awaitVerifiedDigest(db, { taskId: id, signal }).finally(() => {
+    sqlite.close();
+  });
 
-  await delay(SETTLE_MS);
+  assert.equal(
+    await Promise.race([firstQuery.promise, result]),
+    undefined,
+    "Verify finished before its first query",
+  );
 
   return { result };
 }
