@@ -8,16 +8,14 @@ import {
 } from "../src/core/contract/reddit-account-contract.ts";
 import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
 import { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
 
 export const PATH = "/api/settings/reddit-account";
 
 export const SESSION = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0Ml9hYmMifQ.c2lnbmF0dXJl-A_B.c~d+e/f=g%3D";
 
-const SECRET_KEY = "ab".repeat(32);
-
-export async function accountInstance(secretKey: string | null = SECRET_KEY): Promise<Instance> {
-  const instance = await Instance.start({ secretKey: secretKey ?? undefined });
+export async function accountInstance(): Promise<Instance> {
+  const instance = await Instance.start({ secretKey: SECRET_KEY });
   await instance.setUp();
   return instance;
 }

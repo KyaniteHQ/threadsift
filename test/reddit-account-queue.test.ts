@@ -1,8 +1,14 @@
 import assert from "node:assert/strict";
-import { after, before, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { ClaimedRow, Closing } from "../src/core/kernel/job-outcome.ts";
 import { redditClosing, takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
+import {
+  type AccountSession,
+  clearRefusals,
+  countRefusal,
+  recordWindow,
+} from "../src/features/reddit/core/reddit-account-states.ts";
 import type { Instance } from "./instance.ts";
 import {
   LATER,
@@ -13,6 +19,7 @@ import {
   connect,
   fetchJob,
   jobs,
+  view,
 } from "./reddit-account-fixtures.ts";
 import { exec } from "./related-fixtures.ts";
 
@@ -105,6 +112,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     assert.equal(await take(2, now), null);
 
     await closing(1, { kind: "closed" });
+    assert.equal(await take(3, now), null);
     assert.equal(account(instance)[0]?.busy_job, null);
     assert.notEqual(await take(2, now), null);
 
@@ -185,33 +193,6 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     assert.ok(jobs(instance).every((job) => job.next_attempt_at === LATER));
   });
 
-  it("gives no turn while Reddit limits the account, and gives it back at the end of the limit", async () => {
-    const now = Date.now();
-
-    exec(instance, "update reddit_account set limited_until = ?", now + HOUR_MS);
-    assert.equal(await take(2, now), null);
-    assert.notEqual(await take(2, now + 2 * HOUR_MS), null);
-  });
-
-  it("gives no turn while the request window is used up, and gives it back at its reset", async () => {
-    const now = Date.now();
-
-    exec(
-      instance,
-      "update reddit_account set window_remaining = 0, window_resets_at = ?",
-      now + 60_000,
-    );
-    assert.equal(await take(2, now), null);
-    assert.notEqual(await take(2, now + 120_000), null);
-
-    exec(
-      instance,
-      "update reddit_account set busy_until = null, busy_job = null, window_remaining = 3, window_resets_at = ?",
-      now + 60_000,
-    );
-    assert.notEqual(await take(2, now), null);
-  });
-
   it("gives no turn once the session expired or the account is gone", async () => {
     const now = Date.now();
 
@@ -220,5 +201,87 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
 
     exec(instance, "delete from reddit_account");
     assert.equal(await take(2, now), null);
+  });
+});
+
+const NOW = 1_800_000_000_000;
+
+describe("Reddit answers decide when a fetch job may take its next turn", () => {
+  let instance: Instance;
+  let job: ClaimedRow;
+  let session: AccountSession;
+
+  beforeEach(async () => {
+    instance = await accountInstance();
+    await connect(instance, SESSION);
+    fetchJob(instance, 1, { state: "queued", waitReason: null, dueAt: LATER });
+    job = await claimedJob(instance, 1);
+    const [row] = account(instance);
+    assert.ok(row);
+    session = { sealedSession: row.sealed_session };
+  });
+  afterEach(() => instance.close());
+
+  const record = (change: Parameters<typeof recordWindow>[2]) =>
+    recordWindow(instance.core.db, session, change, NOW);
+
+  const take = (now: number) => takeTurn(instance.core.db, job, now);
+
+  const waitsUntil = async (end: number) => {
+    assert.ok((await take(end - 1)) === null);
+    assert.notEqual(await take(end), null);
+  };
+
+  it("allows a turn with requests left and waits for the reset when the window is empty", async () => {
+    await record({ left: 42, reset: "300", retryAfter: null, limited: false });
+    assert.equal((await take(NOW))?.lastRequestAt, NOW);
+    await record({ left: 0.5, reset: "300", retryAfter: null, limited: false });
+    await waitsUntil(NOW + 300_000);
+  });
+
+  it("waits at least 60 seconds after a 429 with a shorter Retry-After", async () => {
+    await record({ left: 9, reset: "0", retryAfter: "59", limited: true });
+    await waitsUntil(NOW + 60_000);
+  });
+
+  it("honours the longest 429 delay, caps Retry-After at one hour and waits for an exhausted window to reset", async () => {
+    const delay = async (reset: string, retryAfter: string | null, wait: number) => {
+      await record({ left: null, reset, retryAfter, limited: true });
+      await waitsUntil(NOW + wait);
+    };
+    await delay("120", "300", 300_000);
+    await delay("900", "Wed, 21 Oct 2026 07:28:00 GMT", 900_000);
+    await delay("120", new Date(NOW + 1_200_000).toUTCString(), 1_200_000);
+    await delay("120", "86400", 3_600_000);
+    await delay("86400", null, 86_400_000);
+    await record({ left: 5, reset: null, retryAfter: null, limited: false });
+    await waitsUntil(NOW + 3_600_000);
+  });
+
+  const refuse = (thread: string) =>
+    countRefusal(instance.core, session, { thread, startedAt: NOW }, NOW);
+
+  it("expires the session on the third distinct refused thread and then refuses the turn", async () => {
+    assert.equal(await refuse("aaa111"), "counted");
+    assert.equal(await refuse("aaa111"), "counted");
+    assert.equal(await refuse("bbb222"), "counted");
+    assert.equal(await refuse("aaa111"), "counted");
+    assert.equal((await view(instance)).state, "connected");
+    assert.notEqual(await take(NOW), null);
+    assert.equal(await refuse("ccc333"), "expired");
+    assert.equal((await view(instance)).state, "expired");
+    assert.ok((await take(NOW)) === null);
+  });
+
+  it("starts the count again after an answer that shows the session works", async () => {
+    assert.equal(await refuse("aaa111"), "counted");
+    assert.equal(await refuse("bbb222"), "counted");
+    await clearRefusals(instance.core.db, session, NOW);
+    assert.equal(await refuse("ccc333"), "counted");
+    assert.equal(await refuse("ddd444"), "counted");
+    assert.equal((await view(instance)).state, "connected");
+    assert.notEqual(await take(NOW), null);
+    assert.equal(await refuse("eee555"), "expired");
+    assert.equal((await view(instance)).state, "expired");
   });
 });

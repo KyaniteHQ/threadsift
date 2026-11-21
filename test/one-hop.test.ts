@@ -34,6 +34,15 @@ describe("a Reddit post that links to a page stores one candidate link for the D
 
   const candidates = [
     [
+      "yt1",
+      "the post text when the target is a youtube.com video",
+      {
+        url: "https://www.youtube.com/watch?v=1",
+        selftext: "https://b.example.com/",
+      },
+      "https://b.example.com/",
+    ],
+    [
       "ref1",
       "the first Markdown reference before an autolink",
       {

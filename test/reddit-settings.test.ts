@@ -10,6 +10,7 @@ describe("the owner turns the Reddit archive fill on and off, and only the owner
 
   before(async () => {
     instance = await Instance.start();
+    await instance.setUp();
   });
 
   after(() => instance.close());
@@ -17,16 +18,20 @@ describe("the owner turns the Reddit archive fill on and off, and only the owner
   const setting = () => instance.read("GET", "/api/settings/reddit", RedditSettingsSchema);
 
   it("refuses the setting to a request with no session", async () => {
-    assert.equal((await instance.send("GET", "/api/settings/reddit")).status, 401);
+    assert.equal((await instance.fetch("/api/settings/reddit")).status, 401);
     assert.equal(
-      (await instance.send("PUT", "/api/settings/reddit", { archiveFill: false })).status,
+      (
+        await instance.fetch("/api/settings/reddit", {
+          method: "PUT",
+          headers: { origin: "http://localhost", "content-type": "application/json" },
+          body: JSON.stringify({ archiveFill: false }),
+        })
+      ).status,
       401,
     );
   });
 
   it("refuses the setting to an agent token and keeps the owner's choice", async () => {
-    await instance.setUp();
-
     const { value } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
       name: "an agent",
     });

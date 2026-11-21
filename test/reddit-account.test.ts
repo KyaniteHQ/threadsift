@@ -74,7 +74,7 @@ describe("the owner connects and disconnects a Reddit account", () => {
     assert.equal(await verified(instance), "not-configured");
   });
 
-  const storesSession = async (session: string) => {
+  const storesSession = async (session: string, expected: string) => {
     const saved = await instance.send("PUT", PATH, { session });
     assert.equal(saved.status, 200);
     assert.deepEqual(JSON.parse(saved.body), { state: "connected", secretReady: true });
@@ -83,13 +83,14 @@ describe("the owner connects and disconnects a Reddit account", () => {
     assert.ok(row);
     assert.equal(row.state, "connected");
     assert.match(row.sealed_session, /^v1\./u);
-    assert.ok(!row.sealed_session.includes(SESSION));
-    assert.ok((await instance.core.secrets?.open(row.sealed_session)) === SESSION);
+    assert.ok(!row.sealed_session.includes(expected));
+    assert.ok((await instance.core.secrets?.open(row.sealed_session)) === expected);
   };
 
   it("stores a value sealed, with or without the cookie name in front, and says connected", async () => {
-    await storesSession(SESSION);
-    await storesSession(`reddit_session=${SESSION}`);
+    const replacement = "replacement-session";
+    await storesSession(SESSION, SESSION);
+    await storesSession(`reddit_session=${replacement}`, replacement);
   });
 
   it("keeps the saved session out of the PUT and GET response bodies", async () => {
@@ -112,7 +113,9 @@ describe("the owner connects and disconnects a Reddit account", () => {
 
   const refusesValue = (name: string, text: string) => {
     it(`answers 400 for ${name} and keeps the saved account`, async () => {
+      await connect(instance, SESSION);
       const unchanged = account(instance);
+      assert.equal(unchanged.length, 1);
       const answer = await instance.send("PUT", PATH, { session: text });
 
       assert.equal(answer.status, 400);
@@ -127,6 +130,8 @@ describe("the owner connects and disconnects a Reddit account", () => {
   });
 
   it("removes the row on Disconnect and makes only the jobs that wait for Reddit due at once", async () => {
+    await connect(instance, SESSION);
+    assert.equal(account(instance).length, 1);
     fetchJob(instance, 901, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
     fetchJob(instance, 902, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
     fetchJob(instance, 903, { state: "queued", waitReason: "github-rate-limit", dueAt: LATER });
@@ -154,7 +159,8 @@ describe("an Instance with no sealing key, and a row sealed under another key", 
   let other: Instance;
 
   before(async () => {
-    bare = await accountInstance(null);
+    bare = await Instance.start();
+    await bare.setUp();
     other = await accountInstance();
     await connect(other, SESSION);
   });
@@ -183,22 +189,23 @@ describe("an Instance with no sealing key, and a row sealed under another key", 
 
   it("reads unreadable when the sealing key changed, and verify says so without a request", async () => {
     const [row] = account(other);
-
     assert.ok(row !== undefined);
 
     const foreign = await Instance.start({ secretKey: "cd".repeat(32) });
+    try {
+      await foreign.setUp();
+      exec(
+        foreign,
+        "insert into reddit_account (id, sealed_session, state, state_at, connected_at) values (1, ?, 'connected', 1, 1)",
+        row.sealed_session,
+      );
 
-    await foreign.setUp();
-    exec(
-      foreign,
-      "insert into reddit_account (id, sealed_session, state, state_at, connected_at) values (1, ?, 'connected', 1, 1)",
-      row.sealed_session,
-    );
-
-    assert.deepEqual(await view(foreign), { state: "unreadable", secretReady: true });
-    assert.equal(await verified(foreign), "unreadable");
-    assert.deepEqual(await connect(foreign, SESSION), { state: "connected", secretReady: true });
-    await foreign.close();
+      assert.deepEqual(await view(foreign), { state: "unreadable", secretReady: true });
+      assert.equal(await verified(foreign), "unreadable");
+      assert.deepEqual(await connect(foreign, SESSION), { state: "connected", secretReady: true });
+    } finally {
+      await foreign.close();
+    }
   });
 });
 

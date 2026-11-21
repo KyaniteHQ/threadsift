@@ -135,7 +135,9 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
 
   it("sizes the output allowance from the ids it sent", () => {
     const comments = Array.from({ length: 10 }, (_, index) => comment(index, "A useful comment."));
+    comments.push(comment(10, "x".repeat(20_000)));
     const { prompt } = readyInput(ITEM, comments, NO_CATALOG, pageOf("l".repeat(5000)));
+    assert.equal(prompt.counts.omitted, 1);
 
     assert.equal(prompt.maxOutputTokens, 2129);
 
