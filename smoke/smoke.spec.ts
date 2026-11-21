@@ -259,7 +259,7 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     openTopicPage(page, DOTS_ONLY_TOPIC));
   await test.step("follow the settings panel's Index link, see a Topic with its count, open its page from the row, and visit the Index signed out", () =>
     openIndex(page, browser, INDEXED_TOPIC));
-  await test.step("follow the settings panel's Log link, see ingest above topic, open the Item and the Topic page, reload, see a phone-width line wrap, and delete the Item", () =>
+  await test.step("follow the settings panel's Log link, see ingest above topic, open the Item and the Topic page, reload, see a phone-width line wrap with two links at least 44px across and tall, open the Log and Item at their trailing-slash addresses, and delete the Item", () =>
     logFlow(page));
   await test.step("a failed Load more on the Log keeps its rows and Try again reads the next page", () =>
     failedLoadMore(page));

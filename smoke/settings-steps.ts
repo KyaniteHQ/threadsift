@@ -25,7 +25,7 @@ function folderIndexArrived(): Promise<boolean> {
 }
 
 export async function settingsSteps(page: Page): Promise<void> {
-  await test.step("follow the settings panel's Proposals link, see the no-Provider empty state with no Reject, reload on the address, and fit a phone width", () =>
+  await test.step("follow the settings panel's Proposals link, see the no-Provider empty state with no Accept or Reject, reload on the address, and fit a phone width on the trailing-slash address", () =>
     proposalsFlow(page));
   await test.step("save a Grok Bot address and key in Settings, see the key marked saved after a reload, see a new address ask for a key, fit a phone width, and remove it", () =>
     grokBotFlow(page));
