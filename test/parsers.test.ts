@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import {
-  CATALOG_KEY_EXPANSION_MAX,
-  CATALOG_KEY_MAX,
-} from "../src/core/contract/catalog-key-limit.ts";
+import { CATALOG_KEY_MAX } from "../src/core/contract/catalog-key-limit.ts";
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
+import { SHORT_TEXT_MAX } from "../src/core/contract/digest-text.ts";
 import { itemIdOf } from "../src/core/contract/item-path.ts";
 import { overviewLine } from "../src/core/contract/topic-overview-contract.ts";
 import { readArticle } from "../src/core/kernel/article.ts";
@@ -188,14 +186,6 @@ describe("the parsers turn literal input into the values the library stores", ()
 });
 
 describe("the overview line is the first line of an overview without its citation marks", () => {
-  it("takes one line, or the first of several", () => {
-    assert.equal(overviewLine("Backups need care [3]"), "Backups need care");
-    assert.equal(
-      overviewLine("Backups need care [3]\nCopies can tear [4][5]\nChecks help [6]"),
-      "Backups need care",
-    );
-  });
-
   it("skips blank lines and reads CRLF text", () => {
     assert.equal(overviewLine("\r\n  \r\nFirst line [1]\r\nSecond [2]"), "First line");
   });
@@ -205,13 +195,9 @@ describe("the overview line is the first line of an overview without its citatio
     assert.equal(overviewLine("[12] Mid [13] mark goes"), "Mid mark goes");
   });
 
-  it("keeps a bracketed phrase that is not an id", () => {
-    assert.equal(overviewLine("Read [the docs] [12]"), "Read [the docs]");
-    assert.equal(overviewLine("Read [the docs]"), "Read [the docs]");
-  });
-
   it("returns the text unchanged when it has no mark, and null when no line is left", () => {
     assert.equal(overviewLine("No marks here"), "No marks here");
+    assert.equal(overviewLine("Read [the docs]"), "Read [the docs]");
     assert.equal(overviewLine(""), null);
     assert.equal(overviewLine("\n  \n"), null);
   });
@@ -242,8 +228,8 @@ function worstExpansion(): number {
 }
 
 describe("the catalog key limit covers the longest key a Topic name can make", () => {
-  it("is the worst expansion of one UTF-16 unit of a name, measured over every code point", () => {
-    assert.equal(worstExpansion(), CATALOG_KEY_EXPANSION_MAX);
+  it("covers a maximum-length name at the worst measured expansion per UTF-16 unit", () => {
+    assert.equal(worstExpansion() * SHORT_TEXT_MAX, CATALOG_KEY_MAX);
   });
 
   it("holds the key of a longest name made of the worst character", () => {

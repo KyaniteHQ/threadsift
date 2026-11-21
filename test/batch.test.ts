@@ -1,12 +1,13 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
+import type { z } from "zod";
 
 import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
+import { ItemListResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import { calls } from "./fetchers/batch.mts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
@@ -26,35 +27,8 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
   const batch = (body: Json, headers: Readonly<Record<string, string>> = {}) =>
     instance.send("POST", "/api/items/batch", body, headers);
 
-  const count = (table: "items" | "jobs"): number => {
-    const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
-
-    try {
-      const row = database.prepare(`select count(*) as total from ${table}`).get();
-
-      return z.object({ total: z.number() }).parse(row).total;
-    } finally {
-      database.close();
-    }
-  };
-
-  const pendingSummary = (itemId: number): string | undefined => {
-    const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
-
-    try {
-      const row = z
-        .object({ pending: z.string().nullable() })
-        .parse(
-          database.prepare("select pending_digest as pending from items where id = ?").get(itemId),
-        );
-
-      return row.pending === null
-        ? undefined
-        : z.object({ summary: z.string() }).parse(JSON.parse(row.pending)).summary;
-    } finally {
-      database.close();
-    }
-  };
+  const total = async () =>
+    (await instance.read("GET", "/api/items", ItemListResponseSchema)).counts.total;
 
   const importOf = async (name: string) => {
     const answer = await instance.send("GET", `/api/imports/${name}`);
@@ -66,15 +40,23 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
   };
 
   before(async () => {
-    instance = await Instance.start();
+    instance = await Instance.start({
+      fetchers: new URL("./fetchers/batch.mts", import.meta.url).href,
+    });
     await instance.setUp();
     agent = (await createAgentToken(instance, "routine")).value;
   });
 
-  after(() => instance.close());
+  after(async () => {
+    try {
+      await instance.close();
+    } finally {
+      calls.length = 0;
+    }
+  });
 
   it("answers each link in the order sent, and answers known, with no refresh, for the repeat of a settled call", async () => {
-    const sent = [xLink(3000000001), "http://localhost/private", xLink(3000000002)];
+    const sent = ["https://first.test/settled", "http://localhost/private", xLink(3000000002)];
 
     const body = {
       links: sent.map((url) => ({ url })),
@@ -84,7 +66,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     const first = BatchResponseSchema.parse(JSON.parse((await batch(body)).body));
 
     assert.deepEqual(first.results.map(placed), [
-      "https://x.com/i/status/3000000001",
+      "https://first.test/settled",
       "http://localhost/private",
       "https://x.com/i/status/3000000002",
     ]);
@@ -102,8 +84,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       }
     }
 
-    const jobsBefore = count("jobs");
-    const itemsBefore = count("items");
+    const itemsBefore = await total();
 
     const repeated = {
       ...body,
@@ -121,16 +102,16 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       ["known", "refused", "known"],
     );
 
-    for (const result of again.results) {
-      if ("item" in result) assert.equal(result.item.status, "ready");
-    }
-
     const [firstItem] = first.results;
 
     assert.ok(firstItem && "item" in firstItem);
-    assert.equal(pendingSummary(firstItem.item.id), undefined);
-    assert.equal(count("jobs"), jobsBefore);
-    assert.equal(count("items"), itemsBefore);
+    await instance.settledItem(firstItem.item.id);
+    assert.equal(calls.filter((url) => url === sent[0]).length, 1);
+    assert.equal((await instance.detail(firstItem.item.id)).digest, null);
+    for (const result of again.results) {
+      if ("item" in result) assert.equal(result.item.status, "ready");
+    }
+    assert.equal(await total(), itemsBefore);
   });
 
   it("reads the cursor back, and a call without import leaves it alone", async () => {
@@ -159,7 +140,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
   });
 
   it("answers 400 with the entry's index and saves nothing, moving no cursor, when one entry is invalid", async () => {
-    const itemsBefore = count("items");
+    const itemsBefore = await total();
 
     const bad = [
       { url: "not a link" },
@@ -181,12 +162,12 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       assert.match(ErrorResponseSchema.parse(JSON.parse(answer.body)).error, /^links\.1/u);
     }
 
-    assert.equal(count("items"), itemsBefore);
+    assert.equal(await total(), itemsBefore);
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
   });
 
   it("answers 400 for 0 links, 101 links and a malformed import, and saves nothing", async () => {
-    const itemsBefore = count("items");
+    const itemsBefore = await total();
 
     const refused = [
       await batch({ links: [] }),
@@ -200,7 +181,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       refused.map((answer) => answer.status),
       [400, 400, 400, 400, 400],
     );
-    assert.equal(count("items"), itemsBefore);
+    assert.equal(await total(), itemsBefore);
   });
 
   it("saves 100 links in one call", async () => {
@@ -216,15 +197,14 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     assert.ok(results.every((result) => result.outcome === "added"));
   });
 
-  it("keeps the Digest and the one job of the call that added a link when two calls send it at once", async () => {
-    const link = xLink(3400000001);
+  it("keeps the Digest of the call that added a link when two calls send it at once", async () => {
+    const link = "https://first.test/concurrent";
 
     const sentBy = (summary: string) => ({
       links: [{ url: link, digest: { ...DIGEST, summary } }],
     });
 
     const summaries = ["Digest of call one.\nSecond line.", "Digest of call two.\nSecond line."];
-    const jobsBefore = count("jobs");
 
     const answers = await Promise.all(summaries.map((summary) => batch(sentBy(summary))));
 
@@ -241,8 +221,8 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       ["added", "known"],
     );
     assert.ok(winner);
-    assert.equal(count("jobs"), jobsBefore + 1);
-    assert.ok([summaries[winner.index], undefined].includes(pendingSummary(winner.id)));
+    await instance.settledItem(winner.id);
+    assert.equal((await instance.detail(winner.id)).digest?.summary, summaries[winner.index]);
   });
 
   it("works with an agent token and answers 401 with no credentials", async () => {

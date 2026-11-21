@@ -30,11 +30,18 @@ describe("the owner sets each agent token's daily budget when making it and afte
 
     const free = await makeToken(instance, null);
 
-    assert.deepEqual(await budgetOf(instance, free.id), { kind: "unlimited", added: 0 });
-
     const listed = await instance.read("GET", "/api/tokens", TokenListResponseSchema);
 
-    assert.equal(listed.tokens.length, 2);
+    assert.deepEqual(listed.tokens.find(({ id }) => id === made.token.id)?.budget, {
+      kind: "within",
+      limit: 200,
+      added: 0,
+      left: 200,
+    });
+    assert.deepEqual(listed.tokens.find(({ id }) => id === free.id)?.budget, {
+      kind: "unlimited",
+      added: 0,
+    });
   });
 
   it("refuses a budget that is not a whole number above 0", async () => {

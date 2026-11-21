@@ -1,5 +1,4 @@
 import { DatabaseSync } from "node:sqlite";
-import { mock } from "node:test";
 
 import { z } from "zod";
 
@@ -57,7 +56,7 @@ export const addBatch = (instance: Instance, token: BudgetToken, numbers: readon
 
 const TotalSchema = z.object({ total: z.number() });
 
-export function rows(instance: Instance, query: string): readonly unknown[] {
+function rows(instance: Instance, query: string): readonly unknown[] {
   const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
 
   try {
@@ -97,12 +96,13 @@ export async function atClock<Result>(
   clock: () => number,
   run: () => Promise<Result>,
 ): Promise<Result> {
-  const driven = mock.method(Date, "now", clock);
+  const real = Date.now;
+  Date.now = clock;
 
   try {
     return await run();
   } finally {
-    driven.mock.restore();
+    Date.now = real;
   }
 }
 

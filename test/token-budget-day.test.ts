@@ -36,25 +36,23 @@ describe("an agent token's day is the UTC day, and a refusal says how long until
   after(() => instance.close());
 
   it("sends Retry-After as the seconds until the next UTC midnight", async () => {
-    const token = await makeToken(instance, 1);
+    const now = Date.now();
+    await atClock(
+      () => now,
+      async () => {
+        const token = await makeToken(instance, 1);
 
-    await addLink(instance, token, 21);
+        await addLink(instance, token, 21);
 
-    const waitBefore = secondsUntilMidnight(Date.now());
+        const response = await instance.fetch("/api/items", {
+          method: "POST",
+          headers: withAuthorization(token.value),
+          body: JSON.stringify({ url: xLink(22) }),
+        });
 
-    const response = await instance.fetch("/api/items", {
-      method: "POST",
-      headers: withAuthorization(token.value),
-      body: JSON.stringify({ url: xLink(22) }),
-    });
-
-    const waitAfter = secondsUntilMidnight(Date.now());
-    const wait = Number(response.headers.get("retry-after"));
-
-    assert.equal(response.status, 429);
-    assert.ok(
-      waitAfter > waitBefore || (wait <= waitBefore && wait >= waitAfter),
-      `Retry-After was ${String(wait)}, between ${String(waitAfter)} and ${String(waitBefore)} expected`,
+        assert.equal(response.status, 429);
+        assert.equal(response.headers.get("retry-after"), String(secondsUntilMidnight(now)));
+      },
     );
   });
 

@@ -9,6 +9,7 @@ import { Instance } from "./instance.ts";
 import {
   addBatch,
   addLink,
+  atClock,
   budgetOf,
   execute,
   makeToken,
@@ -57,25 +58,31 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
     });
   });
 
-  it("answers 429 with a stable code and the seconds to the next UTC midnight when the budget is spent, saves nothing, and still answers a link the library holds", async () => {
-    const token = await makeToken(instance, 1);
+  it("answers 429 with the budget-spent code when the budget is spent, saves nothing, and still answers a link the library holds", async () => {
+    const now = Date.now();
+    await atClock(
+      () => now,
+      async () => {
+        const token = await makeToken(instance, 1);
 
-    assert.equal((await addLink(instance, token, 11)).status, 201);
+        assert.equal((await addLink(instance, token, 11)).status, 201);
 
-    const itemsBefore = total(instance, "items");
-    const over = await addLink(instance, token, 12);
+        const itemsBefore = total(instance, "items");
+        const over = await addLink(instance, token, 12);
 
-    assert.equal(over.status, 429);
-    assert.equal(BudgetRefusalSchema.parse(JSON.parse(over.body)).code, "budget-spent");
-    assert.equal(total(instance, "items"), itemsBefore);
+        assert.equal(over.status, 429);
+        assert.equal(BudgetRefusalSchema.parse(JSON.parse(over.body)).code, "budget-spent");
+        assert.equal(total(instance, "items"), itemsBefore);
 
-    const known = await addLink(instance, token, 11);
+        const known = await addLink(instance, token, 11);
 
-    assert.equal(known.status, 200);
+        assert.equal(known.status, 200);
 
-    const state = await budgetOf(instance, token.id);
+        const state = await budgetOf(instance, token.id);
 
-    assert.ok(state.kind === "spent" && state.until === nextMidnight(Date.now()));
+        assert.ok(state.kind === "spent" && state.until === nextMidnight(now));
+      },
+    );
   });
 
   it("refuses a batch that would cross the budget whole: nothing is saved, nothing is counted and the import cursor stays", async () => {
@@ -149,53 +156,62 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
   });
 
   it("answers a batch of links the library already holds, a short link among them, without counting or refusing it, even when the budget is spent or was lowered below today's count", async () => {
-    const token = await makeToken(instance, 3);
+    const now = Date.now();
+    await atClock(
+      () => now,
+      async () => {
+        const token = await makeToken(instance, 3);
 
-    const saved = SavedItemResponseSchema.parse(
-      JSON.parse((await instance.send("POST", "/api/items", { url: xLink(81) })).body),
+        const saved = SavedItemResponseSchema.parse(
+          JSON.parse((await instance.send("POST", "/api/items", { url: xLink(81) })).body),
+        );
+
+        const short = "https://t.co/knownshort";
+
+        execute(
+          instance,
+          `insert into item_aliases (normalized_url, address, item_id) values ('${parseLink(short).normalizedUrl}', '${xLink(81)}', ${String(saved.item.id)})`,
+        );
+
+        await Promise.all([82, 83, 84].map((number) => addLink(instance, token, number)));
+
+        assert.equal((await budgetOf(instance, token.id)).kind, "spent");
+
+        const knownOnly = () =>
+          instance.sendWithToken(token.value, "POST", "/api/items/batch", {
+            links: [{ url: short }, { url: xLink(81) }, { url: xLink(82) }],
+          });
+
+        const atLimit = await knownOnly();
+
+        assert.equal(atLimit.status, 200);
+        assert.deepEqual(
+          BatchResponseSchema.parse(JSON.parse(atLimit.body)).results.map(({ outcome }) => outcome),
+          ["known", "known", "known"],
+        );
+
+        const single = await instance.sendWithToken(token.value, "POST", "/api/items", {
+          url: short,
+        });
+
+        assert.equal(single.status, 200);
+
+        assert.equal(
+          (await instance.send("PATCH", `/api/tokens/${String(token.id)}`, { dailyBudget: 1 }))
+            .status,
+          200,
+        );
+
+        assert.equal((await knownOnly()).status, 200);
+        assert.equal((await addBatch(instance, token, [85])).status, 429);
+        assert.deepEqual(await budgetOf(instance, token.id), {
+          kind: "spent",
+          limit: 1,
+          added: 3,
+          until: nextMidnight(now),
+        });
+      },
     );
-
-    const short = "https://t.co/knownshort";
-
-    execute(
-      instance,
-      `insert into item_aliases (normalized_url, address, item_id) values ('${parseLink(short).normalizedUrl}', '${xLink(81)}', ${String(saved.item.id)})`,
-    );
-
-    await Promise.all([82, 83, 84].map((number) => addLink(instance, token, number)));
-
-    assert.equal((await budgetOf(instance, token.id)).kind, "spent");
-
-    const knownOnly = () =>
-      instance.sendWithToken(token.value, "POST", "/api/items/batch", {
-        links: [{ url: short }, { url: xLink(81) }, { url: xLink(82) }],
-      });
-
-    const atLimit = await knownOnly();
-
-    assert.equal(atLimit.status, 200);
-    assert.deepEqual(
-      BatchResponseSchema.parse(JSON.parse(atLimit.body)).results.map(({ outcome }) => outcome),
-      ["known", "known", "known"],
-    );
-
-    const single = await instance.sendWithToken(token.value, "POST", "/api/items", { url: short });
-
-    assert.equal(single.status, 200);
-
-    assert.equal(
-      (await instance.send("PATCH", `/api/tokens/${String(token.id)}`, { dailyBudget: 1 })).status,
-      200,
-    );
-
-    assert.equal((await knownOnly()).status, 200);
-    assert.equal((await addBatch(instance, token, [85])).status, 429);
-    assert.deepEqual(await budgetOf(instance, token.id), {
-      kind: "spent",
-      limit: 1,
-      added: 3,
-      until: nextMidnight(Date.now()),
-    });
   });
 
   it("keeps the Items a token added when the token is revoked", async () => {

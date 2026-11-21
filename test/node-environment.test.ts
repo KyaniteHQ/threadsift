@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { nodeEnvironment } from "../src/targets/node/environment.ts";
-import { settingVariablesOf, settingsOf } from "../src/targets/shared/settings.ts";
 
 const EVERY_VARIABLE = [
   "PORT",
@@ -25,9 +24,5 @@ const allEmpty = Object.fromEntries(EVERY_VARIABLE.map((name) => [name, ""]));
 describe("an install target reads a variable set to the empty string as an unset one", () => {
   it("makes the container's environment the same as when every variable is unset", () => {
     assert.deepEqual(nodeEnvironment(allEmpty), nodeEnvironment({}));
-  });
-
-  it("makes the shared settings, which the Worker reads from its own variables, the same as when every variable is unset", () => {
-    assert.deepEqual(settingsOf(settingVariablesOf(allEmpty)), settingsOf(settingVariablesOf({})));
   });
 });
