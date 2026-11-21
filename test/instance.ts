@@ -1,6 +1,3 @@
-import { mkdtemp, rm } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 import type { z } from "zod";
@@ -11,17 +8,29 @@ import {
   ItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
 import { createApp } from "../src/http/app.ts";
-import { openDatabase } from "../src/targets/node/database.ts";
 import { nodeEnvironment } from "../src/targets/node/environment.ts";
 import { startNode } from "../src/targets/node/ports.ts";
+import { instanceDatabase, snapshotDatabase } from "./instance-database.ts";
 
 export const SETUP_CODE = "a-setup-code-of-sixteen-or-more";
 
 export const PASSWORD = "an owner password of fifteen or more";
 
-const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
-
 type Ports = Parameters<typeof createApp>[0];
+
+interface StartOptions {
+  readonly fresh?: boolean;
+  readonly publicOrigin?: string | undefined;
+  readonly fetchers?: string | undefined;
+  readonly secretKey?: string | undefined;
+}
+
+interface OwnerTemplate {
+  readonly file: string;
+  readonly cookie: string;
+}
+
+let ownerTemplate: Promise<OwnerTemplate> | undefined;
 
 const POLL_MS = 25;
 
@@ -82,61 +91,51 @@ function requestOf(method: string, headers: Headers, body: Json): RequestInit {
 
 export class Instance {
   private cookie: string | null = null;
+  private setupCookie: string | null = null;
   private readonly app: ReturnType<typeof createApp>;
   private readonly shutdown: () => Promise<void>;
 
-  private readonly folder: string;
+  readonly databaseFile: string;
   private readonly ports: Ports;
 
   private constructor(
     app: ReturnType<typeof createApp>,
     ports: Ports,
-    folder: string,
+    file: string,
     shutdown: () => Promise<void>,
   ) {
     this.app = app;
     this.ports = ports;
-    this.folder = folder;
+    this.databaseFile = file;
     this.shutdown = shutdown;
   }
 
   static async start({
+    fresh = false,
     publicOrigin,
     fetchers,
     secretKey,
-  }: Readonly<{
-    publicOrigin?: string | undefined;
-    fetchers?: string | undefined;
-    secretKey?: string | undefined;
-  }> = {}): Promise<Instance> {
-    const folder = await mkdtemp(join(tmpdir(), "threadsift-test-"));
-    const file = join(folder, "threadsift.db");
-
-    const database = openDatabase(file, MIGRATIONS);
-
-    const stop = async () => {
-      database.close();
-      await rm(folder, { recursive: true });
-    };
+  }: StartOptions = {}): Promise<Instance> {
+    const template = fresh ? null : await (ownerTemplate ??= buildOwnerTemplate());
+    await using cleanup = new AsyncDisposableStack();
+    const database = cleanup.use(instanceDatabase(template?.file));
 
     const environment = nodeEnvironment({
-      DATA_DIR: join(folder, "data"),
+      DATA_DIR: database.dataDir,
       SETUP_CODE,
       THREADSIFT_SECRET_KEY: secretKey,
       THREADSIFT_PUBLIC_ORIGIN: publicOrigin,
       THREADSIFT_FETCHERS: fetchers,
     });
 
-    const node = await startNode(database.db, environment).catch(async (error: Error) => {
-      await stop();
+    const node = await startNode(database.db, environment);
+    cleanup.defer(() => node.stop());
+    const app = createApp(node.ports);
+    const resources = cleanup.move();
+    const instance = new Instance(app, node.ports, database.file, () => resources.disposeAsync());
+    instance.setupCookie = template?.cookie ?? null;
 
-      throw error;
-    });
-
-    return new Instance(createApp(node.ports), node.ports, folder, async () => {
-      await node.stop();
-      await stop();
-    });
+    return instance;
   }
 
   fetch(input: Request | string, init?: RequestInit): Promise<Response> {
@@ -153,10 +152,6 @@ export class Instance {
 
   get core(): Ports {
     return this.ports;
-  }
-
-  get databaseFile(): string {
-    return join(this.folder, "threadsift.db");
   }
 
   tick(): Promise<void> {
@@ -229,6 +224,12 @@ export class Instance {
   }
 
   async setUp(): Promise<void> {
+    if (this.setupCookie !== null) {
+      this.cookie = this.setupCookie;
+      this.setupCookie = null;
+      return;
+    }
+
     await this.send("POST", "/api/setup", { code: SETUP_CODE, password: PASSWORD });
   }
 
@@ -247,4 +248,16 @@ export class Instance {
 
     return item;
   }
+}
+
+async function buildOwnerTemplate(): Promise<OwnerTemplate> {
+  await using cleanup = new AsyncDisposableStack();
+  const seed = await Instance.start({ fresh: true });
+  cleanup.defer(() => seed.close());
+  await seed.setUp();
+
+  const cookie = seed.sessionCookie;
+  if (cookie === null) throw new Error("Owner setup did not issue a session");
+
+  return { file: await snapshotDatabase(seed.databaseFile), cookie };
 }

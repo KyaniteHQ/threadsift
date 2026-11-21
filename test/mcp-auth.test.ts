@@ -34,7 +34,7 @@ describe("/mcp admits only a valid agent token sent in the Authorization header,
   const cookie = () => ({ cookie: instance.sessionCookie ?? "" });
 
   before(async () => {
-    instance = await Instance.start();
+    instance = await Instance.start({ fresh: true });
     await instance.setUp();
     token = await createAgentToken(instance, "mcp access");
   });

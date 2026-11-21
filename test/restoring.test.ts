@@ -52,7 +52,7 @@ describe("a Restore that failed and still holds the library refuses a second upl
   let instance: Instance;
 
   before(async () => {
-    instance = await Instance.start();
+    instance = await Instance.start({ fresh: true });
     await instance.setUp();
   });
 
