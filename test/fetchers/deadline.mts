@@ -7,7 +7,7 @@ export const asked: string[] = [];
 
 const pending: string[] = [];
 
-const LATER_MS = 100;
+export const activity = new EventTarget();
 
 function afterAbort<Answer>(
   signal: AbortSignal,
@@ -17,9 +17,9 @@ function afterAbort<Answer>(
     signal.addEventListener(
       "abort",
       () => {
-        setTimeout(() => {
+        queueMicrotask(() => {
           settle(resolve, reject);
-        }, LATER_MS);
+        });
       },
       { once: true },
     );
@@ -36,6 +36,7 @@ export default {
     const { pathname } = new URL(url);
 
     calls.push(pathname);
+    activity.dispatchEvent(new Event(pathname));
 
     if (pathname === "/never") {
       return new Promise<never>(() => {
@@ -53,6 +54,7 @@ export default {
       } else {
         resolve({ markdown: words("LATEMARKER"), title: "Answered after the deadline" });
       }
+      activity.dispatchEvent(new Event(`settled${pathname}`));
     });
   },
 } satisfies Fetcher;

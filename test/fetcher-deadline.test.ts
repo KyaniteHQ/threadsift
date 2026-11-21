@@ -1,16 +1,15 @@
 import assert from "node:assert/strict";
+import { once } from "node:events";
 import { describe, it } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
+import { setImmediate as nextTurn } from "node:timers/promises";
 
 import { pluginPage } from "../src/features/fetch/core/plugin-fetch.ts";
 import { loadFetchers } from "../src/targets/node/fetcher-modules.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
+import { activity } from "./fetchers/deadline.mts";
+import { SETTLE_DEADLINE_MS } from "./instance.ts";
 
 const MODULE = fetcherFile("deadline.mts");
-
-const DEADLINE_MS = 300;
-
-const SETTLE_MS = 400;
 
 describe("a plug-in that does not answer before the fetch deadline ends the fetch as a timeout and publishes nothing later", () => {
   const fetchers = loadFetchers(MODULE);
@@ -31,15 +30,23 @@ describe("a plug-in that does not answer before the fetch deadline ends the fetc
       process.off("unhandledRejection", recordRejection);
     });
 
-    const results = await Promise.all(
-      ["/never", "/late-answer", "/late-reject"].map(async (path) =>
-        pluginPage(
-          await fetchers,
-          `https://deadline.test${path}`,
-          AbortSignal.timeout(DEADLINE_MS),
-        ),
+    const paths = ["/never", "/late-answer", "/late-reject"];
+    const controller = new AbortController();
+    const signal = AbortSignal.timeout(SETTLE_DEADLINE_MS);
+    const entered = Promise.all(paths.map((path) => once(activity, path, { signal })));
+    const plugins = await fetchers;
+    const pending = Promise.all(
+      paths.map((path) => pluginPage(plugins, `https://deadline.test${path}`, controller.signal)),
+    );
+    await entered;
+    assert.deepEqual([...(await calls())].toSorted(), paths.toSorted());
+    const settled = Promise.all(
+      ["settled/late-answer", "settled/late-reject"].map((event) =>
+        once(activity, event, { signal }),
       ),
     );
+    controller.abort();
+    const [results] = await Promise.all([pending, settled]);
 
     assert.deepEqual(results, [
       { kind: "failed", status: "timeout" },
@@ -47,22 +54,24 @@ describe("a plug-in that does not answer before the fetch deadline ends the fetc
       { kind: "failed", status: "timeout" },
     ]);
 
-    await delay(SETTLE_MS);
+    await nextTurn();
 
     assert.deepEqual(unhandled, []);
   });
 
-  it("calls neither a matcher nor a fetch when the deadline has already passed, even when an earlier matcher throws", async () => {
+  it("calls neither a matcher nor a fetch when the deadline has already passed, including with an empty plug-in list or an earlier matcher that throws", async () => {
     const throwing = await loadFetchers(`${fetcherFile("throws-on-every-address.mts")},${MODULE}`);
     const matchersBefore = (await asked()).length;
     const fetchesBefore = (await calls()).length;
 
     const results = await Promise.all([
       pluginPage(await fetchers, "https://deadline.test/never", AbortSignal.abort()),
+      pluginPage([], "https://deadline.test/never", AbortSignal.abort()),
       pluginPage(throwing, "https://deadline.test/never", AbortSignal.abort()),
     ]);
 
     assert.deepEqual(results, [
+      { kind: "failed", status: "timeout" },
       { kind: "failed", status: "timeout" },
       { kind: "failed", status: "timeout" },
     ]);
