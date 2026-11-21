@@ -9,6 +9,7 @@ import { pasteTopics } from "./overview-gap-fixtures.ts";
 import { script, seedTopicItems } from "./pin-fixtures.ts";
 import { count } from "./related-fixtures.ts";
 import {
+  accept,
   answerOf,
   itemsOf,
   proposeTopics,
@@ -158,7 +159,7 @@ describe("Accept of a Topic row hands back a failed first unit", () => {
         "create trigger test_on_pin before insert on pins begin select raise(abort, 'the unit fails'); end;",
       );
 
-      assert.equal((await answerOf(instance, proposal))[0], 500);
+      assert.equal((await accept(instance, proposal)).status, 500);
 
       assert.equal(count(instance, "select count(*) as n from proposals where state = 'open'"), 1);
       unchanged(library);
@@ -172,7 +173,7 @@ describe("Accept of a Topic row hands back a failed first unit", () => {
 
       script(instance, "alter table log_entries rename column topic_id to renamed_topic_id");
 
-      assert.equal((await answerOf(instance, proposal))[0], 500);
+      assert.equal((await accept(instance, proposal)).status, 500);
 
       assert.equal(count(instance, "select count(*) as n from proposals where state = 'open'"), 1);
       unchanged(library);
@@ -240,10 +241,7 @@ describe("Accept of a Topic row on more Log entries than one unit holds", () => 
   after(() => instance.close());
 
   it("moves more Log entries than one unit holds and writes the merge Log entry once", async () => {
-    seedLogEntries(instance, "loser", 1001);
-    assert.ok(
-      count(instance, "select count(*) as n from log_entries where topic_id = ?", loser) >= 1001,
-    );
+    seedLogEntries(instance, { key: "loser", entries: 1001, at: "ascending" });
 
     const id = proposeTopics(instance, ["Loser", "Survivor"]);
 
@@ -254,7 +252,9 @@ describe("Accept of a Topic row on more Log entries than one unit holds", () => 
       survivor,
     );
 
-    assert.deepEqual(await answerOf(instance, id), [200, { state: "done" }]);
+    const answer = await accept(instance, id);
+
+    assert.deepEqual([answer.status, JSON.parse(answer.body)], [200, { state: "done" }]);
     assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
     assert.equal(
       count(instance, "select count(*) as n from log_entries where topic_id = ?", survivor),

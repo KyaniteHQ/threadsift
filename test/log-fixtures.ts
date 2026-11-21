@@ -1,6 +1,8 @@
+import { z } from "zod";
+
 import { type LogEntry, LogPageSchema } from "../src/core/contract/log-contract.ts";
 import type { Instance } from "./instance.ts";
-import { count, exec, paste } from "./related-fixtures.ts";
+import { count, exec, paste, rows } from "./related-fixtures.ts";
 
 export function readLog(instance: Instance, query = "") {
   return instance.read("GET", `/api/log${query}`, LogPageSchema);
@@ -39,23 +41,31 @@ export async function lines(instance: Instance): Promise<string[]> {
 
 export function seedEntries(instance: Instance, entries: number, at: number): void {
   exec(instance, "insert or ignore into topics (key, name) values ('seeded', 'Seeded')");
-  seedLogEntries(instance, "seeded", entries, at);
+  seedLogEntries(instance, { key: "seeded", entries, at });
 }
 
 export function seedLogEntries(
   instance: Instance,
-  key: string,
-  entries: number,
-  at: number | null = null,
+  { key, entries, at }: Readonly<{ key: string; entries: number; at: number | "ascending" }>,
 ): void {
+  const [topic] = rows(
+    instance,
+    z.object({ id: z.number(), name: z.string() }),
+    "select id, name from topics where key = ?",
+    key,
+  );
+  if (topic === undefined) throw new Error(`no Topic with key ${key}`);
+  if (entries === 0) return;
+
   exec(
     instance,
     `with recursive n(i) as (select 1 union all select i + 1 from n where i < ?)
     insert into log_entries (at, action, topic, topic_id)
-    select coalesce(?, i), 'topic', name, id from n cross join topics where key = ?`,
+    select coalesce(?, i), 'topic', ?, ? from n`,
     entries,
-    at,
-    key,
+    at === "ascending" ? null : at,
+    topic.name,
+    topic.id,
   );
 }
 

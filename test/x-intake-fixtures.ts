@@ -24,7 +24,7 @@ export interface IntakeTask {
 
 let nextStatus = 2_000_000_000_000_000_000n;
 
-export const addressOf = (statusId: string) => `https://x.com/someone/status/${statusId}`;
+export const xAddressOf = (statusId: string) => `https://x.com/someone/status/${statusId}`;
 
 export function claimedFetchJob(
   instance: Instance,
@@ -39,7 +39,7 @@ export function insertedXItem(instance: Instance, statusId: string): number {
     instance,
     "insert into items (source, kind, normalized_url, original_url, saved_at) values ('x', 'x-post', ?, ?, 1)",
     `https://x.com/i/status/${statusId}`,
-    addressOf(statusId),
+    xAddressOf(statusId),
   );
 
   const [row] = rows(
@@ -72,7 +72,7 @@ export async function failedIntake(instance: Instance): Promise<IntakeTask> {
 
   const statusId = String(nextStatus);
   const itemId = insertedXItem(instance, statusId);
-  const job = await claimedFetchJob(instance, itemId, addressOf(statusId));
+  const job = await claimedFetchJob(instance, itemId, xAddressOf(statusId));
   const prepared = await xIntakeKind.prepare(instance.core, job);
   assert.equal(prepared.kind, "ask");
   const owner = ownerOf(job);
@@ -136,13 +136,8 @@ export async function waitingIntake(instance: Instance): Promise<IntakeTask> {
 
   exec(
     instance,
-    "update jobs set state = 'queued', next_attempt_at = ?, claim_expires = null, wait_reason = 'grok-bot' where id = ?",
-    rows(
-      instance,
-      z.object({ deadline: z.number() }),
-      "select deadline from ai_tasks where id = ?",
-      task.id,
-    )[0]?.deadline ?? 0,
+    "update jobs set state = 'queued', next_attempt_at = (select deadline from ai_tasks where id = ?), claim_expires = null, wait_reason = 'grok-bot' where id = ?",
+    task.id,
     task.job.id,
   );
 

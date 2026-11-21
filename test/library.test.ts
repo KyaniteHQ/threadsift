@@ -9,7 +9,7 @@ import {
 } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { Instance, type Json } from "./instance.ts";
-import { addressOf, comment, threadOf } from "./reader-thread-fixtures.ts";
+import { redditAddressOf, comment, threadOf } from "./reader-thread-fixtures.ts";
 
 interface Supplied {
   readonly page?: Json;
@@ -86,7 +86,7 @@ describe("a link the owner pastes reaches the library, and the owner finds, read
   it("refuses a supplied Reddit thread with a reply to a missing parent at the top", async () => {
     const id = "abc456";
     const content = threadOf(id, {}, [comment("c1", "t1_missing", "reader", SENTENCE)]);
-    const answer = await instance.send("POST", "/api/items", { url: addressOf(id), content });
+    const answer = await instance.send("POST", "/api/items", { url: redditAddressOf(id), content });
 
     assert.equal(answer.status, 400);
     assert.match(ErrorResponseSchema.parse(JSON.parse(answer.body)).error, /parent_id/u);

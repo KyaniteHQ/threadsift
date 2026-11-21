@@ -128,6 +128,6 @@ describe("lost-Highlight Proposals beside Tag and Topic rows", () => {
       [409, JSON.stringify({ error: "not-open" })],
     );
     assert.deepEqual(highlightColumns(instance), kept);
-    assert.equal((await listedIds(instance)).includes(id), false);
+    assert.equal((await listedIds(instance, "all")).includes(id), false);
   });
 });

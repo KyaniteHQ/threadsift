@@ -110,7 +110,7 @@ describe("Accept of a lost-Highlight row", () => {
       proposalRows(instance).map((row) => [row.id, row.state]),
       [[id, "open"]],
     );
-    assert.deepEqual(await listedIds(instance), []);
+    assert.deepEqual(await listedIds(instance, "all"), []);
     removeProposals(instance);
   });
 });

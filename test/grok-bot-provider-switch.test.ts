@@ -10,23 +10,17 @@ import {
   openJob,
   picksFor,
   relatedLibrary,
+  GROK_BOT_IN_FLIGHT,
+  selectGrokBot,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { startedTask } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
-import {
-  GROK_BOT_IN_FLIGHT,
-  selectGrokBot,
-  sentVerifyTask,
-  waitingIntake,
-} from "./grok-bot-provider-fixtures.ts";
-import type { Instance } from "./instance.ts";
-import { exec, saveProvider } from "./related-fixtures.ts";
-
-const HOUR_MS = 3_600_000;
+import { sentVerifyTask, waitingIntake } from "./grok-bot-provider-fixtures.ts";
+import { exec, pairsOf, saveProvider } from "./related-fixtures.ts";
 
 describe("a Related pick on Grok Bot follows the lifecycle through the production runner, and a change of Provider abandons what is open", () => {
-  let instance: Instance;
+  let instance: Awaited<ReturnType<typeof botInstance>>;
   let library: BotLibrary;
 
   const firstCandidate = () => {
@@ -60,7 +54,10 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     const done = jobRow(instance, job.id);
 
     assert.deepEqual([done.state, done.attempts], ["done", 2]);
-    assert.equal(rowCount(instance, "related_items"), 1);
+    assert.deepEqual(
+      pairsOf(instance, library.source).map(({ related_id }) => related_id),
+      [firstCandidate()],
+    );
   });
 
   it("fails every open Provider task as abandoned and makes its job due at once, leaves the X link task alone, and runs the other Provider at the next claim", async () => {
@@ -73,7 +70,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
 
     exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     await executeClaimed(instance.core, job);
-    assert.ok(jobRow(instance, job.id).next_attempt_at > Date.now() + HOUR_MS / 2);
+    assert.equal(jobRow(instance, job.id).next_attempt_at, taskRow(instance, task.id).deadline);
 
     await saveProvider(instance);
 
@@ -84,7 +81,10 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     }
 
     assert.equal(taskRow(instance, intake.id).state, "running");
-    assert.ok(jobRow(instance, intake.job.id).next_attempt_at > Date.now() + HOUR_MS / 2);
+    assert.equal(
+      jobRow(instance, intake.job.id).next_attempt_at,
+      taskRow(instance, intake.id).deadline,
+    );
     assert.ok(jobRow(instance, job.id).next_attempt_at <= Date.now());
 
     exec(instance, "update jobs set state = 'done', claim_expires = null where kind = 'digest'");

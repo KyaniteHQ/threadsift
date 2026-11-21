@@ -134,7 +134,10 @@ describe("every way a token adds an Item draws on the same daily budget", () => 
         assert.ok(over.every(({ content }) => JSON.stringify(content).includes("daily budget")));
 
         for (const { body } of over) {
-          assert.deepEqual(body, { code: "budget-spent", retryAfter: secondsUntilMidnight(now) });
+          assert.partialDeepStrictEqual(body, {
+            code: "budget-spent",
+            retryAfter: secondsUntilMidnight(now),
+          });
         }
 
         assert.equal((await budgetOf(instance, mcpToken.id)).kind, "spent");

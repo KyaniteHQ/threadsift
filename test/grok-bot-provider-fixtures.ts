@@ -5,14 +5,16 @@ import { setImmediate } from "node:timers/promises";
 import { z } from "zod";
 
 import { awaitVerifiedDigest } from "../src/features/bot/core/bot-verify-wait.ts";
+import { DIGEST_ANSWER } from "./bot-kinds-cases.ts";
 import { acceptedByBot, botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
-import { sentIntake } from "./x-intake-fixtures.ts";
+
+export { waitingIntake } from "./x-intake-fixtures.ts";
 
 export const VERIFY_PATH = "/api/settings/ai/verify";
 
-export { AI_PATH, GROK_BOT_IN_FLIGHT, chooseGrokBot, selectGrokBot } from "./bot-task-fixtures.ts";
+export const VERIFY_ANSWER = { ...DIGEST_ANSWER, keptComments: [] };
 
 export async function botProviderInstance(): Promise<Instance> {
   const instance = await botInstance();
@@ -124,19 +126,4 @@ export function unreadableBotKey(instance: Instance): void {
     instance,
     "insert into grok_bot_settings (id, webhook_url, sealed_key, updated_at) values (1, 'https://example.com/hook', 'not-sealed-by-this-instance', 1) on conflict (id) do update set sealed_key = excluded.sealed_key",
   );
-}
-
-const HOUR_MS = 3_600_000;
-
-export async function waitingIntake(instance: Instance) {
-  const intake = await sentIntake(instance);
-
-  exec(
-    instance,
-    "update jobs set state = 'queued', wait_reason = 'grok-bot', claim_expires = null, next_attempt_at = ? where id = ?",
-    Date.now() + HOUR_MS,
-    intake.job.id,
-  );
-
-  return intake;
 }

@@ -6,10 +6,10 @@ import { z } from "zod";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { botProviderInstance } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { addressOf, threadOf, toolsOf } from "./one-hop-fixtures.ts";
+import { redditAddressOf, hopThreadOf, toolsOf } from "./one-hop-fixtures.ts";
 import { rows, until } from "./related-fixtures.ts";
 
-const ADDRESS = addressOf("q1");
+const ADDRESS = redditAddressOf("q1");
 
 const PAGE = {
   markdown: "The post text is long enough for the page reader to keep it.\n\n".repeat(12),
@@ -18,7 +18,7 @@ const PAGE = {
 
 const SAVES = {
   "a thread pasted with its comments": async (instance: Instance) =>
-    (await toolsOf(instance).paste(ADDRESS, threadOf("q1", {}))).item.id,
+    (await toolsOf(instance).paste(ADDRESS, hopThreadOf("q1", {}))).item.id,
   "a post text the Extension read from the page": async (instance: Instance) =>
     (
       await instance.read("POST", "/api/items", SavedItemResponseSchema, {

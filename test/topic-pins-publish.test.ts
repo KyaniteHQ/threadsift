@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
 import { count, exec, paste, rows, until } from "./related-fixtures.ts";
+import { topicId } from "./topic-accept-fixtures.ts";
 
 const TARGET = "Machine Learning";
 
@@ -28,21 +29,14 @@ const linkedTopic = (instance: Instance, itemId: number): string | undefined =>
   )[0]?.name;
 
 const seedPin = (instance: Instance): number => {
-  const [target] = rows(
-    instance,
-    z.object({ id: z.number() }),
-    "select id from topics where name = ?",
-    TARGET,
-  );
-
-  assert.ok(target);
+  const target = topicId(instance, TARGET);
   exec(
     instance,
     "insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'ml', 'ML', ?, 1)",
-    target.id,
+    target,
   );
 
-  return target.id;
+  return target;
 };
 
 describe("a Topic Pin steers every path that turns a Digest's names into links", () => {

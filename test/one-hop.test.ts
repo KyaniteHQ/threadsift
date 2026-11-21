@@ -1,18 +1,18 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { botInstance } from "./bot-task-fixtures.ts";
-import { chooseGrokBot, unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
+import { botInstance, chooseGrokBot } from "./bot-task-fixtures.ts";
+import { unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
   DIGEST,
   LINKED,
-  addressOf,
+  redditAddressOf,
   commentsOf,
   postOf,
   SECRET_KEY,
   seedGithubCooldown,
-  threadOf,
+  hopThreadOf,
   toolsOf,
   hopLines,
   warningsDuring,
@@ -92,7 +92,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
   it("takes the first link of the post text when the post is a text post", async () => {
     assert.equal(
       await tools.stored("text1", {
-        url: addressOf("text1"),
+        url: redditAddressOf("text1"),
         selftext:
           "Read [the guide](https://docs.example.org/guide) first, then https://other.example.net/x",
       }),
@@ -151,13 +151,13 @@ describe("a Reddit post that links to a page stores one candidate link for the D
 
   it("replaces the candidate when the thread is saved again, and removes it with the Item", async () => {
     const first = await tools.paste(
-      addressOf("again1"),
-      threadOf("again1", { url: "https://example.com/first" }),
+      redditAddressOf("again1"),
+      hopThreadOf("again1", { url: "https://example.com/first" }),
     );
 
     await tools.paste(
-      addressOf("again1"),
-      threadOf("again1", { url: "https://example.com/second" }),
+      redditAddressOf("again1"),
+      hopThreadOf("again1", { url: "https://example.com/second" }),
     );
 
     assert.deepEqual(
@@ -174,7 +174,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
 
   it("counts a candidate as a Digest source: with no Provider saved the retry opens a job that makes no hop and ends as empty input with no attempt and no AI task", async () => {
     const { item } = await tools.paste(
-      addressOf("only1"),
+      redditAddressOf("only1"),
       withoutComments("only1", { url: LINKED }),
     );
 
@@ -192,7 +192,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
 
   it("drops a caller-sent Digest that has no text to publish over, so the candidate can open a model Digest later", async () => {
     const { item } = await tools.paste(
-      addressOf("pending1"),
+      redditAddressOf("pending1"),
       withoutComments("pending1", { url: LINKED }),
       DIGEST,
     );
@@ -204,7 +204,7 @@ describe("a Reddit post that links to a page stores one candidate link for the D
   });
 
   it("opens no Digest job for a post with no candidate and no text", async () => {
-    const { item } = await tools.paste(addressOf("empty1"), withoutComments("empty1", {}));
+    const { item } = await tools.paste(redditAddressOf("empty1"), withoutComments("empty1", {}));
 
     await tools.askForDigest(item.id);
 
@@ -212,11 +212,11 @@ describe("a Reddit post that links to a page stores one candidate link for the D
   });
 
   it("reads the candidate of the current generation, not of a retained older one", async () => {
-    const address = addressOf("gen1");
+    const address = redditAddressOf("gen1");
 
     const { item } = await tools.paste(
       address,
-      threadOf("gen1", { url: LINKED, selftext: "A first text." }),
+      hopThreadOf("gen1", { url: LINKED, selftext: "A first text." }),
       DIGEST,
     );
 
@@ -240,8 +240,8 @@ describe("a Reddit post that links to a page stores one candidate link for the D
   it("publishes a caller-sent Digest without a model call and without a hop", async () => {
     const { warnings, value: caller } = await warningsDuring(async () => {
       const { item } = await tools.paste(
-        addressOf("caller1"),
-        threadOf("caller1", { url: LINKED, selftext: "Some text." }),
+        redditAddressOf("caller1"),
+        hopThreadOf("caller1", { url: LINKED, selftext: "Some text." }),
         DIGEST,
       );
 
@@ -264,7 +264,7 @@ describe("a Reddit post whose only source is a candidate link ends failed with T
       await saveProvider(instance);
 
       const { item } = await toolsOf(instance).paste(
-        addressOf("failing1"),
+        redditAddressOf("failing1"),
         withoutComments("failing1", { url: LINKED }),
       );
 
@@ -285,7 +285,7 @@ describe("a Reddit post whose only source is a candidate link ends failed with T
       unreadableBotKey(instance);
 
       const { item } = await toolsOf(instance).paste(
-        addressOf("failing2"),
+        redditAddressOf("failing2"),
         withoutComments("failing2", { url: LINKED }),
       );
 

@@ -32,10 +32,13 @@ export const comment = (
 function childrenOf(top: string): readonly Json[] {
   return [
     comment("c1", top, "first", `${FACT} First.`),
-    comment("c2", top, "[deleted]", "[deleted]", {
-      kind: "Listing",
-      data: { children: [comment("c3", "t1_c2", "third", `${FACT} Third.`)] },
-    }),
+    comment(
+      "c2",
+      top,
+      "[deleted]",
+      "[deleted]",
+      listing([comment("c3", "t1_c2", "third", `${FACT} Third.`)]),
+    ),
     comment("c4", top, "AutoModerator", "Remember the rules of the community."),
     comment("c5", top, "fifth", "lol"),
     comment("c6", top, "sixth", `${FACT} Sixth.`),
@@ -74,12 +77,13 @@ export function threadOf(
   ]);
 }
 
-export const addressOf = (id: string) => `https://www.reddit.com/r/links/comments/${id}/a_post/`;
+export const redditAddressOf = (id: string) =>
+  `https://www.reddit.com/r/links/comments/${id}/a_post/`;
 
 export function readerOf(current: () => Instance) {
   const paste = async (id: string, extra: Readonly<Record<string, Json>>) => {
     const { item } = await current().read("POST", "/api/items", SavedItemResponseSchema, {
-      url: addressOf(id),
+      url: redditAddressOf(id),
       ...extra,
     });
 

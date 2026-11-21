@@ -3,11 +3,15 @@ import { after, before, describe, it } from "node:test";
 
 import { UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
-import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
+import {
+  RestoreErrorSchema,
+  RestoreStatusSchema,
+  StartedRestoreSchema,
+} from "../src/core/contract/restore-contract.ts";
 import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { addressOf, threadOf } from "./reader-thread-fixtures.ts";
+import { redditAddressOf, threadOf } from "./reader-thread-fixtures.ts";
 import { holdLibrary, itemTotal } from "./restoring-fixtures.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
@@ -71,7 +75,11 @@ describe("a Restore that failed and still holds the library refuses a second upl
     const accepted = await instance.send("POST", "/api/restore", { bytes: 1, parts: 1 });
 
     assert.equal(accepted.status, 201);
-    assert.equal(StartedRestoreSchema.parse(JSON.parse(accepted.body)).id, 2);
+    const started = StartedRestoreSchema.parse(JSON.parse(accepted.body));
+    const status = await instance.read("GET", "/api/restore", RestoreStatusSchema);
+
+    assert.equal(status.state, "uploading");
+    assert.equal(status.id, started.id);
   });
 });
 
@@ -107,13 +115,13 @@ describe("an Item is refused through every door while a Restore holds the librar
       },
       {
         door: "Paste with a Reddit page",
-        send: () => instance.send("POST", "/api/items", { url: addressOf("held2"), page }),
+        send: () => instance.send("POST", "/api/items", { url: redditAddressOf("held2"), page }),
       },
       {
         door: "Paste with content",
         send: () =>
           instance.send("POST", "/api/items", {
-            url: addressOf("held3"),
+            url: redditAddressOf("held3"),
             content: threadOf("held3"),
           }),
       },

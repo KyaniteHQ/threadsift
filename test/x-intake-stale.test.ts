@@ -6,7 +6,7 @@ import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { answerOf, suppliedContent } from "./x-intake-bodies.ts";
 import {
-  addressOf,
+  xAddressOf,
   advancedContent,
   closedJob,
   claimedFetchJob,
@@ -48,7 +48,7 @@ describe("an answer the task no longer takes publishes nothing, and an unavailab
     const task = await sentIntake(instance);
 
     closedJob(instance, task.job.id);
-    await claimedFetchJob(instance, task.itemId, addressOf(task.statusId));
+    await claimedFetchJob(instance, task.itemId, xAddressOf(task.statusId));
 
     const [replacement] = openJobIds(instance, task.itemId);
     const unchanged = stored(instance, PUBLISHED_TABLES);
@@ -64,7 +64,7 @@ describe("an answer the task no longer takes publishes nothing, and an unavailab
     const task = await sentIntake(instance);
 
     const supplied = await instance.send("POST", "/api/items", {
-      url: addressOf(task.statusId),
+      url: xAddressOf(task.statusId),
       content: suppliedContent(task.statusId),
     });
 

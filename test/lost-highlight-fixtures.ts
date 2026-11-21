@@ -149,9 +149,9 @@ export async function proposeLost(
   return row.id;
 }
 
-export async function listedIds(instance: Instance, kind?: Proposal["kind"]) {
+export async function listedIds(instance: Instance, kind: Proposal["kind"] | "all") {
   return (await readPage(instance)).proposals.flatMap((row) =>
-    kind === undefined || row.kind === kind ? [row.id] : [],
+    kind === "all" || row.kind === kind ? [row.id] : [],
   );
 }
 

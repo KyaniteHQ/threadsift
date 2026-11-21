@@ -6,7 +6,7 @@ import { enqueueItemJobs } from "../src/core/kernel/job-rows.ts";
 import { jobs, xVerifications } from "../src/core/kernel/schema.ts";
 import { queuedVerification, savedProgress } from "../src/features/x/core/x-verify-store.ts";
 import type { Instance } from "./instance.ts";
-import { addressOf } from "./x-intake-fixtures.ts";
+import { xAddressOf } from "./x-intake-fixtures.ts";
 import { allJudged, storedForVerification } from "./x-verify-job-fixtures.ts";
 
 export async function storedUnreadably(
@@ -45,7 +45,7 @@ export async function claimedBeforeNewerAnswer(
   await db.batch([
     ...queuedVerification(db, {
       itemId,
-      address: addressOf(statusId),
+      address: xAddressOf(statusId),
       thread: value,
       digest: null,
     }),
@@ -71,7 +71,7 @@ export async function dueKindsBesideVerification(
   await db.insert(jobs).values({
     kind: "digest",
     itemId,
-    address: addressOf(statusId),
+    address: xAddressOf(statusId),
     state: "queued",
     nextAttemptAt: 0,
   });
@@ -110,7 +110,7 @@ export async function jobAfterNewerAnswer(
   await db.batch([
     ...queuedVerification(db, {
       itemId,
-      address: addressOf(statusId),
+      address: xAddressOf(statusId),
       thread: value,
       digest: null,
     }),

@@ -4,9 +4,9 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance, type Json } from "./instance.ts";
-import { addressOf, listing, postListing } from "./reader-thread-fixtures.ts";
+import { redditAddressOf, listing, postListing } from "./reader-thread-fixtures.ts";
 
-export { addressOf };
+export { redditAddressOf, redditAddressOf as addressOf };
 
 export const DIGEST = {
   title: "A linked page",
@@ -50,7 +50,7 @@ export function commentsOf(postId: string): Json {
   ]);
 }
 
-export function threadOf(id: string, fields: PostFields): string {
+export function hopThreadOf(id: string, fields: PostFields): string {
   return JSON.stringify([postOf(id, fields), commentsOf(id)]);
 }
 
@@ -90,7 +90,7 @@ export function toolsOf(instance: Instance) {
     );
 
   const stored = async (id: string, fields: PostFields) => {
-    const { item } = await paste(addressOf(id), threadOf(id, fields));
+    const { item } = await paste(redditAddressOf(id), hopThreadOf(id, fields));
 
     return candidates(item.id).at(-1)?.linked_url;
   };

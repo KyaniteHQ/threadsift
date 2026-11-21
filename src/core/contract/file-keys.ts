@@ -94,7 +94,7 @@ export function finalKeyOf(key: string): string {
   return folder === undefined || name === undefined ? key : folder + name;
 }
 
-export interface ItemFile {
+interface ItemFile {
   readonly kind: "post-text" | "image";
   readonly itemId: string;
 }
@@ -117,7 +117,7 @@ export function isSweptKey(key: string): boolean {
   return itemFileOf(key) !== null;
 }
 
-export interface FileKey {
+interface FileKey {
   readonly itemId: string;
   readonly name: string;
 }

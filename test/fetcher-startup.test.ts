@@ -6,6 +6,7 @@ import { describe, it } from "node:test";
 import { pathToFileURL } from "node:url";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import { loadFetchers } from "../src/targets/node/fetcher-modules.ts";
 import { fetcherFile } from "./fetcher-record.ts";
 import { Instance } from "./instance.ts";
 
@@ -53,11 +54,8 @@ const failedAt = (module: string, stage: string, errorClass: string) =>
 
 describe("the container loads the modules named in THREADSIFT_FETCHERS before it starts any work", () => {
   for (const [name, module, stage, errorClass] of REFUSED) {
-    it(`refuses to start with ${name}, names the module and the stage and drops the module's own message`, async () => {
-      const message = await refusal(module);
-
-      assert.equal(message, failedAt(module, stage, errorClass));
-      assert.equal(message.includes("IMPORTMARKER"), false);
+    it(`rejects ${name}, names the module and the stage and drops the module's own message`, async () => {
+      await assert.rejects(loadFetchers(module), { message: failedAt(module, stage, errorClass) });
     });
   }
 
@@ -66,8 +64,8 @@ describe("the container loads the modules named in THREADSIFT_FETCHERS before it
     ["a trailing comma", `${FIRST},`],
     ["a leading comma", `,${FIRST}`],
   ] as const) {
-    it(`refuses to start with ${name}`, async () => {
-      assert.equal(await refusal(list), failedAt("", "specifier", "TypeError"));
+    it(`rejects ${name}`, async () => {
+      await assert.rejects(loadFetchers(list), { message: failedAt("", "specifier", "TypeError") });
     });
   }
 

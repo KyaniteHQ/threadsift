@@ -6,6 +6,8 @@ import type { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
 import { count, rows } from "./related-fixtures.ts";
 
+export { accept };
+
 export { removeProposals } from "./proposal-seed.ts";
 
 const IdSchema = z.object({ id: z.number() });

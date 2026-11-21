@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { claimNextDue } from "../src/core/compose/jobs.ts";
+import { parseLink } from "../src/core/contract/links.ts";
 import {
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
@@ -72,7 +73,9 @@ export function fetchJob(
     state,
     waitReason,
     dueAt,
-    address = `http://127.0.0.1:9/${String(id)}`,
+    address = waitReason === "reddit-limit"
+      ? `https://www.reddit.com/comments/job${String(id)}/`
+      : `http://127.0.0.1:9/${String(id)}`,
     attempts = 0,
   }: Readonly<{
     state: string;
@@ -82,12 +85,15 @@ export function fetchJob(
     attempts?: number;
   }>,
 ): void {
+  const link = parseLink(address);
   exec(
     instance,
-    "insert into items (id, source, kind, normalized_url, original_url, saved_at) values (?, 'article', 'article', ?, ?, 1)",
+    "insert into items (id, source, kind, normalized_url, original_url, saved_at) values (?, ?, ?, ?, ?, 1)",
     id,
-    `http://127.0.0.1:9/${String(id)}`,
-    `http://127.0.0.1:9/${String(id)}`,
+    link.source,
+    link.kind,
+    link.normalizedUrl,
+    address,
   );
   exec(
     instance,

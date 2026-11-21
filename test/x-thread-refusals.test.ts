@@ -5,7 +5,7 @@ import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts"
 import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
 import { Instance, type Json } from "./instance.ts";
 import { SECRET_KEY } from "./related-fixtures.ts";
-import { addressOf } from "./x-intake-fixtures.ts";
+import { xAddressOf } from "./x-intake-fixtures.ts";
 import { commentCount } from "./x-intake-rows.ts";
 import { xClient } from "./x-thread-client.ts";
 import { X_LINK, authored, reply, thread } from "./x-thread-fixtures.ts";
@@ -200,7 +200,7 @@ describe("an X post sent with a Paste is refused with its own reason, and nothin
   it("refuses a Paste of an X thread with fewer replies than the saved one and keeps the saved one", async () => {
     const { saved, refused, itemIdOf } = xClient(instance);
 
-    await saved({ url: addressOf(SHORTENED), content: JSON.stringify(authored(SHORTENED)) });
+    await saved({ url: xAddressOf(SHORTENED), content: JSON.stringify(authored(SHORTENED)) });
 
     const itemId = itemIdOf(SHORTENED);
     const stored = commentCount(instance, itemId);
@@ -208,7 +208,7 @@ describe("an X post sent with a Paste is refused with its own reason, and nothin
 
     assert.ok(stored > shorter.replies.length);
     assert.match(
-      await refused({ url: addressOf(SHORTENED), content: JSON.stringify(shorter) }),
+      await refused({ url: xAddressOf(SHORTENED), content: JSON.stringify(shorter) }),
       /fewer replies/u,
     );
     assert.equal(commentCount(instance, itemId), stored);

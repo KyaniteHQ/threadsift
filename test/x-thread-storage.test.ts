@@ -7,7 +7,7 @@ import { utf8Length } from "../src/core/contract/encoding.ts";
 import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
 import { Instance, type Json } from "./instance.ts";
-import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
+import { SECRET_KEY, count, exec, rows, saveProvider, until } from "./related-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import {
   CUT_CASES,
@@ -152,15 +152,14 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     const id = xClient(instance).itemIdOf(STORED);
 
     assert.equal((await instance.send("DELETE", `/api/items/${String(id)}`)).status, 204);
-    assert.deepEqual(
-      rows(
+    assert.equal(
+      count(
         instance,
-        z.object({ n: z.number() }),
         "select (select count(*) from reddit_comments where item_id = ?) + (select count(*) from reddit_threads where item_id = ?) as n",
         id,
         id,
       ),
-      [{ n: 0 }],
+      0,
     );
   });
 

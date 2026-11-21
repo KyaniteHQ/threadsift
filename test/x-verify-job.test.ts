@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { Instance } from "./instance.ts";
 import { until } from "./related-fixtures.ts";
 import { digestOf } from "./x-intake-bodies.ts";
-import { addressOf, insertedXItem, latestFetchJob } from "./x-intake-fixtures.ts";
+import { xAddressOf, insertedXItem, latestFetchJob } from "./x-intake-fixtures.ts";
 import { commentCount, itemRow, verificationRow, verifyJobStates } from "./x-intake-rows.ts";
 import { xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
@@ -86,7 +86,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
     await Promise.all(
       cases.map(async ({ id, attempts, delay, refresh }) => {
         const itemId = refresh
-          ? (await saved({ url: addressOf(id), content: JSON.stringify(authored(id)) })).id
+          ? (await saved({ url: xAddressOf(id), content: JSON.stringify(authored(id)) })).id
           : insertedXItem(instance, id);
         const previous = await instance.detail(itemId);
         const candidate = withOneReply(id);
@@ -124,7 +124,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
   it("keeps the saved thread and ends unreadable when the verified thread has fewer replies than the saved one", async () => {
     const { saved, itemIdOf } = xClient(instance);
 
-    await saved({ url: addressOf(KEPT), content: JSON.stringify(authored(KEPT)) });
+    await saved({ url: xAddressOf(KEPT), content: JSON.stringify(authored(KEPT)) });
 
     const itemId = itemIdOf(KEPT);
     const receivedBefore = (await instance.detail(itemId)).comments.received;
@@ -155,7 +155,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
 
     const pasted = thread([reply(1000000000000000041n, PASTED)], { id: PASTED });
 
-    await saved({ url: addressOf(PASTED), content: JSON.stringify(pasted) });
+    await saved({ url: xAddressOf(PASTED), content: JSON.stringify(pasted) });
     await instance.settledItem(itemId);
 
     assert.deepEqual(

@@ -8,7 +8,7 @@ import { SECRET_KEY, saveBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 import { atClock } from "./token-budget-fixtures.ts";
-import { addressOf, claimedFetchJob, insertedXItem } from "./x-intake-fixtures.ts";
+import { xAddressOf, claimedFetchJob, insertedXItem } from "./x-intake-fixtures.ts";
 import { X_LINK } from "./x-thread-fixtures.ts";
 
 const TaskSchema = z.object({ state: z.string(), refusal: z.string().nullable() });
@@ -88,7 +88,7 @@ describe("an X link goes to the saved Grok Bot first, and a send that fails is r
   it("starts one task per send, retries after 30 seconds and 2 minutes, and ends the Item failed with gave-up", async () => {
     const statusId = "321";
     const id = insertedXItem(instance, statusId);
-    const job = await claimedFetchJob(instance, id, addressOf(statusId));
+    const job = await claimedFetchJob(instance, id, xAddressOf(statusId));
     const firstAttempt = Date.now();
     await atClock(
       () => firstAttempt,

@@ -5,7 +5,7 @@ import { startingJudged } from "../src/features/x/core/x-verify-state.ts";
 import { queuedVerification, savedProgress } from "../src/features/x/core/x-verify-store.ts";
 import type { Instance } from "./instance.ts";
 import { until } from "./related-fixtures.ts";
-import { addressOf } from "./x-intake-fixtures.ts";
+import { xAddressOf } from "./x-intake-fixtures.ts";
 import { verifyJobStates } from "./x-intake-rows.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
 
@@ -42,7 +42,7 @@ export async function storedForVerification(
   await db.batch([
     ...queuedVerification(db, {
       itemId,
-      address: addressOf(statusId),
+      address: xAddressOf(statusId),
       thread: value,
       digest,
       cliAttempts,
