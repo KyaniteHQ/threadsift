@@ -1,6 +1,6 @@
 # CI, releases and rollback
 
-Four workflows build, publish and check Threadsift, and one keeps a Cloudflare copy current. This page describes what each job does and why it is built that way.
+The workflows build, publish and check Threadsift, and one keeps a Cloudflare copy current. This page describes what each job does and why it is built that way.
 
 ## Contents
 
@@ -20,8 +20,8 @@ Four workflows build, publish and check Threadsift, and one keeps a Cloudflare c
 ```text
 docs only     -> documentation checks -> aggregate `gate`
 full gate     -> check + smoke(worker) + smoke(container) -> aggregate `gate`
-push to main  -> full gate -> deploy (live Worker)
-                         \-> image (ghcr.io :sha-<sha>, :main)
+code on main  -> full gate or matching pull request gate -> deploy (live Worker)
+                                                        \-> image (ghcr.io :sha-<sha>, :main)
 tag v*        -> release: build amd64 + arm64 -> publish index, move `release`
 manual        -> live check (Worker and container, environment post-merge)
 ```
@@ -32,15 +32,19 @@ The gate workflow runs on every pull request and on every push to `main`.
 
 | Job | Runs | Limit |
 |---|---|---|
-| `changes` | determines whether the changes affect only documentation | 5 minutes |
+| `changes` | selects documentation checks, a full gate or a matching pull request gate | 5 minutes |
 | `docs` | runs `ci:check` for a docs-only change, including formatting and doc references | 10 minutes |
-| `check` | `devenv tasks run ci:gate` after one install ([Development environment](development-environment.md), Tasks), plus the design check `impeccable detect --github web` | 10 minutes |
+| `check` | calls the reusable core workflow, which runs `devenv tasks run ci:gate` after one install ([Development environment](development-environment.md), Tasks), including the design check `impeccable detect --github web` | 10 minutes |
 | `smoke` | the browser smoke spec, one runner for the Worker and one for the container image | 15 minutes |
-| `gate` | requires either a successful docs-only run or a successful full run | 2 minutes |
+| `gate` | checks the job results for the mode that `changes` selects | 2 minutes |
 
-- A pull request qualifies for documentation checks only when both its branch changes since the common ancestor and its changes in the tested merge affect only allowlisted documentation. A push compares the old and new tips. Missing history, an empty comparison, a force-push or a manual run selects the full gate.
+- A pull request qualifies for documentation checks only when both its branch changes since the common ancestor and its changes in the tested merge affect only allowlisted documentation. A push compares the old and new tips. Missing history or an empty comparison rules out documentation checks. A push with an empty comparison can still reuse a pull request gate. A force-push or a manual run takes the full gate.
 - On `main`, the previous tip's push run must also have succeeded before the docs-only push arrived. Otherwise the full gate runs, including deployment and image publication after it passes, so docs cannot overtake an unfinished code deployment.
 - For a docs-only change, only `changes`, `docs` and `gate` run. Remove a path from the allowlist if a test, build or smoke starts reading it. The pre-push hook still runs the full core suite.
+- When an unforced push does not qualify on paths alone for documentation checks, `changes` looks for a squash commit whose only parent is the previous tip of `main`. GitHub must associate that commit with exactly one pull request, merged into `main` from this repository, and record it as the pull request's merge commit. Fork runs can restore caches that earlier commits on the same pull request wrote.
+- The pull request must leave workflows, local actions, devenv task definitions, the tree comparison script and the design-check engine scripts unchanged, including renames. GitHub must return one gate run for the merged head. Its latest successful attempt must record the local reusable core workflow once, with the pull request's merge ref and the resolved commit SHA. That commit must have the pushed tree and exactly two parents, the previous tip of `main` followed by the pull request head. A later update to the branch cannot substitute another tree. [GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_iduses)
+- The attempt must finish every job, pass `gate` and skip `docs`. On a pull request that requires the core check and both smoke targets to pass. A rerun must include the same jobs as the first attempt and still be the latest successful attempt when the lookup finishes. Missing or ambiguous evidence, including a lookup that exceeds 90 seconds, selects the full gate.
+- A match skips the core check and both smoke targets on the push. Once `gate` accepts the result, deployment and image publication can proceed. The push trusts the pull request's dependency audit and container smoke results regardless of the run's age. The next full gate checks current advisories and runs container smoke with the layers available then.
 - When `check` fails, the upload step collects whatever the shard runner wrote, including per-shard JUnit reports and a text diagnosis for each failed shard. The `core-tests` artifact expires after 7 days. If the job fails before the core tests start, the upload step warns that it found no files and produces no artifact. The parent process records a shard's signal even if the shard stops before it finishes its XML. Set `THREADSIFT_JUNIT_DIR` to an empty directory to collect the reports locally.
 - Fail-fast is off, so a failed target leaves the other running. A failed smoke run uploads Playwright's `test-results` as the artifact `smoke-<target>` for 7 days.
 - A newer push cancels the older run of the same pull request.
@@ -81,12 +85,13 @@ The setup action installs Nix and the `devenv` CLI, and caches the pnpm store an
 
 - Cache. The setup action caches `~/.cache/nix`, Nix's tarball and fetcher caches (about 108 MB compressed), under a key that hashes `devenv.lock` and the action file, which holds the Nix installer pin. A job that restores it makes 0 requests. A cold full gate runs 3 jobs that set up devenv (`check`, and `smoke` for each target) and makes at most 15 requests. A docs-only gate sets up devenv once. A warm gate makes 0. The deploy and each live check run the same install, so each makes at most 5 cold and 0 warm.
 - The 429 is not the hourly quota. The workflow token's `GET /rate_limit` read a `limit` of 5000 with 54 used (2026-11-08), and [another author](https://www.d12frosted.io/posts/2026-06-29-chasing-a-github-429) got the same 429 with 0 of 5000 used. The cause is probably GitHub's anti-abuse limit on the addresses that runners share (an inference, because GitHub shows no counter for it). The cache cuts the requests that meet the throttle.
-- When the cache misses. A change to `devenv.lock` or the installer pin gives a new key, and the `restore-keys` prefix restores the newest cache of an older key. A cache made by a pull request run is visible only to that pull request's merge-ref runs, and a run on any branch restores the default branch's caches ([GitHub dependency caching](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache)), so the first gate on `main` after a merge seeds the key for the next pull requests.
+- When the cache misses. A change to `devenv.lock` or the installer pin gives a new key, and the `restore-keys` prefix restores the newest cache of an older key. A cache made by a pull request run is visible only to that pull request's merge-ref runs, and a run on any branch restores the default branch's caches ([GitHub dependency caching](https://docs.github.com/en/actions/reference/workflows-and-actions/dependency-caching#restrictions-for-accessing-a-cache)). On a reused push that still heads `main`, a successful `deploy` can seed the Nix fetch cache and the pnpm store. A successful `image` can seed the Nix fetch cache. A cold pnpm store fetches packages at install.
+- Only a full core check on `main` seeds the design-check engine cache there. If the cache misses and no local engine is available, the launcher downloads and verifies the pinned engine. Changing its version requires a full push gate.
 - Retries. Nix retries a throttled download 5 times, then fails the job. The action adds no retry, because a retry on the same address hides a throttle and does not avoid it. Rerun the job.
 
 ## Merging
 
-`main` requires one aggregate `gate` job. It requires `docs` alone to pass, or both `check` and `smoke` to pass with `docs` skipped. The workflows use no workflow-level `paths` filter, because a skipped workflow leaves its required checks pending. [Dependency updates](dependency-updates.md) says when Renovate opens its pull requests.
+`main` requires one aggregate `gate` job. On a pull request it requires `docs` alone to pass, or both `check` and `smoke` to pass with `docs` skipped. Only a push with a matching pull request gate can skip all three jobs. The workflows use no workflow-level `paths` filter, because a skipped workflow leaves its required checks pending. [Dependency updates](dependency-updates.md) says when Renovate opens its pull requests.
 
 ## Secrets and forks
 
@@ -159,7 +164,7 @@ Each Paste carries a caller-sent Digest ([the v1 spec](../spec.md), Agent output
 
 ## Image
 
-The `image` job of the gate workflow publishes the amd64 image after the full gate passes, on a push to `main` or a manual dispatch with publishing enabled. The release workflow builds both architectures with provenance attestations.
+The `image` job of the gate workflow publishes the amd64 image after the full gate passes on the same tree, on a push to `main` or a manual dispatch with publishing enabled. The release workflow builds both architectures with provenance attestations.
 
 - Runner. It is pinned to `ubuntu-26.04` and not `ubuntu-latest`, so its kernel setting changes only when a Renovate pull request moves the pin and its `image` run passes ([runner image announcement](https://github.com/actions/runner-images/issues/14748)).
 - Tooling. Podman comes from the devenv shell, so `devenv.lock` sets its version. The shell also sets the storage paths Podman uses ([Development environment](development-environment.md), Podman storage and signature policy).
