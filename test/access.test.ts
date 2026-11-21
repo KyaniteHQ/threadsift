@@ -17,7 +17,7 @@ describe("the owner takes a new Instance from first run to a signed-in session w
   let instance: Instance;
 
   before(async () => {
-    instance = await Instance.start();
+    instance = await Instance.start({ fresh: true });
   });
 
   after(() => instance.close());
