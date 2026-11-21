@@ -5,12 +5,12 @@ import { z } from "zod";
 
 import { accept, count, propose } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { pasteTopics } from "./overview-gap-fixtures.ts";
 import { dump } from "./pin-fixtures.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
 import {
   answerOf,
   itemsOf,
-  pasteTopics,
   proposeTopics,
   removeProposals,
   topicId,
@@ -50,7 +50,7 @@ describe("only one Topic or Tag merge can run at a time", () => {
     try {
       await instance.setUp();
       await paste(instance, "alpha", { title: "Alpha", topic: "Alpha", tags: ["Alpha", "Gamma"] });
-      await pasteTopics(instance, ["Beta", "Gamma"]);
+      await pasteTopics(instance, { Beta: ["beta"], Gamma: ["gamma"] });
       propose(instance, ["Alpha", "Gamma"], "accepting");
       const topic = proposeTopics(instance, ["Alpha", "Gamma"]);
 
@@ -72,6 +72,8 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
   let loser = 0;
   let survivor = 0;
   let versionBefore = 0;
+  let linkedLogCount = 0;
+  let decision: Awaited<ReturnType<typeof accept>>;
 
   before(async () => {
     instance = await Instance.start();
@@ -93,15 +95,19 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
       loser,
     );
     versionBefore = catalogVersion(instance);
+    linkedLogCount = count(
+      instance,
+      "select count(*) as n from log_entries where topic_id in (?, ?)",
+      loser,
+      survivor,
+    );
+    decision = await accept(instance, proposeTopics(instance, ["ML", "Machine learning"]));
   });
 
   after(() => instance.close());
 
-  it("answers 200 done for the accepted merge", async () => {
-    const id = proposeTopics(instance, ["ML", "Machine learning"]);
-    const answer = await accept(instance, id);
-
-    assert.deepEqual([answer.status, JSON.parse(answer.body)], [200, { state: "done" }]);
+  it("answers 200 done for the accepted merge", () => {
+    assert.deepEqual([decision.status, JSON.parse(decision.body)], [200, { state: "done" }]);
   });
 
   it("links every Item to the survivor and finds them by its name and none by the merged-away name", async () => {
@@ -143,8 +149,8 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
       0,
     );
     assert.equal(
-      count(instance, "select count(*) as n from log_entries where topic_id = ?", survivor) >= 2,
-      true,
+      count(instance, "select count(*) as n from log_entries where topic_id = ?", survivor),
+      linkedLogCount,
     );
     assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
     assert.equal(
@@ -180,29 +186,32 @@ describe("the Topic Pin an Accept records keeps a merged Topic merged and follow
   let alpha = 0;
   let beta = 0;
   let gamma = 0;
-  let first = 0;
+  let later = 0;
   let second = 0;
 
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    [original] = await pasteTopics(instance, ["Alpha", "Beta", "Gamma"]);
+    const library = await pasteTopics(instance, {
+      Alpha: ["alpha"],
+      Beta: ["beta"],
+      Gamma: ["gamma"],
+    });
+    original = library["Alpha"]?.[0];
     alpha = topicId(instance, "Alpha");
     beta = topicId(instance, "Beta");
     gamma = topicId(instance, "Gamma");
-    first = proposeTopics(instance, ["Alpha", "Beta"]);
+    const first = proposeTopics(instance, ["Alpha", "Beta"]);
     second = proposeTopics(instance, ["Beta", "Gamma"]);
+    assert.equal((await accept(instance, first)).status, 200);
+    later = await paste(instance, "later", { title: "Later", topic: "ALPHA" });
   });
 
   after(() => instance.close());
 
-  it("links a caller-sent Digest that names the merged-away Topic in another spelling to the survivor and creates no Topic", async () => {
-    assert.equal((await accept(instance, first)).status, 200);
-
-    const id = await paste(instance, "later", { title: "Later", topic: "ALPHA" });
-
+  it("links a caller-sent Digest that names the merged-away Topic in another spelling to the survivor and creates no Topic", () => {
     assert.equal(
-      count(instance, "select count(*) as n from items where id = ? and topic_id = ?", id, beta),
+      count(instance, "select count(*) as n from items where id = ? and topic_id = ?", later, beta),
       1,
     );
     assert.equal(count(instance, "select count(*) as n from topics where key = 'alpha'"), 0);
@@ -211,49 +220,65 @@ describe("the Topic Pin an Accept records keeps a merged Topic merged and follow
         instance,
         DigestSchema,
         "select topic, digest as json from digests where item_id = ?",
-        id,
+        later,
       ).map(({ topic, json }) => [topic, JsonTopicSchema.parse(JSON.parse(json)).topic]),
       [["Beta", "Beta"]],
     );
   });
 
-  it("repoints the Pin when its target is merged away, so a chain of two accepts leaves no dangling Pin", async () => {
-    assert.equal((await accept(instance, second)).status, 200);
-    assert.equal(
-      dump(instance, "select kind, from_key, into_topic_id from pins order by id"),
-      JSON.stringify([
-        { kind: "topic-merge", from_key: "alpha", into_topic_id: gamma },
-        { kind: "topic-merge", from_key: "beta", into_topic_id: gamma },
-      ]),
-    );
-    assert.equal(
-      count(
-        instance,
-        "select count(*) as n from pins where into_topic_id not in (select id from topics)",
-      ),
-      0,
-    );
-    assert.equal(itemsOf(instance, gamma), 4);
-    assert.equal(
-      count(instance, "select count(*) as n from topics where id in (?, ?)", alpha, beta),
-      0,
-    );
-  });
+  describe("after the second Accept", () => {
+    before(async () => {
+      assert.equal((await accept(instance, second)).status, 200);
+    });
 
-  it("links the Digest that names the first merged-away Topic to the last survivor", async () => {
-    const id = await paste(instance, "again", { title: "Again", topic: "alpha" });
+    it("repoints the Pin when its target is merged away, so a chain of two accepts leaves no dangling Pin", () => {
+      assert.equal(
+        dump(instance, "select kind, from_key, into_topic_id from pins order by id"),
+        JSON.stringify([
+          { kind: "topic-merge", from_key: "alpha", into_topic_id: gamma },
+          { kind: "topic-merge", from_key: "beta", into_topic_id: gamma },
+        ]),
+      );
+      assert.equal(
+        count(
+          instance,
+          "select count(*) as n from pins where into_topic_id not in (select id from topics)",
+        ),
+        0,
+      );
+      assert.equal(itemsOf(instance, gamma), 4);
+      assert.equal(
+        count(instance, "select count(*) as n from topics where id in (?, ?)", alpha, beta),
+        0,
+      );
+    });
 
-    assert.equal(
-      count(instance, "select count(*) as n from items where id = ? and topic_id = ?", id, gamma),
-      1,
-    );
-  });
+    it("links the Digest that names the first merged-away Topic to the last survivor", async () => {
+      const id = await paste(instance, "again", { title: "Again", topic: "alpha" });
 
-  it("keeps every Topic Pin when an Item is deleted", async () => {
-    assert.ok(original !== undefined);
-    const pinsBefore = dump(instance, "select * from pins order by id");
+      assert.equal(
+        count(instance, "select count(*) as n from items where id = ? and topic_id = ?", id, gamma),
+        1,
+      );
+    });
 
-    assert.equal((await instance.send("DELETE", `/api/items/${String(original)}`)).status, 204);
-    assert.equal(dump(instance, "select * from pins order by id"), pinsBefore);
+    it("keeps every Topic Pin when an Item is deleted", async () => {
+      assert.ok(original !== undefined);
+      assert.deepEqual(
+        rows(
+          instance,
+          PinSchema,
+          "select from_key, from_name, into_topic_id from pins order by id",
+        ),
+        [
+          { from_key: "alpha", from_name: "Alpha", into_topic_id: gamma },
+          { from_key: "beta", from_name: "Beta", into_topic_id: gamma },
+        ],
+      );
+      const pinsBefore = dump(instance, "select * from pins order by id");
+
+      assert.equal((await instance.send("DELETE", `/api/items/${String(original)}`)).status, 204);
+      assert.equal(dump(instance, "select * from pins order by id"), pinsBefore);
+    });
   });
 });

@@ -6,6 +6,7 @@ import { chooseGrokBot } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { causeOf, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, saveProvider, until } from "./related-fixtures.ts";
+import { restoreLibrary } from "./restoring-fixtures.ts";
 
 const RETRY_STEP_MS = 150_000;
 
@@ -82,12 +83,29 @@ describe("the Reader does not say that no Provider is saved once the Grok Bot is
 
     assert.equal(chosen.status, 200, chosen.body);
 
-    await instance.tick();
-    const current = await until(
-      () => view(id),
-      (result) => causeOf(result) === "pending",
-    );
+    assert.deepEqual(await view(id), {
+      filter: "unfiltered",
+      cause: "pending",
+      count: { filter: "unfiltered", shown: 3, total: 6 },
+    });
+  });
+});
 
-    assert.equal(causeOf(current), "pending");
+it("shows not-run for a restored thread with no Digest in an Instance with a Provider", async (context) => {
+  const from = await Instance.start();
+  context.after(() => from.close());
+  await from.setUp();
+  const into = await Instance.start({ secretKey: SECRET_KEY });
+  context.after(() => into.close());
+  await into.setUp();
+  await saveProvider(into);
+  const id = await readerOf(() => from).paste("fresh1", { content: threadOf("fresh1") });
+  await from.settledItem(id);
+
+  await restoreLibrary({ from, into });
+  assert.deepEqual((await into.detail(id)).comments.view, {
+    filter: "unfiltered",
+    cause: "not-run",
+    count: { filter: "unfiltered", shown: 3, total: 6 },
   });
 });

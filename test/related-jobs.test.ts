@@ -4,6 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { runJob } from "../src/core/compose/jobs.ts";
+import { count } from "./accept-fixtures.ts";
+import { jobRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { entryCount } from "./log-fixtures.ts";
 import {
@@ -116,20 +118,40 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
   });
 
   it("waits behind the Item's open Digest job and runs after it ends", async () => {
+    const first = await firstPickTask(instance, id);
     const [job] = pickJobs(instance, id);
+    assert.ok(job);
+    const digestOpen = () =>
+      count(
+        instance,
+        "select count(*) as n from jobs where kind = 'digest' and item_id = ? and state <> 'done'",
+        id,
+      );
 
-    assert.ok(job !== undefined);
     assert.equal((await instance.send("POST", `/api/items/${String(id)}/digest`)).status, 200);
     exec(instance, "update jobs set next_attempt_at = 0 where id = ?", job.id);
     await runJob(instance.core, job.id);
-    assert.equal(pickTasks(instance, id).length, 1);
+
+    assert.equal(digestOpen(), 1);
+    const held = jobRow(instance, job.id);
+    assert.deepEqual([held.state, held.attempts], ["queued", job.attempts]);
+    const tasks = () => pickTasks(instance, id).map(({ id: taskId }) => taskId);
+    assert.deepEqual(tasks(), [first.id]);
 
     await paste(instance, "source", { title: "Quasar lattice decoder", tags: ["quasar"] });
+    assert.equal(digestOpen(), 0);
     await runJob(instance.core, job.id);
-    await until(
-      () => pickTasks(instance, id).length,
-      (tasks) => tasks === 2,
+    const [earlier, later] = await until(tasks, (ids) => ids.length === 2);
+    assert.deepEqual(
+      pickJobs(instance, id).map(({ id: pickId }) => pickId),
+      [job.id],
     );
+    await until(
+      () => jobRow(instance, job.id),
+      (row) => row.attempts === held.attempts + 1,
+    );
+    assert.equal(earlier, first.id);
+    assert.ok(later !== undefined && later > first.id);
   });
 });
 

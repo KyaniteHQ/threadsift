@@ -8,11 +8,11 @@ export function readLog(instance: Instance, query = "") {
   return instance.read("GET", `/api/log${query}`, LogPageSchema);
 }
 
-export async function allEntries(instance: Instance): Promise<readonly LogEntry[]> {
+async function allEntries(instance: Instance): Promise<readonly LogEntry[]> {
   return (await readLog(instance)).entries;
 }
 
-export function lineOf(entry: Readonly<LogEntry>): string {
+function lineOf(entry: Readonly<LogEntry>): string {
   switch (entry.action) {
     case "ingest":
     case "digest":

@@ -1,15 +1,11 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { ExportStatusSchema, StartedExportSchema } from "../src/core/contract/export-contract.ts";
-import {
-  RestoreStatusSchema,
-  StartedRestoreSchema,
-} from "../src/core/contract/restore-contract.ts";
 import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import { Instance, type Json } from "./instance.ts";
 import { FACT, causeOf, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, until } from "./related-fixtures.ts";
+import { restoreLibrary } from "./restoring-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
 
@@ -210,40 +206,6 @@ describe("the Reader shows the comments that pass the script's first step until 
   });
 });
 
-async function restoreLibrary(source: Instance, target: Instance): Promise<void> {
-  const run = await source.read("POST", "/api/export", StartedExportSchema);
-  await until(
-    () => source.read("GET", "/api/export", ExportStatusSchema),
-    ({ state }) => state === "ready",
-  );
-  const download = await source.fetch(`/api/export/${String(run.id)}/download`, {
-    headers: { cookie: source.sessionCookie ?? "" },
-  });
-  assert.equal(download.status, 200);
-  const zip = await download.arrayBuffer();
-  const restore = await target.read("POST", "/api/restore", StartedRestoreSchema, {
-    bytes: zip.byteLength,
-    parts: 1,
-  });
-  const path = `/api/restore/${String(restore.id)}`;
-  const uploaded = await target.fetch(`${path}/parts/1`, {
-    method: "PUT",
-    headers: {
-      "content-type": "application/octet-stream",
-      cookie: target.sessionCookie ?? "",
-      origin: "http://localhost",
-    },
-    body: zip,
-  });
-
-  assert.equal(uploaded.status, 204);
-  assert.equal((await target.send("POST", `${path}/start`)).status, 202);
-  await until(
-    () => target.read("GET", "/api/restore", RestoreStatusSchema),
-    ({ state }) => state === "done",
-  );
-}
-
 it("shows the older Digest cause when a restored thread has newer comments than its page Digest", async (context) => {
   const source = await botInstance();
   context.after(() => source.close());
@@ -264,7 +226,7 @@ it("shows the older Digest cause when a restored thread has newer comments than 
   await paste("older1", { content: threadOf("older1") });
   assert.equal(causeOf(await view(id)), "pending");
 
-  await restoreLibrary(source, restored);
+  await restoreLibrary({ from: source, into: restored });
   assert.deepEqual((await restored.detail(id)).comments.view, {
     filter: "unfiltered",
     cause: "older",

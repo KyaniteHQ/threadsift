@@ -1,13 +1,10 @@
-import assert from "node:assert/strict";
-
 import { z } from "zod";
 
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import { accept, count } from "./accept-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { seedTopicItems } from "./pin-fixtures.ts";
+import type { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { pasteInOrder, rows } from "./related-fixtures.ts";
+import { rows } from "./related-fixtures.ts";
 
 export { removeProposals } from "./proposal-seed.ts";
 
@@ -51,51 +48,4 @@ export const answerOf = async (instance: Instance, id: number) => {
   const { status, body } = await accept(instance, id);
 
   return [status, AnswerSchema.parse(JSON.parse(body))];
-};
-
-export interface Library {
-  readonly instance: Instance;
-  readonly loser: number;
-  readonly survivor: number;
-  readonly third: number;
-  readonly proposal: number;
-}
-
-export const pasteTopics = (instance: Instance, names: readonly string[]) =>
-  pasteInOrder(
-    instance,
-    names.map((topic, index) => [`topic-${String(index)}`, { title: topic, topic }]),
-  );
-
-export const withLibrary = async (run: (library: Library) => Promise<void>): Promise<void> => {
-  const instance = await Instance.start();
-
-  try {
-    await instance.setUp();
-
-    await pasteTopics(instance, ["Loser", "Survivor", "Third"]);
-
-    const loser = topicId(instance, "Loser");
-
-    seedTopicItems(instance, { topicId: loser, name: "Loser", from: 1000, items: 2 });
-    await run({
-      instance,
-      loser,
-      survivor: topicId(instance, "Survivor"),
-      third: topicId(instance, "Third"),
-      proposal: proposeTopics(instance, ["Loser", "Survivor"]),
-    });
-  } finally {
-    await instance.close();
-  }
-};
-
-export const unchanged = ({ instance, loser }: Library): void => {
-  assert.equal(itemsOf(instance, loser), 3);
-  assert.equal(count(instance, "select count(*) as n from pins"), 0);
-};
-
-export const acceptsAtOnce = async ({ instance, survivor, proposal }: Library): Promise<void> => {
-  assert.deepEqual(await answerOf(instance, proposal), [200, { state: "done" }]);
-  assert.equal(itemsOf(instance, survivor), 4);
 };

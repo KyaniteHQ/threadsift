@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
-import { saveBot, selectGrokBot } from "./bot-task-fixtures.ts";
+import { botInstance, saveBot, selectGrokBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { SECRET_KEY, saveProvider } from "./related-fixtures.ts";
 
@@ -27,11 +27,9 @@ describe("the Proposals page reports the Provider selected in settings", () => {
   });
 
   it("makes the Proposals page answer provider false until Grok Bot is chosen and true after", async () => {
-    const instance = await Instance.start({ secretKey: SECRET_KEY });
+    const instance = await botInstance();
 
     try {
-      await instance.setUp();
-      await saveBot(instance);
       const before = await instance.read("GET", "/api/proposals", ProposalPageSchema);
 
       assert.equal(before.provider, false);
