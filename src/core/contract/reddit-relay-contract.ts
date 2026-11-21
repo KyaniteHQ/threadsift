@@ -14,8 +14,6 @@ export const REDDIT_CONNECT_STATES = [
 
 export type RedditConnectState = (typeof REDDIT_CONNECT_STATES)[number];
 
-export const RELAY_PORT = "relay";
-
 export const RELAY_PRESENCE_MS = 3000;
 
 export const INSTANCE_CALL_DEADLINE_MS = 25_000;

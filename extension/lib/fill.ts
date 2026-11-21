@@ -1,16 +1,9 @@
-import { browser } from "wxt/browser";
 import { z } from "zod";
 
 import { ItemBaseSchema } from "../../src/core/contract/item-wire.ts";
 import { parseLink, redditRefOf } from "../../src/core/contract/links.ts";
-import {
-  type Config,
-  REDDIT_HOSTS,
-  hostPattern,
-  instanceAnswer,
-  instanceRequest,
-} from "./config.ts";
-import { fillWanted, loadConfig } from "./credentials.ts";
+import { type Config, holdsInstanceAccess, instanceAnswer, instanceRequest } from "./config.ts";
+import { fillActive, loadConfig } from "./credentials.ts";
 import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
 import { send } from "./save.ts";
 
@@ -49,10 +42,7 @@ async function fillOnce(
 }
 
 async function mayFill({ origin }: Readonly<Config>): Promise<boolean> {
-  return (
-    (await fillWanted()) &&
-    browser.permissions.contains({ origins: [hostPattern(origin), ...REDDIT_HOSTS] })
-  );
+  return (await fillActive()) && (await holdsInstanceAccess(origin));
 }
 
 export async function fillOpenedThread(tab: Readonly<ThreadTab>): Promise<void> {

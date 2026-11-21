@@ -7,7 +7,8 @@ import {
 import { REDDIT_PERMISSIONS, holdsRedditConnect, requestAccess } from "./config.ts";
 import { logFailure } from "./log.ts";
 import type { Tone } from "./page-look.ts";
-import { REDDIT_PORT, RedditAnswerSchema, type RedditRequest, ask } from "./state.ts";
+import { REDDIT_PORT } from "./ports.ts";
+import { RedditAnswerSchema, type RedditRequest, ask } from "./state.ts";
 import { TEXT } from "./text.ts";
 
 export interface RedditView {

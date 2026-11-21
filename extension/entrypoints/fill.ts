@@ -2,7 +2,7 @@ import { browser } from "wxt/browser";
 import { defineUnlistedScript } from "wxt/utils/define-unlisted-script";
 
 import { redditRefOf } from "../../src/core/contract/links.ts";
-import { FILL_PORT } from "../lib/state.ts";
+import { FILL_PORT } from "../lib/ports.ts";
 
 function reportThread(): void {
   if (redditRefOf(location.href) !== null) browser.runtime.connect({ name: FILL_PORT });
