@@ -29,8 +29,9 @@ jobs:
     permissions:
       contents: read
       actions: read
+      pull-requests: read
     outputs:
-      docs_only: ${{ steps.paths.outputs.docs_only == 'true' && (github.event_name != 'push' || steps.previous.outputs.delivered == 'true') }}
+      mode: ${{ steps.tested.outputs.match == 'true' && 'tested' || steps.paths.outputs.docs_only == 'true' && (github.event_name != 'push' || steps.previous.outputs.delivered == 'true') && 'docs' || 'full' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         continue-on-error: true
@@ -52,6 +53,9 @@ jobs:
               esac
             done < "$paths"
           }
+          if [[ "$GITHUB_EVENT_NAME" == push && "$(git rev-parse "$GITHUB_SHA^@")" != "$BASE" ]]; then
+            exit 0
+          fi
           if [[ -z "$BASE" ]] || ! docs_diff "$BASE" "$GITHUB_SHA"; then
             exit 0
           fi
@@ -74,9 +78,21 @@ jobs:
             echo "delivered=true" >> "$GITHUB_OUTPUT"
           fi
 
+      - id: tested
+        if: github.event_name == 'push' && !github.event.forced && steps.paths.outputs.docs_only != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BEFORE: ${{ github.event.before }}
+        run: |
+          if timeout 90s bash tools/tested-tree.sh; then
+            echo "match=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Running the full gate because the pull request checks could not be reused."
+          fi
+
   docs:
     needs: changes
-    if: needs.changes.outputs.docs_only == 'true'
+    if: needs.changes.outputs.mode == 'docs'
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -90,28 +106,8 @@ jobs:
     needs: changes
     if: &full-gate >-
       !cancelled() && github.repository == 'KyaniteHQ/threadsift' &&
-      (needs.changes.result != 'success' || needs.changes.outputs.docs_only != 'true')
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: ~/.impeccable/bin
-          key: impeccable-engine-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.claude/skills/impeccable/scripts/VERSION') }}
-      - uses: ./.github/actions/setup-devenv
-      - run: devenv tasks run ci:gate
-        env:
-          THREADSIFT_JUNIT_DIR: ${{ runner.temp }}/core-tests
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        if: failure()
-        with:
-          name: core-tests
-          path: ${{ runner.temp }}/core-tests
-          if-no-files-found: warn
-          retention-days: 7
+      (needs.changes.result != 'success' || needs.changes.outputs.mode != 'tested' && needs.changes.outputs.mode != 'docs')
+    uses: ./.github/workflows/check.yml
 
   smoke:
     needs: changes
@@ -141,7 +137,7 @@ jobs:
           retention-days: 7
 
   gate:
-    needs: [docs, check, smoke]
+    needs: [changes, docs, check, smoke]
     if: always() && github.repository == 'KyaniteHQ/threadsift'
     runs-on: ubuntu-latest
     timeout-minutes: 2
@@ -151,15 +147,22 @@ jobs:
           RESULTS: ${{ toJSON(needs) }}
         run: |
           jq --exit-status '
-            [.docs.result, .check.result, .smoke.result] |
-            . == ["success", "skipped", "skipped"] or . == ["skipped", "success", "success"]
+            [.docs.result, .check.result, .smoke.result] as $jobs |
+            if .changes.result != "success" or .changes.outputs.mode == "full" then
+              $jobs == ["skipped", "success", "success"]
+            elif .changes.outputs.mode == "docs" then
+              $jobs == ["success", "skipped", "skipped"]
+            else
+              .changes.outputs.mode == "tested" and env.GITHUB_EVENT_NAME == "push" and
+              $jobs == ["skipped", "skipped", "skipped"]
+            end
           ' <<<"$RESULTS"
 
   deploy:
-    needs: [check, gate]
+    needs: [changes, gate]
     if: >-
       !cancelled() && needs.gate.result == 'success' &&
-      needs.check.result == 'success' &&
+      needs.changes.outputs.mode != 'docs' &&
       github.repository == 'KyaniteHQ/threadsift' && github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -186,10 +189,10 @@ jobs:
         run: devenv shell -- tools/live-deploy.sh
 
   image:
-    needs: [check, gate]
+    needs: [changes, gate]
     if: >-
       !cancelled() && needs.gate.result == 'success' &&
-      needs.check.result == 'success' &&
+      needs.changes.outputs.mode != 'docs' &&
       github.repository == 'KyaniteHQ/threadsift' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     runs-on: ubuntu-26.04
     timeout-minutes: 20
