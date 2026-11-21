@@ -19,11 +19,16 @@ describe("a plug-in that does not answer before the fetch deadline ends the fetc
 
   const asked = () => recordOf(MODULE, "asked");
 
-  it("answers timeout when the promise never settles, and again for an answer or a rejection that arrives after the deadline", async () => {
+  it("answers timeout when the promise never settles, and again for an answer or a rejection that arrives after the deadline", async (t) => {
     const unhandled: Error[] = [];
 
-    process.on("unhandledRejection", (reason: Error) => {
+    const recordRejection = (reason: Error) => {
       unhandled.push(reason);
+    };
+
+    process.on("unhandledRejection", recordRejection);
+    t.after(() => {
+      process.off("unhandledRejection", recordRejection);
     });
 
     const results = await Promise.all(
