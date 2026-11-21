@@ -3,10 +3,9 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { accept } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { moveClaimBack, nextTick, proposalRows, readPage } from "./lost-highlight-fixtures.ts";
+import { proposalRows, readPage } from "./lost-highlight-fixtures.ts";
 import {
   body,
   failureOf,
@@ -21,13 +20,13 @@ import {
 } from "./overview-gap-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
+import { moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
 
 const reject = (instance: Instance, id: number) =>
   instance.send("POST", `/api/proposals/${String(id)}/reject`);
 
 describe("Accept of an overview-gap row", () => {
   let instance: Instance;
-  let token: string;
   let made: Readonly<Record<string, readonly number[]>>;
 
   before(async () => {
@@ -40,9 +39,6 @@ describe("Accept of an overview-gap row", () => {
       Done: ["d1", "d2"],
       Decided: ["x1"],
     });
-    ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
-      name: "overview-gap",
-    }));
   });
 
   after(() => instance.close());
@@ -125,32 +121,16 @@ describe("Accept of an overview-gap row", () => {
     removeProposals(instance);
   });
 
-  it("answers 409 not-open for a rejected row, and 403 to a token, 401 signed out and 404 for an unknown id", async () => {
+  it("answers 409 not-open for a rejected row", async () => {
     const id = proposeGap(instance, "Decided", "rejected");
-    const open = proposeGap(instance, "Done");
-    const path = `/api/proposals/${String(open)}/accept`;
     const jobs = overviewJobs(instance);
+    const answer = await accept(instance, id);
 
-    assert.deepEqual(
-      [await accept(instance, id), await accept(instance, 999_999)].map(
-        ({ status, body: text }) => [status, text],
-      ),
-      [
-        [409, body("not-open")],
-        [404, body("Not found")],
-      ],
-    );
-    assert.deepEqual(
-      [
-        (await instance.sendWithToken(token, "POST", path)).status,
-        (await instance.fetch(path, { method: "POST" })).status,
-      ],
-      [403, 401],
-    );
+    assert.deepEqual([answer.status, answer.body], [409, body("not-open")]);
     assert.deepEqual(overviewJobs(instance), jobs);
     assert.deepEqual(
       rowStates(instance).map(([, state]) => state),
-      ["rejected", "open"],
+      ["rejected"],
     );
     removeProposals(instance);
   });

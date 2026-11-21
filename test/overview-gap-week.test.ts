@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { Instance } from "./instance.ts";
-import { claims, moveClaimBack, nextTick, readPage } from "./lost-highlight-fixtures.ts";
+import { readPage } from "./lost-highlight-fixtures.ts";
 import {
   addTopics,
   gapRows,
@@ -17,6 +17,7 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { SECRET_KEY, exec, rows, saveProvider } from "./related-fixtures.ts";
+import { claims, moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
 
 const TASK = "overview_proposals";
 
@@ -45,6 +46,8 @@ describe("the weekly overview check with no Provider saved", () => {
     await nextTick(instance);
 
     assert.equal(claims(instance, TASK).length, 1);
+    assert.deepEqual(overviewJobs(instance), []);
+    assert.equal(count(instance, OVERVIEW_TASKS), 0);
     assert.deepEqual(gapTopics(instance), ["Single", "Behind"]);
     assert.deepEqual(
       gapRows(instance).map(({ state, reason }) => [state, reason]),
@@ -64,11 +67,6 @@ describe("the weekly overview check with no Provider saved", () => {
       ["Behind", 3, 3],
       ["Single", 1, 1],
     ]);
-  });
-
-  it("makes no job and no overview task", () => {
-    assert.deepEqual(overviewJobs(instance), []);
-    assert.equal(count(instance, OVERVIEW_TASKS), 0);
   });
 });
 

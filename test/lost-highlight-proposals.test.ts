@@ -3,13 +3,11 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { tagId } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
   keepLostHighlight,
   keepPassage,
-  proposalRows,
   proposeLost,
   readPage,
   textHolding,
@@ -37,7 +35,6 @@ const listedIds = async (instance: Instance) =>
 
 describe("lost-Highlight Proposals beside Tag and Topic rows", () => {
   let instance: Instance;
-  let token: string;
   let gone: { itemId: number; highlightId: number };
   let ambiguous: { itemId: number; highlightId: number };
   let lostIds: readonly number[];
@@ -91,24 +88,17 @@ describe("lost-Highlight Proposals beside Tag and Topic rows", () => {
       await proposeLost(instance, gone.highlightId),
       await proposeLost(instance, ambiguous.highlightId),
     ];
-    ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
-      name: "lost-highlights",
-    }));
   });
 
   after(() => instance.close());
 
-  it("lists the three kinds in one order to the owner and an agent token, and 401 signed out", async () => {
+  it("lists the three Proposal kinds newest first", async () => {
     const owner = await readPage(instance);
-    const agent = await instance.sendWithToken(token, "GET", "/api/proposals");
-    const signedOut = await instance.fetch("/api/proposals");
 
     assert.deepEqual(
       owner.proposals.map(({ kind }) => kind),
       ["highlight-lost", "highlight-lost", "highlight-lost", "topic-merge", "tag-merge"],
     );
-    assert.deepEqual([agent.status, signedOut.status], [200, 401]);
-    assert.equal(agent.body, JSON.stringify(owner));
   });
 
   it("gives a lost Highlight its quote and its Item, and no reason", async () => {
@@ -132,34 +122,6 @@ describe("lost-Highlight Proposals beside Tag and Topic rows", () => {
     assert.equal(
       row?.kind === "highlight-lost" ? row.highlight.item.title : "none",
       "Fetched title",
-    );
-  });
-
-  it("refuses a token and a signed-out call an Accept and a Reject, and reports an unknown id", async () => {
-    const [newest] = lostIds.toReversed();
-
-    assert.ok(newest !== undefined);
-
-    const answers = await Promise.all(
-      ["accept", "reject"].map(async (action) => {
-        const path = `/api/proposals/${String(newest)}/${action}`;
-
-        return [
-          (await instance.sendWithToken(token, "POST", path)).status,
-          (await instance.fetch(path, { method: "POST" })).status,
-          (await instance.send("POST", `/api/proposals/999999/${action}`)).status,
-          (await instance.send("POST", `/api/proposals/abc/${action}`)).status,
-        ];
-      }),
-    );
-
-    assert.deepEqual(answers, [
-      [403, 401, 404, 400],
-      [403, 401, 404, 400],
-    ]);
-    assert.deepEqual(
-      proposalRows(instance).map(({ state }) => state),
-      ["open", "open", "open", "open", "open"],
     );
   });
 

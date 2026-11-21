@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AI_INPUT_BYTES } from "../src/core/contract/ai-contract.ts";
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
 import {
   type Candidate,
-  MERGE_PAIRS_PER_RUN,
   candidatePairs,
   disjointPairs,
   pairKey,
@@ -94,7 +92,7 @@ describe("the plain check picks the pairs of Tags that may name one concept, in 
     ]).flat();
 
     assert.equal(candidatePairs(tags, new Set()).length, 25);
-    assert.equal(disjointPairs(candidatePairs(tags, new Set())).length, MERGE_PAIRS_PER_RUN);
+    assert.equal(disjointPairs(candidatePairs(tags, new Set())).length, 20);
   });
 });
 
@@ -106,10 +104,20 @@ function sent(id: number, name: string): SentPair {
 
 describe("the input of a weekly run holds whole pairs within 14,000 bytes", () => {
   it("adds each pair whole in order and skips one that does not fit", () => {
+    const pair = sent(1, "é");
+    const envelope = JSON.stringify({ pairs: [[pair.low, pair.high]] });
+    const padding = "x".repeat(14_000 - Buffer.byteLength(envelope));
+    const exact = { ...pair, low: { ...pair.low, name: pair.low.name + padding } };
+    const over = { ...exact, low: { ...exact.low, name: exact.low.name + "x" } };
+    const boundary = proposalsInput([exact]);
+    assert.deepEqual(boundary.sent, [exact]);
+    assert.equal(Buffer.byteLength(boundary.input), 14_000);
+    assert.equal(Buffer.byteLength(JSON.stringify({ pairs: [[over.low, over.high]] })), 14_001);
+    assert.deepEqual(proposalsInput([over]).sent, []);
+
     const small = sent(1, "a");
-    const big = sent(3, "b".repeat(AI_INPUT_BYTES));
     const last = sent(5, "c");
-    const { input, sent: kept } = proposalsInput([small, big, last]);
+    const { input, sent: kept } = proposalsInput([small, over, last]);
 
     assert.deepEqual(kept, [small, last]);
     assert.equal(
@@ -121,7 +129,7 @@ describe("the input of a weekly run holds whole pairs within 14,000 bytes", () =
         ],
       }),
     );
-    assert.ok(new TextEncoder().encode(input).length <= AI_INPUT_BYTES);
+    assert.ok(new TextEncoder().encode(input).length <= 14_000);
   });
 });
 

@@ -11,12 +11,11 @@ import {
 } from "../src/core/contract/proposal-contract.ts";
 import type { Instance } from "./instance.ts";
 import { exec, paste, rows, saveProvider } from "./related-fixtures.ts";
+import { nextTick } from "./weekly-claim-fixtures.ts";
 
 const BEFORE = "A long sentence that comes before the passage and fills the stored context. ";
 
 const AFTER = " A long sentence that comes after the passage and fills the stored context.";
-
-export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const isMerge = (proposal: Readonly<Proposal>): proposal is MergeProposal =>
   proposal.kind === "tag-merge" || proposal.kind === "topic-merge";
@@ -106,11 +105,6 @@ export async function keepLostHighlight(
 
 const IdSchema = z.object({ id: z.number() });
 
-export async function nextTick(instance: Instance): Promise<void> {
-  exec(instance, "delete from scheduled_runs where task = 'sweep'");
-  await instance.tick();
-}
-
 export async function proposeLost(
   instance: Instance,
   highlightId: number,
@@ -151,17 +145,3 @@ const StateRowSchema = z.object({ id: z.number(), kind: z.string(), state: z.str
 
 export const proposalRows = (instance: Instance) =>
   rows(instance, StateRowSchema, "select id, kind, state from proposals order by id");
-
-const RunSchema = z.object({ last_run_at: z.number() });
-
-export const claims = (instance: Instance, task: string) =>
-  rows(instance, RunSchema, "select last_run_at from scheduled_runs where task = ?", task);
-
-export function moveClaimBack(instance: Instance, task: string): void {
-  exec(
-    instance,
-    "update scheduled_runs set last_run_at = last_run_at - ? where task = ?",
-    WEEK_MS,
-    task,
-  );
-}

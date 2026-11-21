@@ -6,149 +6,103 @@ import { z } from "zod";
 import { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
-
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-const JobSchema = z.object({ id: z.number(), item_id: z.number(), state: z.string() });
-
-const RunSchema = z.object({ last_run_at: z.number() });
-
-const jobs = (instance: Instance) =>
-  rows(
-    instance,
-    JobSchema,
-    "select id, item_id, state from jobs where kind = 'proposals' order by id",
-  );
-
-const runs = (instance: Instance) =>
-  rows(instance, RunSchema, "select last_run_at from scheduled_runs where task = 'proposals'");
-
-function closeJobs(instance: Instance): void {
-  exec(instance, "update jobs set state = 'done', claim_expires = null where kind = 'proposals'");
-}
+import { jobsOf, claims, moveClaimBack, nextTick, WEEK_MS } from "./weekly-claim-fixtures.ts";
 
 async function seedLibrary(instance: Instance): Promise<number> {
-  await paste(instance, "a", { title: "A", tags: ["machine learning", "ml"] });
-  await paste(instance, "b", { title: "B", tags: ["machine-learning"] });
-  const newest = await paste(instance, "c", { title: "C", tags: ["llm", "llms"] });
+  await paste(instance, "a", { title: "A", topic: "Game", tags: ["machine learning", "ml"] });
+  await paste(instance, "b", { title: "B", topic: "Games", tags: ["machine-learning"] });
+  const newest = await paste(instance, "c", { title: "C", topic: "Game", tags: ["llm", "llms"] });
 
   await paste(instance, "d", { title: "No Digest", noDigest: true });
 
   return newest;
 }
 
-describe("the weekly claim with no Provider saved", () => {
-  let instance: Instance;
+const MODEL_TASKS = ["proposals", "topic_proposals", "disagreement_proposals"] as const;
 
-  before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
-    await seedLibrary(instance);
-  });
+describe("each weekly model check has its own claim", () => {
+  for (const task of MODEL_TASKS) {
+    it(`claims ${task} only with a saved Provider and a Digest, once per week`, async (t) => {
+      const instance = await Instance.start({ secretKey: SECRET_KEY });
 
-  after(() => instance.close());
+      t.after(() => instance.close());
+      await instance.setUp();
+      await saveProvider(instance);
+      await nextTick(instance);
+      assert.deepEqual([claims(instance, task), jobsOf(instance, task)], [[], []]);
 
-  it("claims nothing and opens no job, and claims on the first tick after a Provider is saved", async () => {
-    await instance.tick();
-    assert.deepEqual([runs(instance), jobs(instance)], [[], []]);
+      const library = await Instance.start({ secretKey: SECRET_KEY });
 
-    await saveProvider(instance);
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-    assert.equal(runs(instance).length, 1);
-    assert.equal(jobs(instance).length, 1);
-  });
-});
+      t.after(() => library.close());
+      await library.setUp();
+      const owner = await seedLibrary(library);
 
-describe("the weekly claim with a Provider saved and no Digest", () => {
-  let instance: Instance;
+      await nextTick(library);
+      assert.deepEqual([claims(library, task), jobsOf(library, task)], [[], []]);
 
-  before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
-    await saveProvider(instance);
-  });
+      await saveProvider(library);
+      await nextTick(library);
+      const claimed = claims(library, task);
+      const others = MODEL_TASKS.filter((other) => other !== task);
+      const otherClaims = () => others.map((other) => claims(library, other));
+      const untouched = otherClaims();
 
-  after(() => instance.close());
+      assert.equal(claimed.length, 1);
+      for (const kind of MODEL_TASKS) {
+        assert.deepEqual(
+          jobsOf(library, kind).map(({ item_id }) => item_id),
+          [owner],
+        );
+      }
 
-  it("claims nothing while no Item has a Digest", async () => {
-    await instance.tick();
-    assert.deepEqual([runs(instance), jobs(instance)], [[], []]);
-  });
-});
+      const otherJobs = () => others.map((kind) => jobsOf(library, kind).length);
+      const close = () => {
+        exec(
+          library,
+          "update jobs set state = 'done', claim_expires = null where kind in (?, ?, ?)",
+          ...MODEL_TASKS,
+        );
+      };
 
-describe("the weekly claim with a Provider saved", () => {
-  let instance: Instance;
-  let owner: number;
+      close();
+      await nextTick(library);
+      assert.equal(jobsOf(library, task).length, 1);
+      assert.deepEqual(claims(library, task), claimed);
 
-  before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
-    owner = await seedLibrary(instance);
-    await saveProvider(instance);
-  });
+      close();
+      moveClaimBack(library, task);
+      await nextTick(library);
+      assert.deepEqual(otherJobs(), [1, 1]);
+      assert.equal(jobsOf(library, task).length, 2);
+      assert.deepEqual(otherClaims(), untouched);
 
-  after(() => instance.close());
+      close();
+      exec(
+        library,
+        "update scheduled_runs set last_run_at = ? where task = ?",
+        Date.now() + WEEK_MS + 60_000,
+        task,
+      );
+      await nextTick(library);
+      assert.deepEqual(otherJobs(), [1, 1]);
+      assert.equal(jobsOf(library, task).length, 3);
+      assert.ok((claims(library, task)[0]?.last_run_at ?? Infinity) <= Date.now());
 
-  const nextTick = async () => {
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-  };
+      close();
+      exec(library, "delete from scheduled_runs where task = ?", task);
+      await nextTick(library);
+      assert.equal(jobsOf(library, task).length, 4);
+      assert.deepEqual(otherClaims(), untouched);
+      assert.deepEqual(otherJobs(), [1, 1]);
 
-  it("opens one job owned by the highest-id Item that has a Digest", async () => {
-    await nextTick();
-
-    const [job, ...others] = jobs(instance);
-
-    assert.equal(others.length, 0);
-    assert.equal(job?.item_id, owner);
-    assert.equal(runs(instance).length, 1);
-  });
-
-  it("opens none on a second tick in the week", async () => {
-    const [claimed] = runs(instance);
-
-    await nextTick();
-    assert.equal(jobs(instance).length, 1);
-    assert.deepEqual(runs(instance), [claimed]);
-  });
-
-  it("opens one more when the claim is 7 days old", async () => {
-    closeJobs(instance);
-    exec(
-      instance,
-      "update scheduled_runs set last_run_at = last_run_at - ? where task = 'proposals'",
-      WEEK_MS,
-    );
-    await nextTick();
-    assert.equal(jobs(instance).length, 2);
-  });
-
-  it("opens one more when the claim is more than 7 days ahead of the clock", async () => {
-    closeJobs(instance);
-    exec(
-      instance,
-      "update scheduled_runs set last_run_at = ? where task = 'proposals'",
-      Date.now() + WEEK_MS + 60_000,
-    );
-    await nextTick();
-    assert.equal(jobs(instance).length, 3);
-    assert.ok((runs(instance)[0]?.last_run_at ?? 0) <= Date.now());
-  });
-
-  it("opens no second job and spends the week while the owner Item's job is still open", async () => {
-    exec(
-      instance,
-      "update scheduled_runs set last_run_at = last_run_at - ? where task = 'proposals'",
-      WEEK_MS,
-    );
-
-    const [old] = runs(instance);
-
-    await nextTick();
-    assert.equal(jobs(instance).length, 3);
-    assert.ok((runs(instance)[0]?.last_run_at ?? 0) > (old?.last_run_at ?? 0));
-  });
+      assert.notEqual(jobsOf(library, task).at(-1)?.state, "done");
+      moveClaimBack(library, task);
+      const old = claims(library, task)[0]?.last_run_at;
+      await nextTick(library);
+      assert.equal(jobsOf(library, task).length, 4);
+      assert.ok((claims(library, task)[0]?.last_run_at ?? 0) > (old ?? 0));
+    });
+  }
 });
 
 describe("deleting the Item that owns the weekly job", () => {
@@ -167,20 +121,47 @@ describe("deleting the Item that owns the weekly job", () => {
   it("removes the open job and the tasks it recorded, and the next week opens one again", async () => {
     await instance.tick();
     assert.deepEqual(
-      jobs(instance).map(({ item_id: itemId }) => itemId),
+      jobsOf(instance, "proposals").map(({ item_id: itemId }) => itemId),
       [owner],
     );
 
+    const tasks = await until(
+      () =>
+        rows(
+          instance,
+          z.object({ id: z.number(), kind: z.string() }),
+          "select id, kind from ai_tasks where item_id = ? and kind in ('proposals', 'topic_proposals') order by kind",
+          owner,
+        ),
+      (found) => found.length === 2,
+    );
+    assert.deepEqual(
+      tasks.map(({ kind }) => kind),
+      ["proposals", "topic_proposals"],
+    );
+
     assert.equal((await instance.send("DELETE", `/api/items/${String(owner)}`)).status, 204);
-    assert.deepEqual(jobs(instance), []);
+    assert.deepEqual(jobsOf(instance, "proposals"), []);
+    assert.deepEqual(jobsOf(instance, "topic_proposals"), []);
+    for (const task of tasks) {
+      assert.deepEqual(
+        rows(
+          instance,
+          z.object({ id: z.number() }),
+          "select id from ai_tasks where id = ?",
+          task.id,
+        ),
+        [],
+      );
+    }
     assert.deepEqual(
       rows(
         instance,
-        z.object({ n: z.number() }),
-        "select count(*) as n from ai_tasks where item_id = ?",
+        z.object({ id: z.number() }),
+        "select id from ai_tasks where item_id = ?",
         owner,
       ),
-      [{ n: 0 }],
+      [],
     );
 
     exec(
@@ -190,8 +171,8 @@ describe("deleting the Item that owns the weekly job", () => {
     );
     exec(instance, "delete from scheduled_runs where task = 'sweep'");
     await instance.tick();
-    assert.equal(jobs(instance).length, 1);
-    assert.notEqual(jobs(instance)[0]?.item_id, owner);
+    assert.equal(jobsOf(instance, "proposals").length, 1);
+    assert.notEqual(jobsOf(instance, "proposals")[0]?.item_id, owner);
   });
 });
 

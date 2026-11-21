@@ -26,7 +26,7 @@ Only `src/features/wiki/core/proposal-lifecycle.ts` moves a row between states o
 - **`declined`.** The weekly merge run inserts a row in this state for each pair the model did not return. A `declined` row never changes.
 - **Merge lock.** One merge runs at a time. `anyAccepting` holds while a row of any kind is `accepting`.
 
-The database refuses a state that a kind cannot hold. It also refuses the `accepting` columns on a row that is not `accepting` (The value guard). `test/consistency-triggers-proposals.test.ts` and `test/consistency-triggers-lifecycle.test.ts` check those constraints. The constraints and the two tests do not define which transitions are allowed.
+The database refuses a state that a kind cannot hold. It also refuses the `accepting` columns on a row that is not `accepting` (The value guard). `test/storage-checks-and-indexes.test.ts` checks those constraints. The constraints and their tests do not define which transitions are allowed.
 
 ## The value guard
 
@@ -355,7 +355,7 @@ Each probe ran on `node:sqlite` (Node 26.12.1, SQLite 3.53.3) and on local D1 (`
 - **A head with no subject row.** A `proposals` row with no subject row (an Export slice read the head and missed its subject) was left out of `GET /api/proposals`, which answered 200, and an Accept of it answered 404 for each of the five kinds, on `node:sqlite`. A Restore of an Export whose `tag_merge_proposals` file lacked one line ended `done` on both targets with 13 `proposals` restored, 1 dropped, and no head without a subject row; with `proposalsWithoutSubject` removed it ended `done` with 14 restored and the head stayed.
 - **Trigger depth on D1.** A design where every subject table cascades from `proposals` and has a trigger back to it, with `ON DELETE cascade` on `proposals(id)` in each subject table, failed on local D1 with `triggers nested too deep: SQLITE_ERROR` for `DELETE FROM highlights WHERE id = 1` while a `highlight-lost` row named the Highlight, and passed on `node:sqlite`. With one to four of the five `<table>_gone` triggers present the delete passed; with all five it failed, because each `DELETE FROM proposals` cascades into every subject table, whose trigger deletes `proposals` again, and D1 counts that nesting when it compiles a statement. With no cascade from `proposals`, the Item delete, the Highlight delete and both merge Accepts ran on local D1 with the rows of every kind present, and removed the same rows as on the container.
 
-The Proposal state constraints are covered by `test/consistency-triggers-lifecycle.test.ts`.
+The Proposal state constraints are covered by `test/storage-checks-and-indexes.test.ts`.
 
 ## Runs
 

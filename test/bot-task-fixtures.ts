@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { claimNextDue } from "../src/core/compose/jobs.ts";
 import type { JobKind } from "../src/core/contract/job-contract.ts";
+import { bestEffort } from "../src/core/kernel/failure-log.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/kernel/schema.ts";
 import { newCallbackCredential } from "../src/features/ai/core/callback-credential.ts";
@@ -212,10 +213,14 @@ export async function openJob(
 export async function botInstance(): Promise<Instance> {
   const instance = await Instance.start({ secretKey: SECRET_KEY });
 
-  await instance.setUp();
-  await saveBot(instance);
-
-  return instance;
+  try {
+    await instance.setUp();
+    await saveBot(instance);
+    return instance;
+  } catch (error) {
+    await bestEffort({ event: "test-setup-cleanup-failed", fields: {} }, () => instance.close());
+    throw error;
+  }
 }
 
 export function pastDeadline(instance: Instance, taskId: number): void {

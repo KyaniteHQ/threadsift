@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
-import { after, before, describe, it } from "node:test";
+import { type TestContext, describe, it } from "node:test";
 
-import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
-import { applyAnswer } from "./disagreement-apply.ts";
+import { applyBotResult, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
+import { botInstance } from "./bot-task-fixtures.ts";
 import {
   checksOf,
   disagreementRows,
@@ -10,8 +10,7 @@ import {
   pasteItems,
   proposeDisagreement,
   replaceDigest,
-  runningTask,
-  sentTopics,
+  sentOf,
   taskState,
   tokenOf,
   topicIdOf,
@@ -20,14 +19,9 @@ import type { Instance } from "./instance.ts";
 
 const REASON = "One says the setting is on, the other says it is off.";
 
-type Reading = Readonly<{
-  instance: Instance;
-  sent: Awaited<ReturnType<typeof sentTopics>>;
-}>;
-
-async function start(): Promise<Reading> {
+async function readingLibrary(t: Readonly<TestContext>): Promise<Instance> {
   const instance = await botInstance();
-
+  t.after(() => instance.close());
   await pasteItems(instance, [
     { topic: "Reading" },
     { topic: "Reading" },
@@ -35,31 +29,23 @@ async function start(): Promise<Reading> {
     { topic: "Other" },
     { topic: "Other" },
   ]);
-
-  await selectGrokBot(instance);
-
-  return { instance, sent: await sentTopics(instance.core.db) };
+  return instance;
 }
 
-describe("the guarded store of a disagreement run, applied to the outcome the production handler builds", () => {
-  let reading: Reading;
-
-  before(async () => {
-    reading = await start();
-  });
-
-  after(() => reading.instance.close());
-
-  it("stores a returned pair as an open row with both Digest tokens, writes the membership of every sent Topic and completes the task, in one batch", async () => {
-    const { instance, sent } = reading;
-    const taskId = runningTask(instance);
+describe("a disagreement answer", () => {
+  it("stores a returned pair as an open row with both Digest tokens, writes the membership of every sent Topic and completes the task", async (t) => {
+    const instance = await readingLibrary(t);
+    const sent = await sentTask(
+      instance,
+      await openJobOf(instance, { kind: "disagreement_proposals", itemId: 5 }),
+    );
 
     assert.deepEqual(
-      sent.map(({ name }) => name),
+      sentOf(instance)[0]?.topics.map(({ name }) => name),
       ["Other", "Reading"],
     );
 
-    await applyAnswer(reading, taskId, [{ a: 2, b: 1, reason: REASON }]);
+    await applyBotResult(instance, sent, { disagreements: [{ a: 2, b: 1, reason: REASON }] });
 
     assert.deepEqual(
       disagreementRows(instance).map((row) => [
@@ -76,73 +62,56 @@ describe("the guarded store of a disagreement run, applied to the outcome the pr
       { topic_id: topicIdOf(instance, "Reading"), members: membersText(instance, [1, 2, 3]) },
       { topic_id: topicIdOf(instance, "Other"), members: membersText(instance, [4, 5]) },
     ]);
-    assert.equal(taskState(instance, taskId), "done");
+    assert.equal(taskState(instance, sent.id), "done");
   });
 
-  it("keeps the existing row, open or rejected, when a returned pair names the same two Items in either order", async () => {
-    const { instance } = reading;
-    const [existing] = disagreementRows(instance);
+  ["open", "rejected"].forEach((state) => {
+    it(`keeps the existing ${state} row when an answer names the same two Items again`, async (t) => {
+      const instance = await readingLibrary(t);
+      const sent = await sentTask(
+        instance,
+        await openJobOf(instance, { kind: "disagreement_proposals", itemId: 5 }),
+      );
+      proposeDisagreement(instance, [1, 2], state);
+      const existing = disagreementRows(instance);
 
-    assert.ok(existing !== undefined);
+      await applyBotResult(instance, sent, {
+        disagreements: [{ a: 2, b: 1, reason: "A second reason." }],
+      });
 
-    const taskId = runningTask(instance);
+      assert.deepEqual(disagreementRows(instance), existing);
+      assert.equal(taskState(instance, sent.id), "done");
+    });
+  });
 
-    await applyAnswer(reading, taskId, [{ a: 1, b: 2, reason: "A second reason." }]);
-    assert.deepEqual(disagreementRows(instance), [existing]);
-
-    assert.equal(
-      (await instance.send("POST", `/api/proposals/${String(existing.id)}/reject`)).status,
-      200,
+  it("writes nothing and fails the task as stale when a Digest of a sent Topic was replaced after the read", async (t) => {
+    const instance = await readingLibrary(t);
+    const sent = await sentTask(
+      instance,
+      await openJobOf(instance, { kind: "disagreement_proposals", itemId: 5 }),
     );
-    await applyAnswer(reading, runningTask(instance), [{ a: 2, b: 1, reason: "A third reason." }]);
-    assert.deepEqual(
-      disagreementRows(instance).map(({ id, state }) => [id, state]),
-      [[existing.id, "rejected"]],
-    );
-  });
-});
-
-describe("the guard of the store of a disagreement run", () => {
-  let reading: Reading;
-
-  before(async () => {
-    reading = await start();
-  });
-
-  after(() => reading.instance.close());
-
-  it("writes nothing and fails the task as stale when a Digest of a sent Topic was replaced after the read", async () => {
-    const { instance } = reading;
-    const taskId = runningTask(instance);
     const unchanged = checksOf(instance);
 
     await replaceDigest(instance, 2, { topic: "Reading", summary: "A replaced summary." });
-    await applyAnswer(reading, taskId, [{ a: 1, b: 2, reason: REASON }]);
+    await applyBotResult(instance, sent, { disagreements: [{ a: 1, b: 2, reason: REASON }] });
 
     assert.deepEqual(disagreementRows(instance), []);
     assert.deepEqual(checksOf(instance), unchanged);
-    assert.equal(taskState(instance, taskId), "failed");
-  });
-});
-
-describe("the store of a disagreement run next to a row that a new Digest made stale", () => {
-  let reading: Reading;
-
-  before(async () => {
-    reading = await start();
+    assert.equal(taskState(instance, sent.id), "failed");
   });
 
-  after(() => reading.instance.close());
-
-  it("replaces the hidden open row of the same pair with a row on the new Digest tokens", async () => {
-    const { instance } = reading;
+  it("replaces the hidden open row of the same pair with a row on the new Digest tokens", async (t) => {
+    const instance = await readingLibrary(t);
     const stale = proposeDisagreement(instance, [1, 2]);
 
     await replaceDigest(instance, 2, { topic: "Reading", summary: "A replaced summary." });
 
-    const sent = await sentTopics(instance.core.db);
+    const sent = await sentTask(
+      instance,
+      await openJobOf(instance, { kind: "disagreement_proposals", itemId: 5 }),
+    );
 
-    await applyAnswer({ instance, sent }, runningTask(instance), [{ a: 1, b: 2, reason: REASON }]);
+    await applyBotResult(instance, sent, { disagreements: [{ a: 1, b: 2, reason: REASON }] });
 
     const stored = disagreementRows(instance);
 

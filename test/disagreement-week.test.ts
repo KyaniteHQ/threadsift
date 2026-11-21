@@ -5,7 +5,6 @@ import { z } from "zod";
 
 import {
   checksOf,
-  jobsOf,
   membersText,
   pasteItems,
   proposeDisagreement,
@@ -15,62 +14,7 @@ import {
   topicIdOf,
 } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { claims, moveClaimBack, nextTick } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
-
-const TASK = "disagreement_proposals";
-
-describe("the weekly disagreement claim", () => {
-  let instance: Instance;
-
-  before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
-    await pasteItems(instance, [
-      { topic: "Reading" },
-      { topic: "Reading" },
-      { topic: "Reading" },
-      { topic: "Reading", noDigest: true },
-    ]);
-  });
-
-  after(() => instance.close());
-
-  it("claims nothing and opens no job with no Provider saved", async () => {
-    await instance.tick();
-    assert.deepEqual([claims(instance, TASK), jobsOf(instance)], [[], []]);
-  });
-
-  it("claims once, opens one job owned by the highest-id Item with a Digest beside the Tag and Topic jobs, and opens none on a second tick", async () => {
-    await saveProvider(instance);
-    await nextTick(instance);
-
-    const [claimed] = claims(instance, TASK);
-
-    assert.ok(claimed !== undefined);
-    assert.deepEqual(
-      jobsOf(instance).map(({ item_id: owner }) => owner),
-      [3],
-    );
-    assert.equal(jobsOf(instance, "proposals").length, 1);
-    assert.equal(jobsOf(instance, "topic_proposals").length, 1);
-
-    exec(instance, "update jobs set state = 'done' where kind = 'disagreement_proposals'");
-    await nextTick(instance);
-    assert.equal(jobsOf(instance).length, 1);
-    assert.deepEqual(claims(instance, TASK), [claimed]);
-  });
-
-  it("opens one more job once its claim is 7 days old, and leaves the other claims alone", async () => {
-    const tagClaim = claims(instance, "proposals");
-
-    moveClaimBack(instance, TASK);
-    await nextTick(instance);
-
-    assert.equal(jobsOf(instance).length, 2);
-    assert.deepEqual(claims(instance, "proposals"), tagClaim);
-  });
-});
 
 describe("the Topics the weekly disagreement check reads", () => {
   let instance: Instance;

@@ -5,16 +5,14 @@ import { z } from "zod";
 
 import { Instance } from "./instance.ts";
 import {
-  claims,
   highlightStatus,
   keepLostHighlight,
-  moveClaimBack,
-  nextTick,
   readPage,
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider } from "./related-fixtures.ts";
+import { claims, moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
 
 const LostSchema = z.object({
   id: z.number(),

@@ -74,6 +74,7 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
 
     assert.deepEqual([agent.status, signedOut.status], [403, 401]);
     assert.equal((await accept(instance, 9999)).status, 404);
+    assert.equal((await instance.send("POST", "/api/proposals/abc/accept")).status, 400);
     assert.equal(count(instance, "select count(*) as n from pins"), 0);
     removeProposals(instance);
   });
