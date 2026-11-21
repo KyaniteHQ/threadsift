@@ -83,6 +83,29 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     assert.deepEqual(listed?.commentCount, { filter: "kept", shown: 1, total: 6 });
   });
 
+  it("stores the Source of the Item on its thread row and on each of its reply rows", () => {
+    const id = xClient(instance).itemIdOf(STORED);
+
+    assert.deepEqual(
+      rows(
+        instance,
+        z.object({ source: z.string() }),
+        "select source from reddit_threads where item_id = ?",
+        id,
+      ),
+      [{ source: "x" }],
+    );
+    assert.deepEqual(
+      rows(
+        instance,
+        z.object({ source: z.string() }),
+        "select source from reddit_comments where item_id = ? order by position",
+        id,
+      ),
+      Array.from({ length: 6 }, () => ({ source: "x" })),
+    );
+  });
+
   it("opens with the kept reply under its parent as context, the post's handle and no archive note", async () => {
     const detail = await instance.detail(xClient(instance).itemIdOf(STORED));
 

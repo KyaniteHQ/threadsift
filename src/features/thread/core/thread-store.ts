@@ -1,7 +1,7 @@
 import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { REDDIT_KINDS } from "../../../core/contract/item-contract.ts";
+import { REDDIT_KINDS, type ThreadSource } from "../../../core/contract/item-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { guardHolds } from "../../../core/kernel/guards.ts";
 import { listed } from "../../../core/kernel/schema-checks.ts";
@@ -24,12 +24,14 @@ export function commentReadable(): SQL<boolean> {
 
 export interface Owner {
   readonly id: Readonly<SQLWrapper>;
+  readonly source: Readonly<SQLWrapper>;
   readonly generation: Readonly<SQLWrapper>;
 }
 
 export function ownerOfItem(itemId: number): Owner {
   return {
     id: sql`${itemId}`,
+    source: sql`(select ${items.source} from ${items} where ${items.id} = ${itemId})`,
     generation: sql`(select ${items.generation} from ${items} where ${items.id} = ${itemId})`,
   };
 }
@@ -39,6 +41,7 @@ export function ownerOf(normalizedUrl: string): Owner {
 
   return {
     id: sql`(select ${items.id} ${at})`,
+    source: sql`(select ${items.source} ${at})`,
     generation: sql`(select ${items.generation} ${at})`,
   };
 }
@@ -81,6 +84,7 @@ function headerInsert(
     db
       .select({
         itemId: sql<number>`${owner.id}`.as("item_id"),
+        source: sql<ThreadSource>`${owner.source}`.as("source"),
         generation: sql<number>`${owner.generation}`.as("generation"),
         reported: sql<number | null>`${reported}`.as("reported"),
         archivedAt: sql<number | null>`${archivedAt}`.as("archived_at"),
@@ -98,6 +102,7 @@ function commentInsert(db: Database, owner: Readonly<Owner>, json: string) {
     db
       .select({
         itemId: sql<number>`${owner.id}`.as("item_id"),
+        source: sql<ThreadSource>`${owner.source}`.as("source"),
         generation: sql<number>`${owner.generation}`.as("generation"),
         position: sql<number>`json_extract(value, '$.position')`.as("position"),
         id: sql<string>`json_extract(value, '$.id')`.as("id"),

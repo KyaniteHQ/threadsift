@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
   check,
+  foreignKey,
   integer,
   primaryKey,
   sqliteTable,
@@ -8,15 +9,16 @@ import {
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
 
+import { THREAD_SOURCES } from "../contract/item-contract.ts";
 import { COMMENT_KINDS } from "../contract/reddit-contract.ts";
 import { items } from "./item-tables.ts";
+import { listed } from "./schema-checks.ts";
 
 export const redditThreads = sqliteTable(
   "reddit_threads",
   {
-    itemId: integer("item_id")
-      .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
+    itemId: integer("item_id").notNull(),
+    source: text("source", { enum: THREAD_SOURCES }).notNull(),
     generation: integer("generation").notNull(),
     reported: integer("reported"),
     archivedAt: integer("archived_at"),
@@ -24,7 +26,14 @@ export const redditThreads = sqliteTable(
     postLink: text("post_link"),
     followUps: integer("follow_ups").notNull().default(0),
   },
-  (table) => [primaryKey({ columns: [table.itemId, table.generation] })],
+  (table) => [
+    primaryKey({ columns: [table.itemId, table.generation] }),
+    foreignKey({
+      columns: [table.itemId, table.source],
+      foreignColumns: [items.id, items.source],
+    }).onDelete("cascade"),
+    check("reddit_threads_source_check", sql`${table.source} in (${listed(THREAD_SOURCES)})`),
+  ],
 );
 
 export const redditSettings = sqliteTable(
@@ -39,9 +48,8 @@ export const redditSettings = sqliteTable(
 export const redditComments = sqliteTable(
   "reddit_comments",
   {
-    itemId: integer("item_id")
-      .notNull()
-      .references(() => items.id, { onDelete: "cascade" }),
+    itemId: integer("item_id").notNull(),
+    source: text("source", { enum: THREAD_SOURCES }).notNull(),
     generation: integer("generation").notNull(),
     position: integer("position").notNull(),
     id: text("id").notNull(),
@@ -58,5 +66,10 @@ export const redditComments = sqliteTable(
   (table) => [
     primaryKey({ columns: [table.itemId, table.generation, table.position] }),
     uniqueIndex("reddit_comments_id").on(table.itemId, table.generation, table.id),
+    foreignKey({
+      columns: [table.itemId, table.source],
+      foreignColumns: [items.id, items.source],
+    }).onDelete("cascade"),
+    check("reddit_comments_source_check", sql`${table.source} in (${listed(THREAD_SOURCES)})`),
   ],
 );

@@ -57,6 +57,13 @@
       "when": 1795212390181,
       "tag": "0007_agent_token_scopes_required",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1795215025329,
+      "tag": "0008_thread_source",
+      "breakpoints": true
     }
   ]
 }

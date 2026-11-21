@@ -1,5 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 
+import { isThreadSource } from "../../../core/contract/item-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { redditThreads } from "../../../core/kernel/schema.ts";
 import { commentCandidates } from "../../thread/core/thread-selection.ts";
@@ -29,10 +30,9 @@ export async function modelInput(
   catalog: Readonly<CatalogNames>,
   page: Readonly<LinkedPage> | null,
 ): Promise<DigestPrompt> {
-  const comments =
-    item.source === "reddit" || item.source === "x"
-      ? await commentCandidates(db, { itemId: item.id, generation: item.generation })
-      : [];
+  const comments = isThreadSource(item.source)
+    ? await commentCandidates(db, { itemId: item.id, generation: item.generation })
+    : [];
 
   return digestPrompt(
     {

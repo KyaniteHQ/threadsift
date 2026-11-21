@@ -46,6 +46,7 @@ export const items = sqliteTable(
       "items_source_kind_check",
       sql`${table.source} is (${caseOf(table.kind, SOURCE_OF_KIND)})`,
     ),
+    uniqueIndex("items_id_source").on(table.id, table.source),
     index("items_saved_at_id").on(table.savedAt, table.id),
     index("items_topic").on(table.topicId),
     index("items_post_text_key").on(table.postTextKey),

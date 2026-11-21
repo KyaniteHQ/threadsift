@@ -57,6 +57,7 @@ export const BACKUP_TABLES = {
     scope: "per-item",
     columns: [
       "item_id",
+      "source",
       "generation",
       "reported",
       "archived_at",
@@ -70,6 +71,7 @@ export const BACKUP_TABLES = {
     scope: "per-item",
     columns: [
       "item_id",
+      "source",
       "generation",
       "position",
       "id",

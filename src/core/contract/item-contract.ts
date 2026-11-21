@@ -11,6 +11,8 @@ export const KINDS = [
 
 export const REDDIT_KINDS = ["reddit-post", "reddit-comment"] as const;
 
+export const THREAD_SOURCES = ["reddit", "x"] as const satisfies readonly Source[];
+
 export const READ_STATES = ["unread", "read"] as const;
 
 export const SEARCH_MAX = 200;
@@ -22,6 +24,12 @@ export const FAILURE_REASONS = ["timeout", "network", "gave-up", "rate-limited"]
 export const DIGEST_OUTCOMES = ["none", "pending", "failed"] as const;
 
 export type Source = (typeof SOURCES)[number];
+
+export type ThreadSource = (typeof THREAD_SOURCES)[number];
+
+export function isThreadSource(source: Source): source is ThreadSource {
+  return THREAD_SOURCES.some((threadSource) => threadSource === source);
+}
 
 export type Kind = (typeof KINDS)[number];
 
