@@ -1,18 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { Instance } from "./instance.ts";
 import { lines, paste, readLog, seedEntries } from "./log-fixtures.ts";
-import { rows } from "./related-fixtures.ts";
-
-const VersionSchema = z.object({ version: z.number() });
-
-const catalogVersion = (instance: Instance): number =>
-  VersionSchema.parse(rows(instance, VersionSchema, "select version from catalog_version")[0])
-    .version;
+import { catalogVersion } from "./related-fixtures.ts";
 
 describe("the Log records a first Digest, a second Item and a Digest sent again", () => {
   let instance: Instance;

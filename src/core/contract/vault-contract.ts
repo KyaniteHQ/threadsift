@@ -34,7 +34,7 @@ const GithubInputSchema = z.strictObject({
 
 export const VAULT_FOLDER_MAX = 4096;
 
-export const VaultFolderInputSchema = z.strictObject({
+const VaultFolderInputSchema = z.strictObject({
   mode: z.literal("folder"),
   folder: z
     .string()
@@ -69,7 +69,7 @@ const FolderViewSchema = z.object({
 });
 export const VaultViewSchema = z.discriminatedUnion("mode", [GithubViewSchema, FolderViewSchema]);
 
-export const VaultRefusalSchema = z.object({
+const VaultRefusalSchema = z.object({
   kind: z.literal("refused"),
   reason: z.enum([
     "secret-missing",

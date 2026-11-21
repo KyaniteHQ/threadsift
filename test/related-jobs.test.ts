@@ -4,11 +4,11 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { runJob } from "../src/core/compose/jobs.ts";
-import { count } from "./accept-fixtures.ts";
 import { jobRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { entryCount } from "./log-fixtures.ts";
 import {
+  count,
   SECRET_KEY,
   exec,
   firstPickTask,

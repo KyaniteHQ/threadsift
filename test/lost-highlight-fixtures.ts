@@ -13,6 +13,17 @@ import type { Instance } from "./instance.ts";
 import { exec, paste, rows, saveProvider } from "./related-fixtures.ts";
 import { nextTick } from "./weekly-claim-fixtures.ts";
 
+export const ColumnsSchema = z.object({
+  id: z.number(),
+  item_id: z.number(),
+  exact: z.string(),
+  prefix: z.string(),
+  suffix: z.string(),
+  hint: z.number(),
+  status: z.string(),
+  start: z.number().nullable(),
+});
+
 const BEFORE = "A long sentence that comes before the passage and fills the stored context. ";
 
 const AFTER = " A long sentence that comes after the passage and fills the stored context.";
@@ -25,10 +36,10 @@ export const mergesOf = (page: Readonly<ProposalPage>): readonly MergeProposal[]
 
 export const textHolding = (passage: string): string => `${BEFORE}${passage}${AFTER}`;
 
-export const textHoldingTwice = (passage: string): string =>
+const textHoldingTwice = (passage: string): string =>
   `${textHolding(passage)}\n\n${textHolding(passage)}`;
 
-export function pasteHolding(
+function pasteHolding(
   instance: Instance,
   slug: string,
   passage: string,
@@ -136,6 +147,12 @@ export async function proposeLost(
   }
 
   return row.id;
+}
+
+export async function listedIds(instance: Instance, kind?: Proposal["kind"]) {
+  return (await readPage(instance)).proposals.flatMap((row) =>
+    kind === undefined || row.kind === kind ? [row.id] : [],
+  );
 }
 
 export const readPage = (instance: Instance, query = ""): Promise<ProposalPage> =>

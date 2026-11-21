@@ -13,7 +13,7 @@ const FIRST_STATUS = 5_000_000_000;
 export const xLink = (number: number): string =>
   `https://x.com/someone/status/${String(FIRST_STATUS + number)}`;
 
-export interface BudgetToken {
+interface BudgetToken {
   readonly id: number;
   readonly value: string;
 }
@@ -54,8 +54,6 @@ export const addBatch = (instance: Instance, token: BudgetToken, numbers: readon
     links: numbers.map((number) => ({ url: xLink(number) })),
   });
 
-const TotalSchema = z.object({ total: z.number() });
-
 function rows(instance: Instance, query: string): readonly unknown[] {
   const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
 
@@ -64,10 +62,6 @@ function rows(instance: Instance, query: string): readonly unknown[] {
   } finally {
     database.close();
   }
-}
-
-export function total(instance: Instance, table: string): number {
-  return TotalSchema.parse(rows(instance, `select count(*) as total from ${table}`)[0]).total;
 }
 
 export function execute(instance: Instance, statement: string): void {

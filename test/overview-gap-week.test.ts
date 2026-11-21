@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import {
@@ -16,15 +14,12 @@ import {
   queueOverview,
   storePage,
 } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, exec, rows, saveProvider } from "./related-fixtures.ts";
+import { count, SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
 import { claims, moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
 
 const TASK = "overview_proposals";
 
 const OVERVIEW_TASKS = "select count(*) as n from ai_tasks where kind = 'topic_overview'";
-
-const count = (instance: Instance, query: string) =>
-  rows(instance, z.object({ n: z.number() }), query)[0]?.n ?? 0;
 
 describe("the weekly overview check with no Provider saved", () => {
   let instance: Instance;

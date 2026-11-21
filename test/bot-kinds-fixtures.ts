@@ -6,7 +6,7 @@ import { isLastAttempt } from "../src/core/kernel/job-retry.ts";
 import type { BotKindName, KindCase } from "./bot-kinds-cases.ts";
 import {
   acceptedByBot,
-  claimedJob,
+  claimedBotJob,
   openJobOfKind,
   reclaimedJob,
   selectGrokBot,
@@ -52,7 +52,7 @@ export async function sentTask(
     lastAttempt ? 0 : job.attempts,
     job.id,
   );
-  await executeClaimed(instance.core, await claimedJob(instance, job.id));
+  await executeClaimed(instance.core, await claimedBotJob(instance, job.id));
 
   const task = taskRows(instance, "job_id = ?", job.id).at(-1);
 

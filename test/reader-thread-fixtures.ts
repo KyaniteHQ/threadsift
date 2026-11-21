@@ -42,35 +42,35 @@ function childrenOf(top: string): readonly Json[] {
   ];
 }
 
+export const listing = (children: readonly Json[]): Json => ({
+  kind: "Listing",
+  data: { children: [...children] },
+});
+
+export const postListing = (id: string, post: Readonly<Record<string, Json>>): Json =>
+  listing([
+    {
+      kind: "t3",
+      data: {
+        id,
+        title: `Post ${id}`,
+        author: "poster",
+        subreddit: "links",
+        selftext: "",
+        created_utc: 1_700_000_000,
+        ...post,
+      },
+    },
+  ]);
+
 export function threadOf(
   id: string,
   post: Readonly<Record<string, Json>> = {},
   children: readonly Json[] = childrenOf(`t3_${id}`),
 ): string {
   return JSON.stringify([
-    {
-      kind: "Listing",
-      data: {
-        children: [
-          {
-            kind: "t3",
-            data: {
-              id,
-              title: `Post ${id}`,
-              author: "poster",
-              subreddit: "links",
-              selftext: "",
-              created_utc: 1_700_000_000,
-              num_comments: 6,
-              is_self: false,
-              url: TARGET,
-              ...post,
-            },
-          },
-        ],
-      },
-    },
-    { kind: "Listing", data: { children } },
+    postListing(id, { num_comments: 6, is_self: false, url: TARGET, ...post }),
+    listing(children),
   ]);
 }
 

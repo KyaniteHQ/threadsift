@@ -9,12 +9,6 @@ const IdSchema = z.object({ id: z.number() });
 
 const NameSchema = z.object({ name: z.string() });
 
-const CountSchema = z.object({ n: z.number() });
-
-export function count(instance: Instance, query: string, ...params: readonly (string | number)[]) {
-  return rows(instance, CountSchema, query, ...params)[0]?.n ?? 0;
-}
-
 export function tagId(instance: Instance, name: string): number {
   const [row] = rows(instance, IdSchema, "select id from tags where name = ?", name);
 

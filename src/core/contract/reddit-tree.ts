@@ -132,7 +132,7 @@ function spotFor(into: readonly Walked[], root: Readonly<WireComment>): Spot {
     : { at: continued, continued: true };
 }
 
-export function graft(
+function graft(
   ids: Readonly<Set<string>>,
   into: readonly Walked[],
   answer: readonly Walked[],

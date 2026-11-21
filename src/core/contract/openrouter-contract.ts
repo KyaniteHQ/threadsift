@@ -31,7 +31,7 @@ export type ConnectNotice = z.infer<typeof ConnectNoticeSchema>;
 
 export const NOTICE_PARAMETER = "openrouter";
 
-export const SETTINGS_PATH = "/settings";
+const SETTINGS_PATH = "/settings";
 
 export function returnAddress(notice: ConnectNotice | null): string {
   return notice === null ? SETTINGS_PATH : `${SETTINGS_PATH}?${NOTICE_PARAMETER}=${notice}`;

@@ -3,10 +3,9 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { exec, paste, rows, until } from "./related-fixtures.ts";
+import { count, exec, paste, rows, until } from "./related-fixtures.ts";
 
 const TARGET = "Machine Learning";
 

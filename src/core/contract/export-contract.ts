@@ -30,7 +30,7 @@ export const EXPORT_FAILURES = ["gave-up", "cancelled", "replaced", "list-change
 
 export type ExportFailure = (typeof EXPORT_FAILURES)[number];
 
-export const SHOWN_EXPORT_FAILURES = [
+const SHOWN_EXPORT_FAILURES = [
   "gave-up",
   "list-changed",
 ] as const satisfies readonly ExportFailure[];

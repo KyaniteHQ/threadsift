@@ -1,13 +1,13 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
-import { accept, count } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { mergesOf } from "./lost-highlight-fixtures.ts";
+import { seedLogEntries } from "./log-fixtures.ts";
+import { mergesOf, readPage } from "./lost-highlight-fixtures.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
-import { script, seedLogEntries, seedTopicItems } from "./pin-fixtures.ts";
+import { script, seedTopicItems } from "./pin-fixtures.ts";
+import { count } from "./related-fixtures.ts";
 import {
   answerOf,
   itemsOf,
@@ -158,7 +158,7 @@ describe("Accept of a Topic row hands back a failed first unit", () => {
         "create trigger test_on_pin before insert on pins begin select raise(abort, 'the unit fails'); end;",
       );
 
-      assert.equal((await accept(instance, proposal)).status, 500);
+      assert.equal((await answerOf(instance, proposal))[0], 500);
 
       assert.equal(count(instance, "select count(*) as n from proposals where state = 'open'"), 1);
       unchanged(library);
@@ -172,7 +172,7 @@ describe("Accept of a Topic row hands back a failed first unit", () => {
 
       script(instance, "alter table log_entries rename column topic_id to renamed_topic_id");
 
-      assert.equal((await accept(instance, proposal)).status, 500);
+      assert.equal((await answerOf(instance, proposal))[0], 500);
 
       assert.equal(count(instance, "select count(*) as n from proposals where state = 'open'"), 1);
       unchanged(library);
@@ -211,7 +211,7 @@ describe("the sweep stage records failed Topic merge units", () => {
     await failingSweep(2);
     await failingSweep(3);
 
-    const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
+    const page = await readPage(instance);
 
     assert.deepEqual(
       mergesOf(page).map(({ id, state, failedRuns: shown }) => [id, state, shown]),
@@ -240,7 +240,10 @@ describe("Accept of a Topic row on more Log entries than one unit holds", () => 
   after(() => instance.close());
 
   it("moves more Log entries than one unit holds and writes the merge Log entry once", async () => {
-    seedLogEntries(instance, { topicId: loser, name: "Loser", entries: 1001 });
+    seedLogEntries(instance, "loser", 1001);
+    assert.ok(
+      count(instance, "select count(*) as n from log_entries where topic_id = ?", loser) >= 1001,
+    );
 
     const id = proposeTopics(instance, ["Loser", "Survivor"]);
 
@@ -251,9 +254,7 @@ describe("Accept of a Topic row on more Log entries than one unit holds", () => 
       survivor,
     );
 
-    const answer = await accept(instance, id);
-
-    assert.deepEqual([answer.status, JSON.parse(answer.body)], [200, { state: "done" }]);
+    assert.deepEqual(await answerOf(instance, id), [200, { state: "done" }]);
     assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
     assert.equal(
       count(instance, "select count(*) as n from log_entries where topic_id = ?", survivor),

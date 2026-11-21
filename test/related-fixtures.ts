@@ -133,6 +133,19 @@ export async function paste(instance: Instance, slug: string, fixture: Fixture):
   return item.id;
 }
 
+const CountSchema = z.object({ n: z.number() });
+
+const CatalogVersionSchema = z.object({ version: z.number() });
+
+export const catalogVersion = (instance: Instance): number =>
+  CatalogVersionSchema.parse(
+    rows(instance, CatalogVersionSchema, "select version from catalog_version where id = 1")[0],
+  ).version;
+
+export function count(instance: Instance, query: string, ...params: readonly (string | number)[]) {
+  return rows(instance, CountSchema, query, ...params)[0]?.n ?? 0;
+}
+
 export function rows<Schema extends z.ZodType>(
   instance: Instance,
   schema: Schema,

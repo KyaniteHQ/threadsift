@@ -2,12 +2,8 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { Instance } from "./instance.ts";
-import { SECRET_KEY, exec, pairsOf, paste, rows } from "./related-fixtures.ts";
-
-const COUNT_SCHEMA = z.object({ count: z.number() });
+import { count, SECRET_KEY, exec, pairsOf, paste } from "./related-fixtures.ts";
 
 function seed(
   instance: Instance,
@@ -36,10 +32,6 @@ function refused(instance: Instance, query: string, ...params: readonly (string 
   } finally {
     database.close();
   }
-}
-
-function count(instance: Instance): number {
-  return rows(instance, COUNT_SCHEMA, "select count(*) as count from related_items")[0]?.count ?? 0;
 }
 
 describe("an Item's Related Items are read through the API and leave with either Item", () => {
@@ -107,7 +99,7 @@ describe("an Item's Related Items are read through the API and leave with either
       [0, 1, 4],
     );
     assert.equal((await instance.send("DELETE", `/api/items/${String(source)}`)).status, 204);
-    assert.equal(count(instance), 0);
+    assert.equal(count(instance, "select count(*) as n from related_items"), 0);
   });
 });
 

@@ -6,18 +6,10 @@ import { z } from "zod";
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
-import {
-  accept,
-  count,
-  mergeLines,
-  propose,
-  tagId,
-  tagNames,
-  tagsOfDigest,
-} from "./accept-fixtures.ts";
+import { accept, mergeLines, propose, tagId, tagNames, tagsOfDigest } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { paste, rows } from "./related-fixtures.ts";
+import { catalogVersion, count, paste, rows } from "./related-fixtures.ts";
 
 const PinSchema = z.object({
   from_key: z.string(),
@@ -26,13 +18,6 @@ const PinSchema = z.object({
 });
 
 const byNumber = (first: number, second: number): number => first - second;
-
-const CatalogVersionSchema = z.object({ version: z.number() });
-
-const catalogVersion = (instance: Instance): number =>
-  CatalogVersionSchema.parse(
-    rows(instance, CatalogVersionSchema, "select version from catalog_version where id = 1")[0],
-  ).version;
 
 const listed = async (instance: Instance, query: string) =>
   (await instance.read("GET", `/api/items${query}`, ItemReadResponseSchema)).items.map(

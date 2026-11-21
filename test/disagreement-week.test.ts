@@ -11,10 +11,10 @@ import {
   runWeek,
   sentOf,
   tasksOf,
-  topicIdOf,
 } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
+import { topicId } from "./topic-accept-fixtures.ts";
 
 describe("the Topics the weekly disagreement check reads", () => {
   let instance: Instance;
@@ -37,7 +37,7 @@ describe("the Topics the weekly disagreement check reads", () => {
     exec(
       instance,
       "insert into topic_checks (topic_id, members, checked_at) values (?, ?, 1)",
-      topicIdOf(instance, "Checked"),
+      topicId(instance, "Checked"),
       membersText(instance, [7, 8]),
     );
     proposeDisagreement(instance, [3, 4], "rejected");
@@ -72,7 +72,7 @@ describe("the Topics the weekly disagreement check reads", () => {
     assert.equal(task?.item_id, 24);
     assert.ok(Buffer.byteLength(task?.inputs ?? "") <= 14_000);
     assert.deepEqual(checksOf(instance), [
-      { topic_id: topicIdOf(instance, "Checked"), members: membersText(instance, [7, 8]) },
+      { topic_id: topicId(instance, "Checked"), members: membersText(instance, [7, 8]) },
     ]);
   });
 });

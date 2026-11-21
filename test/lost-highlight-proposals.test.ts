@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { tagId } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
+  ColumnsSchema,
+  listedIds,
   keepLostHighlight,
   keepPassage,
   proposeLost,
@@ -16,22 +16,8 @@ import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, paste, rows } from "./related-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
-const ColumnsSchema = z.object({
-  id: z.number(),
-  item_id: z.number(),
-  exact: z.string(),
-  prefix: z.string(),
-  suffix: z.string(),
-  hint: z.number(),
-  status: z.string(),
-  start: z.number().nullable(),
-});
-
 const highlightColumns = (instance: Instance) =>
   rows(instance, ColumnsSchema, "select * from highlights order by id");
-
-const listedIds = async (instance: Instance) =>
-  (await readPage(instance)).proposals.map(({ id }) => id);
 
 describe("lost-Highlight Proposals beside Tag and Topic rows", () => {
   let instance: Instance;

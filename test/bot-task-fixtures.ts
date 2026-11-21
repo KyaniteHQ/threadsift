@@ -10,7 +10,7 @@ import { type JobRow, jobs } from "../src/core/kernel/schema.ts";
 import { newCallbackCredential } from "../src/features/ai/core/callback-credential.ts";
 import { KEY, PATH, SECRET_KEY, inOrder } from "./grok-bot-fixtures.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
+import { count, exec, paste, rows } from "./related-fixtures.ts";
 
 export { SECRET_KEY };
 
@@ -63,7 +63,7 @@ export function unblock(instance: Instance, itemId: number): void {
   );
 }
 
-export async function claimedJob(instance: Instance, id: number): Promise<ClaimedJob> {
+export async function claimedBotJob(instance: Instance, id: number): Promise<ClaimedJob> {
   const claimed = await claimNextDue(instance.core.db);
 
   assert.ok(
@@ -81,7 +81,7 @@ export function reclaimedJob(
 ): Promise<ClaimedJob> {
   exec(instance, "update jobs set next_attempt_at = 0, claim_expires = null where id = ?", job.id);
 
-  return claimedJob(instance, job.id);
+  return claimedBotJob(instance, job.id);
 }
 
 export function acceptedByBot(instance: Instance, taskId: number) {
@@ -139,7 +139,7 @@ async function queuedJob(
 
 export async function bulkJobs(
   instance: Instance,
-  count: number,
+  jobCount: number,
   kind: JobKind = "related_pick",
 ): Promise<readonly ClaimedJob[]> {
   const first =
@@ -149,7 +149,7 @@ export async function bulkJobs(
   const claims: ClaimedJob[] = [];
 
   await inOrder(
-    Array.from({ length: count }, (_, offset) => first + offset),
+    Array.from({ length: jobCount }, (_, offset) => first + offset),
     async (id) => {
       exec(
         instance,
@@ -170,7 +170,7 @@ export async function claimedNew(
   instance: Instance,
   options: Readonly<QueuedJob>,
 ): Promise<ClaimedJob> {
-  return claimedJob(instance, await queuedJob(instance, options));
+  return claimedBotJob(instance, await queuedJob(instance, options));
 }
 
 export function openJobOfKind(
@@ -194,9 +194,8 @@ export async function openJob(
   itemId: number,
   attempts = 0,
 ): Promise<ClaimedJob> {
-  const [held] = rows(
+  const held = count(
     instance,
-    z.object({ n: z.number() }),
     "select count(*) as n from jobs where kind = 'digest' and item_id = ? and state = 'running'",
     itemId,
   );
@@ -205,7 +204,7 @@ export async function openJob(
 
   const job = await openJobOfKind(instance, { kind: "related_pick", itemId, attempts });
 
-  if (held?.n === 1) await claimedNew(instance, { kind: "digest", itemId });
+  if (held === 1) await claimedNew(instance, { kind: "digest", itemId });
 
   return job;
 }

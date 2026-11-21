@@ -3,17 +3,10 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import {
-  accept,
-  count,
-  linkVolume,
-  mergeLines,
-  seedVolume,
-  tagsOfDigest,
-} from "./accept-fixtures.ts";
+import { accept, linkVolume, mergeLines, seedVolume, tagsOfDigest } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { count, exec, rows } from "./related-fixtures.ts";
 
 const DigestTagsSchema = z.object({ tags: z.string() });
 

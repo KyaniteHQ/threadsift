@@ -3,11 +3,11 @@ import { describe, it } from "node:test";
 
 import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
-import { accept, count } from "./accept-fixtures.ts";
+import { accept } from "./accept-fixtures.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, jobRow, openJobOf, taskRow } from "./bot-kinds-fixtures.ts";
 import { claimedAgain } from "./grok-bot-provider-walk.ts";
-import { paste } from "./related-fixtures.ts";
+import { count, paste } from "./related-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 describe("Accept while the merged-away Topic has an overview answer in flight", () => {

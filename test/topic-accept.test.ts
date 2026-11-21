@@ -3,11 +3,11 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { accept, count, propose } from "./accept-fixtures.ts";
+import { accept, propose } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
 import { dump } from "./pin-fixtures.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
+import { catalogVersion, count, exec, paste, rows } from "./related-fixtures.ts";
 import {
   answerOf,
   itemsOf,
@@ -35,13 +35,6 @@ const itemsWithTopic = async (instance: Instance, name: string) =>
   (
     await instance.read("GET", `/api/items?topic=${encodeURIComponent(name)}`, ItemIdsSchema)
   ).items.map(({ id }) => id);
-
-const CatalogVersionSchema = z.object({ version: z.number() });
-
-const catalogVersion = (instance: Instance): number =>
-  CatalogVersionSchema.parse(
-    rows(instance, CatalogVersionSchema, "select version from catalog_version where id = 1")[0],
-  ).version;
 
 describe("only one Topic or Tag merge can run at a time", () => {
   it("refuses a Topic Accept while a Tag merge runs and a Tag Accept while a Topic merge runs", async () => {

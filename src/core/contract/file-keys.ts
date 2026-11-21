@@ -182,7 +182,7 @@ export function exportFilesPrefix(exportId: number | string): string {
   return `${EXPORT_FILES_ROOT}${exportId}/`;
 }
 
-export function exportFileKey(exportId: number | string, name: string): string {
+function exportFileKey(exportId: number | string, name: string): string {
   return `${exportFilesPrefix(exportId)}${name}`;
 }
 

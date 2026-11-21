@@ -208,16 +208,3 @@ export const taskState = (instance: Instance, id: number): string | undefined =>
 
 export const membersText = (instance: Instance, itemIds: readonly number[]): string =>
   itemIds.map((id) => `${String(id)}:${String(tokenOf(instance, id))}`).join(",");
-
-export const topicIdOf = (instance: Instance, name: string): number => {
-  const [row] = rows(
-    instance,
-    z.object({ id: z.number() }),
-    "select id from topics where name = ?",
-    name,
-  );
-
-  if (row === undefined) throw new Error(`Topic ${name} does not exist`);
-
-  return row.id;
-};

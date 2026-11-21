@@ -39,11 +39,11 @@ function stillAt(db: Database, run: Readonly<RestoreRow>) {
   );
 }
 
-export function continuation(db: Database, run: Readonly<RestoreRow>) {
+function continuation(db: Database, run: Readonly<RestoreRow>) {
   return [openingRestoreJob(db, eq(restoreRuns.id, run.id))];
 }
 
-export function precondition(db: Database, run: Readonly<RestoreRow>) {
+function precondition(db: Database, run: Readonly<RestoreRow>) {
   return {
     holds: stillAt(db, run),
     rebuild: () => Promise.resolve({ writes: [] }),

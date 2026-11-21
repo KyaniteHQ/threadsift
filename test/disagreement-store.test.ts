@@ -13,9 +13,9 @@ import {
   sentOf,
   taskState,
   tokenOf,
-  topicIdOf,
 } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { topicId } from "./topic-accept-fixtures.ts";
 
 const REASON = "One says the setting is on, the other says it is off.";
 
@@ -59,8 +59,8 @@ describe("a disagreement answer", () => {
       [[1, 2, tokenOf(instance, 1), tokenOf(instance, 2), "open", REASON]],
     );
     assert.deepEqual(checksOf(instance), [
-      { topic_id: topicIdOf(instance, "Reading"), members: membersText(instance, [1, 2, 3]) },
-      { topic_id: topicIdOf(instance, "Other"), members: membersText(instance, [4, 5]) },
+      { topic_id: topicId(instance, "Reading"), members: membersText(instance, [1, 2, 3]) },
+      { topic_id: topicId(instance, "Other"), members: membersText(instance, [4, 5]) },
     ]);
     assert.equal(taskState(instance, sent.id), "done");
   });

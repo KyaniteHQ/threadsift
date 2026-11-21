@@ -14,7 +14,7 @@ type AccessRefusal = Refused<RefusalName> | LockedOut;
 
 export const NOT_FOUND = "Not found";
 
-export const METHOD_NOT_ALLOWED = "Method not allowed";
+const METHOD_NOT_ALLOWED = "Method not allowed";
 
 export const PASSWORD_RULE = `The password is shorter than ${PASSWORD_MIN} or longer than ${groupedNumber(PASSWORD_MAX)} characters.`;
 

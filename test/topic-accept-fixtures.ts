@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
-import { accept, count } from "./accept-fixtures.ts";
+import { accept } from "./accept-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { rows } from "./related-fixtures.ts";
+import { count, rows } from "./related-fixtures.ts";
 
 export { removeProposals } from "./proposal-seed.ts";
 
