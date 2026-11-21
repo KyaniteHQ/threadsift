@@ -5,6 +5,7 @@ import { after, before, describe, it } from "node:test";
 import { UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
 import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
 import { Instance } from "./instance.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
@@ -50,5 +51,37 @@ describe("a batch refused while a Restore holds the library keeps its old cursor
     const read = await instance.send("GET", `/api/imports/${name}`);
 
     assert.equal(ImportStateSchema.parse(JSON.parse(read.body)).cursor, "old");
+  });
+});
+
+describe("a Restore that failed and still holds the library refuses a second upload", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+  });
+
+  after(() => instance.close());
+
+  it("answers 409 restore-open for a gave-up run and accepts an upload after a refusal", async () => {
+    const database = new DatabaseSync(instance.databaseFile);
+
+    database.exec(
+      "insert into restores (state, phase, failure, bytes, parts, part_bytes, created_at, updated_at) values ('failed', 'check', 'gave-up', 1, 1, 1, 1, 1)",
+    );
+
+    const refused = await instance.send("POST", "/api/restore", { bytes: 1, parts: 1 });
+
+    assert.equal(refused.status, 409);
+    assert.equal(RestoreErrorSchema.parse(JSON.parse(refused.body)).code, "restore-open");
+
+    database.exec("update restores set failure = 'no-manifest'");
+    database.close();
+
+    const accepted = await instance.send("POST", "/api/restore", { bytes: 1, parts: 1 });
+
+    assert.equal(accepted.status, 201);
+    assert.equal(StartedRestoreSchema.parse(JSON.parse(accepted.body)).id, 2);
   });
 });

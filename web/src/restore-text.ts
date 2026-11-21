@@ -78,7 +78,8 @@ const REFUSAL_TEXT = {
   crc: "A file inside the zip is damaged because its checksum doesn’t match. Nothing was restored.",
   "library-not-empty":
     "This Instance already holds Items or other library records. A Restore needs an empty library.",
-  "restore-open": "Another Restore is waiting for its upload or is running. Reload the page.",
+  "restore-open":
+    "Another Restore is waiting for its upload, running, or stopped after a step failed and still holds the library. Reload the page and finish or cancel it first.",
   "not-uploading":
     "This Restore is already past its upload, so this try stopped. Check the status above.",
   "vault-busy":
@@ -91,17 +92,27 @@ const CANCEL_STOPPED = `The Cancel stopped because a step failed ${String(MAX_AT
 
 const GAVE_UP_NO_ZIP = `The Restore stopped because a step failed ${String(MAX_ATTEMPTS)} times. Some records are already restored, and the Export zip is no longer on the Instance. Cancel removes the restored records so you can choose the zip again.`;
 
+const GAVE_UP_EMPTY = `The Restore stopped because a step failed ${String(MAX_ATTEMPTS)} times. The library is still empty. Resume tries again from the last finished step, and Cancel ends the Restore so you can choose the zip again.`;
+
+const GAVE_UP_EMPTY_NO_ZIP = `The Restore stopped because a step failed ${String(MAX_ATTEMPTS)} times. The library is still empty, and the Export zip is no longer on the Instance. Cancel ends the Restore so you can choose the zip again.`;
+
 export function refusalLabel(code: RestoreErrorCode): string {
   return REFUSAL_TEXT[code];
 }
 
 export function failureLabel(
   failure: RestoreFailure,
-  { resumable, cancelFailed }: Readonly<{ resumable: boolean; cancelFailed: boolean }>,
+  {
+    resumable,
+    cancelFailed,
+    libraryEmpty,
+  }: Readonly<{ resumable: boolean; cancelFailed: boolean; libraryEmpty: boolean }>,
 ): string {
   if (failure !== "gave-up") return REFUSAL_TEXT[failure];
 
   if (cancelFailed) return CANCEL_STOPPED;
+
+  if (libraryEmpty) return resumable ? GAVE_UP_EMPTY : GAVE_UP_EMPTY_NO_ZIP;
 
   return resumable ? GAVE_UP : GAVE_UP_NO_ZIP;
 }
