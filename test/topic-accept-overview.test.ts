@@ -7,10 +7,10 @@ import {
   OverviewRetryResponseSchema,
   TopicPageSchema,
 } from "../src/core/contract/topic-overview-contract.ts";
-import { accept, count } from "./accept-fixtures.ts";
+import { accept } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
+import { count, SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
 import { proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });

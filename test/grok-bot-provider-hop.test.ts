@@ -1,19 +1,18 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { saveBot } from "./bot-task-fixtures.ts";
-import { chooseGrokBot } from "./grok-bot-provider-fixtures.ts";
+import { saveBot, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
   LINKED,
   SECRET_KEY,
-  addressOf,
   hopResults,
   seedGithubCooldown,
   toolsOf,
   warningsDuring,
   withoutComments,
 } from "./one-hop-fixtures.ts";
+import { redditAddressOf } from "./reader-thread-fixtures.ts";
 import { until } from "./related-fixtures.ts";
 
 describe("the linked-page hop of a Digest runs when Grok Bot is the Provider", () => {
@@ -29,7 +28,10 @@ describe("the linked-page hop of a Digest runs when Grok Bot is the Provider", (
 
   it("looks at the linked page before the bot task is sent", async () => {
     const tools = toolsOf(instance);
-    const linked = await tools.paste(addressOf("bot1"), withoutComments("bot1", { url: LINKED }));
+    const linked = await tools.paste(
+      redditAddressOf("bot1"),
+      withoutComments("bot1", { url: LINKED }),
+    );
 
     await instance.settledItem(linked.item.id);
     await saveBot(instance);

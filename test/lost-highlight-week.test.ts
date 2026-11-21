@@ -11,7 +11,7 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, exec, paste, rows, saveProvider } from "./related-fixtures.ts";
+import { count, SECRET_KEY, exec, paste, rows, saveProvider } from "./related-fixtures.ts";
 import { claims, moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
 
 const LostSchema = z.object({
@@ -23,8 +23,6 @@ const LostSchema = z.object({
 
 const TASK = "highlight_proposals";
 
-const CountSchema = z.object({ n: z.number() });
-
 const lostRows = (instance: Instance) =>
   rows(
     instance,
@@ -34,8 +32,6 @@ const lostRows = (instance: Instance) =>
 
 const highlightIds = (instance: Instance) =>
   lostRows(instance).map(({ highlight_id }) => highlight_id);
-
-const count = (instance: Instance, query: string) => rows(instance, CountSchema, query)[0]?.n ?? 0;
 
 describe("the weekly lost-Highlight check with no Provider saved", () => {
   let instance: Instance;

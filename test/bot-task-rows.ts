@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { count, exec, rows } from "./related-fixtures.ts";
 
 const TaskRowSchema = z.object({
   id: z.number(),
@@ -90,13 +90,7 @@ export function digestOfToken(token: string): string {
 }
 
 export function rowCount(instance: Instance, table: string, where = "1 = 1"): number {
-  return (
-    rows(
-      instance,
-      z.object({ n: z.number() }),
-      `select count(*) as n from ${table} where ${where}`,
-    )[0]?.n ?? 0
-  );
+  return count(instance, `select count(*) as n from ${table} where ${where}`);
 }
 
 export function topicFailures(instance: Instance) {

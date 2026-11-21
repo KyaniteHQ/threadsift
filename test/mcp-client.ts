@@ -64,7 +64,7 @@ export function bearer(token: AgentToken) {
   return { authorization: `Bearer ${token.value}` };
 }
 
-export const TOOLS_LIST = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" });
+const TOOLS_LIST = JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" });
 
 export function mcpHeaders(extra: Readonly<Record<string, string>> = {}) {
   return {

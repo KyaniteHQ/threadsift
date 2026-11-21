@@ -7,7 +7,7 @@ import type { Instance, Json } from "./instance.ts";
 
 export const KEPT_ARTICLE = "https://example.com/guides/kept-highlight";
 
-export const LOST_ARTICLE = "https://example.com/guides/lost-highlight";
+const LOST_ARTICLE = "https://example.com/guides/lost-highlight";
 
 export const NOTE_WORD = "marmotnote";
 
@@ -22,7 +22,7 @@ export const DIGEST = {
   keyPoints: ["A file copy can tear a page", "The backup command is safe while writers run"],
 };
 
-export const FILLER_COUNT = 52;
+const FILLER_COUNT = 52;
 
 const THREAD_LINK = "https://www.reddit.com/r/selfhosted/comments/abc123/x/";
 

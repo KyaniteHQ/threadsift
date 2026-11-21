@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
+import { topicId } from "./topic-accept-fixtures.ts";
 
 describe("the Topic job's input and its owner Item", () => {
   let instance: Instance;
@@ -27,19 +28,6 @@ describe("the Topic job's input and its owner Item", () => {
 
   after(() => instance.close());
 
-  const topicId = (name: string): number => {
-    const [found] = rows(
-      instance,
-      z.object({ id: z.number() }),
-      "select id from topics where name = ?",
-      name,
-    );
-
-    assert.ok(found !== undefined, name);
-
-    return found.id;
-  };
-
   it("sends the undecided pairs, most used first, and leaves out a Topic with no Item and both decided pairs", async () => {
     exec(instance, "insert into topics (key, name) values ('game', 'Game')");
 
@@ -47,7 +35,7 @@ describe("the Topic job's input and its owner Item", () => {
       seedProposal(
         instance,
         "topic-merge",
-        { from_topic_id: topicId(from), into_topic_id: topicId(into) },
+        { from_topic_id: topicId(instance, from), into_topic_id: topicId(instance, into) },
         { reason, state },
       );
 
@@ -80,8 +68,8 @@ describe("the Topic job's input and its owner Item", () => {
     assert.deepEqual(
       pairs.map((pair) => pair.map(({ id }) => id)),
       [
-        [topicId("Puzzle"), topicId("Puzzles")],
-        [topicId("machine-learning"), topicId("ML")],
+        [topicId(instance, "Puzzle"), topicId(instance, "Puzzles")],
+        [topicId(instance, "machine-learning"), topicId(instance, "ML")],
       ],
     );
     assert.deepEqual(

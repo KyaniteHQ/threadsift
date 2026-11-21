@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { Instance, type Json } from "./instance.ts";
-import { TARGET, addressOf, readerOf, threadOf } from "./reader-thread-fixtures.ts";
+import { TARGET, redditAddressOf, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY } from "./related-fixtures.ts";
 import { DIGEST } from "./x-thread-client.ts";
 
@@ -36,13 +36,13 @@ describe("the Reader links the address a Reddit link post points at", () => {
     [
       "link2",
       "no link for a self post",
-      (id) => ({ is_self: true, selftext: "Text.", url: addressOf(id) }),
+      (id) => ({ is_self: true, selftext: "Text.", url: redditAddressOf(id) }),
       null,
     ],
     [
       "link4",
       "no link when a link post names its own permalink",
-      (id) => ({ url: addressOf(id) }),
+      (id) => ({ url: redditAddressOf(id) }),
       null,
     ],
     [
@@ -95,7 +95,7 @@ describe("the Reader links the address a Reddit link post points at", () => {
 
   it("shows the link of the newest save while an older Digest still covers the Kept comments", async () => {
     const id = await paste("newer1", {
-      content: threadOf("newer1", { url: addressOf("newer1") }),
+      content: threadOf("newer1", { url: redditAddressOf("newer1") }),
       digest: { ...DIGEST, keptComments: ["t1_c1"] },
     });
 

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 
 import { ExportStatusSchema, StartedExportSchema } from "../src/core/contract/export-contract.ts";
-import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import { ItemListResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import {
   RestoreStatusSchema,
   StartedRestoreSchema,
@@ -27,7 +27,7 @@ export function holdLibrary(
 }
 
 export async function itemTotal(instance: Instance): Promise<number> {
-  return (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total ?? -1;
+  return (await instance.read("GET", "/api/items", ItemListResponseSchema)).counts.total;
 }
 
 export async function restoreLibrary({

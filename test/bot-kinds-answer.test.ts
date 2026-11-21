@@ -1,24 +1,14 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { KIND_CASES } from "./bot-kinds-cases.ts";
 import { type Sent, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { rows } from "./related-fixtures.ts";
+import { catalogVersion, count } from "./related-fixtures.ts";
 
 const WEEKLY = new Set(["proposals", "topic_proposals"]);
-
-function numberOf(
-  instance: Instance,
-  query: string,
-  ...params: readonly number[]
-): number | undefined {
-  return rows(instance, z.object({ n: z.number() }), query, ...params)[0]?.n;
-}
 
 describe("a bot task of each kind stores the context its answer is checked and applied from", () => {
   for (const kindCase of KIND_CASES) {
@@ -42,8 +32,8 @@ describe("a bot task of each kind stores the context its answer is checked and a
       if (WEEKLY.has(kindCase.kind)) {
         it("records the catalog revision the pairs were read under", () => {
           assert.equal(
-            numberOf(instance, "select input_revision as n from ai_tasks where id = ?", sent.id),
-            numberOf(instance, "select version as n from catalog_version where id = 1"),
+            count(instance, "select input_revision as n from ai_tasks where id = ?", sent.id),
+            catalogVersion(instance),
           );
         });
       }

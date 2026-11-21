@@ -21,7 +21,7 @@ database.exec("COMMIT");
 database.close();
 `;
 
-export interface LockedWriter {
+interface LockedWriter {
   readonly committed: Promise<void>;
 }
 

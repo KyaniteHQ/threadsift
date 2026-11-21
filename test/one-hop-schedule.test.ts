@@ -7,7 +7,6 @@ import { Instance } from "./instance.ts";
 import {
   SECRET_KEY,
   LINKED,
-  addressOf,
   hopResults,
   seedGithubCooldown,
   DIGEST,
@@ -15,6 +14,7 @@ import {
   warningsDuring,
   withoutComments,
 } from "./one-hop-fixtures.ts";
+import { redditAddressOf } from "./reader-thread-fixtures.ts";
 
 const SavedSettingsSchema = z.object({ settings: z.object({ keySet: z.boolean() }) });
 
@@ -25,12 +25,15 @@ it("saving a Provider wakes the queued Digests for older Items with a candidate 
   await instance.setUp();
   seedGithubCooldown(instance);
   const tools = toolsOf(instance);
-  const linked = await tools.paste(addressOf("older1"), withoutComments("older1", { url: LINKED }));
+  const linked = await tools.paste(
+    redditAddressOf("older1"),
+    withoutComments("older1", { url: LINKED }),
+  );
 
-  const bare = await tools.paste(addressOf("older2"), withoutComments("older2", {}));
+  const bare = await tools.paste(redditAddressOf("older2"), withoutComments("older2", {}));
 
   const withCaller = await tools.paste(
-    addressOf("older3"),
+    redditAddressOf("older3"),
     withoutComments("older3", { url: LINKED }),
     DIGEST,
   );

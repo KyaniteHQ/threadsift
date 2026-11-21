@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { rows } from "./related-fixtures.ts";
+import { count, rows } from "./related-fixtures.ts";
 
 const ALL_TABLES = ["items", "jobs", "ai_tasks", "reddit_comments", "digests"] as const;
 
@@ -66,14 +66,7 @@ export function verifyJobStates(instance: Instance, itemId: number) {
 }
 
 export function commentCount(instance: Instance, itemId: number): number {
-  return (
-    rows(
-      instance,
-      z.object({ n: z.number() }),
-      "select count(*) as n from reddit_comments where item_id = ?",
-      itemId,
-    )[0]?.n ?? -1
-  );
+  return count(instance, "select count(*) as n from reddit_comments where item_id = ?", itemId);
 }
 
 const LoggedSchema = z.looseObject({

@@ -33,7 +33,7 @@ function sizedCap(bytes: number): Cap {
   return { bytes, label: byteSize(bytes) };
 }
 
-export const DEFAULT_CAP = sizedCap(BODY_LIMIT_BYTES);
+const DEFAULT_CAP = sizedCap(BODY_LIMIT_BYTES);
 
 export const ITEM_CAP = sizedCap(ITEM_REQUEST_BYTES);
 
@@ -41,7 +41,7 @@ export const RESULT_CAP = sizedCap(RESULT_BODY_BYTES);
 
 export const PART_CAP: Cap = { bytes: RESTORE_PART_BYTES, label: "the part size" };
 
-export function tooLarge({ label }: Readonly<Cap>): string {
+function tooLarge({ label }: Readonly<Cap>): string {
   return `The request body is larger than ${label}`;
 }
 

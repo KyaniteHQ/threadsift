@@ -68,18 +68,6 @@ export const seedTopicItems = (
   );
 };
 
-export const seedLogEntries = (
-  instance: Instance,
-  { topicId, name, entries }: Readonly<{ topicId: number; name: string; entries: number }>,
-): void => {
-  script(
-    instance,
-    `with recursive n(i) as (select 1 union all select i + 1 from n where i < ${String(entries)})
-     insert into log_entries (at, action, topic, topic_id)
-     select i, 'topic', '${name}', ${String(topicId)} from n;`,
-  );
-};
-
 export const topicNameOf = (instance: Instance, itemId: number): string | null =>
   rows(
     instance,

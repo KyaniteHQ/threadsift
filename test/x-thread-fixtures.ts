@@ -1,5 +1,4 @@
 import { utf8Length } from "../src/core/contract/encoding.ts";
-import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
 import type { Json } from "./instance.ts";
 
 export const POST_ID = "1000000000000000001";
@@ -12,7 +11,7 @@ export const SQLITE_FACT =
 export const SECOND_FACT =
   "The same command works from the Python module as connection.backup(target), which copies page by page without locking writers out.";
 
-export type Reply = {
+type Reply = {
   readonly id: string;
   readonly parentId: string;
   readonly author: string;
@@ -80,7 +79,7 @@ export const authored = (postId = POST_ID): ReturnType<typeof thread> =>
 export const CUT_LINE =
   "\n\nThe end of the post, author follow-up posts and quoted posts were not saved.";
 
-export const ROOM = INLINE_TEXT_BYTES - utf8Length(CUT_LINE);
+export const ROOM = 1_000_000 - utf8Length(CUT_LINE);
 
 export const LEFT_OUT = "LEFT-OUT-FOLLOW-UP";
 

@@ -4,11 +4,9 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
-import { rows } from "./related-fixtures.ts";
+import { count, rows } from "./related-fixtures.ts";
 
 const ErrorSchema = z.object({ error: z.string() });
-
-const CountSchema = z.object({ n: z.number() });
 
 export const DIGEST = {
   title: "Backing up SQLite while it is written",
@@ -19,8 +17,7 @@ export const DIGEST = {
 };
 
 export function xClient(instance: Instance) {
-  const count = (table: string): number =>
-    rows(instance, CountSchema, `select count(*) as n from ${table}`)[0]?.n ?? -1;
+  const tableCount = (table: string) => count(instance, `select count(*) as n from ${table}`);
 
   const saved = async (body: Json) => {
     const answer = await instance.send("POST", "/api/items", body);
@@ -31,11 +28,18 @@ export function xClient(instance: Instance) {
   };
 
   const refused = async (body: Json): Promise<string> => {
-    const before = [count("items"), count("reddit_comments"), count("reddit_threads")];
+    const before = [
+      tableCount("items"),
+      tableCount("reddit_comments"),
+      tableCount("reddit_threads"),
+    ];
     const answer = await instance.send("POST", "/api/items", body);
 
     assert.equal(answer.status, 400, answer.body);
-    assert.deepEqual([count("items"), count("reddit_comments"), count("reddit_threads")], before);
+    assert.deepEqual(
+      [tableCount("items"), tableCount("reddit_comments"), tableCount("reddit_threads")],
+      before,
+    );
 
     return ErrorSchema.parse(JSON.parse(answer.body)).error;
   };
@@ -61,5 +65,5 @@ export function xClient(instance: Instance) {
       itemId,
     )[0]?.generation;
 
-  return { count, saved, refused, itemIdOf, generationOf };
+  return { count: tableCount, saved, refused, itemIdOf, generationOf };
 }

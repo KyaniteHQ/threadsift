@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { executeClaimed } from "../src/core/compose/jobs.ts";
-import { count } from "./accept-fixtures.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { botInstance, jobRow, openJobOf, selectGrokBot, sentTask } from "./bot-kinds-fixtures.ts";
 import { digestOfToken, taskRows } from "./bot-task-rows.ts";
 import { lockedWriter } from "./locked-writer.ts";
+import { count } from "./related-fixtures.ts";
 
 describe("a second overview job for a Topic that has a task at the bot", () => {
   it("waits for the Topic without starting a task when the first job's task is at the bot", async () => {

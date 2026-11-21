@@ -230,11 +230,6 @@ export const NewRestoreSchema = z.object({
 
 export const StartedRestoreSchema = z.object({ id: Id, partBytes: Id });
 
-export const RefusalSchema = z.object({
-  error: z.string(),
-  code: z.enum(RESTORE_REFUSALS),
-});
-
 export function partsOf(bytes: number, partBytes: number = RESTORE_PART_BYTES): number {
   return Math.ceil(bytes / partBytes);
 }

@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { botInstance } from "./bot-task-fixtures.ts";
-import { chooseGrokBot } from "./grok-bot-provider-fixtures.ts";
+import { botInstance, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { causeOf, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, saveProvider, until } from "./related-fixtures.ts";

@@ -32,15 +32,39 @@ export const comment = (
 function childrenOf(top: string): readonly Json[] {
   return [
     comment("c1", top, "first", `${FACT} First.`),
-    comment("c2", top, "[deleted]", "[deleted]", {
-      kind: "Listing",
-      data: { children: [comment("c3", "t1_c2", "third", `${FACT} Third.`)] },
-    }),
+    comment(
+      "c2",
+      top,
+      "[deleted]",
+      "[deleted]",
+      listing([comment("c3", "t1_c2", "third", `${FACT} Third.`)]),
+    ),
     comment("c4", top, "AutoModerator", "Remember the rules of the community."),
     comment("c5", top, "fifth", "lol"),
     comment("c6", top, "sixth", `${FACT} Sixth.`),
   ];
 }
+
+export const listing = (children: readonly Json[]): Json => ({
+  kind: "Listing",
+  data: { children: [...children] },
+});
+
+export const postListing = (id: string, post: Readonly<Record<string, Json>>): Json =>
+  listing([
+    {
+      kind: "t3",
+      data: {
+        id,
+        title: `Post ${id}`,
+        author: "poster",
+        subreddit: "links",
+        selftext: "",
+        created_utc: 1_700_000_000,
+        ...post,
+      },
+    },
+  ]);
 
 export function threadOf(
   id: string,
@@ -48,38 +72,18 @@ export function threadOf(
   children: readonly Json[] = childrenOf(`t3_${id}`),
 ): string {
   return JSON.stringify([
-    {
-      kind: "Listing",
-      data: {
-        children: [
-          {
-            kind: "t3",
-            data: {
-              id,
-              title: `Post ${id}`,
-              author: "poster",
-              subreddit: "links",
-              selftext: "",
-              created_utc: 1_700_000_000,
-              num_comments: 6,
-              is_self: false,
-              url: TARGET,
-              ...post,
-            },
-          },
-        ],
-      },
-    },
-    { kind: "Listing", data: { children } },
+    postListing(id, { num_comments: 6, is_self: false, url: TARGET, ...post }),
+    listing(children),
   ]);
 }
 
-export const addressOf = (id: string) => `https://www.reddit.com/r/links/comments/${id}/a_post/`;
+export const redditAddressOf = (id: string) =>
+  `https://www.reddit.com/r/links/comments/${id}/a_post/`;
 
 export function readerOf(current: () => Instance) {
   const paste = async (id: string, extra: Readonly<Record<string, Json>>) => {
     const { item } = await current().read("POST", "/api/items", SavedItemResponseSchema, {
-      url: addressOf(id),
+      url: redditAddressOf(id),
       ...extra,
     });
 

@@ -4,16 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
 import { ScriptWorld } from "./bot-script-world.ts";
 import { taskRow } from "./bot-task-rows.ts";
-import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
-
-const ANSWER = {
-  title: "Quasar lattice",
-  topic: "Quasars",
-  tags: ["quasar"],
-  summary: "A short summary.",
-  keyPoints: ["One point"],
-  keptComments: [],
-};
+import { VERIFY_ANSWER, sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 
 describe("the Threadsift bot's script opens and answers a Verify task like any Digest task", () => {
   let world: ScriptWorld;
@@ -36,7 +27,7 @@ describe("the Threadsift bot's script opens and answers a Verify task like any D
     assert.notEqual(read.instructions, "");
     assert.equal(read.schema["type"], "object");
 
-    const answer = await world.folder.made("answer", JSON.stringify(ANSWER));
+    const answer = await world.folder.made("answer", JSON.stringify(VERIFY_ANSWER));
 
     assert.equal((await world.folder.run(["task-answer", id, answer], world.env())).word, "ok");
     assert.notEqual(taskRow(world.instance, task.id).answered_at, null);

@@ -5,15 +5,9 @@ import { SentTopicsSchema } from "../src/features/wiki/core/disagreement-task.ts
 import { SentPairsSchema } from "../src/features/wiki/core/proposal-sent.ts";
 import { seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance, Json } from "./instance.ts";
-import { REDDIT_THREAD, exec, paste, rows } from "./related-fixtures.ts";
+import { count, REDDIT_THREAD, exec, paste } from "./related-fixtures.ts";
 
 export type BotKindName = Exclude<OwnedJobKind, IntakeJobKind | "related_pick">;
-
-const Count = z.object({ n: z.number() });
-
-function count(instance: Instance, query: string, ...params: readonly number[]): number {
-  return rows(instance, Count, query, ...params)[0]?.n ?? 0;
-}
 
 export interface KindCase {
   readonly kind: BotKindName;

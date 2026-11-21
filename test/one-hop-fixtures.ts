@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance, type Json } from "./instance.ts";
+import { redditAddressOf, listing, postListing } from "./reader-thread-fixtures.ts";
 
 export const DIGEST = {
   title: "A linked page",
@@ -25,53 +26,34 @@ export interface PostFields {
 }
 
 export function postOf(id: string, { selftext = "", url }: PostFields): Json {
-  const post = {
-    id,
-    title: `Post ${id}`,
-    author: "poster",
-    subreddit: "links",
-    selftext,
-    created_utc: 1_700_000_000,
-    num_comments: 1,
-  };
+  const fields = { selftext, num_comments: 1 };
 
-  const data = url === undefined ? post : { ...post, url };
-
-  return { kind: "Listing", data: { children: [{ kind: "t3", data }] } };
+  return postListing(id, url === undefined ? fields : { ...fields, url });
 }
 
 export function commentsOf(postId: string): Json {
-  return {
-    kind: "Listing",
-    data: {
-      children: [
-        {
-          kind: "t1",
-          data: {
-            id: "c1",
-            author: "replier",
-            body: "The page behind the link settles it for good.",
-            parent_id: `t3_${postId}`,
-            score: 4,
-            created_utc: 1_700_000_100,
-            replies: "",
-          },
-        },
-      ],
+  return listing([
+    {
+      kind: "t1",
+      data: {
+        id: "c1",
+        author: "replier",
+        body: "The page behind the link settles it for good.",
+        parent_id: `t3_${postId}`,
+        score: 4,
+        created_utc: 1_700_000_100,
+        replies: "",
+      },
     },
-  };
+  ]);
 }
 
-export function threadOf(id: string, fields: PostFields): string {
+export function hopThreadOf(id: string, fields: PostFields): string {
   return JSON.stringify([postOf(id, fields), commentsOf(id)]);
 }
 
 export function withoutComments(id: string, fields: PostFields): string {
-  return JSON.stringify([postOf(id, fields), { kind: "Listing", data: { children: [] } }]);
-}
-
-export function addressOf(id: string): string {
-  return `https://www.reddit.com/r/links/comments/${id}/a_post/`;
+  return JSON.stringify([postOf(id, fields), listing([])]);
 }
 
 export function toolsOf(instance: Instance) {
@@ -106,7 +88,7 @@ export function toolsOf(instance: Instance) {
     );
 
   const stored = async (id: string, fields: PostFields) => {
-    const { item } = await paste(addressOf(id), threadOf(id, fields));
+    const { item } = await paste(redditAddressOf(id), hopThreadOf(id, fields));
 
     return candidates(item.id).at(-1)?.linked_url;
   };

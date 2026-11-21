@@ -19,6 +19,7 @@ import {
   sameAsRest,
 } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
+import { holdLibrary } from "./restoring-fixtures.ts";
 
 const RESTORING =
   "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
@@ -129,12 +130,7 @@ describe("add keeps the refusal that POST /api/items gives while a Restore holds
   });
 
   it("refuses add with the text of the 503 and still serves search", async () => {
-    const database = new DatabaseSync(instance.databaseFile);
-
-    database.exec(
-      "insert into restores (state, phase, bytes, parts, part_bytes, created_at, updated_at) values ('running', 'tables', 1, 1, 1, 1, 1)",
-    );
-    database.close();
+    holdLibrary(instance, "running", null);
 
     const link = "https://x.com/someone/status/5000000001";
 

@@ -6,6 +6,7 @@ import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
 import { Instance } from "./instance.ts";
+import { itemTotal } from "./restoring-fixtures.ts";
 import {
   addBatch,
   addLink,
@@ -14,7 +15,6 @@ import {
   execute,
   makeToken,
   nextMidnight,
-  total,
   xLink,
 } from "./token-budget-fixtures.ts";
 
@@ -67,12 +67,12 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
         assert.equal((await addLink(instance, token, 11)).status, 201);
 
-        const itemsBefore = total(instance, "items");
+        const itemsBefore = await itemTotal(instance);
         const over = await addLink(instance, token, 12);
 
         assert.equal(over.status, 429);
         assert.equal(BudgetRefusalSchema.parse(JSON.parse(over.body)).code, "budget-spent");
-        assert.equal(total(instance, "items"), itemsBefore);
+        assert.equal(await itemTotal(instance), itemsBefore);
 
         const known = await addLink(instance, token, 11);
 
@@ -91,7 +91,7 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
     await addLink(instance, token, 31);
     await addLink(instance, token, 32);
 
-    const itemsBefore = total(instance, "items");
+    const itemsBefore = await itemTotal(instance);
 
     const refused = await instance.sendWithToken(token.value, "POST", "/api/items/batch", {
       links: [31, 33, 34].map((number) => ({ url: xLink(number) })),
@@ -100,7 +100,7 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
     assert.equal(refused.status, 429);
     assert.equal(BudgetRefusalSchema.parse(JSON.parse(refused.body)).code, "budget-spent");
-    assert.equal(total(instance, "items"), itemsBefore);
+    assert.equal(await itemTotal(instance), itemsBefore);
     assert.equal((await instance.send("GET", "/api/imports/whole")).status, 404);
     assert.equal((await budgetOf(instance, token.id)).kind, "within");
 
@@ -110,10 +110,10 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
   it("refuses a first batch of the day that is bigger than the whole budget", async () => {
     const token = await makeToken(instance, 2);
-    const itemsBefore = total(instance, "items");
+    const itemsBefore = await itemTotal(instance);
 
     assert.equal((await addBatch(instance, token, [91, 92, 93])).status, 429);
-    assert.equal(total(instance, "items"), itemsBefore);
+    assert.equal(await itemTotal(instance), itemsBefore);
     assert.deepEqual(await budgetOf(instance, token.id), {
       kind: "within",
       limit: 2,
@@ -219,9 +219,9 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
     await addLink(instance, token, 61);
 
-    const items = total(instance, "items");
+    const items = await itemTotal(instance);
 
     assert.equal((await instance.send("DELETE", `/api/tokens/${String(token.id)}`)).status, 204);
-    assert.equal(total(instance, "items"), items);
+    assert.equal(await itemTotal(instance), items);
   });
 });

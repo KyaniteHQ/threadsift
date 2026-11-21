@@ -165,8 +165,11 @@ describe("a self-hoster's fetcher plug-in reads the links it claims, and only th
   });
 
   for (const [name, path] of LIMIT_PAGES) {
-    it(`ends the fetch unreadable, leaves a Link-only Item and asks no later plug-in or built-in route for ${name}`, async () => {
-      const reader = await pasted(`https://faulty.test${path}`);
+    it(`ends the fetch unreadable, leaves a Link-only Item and asks no later plug-in for ${name}`, async () => {
+      const url = `https://faulty.test${path}`;
+      const reader = await pasted(url);
+
+      assert.equal((await asked()).includes(url), false);
 
       assert.equal(reader.fetch, "unreadable");
       assert.equal(reader.status, "ready");

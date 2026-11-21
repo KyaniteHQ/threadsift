@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { type LogEntry, LogPageSchema } from "../src/core/contract/log-contract.ts";
 import type { Instance } from "./instance.ts";
-import { type Fixture, exec, paste, rows } from "./related-fixtures.ts";
+import { count, exec, paste, rows } from "./related-fixtures.ts";
 
 export function readLog(instance: Instance, query = "") {
   return instance.read("GET", `/api/log${query}`, LogPageSchema);
@@ -39,25 +39,38 @@ export async function lines(instance: Instance): Promise<string[]> {
   return (await allEntries(instance)).map((entry) => lineOf(entry));
 }
 
-export function seedEntries(instance: Instance, count: number, at: number): void {
+export function seedEntries(instance: Instance, entries: number, at: number): void {
   exec(instance, "insert or ignore into topics (key, name) values ('seeded', 'Seeded')");
+  seedLogEntries(instance, { key: "seeded", entries, at });
+}
+
+export function seedLogEntries(
+  instance: Instance,
+  { key, entries, at }: Readonly<{ key: string; entries: number; at: number | "ascending" }>,
+): void {
+  const [topic] = rows(
+    instance,
+    z.object({ id: z.number(), name: z.string() }),
+    "select id, name from topics where key = ?",
+    key,
+  );
+  if (topic === undefined) throw new Error(`no Topic with key ${key}`);
+  if (entries === 0) return;
+
   exec(
     instance,
-    `with recursive n(i) as (select 1 union all select i + 1 from n where i < ${String(count)})
-     insert into log_entries (at, action, topic, topic_id)
-     select ${String(at)}, 'topic', 'Seeded', (select id from topics where key = 'seeded') from n`,
+    `with recursive n(i) as (select 1 union all select i + 1 from n where i < ?)
+    insert into log_entries (at, action, topic, topic_id)
+    select coalesce(?, i), 'topic', ?, ? from n`,
+    entries,
+    at === "ascending" ? null : at,
+    topic.name,
+    topic.id,
   );
 }
 
-export { paste, type Fixture };
+export { paste };
 
 export function entryCount(instance: Instance, action: string): number {
-  return (
-    rows(
-      instance,
-      z.object({ n: z.number() }),
-      "select count(*) as n from log_entries where action = ?",
-      action,
-    )[0]?.n ?? 0
-  );
+  return count(instance, "select count(*) as n from log_entries where action = ?", action);
 }

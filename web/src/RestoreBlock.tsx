@@ -1,4 +1,4 @@
-import type { RestoreStatus } from "../../src/core/contract/restore-contract.ts";
+import type { Counts, RestoreStatus } from "../../src/core/contract/restore-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Icon } from "./Icon.tsx";
 import {
@@ -18,8 +18,6 @@ import { SwapButton } from "./SwapButton.tsx";
 import { useFilePicker } from "./use-file-picker.ts";
 import { useHashTarget } from "./use-hash-target.ts";
 import { useRestore } from "./use-restore.ts";
-
-type Counts = Readonly<Record<string, number>>;
 
 function total(counts: Counts): number {
   return Object.values(counts).reduce((sum, count) => sum + count, 0);

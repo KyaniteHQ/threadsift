@@ -2,27 +2,22 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { VerifyResultSchema } from "../src/core/contract/ai-settings-contract.ts";
-import { botInstance, pastDeadline } from "./bot-task-fixtures.ts";
+import {
+  botInstance,
+  pastDeadline,
+  GROK_BOT_IN_FLIGHT,
+  chooseGrokBot,
+} from "./bot-task-fixtures.ts";
 import { answered, errorOf } from "./bot-task-http.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";
 import {
-  GROK_BOT_IN_FLIGHT,
   VERIFY_PATH,
-  chooseGrokBot,
   occupyBot,
+  VERIFY_ANSWER,
   sentVerifyTask,
   verifyingTask,
 } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-
-const ANSWER = {
-  title: "Quasar lattice",
-  topic: "Quasars",
-  tags: ["quasar"],
-  summary: "A short summary.",
-  keyPoints: ["One point"],
-  keptComments: [],
-};
 
 describe("Verify with Grok Bot waits for the answer the bot posts and reads the task row", () => {
   let instance: Instance;
@@ -39,12 +34,12 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
     const task = await sentVerifyTask(instance);
     const { result } = await verifyingTask(t, instance, task);
 
-    assert.equal((await answered(instance, task, { result: ANSWER })).status, 204);
+    assert.equal((await answered(instance, task, { result: VERIFY_ANSWER })).status, 204);
 
     const verified = await result;
 
     assert.equal(verified.kind, "done");
-    assert.equal(verified.kind === "done" ? verified.digest.title : null, ANSWER.title);
+    assert.equal(verified.kind === "done" ? verified.digest.title : null, VERIFY_ANSWER.title);
     assert.equal(taskRow(instance, task.id).state, "done");
     assert.equal(taskRow(instance, task.id).job_id, null);
   });
@@ -53,12 +48,12 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
     const task = await sentVerifyTask(instance);
 
     const refused = await answered(instance, task, {
-      result: { ...ANSWER, tags: ["a", "b", "c", "d"] },
+      result: { ...VERIFY_ANSWER, tags: ["a", "b", "c", "d"] },
     });
 
     assert.equal(refused.status, 400);
     assert.match(errorOf(refused.text), /tags/u);
-    assert.equal((await answered(instance, task, { result: ANSWER })).status, 204);
+    assert.equal((await answered(instance, task, { result: VERIFY_ANSWER })).status, 204);
   });
 
   it("returns the timeout when no answer comes before the deadline, and a late answer is 409", async (t) => {
@@ -72,7 +67,7 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
       [taskRow(instance, task.id).state, taskRow(instance, task.id).refusal],
       ["failed", "timeout"],
     );
-    assert.equal((await answered(instance, task, { result: ANSWER })).status, 409);
+    assert.equal((await answered(instance, task, { result: VERIFY_ANSWER })).status, 409);
   });
 
   it("closes a Verify task to answers after its own window, not after the hour a library task gets", async () => {
@@ -83,7 +78,7 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
 
     pastDeadline(instance, task.id);
 
-    assert.equal((await answered(instance, task, { result: ANSWER })).status, 409);
+    assert.equal((await answered(instance, task, { result: VERIFY_ANSWER })).status, 409);
     assert.equal(taskRow(instance, task.id).answered_at, null);
   });
 

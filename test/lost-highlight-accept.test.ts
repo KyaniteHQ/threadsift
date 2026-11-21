@@ -7,11 +7,12 @@ import { HighlightsPageResponseSchema } from "../src/core/contract/highlights-pa
 import { Instance } from "./instance.ts";
 import {
   highlightStatus,
+  ColumnsSchema,
+  listedIds,
   keepLostHighlight,
   keepPassage,
   proposalRows,
   proposeLost,
-  readPage,
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
@@ -20,17 +21,6 @@ import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 
-const ColumnsSchema = z.object({
-  id: z.number(),
-  item_id: z.number(),
-  exact: z.string(),
-  prefix: z.string(),
-  suffix: z.string(),
-  hint: z.number(),
-  status: z.string(),
-  start: z.number().nullable(),
-});
-
 const partsOf = (instance: Instance, highlightId: number) =>
   rows(
     instance,
@@ -38,9 +28,6 @@ const partsOf = (instance: Instance, highlightId: number) =>
     "select id from search_parts where kind = 'highlight' and highlight_id = ?",
     highlightId,
   );
-
-const listedIds = async (instance: Instance) =>
-  (await readPage(instance)).proposals.map(({ id }) => id);
 
 describe("Accept of a lost-Highlight row", () => {
   let instance: Instance;
@@ -123,7 +110,7 @@ describe("Accept of a lost-Highlight row", () => {
       proposalRows(instance).map((row) => [row.id, row.state]),
       [[id, "open"]],
     );
-    assert.deepEqual(await listedIds(instance), []);
+    assert.deepEqual(await listedIds(instance, "all"), []);
     removeProposals(instance);
   });
 });

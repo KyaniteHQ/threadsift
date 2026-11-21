@@ -31,7 +31,7 @@ function contractChanged(from: string, to: readonly string[]): boolean {
   }
 }
 
-export function comparisonSource() {
+function comparisonSource() {
   return {
     revision: git(["rev-parse", "HEAD"]),
     worktreeDirty: git(["status", "--porcelain"]) !== "",

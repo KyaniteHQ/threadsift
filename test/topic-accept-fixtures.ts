@@ -1,10 +1,10 @@
 import { z } from "zod";
 
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
-import { accept, count } from "./accept-fixtures.ts";
+import { accept } from "./accept-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { rows } from "./related-fixtures.ts";
+import { count, rows } from "./related-fixtures.ts";
 
 export { removeProposals } from "./proposal-seed.ts";
 
@@ -42,10 +42,11 @@ export const topicMergeLines = async (instance: Instance): Promise<readonly stri
 export const itemsOf = (instance: Instance, topic: number): number =>
   count(instance, "select count(*) as n from items where topic_id = ?", topic);
 
-const AnswerSchema = z.object({ state: z.string().optional(), error: z.string().optional() });
-
-export const answerOf = async (instance: Instance, id: number) => {
+export const answerOf = async (
+  instance: Instance,
+  id: number,
+): Promise<readonly [number, unknown]> => {
   const { status, body } = await accept(instance, id);
 
-  return [status, AnswerSchema.parse(JSON.parse(body))];
+  return [status, JSON.parse(body)];
 };
