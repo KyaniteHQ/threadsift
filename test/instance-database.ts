@@ -1,18 +1,18 @@
-import { copyFileSync, mkdtempDisposableSync } from "node:fs";
+import { mkdtempDisposableSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
 
 import { openDatabase } from "../src/targets/node/database.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
-export function instanceDatabase(template?: string) {
+export function instanceDatabase(template?: Readonly<Uint8Array>) {
   using cleanup = new DisposableStack();
   const folder = cleanup.use(mkdtempDisposableSync(join(tmpdir(), "threadsift-test-"))).path;
   const file = join(folder, "threadsift.db");
 
-  if (template !== undefined) copyFileSync(template, file);
+  if (template !== undefined) writeFileSync(file, template);
 
   const database = openDatabase(file, MIGRATIONS);
   cleanup.defer(() => {
@@ -30,14 +30,10 @@ export function instanceDatabase(template?: string) {
   };
 }
 
-export async function snapshotDatabase(file: string): Promise<string> {
-  const directory = mkdtempDisposableSync(join(tmpdir(), "threadsift-owner-"));
-  process.once("exit", () => {
-    directory.remove();
-  });
-  const snapshot = join(directory.path, "threadsift.db");
+export async function snapshotDatabase(file: string): Promise<Uint8Array> {
+  const snapshot = join(dirname(file), "owner.db");
   using source = new DatabaseSync(file, { readOnly: true });
   await backup(source, snapshot);
 
-  return snapshot;
+  return readFileSync(snapshot);
 }

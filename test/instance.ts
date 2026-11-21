@@ -7,6 +7,8 @@ import {
   ItemDetailResponseSchema,
   ItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
+import { hasOwner } from "../src/features/access/core/owner.ts";
+import { prepareSession, sessionWrites } from "../src/features/access/core/sessions.ts";
 import { createApp } from "../src/http/app.ts";
 import { nodeEnvironment } from "../src/targets/node/environment.ts";
 import { startNode } from "../src/targets/node/ports.ts";
@@ -25,12 +27,16 @@ interface StartOptions {
   readonly secretKey?: string | undefined;
 }
 
-interface OwnerTemplate {
-  readonly file: string;
-  readonly cookie: string;
-}
+let ownerTemplate: Promise<Uint8Array> | undefined;
 
-let ownerTemplate: Promise<OwnerTemplate> | undefined;
+function templateDatabase(): Promise<Uint8Array> {
+  ownerTemplate ??= buildOwnerTemplate().catch((cause: unknown) => {
+    ownerTemplate = undefined;
+    throw cause;
+  });
+
+  return ownerTemplate;
+}
 
 const POLL_MS = 25;
 
@@ -91,7 +97,7 @@ function requestOf(method: string, headers: Headers, body: Json): RequestInit {
 
 export class Instance {
   private cookie: string | null = null;
-  private setupCookie: string | null = null;
+  private needsOwnerSession: boolean;
   private readonly app: ReturnType<typeof createApp>;
   private readonly shutdown: () => Promise<void>;
 
@@ -102,11 +108,13 @@ export class Instance {
     app: ReturnType<typeof createApp>,
     ports: Ports,
     file: string,
+    needsOwnerSession: boolean,
     shutdown: () => Promise<void>,
   ) {
     this.app = app;
     this.ports = ports;
     this.databaseFile = file;
+    this.needsOwnerSession = needsOwnerSession;
     this.shutdown = shutdown;
   }
 
@@ -116,9 +124,9 @@ export class Instance {
     fetchers,
     secretKey,
   }: StartOptions = {}): Promise<Instance> {
-    const template = fresh ? null : await (ownerTemplate ??= buildOwnerTemplate());
+    const template = fresh ? undefined : await templateDatabase();
     await using cleanup = new AsyncDisposableStack();
-    const database = cleanup.use(instanceDatabase(template?.file));
+    const database = cleanup.use(instanceDatabase(template));
 
     const environment = nodeEnvironment({
       DATA_DIR: database.dataDir,
@@ -132,10 +140,7 @@ export class Instance {
     cleanup.defer(() => node.stop());
     const app = createApp(node.ports);
     const resources = cleanup.move();
-    const instance = new Instance(app, node.ports, database.file, () => resources.disposeAsync());
-    instance.setupCookie = template?.cookie ?? null;
-
-    return instance;
+    return new Instance(app, node.ports, database.file, !fresh, () => resources.disposeAsync());
   }
 
   fetch(input: Request | string, init?: RequestInit): Promise<Response> {
@@ -224,9 +229,13 @@ export class Instance {
   }
 
   async setUp(): Promise<void> {
-    if (this.setupCookie !== null) {
-      this.cookie = this.setupCookie;
-      this.setupCookie = null;
+    if (this.needsOwnerSession) {
+      const { crypto, db } = this.ports;
+      if (!(await hasOwner(db))) throw new Error("The copied database has no owner");
+      const session = prepareSession(crypto);
+      await db.batch(sessionWrites(db, session));
+      this.cookie = `${SESSION_COOKIE}=${session.id}`;
+      this.needsOwnerSession = false;
       return;
     }
 
@@ -250,14 +259,15 @@ export class Instance {
   }
 }
 
-async function buildOwnerTemplate(): Promise<OwnerTemplate> {
+async function buildOwnerTemplate(): Promise<Uint8Array> {
   await using cleanup = new AsyncDisposableStack();
   const seed = await Instance.start({ fresh: true });
   cleanup.defer(() => seed.close());
   await seed.setUp();
 
-  const cookie = seed.sessionCookie;
-  if (cookie === null) throw new Error("Owner setup did not issue a session");
+  if ((await seed.send("POST", "/api/logout")).status !== 204) {
+    throw new Error("Owner setup did not produce a signed-in owner");
+  }
 
-  return { file: await snapshotDatabase(seed.databaseFile), cookie };
+  return await snapshotDatabase(seed.databaseFile);
 }
