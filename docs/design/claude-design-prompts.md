@@ -1,8 +1,10 @@
-# Claude Design prompts for the Library app
+# Claude Design prompts for Threadsift
+
+The prompts call the product Library, the name it had before Threadsift. The "How the product works" block of Prompt 1 and the opening of Prompt 4 say that the owner sets only read or unread. `docs/spec.md`, section Product, bullet "Who changes what", lists what the owner changes today. Where a prompt and `docs/spec.md` differ, `docs/spec.md` holds what the app does today.
 
 Attach `<scratch>/library-sample-data.json` to prompt 1.
 
-Prompts 2b, 3 (the counter prompt that kept A and C2) and 3d are not here, because Prompts 2c, 3b and 3e replaced them; `git log -p -- docs/design/claude-design-prompts.md` holds their text.
+Prompts 2b, 3 (the counter prompt that kept A and C2) and 3d are not here, because Prompts 2c, 3b and 3e replaced them; `git log -p -- docs/design/claude-design-prompts.md` holds their text. Prompts 2c, 3b and 3c are shortened, without their file-structure and data items, and the same `git log -p` output holds their full text.
 
 ## Prompt 1: four drafts in one file, with a Tweaks panel
 
