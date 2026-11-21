@@ -14,7 +14,6 @@ export const restoreRuns = sqliteTable(
     cursor: text("cursor").notNull().default("{}"),
     restored: text("restored").notNull().default("{}"),
     dropped: text("dropped").notNull().default("{}"),
-    writing: integer("writing").notNull().default(0),
     bytes: integer("bytes").notNull(),
     parts: integer("parts").notNull(),
     partBytes: integer("part_bytes").notNull(),

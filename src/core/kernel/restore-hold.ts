@@ -1,15 +1,12 @@
-import { eq, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
-import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
+import { type SQLWrapper, sql } from "drizzle-orm";
 
 import type { RestoreFailure } from "../contract/restore-contract.ts";
 import type { Database } from "./database.ts";
-import { refusedBy } from "./guards.ts";
+import { readOrAssume } from "./failure-log.ts";
+import { holdsNoRow, insertGuard } from "./guards.ts";
 import { HOLDING, NOTHING_WRITTEN, type Standing, standingSql } from "./restore-standing.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { STALE } from "./vault-stale.ts";
-
-const REFUSED_BY_TRIGGER = /items_restoring: /u;
 
 type Condition = Readonly<Pick<RestoreRow, "state" | "phase" | "failure" | "restored">>;
 
@@ -84,37 +81,37 @@ export async function restoreHoldsLibrary(db: Database): Promise<boolean> {
   return found !== undefined;
 }
 
+export function holdsNoRestore(db: Database) {
+  return holdsNoRow(db, restoreRuns, HOLDS_LIBRARY);
+}
+
+export function restoreGuard(db: Database) {
+  return insertGuard(db, holdsNoRestore(db));
+}
+
 export type Closed = { readonly kind: "restoring" };
+
+function heldOrUnread(db: Database): Promise<boolean> {
+  return readOrAssume(false, { event: "restore-hold-read-failed", fields: {} }, () =>
+    restoreHoldsLibrary(db),
+  );
+}
+
+export function orRestoreHolds(db: Database, condition: Readonly<SQLWrapper>) {
+  return sql`(${condition}) or not ${holdsNoRestore(db)}`;
+}
 
 export async function whileOpen<Result>(
   db: Database,
   write: () => Promise<Result>,
 ): Promise<Result | Closed> {
-  if (await restoreHoldsLibrary(db)) return { kind: "restoring" };
-
   try {
     return await write();
   } catch (error) {
-    if (refusedBy(error, REFUSED_BY_TRIGGER)) return { kind: "restoring" };
+    if (!(await heldOrUnread(db))) throw error;
 
-    throw error;
+    return { kind: "restoring" };
   }
-}
-
-export function writingRows(
-  db: Database,
-  id: number,
-  rows: BatchItem<"sqlite">,
-  after: Omit<SQLiteUpdateSetSource<typeof restoreRuns>, "writing">,
-): readonly BatchItem<"sqlite">[] {
-  return [
-    db.update(restoreRuns).set({ writing: 1 }).where(eq(restoreRuns.id, id)),
-    rows,
-    db
-      .update(restoreRuns)
-      .set({ writing: 0, ...after })
-      .where(eq(restoreRuns.id, id)),
-  ];
 }
 
 export type Ending =

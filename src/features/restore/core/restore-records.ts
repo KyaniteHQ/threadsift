@@ -10,7 +10,6 @@ import {
   entering,
 } from "../../../core/contract/restore-contract.ts";
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { writingRows } from "../../../core/kernel/restore-hold.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
 import { type ZipSource, bytesAt, entrySpan } from "../../export/core/zip-read.ts";
 import { readManifest } from "./restore-check.ts";
@@ -18,7 +17,7 @@ import { type Lines, completeLines } from "./restore-lines.ts";
 import { RESTORE_ORDER } from "./restore-registry.ts";
 import { insertRows, knownTable } from "./restore-rows.ts";
 import { readRestoreDirectory } from "./restore-source.ts";
-import { continuation, precondition, steppedUnit, tallied } from "./restore-unit.ts";
+import { steppedUnit, tallied } from "./restore-unit.ts";
 
 interface Opened {
   readonly file: number;
@@ -122,14 +121,14 @@ export async function tablesUnit(
     line: at.line + lines.length,
   };
 
-  return {
-    writes: writingRows(db, run.id, insertRows(db, spec, lines), {
+  return steppedUnit(
+    db,
+    run,
+    {
       cursor: JSON.stringify(next),
       restored: tallied("restored", spec.name, sql`changes()`),
       dropped: tallied("dropped", spec.name, sql`${lines.length} - changes()`),
-      updatedAt: Date.now(),
-    }),
-    precondition: precondition(db, run),
-    continuation: continuation(db, run),
-  };
+    },
+    [insertRows(db, spec, lines)],
+  );
 }

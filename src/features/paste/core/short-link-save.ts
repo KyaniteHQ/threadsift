@@ -11,6 +11,7 @@ import {
 } from "../../../core/kernel/guards.ts";
 import { hasOpenJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { orRestoreHolds } from "../../../core/kernel/restore-hold.ts";
 import { itemAliases, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import {
@@ -21,6 +22,7 @@ import {
   holdsNoItem,
   foundItem,
   itemAt,
+  itemInsert,
   writeQueued,
 } from "../../item/core/item-rows.ts";
 import { itemRead } from "../../item/core/item-selection.ts";
@@ -61,6 +63,8 @@ interface Failure {
 const PROMOTED_ITEM = 4;
 
 const FAILED_ITEM = 3;
+
+const INSERTED_FAILURE_ITEM = 4;
 
 async function promotedAndKept(
   ports: Ports,
@@ -116,24 +120,26 @@ export async function saveResolved(
 async function insertedFailure(
   db: Database,
   noAlias: Readonly<SQLWrapper>,
-  { address, link: { normalizedUrl, kind, source }, fetched, now, addedByToken }: Readonly<Failure>,
+  { address, link, fetched, now, addedByToken }: Readonly<Failure>,
 ): Promise<Saved | null> {
+  const { normalizedUrl } = link;
   const missing = holdsNoItem(db, normalizedUrl);
   const itemKey = eq(items.normalizedUrl, normalizedUrl);
 
-  const inserted = await unlessRefused(db, missing, () =>
+  const { heldGuard, insert } = itemInsert(db, {
+    link,
+    originalUrl: address,
+    savedAt: now,
+    addedByToken,
+    fetched: settle(fetched, null, now),
+  });
+
+  const inserted = await unlessRefused(db, orRestoreHolds(db, missing), () =>
     db.batch([
       insertGuard(db, noAlias),
       insertGuard(db, missing),
-      db.insert(items).values({
-        source,
-        kind,
-        normalizedUrl,
-        originalUrl: address,
-        savedAt: now,
-        addedByToken,
-        ...settle(fetched, null, now),
-      }),
+      heldGuard,
+      insert,
       itemRead(db, itemKey),
       ...STALE.itemChanged(db, itemKey),
       db.delete(guards),
@@ -142,7 +148,11 @@ async function insertedFailure(
 
   return inserted === null
     ? null
-    : { kind: "saved", item: foundItem(inserted[FAILED_ITEM][0], normalizedUrl), created: true };
+    : {
+        kind: "saved",
+        item: foundItem(inserted[INSERTED_FAILURE_ITEM][0], normalizedUrl),
+        created: true,
+      };
 }
 
 async function refreshedFailure(

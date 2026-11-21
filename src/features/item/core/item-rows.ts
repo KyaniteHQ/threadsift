@@ -4,13 +4,20 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { Digest } from "../../../core/contract/digest-schema.ts";
 import type { Link } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guards, holdsNoRow, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
+import {
+  guardedWrite,
+  guards,
+  holdsNoRow,
+  insertGuard,
+  unlessRefused,
+} from "../../../core/kernel/guards.ts";
 import { enqueueRows, openingJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { orRestoreHolds, restoreGuard } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
-import { reopenedFetch } from "./settle.ts";
+import { type Settled, reopenedFetch } from "./settle.ts";
 
 export type Existing = "refresh" | "keep";
 
@@ -42,18 +49,32 @@ export function itemInsert(
     originalUrl,
     savedAt,
     addedByToken,
+    fetched,
   }: Readonly<{
     link: Readonly<Link>;
     originalUrl: string;
     savedAt: number;
     addedByToken: number | null;
+    fetched?: Readonly<Settled> | undefined;
   }>,
 ) {
-  return db
-    .insert(items)
-    .values({ source, kind, normalizedUrl, originalUrl, savedAt, addedByToken })
-    .onConflictDoNothing({ target: items.normalizedUrl })
-    .returning({ id: items.id });
+  return {
+    heldGuard: restoreGuard(db),
+    insert: db
+      .insert(items)
+      .values({ source, kind, normalizedUrl, originalUrl, savedAt, addedByToken, ...fetched })
+      .onConflictDoNothing({ target: items.normalizedUrl })
+      .returning({ id: items.id }),
+  };
+}
+
+export function guardedItemWrite<Insert extends BatchItem<"sqlite">>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  { heldGuard, insert }: Readonly<{ heldGuard: BatchItem<"sqlite">; insert: Insert }>,
+  rest: readonly BatchItem<"sqlite">[],
+) {
+  return guardedWrite(db, orRestoreHolds(db, condition), insert, [heldGuard, ...rest]);
 }
 
 export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
@@ -74,13 +95,15 @@ export function queuedRows(
   const now = Date.now();
   const pendingDigest = digest === undefined ? null : JSON.stringify(digest);
 
-  return [
-    itemInsert(db, { link, originalUrl, savedAt: now, addedByToken }),
-    reopenedFetch(db, eq(items.normalizedUrl, normalizedUrl), pendingDigest),
-    openingJob(db, { kind: "fetch", address, normalizedUrl, now, page }),
-    itemRead(db, eq(items.normalizedUrl, normalizedUrl)),
-    ...STALE.itemChanged(db, eq(items.normalizedUrl, normalizedUrl)),
-  ] as const;
+  return {
+    ...itemInsert(db, { link, originalUrl, savedAt: now, addedByToken }),
+    rest: [
+      reopenedFetch(db, eq(items.normalizedUrl, normalizedUrl), pendingDigest),
+      openingJob(db, { kind: "fetch", address, normalizedUrl, now, page }),
+      itemRead(db, eq(items.normalizedUrl, normalizedUrl)),
+      ...STALE.itemChanged(db, eq(items.normalizedUrl, normalizedUrl)),
+    ] as const,
+  };
 }
 
 type Statements = readonly BatchItem<"sqlite">[];
@@ -109,21 +132,40 @@ async function written(
   link: Readonly<Link>,
   around: Readonly<Around> | undefined,
 ) {
-  const rows = queuedRows(db, paste, link);
+  const { heldGuard, insert, rest } = queuedRows(db, paste, link);
 
-  if (around === undefined) return settled(await db.batch(rows));
+  if (around === undefined) {
+    const [, ...results] = await db.batch([heldGuard, insert, ...rest, db.delete(guards)]);
+
+    return settled(results);
+  }
 
   const { guard, before, after } = around;
   const checked = insertGuard(db, guard);
 
   if (before.length === 0) {
-    const [, ...results] = await db.batch([checked, ...rows, ...after, db.delete(guards)]);
+    const [, , ...results] = await db.batch([
+      checked,
+      heldGuard,
+      insert,
+      ...rest,
+      ...after,
+      db.delete(guards),
+    ]);
 
     return settled(results);
   }
 
   const [promote] = before;
-  const [, , ...results] = await db.batch([checked, promote, ...rows, ...after, db.delete(guards)]);
+  const [, , , ...results] = await db.batch([
+    checked,
+    promote,
+    heldGuard,
+    insert,
+    ...rest,
+    ...after,
+    db.delete(guards),
+  ]);
 
   return settled(results);
 }
@@ -144,5 +186,7 @@ export function writeQueued(
     return { kind: "saved", item: foundItem(item, link.normalizedUrl), created };
   };
 
-  return around === undefined ? write() : unlessRefused(db, around.guard, write);
+  return around === undefined
+    ? write()
+    : unlessRefused(db, orRestoreHolds(db, around.guard), write);
 }

@@ -6,9 +6,9 @@ import type {
   ImportWrite,
 } from "../../../core/contract/import-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedWrite, holdsNoRow, refusedByGuard } from "../../../core/kernel/guards.ts";
-import { type Closed, HOLDS_LIBRARY } from "../../../core/kernel/restore-hold.ts";
-import { imports, restoreRuns } from "../../../core/kernel/schema.ts";
+import { guardedWrite } from "../../../core/kernel/guards.ts";
+import { type Closed, holdsNoRestore } from "../../../core/kernel/restore-hold.ts";
+import { imports } from "../../../core/kernel/schema.ts";
 
 export async function readImport(db: Database, name: string): Promise<ImportState | undefined> {
   const [found] = await db
@@ -39,20 +39,9 @@ function cursorWrite(db: Database, { name, cursor, previous }: Readonly<ImportWr
 }
 
 async function writtenWhileOpen(db: Database, write: Readonly<ImportWrite>): Promise<boolean> {
-  try {
-    const written = await guardedWrite(
-      db,
-      holdsNoRow(db, restoreRuns, HOLDS_LIBRARY),
-      cursorWrite(db, write),
-      [],
-    );
+  const written = await guardedWrite(db, holdsNoRestore(db), cursorWrite(db, write), []);
 
-    return written !== null;
-  } catch (error) {
-    if (refusedByGuard(error)) return false;
-
-    throw error;
-  }
+  return written !== null;
 }
 
 export async function saveImport(
