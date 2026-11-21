@@ -13,6 +13,7 @@ import {
 import { dropHighlight, keepHighlight } from "./keeping-api.ts";
 import {
   KEEP_FAILED,
+  KEEP_REFUSED,
   KEEP_STALE,
   KEPT_ANNOUNCEMENT,
   REMOVED_ANNOUNCEMENT,
@@ -68,6 +69,7 @@ function useKeep(itemId: number, serial: Serial, actions: DetailActions, outcome
       );
 
       if (answer === null) fail(KEEP_FAILED);
+      else if (answer.outcome === "refused") fail(KEEP_REFUSED);
       else if (answer.outcome === "changed") {
         reload();
         fail(KEEP_STALE);

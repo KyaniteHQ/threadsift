@@ -2,6 +2,7 @@ import {
   type CreateHighlightRequest,
   type Highlight,
   HighlightResponseSchema,
+  SelectorMismatchSchema,
 } from "../../src/core/contract/highlight-contract.ts";
 import {
   type NoteView,
@@ -14,7 +15,8 @@ import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 type KeepResult =
   | { readonly outcome: "kept"; readonly highlight: Highlight }
-  | { readonly outcome: "changed" };
+  | { readonly outcome: "changed" }
+  | { readonly outcome: "refused" };
 
 export async function keepHighlight(
   id: number,
@@ -22,9 +24,14 @@ export async function keepHighlight(
 ): Promise<KeepResult> {
   const response = await callOk(post(DATABASE_WRITE_DEADLINE_MS), `/api/items/${id}/highlights`, {
     json: request,
-    tolerates: [404, 409],
+    tolerates: [400, 404, 409],
   });
 
+  if (response.status === 400) {
+    if (SelectorMismatchSchema.safeParse(await response.json().catch(() => null)).success)
+      return { outcome: "refused" };
+    throw new Error(`POST /api/items/${id}/highlights answered 400`);
+  }
   if (response.status === 404 || response.status === 409) return { outcome: "changed" };
 
   return {

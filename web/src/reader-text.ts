@@ -79,6 +79,8 @@ export const RELATED = { title: "Related Items", untitled: UNTITLED } as const;
 export const KEPT_ANNOUNCEMENT = "Highlight kept.";
 export const REMOVED_ANNOUNCEMENT = "Highlight removed.";
 export const KEEP_FAILED = "Couldn’t keep this highlight. Select the passage again.";
+export const KEEP_REFUSED =
+  "Couldn’t keep this highlight. Select the passage again, or a smaller part without pictures, footnotes or code.";
 export const SELECT_FAILED = "Can’t select a passage to keep right now. Try again below.";
 export const REMOVE_FAILED = "Couldn’t remove this highlight. Try again.";
 

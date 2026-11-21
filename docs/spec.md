@@ -268,7 +268,7 @@ Rules for the Digest:
 - A Context stub marks a dropped parent or a parent missing from an X thread or a Reddit archive fill, and a stub that says "Further replies were not saved." marks replies behind a `more` stub.
 - The Comments button jumps to the section and shortens to "N of M" and then to the count as the bar narrows.
 - A row reads "Kept N of M" for an Item whose Digest covers the thread, "Showing N of M" before that, and "Saved comment" for a saved Reddit comment.
-- **Highlights.** The owner selects one passage inside the post text or inside one comment the Reader shows, and a popover offers Keep. A selection across two bodies, or one that touches a control or a Context stub, offers nothing.
+- **Highlights.** The owner selects one passage inside the post text or inside one comment the Reader shows, and a popover offers Keep. A selection across two bodies, or one that touches a control or a Context stub, offers nothing. When a selection does not match the stored text of that version, the Reader keeps the Item as it is and asks the owner to select the passage again or a smaller part.
 - A kept passage is marked in place, in List, Grid Page, Grid Sheet and on a phone. Pressing a mark offers Remove, and Escape closes the popover without closing the Reader.
 - The Highlights list at the end of the Reader holds every Highlight of the Item, and choosing one scrolls to its mark and opens the fold around it. A Highlight whose passage is gone shows its quote with the note "Passage no longer found because the item’s text changed."
 - **Note.** The Note box follows the Highlights list (Highlights, Notes and the Highlights page).
