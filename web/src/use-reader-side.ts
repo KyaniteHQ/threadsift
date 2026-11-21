@@ -57,7 +57,6 @@ function useLibraryDom(root: RefObject<HTMLDivElement | null>) {
 export interface ReaderSide {
   readonly reader: ReaderState;
   readonly leaveSearch: () => void;
-  readonly openFromCard: (id: number) => void;
 }
 
 export function useReaderSide({
@@ -99,5 +98,5 @@ export function useReaderSide({
     focusSearch,
   });
 
-  return { reader, leaveSearch, openFromCard: reader.open };
+  return { reader, leaveSearch };
 }

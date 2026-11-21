@@ -7,21 +7,30 @@ export type CardView =
   | { readonly kind: "added" | "refreshed"; readonly note: NoticeKey | null }
   | { readonly kind: "failed"; readonly title: string };
 
-const NOTE_OF_RESULT: Readonly<Record<FetchResult, NoteKey | null>> = {
-  ok: null,
-  "not-requested": null,
-  timeout: null,
-  network: null,
-  refused: "refused",
-  unsupported: "unsupported",
-  "redirect-limit": "redirect-limit",
-  "redirect-stopped": "redirect-stopped",
-  unresolved: "unresolved",
-  status: "status",
-  "no-title": "no-title",
-  unreadable: "unreadable",
-  "github-token": "github-token",
-};
+function noteOfResult(result: FetchResult): NoteKey | null {
+  switch (result) {
+    case "ok":
+    case "not-requested":
+    case "timeout":
+    case "network":
+      return null;
+    case "refused":
+    case "unsupported":
+    case "redirect-limit":
+    case "redirect-stopped":
+    case "unresolved":
+    case "status":
+    case "no-title":
+    case "unreadable":
+    case "github-token":
+      return result;
+    default: {
+      const exhaustive: never = result;
+
+      return exhaustive;
+    }
+  }
+}
 
 export function offersFetchRetry(item: Readonly<Item>) {
   return item.status === "ready" && item.retry === "paste" && item.digestOutcome === "none";
@@ -48,7 +57,9 @@ export function noteOf(item: Readonly<Item>): NoticeKey | null {
     return item.title === null ? "x-unreadable" : "x-kept";
   }
 
-  return item.title === null ? NOTE_OF_RESULT[item.fetch] : "title-kept";
+  if (item.title !== null) return "title-kept";
+
+  return noteOfResult(item.fetch);
 }
 
 export function viewOf(item: Readonly<Item>, refreshed: boolean): CardView {

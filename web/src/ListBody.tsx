@@ -4,6 +4,7 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { isEmptyResult } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
+import type { More } from "./list-paging.ts";
 import type { ListState } from "./list-state.ts";
 import {
   CLEAR_ALL,
@@ -116,10 +117,7 @@ function ItemList({
   );
 }
 
-function MoreRows({
-  state,
-  more,
-}: Readonly<{ state: "idle" | "loading" | "failed"; more: () => void }>) {
+function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) {
   if (state === "failed") {
     return <Notice text={LOAD_FAILED} action={more} label={RETRY_LABEL} alert />;
   }

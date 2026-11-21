@@ -12,7 +12,8 @@ const CODE_END: HastNode = { type: "text", value: "\n" };
 function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
   const label = node.id.endsWith(FOOTNOTE_LABEL_ID);
   const task = node.getAttribute("aria-hidden") === "true";
-  const picture = node.dataset["failedPicture"] !== undefined;
+  const failedPicture = node.dataset["failedPicture"];
+  const picture = failedPicture !== undefined;
 
   return {
     type: "element",
@@ -22,7 +23,7 @@ function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
       dataFootnoteRef: node.dataset["footnoteRef"],
       dataFootnoteBackref: node.dataset["footnoteBackref"],
       alt: node.getAttribute("alt") ?? undefined,
-      src: node.getAttribute(picture ? "href" : "src") ?? undefined,
+      src: failedPicture ?? node.getAttribute("src") ?? undefined,
     },
     children: picture ? [] : children,
   };

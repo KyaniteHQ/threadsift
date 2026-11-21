@@ -5,10 +5,10 @@ import { CommentsButton } from "./CommentsButton.tsx";
 import { DeleteItem } from "./DeleteItem.tsx";
 import { Icon } from "./Icon.tsx";
 import { HINT_PANE, MARK_READ, MARK_UNREAD, OPEN_LABELS } from "./reader-text.ts";
-import type { ReaderControls } from "./Reader.tsx";
 import type { Pages } from "./routing.ts";
 import { SettingsPanel } from "./SettingsPanel.tsx";
 import type { PanelState } from "./use-panel.ts";
+import type { ReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
 
 function ReadIcon({ read }: Readonly<{ read: boolean }>) {

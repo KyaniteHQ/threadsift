@@ -1,9 +1,7 @@
 import { type RefObject, useLayoutEffect, useMemo } from "react";
 import { flushSync } from "react-dom";
 
-import { type BarStep, fitBar } from "./bar-fit.ts";
-
-type Steps = readonly [BarStep, ...BarStep[]];
+import { type BarSteps, fitBar } from "./bar-fit.ts";
 
 function watchBar(bar: HTMLElement, refit: (observed: boolean) => void): () => void {
   const observer = new ResizeObserver(() => {
@@ -33,7 +31,7 @@ function watchBar(bar: HTMLElement, refit: (observed: boolean) => void): () => v
 
 function fitWatch(
   bar: HTMLElement,
-  steps: Steps,
+  steps: BarSteps,
   placed: (hintShown: boolean) => void,
 ): () => void {
   const unwatch = watchBar(bar, (observed) => {
@@ -56,7 +54,7 @@ function fitWatch(
 
 export function useBarFit(
   bar: RefObject<HTMLElement | null>,
-  steps: Steps,
+  steps: BarSteps,
   signature: string,
   placed: (hintShown: boolean) => void,
 ): void {

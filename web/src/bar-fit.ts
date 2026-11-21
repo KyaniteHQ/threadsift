@@ -28,13 +28,17 @@ function barOverflows(bar: HTMLElement): boolean {
   return false;
 }
 
-export interface BarStep {
+export type BarMode = "pane" | "page" | "sheet" | "phone";
+
+interface BarStep {
   readonly hint: boolean;
   readonly labels: boolean;
   readonly back: "label" | "short" | "icon";
   readonly comments: "full" | "short" | "count" | "digits";
   readonly gaps: "normal" | "tight";
 }
+
+export type BarSteps = readonly [BarStep, ...BarStep[]];
 
 function setHidden(bar: HTMLElement, selector: string, hidden: boolean): void {
   const part = bar.querySelector<HTMLElement>(selector);
@@ -56,7 +60,7 @@ function applyStep(bar: HTMLElement, step: Readonly<BarStep>): void {
   setHidden(bar, ".rd-cm-count", step.comments !== "count" && step.comments !== "digits");
 }
 
-export function fitBar(bar: HTMLElement, steps: readonly [BarStep, ...BarStep[]]): BarStep {
+export function fitBar(bar: HTMLElement, steps: BarSteps): BarStep {
   let chosen = steps[0];
 
   applyStep(bar, chosen);

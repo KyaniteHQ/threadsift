@@ -1,3 +1,4 @@
+import { codePointCount } from "../../src/core/contract/code-points.ts";
 import { StoredCommentId } from "../../src/core/contract/comment-id.ts";
 import type { Highlight, HighlightTarget } from "../../src/core/contract/highlight-contract.ts";
 import type { MarkSpan } from "./highlight-marks.ts";
@@ -42,7 +43,7 @@ export function indexSpans(items: readonly Highlight[], previous: SpanIndex): Sp
     if (item.status !== "attached") continue;
 
     const key = keyOf(item.target);
-    const span = { id: item.id, start: item.start, length: Array.from(item.selector.exact).length };
+    const span = { id: item.id, start: item.start, length: codePointCount(item.selector.exact) };
     const list = grouped.get(key);
 
     if (list === undefined) grouped.set(key, [span]);

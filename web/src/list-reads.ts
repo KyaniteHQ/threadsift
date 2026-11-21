@@ -1,5 +1,6 @@
 import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
+import type { ItemPage } from "../../src/core/contract/item-route-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { fetchItems, fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
@@ -10,7 +11,6 @@ import {
   type SetList,
   type Wiring,
   failedList,
-  type Page,
   loaded,
   readFor,
 } from "./list-state.ts";
@@ -33,9 +33,9 @@ function edgeOf(list: Readonly<ListState>, asked: string): Item | undefined {
 
 async function continuing(
   filters: Readonly<Filters>,
-  page: Readonly<Page>,
+  page: Readonly<ItemPage>,
   reach: Readonly<Reach>,
-): Promise<Page> {
+): Promise<ItemPage> {
   const last = page.items.at(-1);
   const edge = reach.edge();
 
