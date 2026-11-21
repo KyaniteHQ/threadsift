@@ -2,7 +2,7 @@ import { FIELDS, RESET, SETUP } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import { AuthShell } from "./AuthShell.tsx";
 import { FormField } from "./FormField.tsx";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { PasswordField, UsernameHint } from "./PasswordField.tsx";
 import { ResetInstructions } from "./ResetInstructions.tsx";
 import { SwapButton } from "./SwapButton.tsx";
@@ -20,7 +20,6 @@ const CODE_INPUT = {
 export function ResetScreen({ done }: Readonly<{ done: () => void }>) {
   const { code, password, confirm, lock, visibility, alert, busy, onSubmit } = useReset(done);
   const { shown, toggle } = visibility;
-  const follow = useNavigateLink("/");
   useFocusOnMount(code.ref);
 
   return (
@@ -53,9 +52,9 @@ export function ResetScreen({ done }: Readonly<{ done: () => void }>) {
           busy={busy}
           blocked={lock.locked}
         />
-        <a className="btn btn-plain btn-flush" href="/" onClick={follow}>
+        <InternalLink className="btn btn-plain btn-flush" to="/">
           {RESET.back}
-        </a>
+        </InternalLink>
       </form>
     </AuthShell>
   );

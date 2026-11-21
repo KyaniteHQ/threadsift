@@ -3,7 +3,7 @@ import { memo, useId } from "react";
 import type { Entry } from "../../src/core/contract/highlights-page-contract.ts";
 import { NOT_FOUND } from "../../src/core/contract/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { type Place, placePath } from "./place.ts";
 import { QuoteText } from "./QuoteText.tsx";
 import { ageLabel } from "./saved-label.ts";
@@ -47,8 +47,6 @@ export const HighlightEntry = memo(function HighlightEntry({
   const to = placePath(item.id, placeOf(entry));
   const gone = entry.kind === "highlight" && !entry.found;
 
-  const open = useNavigateLink(to);
-
   return (
     <li>
       <article className="hp-it" data-kind={entry.kind}>
@@ -57,14 +55,13 @@ export const HighlightEntry = memo(function HighlightEntry({
           <SavedTime savedAt={item.savedAt} now={now} />
         </p>
         <h2 className="hp-title">
-          <a
+          <InternalLink
             className="hp-open"
-            href={to}
+            to={to}
             aria-describedby={gone ? `${textId} ${goneId}` : textId}
-            onClick={open}
           >
             {item.title === null ? HIGHLIGHTS_PAGE.untitled : <bdi dir="auto">{item.title}</bdi>}
-          </a>
+          </InternalLink>
         </h2>
         <Kind entry={entry} now={now} />
         <Passage entry={entry} id={textId} />

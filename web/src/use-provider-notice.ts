@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
-
 import { type CliProvider, isCliProvider } from "../../src/core/contract/provider-families.ts";
 import { type AiView, fetchAiSettings } from "./ai-api.ts";
+import { useRead } from "./use-read.ts";
 
 export type ProviderNotice =
   | { readonly kind: "none" | "missing" }
@@ -15,28 +14,12 @@ function noticeOf(settings: AiView["settings"]): ProviderNotice {
   return isCliProvider(settings.provider) ? { kind: "plan", provider: settings.provider } : NONE;
 }
 
+async function readNotice(signal: AbortSignal): Promise<ProviderNotice> {
+  const { settings } = await fetchAiSettings(signal);
+
+  return noticeOf(settings);
+}
+
 export function useProviderNotice(): ProviderNotice {
-  const [notice, setNotice] = useState(NONE);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const read = async (): Promise<void> => {
-      try {
-        const { settings } = await fetchAiSettings(controller.signal);
-
-        setNotice(noticeOf(settings));
-      } catch {
-        setNotice(NONE);
-      }
-    };
-
-    void read();
-
-    return () => {
-      controller.abort();
-    };
-  }, []);
-
-  return notice;
+  return useRead(readNotice, NONE, NONE);
 }

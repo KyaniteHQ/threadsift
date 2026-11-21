@@ -113,7 +113,7 @@ export async function logOut(): Promise<void> {
   await callOk(post(DATABASE_WRITE_DEADLINE_MS), "/api/logout", { tolerates: [UNAUTHORIZED] });
 }
 
-export async function fetchTokens(signal: AbortSignal): Promise<Token[]> {
+export async function fetchTokens(signal?: AbortSignal): Promise<Token[]> {
   return (await parsedFrom("GET", "/api/tokens", TokenListResponseSchema, { signal })).tokens;
 }
 

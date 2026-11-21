@@ -1,5 +1,5 @@
 import { IMPORT, redditNoteLabel } from "./import-text.ts";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { REDDIT_ACCOUNT_TEXT } from "./reddit-account-text.ts";
 import { REDDIT_TEXT } from "./reddit-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
@@ -22,7 +22,6 @@ export function RedditNote({
   finished,
 }: Readonly<{ links: readonly string[]; finished: boolean }>) {
   const note = useRedditNote();
-  const follow = useNavigateLink(SETTINGS_PATH);
   const count = redditLinkCount(links);
 
   if (note.state === "unknown" || note.state === "missing" || count === 0) return null;
@@ -34,9 +33,9 @@ export function RedditNote({
       ) : (
         <>
           <p>{notConnectedText(note.state, note.archiveFill)}</p>
-          <a className="fl-link" href={SETTINGS_PATH} onClick={follow}>
+          <InternalLink className="fl-link" to={SETTINGS_PATH}>
             {IMPORT.redditSettingsLink}
-          </a>
+          </InternalLink>
         </>
       )}
     </div>

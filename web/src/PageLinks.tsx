@@ -2,8 +2,8 @@ import { SETTINGS } from "./access-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { IMPORT } from "./import-text.ts";
 import { INDEX_PAGE } from "./index-text.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { LOG_PAGE } from "./log-text.ts";
-import { useNavigateLink } from "./navigate-context.ts";
 import { PROPOSALS_PAGE } from "./proposals-text.ts";
 import {
   HIGHLIGHTS_PATH,
@@ -15,13 +15,11 @@ import {
 } from "./routing.ts";
 
 function PageLinkItem({ path, label }: Readonly<{ path: string; label: string }>) {
-  const follow = useNavigateLink(path);
-
   return (
     <li>
-      <a className="fl-link" href={path} onClick={follow}>
+      <InternalLink className="fl-link" to={path}>
         {label}
-      </a>
+      </InternalLink>
     </li>
   );
 }

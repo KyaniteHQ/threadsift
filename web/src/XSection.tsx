@@ -138,7 +138,7 @@ export function useXRefresh(initial: Loaded<XSettingsView>) {
   const [version, setVersion] = useState(0);
 
   const refresh = useCallback(() => {
-    void fetchXSettings(new AbortController().signal).then(
+    void fetchXSettings().then(
       (view) => {
         setX({ kind: "ready", view });
         setVersion((current) => current + 1);

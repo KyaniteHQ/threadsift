@@ -9,7 +9,7 @@ import { DATABASE_WRITE_DEADLINE_MS, HOP_WRITE_DEADLINE_MS } from "./write-deadl
 
 const ENDPOINT = "/api/settings/github";
 
-export function fetchGithubSettings(signal: AbortSignal) {
+export function fetchGithubSettings(signal?: AbortSignal) {
   return parsedFrom("GET", ENDPOINT, GithubSettingsViewSchema, { signal });
 }
 

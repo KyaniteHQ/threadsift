@@ -3,13 +3,12 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { SECTION_TITLES } from "../../src/core/contract/reader-text.ts";
 import { Comments } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";
-import { useNavigateLink } from "./navigate-context.ts";
 import { PostTextView } from "./post-text-module.ts";
 import { FILL_NOTE, NO_POST_TEXT, NO_README, archiveNote } from "./reader-text.ts";
+import { ReaderTokenRefused } from "./ReaderTokenRefused.tsx";
 import { Related } from "./Related.tsx";
 import { RepositoryBlock } from "./RepositoryBlock.tsx";
-import { SETTINGS_PATH } from "./routing.ts";
-import { CARD_TITLES, TOKEN_REFUSED, waitTitle } from "./text.ts";
+import { CARD_TITLES, waitTitle } from "./text.ts";
 
 function waitsForThread(item: Readonly<Item>): boolean {
   return item.fillable && item.status !== "processing";
@@ -26,19 +25,6 @@ function missingTextNote(item: Readonly<Item>, hasLink: boolean): string | null 
   return hasLink ? null : NO_POST_TEXT;
 }
 
-function TokenRefused({ text }: Readonly<{ text: string }>) {
-  const follow = useNavigateLink(SETTINGS_PATH);
-
-  return (
-    <>
-      <p className="rd-note">{text}</p>
-      <a className="btn" href={SETTINGS_PATH} onClick={follow}>
-        {TOKEN_REFUSED.link}
-      </a>
-    </>
-  );
-}
-
 export function Original({
   item,
   detail,
@@ -50,9 +36,7 @@ export function Original({
 
   return (
     <>
-      {item.status === "ready" && item.fetch === "github-token" ? (
-        <TokenRefused text={TOKEN_REFUSED.reader} />
-      ) : null}
+      <ReaderTokenRefused item={item} />
       {detail.repository === null ? null : (
         <RepositoryBlock item={item} repository={detail.repository} now={now} />
       )}

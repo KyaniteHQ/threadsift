@@ -1,6 +1,6 @@
 import { useRef } from "react";
 
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { BACK_TO_LIBRARY } from "./text.ts";
 import { useFocusOnMount } from "./use-form.ts";
 
@@ -16,16 +16,15 @@ export function PageBar({
   backLink?: Readonly<{ href: string; label: string }>;
 }>) {
   const heading = useRef<HTMLHeadingElement>(null);
-  const follow = useNavigateLink(backLink.href);
 
   useFocusOnMount(heading, ready);
 
   return (
     <header className="pg-bar">
       <div className="pg-bar-in">
-        <a className="btn" href={backLink.href} onClick={follow}>
+        <InternalLink className="btn" to={backLink.href}>
           {backLink.label}
-        </a>
+        </InternalLink>
         <h1 ref={heading} className="pg-title" tabIndex={-1}>
           {title}
         </h1>

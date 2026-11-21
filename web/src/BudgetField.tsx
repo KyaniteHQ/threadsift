@@ -3,7 +3,7 @@ import { useCallback } from "react";
 import { DEFAULT_TOKEN_BUDGET } from "../../src/core/contract/agent-token-contract.ts";
 import { SETTINGS } from "./access-text.ts";
 import { FormField } from "./FormField.tsx";
-import { dailyBudgetOf, parseBudget } from "./token-budget.ts";
+import { parseBudget } from "./token-budget.ts";
 import { type FieldState, useField } from "./use-form.ts";
 
 const BUDGET_INPUT = {
@@ -15,26 +15,16 @@ const BUDGET_INPUT = {
 
 export const DEFAULT_BUDGET_TEXT = String(DEFAULT_TOKEN_BUDGET);
 
-interface BudgetRead {
-  readonly dailyBudget: number | null;
-}
-
 export function useBudgetField(initial: string) {
   const field = useField(null, initial);
   const { value, fail, set } = field;
 
-  const read = useCallback((): BudgetRead | undefined => {
-    const input = parseBudget(value);
+  const read = useCallback(() => {
+    const budget = parseBudget(value);
 
-    if (input.kind === "invalid") {
-      fail(SETTINGS.budgetInvalid);
+    fail(budget === undefined ? SETTINGS.budgetInvalid : null);
 
-      return undefined;
-    }
-
-    fail(null);
-
-    return { dailyBudget: dailyBudgetOf(input) };
+    return budget;
   }, [fail, value]);
 
   const reset = useCallback(() => {

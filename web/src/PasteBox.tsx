@@ -3,7 +3,8 @@ import { useContext, useEffect, useId, useRef } from "react";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { FieldVoiceContext } from "./FieldAnnouncer.tsx";
 import { Icon } from "./Icon.tsx";
-import { PasteCard, announcementsOf, type faceOf } from "./PasteCard.tsx";
+import { type Face, announcementsOf } from "./paste-card.ts";
+import { PasteCard } from "./PasteCard.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import {
   ADD_LABEL,
@@ -66,10 +67,7 @@ function PasteForm({
   );
 }
 
-function Announcements({
-  face,
-  saving,
-}: Readonly<{ face: ReturnType<typeof faceOf>; saving: boolean }>) {
+function Announcements({ face, saving }: Readonly<{ face: Face | null; saving: boolean }>) {
   const { polite, alert } = announcementsOf(face);
   const voice = useContext(FieldVoiceContext);
   const modal = voice?.modal === true;

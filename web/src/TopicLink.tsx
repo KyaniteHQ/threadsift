@@ -1,26 +1,24 @@
 import { catalogKey } from "../../src/core/contract/catalog-key.ts";
 import { topicPath } from "../../src/core/contract/topic-path.ts";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { TOPIC_PAGE, topicLinkLabel } from "./topic-text.ts";
 
 export function TopicLink({ name }: Readonly<{ name: string }>) {
-  const href = topicPath(catalogKey(name));
-  const open = useNavigateLink(href);
-
   return (
-    <a className="rd-topic" href={href} aria-label={topicLinkLabel(name)} onClick={open}>
+    <InternalLink
+      className="rd-topic"
+      to={topicPath(catalogKey(name))}
+      aria-label={topicLinkLabel(name)}
+    >
       <bdi dir="auto">{name}</bdi>
-    </a>
+    </InternalLink>
   );
 }
 
 export function TopicPageLink({ topicKey }: Readonly<{ topicKey: string }>) {
-  const href = topicPath(topicKey);
-  const open = useNavigateLink(href);
-
   return (
-    <a className="fl-link" href={href} onClick={open}>
+    <InternalLink className="fl-link" to={topicPath(topicKey)}>
       {TOPIC_PAGE.openPage}
-    </a>
+    </InternalLink>
   );
 }

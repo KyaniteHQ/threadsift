@@ -7,7 +7,7 @@ import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/reddit";
 
-export function fetchRedditSettings(signal: AbortSignal) {
+export function fetchRedditSettings(signal?: AbortSignal) {
   return parsedFrom("GET", ENDPOINT, RedditSettingsSchema, { signal });
 }
 
