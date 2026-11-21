@@ -151,7 +151,7 @@
     ],
     "github": [],
     "vault": [],
-    "x": ["x-intake-writes.ts", "x-oembed.ts", "x-verify-state.ts"],
+    "x": ["x-oembed.ts", "x-verify-state.ts"],
     "reddit": ["archive-thread.ts", "reddit-account-states.ts"],
     "fetch": ["plugin-fetch.ts"],
     "digest": [

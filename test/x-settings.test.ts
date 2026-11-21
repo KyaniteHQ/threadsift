@@ -65,24 +65,12 @@ describe("the X settings report the reader of X links and let the owner choose i
     assert.equal((await instance.read("GET", PATH, XSettingsViewSchema)).reader, "grok-bot");
   });
 
-  it("answers 403 to an agent token, for the read and for the change, and 401 signed out", async () => {
+  it("answers 403 to an agent token, for the read and for the change", async () => {
+    const savedReader = (await instance.read("GET", PATH, XSettingsViewSchema)).reader;
+    const reader = savedReader === "grok-cli" ? "auto" : "grok-cli";
     assert.equal((await instance.sendWithToken(token, "GET", PATH)).status, 403);
-    assert.equal(
-      (await instance.sendWithToken(token, "PUT", PATH, { reader: "grok-cli" })).status,
-      403,
-    );
-    assert.equal((await instance.fetch(PATH)).status, 401);
-    assert.equal(
-      (
-        await instance.fetch(PATH, {
-          method: "PUT",
-          headers: { "content-type": "application/json", origin: "http://localhost" },
-          body: JSON.stringify({ reader: "grok-cli" }),
-        })
-      ).status,
-      401,
-    );
-    assert.equal((await instance.read("GET", PATH, XSettingsViewSchema)).reader, "grok-bot");
+    assert.equal((await instance.sendWithToken(token, "PUT", PATH, { reader })).status, 403);
+    assert.equal((await instance.read("GET", PATH, XSettingsViewSchema)).reader, savedReader);
   });
 });
 

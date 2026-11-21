@@ -1,15 +1,13 @@
 import assert from "node:assert/strict";
-import { afterEach, beforeEach, describe, it, mock } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 
-import { applyOutcome } from "../src/core/compose/job-finish.ts";
-import { HANDLERS } from "../src/core/compose/job-handlers.ts";
-import { latestTask } from "../src/features/ai/core/bot-task-rows.ts";
-import { refusedAnswer } from "../src/features/x/core/x-intake-writes.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
+import { applied } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec, until } from "./related-fixtures.ts";
-import { intakeTo, sentIntake, waitingIntake } from "./x-intake-fixtures.ts";
+import { atClock } from "./token-budget-fixtures.ts";
+import { intakeTo, sentIntake, stepOf, waitingIntake } from "./x-intake-fixtures.ts";
 
 const UNREADABLE = { content: "this is not a thread" };
 
@@ -24,32 +22,13 @@ describe("a refusal that lands while the job's send is still being recorded or a
 
   afterEach(() => instance.close());
 
-  function deferredTo(
-    deferredUntil: number,
-    taskId: number,
-    job: Awaited<ReturnType<typeof sentIntake>>["job"],
-  ) {
-    return applyOutcome(
-      instance.core,
-      job,
-      {
-        deferredUntil,
-        wait: "grok-bot",
-        countsAttempt: false,
-        unlessOpen: taskId,
-        writes: [],
-      },
-      HANDLERS[job.kind],
-    );
-  }
-
   it("wakes the job at once when both refusals land before the deferral is written", async () => {
     const task = await sentIntake(instance);
-    const { deadline } = taskRow(instance, task.id);
+    const outcome = await stepOf(instance, task.job);
 
     await intakeTo(instance, task, UNREADABLE);
     await intakeTo(instance, task, UNREADABLE);
-    await deferredTo(deadline, task.id, task.job);
+    await applied(instance, task.job, outcome);
 
     const claimed = await until(
       () => jobRow(instance, task.job.id),
@@ -61,28 +40,25 @@ describe("a refusal that lands while the job's send is still being recorded or a
 
   it("sleeps no longer than the stored deadline when that deadline moved after the deferral was prepared", async () => {
     const task = await sentIntake(instance);
-    const { deadline } = taskRow(instance, task.id);
+    const outcome = await stepOf(instance, task.job);
 
-    exec(
-      instance,
-      "update ai_tasks set deadline = ?, answer_refusals = 2 where id = ?",
-      Date.now() + 5 * SECOND_MS,
-      task.id,
-    );
-    await deferredTo(deadline, task.id, task.job);
+    const deadline = Date.now() + 5 * SECOND_MS;
+    exec(instance, "update ai_tasks set deadline = ? where id = ?", deadline, task.id);
+    await applied(instance, task.job, outcome);
 
-    assert.ok(jobRow(instance, task.job.id).next_attempt_at <= Date.now() + 6 * SECOND_MS);
+    const row = jobRow(instance, task.job.id);
+    assert.deepEqual([row.state, row.next_attempt_at], ["queued", deadline]);
   });
 
-  it("queues the wake for the stored due time, not for the deadline the send knew", async () => {
-    const queued = mock.method(instance.core.jobs, "enqueue");
+  it("queues the wake for the stored due time, not for the deadline the send knew", async (t) => {
+    const queued = t.mock.method(instance.core.jobs, "enqueue");
     const task = await sentIntake(instance);
-    const { deadline } = taskRow(instance, task.id);
+    const outcome = await stepOf(instance, task.job);
 
     await intakeTo(instance, task, UNREADABLE);
     await intakeTo(instance, task, UNREADABLE);
     queued.mock.resetCalls();
-    await deferredTo(deadline, task.id, task.job);
+    await applied(instance, task.job, outcome);
 
     const delays = queued.mock.calls.map(({ arguments: args }) => args[1]);
 
@@ -93,29 +69,21 @@ describe("a refusal that lands while the job's send is still being recorded or a
     );
   });
 
-  it("does not pull a retry delay forward when a late refusal carries the moment that moved the deadline", async () => {
+  it("preserves the retry delay when a late refusal shares the time that moved the deadline", async () => {
     const task = await waitingIntake(instance);
-
     await intakeTo(instance, task, UNREADABLE);
     await intakeTo(instance, task, UNREADABLE);
-
-    const claimed = await until(
+    const retry = await until(
       () => jobRow(instance, task.job.id),
-      ({ attempts }) => attempts === 1,
+      (job) => job.attempts === 1,
     );
-
-    const row = await latestTask(instance.core.db, task.job.id);
-
-    assert.ok(row !== null && row.jobId !== null && row.itemId !== null);
-    assert.equal(
-      await refusedAnswer(
-        instance.core.db,
-        { ...row, jobId: row.jobId, itemId: row.itemId },
-        taskRow(instance, task.id).deadline,
-      ),
-      null,
+    const moved = taskRow(instance, task.id).deadline;
+    const response = await atClock(
+      () => moved,
+      () => intakeTo(instance, task, { content: 5 }),
     );
-    assert.equal(jobRow(instance, task.job.id).next_attempt_at, claimed.next_attempt_at);
+    assert.equal(response.status, 400);
+    assert.equal(jobRow(instance, task.job.id).next_attempt_at, retry.next_attempt_at);
   });
 
   it("answers the refusal with its 400 when counting it fails", async () => {

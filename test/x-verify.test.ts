@@ -153,9 +153,7 @@ const many = (count: number, text = "a reply") =>
     ),
   );
 
-const SLICE_REQUESTS = 40;
-
-describe("a verification job asks for as many posts as 40 requests allow, under the 50 subrequests per invocation of the Workers Free plan", () => {
+describe("a verification job plans as many posts as 40 requests allow", () => {
   it("asks for the post alone first, so a rejected post costs one request", () => {
     assert.deepEqual(
       sliceOf(many(100), {}).map(({ id }) => id),
@@ -192,7 +190,7 @@ describe("a verification job asks for as many posts as 40 requests allow, under 
   it("takes at most the replies that fit the request budget of a slice, two requests for each reply without links", () => {
     const slice = sliceOf(many(100), { [ROOT]: "verified" });
 
-    assert.equal(slice.length, SLICE_REQUESTS / 2);
+    assert.equal(slice.length, 20);
   });
 
   it("counts a request for every link of a reply that may need its address resolved and one for a quote link, and takes at least one reply", () => {
@@ -202,7 +200,7 @@ describe("a verification job asks for as many posts as 40 requests allow, under 
 
     const slice = sliceOf(many(100, links), { [ROOT]: "verified" });
 
-    assert.equal(slice.length, Math.floor(SLICE_REQUESTS / 7));
+    assert.equal(slice.length, 5);
     assert.equal(sliceOf(many(3, links), { [ROOT]: "verified" }).length, 3);
   });
 

@@ -31,8 +31,6 @@ const PARENT = "t1_1000000000000000011";
 
 const CHILD = "t1_1000000000000000012";
 
-const NEW_REPLIES = [21n, 22n, 23n, 24n, 25n, 26n];
-
 describe("an X thread is stored like a Reddit thread, read in the Reader and rebuilt by a newer Paste", () => {
   let instance: Instance;
 
@@ -86,23 +84,17 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
   it("stores the Source of the Item on its thread row and on each of its reply rows", () => {
     const id = xClient(instance).itemIdOf(STORED);
 
-    assert.deepEqual(
+    const sources = (table: "reddit_threads" | "reddit_comments") =>
       rows(
         instance,
         z.object({ source: z.string() }),
-        "select source from reddit_threads where item_id = ?",
+        `select source from ${table} where item_id = ?`,
         id,
-      ),
-      [{ source: "x" }],
-    );
+      ).map(({ source }) => source);
+    assert.deepEqual(sources("reddit_threads"), ["x"]);
     assert.deepEqual(
-      rows(
-        instance,
-        z.object({ source: z.string() }),
-        "select source from reddit_comments where item_id = ? order by position",
-        id,
-      ),
-      Array.from({ length: 6 }, () => ({ source: "x" })),
+      sources("reddit_comments"),
+      Array.from({ length: 6 }, () => "x"),
     );
   });
 
@@ -138,7 +130,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
       url: STORED_LINK,
       content: JSON.stringify(
         thread(
-          NEW_REPLIES.map((number) => reply(number, STORED)),
+          [21n, 22n, 23n, 24n, 25n, 26n].map((number) => reply(number, STORED)),
           { id: STORED },
         ),
       ),
@@ -295,5 +287,14 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     });
 
     assert.equal((await instance.settledItem(item.id)).fetch, "not-requested");
+  });
+
+  it("takes a link with a leading zero in its status id for the post with the plain id", async () => {
+    const item = await xClient(instance).saved({
+      url: "https://x.com/someone/status/0000000000000000321",
+      content: JSON.stringify(thread([reply(2n, "321")], { id: "321" })),
+    });
+
+    assert.equal(item.normalizedUrl, "https://x.com/i/status/321");
   });
 });

@@ -109,7 +109,7 @@ export const SHORT = (text: string) =>
 export const typed = (text: string) =>
   verdict("typed-ellipsis.json", "3100000000000000023", "CatboyDemo", text);
 
-export const MEDIA_ID = "3100000000000000022";
+const MEDIA_ID = "3100000000000000022";
 
 export const verdictOf = (body: string, id: string, author: string, text: string): Judgement => {
   const answer = oembedAnswerOf(200, body);

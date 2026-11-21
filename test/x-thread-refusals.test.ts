@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
 import { Instance, type Json } from "./instance.ts";
 import { SECRET_KEY } from "./related-fixtures.ts";
 import { xClient } from "./x-thread-client.ts";
-import { reply, thread } from "./x-thread-fixtures.ts";
+import { X_LINK, authored, reply, thread } from "./x-thread-fixtures.ts";
 
 const POST = "1000000000000000003";
 
@@ -161,5 +162,34 @@ describe("an X post sent with a Paste is refused with its own reason, and nothin
     REFUSALS.forEach(({ name, reason }, index) => {
       assert.match(reasons[index] ?? "", reason, name);
     });
+  });
+
+  it("answers 413 to three texts of 3.5 MiB that together pass 8 MiB, and stores nothing", async () => {
+    const texts = Array.from({ length: 3 }, () => "a".repeat(3.5 * 1024 * 1024));
+    const { count } = xClient(instance);
+    const itemsBefore = count("items");
+
+    const { value: token } = await instance.read(
+      "POST",
+      "/api/tokens",
+      CreatedTokenResponseSchema,
+      { name: "x-thread" },
+    );
+    const over = await instance.sendWithToken(token, "POST", "/api/items", {
+      url: X_LINK,
+      content: texts,
+    });
+
+    assert.equal(over.status, 413);
+    assert.equal(count("items"), itemsBefore);
+  });
+
+  it("answers 400 for an X thread sent with a Reddit link", async () => {
+    const reason = await xClient(instance).refused({
+      url: "https://www.reddit.com/r/selfhosted/comments/abc123/x/",
+      content: JSON.stringify(authored()),
+    });
+
+    assert.match(reason, /not a Reddit thread/u);
   });
 });

@@ -133,7 +133,9 @@ describe("a thread waits as stored state until every post of it was judged, and 
     await storedForVerification(instance, itemId, KEPT, fewer, { judged: allJudged(fewer) });
 
     assert.equal(itemRow(instance, itemId).fetch_result, "unreadable");
-    assert.equal((await instance.detail(itemId)).comments.received, receivedBefore);
+    const detail = await instance.detail(itemId);
+    assert.equal(detail.xNote, "x-fewer-replies");
+    assert.equal(detail.comments.received, receivedBefore);
   });
 
   it("drops the stored thread and its job when content is saved for the Item while the job waits, so the saved content stays", async () => {
