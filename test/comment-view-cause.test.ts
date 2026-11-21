@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { commentsOf, threadReads } from "../src/features/thread/core/thread-read.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { chooseGrokBot } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
@@ -72,7 +71,7 @@ describe("the Reader does not say that no Provider is saved once the Grok Bot is
 
   after(() => instance.close());
 
-  it("names 'no-provider' while the Grok Bot is set up but not chosen, then 'not-run' or 'pending'", async () => {
+  it("names 'no-provider' while the Grok Bot is set up but not chosen, then 'pending'", async () => {
     const { paste, view } = readerOf(() => instance);
     const id = await paste("bot1", { content: threadOf("bot1") });
 
@@ -83,15 +82,12 @@ describe("the Reader does not say that no Provider is saved once the Grok Bot is
 
     assert.equal(chosen.status, 200, chosen.body);
 
-    const cause = causeOf(await view(id));
-
-    assert.ok(cause === "not-run" || cause === "pending", String(cause));
-
-    const [rows, report] = await Promise.all(threadReads(instance.core.db, id));
-
-    assert.equal(
-      causeOf(commentsOf(rows, report, 0, { outcome: "none", stored: false }).view),
-      "not-run",
+    await instance.tick();
+    const current = await until(
+      () => view(id),
+      (result) => causeOf(result) === "pending",
     );
+
+    assert.equal(causeOf(current), "pending");
   });
 });

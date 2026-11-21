@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
 
+import { runJob } from "../src/core/compose/jobs.ts";
 import { Instance } from "./instance.ts";
 import { entryCount } from "./log-fixtures.ts";
 import {
@@ -18,8 +18,6 @@ import {
   saveProvider,
   until,
 } from "./related-fixtures.ts";
-
-const WAIT_FOR_POLL_MS = 7000;
 
 function seed(instance: Instance, source: number, related: number, position: number): void {
   exec(
@@ -121,17 +119,13 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
     const [job] = pickJobs(instance, id);
 
     assert.ok(job !== undefined);
+    assert.equal((await instance.send("POST", `/api/items/${String(id)}/digest`)).status, 200);
     exec(instance, "update jobs set next_attempt_at = 0 where id = ?", job.id);
-    exec(
-      instance,
-      "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) values ('digest', ?, 'https://example.com/x', 'running', 0, 0, 0, ?)",
-      id,
-      Date.now() + 3_600_000,
-    );
-    await delay(WAIT_FOR_POLL_MS);
+    await runJob(instance.core, job.id);
     assert.equal(pickTasks(instance, id).length, 1);
 
-    exec(instance, "delete from jobs where kind = 'digest' and item_id = ?", id);
+    await paste(instance, "source", { title: "Quasar lattice decoder", tags: ["quasar"] });
+    await runJob(instance.core, job.id);
     await until(
       () => pickTasks(instance, id).length,
       (tasks) => tasks === 2,

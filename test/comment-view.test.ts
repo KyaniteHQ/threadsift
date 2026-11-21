@@ -1,9 +1,14 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { type CommentRow, commentsViewOf } from "../src/core/contract/comment-view.ts";
+import { ExportStatusSchema, StartedExportSchema } from "../src/core/contract/export-contract.ts";
+import {
+  RestoreStatusSchema,
+  StartedRestoreSchema,
+} from "../src/core/contract/restore-contract.ts";
+import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import { Instance, type Json } from "./instance.ts";
-import { FACT, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
+import { FACT, causeOf, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, until } from "./related-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
@@ -205,33 +210,64 @@ describe("the Reader shows the comments that pass the script's first step until 
   });
 });
 
-const row = (id: string, readable: boolean): CommentRow => ({
-  id,
-  parentId: null,
-  depth: 0,
-  kind: "comment",
-  eligible: true,
-  kept: false,
-  readable,
-  author: readable ? "someone" : null,
-  body: readable ? "A comment." : null,
-  score: readable ? 1 : null,
-  postedAt: readable ? 1_700_000_000_000 : null,
-});
+async function restoreLibrary(source: Instance, target: Instance): Promise<void> {
+  const run = await source.read("POST", "/api/export", StartedExportSchema);
+  await until(
+    () => source.read("GET", "/api/export", ExportStatusSchema),
+    ({ state }) => state === "ready",
+  );
+  const download = await source.fetch(`/api/export/${String(run.id)}/download`, {
+    headers: { cookie: source.sessionCookie ?? "" },
+  });
+  assert.equal(download.status, 200);
+  const zip = await download.arrayBuffer();
+  const restore = await target.read("POST", "/api/restore", StartedRestoreSchema, {
+    bytes: zip.byteLength,
+    parts: 1,
+  });
+  const path = `/api/restore/${String(restore.id)}`;
+  const uploaded = await target.fetch(`${path}/parts/1`, {
+    method: "PUT",
+    headers: {
+      "content-type": "application/octet-stream",
+      cookie: target.sessionCookie ?? "",
+      origin: "http://localhost",
+    },
+    body: zip,
+  });
 
-describe("the view of a thread whose stored Digest does not cover it", () => {
-  it("names the cause 'older' whatever the Provider and the outcome say", () => {
-    const { view } = commentsViewOf([row("t1_a", true), row("t1_b", true)], {
-      reported: 2,
-      archive: null,
-      published: false,
-      digest: { outcome: "none", stored: true, provider: false },
-    });
+  assert.equal(uploaded.status, 204);
+  assert.equal((await target.send("POST", `${path}/start`)).status, 202);
+  await until(
+    () => target.read("GET", "/api/restore", RestoreStatusSchema),
+    ({ state }) => state === "done",
+  );
+}
 
-    assert.deepEqual(view, {
-      filter: "unfiltered",
-      cause: "older",
-      count: { filter: "unfiltered", shown: 2, total: 2 },
-    });
+it("shows the older Digest cause when a restored thread has newer comments than its page Digest", async (context) => {
+  const source = await botInstance();
+  context.after(() => source.close());
+  const restored = await Instance.start();
+  context.after(() => restored.close());
+  await restored.setUp();
+
+  const { paste, view } = readerOf(() => source);
+  const id = await paste("older1", {
+    page: { title: "Page", markdown: FACT.repeat(12) },
+    digest: DIGEST,
+  });
+  await until(
+    () => source.detail(id),
+    (detail) => detail.digest !== null,
+  );
+  await selectGrokBot(source);
+  await paste("older1", { content: threadOf("older1") });
+  assert.equal(causeOf(await view(id)), "pending");
+
+  await restoreLibrary(source, restored);
+  assert.deepEqual((await restored.detail(id)).comments.view, {
+    filter: "unfiltered",
+    cause: "older",
+    count: { filter: "unfiltered", shown: 3, total: 6 },
   });
 });

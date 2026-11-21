@@ -78,16 +78,18 @@ export function storePage(
   topic: string,
   {
     builtFrom,
+    overview = "An overview.",
     failure = null,
-  }: Readonly<{ builtFrom: "all" | readonly number[]; failure?: string | null }>,
+  }: Readonly<{ builtFrom: "all" | readonly number[]; failure?: string | null; overview?: string }>,
 ): void {
   const only = builtFrom === "all" ? "" : `and digests.item_id in (${builtFrom.join(", ")})`;
 
   exec(
     instance,
     `insert or replace into topic_pages (topic_id, overview, revision, built_from, failure, updated_at)
-     select topics.id, 'An overview.', 1, coalesce((select json_group_array(json_object('item', digests.item_id, 'digest', digests.task_id)) from digests join items on items.id = digests.item_id where items.topic_id = topics.id ${only}), '[]'), ?, 1
+     select topics.id, ?, 1, coalesce((select json_group_array(json_object('item', digests.item_id, 'digest', digests.task_id)) from digests join items on items.id = digests.item_id where items.topic_id = topics.id ${only}), '[]'), ?, 1
      from topics where topics.name = ?`,
+    overview,
     failure,
     topic,
   );

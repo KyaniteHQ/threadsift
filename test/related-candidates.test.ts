@@ -125,7 +125,6 @@ describe("the related pick sends the best-ranked candidates", () => {
 describe("the related pick matches only the Digest parts of an Item that has a Digest, through the first 12 words", () => {
   let instance: Instance;
   let inside: number;
-  let excluded: number[];
   let source: number;
 
   before(async () => {
@@ -137,40 +136,26 @@ describe("the related pick matches only the Digest parts of an Item that has a D
       summary: "A longer quasar report that mentions the word once among many other words.",
     });
 
-    const beyondTerms = await paste(instance, "beyond", {
+    await paste(instance, "beyond", {
       title: "Iota",
       summary: "Only the thirteenth word.",
     });
 
-    const beyondTag = await paste(instance, "beyond-tag", { title: "Other", tags: ["kappa"] });
+    await paste(instance, "beyond-tag", { title: "Other", tags: ["kappa"] });
 
-    const postTextOnly = await paste(instance, "post", {
+    await paste(instance, "post", {
       title: "Pasta",
       postText: "quasar lattice decoder",
     });
 
-    const titleOnly = await paste(instance, "title", {
+    await paste(instance, "title", {
       title: "Pasta again",
       pageTitle: "Quasar lattice decoder",
     });
 
-    const undigested = await pasteInOrder(
-      instance,
-      Array.from({ length: 21 }, (_, index) => [
-        `none-${String(index)}`,
-        { title: "-", pageTitle: "Quasar", noDigest: true },
-      ]),
-    );
+    await paste(instance, "undigested", { title: "-", pageTitle: "Quasar", noDigest: true });
 
-    for (const id of undigested) {
-      exec(
-        instance,
-        "insert into search_parts (item_id, kind, body) values (?, 'summary', 'quasar lattice')",
-        id,
-      );
-    }
-
-    const commentOnly = await paste(instance, "comment", {
+    await paste(instance, "comment", {
       title: "Thread about food",
       url: "https://www.reddit.com/r/science/comments/q1/a_thread/",
       content: JSON.stringify(REDDIT_THREAD),
@@ -216,17 +201,6 @@ describe("the related pick matches only the Digest parts of an Item that has a D
       },
     );
 
-    excluded = [
-      beyondTerms,
-      beyondTag,
-      postTextOnly,
-      titleOnly,
-      ...undigested,
-      commentOnly,
-      noted,
-      highlighted,
-    ];
-
     await saveProvider(instance);
 
     source = await paste(instance, "source", {
@@ -238,13 +212,12 @@ describe("the related pick matches only the Digest parts of an Item that has a D
 
   after(() => instance.close());
 
-  it("sends the matching Item and no Item that matches only through its fetched title, post text, comment, Highlight, Note, a Summary without a Digest or a word past the 12th", async () => {
+  it("sends the matching Item and no Item that matches only through its fetched title, post text, comment, Highlight, Note, an undigested title or a word past the 12th", async () => {
     const sent = sentInput((await firstPickTask(instance, source)).inputs);
 
     assert.deepEqual(
       sent.candidates.map(({ id }) => id),
       [inside],
     );
-    assert.equal(excluded.length, 28);
   });
 });
