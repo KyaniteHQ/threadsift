@@ -37,7 +37,7 @@ Each route states in its own declaration who may call it, how large its body may
 
 ## Read state, Highlights and Notes
 
-The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 to an agent token. `POST /api/items/:id/highlights` answers 409 when the text changed since the owner read it, and `PUT /api/items/:id/note` takes the Note's `revision` and answers 409 with the stored Note when it moved; all Highlight and Note writes answer 403 to an agent token. `GET /api/highlights` answers one page of the Highlights page and is open to agent tokens.
+The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 to an agent token. `POST /api/items/:id/highlights` answers 409 when the text changed since the owner read it and 400 with `code` `selector-mismatch` when the passage does not stand at its hint in that text, and `PUT /api/items/:id/note` takes the Note's `revision` and answers 409 with the stored Note when it moved; all Highlight and Note writes answer 403 to an agent token. `GET /api/highlights` answers one page of the Highlights page and is open to agent tokens.
 
 ## The Index, the Log and Proposals
 

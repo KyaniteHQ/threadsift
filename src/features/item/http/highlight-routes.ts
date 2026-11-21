@@ -5,6 +5,8 @@ import { CONTEXT_CODE_POINTS } from "../../../core/contract/highlight-anchor.ts"
 import {
   CreateHighlightRequestSchema,
   HighlightResponseSchema,
+  SELECTOR_MISMATCH,
+  SelectorMismatchSchema,
 } from "../../../core/contract/highlight-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
@@ -46,8 +48,8 @@ const createHighlightRoute = createRoute({
       "The same passage of the same revision was already saved as an attached Highlight; this is that Highlight and nothing changed.",
     ),
     400: jsonBody(
-      ErrorResponseSchema,
-      `The selector does not match the text of that revision: \`exact\` must stand at \`hint\` (counted in code points) in the text of the target, with the up to ${String(CONTEXT_CODE_POINTS)} code points before it as \`prefix\` and the up to ${String(CONTEXT_CODE_POINTS)} after it as \`suffix\`. Nothing is saved.`,
+      SelectorMismatchSchema,
+      `The selector does not match the text of that revision: \`exact\` must stand at \`hint\` (counted in code points) in the text of the target, with the up to ${String(CONTEXT_CODE_POINTS)} code points before it as \`prefix\` and the up to ${String(CONTEXT_CODE_POINTS)} after it as \`suffix\`. Nothing is saved, and \`code\` is \`selector-mismatch\`.`,
     ),
     404: jsonBody(
       ErrorResponseSchema,
@@ -90,7 +92,7 @@ export function registerHighlightRoutes(app: OpenAPIHono, ports: Ports): void {
       case "stale":
         return c.json({ error: STALE }, 409);
       case "mismatch":
-        return c.json({ error: MISMATCH }, 400);
+        return c.json({ error: MISMATCH, code: SELECTOR_MISMATCH }, 400);
       case "existing":
         return c.json({ highlight: created.highlight }, 200);
       case "created":

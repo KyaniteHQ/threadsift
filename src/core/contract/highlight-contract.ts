@@ -59,6 +59,12 @@ export const HighlightsViewSchema = z.object({
 
 export const HighlightResponseSchema = z.object({ highlight: HighlightSchema });
 
+export const SELECTOR_MISMATCH = "selector-mismatch" as const;
+export const SelectorMismatchSchema = z.object({
+  error: z.string(),
+  code: z.literal(SELECTOR_MISMATCH),
+});
+
 export type CreateHighlightRequest = z.infer<typeof CreateHighlightRequestSchema>;
 
 export type HighlightTarget = z.infer<typeof HighlightTargetSchema>;

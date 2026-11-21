@@ -2,6 +2,7 @@ import {
   type CreateHighlightRequest,
   type Highlight,
   HighlightResponseSchema,
+  SelectorMismatchSchema,
 } from "../../src/core/contract/highlight-contract.ts";
 import {
   type NoteView,
@@ -26,7 +27,11 @@ export async function keepHighlight(
     tolerates: [400, 404, 409],
   });
 
-  if (response.status === 400) return { outcome: "refused" };
+  if (response.status === 400) {
+    if (SelectorMismatchSchema.safeParse(await response.json().catch(() => null)).success)
+      return { outcome: "refused" };
+    throw new Error(`POST /api/items/${id}/highlights answered 400`);
+  }
   if (response.status === 404 || response.status === 409) return { outcome: "changed" };
 
   return {
