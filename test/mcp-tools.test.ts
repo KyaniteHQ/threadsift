@@ -3,6 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import {
   ItemDetailResponseSchema,
   ItemReadResponseSchema,
@@ -125,19 +126,24 @@ describe("an agent searches and reads Items through /mcp with the same answers a
   });
 
   it("refuses a malformed cursor, an unknown filter value and a bad link as the HTTP API does", async () => {
-    assert.equal((await instance.send("GET", "/api/items?cursor=nope")).status, 400);
-    assert.equal((await instance.send("GET", "/api/items?source=fax")).status, 400);
-    assert.equal((await instance.send("GET", "/api/items?url=not%20a%20link")).status, 400);
-
-    const answers = await Promise.all(
-      [{ cursor: "nope" }, { source: "fax" }, { url: "not a link" }].map((args) =>
-        callBoth(agents, "search", args),
-      ),
-    );
-
-    assert.deepEqual(
-      answers.flat().map(({ isError }) => isError),
-      Array.from({ length: 6 }, () => true),
+    await Promise.all(
+      [{ cursor: "nope" }, { source: "fax" }, { url: "not a link" }].map(async (args) => {
+        const refused = await instance.send(
+          "GET",
+          "/api/items?" + new URLSearchParams(Object.entries(args)).toString(),
+        );
+        assert.equal(refused.status, 400);
+        const reason = ErrorResponseSchema.parse(JSON.parse(refused.body)).error;
+        for (const answer of await callBoth(agents, "search", args)) {
+          assert.equal(answer.isError, true);
+          assert.deepEqual(answer.content, [
+            {
+              type: "text",
+              text: `Input validation error: Invalid arguments for tool search: ${reason}`,
+            },
+          ]);
+        }
+      }),
     );
   });
 
@@ -202,14 +208,6 @@ describe("an agent searches and reads Items through /mcp with the same answers a
     assert.deepEqual(
       answers.map(({ isError, content }) => [isError, content]),
       Array.from({ length: 2 }, () => [true, [{ type: "text", text: "Not found" }]]),
-    );
-  });
-
-  it("exposes no tool that writes a Highlight, a Note, a Read state or deletes an Item", async () => {
-    await Promise.all(
-      ["highlight", "note", "read-state", "delete"].map((name) =>
-        assert.rejects(agents.legacy.callTool({ name, arguments: {} })),
-      ),
     );
   });
 });

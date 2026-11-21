@@ -57,7 +57,7 @@ export const addBatch = (instance: Instance, token: BudgetToken, numbers: readon
 
 const TotalSchema = z.object({ total: z.number() });
 
-export function rows(instance: Instance, query: string): readonly unknown[] {
+function rows(instance: Instance, query: string): readonly unknown[] {
   const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
 
   try {

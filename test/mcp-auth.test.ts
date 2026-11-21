@@ -54,12 +54,11 @@ describe("/mcp admits only a valid agent token sent in the Authorization header,
   });
 
   it("answers 401 with a Bearer challenge to an Authorization header that is no bearer token, with or without the cookie", async () => {
-    const headers = [...MALFORMED, token.value].map((authorization) => ({ authorization }));
-
     const answers = await Promise.all(
-      [...headers, ...headers.map((each) => Object.assign(each, cookie()))].map((each) =>
-        mcpRequest(instance, { headers: each }),
-      ),
+      [...MALFORMED, token.value].flatMap((authorization) => [
+        mcpRequest(instance, { headers: { authorization } }),
+        mcpRequest(instance, { headers: { authorization, ...cookie() } }),
+      ]),
     );
 
     assert.deepEqual(

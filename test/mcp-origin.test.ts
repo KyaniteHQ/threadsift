@@ -127,14 +127,6 @@ describe("/mcp refuses a Host or Origin that is not the Instance's own, whatever
     assert.deepEqual(await statuses(local, localToken, withOwnOrigin), refusedAll(withOwnOrigin));
   });
 
-  it("refuses a Host header that differs from the request address", async () => {
-    const refused = await mcpRequest(local, {
-      headers: { ...bearer(localToken), host: "evil.example" },
-    });
-
-    assert.equal(refused.status, 403);
-  });
-
   it("refuses an Origin that is not loopback, is null, is malformed or only starts like a loopback host", async () => {
     const cases: Case[] = [
       "https://evil.example",

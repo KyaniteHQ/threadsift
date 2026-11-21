@@ -92,17 +92,25 @@ describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
   it("refuses an invalid link and an invalid Digest as tool errors, and saves nothing", async () => {
     const totalBefore = await total();
 
-    const answers = await Promise.all(
+    await Promise.all(
       [
         { url: "not a link" },
         { url: "ftp://example.com/file" },
         { url: "https://example.com/a", digest: { ...DIGEST, title: "" } },
-      ].map((args) => callBoth(agents, "add", args)),
-    );
-
-    assert.deepEqual(
-      answers.flat().map(({ isError }) => isError),
-      Array.from({ length: 6 }, () => true),
+      ].map(async (args) => {
+        const refused = await instance.send("POST", "/api/items", args);
+        assert.equal(refused.status, 400);
+        const reason = ErrorResponseSchema.parse(JSON.parse(refused.body)).error;
+        for (const answer of await callBoth(agents, "add", args)) {
+          assert.equal(answer.isError, true);
+          assert.deepEqual(answer.content, [
+            {
+              type: "text",
+              text: `Input validation error: Invalid arguments for tool add: ${reason}`,
+            },
+          ]);
+        }
+      }),
     );
     assert.equal(await total(), totalBefore);
   });
