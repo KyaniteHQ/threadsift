@@ -1,14 +1,5 @@
-import type { Fetcher } from "../../src/core/kernel/fetcher.ts";
-import { words } from "./words.mts";
+import { recordingFetcher } from "../fetcher-record.ts";
 
 export const asked: string[] = [];
 
-export default {
-  matches: (url) => {
-    asked.push(url);
-
-    return true;
-  },
-  fetch: () =>
-    Promise.resolve({ markdown: words("ANYMARKER"), title: "From the catch-all plug-in" }),
-} satisfies Fetcher;
+export default recordingFetcher(asked);
