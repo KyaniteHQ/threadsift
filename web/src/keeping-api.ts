@@ -14,7 +14,8 @@ import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 type KeepResult =
   | { readonly outcome: "kept"; readonly highlight: Highlight }
-  | { readonly outcome: "changed" };
+  | { readonly outcome: "changed" }
+  | { readonly outcome: "refused" };
 
 export async function keepHighlight(
   id: number,
@@ -22,9 +23,10 @@ export async function keepHighlight(
 ): Promise<KeepResult> {
   const response = await callOk(post(DATABASE_WRITE_DEADLINE_MS), `/api/items/${id}/highlights`, {
     json: request,
-    tolerates: [404, 409],
+    tolerates: [400, 404, 409],
   });
 
+  if (response.status === 400) return { outcome: "refused" };
   if (response.status === 404 || response.status === 409) return { outcome: "changed" };
 
   return {
