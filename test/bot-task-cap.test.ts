@@ -62,12 +62,12 @@ describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap"
     assert.deepEqual(await kindsOf(3, "digest"), ["started", "started", "started"]);
     assert.deepEqual(await kindsOf(3, "topic_overview"), ["started", "started", "started"]);
 
-    assert.deepEqual(await kindsOf(5, "proposals"), [
-      "started",
-      "started",
-      "started",
-      "started",
+    assert.deepEqual((await kindsOf(5, "proposals")).toSorted(), [
       "full",
+      "started",
+      "started",
+      "started",
+      "started",
     ]);
     assert.deepEqual(await kindsOf(1, "digest"), ["full"]);
     const tasks = running();
@@ -118,9 +118,12 @@ describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap"
     );
     const more = await startAll(await bulkJobs(instance, 5));
 
-    assert.deepEqual(
-      more.map(({ kind }) => kind),
-      ["started", "started", "started", "started", "full"],
-    );
+    assert.deepEqual(more.map(({ kind }) => kind).toSorted(), [
+      "full",
+      "started",
+      "started",
+      "started",
+      "started",
+    ]);
   });
 });

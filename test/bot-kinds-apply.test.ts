@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { executeClaimed } from "../src/core/compose/jobs.ts";
+import { parseStoredDigest } from "../src/core/contract/digest-schema.ts";
 import { DIGEST_ANSWER, KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
 import { jobRow, libraryDump, rowCount, taskRow, topicPage } from "./bot-task-rows.ts";
@@ -149,6 +150,10 @@ describe("a Digest that keeps a comment id the bot was not sent", () => {
       const sent = await answeredAs(instance, { kindCase: lenient, job });
 
       await executeClaimed(instance.core, sent.job);
+
+      const result = taskRow(instance, sent.id).result;
+      assert.ok(result !== null);
+      assert.deepEqual(parseStoredDigest(result).keptComments, ["t1_c1"]);
 
       const { comments } = await instance.detail(owner);
 

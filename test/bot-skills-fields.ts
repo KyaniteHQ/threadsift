@@ -8,14 +8,6 @@ import { TopicIndexSchema } from "../src/core/contract/topic-index-contract.ts";
 import { IntakeAnswerSchema } from "../src/core/contract/x-intake-contract.ts";
 import { XThreadSchema } from "../src/core/contract/x-wire.ts";
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
-import { readOf } from "./ai-task-read-http.ts";
-
-export async function readTask(
-  instance: Parameters<typeof readOf>[0],
-  task: Readonly<{ id: number; token: string }>,
-) {
-  return TaskReadSchema.parse(await (await readOf(instance, task.id, task.token)).json());
-}
 
 export const JsonSchema = z.json();
 

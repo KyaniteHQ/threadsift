@@ -17,9 +17,7 @@ import { answeredWrites, reportedWrites } from "../../ai/core/bot-task-rows.ts";
 import { botKindOf } from "./bot-task-kinds.ts";
 
 export const BotAnswerSchema = z.union([
-  z
-    .strictObject({ result: z.unknown() })
-    .refine((body) => "result" in body, { error: "result: required" }),
+  z.strictObject({ result: z.unknown() }),
   z.strictObject({ error: z.string().min(1).max(ERROR_TEXT_MAX) }),
 ]);
 

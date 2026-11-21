@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
+import { z } from "zod";
+
 import { type ReadWorld, readWorld } from "./ai-task-read-http.ts";
 import { answerOf, pastDeadline, picksFor, retireTasks } from "./bot-task-fixtures.ts";
 import { answered, answerTo, errorOf, rawAnswerTo } from "./bot-task-http.ts";
@@ -14,18 +16,15 @@ describe("the result route answers each status of its contract and writes nothin
   let library: ReadWorld["library"];
   let agentToken = "";
 
-  const candidate = () => {
-    const [first] = library.candidates;
-
-    assert.ok(first !== undefined);
-
-    return first;
-  };
-
+  let candidate: number;
+  const valid = () => answerOf(picksFor(candidate));
   const fresh = () => taskAfterStart(instance, library.source);
 
   before(async () => {
     ({ instance, library, agentToken } = await readWorld());
+    const [first] = library.candidates;
+    assert.ok(first !== undefined);
+    candidate = first;
   });
 
   beforeEach(() => {
@@ -38,12 +37,12 @@ describe("the result route answers each status of its contract and writes nothin
     const task = await fresh();
     const started = Date.now();
 
-    const answer = await answered(instance, task, answerOf(picksFor(candidate())));
+    const answer = await answered(instance, task, valid());
     const row = taskRow(instance, task.id);
 
     assert.equal(answer.status, 204);
     assert.equal(row.state, "running");
-    assert.deepEqual(JSON.parse(row.result ?? "null"), picksFor(candidate()));
+    assert.deepEqual(JSON.parse(row.result ?? "null"), picksFor(candidate));
     assert.ok((row.answered_at ?? 0) >= started);
     assert.ok(jobRow(instance, task.job.id).next_attempt_at >= started);
   });
@@ -51,7 +50,7 @@ describe("the result route answers each status of its contract and writes nothin
   it("answers 401 with one body and a Bearer challenge for a missing, malformed, foreign, unknown and non-bearer credential and for a task id that is not canonical", async () => {
     const task = await fresh();
     const other = await fresh();
-    const body = answerOf(picksFor(candidate()));
+    const body = valid();
 
     const answers = await Promise.all([
       ...[
@@ -105,19 +104,16 @@ describe("the result route answers each status of its contract and writes nothin
     const padding = "x".repeat(10_000);
 
     const answer = await answered(instance, task, {
-      result: { picks: [{ item: candidate(), reason: "Both cover the same lattice." }], padding },
+      result: { picks: [{ item: candidate, reason: "Both cover the same lattice." }], padding },
     });
 
     assert.equal(answer.status, 204);
-    assert.deepEqual(
-      JSON.parse(taskRow(instance, task.id).result ?? "null"),
-      picksFor(candidate()),
-    );
+    assert.deepEqual(JSON.parse(taskRow(instance, task.id).result ?? "null"), picksFor(candidate));
   });
 
   it("answers 403 to the owner's session and to an agent token, and stores nothing", async () => {
     const task = await fresh();
-    const body = answerOf(picksFor(candidate()));
+    const body = valid();
 
     const path = `/api/ai-tasks/${String(task.id)}/result`;
     const session = await instance.send("POST", path, body);
@@ -150,9 +146,7 @@ describe("the result route answers each status of its contract and writes nothin
 
     const stored = ids.map((id) => taskRow(instance, id));
 
-    const answers = await Promise.all(
-      made.map((who) => answered(instance, who, answerOf(picksFor(candidate())))),
-    );
+    const answers = await Promise.all(made.map((who) => answered(instance, who, valid())));
 
     assert.deepEqual(
       answers.map(({ status, text }) => [status, errorOf(text)]),
@@ -169,10 +163,7 @@ describe("the result route answers each status of its contract and writes nothin
     const late = await fresh();
     const failed = await fresh();
 
-    assert.equal(
-      (await answered(instance, answeredTask, answerOf(picksFor(candidate())))).status,
-      204,
-    );
+    assert.equal((await answered(instance, answeredTask, valid())).status, 204);
     pastDeadline(instance, late.id);
     exec(
       instance,
@@ -184,7 +175,7 @@ describe("the result route answers each status of its contract and writes nothin
 
     const statuses = await Promise.all(
       [answeredTask, late, failed].map(
-        async (task) => (await answered(instance, task, answerOf(picksFor(candidate())))).status,
+        async (task) => (await answered(instance, task, valid())).status,
       ),
     );
 
@@ -223,9 +214,9 @@ describe("the result route answers each status of its contract and writes nothin
     assert.equal((await answered(instance, task, { result: { picks: [] } })).status, 204);
   });
 
-  it("accepts an error of 200 characters", async () => {
-    const task = await fresh();
-    assert.equal((await answered(instance, task, { error: "x".repeat(200) })).status, 204);
+  it("accepts an error of length 1 or 200", async () => {
+    assert.equal((await answered(instance, await fresh(), { error: "x" })).status, 204);
+    assert.equal((await answered(instance, await fresh(), { error: "x".repeat(200) })).status, 204);
   });
 
   it("accepts exactly one of two simultaneous answers and keeps the winner's result", async () => {
@@ -258,16 +249,24 @@ describe("the result route answers each status of its contract and writes nothin
     const answer = await answered(instance, task, {
       error: "Could not read https://x.com/author/status/123?s=private-query",
     });
-    const lines = logged.mock.calls.map(({ arguments: args }) => JSON.stringify(args));
+    const calls = logged.mock.calls;
+    const events = calls
+      .filter(({ arguments: [line] }) => String(line).includes("grok-bot-error"))
+      .map(({ arguments: args }) => {
+        const [line] = z.tuple([z.string()]).parse(args);
+        return z.record(z.string(), z.unknown()).parse(JSON.parse(line));
+      });
 
     assert.equal(answer.status, 204);
-    assert.ok(lines.some((line) => line.includes("grok-bot-error")));
-    assert.ok(lines.every((line) => !line.includes("private-query")));
+    assert.deepEqual(events, [{ event: "grok-bot-error", taskId: task.id, jobId: task.job.id }]);
+    assert.ok(
+      calls.every(({ arguments: args }) => !JSON.stringify(args).includes("private-query")),
+    );
 
     const row = taskRow(instance, task.id);
 
     assert.deepEqual([row.state, row.refusal, row.result], ["failed", "provider-busy", null]);
-    assert.equal((await answered(instance, task, answerOf(picksFor(candidate())))).status, 409);
+    assert.equal((await answered(instance, task, valid())).status, 409);
   });
 
   it("answers 400 with the reasons for a result the kind refuses, keeps the task open and takes a valid answer after", async () => {
@@ -280,7 +279,7 @@ describe("the result route answers each status of its contract and writes nothin
     assert.match(errorOf(notSent.text), /candidate that was sent/u);
     assert.equal(taskRow(instance, task.id).answered_at, null);
     assert.equal(taskRow(instance, task.id).result, null);
-    assert.equal((await answered(instance, task, answerOf(picksFor(candidate())))).status, 204);
+    assert.equal((await answered(instance, task, valid())).status, 204);
   });
 
   it("passes a JSON post from any origin and caps the body at 256 KiB", async () => {
@@ -289,7 +288,7 @@ describe("the result route answers each status of its contract and writes nothin
 
     const tooBig = await answerTo(instance, task, big);
 
-    const foreign = await answerTo(instance, task, answerOf(picksFor(candidate())), {
+    const foreign = await answerTo(instance, task, valid(), {
       origin: "https://bot.example",
     });
 

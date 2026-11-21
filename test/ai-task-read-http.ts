@@ -1,4 +1,5 @@
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
+import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
 import { type BotLibrary, SECRET_KEY, relatedLibrary, saveBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
 
@@ -34,4 +35,11 @@ export function readOf(
   if (authorization !== null) headers.set("authorization", `Bearer ${authorization}`);
 
   return instance.fetch(`/api/ai-tasks/${String(id)}`, { headers });
+}
+
+export async function readTask(instance: Instance, task: Readonly<{ id: number; token: string }>) {
+  const response = await readOf(instance, task.id, task.token);
+  const text = await response.text();
+
+  return { response, text, read: TaskReadSchema.parse(JSON.parse(text)) };
 }
