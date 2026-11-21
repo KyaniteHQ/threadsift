@@ -2,12 +2,10 @@ import assert from "node:assert/strict";
 
 import { claimNextDue } from "../src/core/compose/jobs.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
-import type { KindCase } from "./bot-kinds-cases.ts";
 import { sentTask } from "./bot-kinds-fixtures.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";
-import { chooseGrokBot, unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec, saveProvider } from "./related-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 export async function claimedAgain(
   instance: Instance,
@@ -43,17 +41,4 @@ export async function unansweredClaim(instance: Instance, job: Readonly<ClaimedJ
   pastDeadline(instance, sent.id);
 
   return sent;
-}
-
-export async function selectedWithUnreadableKey(
-  instance: Instance,
-  kindCase: KindCase,
-): Promise<number> {
-  const owner = await kindCase.library(instance);
-
-  await saveProvider(instance);
-  assert.equal((await chooseGrokBot(instance)).status, 200);
-  unreadableBotKey(instance);
-
-  return owner;
 }

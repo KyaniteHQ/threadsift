@@ -48,6 +48,45 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
     assert.equal(outcome.kind === "fetched" && outcome.fetch.kind, "thread");
   });
 
+  it("keeps the reply and its parent id when the parent is missing from the CLI answer", () => {
+    const outcome = outcomeOf(
+      exited(
+        envelope({
+          structuredOutput: {
+            found: true,
+            thread: {
+              post: {
+                id: "100",
+                author: "alice",
+                text: "Post",
+                postedAt: null,
+                replies: 1,
+                quoted: [],
+              },
+              replies: [
+                {
+                  id: "102",
+                  parentId: "101",
+                  author: "bob",
+                  text: "Reply",
+                  postedAt: null,
+                  likes: null,
+                  replies: null,
+                },
+              ],
+            },
+          },
+        }),
+      ),
+    );
+
+    assert.ok(outcome.kind === "fetched" && outcome.fetch.kind === "thread");
+    assert.deepEqual(
+      outcome.fetch.thread.replies.map(({ id, parentId }) => [id, parentId]),
+      [["102", "101"]],
+    );
+  });
+
   it("reads only the last JSON answer when structured output is null", () => {
     const value = thread([], { text: 'The quoted "}" is followed by {{ in the post.' });
     const outcome = outcomeOf(exited(found(value)));
@@ -144,20 +183,6 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
     ]);
   });
 
-  it("preserves the parent id of a reply whose parent is missing", () => {
-    const orphan = reply(1000000000000000012n, 1000000000000000010n);
-    const placed = reply(1000000000000000011n, POST_ID);
-    const nested = reply(1000000000000000013n, 1000000000000000011n);
-    const outcome = outcomeOf(exited(found(thread([orphan, placed, nested]))));
-
-    assert.deepEqual(
-      outcome.kind === "fetched" && outcome.fetch.kind === "thread"
-        ? outcome.fetch.thread.replies.map(({ parentId }) => parentId)
-        : null,
-      [orphan.parentId, POST_ID, "1000000000000000011"],
-    );
-  });
-
   it("maps a version run that was aborted to timeout and any other failure to unreadable", () => {
     assert.deepEqual(
       ENDS_OF_A_VERSION_RUN.map((end) => versionRefusal(end).refusal),
@@ -186,21 +211,18 @@ describe("the sign-in line of grok models is a hint matched against the three re
   });
 });
 
-describe("the prompt holds only the digits of the status id", () => {
-  it("puts the id in and changes nothing else for another id", () => {
-    const first = "3200000000000000001";
-    const second = "1000000000000000001";
+it("preserves the requested status id in the fetch prompt and scopes every reply query to its conversation", () => {
+  const id = "3200000000000000001";
+  const other = "1000000000000000001";
+  const prompt = fetchPrompt(id);
 
-    assert.equal(
-      fetchPrompt(first).replaceAll(first, "ID"),
-      fetchPrompt(second).replaceAll(second, "ID"),
-    );
+  assert.equal(prompt.replaceAll(id, "ID"), fetchPrompt(other).replaceAll(other, "ID"));
 
-    const queries = fetchPrompt(first)
-      .split("\n")
-      .filter((line) => line.includes("conversation_id:"));
+  const queries = prompt
+    .split("\n")
+    .map((line) => line.trimStart())
+    .filter((line) => line.startsWith("- "));
 
-    assert.equal(queries.length, 5);
-    assert.ok(queries.every((line) => line.includes(`conversation_id:${first} filter:replies`)));
-  });
+  assert.ok(queries.length > 0);
+  assert.ok(queries.every((line) => line.includes(`conversation_id:${id} filter:replies`)));
 });

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { claimNextDue, executeClaimed } from "../src/core/compose/jobs.ts";
+import { VerifyResultSchema } from "../src/core/contract/ai-settings-contract.ts";
 import {
   type BotLibrary,
   answerOf,
@@ -15,7 +16,7 @@ import { startedTask } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
 import {
   GROK_BOT_IN_FLIGHT,
-  chooseGrokBot,
+  selectGrokBot,
   sentVerifyTask,
   waitingIntake,
 } from "./grok-bot-provider-fixtures.ts";
@@ -39,7 +40,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
   before(async () => {
     instance = await botInstance();
     library = await relatedLibrary(instance);
-    assert.equal((await chooseGrokBot(instance)).status, 200);
+    await selectGrokBot(instance);
   });
 
   after(() => instance.close());
@@ -107,7 +108,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
   });
 
   it("frees the places the abandoned tasks held", async () => {
-    await chooseGrokBot(instance);
+    await selectGrokBot(instance);
 
     for (const slot of Array.from({ length: GROK_BOT_IN_FLIGHT }, (_, at) => at)) {
       exec(
@@ -126,10 +127,15 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     assert.match(busy.body, /provider-busy/u);
 
     await saveProvider(instance);
-    await chooseGrokBot(instance);
+    await selectGrokBot(instance);
 
     const free = await instance.send("POST", "/api/settings/ai/verify");
 
-    assert.doesNotMatch(free.body, /provider-busy/u);
+    assert.equal(free.status, 200);
+    assert.deepEqual(VerifyResultSchema.parse(JSON.parse(free.body)), {
+      kind: "refused",
+      reason: "unreachable",
+      status: null,
+    });
   });
 });

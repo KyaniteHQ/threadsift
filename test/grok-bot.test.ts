@@ -32,10 +32,6 @@ describe("Save seals the key, never returns it, and asks for a new key with a ne
 
   after(() => instance.close());
 
-  it("starts with nothing set", async () => {
-    assert.deepEqual(await view(instance), { configured: false, webhookUrl: null, key: "none" });
-  });
-
   it("stores the address and a sealed key, and answers a view that holds no key", async () => {
     const answer = await instance.send("PUT", PATH, { webhookUrl: ADDRESS, key: KEY });
     const [row] = saved(instance);

@@ -3,17 +3,14 @@ import { describe, it } from "node:test";
 
 import { executeClaimed } from "../src/core/compose/jobs.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
-import { KIND_CASES, type KindCase } from "./bot-kinds-cases.ts";
+import { KIND_CASES, type KindCase, caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { jobRow, rowCount, taskRow, taskRows, topicFailures } from "./bot-task-rows.ts";
-import { generationOf, selectGrokBot } from "./grok-bot-provider-fixtures.ts";
-import {
-  claimedAgain,
-  selectedWithUnreadableKey,
-  unansweredClaim,
-} from "./grok-bot-provider-walk.ts";
+import { generationOf, selectGrokBot, unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
+import { claimedAgain, unansweredClaim } from "./grok-bot-provider-walk.ts";
 import type { Instance } from "./instance.ts";
+import { saveProvider } from "./related-fixtures.ts";
 
 const FIRST_RETRY_MS = 30_000;
 
@@ -113,22 +110,6 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
       }
     });
 
-    it(`${kindCase.kind}: with Grok Bot selected and its key unreadable the job starts no task and does not run the stored Provider`, async () => {
-      const instance = await botInstance();
-
-      try {
-        const owner = await selectedWithUnreadableKey(instance, kindCase);
-        const known = taskRows(instance).length;
-        const job = await openJobOf(instance, { kind: kindCase.kind, itemId: owner });
-
-        await executeClaimed(instance.core, job);
-
-        assert.equal(taskRows(instance).length, known);
-      } finally {
-        await instance.close();
-      }
-    });
-
     it(`${kindCase.kind}: an answered third send applies at attempts 2 and costs no attempt`, async () => {
       const instance = await botInstance();
 
@@ -150,4 +131,29 @@ describe("with Grok Bot saved as the Provider the production runner counts a kin
       }
     });
   }
+
+  it("closes a Digest job without spending an attempt and marks the Item failed when the selected Grok Bot key is unreadable", async () => {
+    const instance = await botInstance();
+
+    try {
+      const owner = await caseOf("digest").library(instance);
+
+      await saveProvider(instance);
+      await selectGrokBot(instance);
+      unreadableBotKey(instance);
+
+      const known = taskRows(instance).length;
+      const job = await openJobOf(instance, { kind: "digest", itemId: owner });
+
+      await executeClaimed(instance.core, job);
+
+      const done = jobRow(instance, job.id);
+
+      assert.deepEqual([done.state, done.attempts], ["done", 0]);
+      assert.ok(await FAILURE_SHOWN.digest(instance, owner));
+      assert.equal(taskRows(instance).length, known);
+    } finally {
+      await instance.close();
+    }
+  });
 });

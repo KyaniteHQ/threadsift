@@ -105,7 +105,7 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
     assert.equal(taskRow(instance, task.id).state, "failed");
   });
 
-  it("through the route starts a task with no job and the Verify context, and shows the failed send", async () => {
+  it("through the route reports the failed send and records a failed Grok Bot Digest task with no job", async () => {
     const known = taskRows(instance).length;
     const answer = await instance.send("POST", VERIFY_PATH);
 
@@ -120,8 +120,8 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
 
     assert.deepEqual(rest, []);
     assert.deepEqual(
-      [started?.executor, started?.job_id, started?.context, started?.state],
-      ["grok-bot", null, '{"verify":true}', "failed"],
+      [started?.kind, started?.executor, started?.job_id, started?.state],
+      ["digest", "grok-bot", null, "failed"],
     );
   });
 

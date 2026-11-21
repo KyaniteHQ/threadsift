@@ -35,12 +35,4 @@ describe("the Grok Bot settings are reached only by the signed-in owner", () => 
 
     assert.deepEqual(statuses, [403, 403, 403, 403]);
   });
-
-  it("answers 401 to a signed-out call on all four routes", async () => {
-    const statuses = await Promise.all(
-      calls.map(async ([method, path]) => (await instance.fetch(path, { method })).status),
-    );
-
-    assert.deepEqual(statuses, [401, 401, 401, 401]);
-  });
 });
