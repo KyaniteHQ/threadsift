@@ -23,7 +23,23 @@ let
     export THREADSIFT_SMOKE_PORT=$((20000 + 0x$slot % 10000))
   '';
   buildImage = ''
-    podman build --jobs 0 --signature-policy ${podmanPolicy} "''${labels[@]}" --tag "$tag" --file Containerfile .
+    build=(podman build --jobs 0 --signature-policy ${podmanPolicy} "''${labels[@]}" --tag "$tag" --file Containerfile)
+    cache=()
+    if [[ -n ''${THREADSIFT_CACHE_FROM:-} ]]; then
+      cache+=(--layers --cache-from "$THREADSIFT_CACHE_FROM")
+    fi
+    if [[ -n ''${THREADSIFT_CACHE_TO:-} ]]; then
+      log=$(mktemp)
+      trap 'rm -f "$log"' EXIT
+      "''${build[@]}" "''${cache[@]}" --cache-to "$THREADSIFT_CACHE_TO" . 2>&1 | tee "$log" || {
+        status=$?
+        grep -Fq "failed pushing cache to " "$log" || exit "$status"
+        echo "::warning::Registry cache write failed. Building without the registry cache." >&2
+        "''${build[@]}" .
+      }
+    else
+      "''${build[@]}" "''${cache[@]}" .
+    fi
   '';
   containerBuild = ''
     set -euo pipefail
