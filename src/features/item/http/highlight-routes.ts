@@ -1,4 +1,4 @@
-import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
+import { type OpenAPIHono, createRoute, z } from "@hono/zod-openapi";
 
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import { CONTEXT_CODE_POINTS } from "../../../core/contract/highlight-anchor.ts";
@@ -48,7 +48,7 @@ const createHighlightRoute = createRoute({
       "The same passage of the same revision was already saved as an attached Highlight; this is that Highlight and nothing changed.",
     ),
     400: jsonBody(
-      SelectorMismatchSchema,
+      z.union([ErrorResponseSchema, SelectorMismatchSchema]),
       `The selector does not match the text of that revision: \`exact\` must stand at \`hint\` (counted in code points) in the text of the target, with the up to ${String(CONTEXT_CODE_POINTS)} code points before it as \`prefix\` and the up to ${String(CONTEXT_CODE_POINTS)} after it as \`suffix\`. Nothing is saved, and \`code\` is \`selector-mismatch\`.`,
     ),
     404: jsonBody(
