@@ -28,6 +28,20 @@ async function partialAccept(instance: Instance) {
   return { proposal, loser };
 }
 
+async function acceptingProposal(instance: Instance) {
+  await pasteTopics(instance, { Survivor: ["moved"], Loser: ["left", "last"] });
+  const proposal = proposeTopics(instance, ["Loser", "Survivor"], "accepting");
+  const loser = topicId(instance, "Loser");
+  const survivor = topicId(instance, "Survivor");
+  script(
+    instance,
+    `update proposals set moved = 1, unit_revision = 1 where id = ${String(proposal)};
+     insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'loser', 'Loser', ${String(survivor)}, 1);`,
+  );
+
+  return { proposal, loser };
+}
+
 describe("Accept of a Topic row that one request cannot finish", () => {
   let instance: Instance;
   let loser: number;
@@ -80,14 +94,12 @@ describe("Accept of a Topic row that the sweep continues after an Item was delet
   after(() => instance.close());
 
   it("counts only the Items that moved", async () => {
-    const { loser } = await partialAccept(instance);
+    const { loser } = await acceptingProposal(instance);
     const remaining = count(instance, "select max(id) as n from items where topic_id = ?", loser);
     assert.equal((await instance.send("DELETE", `/api/items/${String(remaining)}`)).status, 204);
     await sweep(instance);
 
-    assert.deepEqual(await topicMergeLines(instance), [
-      `Loser into Survivor | ${String(ITEMS - 1)} Items`,
-    ]);
+    assert.deepEqual(await topicMergeLines(instance), ["Loser into Survivor | 2 Items"]);
     assert.equal(count(instance, "select count(*) as n from proposals"), 0);
   });
 });
@@ -180,7 +192,7 @@ describe("the sweep stage records failed Topic merge units", () => {
   after(() => instance.close());
 
   it("counts each run of the merges stage whose unit fails, shows the count on the Proposals page, and finishes once the cause is gone", async () => {
-    const { proposal: second } = await partialAccept(instance);
+    const { proposal: second } = await acceptingProposal(instance);
     script(
       instance,
       "create trigger test_on_pin before insert on pins begin select raise(abort, 'the unit fails'); end;",

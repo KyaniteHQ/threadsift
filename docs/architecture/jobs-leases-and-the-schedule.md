@@ -30,7 +30,7 @@ Both targets run a claimed row through `executeClaimed`:
 
 ```text
 Cloudflare   Queues message (job id, max_batch_size 1)  -> one invocation runs one job
-container    in-process loop: looks for due rows every 5 s, runs 4 jobs at once, calls the tick every 60 s
+container    in-process loop: wakes on enqueue and Provider save, checks for due rows every 5 s, runs 4 jobs at once, calls the tick every 60 s
 both         the sweep re-queues due rows, so a lost message, a discarded retry or a restart loses no work
 ```
 

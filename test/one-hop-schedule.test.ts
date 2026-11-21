@@ -49,6 +49,7 @@ describe("saving a Provider schedules an Item whose only source is a candidate, 
     await instance.settledItem(bare.item.id);
     await instance.settledItem(withCaller.item.id);
 
+    const started = performance.now();
     const { warnings, value: saved } = await warningsDuring(async () => {
       const answer = await instance.send("PUT", "/api/settings/ai", {
         provider: "openai-compatible",
@@ -63,6 +64,10 @@ describe("saving a Provider schedules an Item whose only source is a candidate, 
       return answer;
     });
 
+    assert.ok(
+      performance.now() - started < 2500,
+      "the Provider save should wake the job loop before its fallback poll",
+    );
     assert.equal(saved.status, 200);
     assert.equal(SavedSettingsSchema.parse(JSON.parse(saved.body)).settings.keySet, true);
     assert.deepEqual(hopResults(warnings), ["waiting", "waiting"]);

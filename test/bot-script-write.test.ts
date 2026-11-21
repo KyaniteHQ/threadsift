@@ -11,7 +11,7 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
+import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { ITEM_REQUEST_BYTES } from "../src/core/contract/limits.ts";
@@ -138,26 +138,23 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
   });
 
   it("appends to a file that write made and answers bad-input and changes nothing for a missing file, a file of another hex and a total over the cap", async () => {
+    const name = `big-${HEX.replaceAll("0", "9")}.txt`;
+    assert.equal(await run(["write", name], "a".repeat(ITEM_REQUEST_BYTES - 5)), "ok");
+    const file = stored(name);
+    const kept = readFileSync(file);
     const unchanged = world.folder.tree();
 
     assert.equal(await run(["append", `missing-${HEX}.txt`], "text"), "bad-input");
     assert.deepEqual(world.folder.tree(), unchanged);
-
-    const file = await world.folder.made("big", "a".repeat(ITEM_REQUEST_BYTES - 5), "txt");
-    const kept = readFileSync(file);
-
-    assert.equal(
-      await run(["append", basename(file).replace(/-.{32}\./u, `-${HEX}.`)], "x"),
-      "bad-input",
-    );
-    assert.equal(await run(["append", basename(file)], "b".repeat(10)), "bad-input");
+    assert.equal(await run(["append", `big-${HEX}.txt`], "x"), "bad-input");
+    assert.equal(await run(["append", name], "b".repeat(10)), "bad-input");
     assert.equal(await run(["append", "../x.txt"], "x"), "bad-input");
     assert.deepEqual(readFileSync(file), kept);
     assert.deepEqual(
       world.folder.tree().filter((entry) => entry.includes(".part") || entry.includes(".join")),
       [],
     );
-    assert.equal(await run(["append", basename(file)], "b".repeat(5)), "ok");
+    assert.equal(await run(["append", name], "b".repeat(5)), "ok");
     assert.equal(readFileSync(file).length, ITEM_REQUEST_BYTES);
   });
 
