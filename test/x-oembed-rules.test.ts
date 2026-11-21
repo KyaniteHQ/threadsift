@@ -3,6 +3,9 @@ import { describe, it } from "node:test";
 
 import { checked, oembedAnswerOf, resolutionsNeeded } from "../src/features/x/core/x-oembed.ts";
 import {
+  RECIPIENT_CASES,
+  statusCases,
+  malformedAnswers,
   CUT_BARE_HEAD,
   CUT_BARE_ID,
   ARABIC,
@@ -41,39 +44,7 @@ describe("a stored post must be what X shows for the id and the author, characte
   });
 
   it("keeps only the matching suffix after complete recipient handles", () => {
-    const rows = [
-      ["@a @b_9\tHello", "Hello", "Hello"],
-      [" \n @a\u00A0Hello", "Hello", "Hello"],
-      ["@abcdefghijklmno Hello", "Hello", "Hello"],
-      ["@abcdefghijklmnop Hello", "Hello", null],
-      ["@aHello", "Hello", null],
-      ["@a Hello x", "Hello", null],
-      ["@b Hello", "@b Hello", "@b Hello"],
-      ["@a evil Hello", "Hello", null],
-      ["@a Hellx", "Hello", null],
-      ["@a @b Hello", "@b Hello", "@b Hello"],
-      ["@a Hello", "@b Hello", null],
-      ["@a.b Hello", "Hello", null],
-      ["@a\u200BHello", "Hello", null],
-      ["＠a Hello", "Hello", null],
-      ["@a @b", "", null],
-      ["@a @b  ", "", null],
-      ["@a    ", '<a href="https://t.co/abc">pic.x.com/abc</a>', null],
-      [
-        "@a https://t.co/abc rest",
-        '<a href="https://t.co/abc">https://example.org</a> rest',
-        "https://t.co/abc rest",
-      ],
-      ["@a hi\n@c there", "hi<a>@c</a> there", "hi\n@c there"],
-      [
-        `@a ${CUT_BARE_HEAD} the end.`,
-        `${CUT_BARE_HEAD}…`,
-        `${CUT_BARE_HEAD} the end.`,
-        "tail-unverified",
-      ],
-    ] as const;
-
-    for (const [text, shown, expected, expectedVerdict = "verified"] of rows) {
+    for (const [text, shown, expected, expectedVerdict = "verified"] of RECIPIENT_CASES) {
       const answer = oembedAnswerOf(200, withParagraph("reply-short.json", shown));
 
       assert.ok(answer.kind === "post");
@@ -288,5 +259,41 @@ describe("a stored post must be what X shows for the id and the author, characte
       ],
       ["rejected", "rejected", "verified"],
     );
+  });
+});
+
+describe("a post is read from the oEmbed answer X gave for its id", () => {
+  it("takes the id and the handle from the answer and not from the display name", () => {
+    const post = postOf("long-cut-bare.json");
+
+    assert.deepEqual([post.id, post.handle], [CUT_BARE_ID, "fieldnotes_ana"]);
+  });
+
+  it("takes a post as cut only when its text ends in the ellipsis before the links X appends and the head weighs at least 250 by X's character weights, with each link counted as 23", () => {
+    assert.deepEqual(
+      [
+        "long-cut-bare.json",
+        "long-cut-link.json",
+        "long-cut-media.json",
+        "long-cut-two-links.json",
+        "long-cut-korean.json",
+        "typed-ellipsis.json",
+        "long-whole-links.json",
+        "reply-long-whole.json",
+      ].map((name) => postOf(name).cut !== null),
+      [true, true, true, true, true, false, false, false],
+    );
+  });
+
+  it("reads a status that X does not show as absent, an answer of X that is not an answer as unavailable, and a 200 that cannot be read as unusable", () => {
+    for (const [status, body, kind] of statusCases()) {
+      assert.equal(oembedAnswerOf(status, body).kind, kind);
+    }
+  });
+
+  it("reads an answer with a malformed url, an unknown element or a comment in the paragraph as unusable and does not throw", () => {
+    for (const body of malformedAnswers()) {
+      assert.equal(oembedAnswerOf(200, body).kind, "unusable");
+    }
   });
 });

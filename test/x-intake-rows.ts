@@ -13,7 +13,7 @@ export function stored(instance: Instance, tables: readonly string[] = ALL_TABLE
   );
 }
 
-export const ItemRowSchema = z.object({
+const ItemRowSchema = z.object({
   reason: z.string().nullable(),
   fetch_result: z.string().nullable(),
   pending_digest: z.string().nullable(),
@@ -76,13 +76,16 @@ export function commentCount(instance: Instance, itemId: number): number {
   );
 }
 
-export function refusalsOf(instance: Instance, id: number): number {
-  return (
-    rows(
-      instance,
-      z.object({ refusals: z.number() }),
-      "select answer_refusals as refusals from ai_tasks where id = ?",
-      id,
-    )[0]?.refusals ?? -1
+const LoggedSchema = z.looseObject({
+  event: z.string(),
+  taskId: z.number(),
+  itemId: z.number(),
+  refusals: z.number(),
+  issues: z.string(),
+});
+
+export function refusalsIn(lines: readonly string[]) {
+  return lines.flatMap((line) =>
+    line.includes("grok-bot-answer-refused") ? [LoggedSchema.parse(JSON.parse(line))] : [],
   );
 }

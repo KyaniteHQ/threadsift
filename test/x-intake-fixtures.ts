@@ -1,13 +1,15 @@
+import assert from "node:assert/strict";
+
 import { and, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { jobs } from "../src/core/kernel/schema.ts";
 import { botStep } from "../src/features/ai/core/bot-step.ts";
-import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts";
 import { xIntakeKind } from "../src/features/x/core/x-intake.ts";
-import { claimedNew } from "./bot-task-fixtures.ts";
+import { acceptedByBot, claimedNew } from "./bot-task-fixtures.ts";
 import type { Credential } from "./bot-task-http.ts";
+import { taskRows } from "./bot-task-rows.ts";
 import type { Instance, Json } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
@@ -70,17 +72,10 @@ export async function sentIntake(instance: Instance): Promise<IntakeTask> {
   const statusId = String(nextStatus);
   const itemId = insertedXItem(instance, statusId);
   const job = await claimedFetchJob(instance, itemId, addressOf(statusId));
-  const prepared = await xIntakeKind.prepare(instance.core, job);
-
-  if (prepared.kind !== "ask") throw new Error("the intake task has nothing to ask");
-
-  const started = await startBotTask(instance.core, ownerOf(job), prepared.start);
-
-  if (started.kind !== "started") throw new Error(`the task did not start: ${started.kind}`);
-
-  exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), started.task.id);
-
-  return { itemId, job, id: started.task.id, token: started.token, statusId };
+  await assert.rejects(stepOf(instance, job), /Grok Bot send failed/u);
+  const [task] = taskRows(instance, "job_id = ?", job.id);
+  assert.ok(task !== undefined);
+  return { itemId, job, ...acceptedByBot(instance, task.id), statusId };
 }
 
 export function intakeTo(

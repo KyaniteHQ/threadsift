@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
-import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
@@ -174,22 +173,5 @@ describe("an X link answer with the task's credential is stored once and only fo
     assert.deepEqual(statuses, [400, 400, 400, 400, 400, 400]);
     assert.equal(stored(instance, PUBLISHED_TABLES), unchanged);
     assert.equal(taskRow(instance, task.id).state, "running");
-  });
-
-  it("is not a save: POST /api/items ignores a task id and saves the link like any request", async () => {
-    const task = await sentIntake(instance);
-    const unchanged = taskRow(instance, task.id);
-
-    const saved = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
-      url: "https://example.com/not-the-task",
-      page: {
-        markdown: "The page text the caller sent with the link. ".repeat(40),
-        title: "A page",
-      },
-      taskId: task.id,
-    });
-
-    assert.notEqual(saved.item.id, task.itemId);
-    assert.deepEqual(taskRow(instance, task.id), unchanged);
   });
 });

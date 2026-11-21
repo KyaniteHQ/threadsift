@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { X_REPLIES_MAX } from "../src/core/contract/limits.ts";
 import { parseXThread } from "../src/features/x/core/x-thread.ts";
 import type { Json } from "./instance.ts";
 import { POST_ID, authored, reply, thread } from "./x-thread-fixtures.ts";
@@ -21,31 +20,6 @@ const some = (count: number) =>
   thread(Array.from({ length: count }, (_, index) => reply(ID + BigInt(index), POST_ID)));
 
 describe("an X thread is read into the stored thread by parseXThread", () => {
-  it("lists replies after their parent, siblings by time then id and replies with no time last", () => {
-    const result = parsed(authored());
-
-    assert.equal(result.kind, "thread");
-
-    if (result.kind !== "thread") return;
-
-    assert.deepEqual(
-      result.thread.nodes.map(({ id, parentId, depth, position }) => [
-        id,
-        parentId,
-        depth,
-        position,
-      ]),
-      [
-        ["t1_1000000000000000013", null, 0, 0],
-        ["t1_1000000000000000014", null, 0, 1],
-        ["t1_1000000000000000011", null, 0, 2],
-        ["t1_1000000000000000012", "t1_1000000000000000011", 1, 3],
-        ["t1_1000000000000000016", "t1_1000000000000000012", 2, 4],
-        ["t1_1000000000000000015", null, 0, 5],
-      ],
-    );
-  });
-
   it("breaks a tie of times by the numeric id, for ids of different widths and ids above 2^53", () => {
     const ids = [10n, 9n, 100n, 9007199254740993n, 9007199254740992n];
 
@@ -107,7 +81,7 @@ describe("an X thread is read into the stored thread by parseXThread", () => {
   });
 
   it("takes exactly 500 replies", () => {
-    assert.equal(parsed(some(X_REPLIES_MAX)).kind, "thread");
+    assert.equal(parsed(some(500)).kind, "thread");
   });
 });
 

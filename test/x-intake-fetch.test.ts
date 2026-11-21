@@ -3,11 +3,12 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { runJob } from "../src/core/compose/jobs.ts";
+import { executeClaimed, runJob } from "../src/core/compose/jobs.ts";
 import { SECRET_KEY, saveBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec, rows, until } from "./related-fixtures.ts";
-import { itemRow } from "./x-intake-rows.ts";
+import { exec, rows } from "./related-fixtures.ts";
+import { atClock } from "./token-budget-fixtures.ts";
+import { addressOf, claimedFetchJob, insertedXItem } from "./x-intake-fixtures.ts";
 import { X_LINK } from "./x-thread-fixtures.ts";
 
 const TaskSchema = z.object({ state: z.string(), refusal: z.string().nullable() });
@@ -55,8 +56,20 @@ describe("an X link stays Link-only until a Grok Bot is saved", () => {
     const saved = await instance.send("POST", "/api/items", { url: X_LINK });
     const id = savedId(saved.body);
 
-    assert.equal((await instance.settledItem(id)).status, "ready");
-    assert.equal(itemRow(instance, id).fetch_result, "not-requested");
+    const item = await instance.settledItem(id);
+    assert.equal(item.status, "ready");
+    assert.equal(item.fetch, "not-requested");
+    assert.equal((await instance.detail(id)).xNote, null);
+    assert.equal(
+      (await instance.send("PUT", "/api/settings/x", { reader: "grok-bot" })).status,
+      200,
+    );
+    const chosen = await instance.send("POST", "/api/items", {
+      url: "https://x.com/someone/status/321",
+    });
+    const chosenId = savedId(chosen.body);
+    await instance.settledItem(chosenId);
+    assert.equal((await instance.detail(chosenId)).xNote, "bot-not-set-up");
     assert.deepEqual(tasks(instance), []);
   });
 });
@@ -73,28 +86,32 @@ describe("an X link goes to the saved Grok Bot first, and a send that fails is r
   after(() => instance.close());
 
   it("starts one task per send, retries after 30 seconds and 2 minutes, and ends the Item failed with gave-up", async () => {
-    const saved = await instance.send("POST", "/api/items", { url: X_LINK });
-    const id = savedId(saved.body);
-
-    const first = await until(
-      () => fetchJob(instance),
-      ({ attempts }) => attempts === 1,
+    const statusId = "321";
+    const id = insertedXItem(instance, statusId);
+    const job = await claimedFetchJob(instance, id, addressOf(statusId));
+    const firstAttempt = Date.now();
+    await atClock(
+      () => firstAttempt,
+      () => executeClaimed(instance.core, job),
     );
-
+    const first = fetchJob(instance);
+    assert.equal(first.attempts, 1);
     assert.equal(first.state, "queued");
-    assert.ok(first.next_attempt_at - Date.now() > 25_000);
-    assert.ok(first.next_attempt_at - Date.now() <= 30_000);
+    assert.equal(first.next_attempt_at - firstAttempt, 30_000);
     assert.deepEqual(tasks(instance), [{ state: "failed", refusal: "unreachable" }]);
     assert.equal((await instance.detail(id)).status, "processing");
 
     exec(instance, "update jobs set next_attempt_at = 0 where id = ?", first.id);
-    await runJob(instance.core, first.id);
+    const secondAttempt = Date.now();
+    await atClock(
+      () => secondAttempt,
+      () => runJob(instance.core, first.id),
+    );
 
     const second = fetchJob(instance);
 
     assert.equal(second.attempts, 2);
-    assert.ok(second.next_attempt_at - Date.now() > 110_000);
-    assert.ok(second.next_attempt_at - Date.now() <= 120_000);
+    assert.equal(second.next_attempt_at - secondAttempt, 120_000);
 
     exec(instance, "update jobs set next_attempt_at = 0 where id = ?", first.id);
     await runJob(instance.core, first.id);
