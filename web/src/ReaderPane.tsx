@@ -2,13 +2,14 @@ import { useId, useRef } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { ArrivalsContext, useNewArrivals } from "./place-arrival.ts";
-import { Reader, type ReaderControls } from "./Reader.tsx";
+import { Reader } from "./Reader.tsx";
 import { Placed } from "./ReaderPlaced.tsx";
 import { Placeholder } from "./ReaderPlaceholder.tsx";
 import type { Pages } from "./routing.ts";
 import type { SheetNav } from "./Sheet.tsx";
 import type { Announcement as AnnouncementState } from "./use-announcement.ts";
 import { useHeldPanelState } from "./use-panel.ts";
+import type { ReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
 
 export function ReaderPane({

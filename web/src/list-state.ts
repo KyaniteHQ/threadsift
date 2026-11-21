@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
+import type { ItemList, ItemPage } from "../../src/core/contract/item-route-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { isEmptyResult } from "./filters.ts";
 import { countedWith } from "./list-counts.ts";
@@ -119,12 +120,7 @@ export function sameItem(left: Readonly<Item>, right: Readonly<Item>): boolean {
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-export interface Answer {
-  readonly items: readonly Item[];
-  readonly counts: FilterCounts;
-  readonly next: string | null;
-  readonly query: string;
-}
+export type Answer = ItemList & { readonly query: string };
 
 export function loaded(current: Readonly<ListState>, answer: Readonly<Answer>): ListState {
   const { items } = answer;
@@ -145,14 +141,9 @@ export function continues(list: Readonly<ListState>, query: string, cursor: stri
   return readFor(list, query) && list.next === cursor;
 }
 
-export interface Page {
-  readonly items: readonly Item[];
-  readonly next: string | null;
-}
-
 export function appended(
   list: Readonly<ListState>,
-  page: Readonly<Page>,
+  page: Readonly<ItemPage>,
   position: Readonly<{ query: string; cursor: string }>,
 ): ListState {
   if (!continues(list, position.query, position.cursor)) return list;

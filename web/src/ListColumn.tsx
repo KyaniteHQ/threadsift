@@ -71,7 +71,7 @@ export function ListColumn({
         focusOnMount={arrived}
         items={library.list.known}
         queue={view.actions.queue}
-        open={side.openFromCard}
+        open={side.reader.open}
       />
       <ListTools
         list={library.list}

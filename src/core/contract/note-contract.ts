@@ -5,11 +5,15 @@ import { WholeCount } from "./whole-count.ts";
 
 export const NOTE_MAX_CODE_POINTS = 10_000;
 
+export function exceedsNoteLimit(body: string): boolean {
+  return codePointCount(body) > NOTE_MAX_CODE_POINTS;
+}
+
 const BodySchema = z
   .string()
   .refine((body) => body.isWellFormed(), "a Note is well-formed Unicode")
   .refine(
-    (body) => codePointCount(body) <= NOTE_MAX_CODE_POINTS,
+    (body) => !exceedsNoteLimit(body),
     `a Note holds at most ${String(NOTE_MAX_CODE_POINTS)} code points`,
   );
 

@@ -1,6 +1,6 @@
 import {
-  NOTE_MAX_CODE_POINTS,
   type NoteView,
+  exceedsNoteLimit,
   storedNoteBody,
 } from "../../src/core/contract/note-contract.ts";
 import type { NoteSaveResult } from "./keeping-api.ts";
@@ -34,7 +34,7 @@ export function noteStart(saved: Readonly<NoteView>, kept: Readonly<NoteDraft> |
 
 export function noteFlags({ saved, draft, newer, attempt }: Readonly<NoteState>) {
   const dirty = storedNoteBody(draft) !== saved.body;
-  const tooLong = Array.from(draft).length > NOTE_MAX_CODE_POINTS;
+  const tooLong = exceedsNoteLimit(draft);
   const pending = attempt === "saving";
 
   return { dirty, tooLong, pending, canSave: dirty && !tooLong && !pending && newer === null };

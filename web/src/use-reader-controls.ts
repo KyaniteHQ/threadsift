@@ -1,15 +1,27 @@
 import { useMemo, useState } from "react";
 
+import type { Item } from "../../src/core/contract/item-wire.ts";
+import type { BarMode } from "./bar-fit.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { Writes } from "./library.ts";
 import type { ListState } from "./list-state.ts";
-import type { ReaderControls } from "./Reader.tsx";
 import type { Route } from "./routing.ts";
 import { type Announcement, useAnnouncement } from "./use-announcement.ts";
 import { useDeletion } from "./use-deletion.ts";
 import { useNavigation } from "./use-navigation.ts";
 import type { Look } from "./use-root.ts";
 import type { LibraryDom } from "./use-step.ts";
+
+export interface ReaderControls {
+  readonly mode: BarMode;
+  readonly settingsKey: string;
+  readonly titleFocus: number | null;
+  readonly toggleRead: (item: Item) => void;
+  readonly remove: (item: Item) => Promise<void>;
+  readonly announce: (text: string) => void;
+  readonly close: () => void;
+  readonly hintPlaced: (inBar: boolean) => void;
+}
 
 function modeOf(look: Readonly<Look>): ReaderControls["mode"] {
   return look.phone ? "phone" : look.reader;

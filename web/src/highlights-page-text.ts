@@ -1,3 +1,4 @@
+import { UNTITLED } from "../../src/core/contract/reader-text.ts";
 import { NEWEST_FIRST } from "./text.ts";
 
 export const HIGHLIGHTS_PAGE = {
@@ -13,6 +14,6 @@ export const HIGHLIGHTS_PAGE = {
   noResults: "No highlights or notes match",
   kindHighlight: "Highlight",
   kindNote: "Note",
-  untitled: "Untitled",
+  untitled: UNTITLED,
   loadMoreFailed: "Couldn’t load more highlights and notes.",
 } as const;

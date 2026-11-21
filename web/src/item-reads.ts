@@ -5,14 +5,9 @@ export type ItemRead = Awaited<ReturnType<typeof fetchItem>>;
 
 const queues = new Map<number, Promise<void>>();
 
-export function readStatus(id: number, proceed: () => boolean): Promise<ItemRead | null> {
+function inQueue<Read>(id: number, run: () => Read | PromiseLike<Read>): Promise<Read> {
   const previous = queues.get(id) ?? Promise.resolve();
-
-  const read = previous.then(() => {
-    if (!proceed()) return null;
-
-    return fetchItem(id);
-  });
+  const read = previous.then(run);
 
   const settled = read.then(NOTHING, NOTHING);
 
@@ -25,9 +20,13 @@ export function readStatus(id: number, proceed: () => boolean): Promise<ItemRead
   return read;
 }
 
+export function readStatus(id: number, proceed: () => boolean): Promise<ItemRead | null> {
+  return inQueue(id, () => (proceed() ? fetchItem(id) : null));
+}
+
 export async function lookUp(id: number): Promise<ItemRead | "failed"> {
   try {
-    return (await readStatus(id, () => true)) ?? "failed";
+    return await inQueue(id, () => fetchItem(id));
   } catch {
     return "failed";
   }

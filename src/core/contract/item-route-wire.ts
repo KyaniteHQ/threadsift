@@ -3,7 +3,7 @@ import { z } from "zod";
 import { FilterCountsSchema } from "./filter-counts-contract.ts";
 import { READ_STATES } from "./item-contract.ts";
 import { ItemDetailSchema } from "./item-detail-wire.ts";
-import { ItemSchema } from "./item-wire.ts";
+import { type Item, ItemSchema } from "./item-wire.ts";
 
 export const SavedItemResponseSchema = z.object({
   item: ItemSchema,
@@ -27,6 +27,8 @@ export const ItemReadResponseSchema = ItemPageResponseSchema.extend({
   counts: FilterCountsSchema.optional(),
 });
 
-export type ItemList = z.infer<typeof ItemListResponseSchema>;
+export type ItemPage = Readonly<Omit<z.infer<typeof ItemPageResponseSchema>, "items">> & {
+  readonly items: readonly Item[];
+};
 
-export type ItemPage = z.infer<typeof ItemPageResponseSchema>;
+export type ItemList = ItemPage & Readonly<Pick<z.infer<typeof ItemListResponseSchema>, "counts">>;

@@ -1,22 +1,18 @@
 import { type RefObject, useEffect, useRef } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import type { BarStep } from "./bar-fit.ts";
+import type { BarMode, BarSteps } from "./bar-fit.ts";
 import { Icon } from "./Icon.tsx";
 import { leaveOf } from "./reader-text.ts";
-import type { ReaderControls } from "./Reader.tsx";
 import { ReaderActions } from "./ReaderActions.tsx";
 import { followProgress } from "./reading-progress.ts";
 import type { Pages } from "./routing.ts";
 import { useBarFit } from "./use-bar-fit.ts";
 import type { PanelState } from "./use-panel.ts";
+import type { ReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
 
-export type BarMode = "pane" | "page" | "sheet" | "phone";
-
-type Steps = readonly [BarStep, ...BarStep[]];
-
-const STEPS: Readonly<Record<BarMode, Steps>> = {
+const STEPS: Readonly<Record<BarMode, BarSteps>> = {
   pane: [
     { hint: true, labels: true, back: "label", comments: "full", gaps: "normal" },
     { hint: false, labels: true, back: "label", comments: "full", gaps: "normal" },

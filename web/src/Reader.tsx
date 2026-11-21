@@ -1,7 +1,7 @@
 import { type RefObject, Suspense, useMemo, useState } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import { type BarMode, ReaderBar } from "./ReaderBar.tsx";
+import { ReaderBar } from "./ReaderBar.tsx";
 import { ReaderBody } from "./ReaderBody.tsx";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import type { Pages } from "./routing.ts";
@@ -9,18 +9,8 @@ import { usePageName } from "./use-document-title.ts";
 import { useFocusMoved } from "./use-focus-moved.ts";
 import { refreshKey, useItemDetail } from "./use-item-detail.ts";
 import type { PanelState } from "./use-panel.ts";
+import type { ReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
-
-export interface ReaderControls {
-  readonly mode: BarMode;
-  readonly settingsKey: string;
-  readonly titleFocus: number | null;
-  readonly toggleRead: (item: Item) => void;
-  readonly remove: (item: Item) => Promise<void>;
-  readonly announce: (text: string) => void;
-  readonly close: () => void;
-  readonly hintPlaced: (inBar: boolean) => void;
-}
 
 function ReaderPending({
   item,
