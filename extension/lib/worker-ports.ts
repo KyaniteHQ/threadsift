@@ -7,6 +7,7 @@ import { loadConfig, loadConfigView } from "./credentials.ts";
 import { logFailure } from "./log.ts";
 import { newestRequest } from "./newest-request.ts";
 import { connectReddit, disconnectReddit, readRedditState } from "./reddit-account.ts";
+import { SAVE_STATE_FACTS } from "./save-state-facts.ts";
 import { savePage } from "./save.ts";
 import {
   CONFIG_PORT,
@@ -17,7 +18,6 @@ import {
   type RedditRequest,
   RedditRequestSchema,
   SAVE_PORT,
-  badgeTextOf,
   SETTINGS_PORT,
   SettingsRequestSchema,
   type SaveState,
@@ -83,7 +83,7 @@ async function serveSave(port: Port): Promise<void> {
     }
   }
 
-  if (isNewest()) await showBadge(badgeTextOf(state));
+  if (isNewest()) await showBadge(SAVE_STATE_FACTS[state.kind].badge);
 }
 
 const REDDIT_CALLS = {

@@ -5,6 +5,7 @@ import type { Scope } from "../../../core/contract/agent-token-contract.ts";
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import { groupedNumber } from "../../../core/contract/format.ts";
 import {
+  REDDIT_SESSION_COOKIE,
   REDDIT_SESSION_MAX,
   RedditAccountSaveResponseSchema,
   RedditAccountViewSchema,
@@ -75,7 +76,7 @@ const saveRoute = (path: string, gate: AccountGate) =>
       ),
       400: jsonBody(
         ErrorResponseSchema,
-        `The session is not 1 to ${groupedNumber(REDDIT_SESSION_MAX)} characters of letters, digits and \`. _ ~ + / = % -\`, with at most one leading \`reddit_session=\`. Nothing is saved.`,
+        `The session is not 1 to ${groupedNumber(REDDIT_SESSION_MAX)} characters of letters, digits and \`. _ ~ + / = % -\`, with at most one leading \`${REDDIT_SESSION_COOKIE}=\`. Nothing is saved.`,
       ),
     },
   });

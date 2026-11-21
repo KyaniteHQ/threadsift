@@ -1,11 +1,8 @@
 import { ITEM_REQUEST_BYTES } from "../../src/core/contract/limits.ts";
+import type { SaveItemInput } from "../../src/core/contract/save-wire.ts";
 import type { ThreadAnswers } from "../../src/core/contract/thread-answers.ts";
 
-export interface ThreadBody {
-  readonly url: string;
-  readonly content: ThreadAnswers;
-  readonly fill?: true;
-}
+export type ThreadBody = Readonly<Pick<SaveItemInput, "url" | "fill"> & { content: ThreadAnswers }>;
 
 function byteLength(text: string): number {
   return new Blob([text]).size;

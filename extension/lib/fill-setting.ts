@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 
 import { REDDIT_HOSTS, requestAccess } from "./config.ts";
-import { readStored, requestChange } from "./settings.ts";
+import { askConfigView, requestChange } from "./settings.ts";
 
 export type FillState =
   | { readonly kind: "loading" }
@@ -10,7 +10,7 @@ export type FillState =
   | { readonly kind: "denied"; readonly on: false };
 
 async function readFill(kind: "idle" | "failed"): Promise<FillState> {
-  const stored = await readStored();
+  const stored = await askConfigView();
 
   return stored === null ? { kind: "unreadable" } : { kind, on: stored.fill };
 }

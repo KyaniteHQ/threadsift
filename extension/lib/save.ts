@@ -1,12 +1,14 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { BUDGET_SPENT } from "../../src/core/contract/agent-token-contract.ts";
+import { BudgetRefusalSchema } from "../../src/core/contract/error-wire.ts";
+import { SavedItemResponseSchema } from "../../src/core/contract/item-route-wire.ts";
+import { type SaveItemInput, SaveRefusalSchema } from "../../src/core/contract/save-wire.ts";
 import {
   SuppliedPageSchema,
   UNSUPPORTED_PAGE_LINK,
 } from "../../src/core/contract/supplied-page.ts";
-import { type Config, holdsInstanceAccess, instanceRequest } from "./config.ts";
+import { type Config, holdsInstanceAccess, instanceAnswer, instanceRequest } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
 import {
   type Completeness,
@@ -21,13 +23,16 @@ import type { ThreadBody } from "./thread-body.ts";
 
 const CapturedSchema = SuppliedPageSchema.extend({ url: z.string() });
 
-const SavedSchema = z.object({ url: z.string() });
+const SavedSchema = SavedItemResponseSchema.pick({ url: true });
 
-const RefusalSchema = z.object({
-  error: z.string(),
-  fetch: z.string().optional(),
-  code: z.string().optional(),
+const UNKNOWN_STRING_IS_ABSENT = z.string().transform((): undefined => undefined);
+
+const TolerantRefusalSchema = SaveRefusalSchema.extend({
+  fetch: SaveRefusalSchema.shape.fetch.or(UNKNOWN_STRING_IS_ABSENT),
+  code: SaveRefusalSchema.shape.code.or(UNKNOWN_STRING_IS_ABSENT),
 });
+
+const BudgetSpentSchema = BudgetRefusalSchema.extend({ fetch: z.string().optional() });
 
 const SAVED_KIND = {
   whole: "saved",
@@ -39,7 +44,9 @@ const WEB_PAGE = /^https?:/u;
 
 type Captured = z.infer<typeof CapturedSchema>;
 
-type Saving = Fetched<ThreadBody | { readonly url: string; readonly page: Omit<Captured, "url"> }>;
+type PageBody = Readonly<Pick<SaveItemInput, "url"> & { page: NonNullable<SaveItemInput["page"]> }>;
+
+type Saving = Fetched<ThreadBody | PageBody>;
 
 async function activeTab(): Promise<ThreadTab | null> {
   const [tab] = await browser.tabs.query({ active: true, lastFocusedWindow: true });
@@ -72,23 +79,11 @@ async function bodyOf(tab: Readonly<ThreadTab>): Promise<Saving | null> {
   };
 }
 
-async function refusedState(response: Response): Promise<SaveState> {
-  const refusal = RefusalSchema.safeParse(await response.json().catch(() => null));
+function refusedState(refusal: Readonly<z.output<typeof TolerantRefusalSchema>> | null): SaveState {
+  if (refusal?.fetch === "refused") return { kind: "private-link" };
 
-  if (!refusal.success) return { kind: "failed" };
-
-  if (refusal.data.fetch === "refused") return { kind: "private-link" };
-
-  return refusal.data.code === UNSUPPORTED_PAGE_LINK
+  return refusal?.code === UNSUPPORTED_PAGE_LINK
     ? { kind: "unsupported-link" }
-    : { kind: "failed" };
-}
-
-async function spentState(response: Response): Promise<SaveState> {
-  const refusal = RefusalSchema.safeParse(await response.json().catch(() => null));
-
-  return refusal.success && refusal.data.code === BUDGET_SPENT
-    ? { kind: "budget-spent" }
     : { kind: "failed" };
 }
 
@@ -100,17 +95,17 @@ async function stateOf(
   switch (response.status) {
     case 200:
     case 201: {
-      const saved = SavedSchema.safeParse(await response.json().catch(() => null));
+      const saved = await instanceAnswer(response, SavedSchema);
 
-      if (!saved.success) return { kind: "failed" };
+      if (saved === null) return { kind: "failed" };
 
-      const itemUrl = new URL(saved.data.url, origin).href;
+      const itemUrl = new URL(saved.url, origin).href;
 
       return { kind: SAVED_KIND[completeness], itemUrl };
     }
 
     case 400:
-      return refusedState(response);
+      return refusedState(await instanceAnswer(response, TolerantRefusalSchema));
     case 401:
       return { kind: "token-refused" };
     case 403:
@@ -120,7 +115,9 @@ async function stateOf(
     case 413:
       return { kind: "too-large" };
     case 429:
-      return spentState(response);
+      return (await instanceAnswer(response, BudgetSpentSchema)) === null
+        ? { kind: "failed" }
+        : { kind: "budget-spent" };
     default:
       return { kind: "failed" };
   }

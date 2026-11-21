@@ -1,4 +1,5 @@
 import { THREAD_CONTENT_BYTES } from "../../../core/contract/limits.ts";
+import { REDDIT_SESSION_COOKIE } from "../../../core/contract/reddit-account-contract.ts";
 import { OK, type RedditAnswer } from "../../../core/contract/reddit-http.ts";
 import { readCapped } from "../../../core/kernel/capped.ts";
 import {
@@ -26,7 +27,7 @@ function redditSessionHeaders(cookie: string): RequestHeaders {
     ...REQUEST_HEADERS,
     accept: "application/json",
     ...NO_COMPRESSION,
-    cookie: `reddit_session=${cookie}`,
+    cookie: `${REDDIT_SESSION_COOKIE}=${cookie}`,
   };
 }
 

@@ -17,3 +17,5 @@ export const SaveItemRequestSchema = z.object({
 export const SaveRefusalSchema = ErrorResponseSchema.extend({
   code: z.literal(UNSUPPORTED_PAGE_LINK).optional(),
 });
+
+export type SaveItemInput = z.input<typeof SaveItemRequestSchema>;

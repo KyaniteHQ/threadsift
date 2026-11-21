@@ -13,6 +13,7 @@ import {
   tokenMissing,
 } from "../../lib/settings.ts";
 import type { ConfigView } from "../../lib/state.ts";
+import { FILL_KEY } from "../../lib/stored-keys.ts";
 import { TEXT } from "../../lib/text.ts";
 import { redditSection, refreshReddit } from "./reddit-section.ts";
 
@@ -247,7 +248,7 @@ browser.permissions.onAdded.addListener(() => void followFill());
 browser.permissions.onRemoved.addListener(() => void followFill());
 
 browser.storage.onChanged.addListener((changes, area) => {
-  if (area === "local" && "fill" in changes) void followFill();
+  if (area === "local" && FILL_KEY in changes) void followFill();
 });
 
 address.addEventListener("input", () => {

@@ -1,4 +1,4 @@
-export type IsNewest = () => boolean;
+type IsNewest = () => boolean;
 
 export function newestRequest(): () => IsNewest {
   let latest = 0;
@@ -12,7 +12,7 @@ export function newestRequest(): () => IsNewest {
   };
 }
 
-export interface Deferral {
+interface Deferral {
   readonly defer: () => void;
   readonly take: () => boolean;
 }

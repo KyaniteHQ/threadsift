@@ -4,6 +4,7 @@ import { defineUnlistedScript } from "wxt/utils/define-unlisted-script";
 import {
   type Candidate,
   type Posted,
+  REDDIT_DEADLINE_MS,
   RELAY_PORT,
   type RedditConnectState,
   relayAnswer,
@@ -12,7 +13,6 @@ import {
   workerAnswerState,
   workerIsWorking,
 } from "../../src/core/contract/reddit-relay-contract.ts";
-import { REDDIT_DEADLINE_MS } from "../lib/config.ts";
 
 function askWorker(working: () => void): Promise<RedditConnectState | null> {
   const port = browser.runtime.connect({ name: RELAY_PORT });

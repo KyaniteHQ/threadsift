@@ -2,9 +2,8 @@ import { browser } from "wxt/browser";
 import { defineBackground } from "wxt/utils/define-background";
 
 import { exclusive, reconcileAccess } from "../lib/access.ts";
-import { restrictStorage } from "../lib/config.ts";
 import { syncScripts } from "../lib/content-scripts.ts";
-import { settleFill } from "../lib/credentials.ts";
+import { restrictStorage, settleFill } from "../lib/credentials.ts";
 import { cancelFills, fillOpenedThread } from "../lib/fill.ts";
 import { logFailure } from "../lib/log.ts";
 import { FILL_PORT } from "../lib/state.ts";

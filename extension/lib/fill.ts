@@ -1,13 +1,20 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
+import { ItemBaseSchema } from "../../src/core/contract/item-wire.ts";
 import { parseLink, redditRefOf } from "../../src/core/contract/links.ts";
-import { type Config, REDDIT_HOSTS, hostPattern, instanceRequest } from "./config.ts";
+import {
+  type Config,
+  REDDIT_HOSTS,
+  hostPattern,
+  instanceAnswer,
+  instanceRequest,
+} from "./config.ts";
 import { fillWanted, loadConfig } from "./credentials.ts";
 import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
 import { send } from "./save.ts";
 
-const ListedSchema = z.object({ items: z.array(z.object({ fillable: z.boolean() })) });
+const ListedSchema = z.object({ items: z.array(ItemBaseSchema.pick({ fillable: true })) });
 
 const filling = new Map<string, AbortController>();
 
@@ -21,9 +28,9 @@ async function isWaiting(config: Readonly<Config>, url: string): Promise<boolean
       method: "GET",
     });
 
-    const listed = ListedSchema.safeParse(response.ok ? await response.json() : null);
+    const listed = response.ok ? await instanceAnswer(response, ListedSchema) : null;
 
-    return listed.success && listed.data.items.some(({ fillable }) => fillable);
+    return listed?.items.some(({ fillable }) => fillable) === true;
   } catch {
     return false;
   }

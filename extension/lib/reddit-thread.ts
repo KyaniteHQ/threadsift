@@ -15,7 +15,7 @@ import { logFailure } from "./log.ts";
 import { resultInTab } from "./tab-result.ts";
 import { type ThreadBody, fitThreadBody } from "./thread-body.ts";
 
-const FILL_DEADLINE_MS = 150_000;
+const THREAD_READ_DEADLINE_MS = 150_000;
 
 const TabAnswerSchema = z.object({
   status: z.number(),
@@ -184,7 +184,7 @@ export async function fetchThread(
       first,
       hidden,
     },
-    { deadlineMs: FILL_DEADLINE_MS, signal },
+    { deadlineMs: THREAD_READ_DEADLINE_MS, signal },
   );
 
   if (stopped(signal)) return null;
