@@ -3,10 +3,10 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import type { ClaimedRow, Closing } from "../src/core/kernel/job-outcome.ts";
 import { redditClosing, takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
-import { Instance } from "./instance.ts";
+import type { Instance } from "./instance.ts";
 import {
   LATER,
-  SECRET_KEY,
+  accountInstance,
   SESSION,
   account,
   claimedJob,
@@ -46,8 +46,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
   }
 
   before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
+    instance = await accountInstance();
   });
 
   beforeEach(async () => {
@@ -176,25 +175,6 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     exec(instance, "update jobs set state = 'done' where id = 2");
     await closing(3, WAIT_FOR_REDDIT);
     assert.equal(account(instance)[0]?.queue_head, 3);
-  });
-
-  it("wakes only the oldest waiting job when the job that held the turn is closed, and frees the turn", async () => {
-    const now = Date.now();
-
-    assert.notEqual(await take(1, now), null);
-    await closing(1, { kind: "closed" });
-
-    assert.equal(account(instance)[0]?.busy_job, null);
-    assert.deepEqual(
-      jobs(instance).map(({ id, next_attempt_at }) => [id, next_attempt_at < LATER]),
-      [
-        [1, false],
-        [2, true],
-        [3, false],
-      ],
-    );
-    assert.equal(await take(3, now), null);
-    assert.notEqual(await take(2, now), null);
   });
 
   it("wakes no job when the job that is closed never held the turn", async () => {

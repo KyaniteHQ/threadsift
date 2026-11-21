@@ -7,14 +7,20 @@ import {
   RedditVerifySchema,
 } from "../src/core/contract/reddit-account-contract.ts";
 import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
-import type { Instance } from "./instance.ts";
+import { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
 
 export const PATH = "/api/settings/reddit-account";
 
 export const SESSION = "eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ0Ml9hYmMifQ.c2lnbmF0dXJl-A_B.c~d+e/f=g%3D";
 
-export const SECRET_KEY = "ab".repeat(32);
+const SECRET_KEY = "ab".repeat(32);
+
+export async function accountInstance(secretKey: string | null = SECRET_KEY): Promise<Instance> {
+  const instance = await Instance.start({ secretKey: secretKey ?? undefined });
+  await instance.setUp();
+  return instance;
+}
 
 const FAR = 4_000_000_000_000;
 

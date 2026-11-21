@@ -122,14 +122,11 @@ describe("the container loads the modules named in THREADSIFT_FETCHERS before it
   });
 
   for (const [name, list] of [
-    ["unset", undefined],
     ["empty", ""],
     ["blank", "   "],
   ] as const) {
     it(`starts with no plug-in when the variable is ${name}`, async () => {
-      const instance = await Instance.start({ fetchers: list });
-
-      await instance.close();
+      assert.equal(await refusal(list), "the start was not refused");
     });
   }
 });

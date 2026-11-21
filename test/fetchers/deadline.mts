@@ -5,8 +5,6 @@ export const calls: string[] = [];
 
 export const asked: string[] = [];
 
-const pending: string[] = [];
-
 export const activity = new EventTarget();
 
 function afterAbort<Answer>(
@@ -39,9 +37,7 @@ export default {
     activity.dispatchEvent(new Event(pathname));
 
     if (pathname === "/never") {
-      return new Promise<never>(() => {
-        pending.push(pathname);
-      });
+      return Promise.race<never>([]);
     }
 
     if (pathname === "/abort-error") {

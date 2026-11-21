@@ -106,12 +106,16 @@ describe("a self-hoster's fetcher plug-in reads the links it claims, and only th
     assert.equal(second.postText?.includes("SECONDMARKER"), true);
   });
 
-  it("keeps a plug-in page under 100 words as a Link-only Item with the plug-in's title", async () => {
-    const reader = await pasted("https://short.test/note");
+  it("keeps 99 words as a Link-only Item with its title and saves 100 words as an Article", async () => {
+    const reader = await pasted("https://short.test/99");
 
     assert.equal(reader.fetch, "ok");
     assert.equal(reader.postText, null);
     assert.equal(reader.title, "A short page");
+
+    const article = await pasted("https://short.test/100");
+    assert.equal(article.kind, "article");
+    assert.equal(article.postText, "word ".repeat(100).trimEnd());
   });
 
   it("prefers a page the Extension sent over every plug-in", async () => {

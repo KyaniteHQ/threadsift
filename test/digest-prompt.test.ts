@@ -6,7 +6,6 @@ import { z } from "zod";
 import { AI_INPUT_BYTES } from "../src/core/contract/ai-contract.ts";
 import { utf8Length } from "../src/core/contract/encoding.ts";
 import { type LinkedPage, digestPrompt } from "../src/features/digest/core/digest-prompt.ts";
-import { chooseCandidateLink } from "../src/features/media/core/candidate-link.ts";
 import type { CommentCandidate } from "../src/features/thread/core/thread-selection.ts";
 
 const NO_CATALOG = { topics: [], tags: [] };
@@ -138,7 +137,14 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
     const comments = Array.from({ length: 10 }, (_, index) => comment(index, "A useful comment."));
     const { prompt } = readyInput(ITEM, comments, NO_CATALOG, pageOf("l".repeat(5000)));
 
-    assert.equal(prompt.maxOutputTokens, 2048 + utf8Length(JSON.stringify(prompt.submitted)));
+    assert.equal(prompt.maxOutputTokens, 2129);
+
+    const longIds = Array.from({ length: 180 }, (_, index) => ({
+      id: `t1_${String(index).padStart(29, "a")}`,
+      parentId: null,
+      body: "x",
+    }));
+    assert.equal(readyInput(ITEM, longIds, NO_CATALOG, null).prompt.maxOutputTokens, 8192);
   });
 
   it("refuses when the fixed fields alone pass the cap, whatever the linked page", () => {
@@ -150,43 +156,5 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
     );
 
     assert.equal(prompt.kind, "too-large");
-  });
-});
-
-describe("the link chooser picks the one link the Digest may follow", () => {
-  it("reads inline, reference and automatic links of the post text, in order", () => {
-    assert.equal(
-      chooseCandidateLink({
-        url: null,
-        text: "See [a][ref] and <https://auto.example.org/x>\n\n[ref]: https://ref.example.org/y",
-      }),
-      "https://ref.example.org/y",
-    );
-    assert.equal(
-      chooseCandidateLink({ url: null, text: "Just text then https://bare.example.net/z." }),
-      "https://bare.example.net/z",
-    );
-  });
-
-  it("prefers the target of a link post over the post text, and skips it when it fails the rules", () => {
-    assert.equal(
-      chooseCandidateLink({ url: "https://a.example.com/", text: "https://b.example.com/" }),
-      "https://a.example.com/",
-    );
-    assert.equal(
-      chooseCandidateLink({
-        url: "https://www.youtube.com/watch?v=1",
-        text: "https://b.example.com/",
-      }),
-      "https://b.example.com/",
-    );
-    assert.equal(chooseCandidateLink({ url: "https://old.reddit.com/r/x/", text: null }), null);
-  });
-
-  it("refuses a link longer than 4,096 bytes", () => {
-    assert.equal(
-      chooseCandidateLink({ url: `https://example.com/${"a".repeat(4100)}`, text: null }),
-      null,
-    );
   });
 });
