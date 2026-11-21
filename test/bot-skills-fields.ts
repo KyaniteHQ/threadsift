@@ -5,7 +5,7 @@ import type { WebhookBody } from "../src/core/contract/grok-bot-contract.ts";
 import { ItemPageResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { SaveItemRequestSchema } from "../src/core/contract/save-wire.ts";
 import { TopicIndexSchema } from "../src/core/contract/topic-index-contract.ts";
-import { IntakeAnswerSchema, IntakeInputSchema } from "../src/core/contract/x-intake-contract.ts";
+import { IntakeAnswerSchema } from "../src/core/contract/x-intake-contract.ts";
 import { XThreadSchema } from "../src/core/contract/x-wire.ts";
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
 
@@ -52,18 +52,18 @@ const WEBHOOK_BODY = {
 
 export const WEBHOOK_FIELDS: readonly string[] = Object.keys(WEBHOOK_BODY);
 
-export function schemaFields(): readonly string[] {
+export function schemaFields(intakeInput: string): readonly string[] {
   return [
     ...[
       DigestSchema,
       XThreadSchema,
       IntakeAnswerSchema,
-      IntakeInputSchema,
       TaskReadSchema,
       SaveItemRequestSchema,
       ItemPageResponseSchema,
       TopicIndexSchema,
     ].flatMap((schema) => fieldsOf(schema)),
+    ...Object.keys(z.record(z.string(), z.unknown()).parse(JSON.parse(intakeInput))),
     ...WEBHOOK_FIELDS,
   ];
 }

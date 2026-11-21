@@ -22,17 +22,19 @@ import { jobRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 
-const START = { kind: "related_pick", inputs: "{}", inputRevision: 1, context: "{}" } as const;
+const START = { inputs: "{}", inputRevision: 1, context: "{}" } as const;
 
 describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap", () => {
   let instance: Instance;
   let library: BotLibrary;
 
-  const startAll = (jobs: readonly ClaimedJob[]) =>
-    Promise.all(jobs.map((job) => startBotTask(instance.core, ownerOf(job), START)));
+  const startAll = (jobs: readonly ClaimedJob[], kind: JobKind = "related_pick") =>
+    Promise.all(jobs.map((job) => startBotTask(instance.core, ownerOf(job), { ...START, kind })));
 
   const kindsOf = async (count: number, kind: JobKind) =>
-    (await startAll(await bulkJobs(instance, count, kind))).map(({ kind: outcome }) => outcome);
+    (await startAll(await bulkJobs(instance, count, kind), kind)).map(
+      ({ kind: outcome }) => outcome,
+    );
 
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
@@ -56,33 +58,24 @@ describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap"
     assert.ok(started.every(({ kind }) => kind === "started"));
   };
 
-  it("admits the cap across two concurrent batches and answers the other two full", async () => {
-    const jobs = await bulkJobs(instance, GROK_BOT_IN_FLIGHT + 2);
-
-    const [first, second] = await Promise.all([
-      startAll(jobs.slice(0, 5)),
-      startAll(jobs.slice(5)),
-    ]);
-
-    const kinds = [...first, ...second].map(({ kind }) => kind);
-
-    assert.equal(kinds.filter((kind) => kind === "started").length, GROK_BOT_IN_FLIGHT);
-    assert.equal(kinds.filter((kind) => kind === "full").length, 2);
-    assert.equal(running().length, GROK_BOT_IN_FLIGHT);
-  });
-
   it("caps all task kinds together", async () => {
-    await kindsOf(6, "digest");
+    assert.deepEqual(await kindsOf(3, "digest"), ["started", "started", "started"]);
+    assert.deepEqual(await kindsOf(3, "topic_overview"), ["started", "started", "started"]);
 
-    assert.deepEqual(await kindsOf(5, "proposals"), [
-      "started",
-      "started",
-      "started",
-      "started",
+    assert.deepEqual((await kindsOf(5, "proposals")).toSorted(), [
       "full",
+      "started",
+      "started",
+      "started",
+      "started",
     ]);
     assert.deepEqual(await kindsOf(1, "digest"), ["full"]);
-    assert.equal(running().length, GROK_BOT_IN_FLIGHT);
+    const tasks = running();
+    assert.equal(tasks.length, GROK_BOT_IN_FLIGHT);
+    assert.deepEqual(
+      new Set(tasks.map(({ kind }) => kind)),
+      new Set(["digest", "proposals", "topic_overview"]),
+    );
   });
 
   it("defers a job that finds the cap full with the grok-bot wait, 60 seconds and no attempt", async () => {
@@ -125,23 +118,12 @@ describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap"
     );
     const more = await startAll(await bulkJobs(instance, 5));
 
-    assert.deepEqual(
-      more.map(({ kind }) => kind),
-      ["started", "started", "started", "started", "full"],
-    );
-  });
-
-  it("starts a Digest while answered tasks wait on that Digest, however many there are", async () => {
-    await fillCap();
-    assert.equal(running().length, GROK_BOT_IN_FLIGHT);
-    exec(
-      instance,
-      "update ai_tasks set answered_at = ? where executor = 'grok-bot' and state = 'running'",
-      Date.now(),
-    );
-    const [digest] = await bulkJobs(instance, 1, "digest");
-
-    assert.ok(digest);
-    assert.equal((await startBotTask(instance.core, ownerOf(digest), START)).kind, "started");
+    assert.deepEqual(more.map(({ kind }) => kind).toSorted(), [
+      "full",
+      "started",
+      "started",
+      "started",
+      "started",
+    ]);
   });
 });

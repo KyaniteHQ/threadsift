@@ -3,9 +3,10 @@ import { after, before, describe, it } from "node:test";
 
 import { exhaust } from "../src/core/compose/job-finish.ts";
 import { HANDLERS } from "../src/core/compose/job-handlers.ts";
+import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
-import { insertedTask, taskRow, topicFailures } from "./bot-task-rows.ts";
+import { taskRow, topicFailures } from "./bot-task-rows.ts";
 import { seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
@@ -30,18 +31,11 @@ describe("a Topic overview that gave up after the third unanswered send marks th
       attempts: THIRD_SEND,
     });
 
-    const earlier = insertedTask(instance, {
-      kind: "topic_overview",
-      executor: "grok-bot",
-      token: "earlier",
-    });
+    exec(instance, "update items set topic_id = 2 where id = 101");
+    const earlier = await sentTask(instance, opened);
 
-    exec(
-      instance,
-      "update ai_tasks set job_id = ?, state = 'failed', refusal = 'stale', context = '{\"topicId\":2,\"revision\":0}' where id = ?",
-      opened.id,
-      earlier,
-    );
+    exec(instance, "update items set topic_id = 1 where id = 101");
+    await executeClaimed(instance.core, earlier.job);
 
     const { job, ...sent } = await sentTask(instance, opened);
 

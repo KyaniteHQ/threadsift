@@ -4,7 +4,7 @@ const [FETCH_JOB_KIND, X_VERIFY_JOB_KIND] = INTAKE_JOB_KINDS;
 
 export const ITEM_JOB_KINDS = [FETCH_JOB_KIND, "digest", X_VERIFY_JOB_KIND] as const;
 
-export const OWNED_JOB_KINDS = [
+const OWNED_JOB_KINDS = [
   ...ITEM_JOB_KINDS,
   "topic_overview",
   "related_pick",

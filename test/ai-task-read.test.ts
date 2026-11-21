@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
+import { z } from "zod";
+
 import { X_INTAKE_INSTRUCTIONS } from "../src/core/contract/x-intake-contract.ts";
-import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
-import { type ReadWorld, readOf, readWorld } from "./ai-task-read-http.ts";
+import { type ReadWorld, readOf, readTask, readWorld } from "./ai-task-read-http.ts";
 import { pastDeadline, picksFor, retireTasks } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskAfterStart } from "./bot-task-lifecycle.ts";
@@ -26,14 +27,16 @@ describe("the task read answers what the bot has to do to the task's own credent
   it("reads a result task with its kind, instructions, input and schema, and a second read is the same", async () => {
     const task = await taskAfterStart(world.instance, world.library.source);
     const unchanged = taskRows(world.instance);
-    const first = await readOf(world.instance, task.id, task.token);
-    const text = await first.text();
-    const read = TaskReadSchema.parse(JSON.parse(text));
+    const { response: first, text, read } = await readTask(world.instance, task);
 
     assert.deepEqual([first.status, first.headers.get("cache-control")], [200, "no-store"]);
     assert.deepEqual([read.taskId, read.kind], [task.id, "related_pick"]);
     assert.notEqual(read.instructions, "");
     assert.equal(read.schema["type"], "object");
+    assert.deepEqual(
+      Object.keys(z.record(z.string(), z.unknown()).parse(read.schema["properties"])),
+      ["picks"],
+    );
     assert.equal(await (await readOf(world.instance, task.id, task.token)).text(), text);
     assert.deepEqual(taskRows(world.instance), unchanged);
   });
@@ -62,18 +65,13 @@ describe("the task read answers what the bot has to do to the task's own credent
   it("reads an X link task with the link as its input and the answer it takes as its schema", async () => {
     const task = await sentIntake(world.instance);
 
-    const read = TaskReadSchema.parse(
-      JSON.parse(await (await readOf(world.instance, task.id, task.token)).text()),
-    );
+    const { read } = await readTask(world.instance, task);
 
     assert.deepEqual(
-      [read.kind, read.instructions, JSON.parse(read.input)],
-      [
-        "x_intake",
-        X_INTAKE_INSTRUCTIONS,
-        { url: `https://x.com/i/status/${task.statusId}`, statusId: task.statusId },
-      ],
+      [read.kind, JSON.parse(read.input)],
+      ["x_intake", { url: `https://x.com/i/status/${task.statusId}`, statusId: task.statusId }],
     );
+    assert.equal(read.instructions, X_INTAKE_INSTRUCTIONS);
     assert.ok(Array.isArray(read.schema["anyOf"]));
   });
 

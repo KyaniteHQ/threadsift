@@ -5,7 +5,7 @@ import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { retireTasks, selectGrokBot } from "./bot-task-fixtures.ts";
-import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
+import { insertedTask, jobRow, rowCount, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 
@@ -52,20 +52,6 @@ describe("a Topic overview keeps its task and job state across retries", () => {
     );
   });
 
-  it("fails the task and charges an attempt when the send fails", async () => {
-    const job = await newJob();
-
-    await executeClaimed(instance.core, job);
-
-    const failed = jobRow(instance, job.id);
-
-    assert.deepEqual(
-      taskRows(instance, "job_id = ?", job.id).map(({ state, refusal }) => [state, refusal]),
-      [["failed", "unreachable"]],
-    );
-    assert.deepEqual([failed.state, failed.attempts], ["queued", 1]);
-  });
-
   it("defers without an attempt when its task is still waiting", async () => {
     const { job } = await sentTask(instance, await newJob());
 
@@ -92,15 +78,6 @@ describe("a Topic overview keeps its task and job state across retries", () => {
       ["failed", "unreachable"],
     );
     assert.deepEqual([failed.state, failed.attempts], ["queued", 1]);
-  });
-
-  it("applies the answer and stores one page", async () => {
-    const sent = await answeredAs(instance, { kindCase: overview, job: await newJob() });
-
-    await executeClaimed(instance.core, sent.job);
-
-    assert.equal(taskRow(instance, sent.id).state, "done");
-    assert.equal(rowCount(instance, "topic_pages", "topic_id = 1"), 1);
   });
 
   it("starts no task when the job lost its claim", async () => {

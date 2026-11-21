@@ -13,13 +13,13 @@ const WORD_ARM = /^ {4}([\w:*|-]+)\) echo ([a-z]+(?:-[a-z]+)*) ;;$/gmu;
 
 const REASON_ARM = /^ {4}([a-z]+(?:-[a-z]+)*)\) sentence="/gmu;
 
-export interface Fence {
+interface Fence {
   readonly language: string;
   readonly label: string;
   readonly body: string;
 }
 
-export interface BotFile {
+interface BotFile {
   readonly path: string;
   readonly text: string;
 }

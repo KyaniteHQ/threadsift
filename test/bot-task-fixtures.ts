@@ -15,7 +15,7 @@ export { SECRET_KEY };
 
 export const GROK_BOT_IN_FLIGHT = 10;
 
-export const UNREACHABLE_ADDRESS = "https://no-such-host.invalid/automations/webhook/none";
+const UNREACHABLE_ADDRESS = "https://no-such-host.invalid/automations/webhook/none";
 
 export interface BotLibrary {
   readonly source: number;

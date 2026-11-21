@@ -1,17 +1,14 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { executeClaimed } from "../src/core/compose/jobs.ts";
+import { parseStoredDigest } from "../src/core/contract/digest-schema.ts";
 import { DIGEST_ANSWER, KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
 import { jobRow, libraryDump, rowCount, taskRow, topicPage } from "./bot-task-rows.ts";
 import { seedDigested } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { lockedWriter } from "./locked-writer.ts";
-
-const KeptSchema = z.object({ keptComments: z.array(z.string()) });
 
 describe("an answered bot task of each kind applies once, and a run of the finished job writes nothing", () => {
   for (const kindCase of KIND_CASES) {
@@ -154,9 +151,17 @@ describe("a Digest that keeps a comment id the bot was not sent", () => {
 
       await executeClaimed(instance.core, sent.job);
 
-      const published = KeptSchema.parse(JSON.parse(taskRow(instance, sent.id).result ?? "null"));
+      const result = taskRow(instance, sent.id).result;
+      assert.ok(result !== null);
+      assert.deepEqual(parseStoredDigest(result).keptComments, ["t1_c1"]);
 
-      assert.deepEqual(published.keptComments, ["t1_c1"]);
+      const { comments } = await instance.detail(owner);
+
+      assert.equal(comments.view.filter, "kept");
+      assert.deepEqual(
+        comments.nodes.filter(({ kind }) => kind === "comment").map(({ id }) => id),
+        ["t1_c1"],
+      );
     } finally {
       await instance.close();
     }

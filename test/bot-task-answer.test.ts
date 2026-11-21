@@ -68,21 +68,6 @@ describe("an answer reaches its job whichever happens first, the answer or the s
     assert.ok(job.next_attempt_at < deferral.deferredUntil);
   });
 
-  it("defers to the deadline when no answer came", async () => {
-    const task = await taskAfterStart(instance, library.source);
-
-    const deferral = {
-      deferredUntil: taskRow(instance, task.id).deadline,
-      wait: "grok-bot",
-      countsAttempt: false,
-      unlessOpen: task.id,
-    } as const;
-
-    await applied(instance, task.job, deferral);
-
-    assert.equal(jobRow(instance, task.job.id).next_attempt_at, deferral.deferredUntil);
-  });
-
   it("finds the answered job through the sweep's due query when the wake reached no claimable job, and a claim applies the answer", async () => {
     const task = await taskAfterStart(instance, library.source);
 

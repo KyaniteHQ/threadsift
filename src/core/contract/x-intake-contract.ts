@@ -8,7 +8,7 @@ export const X_INTAKE_TASK = "x_intake";
 export const X_INTAKE_INSTRUCTIONS =
   "Read the X post at input.url with its replies, and answer with its thread as content, plus a Digest when you can. Answer unavailable when the post cannot be read at all.";
 
-export const IntakeInputSchema = z.strictObject({ url: z.string(), statusId: z.string() });
+const IntakeInputSchema = z.strictObject({ url: z.string(), statusId: z.string() });
 
 type IntakeInput = z.output<typeof IntakeInputSchema>;
 
