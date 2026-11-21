@@ -48,7 +48,7 @@ A test drives the clock by replacing `Date.now` for one call, because the code h
 
 ## Browser smoke
 
-Each checkout builds and runs its own image, `localhost/threadsift:smoke-<slot>`, on its own port, so two worktrees can run it at once ([Testing architecture](architecture/testing.md), Smoke).
+The full pull request gate runs the browser smoke on both install targets. A docs-only gate skips it. Each checkout builds and runs its own image, `localhost/threadsift:smoke-<slot>`, on its own port, so two worktrees can run it at once ([Testing architecture](architecture/testing.md), Smoke).
 
 ## Start check
 

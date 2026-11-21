@@ -1,6 +1,6 @@
 import { spawn } from "node:child_process";
 import { globSync } from "node:fs";
-import { mkdtempDisposable, readFile } from "node:fs/promises";
+import { mkdir, mkdtempDisposable, readFile, writeFile } from "node:fs/promises";
 import { availableParallelism, tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -33,6 +33,8 @@ if (!args.success) {
 }
 const [count = Math.min(availableParallelism(), fileCount)] = args.data;
 await using directory = await mkdtempDisposable(join(tmpdir(), "threadsift-shards-"));
+const junitDir = z.string().min(1).safeParse(process.env["THREADSIFT_JUNIT_DIR"]).data;
+if (junitDir !== undefined) await mkdir(junitDir, { recursive: true });
 const shutdown = new AbortController();
 const stop = () => {
   shutdown.abort();
@@ -40,7 +42,7 @@ const stop = () => {
 process.on("SIGINT", stop);
 process.on("SIGTERM", stop);
 
-function startShard(shard: string, destination: string) {
+function startShard(index: number, shard: string, destination: string) {
   return spawn(
     process.execPath,
     [
@@ -51,6 +53,12 @@ function startShard(shard: string, destination: string) {
       "--test-reporter-destination=stdout",
       `--test-reporter=${new URL("./shard-reporter.ts", import.meta.url).href}`,
       `--test-reporter-destination=${destination}`,
+      ...(junitDir === undefined
+        ? []
+        : [
+            "--test-reporter=junit",
+            `--test-reporter-destination=${join(junitDir, `shard-${String(index + 1)}.xml`)}`,
+          ]),
       "test/",
     ],
     { stdio: ["ignore", "pipe", "pipe"], signal: shutdown.signal },
@@ -66,7 +74,7 @@ async function runShard(index: number) {
 
   try {
     const destination = join(directory.path, String(index));
-    const child = startShard(shard, destination);
+    const child = startShard(index, shard, destination);
     const failed = (error: Readonly<Error>) => {
       output.push(`${error.message}\n`);
       stop();
@@ -101,6 +109,9 @@ async function runShard(index: number) {
   const failure = passed
     ? null
     : `Shard ${shard} failed (${status})\n${summary?.failures ?? "Missing test summary"}\n`;
+  if (failure !== null && junitDir !== undefined) {
+    await writeFile(join(junitDir, `shard-${String(index + 1)}.txt`), failure);
+  }
   process.stdout.write(`\nShard ${shard}\n${output.join("")}${failure ?? ""}`);
   return { summary, failure };
 }

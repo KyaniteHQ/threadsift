@@ -23,7 +23,10 @@ let
     export THREADSIFT_SMOKE_PORT=$((20000 + 0x$slot % 10000))
   '';
   buildImage = ''
-    podman build --jobs 0 --signature-policy ${podmanPolicy} "''${labels[@]}" --tag "$tag" --file Containerfile .
+    podman build --jobs 0 --signature-policy ${podmanPolicy} "''${labels[@]}" \
+      ''${THREADSIFT_CACHE_FROM:+--cache-from "$THREADSIFT_CACHE_FROM"} \
+      ''${THREADSIFT_CACHE_TO:+--cache-to "$THREADSIFT_CACHE_TO"} \
+      --tag "$tag" --file Containerfile .
   '';
   containerBuild = ''
     set -euo pipefail
