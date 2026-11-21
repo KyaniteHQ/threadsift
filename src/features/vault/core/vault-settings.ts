@@ -10,6 +10,7 @@ import {
 import type { Database } from "../../../core/kernel/database.ts";
 import { guardedBatch } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import type { Sealer } from "../../../core/kernel/sealed-secret.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import {
   mirrorFiles,
@@ -136,20 +137,29 @@ export async function removeVaultSettings(ports: VaultPorts) {
   return removed ? readVaultSettings(ports) : refused("vault-busy");
 }
 
+async function savedToken(
+  db: Database,
+  secrets: Sealer,
+  input: Readonly<Exclude<VaultVerifyInput, { mode: "folder" }>>,
+) {
+  const saved = await readTarget(db);
+  if (
+    saved?.mode !== "github" ||
+    saved.repository !== input.repository ||
+    saved.branch !== input.branch
+  )
+    return null;
+  return (await secrets.open(saved.sealedToken)) ?? "unreadable";
+}
+
 async function verifyGithub(
   ports: VaultPorts & Pick<Ports, "network">,
   input: Readonly<Exclude<VaultVerifyInput, { mode: "folder" }>>,
   signal: AbortSignal,
 ) {
   if (ports.secrets === null) return refused("secret-missing");
-  const saved = await readTarget(ports.db);
-  const stored =
-    saved?.mode === "github" &&
-    saved.repository === input.repository &&
-    saved.branch === input.branch
-      ? await ports.secrets.open(saved.sealedToken)
-      : null;
-  const token = input.token ?? stored;
+  const token = input.token ?? (await savedToken(ports.db, ports.secrets, input));
+  if (token === "unreadable") return refused("secret-missing");
   if (token === null) return refused("not-configured");
   await vaultGithub(ports.network, { ...input, token }, signal).verify();
   return { kind: "verified" } as const;
