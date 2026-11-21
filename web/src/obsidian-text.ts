@@ -52,8 +52,6 @@ export const OBSIDIAN_TEXT = {
   loadFailed: "Couldn't load the Obsidian settings. Reload the page.",
   failed: "Couldn't reach Threadsift. Check your connection and try again.",
   invalid: "Check the repository, branch and token, then try again.",
-  secretMissing:
-    "This Instance has no THREADSIFT_SECRET_KEY set, so it cannot seal the token. Set THREADSIFT_SECRET_KEY on the Instance and reload this page.",
   wrongToken: "GitHub rejected the token. Check the token and try again.",
   notFound:
     "GitHub could not find that repository or branch with this token. Check the repository name, the branch name and the token's repository access.",

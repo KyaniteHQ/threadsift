@@ -6,6 +6,7 @@ import {
   type VaultRefusal,
   type VaultView,
 } from "../../src/core/contract/vault-contract.ts";
+import { AI_TEXT } from "./ai-text.ts";
 import { removeObsidian, saveObsidian, verifyObsidian } from "./obsidian-api.ts";
 import { OBSIDIAN_TEXT as TEXT } from "./obsidian-text.ts";
 import { useField } from "./use-form.ts";
@@ -21,7 +22,7 @@ import {
 } from "./use-settings-action.ts";
 
 const REASONS = {
-  "secret-missing": TEXT.secretMissing,
+  "secret-missing": AI_TEXT["secret-missing"],
   "not-configured": TEXT.missing,
   "wrong-token": TEXT.wrongToken,
   "not-found": TEXT.notFound,
@@ -88,7 +89,7 @@ function useActions(
   changed: (view: VaultView) => void,
 ) {
   const { flow, run } = useActionFlow<Action>(TEXT.failed);
-  const secretMissing = mode === "github" && !view.secretReady ? TEXT.secretMissing : null;
+  const secretMissing = mode === "github" && !view.secretReady ? AI_TEXT["secret-missing"] : null;
   const unavailable = {
     save: secretMissing,
     verify: secretMissing,
