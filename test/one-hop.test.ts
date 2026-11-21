@@ -32,9 +32,59 @@ describe("a Reddit post that links to a page stores one candidate link for the D
 
   after(() => instance.close());
 
+  const candidates = [
+    [
+      "yt1",
+      "the post text when the target is a youtube.com video",
+      {
+        url: "https://www.youtube.com/watch?v=1",
+        selftext: "https://b.example.com/",
+      },
+      "https://b.example.com/",
+    ],
+    [
+      "ref1",
+      "the first Markdown reference before an autolink",
+      {
+        selftext:
+          "See [a][ref] and <https://auto.example.org/x>\n\n[ref]: https://ref.example.org/y",
+      },
+      "https://ref.example.org/y",
+    ],
+    [
+      "bare1",
+      "a bare link without its trailing period",
+      {
+        selftext: "Just text then https://bare.example.net/z.",
+      },
+      "https://bare.example.net/z",
+    ],
+    [
+      "old1",
+      "no candidate for an old.reddit.com target",
+      { url: "https://old.reddit.com/r/x/" },
+      null,
+    ],
+    [
+      "long1",
+      "no candidate for a target over 4,096 bytes",
+      { url: `https://example.com/${"a".repeat(4100)}` },
+      null,
+    ],
+  ] as const;
+  const candidateCase = ([id, name, fields, expected]: (typeof candidates)[number]) => {
+    it(`stores ${name}`, async () => {
+      assert.equal(await tools.stored(id, fields), expected);
+    });
+  };
+  for (const candidate of candidates) candidateCase(candidate);
+
   it("takes the target of a link post", async () => {
     assert.equal(
-      await tools.stored("link1", { url: "https://example.com/guides/backing-up" }),
+      await tools.stored("link1", {
+        url: "https://example.com/guides/backing-up",
+        selftext: "https://other.example.net/x",
+      }),
       "https://example.com/guides/backing-up",
     );
   });

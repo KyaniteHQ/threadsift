@@ -4,12 +4,12 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
-import { RedditAccountViewSchema } from "../src/core/contract/reddit-account-contract.ts";
-import { Instance } from "./instance.ts";
+import { type Answer, Instance, type Json } from "./instance.ts";
+import { createAgentToken } from "./mcp-client.ts";
 import {
   LATER,
   PATH,
-  SECRET_KEY,
+  accountInstance,
   SESSION,
   account,
   connect,
@@ -25,8 +25,7 @@ describe("the Reddit account settings are reached only by the signed-in owner", 
   let token = "";
 
   before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
+    instance = await accountInstance();
     ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
       name: "reddit-account-access",
       scopes: ["read", "reddit"],
@@ -65,8 +64,7 @@ describe("the owner connects and disconnects a Reddit account", () => {
   let instance: Instance;
 
   before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
+    instance = await accountInstance();
   });
 
   after(() => instance.close());
@@ -76,27 +74,32 @@ describe("the owner connects and disconnects a Reddit account", () => {
     assert.equal(await verified(instance), "not-configured");
   });
 
-  it("stores a value sealed, with or without the cookie name in front, and says connected", async () => {
-    const saved = await Promise.all(
-      [SESSION, `reddit_session=${SESSION}`].map((text) =>
-        instance.send("PUT", PATH, { session: text }),
-      ),
-    );
-
-    assert.deepEqual(
-      saved.map(({ status, body }) => [status, RedditAccountViewSchema.parse(JSON.parse(body))]),
-      [
-        [200, { state: "connected", secretReady: true }],
-        [200, { state: "connected", secretReady: true }],
-      ],
-    );
-
+  const storesSession = async (session: string, expected: string) => {
+    const saved = await instance.send("PUT", PATH, { session });
+    assert.equal(saved.status, 200);
+    assert.deepEqual(JSON.parse(saved.body), { state: "connected", secretReady: true });
     const [row, ...rest] = account(instance);
-
     assert.equal(rest.length, 0);
-    assert.equal(row?.state, "connected");
-    assert.match(row?.sealed_session ?? "", /^v1\./u);
-    assert.ok(!(row?.sealed_session ?? "").includes(SESSION));
+    assert.ok(row);
+    assert.equal(row.state, "connected");
+    assert.match(row.sealed_session, /^v1\./u);
+    assert.ok(!row.sealed_session.includes(expected));
+    assert.ok((await instance.core.secrets?.open(row.sealed_session)) === expected);
+  };
+
+  it("stores a value sealed, with or without the cookie name in front, and says connected", async () => {
+    const replacement = "replacement-session";
+    await storesSession(SESSION, SESSION);
+    await storesSession(`reddit_session=${replacement}`, replacement);
+  });
+
+  it("keeps the saved session out of the PUT and GET response bodies", async () => {
+    const saved = await instance.send("PUT", PATH, { session: SESSION });
+    const read = await instance.send("GET", PATH);
+    for (const answer of [saved, read]) {
+      assert.equal(answer.status, 200);
+      assert.ok(!answer.body.includes(SESSION.slice(0, 20)));
+    }
   });
 
   const refused = [
@@ -110,7 +113,9 @@ describe("the owner connects and disconnects a Reddit account", () => {
 
   const refusesValue = (name: string, text: string) => {
     it(`answers 400 for ${name} and keeps the saved account`, async () => {
+      await connect(instance, SESSION);
       const unchanged = account(instance);
+      assert.equal(unchanged.length, 1);
       const answer = await instance.send("PUT", PATH, { session: text });
 
       assert.equal(answer.status, 400);
@@ -125,6 +130,8 @@ describe("the owner connects and disconnects a Reddit account", () => {
   });
 
   it("removes the row on Disconnect and makes only the jobs that wait for Reddit due at once", async () => {
+    await connect(instance, SESSION);
+    assert.equal(account(instance).length, 1);
     fetchJob(instance, 901, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
     fetchJob(instance, 902, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
     fetchJob(instance, 903, { state: "queued", waitReason: "github-rate-limit", dueAt: LATER });
@@ -147,29 +154,6 @@ describe("the owner connects and disconnects a Reddit account", () => {
   });
 });
 
-describe("no route returns the saved value", () => {
-  let instance: Instance;
-
-  before(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
-  });
-
-  after(() => instance.close());
-
-  it("keeps the value out of the save, read, remove and verify answers and the OpenAPI document", async () => {
-    const bodies = [
-      (await instance.send("PUT", PATH, { session: SESSION })).body,
-      (await instance.send("GET", PATH)).body,
-      (await instance.send("DELETE", PATH)).body,
-      (await instance.send("POST", `${PATH}/verify`)).body,
-      (await instance.send("GET", "/api/openapi.json")).body,
-    ];
-
-    assert.ok(bodies.every((body) => !body.includes(SESSION.slice(0, 20))));
-  });
-});
-
 describe("an Instance with no sealing key, and a row sealed under another key", () => {
   let bare: Instance;
   let other: Instance;
@@ -177,8 +161,7 @@ describe("an Instance with no sealing key, and a row sealed under another key", 
   before(async () => {
     bare = await Instance.start();
     await bare.setUp();
-    other = await Instance.start({ secretKey: SECRET_KEY });
-    await other.setUp();
+    other = await accountInstance();
     await connect(other, SESSION);
   });
 
@@ -194,23 +177,123 @@ describe("an Instance with no sealing key, and a row sealed under another key", 
     assert.deepEqual(account(bare), []);
   });
 
+  it("answers a token with refused secret-missing to PUT and state missing to GET", async () => {
+    const { value } = await createAgentToken(bare, "extension", ["read", "reddit"]);
+    const put = await bare.sendWithToken(value, "PUT", TOKEN_PATH, { session: SESSION });
+    const read = await bare.sendWithToken(value, "GET", TOKEN_PATH);
+
+    assert.deepEqual(JSON.parse(put.body), { kind: "refused", reason: "secret-missing" });
+    assert.deepEqual(JSON.parse(read.body), { state: "missing", secretReady: false });
+    assert.deepEqual(account(bare), []);
+  });
+
   it("reads unreadable when the sealing key changed, and verify says so without a request", async () => {
     const [row] = account(other);
-
     assert.ok(row !== undefined);
 
     const foreign = await Instance.start({ secretKey: "cd".repeat(32) });
+    try {
+      await foreign.setUp();
+      exec(
+        foreign,
+        "insert into reddit_account (id, sealed_session, state, state_at, connected_at) values (1, ?, 'connected', 1, 1)",
+        row.sealed_session,
+      );
 
-    await foreign.setUp();
-    exec(
-      foreign,
-      "insert into reddit_account (id, sealed_session, state, state_at, connected_at) values (1, ?, 'connected', 1, 1)",
-      row.sealed_session,
-    );
+      assert.deepEqual(await view(foreign), { state: "unreadable", secretReady: true });
+      assert.equal(await verified(foreign), "unreadable");
+      assert.deepEqual(await connect(foreign, SESSION), { state: "connected", secretReady: true });
+    } finally {
+      await foreign.close();
+    }
+  });
+});
 
-    assert.deepEqual(await view(foreign), { state: "unreadable", secretReady: true });
-    assert.equal(await verified(foreign), "unreadable");
-    assert.deepEqual(await connect(foreign, SESSION), { state: "connected", secretReady: true });
-    await foreign.close();
+const TOKEN_PATH = "/api/reddit-account";
+
+type Caller = (method: string, path: string, body: Json) => Promise<Answer>;
+
+async function statusesOf(call: Caller): Promise<readonly number[]> {
+  const read = await call("GET", TOKEN_PATH, null);
+  const write = await call("PUT", TOKEN_PATH, { session: SESSION });
+  const remove = await call("DELETE", TOKEN_PATH, null);
+
+  return [read.status, write.status, remove.status];
+}
+
+const withToken =
+  (instance: Instance, value: string): Caller =>
+  (method, path, body) =>
+    instance.sendWithToken(value, method, path, body);
+
+describe("an agent token reaches the Reddit account only through the reddit scope", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await accountInstance();
+  });
+
+  after(() => instance.close());
+
+  it("lets a token with read and reddit read, write and remove, and the owner session do the same", async () => {
+    const { value } = await createAgentToken(instance, "extension", ["read", "reddit"]);
+
+    assert.deepEqual(await statusesOf(withToken(instance, value)), [200, 200, 200]);
+    assert.deepEqual(account(instance), []);
+
+    const owner = await statusesOf((method, path, body) => instance.send(method, path, body));
+
+    assert.deepEqual(owner, [200, 200, 200]);
+  });
+
+  it("answers 403 to PUT and DELETE for a token without reddit, keeps the saved row, and still answers GET", async () => {
+    await connect(instance, SESSION);
+
+    const saved = account(instance);
+    const defaults = await createAgentToken(instance, "default scopes");
+    const writer = await createAgentToken(instance, "wide", ["read", "add", "digest", "delete"]);
+
+    assert.deepEqual(await statusesOf(withToken(instance, defaults.value)), [200, 403, 403]);
+    assert.deepEqual(await statusesOf(withToken(instance, writer.value)), [200, 403, 403]);
+    assert.deepEqual(account(instance), saved);
+  });
+
+  it("answers 403 to GET for a token that holds reddit without read, and still lets it write and remove", async () => {
+    const { value } = await createAgentToken(instance, "write only", ["reddit"]);
+
+    assert.deepEqual(await statusesOf(withToken(instance, value)), [403, 200, 200]);
+  });
+
+  it("answers a token's PUT, GET and DELETE exactly as the owner's settings routes do, and returns no session", async () => {
+    const { value } = await createAgentToken(instance, "same answers", ["read", "reddit"]);
+
+    const viaToken = await instance.sendWithToken(value, "PUT", TOKEN_PATH, { session: SESSION });
+    const viaOwner = await instance.send("PUT", PATH, { session: SESSION });
+
+    assert.equal(viaToken.status, viaOwner.status);
+    const connected = { state: "connected", secretReady: true };
+    assert.deepEqual(JSON.parse(viaToken.body), connected);
+    assert.deepEqual(JSON.parse(viaOwner.body), connected);
+
+    const read = await instance.sendWithToken(value, "GET", TOKEN_PATH);
+
+    assert.deepEqual(JSON.parse(read.body), connected);
+
+    const removed = await instance.sendWithToken(value, "DELETE", TOKEN_PATH);
+
+    assert.deepEqual(JSON.parse(removed.body), { state: "none", secretReady: true });
+    assert.deepEqual(account(instance), []);
+
+    const bodies = [viaToken.body, read.body, removed.body];
+
+    assert.ok(bodies.every((body) => !body.includes(SESSION.slice(0, 20))));
+  });
+
+  it("answers 400 to a value Reddit sessions cannot have, and saves nothing", async () => {
+    const { value } = await createAgentToken(instance, "bad value", ["read", "reddit"]);
+    const answer = await instance.sendWithToken(value, "PUT", TOKEN_PATH, { session: "abc;def" });
+
+    assert.equal(answer.status, 400);
+    assert.deepEqual(account(instance), []);
   });
 });

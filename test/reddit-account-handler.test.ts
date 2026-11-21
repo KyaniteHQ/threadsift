@@ -5,10 +5,10 @@ import { executeClaimed, runJob } from "../src/core/compose/jobs.ts";
 import { MAX_ATTEMPTS } from "../src/core/contract/job-contract.ts";
 import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
 import { takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
-import { Instance } from "./instance.ts";
+import type { Instance } from "./instance.ts";
 import {
   LATER,
-  SECRET_KEY,
+  accountInstance,
   SESSION,
   account,
   claimedJob,
@@ -26,8 +26,7 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
   let instance: Instance;
 
   beforeEach(async () => {
-    instance = await Instance.start({ secretKey: SECRET_KEY });
-    await instance.setUp();
+    instance = await accountInstance();
     await connect(instance, SESSION);
     exec(instance, "update reddit_account set queue_head = 2");
   });

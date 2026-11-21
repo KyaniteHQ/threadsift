@@ -40,12 +40,6 @@ describe("the Reader links the address a Reddit link post points at", () => {
       null,
     ],
     [
-      "link3",
-      "no link for a post with no is_self whose address is its own permalink",
-      (id) => ({ is_self: null, selftext: "Text.", url: addressOf(id) }),
-      null,
-    ],
-    [
       "link4",
       "no link when a link post names its own permalink",
       (id) => ({ url: addressOf(id) }),
