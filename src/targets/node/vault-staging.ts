@@ -62,8 +62,14 @@ export function recoverReceipt(destination: string | null, receipt: string): voi
   else discard(pending);
 }
 
-function durableFile(path: string, bytes: string | Uint8Array, mode = 0o600): void {
-  writeFileSync(path, bytes, { flag: "wx", flush: true, mode });
+function durableFile(
+  directory: VaultDirectory,
+  name: string,
+  bytes: string | Uint8Array,
+  mode = 0o600,
+): void {
+  assertVaultDirectory(directory);
+  writeFileSync(`${directory.path}/${name}`, bytes, { flag: "wx", flush: true, mode });
 }
 
 export function pendingName(filename: string): string {
@@ -113,8 +119,10 @@ function locations({ stage, target, receipts, name }: Publication) {
 }
 
 export function clearStaging(stage: VaultDirectory): void {
-  assertVaultDirectory(stage);
-  for (const part of [ASIDE, NEXT, OWNED, READY, PATH]) discard(`${stage.path}/${part}`);
+  for (const part of [ASIDE, NEXT, OWNED, READY, PATH]) {
+    assertVaultDirectory(stage);
+    discard(`${stage.path}/${part}`);
+  }
   fsyncSync(stage.fd);
 }
 
@@ -123,18 +131,19 @@ export function settleStaging(input: Publication, recovered: VaultDirectory | un
   assertVaultDirectories(stage, target, receipts);
   const { aside, owned, destination, receipt } = locations(input);
   const managed = state(owned) !== undefined || (receipt !== null && writtenAt(aside, receipt));
+  assertVaultDirectories(stage, target);
   if (!managed && !preserveAside(aside, destination)) {
     if (recovered === undefined) return false;
-    assertVaultDirectory(recovered);
+    assertVaultDirectories(stage, recovered);
     renameSync(aside, `${recovered.path}/${randomUUID()}-${input.name}`);
     fsyncSync(recovered.fd);
   }
   if (target !== undefined) fsyncSync(target.fd);
   if (receipt !== null && receipts !== undefined) {
+    assertVaultDirectory(receipts);
     recoverReceipt(destination, receipt);
     fsyncSync(receipts.fd);
   }
-  clearStaging(stage);
   return true;
 }
 
@@ -145,10 +154,10 @@ function stageBytes(
   path: string,
   bytes: Uint8Array | null,
 ) {
-  durableFile(`${stage.path}/${PATH}`, path);
+  durableFile(stage, PATH, path);
   const next = `${stage.path}/${NEXT}`;
-  if (bytes !== null) durableFile(next, bytes, 0o644);
-  durableFile(`${stage.path}/${READY}`, "");
+  if (bytes !== null) durableFile(stage, NEXT, bytes, 0o644);
+  durableFile(stage, READY, "");
   fsyncSync(stage.fd);
 
   const pending = `${receipt}${PENDING}`;
@@ -166,7 +175,7 @@ export function replaceInFolder(
   bytes: Uint8Array | null,
 ): boolean {
   const { stage, target, receipts } = input;
-  const { aside, owned, destination, receipt } = locations(input);
+  const { aside, destination, receipt } = locations(input);
   if (destination === null || receipt === null) throw new Error("Missing vault publication paths");
   assertVaultDirectories(stage, target, receipts);
   const held = state(destination);
@@ -189,12 +198,12 @@ export function replaceInFolder(
   }
   fsyncSync(target.fd);
   if (held !== undefined) {
-    durableFile(owned, "");
+    durableFile(stage, OWNED, "");
     fsyncSync(stage.fd);
   }
+  assertVaultDirectory(receipts);
   if (bytes === null) discard(receipt);
   else renameSync(pending, receipt);
   fsyncSync(receipts.fd);
-  clearStaging(stage);
   return true;
 }

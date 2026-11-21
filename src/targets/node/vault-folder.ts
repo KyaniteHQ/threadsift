@@ -1,4 +1,4 @@
-import { fsyncSync, rmdirSync, unlinkSync } from "node:fs";
+import { fsyncSync, readdirSync, rmdirSync, unlinkSync } from "node:fs";
 
 import { errnoCodeOf } from "../../core/kernel/failure-log.ts";
 import {
@@ -10,6 +10,7 @@ import {
 import { VaultFailure, vaultFailure } from "../../features/vault/core/vault-failure.ts";
 import {
   ITEMS_FOLDER,
+  isItemFolder,
   vaultLogMonths,
   vaultPathParts,
   vaultSubjects,
@@ -59,19 +60,23 @@ function discardReceipt(receipts: VaultDirectory, name: string): void {
   assertVaultDirectory(receipts);
   const path = `${receipts.path}/${name}`;
   recoverReceipt(null, path);
+  assertVaultDirectory(receipts);
   if (state(path)?.isFile() === true) unlinkSync(path);
   fsyncSync(receipts.fd);
 }
 
-function removeEmptyDirectory(parent: VaultDirectory, name: string): void {
+function removeEmptyDirectory(parent: VaultDirectory, name: string): boolean {
   assertVaultDirectory(parent);
   try {
     rmdirSync(`${parent.path}/${name}`);
   } catch (error) {
-    if (!["ENOENT", "ENOTEMPTY", "EEXIST"].includes(errnoCodeOf(error))) throw error;
-    return;
+    const code = errnoCodeOf(error);
+    if (code === "ENOENT") return true;
+    if (!["ENOTEMPTY", "EEXIST", "ENOTDIR"].includes(code)) throw error;
+    return false;
   }
   fsyncSync(parent.fd);
+  return true;
 }
 
 async function pruneItem(root: VaultDirectory, parts: readonly string[]): Promise<void> {
@@ -83,6 +88,19 @@ async function pruneItem(root: VaultDirectory, parts: readonly string[]): Promis
   await inVaultDirectory(root, receiptFolder([items]), false, (parent) => {
     removeEmptyDirectory(parent, id);
   });
+}
+
+async function pruneEmptyItems(root: VaultDirectory): Promise<void> {
+  await inMirrorFolder(root, [ITEMS_FOLDER], (mirror) =>
+    inVaultDirectory(root, receiptFolder([ITEMS_FOLDER]), false, (receipts) => {
+      for (const entry of readdirSync(receipts.path, { withFileTypes: true })) {
+        const { name } = entry;
+        if (!entry.isDirectory() || !isItemFolder(name)) continue;
+        if (readdirSync(`${receipts.path}/${name}`).length > 0) continue;
+        if (removeEmptyDirectory(mirror, name)) removeEmptyDirectory(receipts, name);
+      }
+    }),
+  );
 }
 
 async function recoverStage(root: VaultDirectory, stage: VaultDirectory): Promise<void> {
@@ -99,10 +117,12 @@ async function recoverStage(root: VaultDirectory, stage: VaultDirectory): Promis
     ).then(
       (done) => done ?? settleStaging({ stage, target, receipts: undefined, name }, undefined),
     );
-  if ((await inMirrorFolder(root, parts, trySettle)) ?? (await trySettle())) return;
-  await inVaultDirectory(root, RECOVERED_DIRECTORY, true, (recovered) =>
-    settleStaging({ stage, target: undefined, receipts: undefined, name }, recovered),
-  );
+  if (!((await inMirrorFolder(root, parts, trySettle)) ?? (await trySettle())))
+    await inVaultDirectory(root, RECOVERED_DIRECTORY, true, (recovered) =>
+      settleStaging({ stage, target: undefined, receipts: undefined, name }, recovered),
+    );
+  await pruneItem(root, parts);
+  clearStaging(stage);
 }
 
 async function applyFile(
@@ -141,6 +161,7 @@ async function applyFile(
     });
   }
   if (!create) await pruneItem(root, parts);
+  if (written === true) clearStaging(stage);
 }
 
 async function verifyFolder(root: VaultDirectory): Promise<void> {
@@ -187,7 +208,11 @@ export const vaultFolder: VaultFolder = (folder, signal) => {
     });
   return {
     verify: () => inside(verifyFolder),
-    subjects: () => inside((root) => vaultSubjects(folderEntries(root, {}))),
+    subjects: () =>
+      inside(async (root) => {
+        await pruneEmptyItems(root);
+        return vaultSubjects(folderEntries(root, {}));
+      }),
     logMonths: () => inside((root) => vaultLogMonths(folderEntries(root, { published: true }))),
     files: (subject) => inside((root) => vaultTreeFiles(folderEntries(root, { subject }), subject)),
     write: ({ files, current }) =>

@@ -64,6 +64,10 @@ export async function vaultLogMonths(entries: VaultEntries): Promise<readonly nu
   });
 }
 
+export function isItemFolder(name: string): boolean {
+  return ITEM_FOLDER.test(name) && Number.isSafeInteger(Number(name));
+}
+
 export async function vaultSubjects(entries: VaultEntries): Promise<readonly VaultSubject[]> {
   const [items, topics, months] = await Promise.all([
     entries.at([VAULT_ROOT, ITEMS_FOLDER]),
@@ -72,13 +76,11 @@ export async function vaultSubjects(entries: VaultEntries): Promise<readonly Vau
   ]);
 
   return [
-    ...items.flatMap(({ path, type }) => {
-      const subjectId = Number(path);
-
-      return type === "tree" && ITEM_FOLDER.test(path) && Number.isSafeInteger(subjectId)
-        ? [{ kind: "item" as const, subjectId }]
-        : [];
-    }),
+    ...items.flatMap(({ path, type }) =>
+      type === "tree" && isItemFolder(path)
+        ? [{ kind: "item" as const, subjectId: Number(path) }]
+        : [],
+    ),
     ...topics.flatMap(({ path, type }) => {
       const subjectId = Number(TOPIC_NOTE.exec(path)?.[1]);
 
