@@ -1,9 +1,10 @@
 import { type ChangeEvent, useCallback, useId } from "react";
 
-import type {
-  ImportList,
-  SkipReason,
-  Skipped as SkippedRows,
+import {
+  type ImportList,
+  SKIP_REASONS,
+  type SkipReason,
+  type Skipped as SkippedRows,
 } from "../../src/core/contract/import-list.ts";
 import { Alert } from "./Alert.tsx";
 import {
@@ -16,8 +17,6 @@ import {
 } from "./import-text.ts";
 import { useFilePicker } from "./use-file-picker.ts";
 import type { ImportInput } from "./use-import-input.ts";
-
-const REASONS: readonly SkipReason[] = ["noLink", "tooLong"];
 
 function Skipped({ reason, skipped }: Readonly<{ reason: SkipReason; skipped: SkippedRows }>) {
   const more = skipped.count - skipped.first.length;
@@ -41,7 +40,7 @@ function Skipped({ reason, skipped }: Readonly<{ reason: SkipReason; skipped: Sk
 
 function Summary({ list }: Readonly<{ list: ImportList }>) {
   const { links, skipped } = list;
-  const shown = REASONS.filter((reason) => skipped[reason].count > 0);
+  const shown = SKIP_REASONS.filter((reason) => skipped[reason].count > 0);
 
   if (links.length === 0 && shown.length === 0) return null;
 

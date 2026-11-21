@@ -149,7 +149,7 @@ export function useGrokBotForm(view: GrokBotView, changed: Changed) {
     check: "test",
     labels: LABELS,
     unavailable,
-    nothingSaved: view.key === "none",
+    showReason: view.key === "none",
     press: { check: testNow, remove: removeNow },
   });
 

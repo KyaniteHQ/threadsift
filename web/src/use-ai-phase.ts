@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from "react";
+import { type Dispatch, useCallback, useEffect, useReducer } from "react";
 import { flushSync } from "react-dom";
 
 import type { Digest } from "../../src/core/contract/digest-schema.ts";
@@ -31,6 +31,7 @@ type Event =
   | { readonly kind: "leave" }
   | { readonly kind: "settle"; readonly outcome: Outcome }
   | { readonly kind: "refuse"; readonly outcome: Outcome }
+  | { readonly kind: "clear" }
   | { readonly kind: "restore" };
 
 function noticeOf(search: string): ConnectNotice | null {
@@ -54,6 +55,10 @@ function reduce(state: FormState, event: Event): FormState {
     return state.phase === "idle" ? { ...state, outcome: event.outcome } : state;
   }
 
+  if (event.kind === "clear") {
+    return state.phase === "idle" ? { ...state, outcome: null, notice: null } : state;
+  }
+
   if (event.kind === "restore") {
     return state.phase === LEAVING ? { ...state, phase: "idle" } : state;
   }
@@ -64,6 +69,21 @@ function reduce(state: FormState, event: Event): FormState {
 }
 
 export type Task = () => Promise<Outcome | typeof LEAVING>;
+
+function useRefusals(dispatch: Dispatch<Event>) {
+  const refuse = useCallback(
+    (text: string) => {
+      dispatch({ kind: "refuse", outcome: { kind: "error", text } });
+    },
+    [dispatch],
+  );
+
+  const clear = useCallback(() => {
+    dispatch({ kind: "clear" });
+  }, [dispatch]);
+
+  return { refuse, clear };
+}
 
 export function useAiPhase() {
   const [state, dispatch] = useReducer(reduce, undefined, start);
@@ -87,9 +107,7 @@ export function useAiPhase() {
     };
   }, []);
 
-  const refuse = useCallback((text: string) => {
-    dispatch({ kind: "refuse", outcome: { kind: "error", text } });
-  }, []);
+  const { refuse, clear } = useRefusals(dispatch);
 
   const run = useCallback(
     (next: Working, task: Task) => {
@@ -112,7 +130,7 @@ export function useAiPhase() {
     [guard],
   );
 
-  return { phase, outcome: state.outcome, notice, run, refuse };
+  return { phase, outcome: state.outcome, notice, run, refuse, clear };
 }
 
 export type AiPhase = ReturnType<typeof useAiPhase>;

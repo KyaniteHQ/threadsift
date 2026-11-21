@@ -117,7 +117,7 @@ interface ButtonSet<Check extends string> {
   readonly check: Check;
   readonly labels: Readonly<Record<"save" | "remove" | Check, Labels>>;
   readonly unavailable: Readonly<Record<"save" | "remove" | Check, Unavailable>>;
-  readonly nothingSaved: boolean;
+  readonly showReason: boolean;
   readonly press: { readonly check: () => void; readonly remove: () => void };
   readonly saveSecondary?: boolean;
 }
@@ -126,45 +126,48 @@ export function useActionButtons<Check extends string>({
   check,
   labels,
   unavailable,
-  nothingSaved,
+  showReason,
   press,
   saveSecondary = false,
 }: Readonly<ButtonSet<Check>>) {
-  const saveBlocked = unavailable.save !== null;
-  const checkBlocked = unavailable[check] !== null;
-  const removeBlocked = unavailable.remove !== null;
-  const { check: pressCheck, remove: pressRemove } = press;
-
-  const hint = nothingSaved ? (unavailable[check] ?? undefined) : undefined;
+  const { save: saveReason, remove: removeReason } = unavailable;
+  const checkReason = unavailable[check];
+  const hint = showReason ? (checkReason ?? undefined) : undefined;
 
   return useMemo<readonly ActionButton<"save" | "remove" | Check>[]>(
     () => [
-      { action: "save", ...labels.save, blocked: saveBlocked, secondary: saveSecondary },
+      {
+        action: "save",
+        ...labels.save,
+        blocked: saveReason !== null,
+        hint: hint === saveReason ? hint : undefined,
+        secondary: saveSecondary,
+      },
       {
         action: check,
         ...labels[check],
-        blocked: checkBlocked,
+        blocked: checkReason !== null,
         hint,
-        onClick: pressCheck,
+        onClick: press.check,
         secondary: true,
       },
       {
         action: "remove",
         ...labels.remove,
-        blocked: removeBlocked,
-        onClick: pressRemove,
+        blocked: removeReason !== null,
+        onClick: press.remove,
         secondary: true,
       },
     ],
     [
       check,
       labels,
-      saveBlocked,
-      checkBlocked,
+      saveReason,
+      checkReason,
       hint,
-      removeBlocked,
-      pressCheck,
-      pressRemove,
+      removeReason,
+      press.check,
+      press.remove,
       saveSecondary,
     ],
   );

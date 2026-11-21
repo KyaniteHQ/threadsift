@@ -38,7 +38,9 @@ export interface Skipped {
   readonly first: readonly SkippedRow[];
 }
 
-export type SkipReason = "noLink" | "tooLong";
+export const SKIP_REASONS = ["noLink", "tooLong"] as const;
+
+export type SkipReason = (typeof SKIP_REASONS)[number];
 
 export interface ImportList {
   readonly links: readonly string[];
@@ -213,7 +215,10 @@ function verdictOf(address: URL | null): Verdict {
 export function parseImportList(text: string): ImportList {
   const links = new Set<string>();
 
-  const skipped = { noLink: emptyTally(), tooLong: emptyTally() };
+  const skipped = { noLink: emptyTally(), tooLong: emptyTally() } satisfies Record<
+    SkipReason,
+    Tally
+  >;
 
   for (const entry of entriesOf(text.startsWith(BYTE_ORDER_MARK) ? text.slice(1) : text)) {
     const verdict = verdictOf(entry.address);

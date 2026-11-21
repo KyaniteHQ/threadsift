@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { type ReactNode, useCallback } from "react";
 
 import { Alert } from "./Alert.tsx";
 import type { Loaded } from "./settings-load-types.ts";
@@ -22,9 +22,18 @@ export function LoadedSection<View>({
   lead,
   foot,
   initial,
+  after,
   Form,
-}: Readonly<SectionSpec<View> & { initial: Loaded<View> }>) {
+}: Readonly<SectionSpec<View> & { initial: Loaded<View>; after?: () => void }>) {
   const { loaded, ready } = useLoaded(initial);
+
+  const changed = useCallback(
+    (view: View) => {
+      ready(view);
+      after?.();
+    },
+    [ready, after],
+  );
 
   return (
     <section id={id} className="sec" aria-labelledby={`${id}-title`}>
@@ -34,7 +43,7 @@ export function LoadedSection<View>({
       <p>{intro}</p>
       {lead}
       {loaded.kind === "ready" ? (
-        <Form view={loaded.view} changed={ready} />
+        <Form view={loaded.view} changed={changed} />
       ) : (
         <Alert text={loadFailed} />
       )}

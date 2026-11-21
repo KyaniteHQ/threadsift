@@ -22,7 +22,7 @@ function useTokens(initial: Loaded<readonly Token[]>) {
   const failed = initial.kind === "failed";
 
   const add = useCallback((token: Token) => {
-    setTokens((current) => [token, ...current].toSorted((a, b) => b.id - a.id));
+    setTokens((current) => [token, ...current]);
   }, []);
 
   const remove = useCallback((id: number) => {

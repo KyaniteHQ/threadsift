@@ -171,6 +171,10 @@ export const STORED_PROVIDERS = [firstStored, ...otherStored] as const;
 
 export const KEYLESS_PROVIDERS = familiesOf("binding", "cli").map(({ id }) => id);
 
+export function isKeyless(provider: Provider): boolean {
+  return KEYLESS_PROVIDERS.some((keyless) => keyless === provider);
+}
+
 export const HttpProviderSchema = z.enum(familiesOf("http").map(({ id }) => id));
 export const BindingProviderSchema = z.enum(familiesOf("binding").map(({ id }) => id));
 export const CliProviderSchema = z.enum(familiesOf("cli").map(({ id }) => id));
@@ -199,4 +203,18 @@ export function hasKind<const Of extends Kind, Input extends { readonly provider
 
 export function withoutTrailingSlashes(url: string): string {
   return url.replace(/\/+$/u, "");
+}
+
+interface KeyScope {
+  readonly provider: Provider;
+  readonly baseUrl: string | null;
+  readonly model: string;
+}
+
+export function keyApplies(saved: Readonly<KeyScope>, next: Readonly<KeyScope>): boolean {
+  return (
+    saved.provider === next.provider &&
+    saved.baseUrl === (next.baseUrl === null ? null : withoutTrailingSlashes(next.baseUrl)) &&
+    saved.model === next.model.trim()
+  );
 }
