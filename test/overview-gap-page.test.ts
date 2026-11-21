@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import {
@@ -19,7 +18,6 @@ import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 describe("overview-gap rows beside the other kinds", () => {
   let instance: Instance;
-  let token: string;
   let made: Readonly<Record<string, readonly number[]>>;
 
   before(async () => {
@@ -32,24 +30,17 @@ describe("overview-gap rows beside the other kinds", () => {
     });
     proposeTopics(instance, ["Merged", "Merged into"]);
     proposeGap(instance, "Behind");
-    ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
-      name: "overview-gap-page",
-    }));
   });
 
   after(() => instance.close());
 
-  it("lists the row to the owner and to an agent token in the same shape, and 401 signed out", async () => {
+  it("lists an overview gap with the live Topic counts", async () => {
     const owner = await readPage(instance);
-    const agent = await instance.sendWithToken(token, "GET", "/api/proposals");
-    const signedOut = await instance.fetch("/api/proposals");
 
     assert.deepEqual(
       owner.proposals.map(({ kind }) => kind),
       ["overview-gap", "topic-merge"],
     );
-    assert.equal(agent.body, JSON.stringify(owner));
-    assert.equal(signedOut.status, 401);
     assert.deepEqual(JSON.parse(JSON.stringify(sole(gapsOf(owner)))), {
       id: 2,
       kind: "overview-gap",

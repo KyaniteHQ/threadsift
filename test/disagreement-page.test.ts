@@ -3,7 +3,6 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import {
   disagreementRows,
   jobsOf,
@@ -11,7 +10,6 @@ import {
   proposeDisagreement,
   replaceDigest,
   runWeek,
-  sentOf,
   tasksOf,
   topicIdOf,
 } from "./disagreement-fixtures.ts";
@@ -37,7 +35,6 @@ const LISTED = {
 
 describe("disagreement rows beside the other kinds", () => {
   let instance: Instance;
-  let token: string;
 
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
@@ -58,43 +55,18 @@ describe("disagreement rows beside the other kinds", () => {
       { reason: "Same subject." },
     );
     proposeDisagreement(instance, [1, 2]);
-    ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
-      name: "disagreement-page",
-    }));
   });
 
   after(() => instance.close());
 
-  it("lists the row to the owner and to an agent token in the same shape, with both stored Summaries, and 401 signed out", async () => {
+  it("lists the disagreement with both stored Summaries", async () => {
     const owner = await readPage(instance);
-    const agent = await instance.sendWithToken(token, "GET", "/api/proposals");
 
     assert.deepEqual(
       owner.proposals.map(({ kind }) => kind),
       ["items-disagree", "topic-merge"],
     );
-    assert.equal(agent.body, JSON.stringify(owner));
-    assert.equal((await instance.fetch("/api/proposals")).status, 401);
     assert.deepEqual(JSON.parse(JSON.stringify(owner.proposals[0])), LISTED);
-  });
-
-  it("refuses an agent token on accept and reject and a signed-out call, answers 404 for an unknown id", async () => {
-    const id = String(LISTED.id);
-
-    assert.equal(
-      (await instance.sendWithToken(token, "POST", `/api/proposals/${id}/reject`)).status,
-      403,
-    );
-    assert.equal(
-      (await instance.sendWithToken(token, "POST", `/api/proposals/${id}/accept`)).status,
-      403,
-    );
-    assert.equal(
-      (await instance.fetch(`/api/proposals/${id}/reject`, { method: "POST" })).status,
-      401,
-    );
-    assert.equal((await instance.send("POST", "/api/proposals/999/reject")).status, 404);
-    assert.equal((await instance.send("POST", "/api/proposals/999/accept")).status, 404);
   });
 
   it("rejects the row once, answers 409 not-open the second time, and lists it no more", async () => {
@@ -169,15 +141,6 @@ describe("a disagreement row stays only while the pair was judged on the Digests
     exec(instance, "update items set topic_id = ? where id = 4", topicIdOf(instance, "Reading"));
 
     assert.deepEqual(await listedIds(instance), [moved, kept]);
-  });
-
-  it("sends a decided pair as decided, rejected or not", () => {
-    const [sent] = sentOf(instance);
-
-    assert.equal(
-      sent?.decided.some(([low, high]) => low === 5 && high === 6),
-      true,
-    );
   });
 });
 

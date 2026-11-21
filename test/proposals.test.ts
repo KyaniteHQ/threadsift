@@ -9,6 +9,7 @@ import { Instance } from "./instance.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
 import { exec, paste, rows } from "./related-fixtures.ts";
+import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 const TagSchema = z.object({ id: z.number(), name: z.string() });
 
@@ -49,7 +50,11 @@ describe("the Proposals routes", () => {
     instance = await Instance.start();
     await instance.setUp();
     await paste(instance, "one", { title: "One", tags: ["machine learning", "ml", "llm"] });
-    await paste(instance, "two", { title: "Two", tags: ["machine learning", "llm", "llms"] });
+    await paste(instance, "two", {
+      title: "Two",
+      topic: "Readings",
+      tags: ["machine learning", "llm", "llms"],
+    });
     ids = tagIds(instance);
     ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
       name: "proposals",
@@ -146,22 +151,30 @@ describe("the Proposals routes", () => {
     assert.deepEqual(states(instance), ["open", "open", "declined", "rejected"]);
   });
 
-  it("moves an open row to rejected once, answers 409 not-open after, and lists it no more", async () => {
-    const [newest] = (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals;
+  it("rejects each open merge once, answers 409 not-open after, and lists neither decided row", async () => {
+    const [tag] = (await instance.read("GET", "/api/proposals", ProposalPageSchema)).proposals;
+    assert.ok(tag?.kind === "tag-merge");
+    const topic = proposeTopics(instance, ["Reading", "Readings"]);
 
-    assert.ok(newest !== undefined);
+    const rejectOnce = async (proposalId: number) => {
+      const path = `/api/proposals/${String(proposalId)}/reject`;
+      const first = await instance.send("POST", path);
+      const second = await instance.send("POST", path);
 
-    const path = `/api/proposals/${String(newest.id)}/reject`;
-    const first = await instance.send("POST", path);
-    const second = await instance.send("POST", path);
+      assert.deepEqual([first.status, first.body], [200, JSON.stringify({ state: "rejected" })]);
+      assert.deepEqual([second.status, second.body], [409, JSON.stringify({ error: "not-open" })]);
+    };
 
-    assert.deepEqual([first.status, first.body], [200, JSON.stringify({ state: "rejected" })]);
-    assert.deepEqual([second.status, second.body], [409, JSON.stringify({ error: "not-open" })]);
-    assert.deepEqual(states(instance), ["open", "rejected", "declined", "rejected"]);
+    await rejectOnce(topic);
+    await rejectOnce(tag.id);
+    assert.deepEqual(states(instance), ["open", "rejected", "declined", "rejected", "rejected"]);
 
     const page = await instance.read("GET", "/api/proposals", ProposalPageSchema);
 
-    assert.equal(page.proposals.length, 1);
+    assert.deepEqual(
+      page.proposals.map(({ kind }) => kind),
+      ["tag-merge"],
+    );
     assert.equal((await instance.send("POST", "/api/proposals/abc/reject")).status, 400);
   });
 

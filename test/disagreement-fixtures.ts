@@ -1,9 +1,5 @@
-import assert from "node:assert/strict";
-
 import { z } from "zod";
 
-import type { Database } from "../src/core/kernel/database.ts";
-import { readDisagreementInput } from "../src/features/wiki/core/disagreement-input.ts";
 import type { Instance } from "./instance.ts";
 import { script } from "./pin-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
@@ -16,7 +12,6 @@ export interface Seeded {
   readonly savedAt?: number;
   readonly title?: string;
   readonly summary?: string;
-  readonly digest?: string;
 }
 
 const quoted = (text: string): string => text.replaceAll("'", "''");
@@ -213,19 +208,6 @@ export async function replaceDigest(
   );
 }
 
-export function runningTask(instance: Instance): number {
-  exec(
-    instance,
-    "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state) values ('disagreement_proposals', '{}', 0, 'cli', 1, 4102444800000, 'running')",
-  );
-
-  const [row] = rows(instance, z.object({ id: z.number() }), "select max(id) as id from ai_tasks");
-
-  if (row === undefined) throw new Error("no AI task was stored");
-
-  return row.id;
-}
-
 export const taskState = (instance: Instance, id: number): string | undefined =>
   rows(instance, z.object({ state: z.string() }), "select state from ai_tasks where id = ?", id)[0]
     ?.state;
@@ -245,11 +227,3 @@ export const topicIdOf = (instance: Instance, name: string): number => {
 
   return row.id;
 };
-
-export async function sentTopics(db: Database) {
-  const read = await readDisagreementInput(db);
-
-  assert.ok(read !== null);
-
-  return read.sent;
-}

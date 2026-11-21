@@ -1,11 +1,9 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { AI_INPUT_BYTES } from "../src/core/contract/ai-contract.ts";
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
 import {
   type Candidate,
-  MERGE_PAIRS_PER_RUN,
   candidatePairs,
   disjointPairs,
   pairKey,
@@ -94,7 +92,7 @@ describe("the plain check picks the pairs of Tags that may name one concept, in 
     ]).flat();
 
     assert.equal(candidatePairs(tags, new Set()).length, 25);
-    assert.equal(disjointPairs(candidatePairs(tags, new Set())).length, MERGE_PAIRS_PER_RUN);
+    assert.equal(disjointPairs(candidatePairs(tags, new Set())).length, 20);
   });
 });
 
@@ -107,7 +105,7 @@ function sent(id: number, name: string): SentPair {
 describe("the input of a weekly run holds whole pairs within 14,000 bytes", () => {
   it("adds each pair whole in order and skips one that does not fit", () => {
     const small = sent(1, "a");
-    const big = sent(3, "b".repeat(AI_INPUT_BYTES));
+    const big = sent(3, "b".repeat(7_000));
     const last = sent(5, "c");
     const { input, sent: kept } = proposalsInput([small, big, last]);
 
@@ -121,7 +119,7 @@ describe("the input of a weekly run holds whole pairs within 14,000 bytes", () =
         ],
       }),
     );
-    assert.ok(new TextEncoder().encode(input).length <= AI_INPUT_BYTES);
+    assert.ok(new TextEncoder().encode(input).length <= 14_000);
   });
 });
 

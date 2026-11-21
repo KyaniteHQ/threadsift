@@ -1,8 +1,16 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { runWeek, seedDigested, seedTopics, sentOf, tasksOf } from "./disagreement-fixtures.ts";
+import {
+  jobsOf,
+  runWeek,
+  seedDigested,
+  seedTopics,
+  sentOf,
+  tasksOf,
+} from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { claims } from "./lost-highlight-fixtures.ts";
 import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
 
 const span = (from: number, count: number): readonly number[] =>
@@ -56,6 +64,11 @@ describe("a Topic is read again only when the exact list of its newest 12 Items 
   it("builds in SQL the text a Topic of 2, 12 and 13 Items would store, so no stored Topic is read", async () => {
     await runWeek(instance);
 
+    assert.equal(claims(instance, "disagreement_proposals").length, 1);
+    assert.deepEqual(
+      jobsOf(instance).map(({ state }) => state),
+      ["done"],
+    );
     assert.deepEqual(tasksOf(instance), []);
   });
 

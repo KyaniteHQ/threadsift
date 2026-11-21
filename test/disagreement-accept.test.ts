@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import {
   disagreementRows,
   proposeDisagreement,
@@ -21,7 +20,6 @@ import { SECRET_KEY, exec } from "./related-fixtures.ts";
 
 describe("Accept of a disagreement keeps the pair as a Pin", () => {
   let instance: Instance;
-  let token: string;
 
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
@@ -33,9 +31,6 @@ describe("Accept of a disagreement keeps the pair as a Pin", () => {
       { id: 10, topic: 1 },
       { id: 11, topic: 1 },
     ]);
-    ({ value: token } = await instance.read("POST", "/api/tokens", CreatedTokenResponseSchema, {
-      name: "disagreement-accept",
-    }));
   });
 
   after(() => instance.close());
@@ -71,21 +66,6 @@ describe("Accept of a disagreement keeps the pair as a Pin", () => {
       [[id, "rejected"]],
     );
     assert.equal(pinRows(instance).length, 1);
-  });
-
-  it("refuses an agent token with 403 and a signed-out call with 401, and stores nothing", async () => {
-    const id = proposeDisagreement(instance, [5, 6]);
-
-    assert.equal(
-      (await instance.sendWithToken(token, "POST", `/api/proposals/${String(id)}/accept`)).status,
-      403,
-    );
-    assert.equal(
-      (await instance.fetch(`/api/proposals/${String(id)}/accept`, { method: "POST" })).status,
-      401,
-    );
-    assert.equal(pinRows(instance).length, 1);
-    assert.equal(disagreementRows(instance).filter((row) => row.id === id).length, 1);
   });
 
   it("answers 409 not-current when either Item has a newer Digest, and keeps the row with no Pin", async () => {

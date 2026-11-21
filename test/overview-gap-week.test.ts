@@ -45,6 +45,8 @@ describe("the weekly overview check with no Provider saved", () => {
     await nextTick(instance);
 
     assert.equal(claims(instance, TASK).length, 1);
+    assert.deepEqual(overviewJobs(instance), []);
+    assert.equal(count(instance, OVERVIEW_TASKS), 0);
     assert.deepEqual(gapTopics(instance), ["Single", "Behind"]);
     assert.deepEqual(
       gapRows(instance).map(({ state, reason }) => [state, reason]),
@@ -64,11 +66,6 @@ describe("the weekly overview check with no Provider saved", () => {
       ["Behind", 3, 3],
       ["Single", 1, 1],
     ]);
-  });
-
-  it("makes no job and no overview task", () => {
-    assert.deepEqual(overviewJobs(instance), []);
-    assert.equal(count(instance, OVERVIEW_TASKS), 0);
   });
 });
 
