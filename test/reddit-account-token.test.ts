@@ -1,10 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import {
-  RedditAccountSaveResponseSchema,
-  RedditAccountViewSchema,
-} from "../src/core/contract/reddit-account-contract.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { PATH, SECRET_KEY, SESSION, account, connect } from "./reddit-account-fixtures.ts";
@@ -72,24 +68,17 @@ describe("an agent token reaches the Reddit account only through the reddit scop
     const viaOwner = await instance.send("PUT", PATH, { session: SESSION });
 
     assert.equal(viaToken.status, viaOwner.status);
-    assert.deepEqual(
-      RedditAccountSaveResponseSchema.parse(JSON.parse(viaToken.body)),
-      RedditAccountSaveResponseSchema.parse(JSON.parse(viaOwner.body)),
-    );
+    const connected = { state: "connected", secretReady: true };
+    assert.deepEqual(JSON.parse(viaToken.body), connected);
+    assert.deepEqual(JSON.parse(viaOwner.body), connected);
 
     const read = await instance.sendWithToken(value, "GET", TOKEN_PATH);
 
-    assert.deepEqual(RedditAccountViewSchema.parse(JSON.parse(read.body)), {
-      state: "connected",
-      secretReady: true,
-    });
+    assert.deepEqual(JSON.parse(read.body), connected);
 
     const removed = await instance.sendWithToken(value, "DELETE", TOKEN_PATH);
 
-    assert.deepEqual(RedditAccountViewSchema.parse(JSON.parse(removed.body)), {
-      state: "none",
-      secretReady: true,
-    });
+    assert.deepEqual(JSON.parse(removed.body), { state: "none", secretReady: true });
     assert.deepEqual(account(instance), []);
 
     const bodies = [viaToken.body, read.body, removed.body];
