@@ -147,6 +147,10 @@ export class Instance {
     return this.cookie;
   }
 
+  get routes() {
+    return this.app.routes;
+  }
+
   get core(): Ports {
     return this.ports;
   }

@@ -165,17 +165,6 @@ describe("the Proposals routes", () => {
     assert.equal((await instance.send("POST", "/api/proposals/abc/reject")).status, 400);
   });
 
-  it("describes both routes in the OpenAPI document", async () => {
-    const document = z
-      .object({ paths: z.record(z.string(), z.unknown()) })
-      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
-
-    assert.deepEqual(
-      ["/api/proposals", "/api/proposals/{id}/reject"].map((path) => path in document.paths),
-      [true, true],
-    );
-  });
-
   it("leaves rows alone when an Item is deleted, with the counts shrinking live", async () => {
     const unchanged = states(instance);
     const [only] = mergesOf(await instance.read("GET", "/api/proposals", ProposalPageSchema));

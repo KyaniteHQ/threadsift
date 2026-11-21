@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
 import { Instance } from "./instance.ts";
@@ -44,19 +42,5 @@ describe("the Grok Bot settings are reached only by the signed-in owner", () => 
     );
 
     assert.deepEqual(statuses, [401, 401, 401, 401]);
-  });
-
-  it("describes the four calls in the OpenAPI document", async () => {
-    const document = z
-      .object({ paths: z.record(z.string(), z.record(z.string(), z.unknown())) })
-      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
-
-    assert.deepEqual(
-      [
-        Object.keys(document.paths[PATH] ?? {}).toSorted(),
-        Object.keys(document.paths[`${PATH}/test`] ?? {}),
-      ],
-      [["delete", "get", "put"], ["post"]],
-    );
   });
 });

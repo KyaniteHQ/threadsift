@@ -84,14 +84,6 @@ describe("the Topic page lists the disagreement Pins that still hold", () => {
     assert.equal((await topicDisagreements(instance, "reading")).length, 1);
     assert.equal(pinRows(instance).length, 1);
   });
-
-  it("answers the closed OpenAPI route with the new field", async () => {
-    const document = z
-      .object({ paths: z.record(z.string(), z.unknown()) })
-      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
-
-    assert.match(JSON.stringify(document.paths["/api/topics/{key}"]), /"disagreements":\{/u);
-  });
 });
 
 describe("the Topic page shows at most 20 entries, newest first", () => {

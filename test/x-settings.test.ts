@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import {
   type XReaderChoice,
@@ -85,14 +83,6 @@ describe("the X settings report the reader of X links and let the owner choose i
       401,
     );
     assert.equal((await instance.read("GET", PATH, XSettingsViewSchema)).reader, "grok-bot");
-  });
-
-  it("describes the read and the change in the OpenAPI document", async () => {
-    const document = z
-      .object({ paths: z.record(z.string(), z.record(z.string(), z.unknown())) })
-      .parse(JSON.parse((await instance.send("GET", "/api/openapi.json")).body));
-
-    assert.deepEqual(Object.keys(document.paths[PATH] ?? {}).toSorted(), ["get", "put"]);
   });
 });
 
