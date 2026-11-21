@@ -5,11 +5,6 @@ import { AI_TEXT } from "./ai-text.ts";
 import { type AiPhase, LEAVING, type Outcome } from "./use-ai-phase.ts";
 import type { FieldState } from "./use-form.ts";
 
-export interface Connection {
-  readonly connect: () => void;
-  readonly connecting: boolean;
-}
-
 const FAILURE_TEXT = {
   stale: AI_TEXT.connectStale,
   unavailable: AI_TEXT.connectUnavailable,
@@ -38,14 +33,14 @@ export function useConnect(
   view: AiView,
   fields: Readonly<{ model: FieldState; key: FieldState }>,
   flow: Readonly<AiPhase>,
-): Connection {
-  const { phase, run, refuse } = flow;
+): () => void {
+  const { run, refuse, clear } = flow;
   const { model, key } = fields;
   const { value: modelValue, fail: failModel } = model;
   const { clear: clearKey } = key;
   const { secretReady, revision } = view;
 
-  const connect = useCallback(() => {
+  return useCallback(() => {
     if (!secretReady) {
       refuse(AI_TEXT["secret-missing"]);
 
@@ -55,6 +50,7 @@ export function useConnect(
     failModel(null);
 
     if (modelValue.trim() === "") {
+      clear();
       failModel(AI_TEXT.connectModelNeeded);
 
       return;
@@ -70,7 +66,5 @@ export function useConnect(
 
       return LEAVING;
     });
-  }, [secretReady, modelValue, revision, failModel, clearKey, run, refuse]);
-
-  return { connect, connecting: phase === "connecting" || phase === LEAVING };
+  }, [secretReady, modelValue, revision, failModel, clearKey, run, refuse, clear]);
 }

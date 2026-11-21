@@ -12,6 +12,7 @@ import type { Scope } from "../../src/core/contract/agent-token-contract.ts";
 import { ErrorResponseSchema } from "../../src/core/contract/error-wire.ts";
 import type { PasswordProblem } from "../../src/core/contract/passwords.ts";
 import type { SetupCodeProblem } from "../../src/core/contract/setup-code.ts";
+import { SECOND_MS, wholeMillisecondsOf } from "../../src/core/contract/time-units.ts";
 import { type JsonBody, call, callOk, del, parsedFrom, patch, post } from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
@@ -63,9 +64,12 @@ async function refusalOf(response: Response): Promise<Refusal> {
   }
 
   if (code === "locked") {
-    const seconds = Number(response.headers.get("retry-after"));
+    const wait = wholeMillisecondsOf(response.headers.get("retry-after"));
 
-    return { kind: "locked", retryAfter: seconds > 0 ? seconds : DEFAULT_RETRY_SECONDS };
+    return {
+      kind: "locked",
+      retryAfter: wait !== null && wait > 0 ? wait / SECOND_MS : DEFAULT_RETRY_SECONDS,
+    };
   }
 
   return REFUSALS[code];

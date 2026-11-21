@@ -112,7 +112,7 @@ export function useGithubForm(view: GithubSettingsView, changed: Changed) {
     check: "verify",
     labels: LABELS,
     unavailable,
-    nothingSaved: view.token === "none",
+    showReason: view.token === "none",
     press: { check: verifyNow, remove: removeNow },
   });
 

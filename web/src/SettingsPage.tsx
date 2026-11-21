@@ -1,6 +1,3 @@
-import { useCallback, useState } from "react";
-
-import { logOut } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { ObsidianLink } from "./ObsidianLink.tsx";
 import { PageBar } from "./PageBar.tsx";
@@ -27,15 +24,6 @@ export function SettingsPage({
 
   useHashTarget(loaded !== null);
 
-  const [failed, setFailed] = useState(false);
-
-  const signOut = useCallback(() => {
-    setFailed(false);
-    logOut().then(loggedOut, () => {
-      setFailed(true);
-    });
-  }, [loggedOut]);
-
   return (
     <div className="pg">
       <PageBar title={SETTINGS.title} back={back} />
@@ -45,7 +33,7 @@ export function SettingsPage({
         ) : (
           <>
             <ObsidianLink open={openObsidian} />
-            <SettingsSections loaded={loaded} signOut={signOut} signOutFailed={failed} />
+            <SettingsSections loaded={loaded} loggedOut={loggedOut} />
           </>
         )}
       </main>

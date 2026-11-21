@@ -1,86 +1,21 @@
-import { useCallback, useState, type ChangeEvent } from "react";
+import { useCallback } from "react";
 
 import type { AiRefused } from "../../src/core/contract/ai-contract.ts";
 import { AiSettingsInputSchema } from "../../src/core/contract/ai-settings-contract.ts";
 import {
   GROK_BOT_PROVIDER,
   PROVIDERS,
-  ProviderSchema,
-  CliChoiceSchema,
-  type CliChoice,
   type Provider,
   isCliProvider,
-  withoutTrailingSlashes,
+  isKeyless,
+  keyApplies,
 } from "../../src/core/contract/provider-families.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
+import { FIELD_TEXT } from "./text.ts";
+import { useAiFields } from "./use-ai-fields.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
 import { useConnect } from "./use-connect.ts";
-import { useField } from "./use-form.ts";
-
-function useCliChoice(
-  savedChoice: CliChoice | undefined,
-  provider: Provider,
-  recommendations: Readonly<AiView["recommendations"]>,
-) {
-  const [choice, setChoice] = useState(savedChoice);
-  const recommendation = isCliProvider(provider) ? recommendations[provider] : undefined;
-  const preference = choice ?? (recommendation === undefined ? "cli-defaults" : "recommended");
-  const fallsBack = preference === "recommended" && recommendation === undefined;
-  const cliChoice = fallsBack ? "cli-defaults" : preference;
-
-  const changeCliChoice = useCallback((event: ChangeEvent<HTMLSelectElement>) => {
-    setChoice(CliChoiceSchema.parse(event.target.value));
-  }, []);
-
-  return { preference, cliChoice, fallsBack, recommendation, setChoice, changeCliChoice } as const;
-}
-
-function useAiFields(view: AiView) {
-  const { settings, providers, recommendations } = view;
-  const offered = settings !== null && providers.includes(settings.provider) ? settings : null;
-
-  const [provider, setProvider] = useState<Provider>(
-    offered?.provider ?? providers[0] ?? PROVIDERS["openai-compatible"].id,
-  );
-
-  const baseUrl = useField(null, offered?.provider === "openai-compatible" ? offered.baseUrl : "");
-  const model = useField(null, offered?.model ?? "");
-  const savedEffort = offered && "effort" in offered ? offered.effort : "";
-  const savedChoice = offered && "choice" in offered ? offered.choice : undefined;
-  const { setChoice, ...cli } = useCliChoice(savedChoice, provider, recommendations);
-  const effort = useField(null, savedEffort);
-  const { set: setEffort } = effort;
-  const key = useField();
-  const { clear: clearKey } = key;
-
-  const { set: setModel } = model;
-  const savedProvider = offered?.provider;
-  const savedModel = offered?.model ?? "";
-
-  const changeProvider = useCallback(
-    (event: ChangeEvent<HTMLSelectElement>) => {
-      const next = ProviderSchema.parse(event.target.value);
-      setProvider(next);
-      setModel(next === savedProvider ? savedModel : "");
-      setEffort(next === savedProvider ? savedEffort : "");
-      setChoice(next === savedProvider ? savedChoice : undefined);
-      clearKey();
-    },
-    [clearKey, setModel, savedProvider, savedModel, setEffort, savedEffort, savedChoice, setChoice],
-  );
-
-  return {
-    provider,
-    providers,
-    ...cli,
-    baseUrl,
-    model,
-    effort,
-    key,
-    changeProvider,
-  } as const;
-}
 
 function refusalText(refusal: AiRefused, provider: Provider): string {
   if (refusal.reason === "invalid-effort")
@@ -108,12 +43,6 @@ function failureText(
   return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
 }
 
-function needsSecret(provider: Provider): boolean {
-  const { kind } = PROVIDERS[provider];
-
-  return kind === "http" || kind === "bot";
-}
-
 function holdsUnreadableKey({ secretReady, settings }: Readonly<AiView>): boolean {
   return secretReady && settings !== null && "keyReadable" in settings && !settings.keyReadable;
 }
@@ -129,7 +58,7 @@ function signedOutText(view: Readonly<AiView>, provider: Provider): string | nul
 }
 
 function saveUnavailable(view: Readonly<AiView>, provider: Provider): string | null {
-  if (needsSecret(provider) && !view.secretReady) return AI_TEXT["secret-missing"];
+  if (!isKeyless(provider) && !view.secretReady) return AI_TEXT["secret-missing"];
 
   return signedOutText(view, provider);
 }
@@ -186,14 +115,11 @@ function savedKeyOf(
   if (holdsUnreadableKey(view)) return "unreadable";
 
   const family = PROVIDERS[form.provider];
-  const url = "baseUrl" in family.fields ? withoutTrailingSlashes(form.baseUrl) : family.url;
+  const baseUrl = "baseUrl" in family.fields ? form.baseUrl : family.url;
 
-  const same =
-    settings.provider === form.provider &&
-    settings.baseUrl === url &&
-    settings.model === form.model.trim();
-
-  return same ? "applies" : "changed";
+  return keyApplies(settings, { provider: form.provider, baseUrl, model: form.model })
+    ? "applies"
+    : "changed";
 }
 
 function settingsInput(fields: ReturnType<typeof useAiFields>) {
@@ -211,7 +137,7 @@ function settingsInput(fields: ReturnType<typeof useAiFields>) {
   return AiSettingsInputSchema.parse({ provider, ...Object.fromEntries(entries) });
 }
 
-export function missingCustomOverrides(fields: Readonly<ReturnType<typeof useAiFields>>): boolean {
+function missingCustomOverrides(fields: Readonly<ReturnType<typeof useAiFields>>): boolean {
   return (
     isCliProvider(fields.provider) &&
     fields.preference === "custom" &&
@@ -220,10 +146,24 @@ export function missingCustomOverrides(fields: Readonly<ReturnType<typeof useAiF
   );
 }
 
+function blankModel(fields: Readonly<ReturnType<typeof useAiFields>>): boolean {
+  return (
+    !isCliProvider(fields.provider) &&
+    "model" in PROVIDERS[fields.provider].fields &&
+    fields.model.value.trim() === ""
+  );
+}
+
+function modelRefusal(fields: Readonly<ReturnType<typeof useAiFields>>): string | null {
+  if (missingCustomOverrides(fields)) return AI_TEXT.customMissing;
+
+  return blankModel(fields) ? FIELD_TEXT.required : null;
+}
+
 function useSave(
   view: AiView,
   fields: ReturnType<typeof useAiFields>,
-  { run, refuse }: Readonly<Pick<AiPhase, "run" | "refuse">>,
+  { run, refuse, clear }: Readonly<Pick<AiPhase, "run" | "refuse" | "clear">>,
   saved: (view: AiView) => void,
 ) {
   const {
@@ -239,8 +179,12 @@ function useSave(
       return;
     }
 
-    if (missingCustomOverrides(fields)) {
-      fields.model.fail(AI_TEXT.customMissing);
+    const refusal = modelRefusal(fields);
+
+    if (refusal !== null) {
+      clear();
+      fields.model.fail(refusal);
+
       return;
     }
 
@@ -254,7 +198,7 @@ function useSave(
 
       return { kind: "ok", text: AI_TEXT.saved };
     });
-  }, [unavailable, refuse, run, fields, provider, clearKey, saved]);
+  }, [unavailable, refuse, clear, run, fields, provider, clearKey, saved]);
 
   return { submit, saveBlocked: unavailable !== null };
 }
@@ -266,7 +210,7 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
 
   const { verifyNow, verifyBlocked, verifyHint } = useVerify(view, flow);
   const { submit, saveBlocked } = useSave(view, fields, flow, saved);
-  const connection = useConnect(view, fields, flow);
+  const connect = useConnect(view, fields, flow);
   const savedKey = savedKeyOf(view, { provider, baseUrl: baseUrl.value, model: model.value });
 
   return {
@@ -280,6 +224,6 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
     saveBlocked,
     verifyBlocked,
     verifyHint,
-    connection,
+    connect,
   };
 }

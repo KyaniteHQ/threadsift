@@ -11,7 +11,7 @@ import {
 import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
-import { missingCustomOverrides, type SavedKey, type useAiForm } from "./use-ai-form.ts";
+import type { SavedKey, useAiForm } from "./use-ai-form.ts";
 
 type Fields = ReturnType<typeof useAiForm>["fields"];
 
@@ -175,13 +175,6 @@ function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disab
   );
 }
 
-function fieldFor(fields: Fields, name: keyof typeof FIELD_KINDS) {
-  const field = fields[name];
-  return name === "model" && field.error !== null && !missingCustomOverrides(fields)
-    ? { ...field, error: null }
-    : field;
-}
-
 export function AiFields({
   fields,
   disabled,
@@ -210,7 +203,7 @@ export function AiFields({
       {kinds.map(({ name, kind }) => (
         <FormField
           key={name}
-          field={fieldFor(fields, name)}
+          field={fields[name]}
           label={AI_TEXT[name]}
           kind={kind}
           marked={marked}

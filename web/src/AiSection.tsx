@@ -72,7 +72,7 @@ function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] 
       label: AI_TEXT.connect,
       busyLabel: AI_TEXT.connecting,
       blocked: !view.secretReady,
-      onClick: form.connection.connect,
+      onClick: form.connect,
       secondary: true,
     },
   ];

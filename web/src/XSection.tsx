@@ -1,10 +1,13 @@
+import { useCallback, useState } from "react";
+
 import type { XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Command } from "./Command.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { RadioChoice } from "./RadioChoice.tsx";
+import type { Loaded } from "./settings-load-types.ts";
 import { useSaveOnPick } from "./use-save-on-pick.ts";
-import { saveXReader } from "./x-api.ts";
+import { fetchXSettings, saveXReader } from "./x-api.ts";
 import { BOT_STATES, READER_HELP, READER_LABELS, X_STATES, X_TEXT } from "./x-text.ts";
 
 const LABEL_ID = "x-reader-label";
@@ -129,3 +132,22 @@ export const X_SECTION: SectionSpec<XSettingsView> = {
   loadFailed: X_TEXT.loadFailed,
   Form: XRows,
 };
+
+export function useXRefresh(initial: Loaded<XSettingsView>) {
+  const [x, setX] = useState(initial);
+  const [version, setVersion] = useState(0);
+
+  const refresh = useCallback(() => {
+    void fetchXSettings(new AbortController().signal).then(
+      (view) => {
+        setX({ kind: "ready", view });
+        setVersion((current) => current + 1);
+
+        return null;
+      },
+      () => null,
+    );
+  }, []);
+
+  return { x, version, refresh };
+}

@@ -8,6 +8,7 @@ import {
   PROVIDERS,
   type ProviderOf,
   hasKind,
+  keyApplies,
   withoutTrailingSlashes,
 } from "../../../core/contract/provider-families.ts";
 import type { settings } from "../../../core/kernel/ai-settings-tables.ts";
@@ -67,9 +68,7 @@ export async function nextSettings(
   const same =
     saved !== undefined &&
     saved.sealedKey !== null &&
-    saved.provider === input.provider &&
-    saved.baseUrl === baseUrl &&
-    saved.model === input.model;
+    keyApplies(saved, { provider: input.provider, baseUrl, model: input.model });
 
   if (input.key === undefined && !same) return refusedAi("key-needed");
 

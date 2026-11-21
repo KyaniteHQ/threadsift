@@ -91,20 +91,18 @@ async function sendMissing(
   file: Chosen,
   target: Target,
   progress: UploadSteps["progress"],
-  at = 0,
 ): Promise<Sent> {
-  const part = missingParts(target)[at];
+  for (const [at, part] of missingParts(target).entries()) {
+    const start = (part - 1) * target.partBytes;
+    // oxlint-disable-next-line eslint/no-await-in-loop -- Parts go one after the other, so a lost part ends the upload at the first one missing.
+    const sent = await sendOnce(target.id, part, file.slice(start, start + target.partBytes));
 
-  if (part === undefined) return { kind: "sent" };
+    if (sent.kind !== "sent") return sent;
 
-  const start = (part - 1) * target.partBytes;
-  const sent = await sendOnce(target.id, part, file.slice(start, start + target.partBytes));
+    progress({ kind: "sending", sent: target.received.length + at + 1, parts: target.parts });
+  }
 
-  if (sent.kind !== "sent") return sent;
-
-  progress({ kind: "sending", sent: target.received.length + at + 1, parts: target.parts });
-
-  return sendMissing(file, target, progress, at + 1);
+  return { kind: "sent" };
 }
 
 async function startedFrom({ id }: Target, { refresh }: UploadSteps): Promise<Outcome | null> {

@@ -1,5 +1,6 @@
 import { groupedNumber } from "../../src/core/contract/format.ts";
 import type { SkipReason } from "../../src/core/contract/import-list.ts";
+import { REDDIT_WINDOW_REQUESTS } from "../../src/core/contract/limits.ts";
 import type { CliProvider } from "../../src/core/contract/provider-families.ts";
 import { RETRY_LABEL, filled } from "./text.ts";
 
@@ -34,11 +35,11 @@ export const IMPORT = {
   redditSettingsLink: "Reddit account settings",
 } as const;
 
-const REDDIT_NOTE_ONE =
-  "1 of the links is a Reddit post or comment, which Threadsift reads with the connected Reddit account. Reddit allows about 100 requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.";
+const REDDIT_WAIT = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.`;
 
-const REDDIT_NOTE_MANY =
-  "{count} of the links are Reddit posts or comments, which Threadsift reads one at a time with the connected Reddit account. Reddit allows about 100 requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.";
+const REDDIT_NOTE_ONE = `1 of the links is a Reddit post or comment, which Threadsift reads with the connected Reddit account. ${REDDIT_WAIT}`;
+
+const REDDIT_NOTE_MANY = `{count} of the links are Reddit posts or comments, which Threadsift reads one at a time with the connected Reddit account. ${REDDIT_WAIT}`;
 
 const REDDIT_DONE_ONE =
   "1 Reddit link is saved. Reading continues in the background, and the library shows each link’s wait.";
