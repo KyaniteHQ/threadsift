@@ -1,6 +1,6 @@
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { ItemsDisagreeProposal } from "../../src/core/contract/proposal-contract.ts";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { reasonId, sidesId } from "./proposal-dom.ts";
 import { ITEMS_DISAGREE_EFFECT, PROPOSAL_WORDS, sideNamedWords } from "./proposals-text.ts";
 import { TopicEffect } from "./TopicEffect.tsx";
@@ -8,14 +8,12 @@ import { TopicEffect } from "./TopicEffect.tsx";
 type Side = ItemsDisagreeProposal["first"];
 
 function SideOf({ side, other }: Readonly<{ side: Side; other: Side }>) {
-  const go = useNavigateLink(itemPath(side.id));
-
   return (
     <li className="pr-side">
-      <a className="pr-place pr-side-title" href={itemPath(side.id)} onClick={go}>
+      <InternalLink className="pr-place pr-side-title" to={itemPath(side.id)}>
         <bdi dir="auto">{side.title}</bdi>
         <span className="vh">, {sideNamedWords(other.title)}</span>
-      </a>
+      </InternalLink>
       <p className="rl-sum pr-side-summary" dir="auto">
         <span className="vh">{PROPOSAL_WORDS.summaryLabel}: </span>
         {side.summary}

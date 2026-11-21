@@ -2,20 +2,19 @@ import { memo, useId } from "react";
 
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { Related as RelatedEntries } from "../../src/core/contract/related-contract.ts";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { RELATED } from "./reader-text.ts";
 import { SOURCE_LABELS } from "./text.ts";
 
 const Entry = memo(function Entry({ entry }: Readonly<{ entry: RelatedEntries[number] }>) {
   const reasonId = useId();
-  const open = useNavigateLink(itemPath(entry.id));
 
   return (
     <li className="rel-entry">
       <p className="rel-src">{SOURCE_LABELS[entry.source]}</p>
-      <a className="rel-link" href={itemPath(entry.id)} aria-describedby={reasonId} onClick={open}>
+      <InternalLink className="rel-link" to={itemPath(entry.id)} aria-describedby={reasonId}>
         <bdi dir="auto">{entry.title ?? RELATED.untitled}</bdi>
-      </a>
+      </InternalLink>
       <p id={reasonId} className="rel-reason" dir="auto">
         {entry.reason}
       </p>

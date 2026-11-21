@@ -7,7 +7,7 @@ import { PROBED_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/x";
 
-export function fetchXSettings(signal: AbortSignal) {
+export function fetchXSettings(signal?: AbortSignal) {
   return parsedFrom("GET", ENDPOINT, XSettingsViewSchema, { signal });
 }
 

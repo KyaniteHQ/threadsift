@@ -1,5 +1,5 @@
 import { topicPath } from "../../src/core/contract/topic-path.ts";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 
 export function TopicEffect({
   effect,
@@ -8,14 +8,12 @@ export function TopicEffect({
   effect: Readonly<{ before: string; after: string }>;
   topic: Readonly<{ key: string; name: string }>;
 }>) {
-  const go = useNavigateLink(topicPath(topic.key));
-
   return (
     <h3 className="rl-title pr-effect">
       {effect.before}
-      <a className="pr-place" href={topicPath(topic.key)} onClick={go}>
+      <InternalLink className="pr-place" to={topicPath(topic.key)}>
         <bdi dir="auto">{topic.name}</bdi>
-      </a>
+      </InternalLink>
       {effect.after}
     </h3>
   );

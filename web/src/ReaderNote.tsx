@@ -1,14 +1,14 @@
 import { useCallback } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import { noteOf, offersFetchRetry } from "./paste-card.ts";
+import { noteOf, offersFetchRetry, rejectsToken } from "./paste-card.ts";
 import { NOTICES, RETRY_LABEL, failureTitleOf } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";
 
 function noteTextOf(item: Readonly<Item>): string | null {
   if (item.status === "failed") return failureTitleOf(item);
 
-  if (item.fetch === "github-token") return null;
+  if (rejectsToken(item)) return null;
 
   const key = noteOf(item);
 

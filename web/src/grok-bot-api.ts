@@ -10,7 +10,7 @@ import { DATABASE_WRITE_DEADLINE_MS, HOP_WRITE_DEADLINE_MS } from "./write-deadl
 
 const ENDPOINT = "/api/settings/grok-bot";
 
-export function fetchGrokBotSettings(signal: AbortSignal) {
+export function fetchGrokBotSettings(signal?: AbortSignal) {
   return parsedFrom("GET", ENDPOINT, GrokBotViewSchema, { signal });
 }
 

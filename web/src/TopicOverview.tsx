@@ -5,28 +5,23 @@ import {
   overviewLines,
   overviewTokens,
 } from "../../src/core/contract/topic-overview-contract.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { keyed } from "./keyed.ts";
-import { useNavigateLink } from "./navigate-context.ts";
 import { RETRY_LABEL } from "./text.ts";
 import { TOPIC_PAGE, builtFromLabel, citationLabel } from "./topic-text.ts";
 
 type Cited = Overview["cited"][number];
 
 function Citation({ source }: Readonly<{ source: Cited }>) {
-  const to = itemPath(source.id);
-
-  const open = useNavigateLink(to);
-
   return (
-    <a
+    <InternalLink
       className="tp-cite"
-      href={to}
+      to={itemPath(source.id)}
       title={source.title}
       aria-label={citationLabel(source.title)}
-      onClick={open}
     >
       <bdi dir="auto">{source.title}</bdi>
-    </a>
+    </InternalLink>
   );
 }
 

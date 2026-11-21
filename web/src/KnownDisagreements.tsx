@@ -1,6 +1,6 @@
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { TopicPage } from "../../src/core/contract/topic-overview-contract.ts";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { TOPIC_PAGE } from "./topic-text.ts";
 
 type Disagreement = TopicPage["disagreements"][number];
@@ -8,15 +8,11 @@ type Disagreement = TopicPage["disagreements"][number];
 type Side = Disagreement["items"][number];
 
 function SideLink({ side }: Readonly<{ side: Side }>) {
-  const to = itemPath(side.id);
-
-  const open = useNavigateLink(to);
-
   return (
     <li>
-      <a className="tp-dis-link" href={to} onClick={open}>
+      <InternalLink className="tp-dis-link" to={itemPath(side.id)}>
         <bdi dir="auto">{side.title}</bdi>
-      </a>
+      </InternalLink>
     </li>
   );
 }

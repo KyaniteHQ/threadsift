@@ -4,9 +4,9 @@ import { itemPath } from "../../src/core/contract/item-path.ts";
 import { LOG } from "../../src/core/contract/log-actions.ts";
 import type { LogEntry } from "../../src/core/contract/log-contract.ts";
 import { topicPath } from "../../src/core/contract/topic-path.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { localStamp } from "./log-date.ts";
 import { LOG_WORDS, addedRemoved, itemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
-import { LogLink } from "./LogLink.tsx";
 import { topicLinkLabel } from "./topic-text.ts";
 
 function Separator() {
@@ -32,12 +32,22 @@ function Parts({ children }: Readonly<{ children: readonly Part[] }>) {
 }
 
 function ItemLink({ item }: Readonly<{ item: { readonly id: number; readonly title: string } }>) {
-  return <LogLink href={itemPath(item.id)} text={item.title} />;
+  return (
+    <InternalLink className="lg-link" to={itemPath(item.id)}>
+      <bdi dir="auto">{item.title}</bdi>
+    </InternalLink>
+  );
 }
 
 function TopicRef({ topic }: Readonly<{ topic: { readonly key: string; readonly name: string } }>) {
   return (
-    <LogLink href={topicPath(topic.key)} label={topicLinkLabel(topic.name)} text={topic.name} />
+    <InternalLink
+      className="lg-link"
+      to={topicPath(topic.key)}
+      aria-label={topicLinkLabel(topic.name)}
+    >
+      <bdi dir="auto">{topic.name}</bdi>
+    </InternalLink>
   );
 }
 

@@ -13,7 +13,7 @@ import {
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import type { SaveTarget } from "./api.ts";
-import { type Shown, faceOf } from "./PasteCard.tsx";
+import { type Shown, faceOf } from "./paste-card.ts";
 import { ShareContext } from "./share-handoff.ts";
 import type { NoticeKey } from "./text.ts";
 import { useFocusOnMount, useGuard } from "./use-form.ts";

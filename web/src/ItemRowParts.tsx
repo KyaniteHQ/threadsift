@@ -3,8 +3,8 @@ import { useCallback } from "react";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { whereOf } from "../../src/core/contract/link-place.ts";
 import { Icon } from "./Icon.tsx";
-import { useNavigateLink } from "./navigate-context.ts";
-import { offersFetchRetry } from "./paste-card.ts";
+import { InternalLink } from "./InternalLink.tsx";
+import { offersFetchRetry, rejectsToken } from "./paste-card.ts";
 import { countLabel } from "./reader-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
 import { SavedTime } from "./SavedTime.tsx";
@@ -50,10 +50,6 @@ export function linkName(ids: RowIds): string {
   return [ids.open, ids.meta, ids.foot].join(" ");
 }
 
-function rejectsToken(item: Readonly<Item>): boolean {
-  return item.status === "ready" && item.fetch === "github-token";
-}
-
 function showsSkeleton(item: Readonly<Item>): boolean {
   return item.status === "processing" && item.title === null && item.wait === null;
 }
@@ -97,17 +93,15 @@ function Failed({
 }
 
 function TokenRefused() {
-  const follow = useNavigateLink(SETTINGS_PATH);
-
   return (
     <div className="it-fail">
       <p>
         <Icon name="warn" className="ic ic-s tone-warn" />
         {TOKEN_REFUSED.row}
       </p>
-      <a className="btn" href={SETTINGS_PATH} onClick={follow}>
+      <InternalLink className="btn" to={SETTINGS_PATH}>
         {TOKEN_REFUSED.link}
-      </a>
+      </InternalLink>
     </div>
   );
 }

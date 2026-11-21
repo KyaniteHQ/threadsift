@@ -40,17 +40,14 @@ describe("the budget form on a token row keeps the answer of the save that is cu
 
 describe("the budget field takes the numbers the server takes", () => {
   it("accepts a whole number above 0 of any size the server accepts, and an empty field as no budget", () => {
-    assert.deepEqual(parseBudget("200"), { kind: "limit", limit: 200 });
-    assert.deepEqual(parseBudget(" 1000000000000000 "), {
-      kind: "limit",
-      limit: 1_000_000_000_000_000,
-    });
-    assert.deepEqual(parseBudget("  "), { kind: "none" });
+    assert.deepEqual(parseBudget("200"), { dailyBudget: 200 });
+    assert.deepEqual(parseBudget(" 1000000000000000 "), { dailyBudget: 1_000_000_000_000_000 });
+    assert.deepEqual(parseBudget("  "), { dailyBudget: null });
   });
 
   it("refuses 0, a sign, a fraction, an exponent and a number too large to count", () => {
     for (const text of ["0", "-5", "1.5", "1e3", "ten", "99999999999999999999"]) {
-      assert.deepEqual(parseBudget(text), { kind: "invalid" }, text);
+      assert.equal(parseBudget(text), undefined, text);
     }
   });
 });

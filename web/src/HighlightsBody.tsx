@@ -1,4 +1,4 @@
-import { type RefObject, useCallback } from "react";
+import { type MouseEvent, type RefObject, useCallback } from "react";
 
 import { type Filters, isEmptyResult } from "./filters.ts";
 import { HighlightEntry } from "./HighlightEntry.tsx";
@@ -17,7 +17,11 @@ function More({
   state,
   filters,
   loadMore,
-}: Readonly<{ state: Ready; filters: Filters; loadMore: () => void }>) {
+}: Readonly<{
+  state: Ready;
+  filters: Filters;
+  loadMore: (event: MouseEvent<HTMLButtonElement>) => void;
+}>) {
   if (state.next === null) return null;
 
   return (
@@ -68,9 +72,12 @@ function Listed({
   const { length } = state.entries;
   const expectFocus = useFocusNewEntries(list, { count: length, more: state.more });
 
-  const more = useCallback(() => {
-    if (loadMore()) expectFocus(length);
-  }, [expectFocus, length, loadMore]);
+  const more = useCallback(
+    (event: MouseEvent<HTMLButtonElement>) => {
+      if (loadMore()) expectFocus(event.detail === 0 ? length : null);
+    },
+    [expectFocus, length, loadMore],
+  );
 
   return (
     <>

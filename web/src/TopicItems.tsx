@@ -2,7 +2,7 @@ import { memo, useId } from "react";
 
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { TopicItem } from "../../src/core/contract/topic-overview-contract.ts";
-import { useNavigateLink } from "./navigate-context.ts";
+import { InternalLink } from "./InternalLink.tsx";
 import { SavedTime } from "./SavedTime.tsx";
 import { READ_LABELS, SOURCE_LABELS } from "./text.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
@@ -38,23 +38,19 @@ export const TopicItemRow = memo(function TopicItemRow({
   const base = useId();
   const summaryId = `${base}-sum`;
   const unreadId = `${base}-unread`;
-  const to = itemPath(item.id);
-
-  const open = useNavigateLink(to);
 
   return (
     <li>
       <article className="rl-row" data-read={item.read}>
         <TopicItemMeta item={item} now={now} unreadId={unreadId} />
         <h2 className="rl-title">
-          <a
+          <InternalLink
             className="rl-open"
-            href={to}
+            to={itemPath(item.id)}
             aria-describedby={item.read ? summaryId : `${unreadId} ${summaryId}`}
-            onClick={open}
           >
             <bdi dir="auto">{item.title}</bdi>
-          </a>
+          </InternalLink>
         </h2>
         <p id={summaryId} className="rl-sum" dir="auto">
           {item.summary}

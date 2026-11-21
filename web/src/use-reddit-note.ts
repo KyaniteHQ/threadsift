@@ -1,9 +1,8 @@
-import { useEffect, useState } from "react";
-
 import { redditRefOf } from "../../src/core/contract/links.ts";
 import type { RedditAccountView } from "../../src/core/contract/reddit-account-contract.ts";
 import { fetchRedditAccount } from "./reddit-account-api.ts";
 import { fetchRedditSettings } from "./reddit-api.ts";
+import { useRead } from "./use-read.ts";
 
 export type RedditNote =
   | { readonly state: "unknown" }
@@ -23,31 +22,15 @@ export function redditLinkCount(links: readonly string[]): number {
   return links.filter((link) => isRedditLink(link)).length;
 }
 
+async function readNote(signal: AbortSignal): Promise<RedditNote> {
+  const [{ state }, { archiveFill }] = await Promise.all([
+    fetchRedditAccount(signal),
+    fetchRedditSettings(signal),
+  ]);
+
+  return { state, archiveFill };
+}
+
 export function useRedditNote(): RedditNote {
-  const [note, setNote] = useState<RedditNote>(UNKNOWN);
-
-  useEffect(() => {
-    const controller = new AbortController();
-
-    const read = async (): Promise<void> => {
-      try {
-        const [{ state }, { archiveFill }] = await Promise.all([
-          fetchRedditAccount(controller.signal),
-          fetchRedditSettings(controller.signal),
-        ]);
-
-        setNote({ state, archiveFill });
-      } catch {
-        setNote(UNKNOWN);
-      }
-    };
-
-    void read();
-
-    return () => {
-      controller.abort();
-    };
-  }, []);
-
-  return note;
+  return useRead(readNote, UNKNOWN, UNKNOWN);
 }

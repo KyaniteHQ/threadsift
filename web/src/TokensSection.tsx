@@ -34,7 +34,7 @@ function useTokens(initial: Loaded<readonly Token[]>) {
   }, []);
 
   const reread = useCallback(() => {
-    fetchTokens(new AbortController().signal).then(setTokens, () => null);
+    fetchTokens().then(setTokens, () => null);
   }, []);
 
   return { failed, tokens, add, remove, replace, reread };

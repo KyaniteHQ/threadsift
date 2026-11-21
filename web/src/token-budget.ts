@@ -1,26 +1,15 @@
 import { DailyBudgetSchema } from "../../src/core/contract/agent-token-contract.ts";
 
-type BudgetInput =
-  | { readonly kind: "none" }
-  | { readonly kind: "limit"; readonly limit: number }
-  | { readonly kind: "invalid" };
-
 const DIGITS = /^\d+$/u;
 
-export function parseBudget(text: string): BudgetInput {
+export function parseBudget(text: string): { readonly dailyBudget: number | null } | undefined {
   const trimmed = text.trim();
 
-  if (trimmed === "") return { kind: "none" };
+  if (trimmed === "") return { dailyBudget: null };
 
   const limit = DailyBudgetSchema.safeParse(DIGITS.test(trimmed) ? Number(trimmed) : null);
 
-  return limit.success && limit.data !== null
-    ? { kind: "limit", limit: limit.data }
-    : { kind: "invalid" };
-}
-
-export function dailyBudgetOf(input: Exclude<BudgetInput, { kind: "invalid" }>): number | null {
-  return input.kind === "none" ? null : input.limit;
+  return limit.success && limit.data !== null ? { dailyBudget: limit.data } : undefined;
 }
 
 export type BudgetFlow =

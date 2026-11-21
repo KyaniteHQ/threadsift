@@ -28,6 +28,6 @@ export function useEntryKeys(list: RefObject<HTMLOListElement | null>): void {
 export function useFocusNewEntries(
   list: RefObject<HTMLOListElement | null>,
   rows: Readonly<LoadedRows>,
-): (from: number) => void {
+): (from: number | null) => void {
   return useFocusNewRows(list, rows, ENTRIES.links);
 }
