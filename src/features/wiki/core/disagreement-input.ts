@@ -16,7 +16,13 @@ import type { Database } from "../../../core/kernel/database.ts";
 import { digestField } from "../../../core/kernel/digest-stored.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
 import { digests, items, topicChecks, topics } from "../../../core/kernel/schema.ts";
-import { fillDisagreementInput, hasNoRoomForAnother } from "./disagreement-fill.ts";
+import {
+  type DisagreementFill,
+  EMPTY_FILL,
+  disagreementInput,
+  extendFill,
+  hasNoRoomForAnother,
+} from "./disagreement-fill.ts";
 import { decidedPairs } from "./disagreement-pins.ts";
 import { DISAGREEMENT_ITEMS, type SentItem, type SentTopic } from "./disagreement-task.ts";
 import { digestedCount } from "./topic-coverage.ts";
@@ -38,11 +44,6 @@ function touched(topicId: Readonly<SQLWrapper>): SQL {
 interface Place {
   readonly id: number;
   readonly newest: number;
-}
-
-interface Held {
-  readonly topics: readonly Readonly<SentTopic>[];
-  readonly decided: Readonly<ReadonlySet<string>>;
 }
 
 function topicsAfter(db: Database, place: Readonly<Place> | null) {
@@ -125,9 +126,9 @@ function candidateOf(rows: readonly Readonly<ReadRow>[]): SentTopic | null {
 
 async function withPage(
   db: Database,
-  held: Readonly<Held>,
+  fill: Readonly<DisagreementFill>,
   page: readonly Readonly<Place>[],
-): Promise<Held> {
+): Promise<DisagreementFill> {
   const rows = await newestItemsOf(
     db,
     page.map(({ id }) => id),
@@ -144,35 +145,28 @@ async function withPage(
     found.flatMap(({ items: each }) => each.map(({ id }) => id)),
   );
 
-  return { topics: [...held.topics, ...found], decided: new Set([...held.decided, ...decided]) };
+  return extendFill(fill, found, decided);
 }
 
 async function gather(
   db: Database,
-  held: Readonly<Held>,
+  fill: Readonly<DisagreementFill>,
   place: Readonly<Place> | null,
-): Promise<Held> {
+): Promise<DisagreementFill> {
   const page = await topicsAfter(db, place);
   const last = page.at(-1);
 
-  if (last === undefined) return held;
+  if (last === undefined) return fill;
 
-  const next = await withPage(db, held, page);
+  const next = await withPage(db, fill, page);
 
-  return page.length < TOPICS_PAGE ||
-    hasNoRoomForAnother(fillDisagreementInput(next.topics, next.decided).input)
-    ? next
-    : gather(db, next, last);
+  return page.length < TOPICS_PAGE || hasNoRoomForAnother(next) ? next : gather(db, next, last);
 }
 
 export async function readDisagreementInput(db: Database) {
-  const { topics: candidates, decided } = await gather(
-    db,
-    { topics: [], decided: new Set() },
-    null,
-  );
+  const fill = await gather(db, EMPTY_FILL, null);
 
-  const { input, sent } = fillDisagreementInput(candidates, decided);
-
-  return sent.length === 0 ? null : { input, inputRevision: 0, sent };
+  return fill.sent.length === 0
+    ? null
+    : { input: disagreementInput(fill), inputRevision: 0, sent: fill.sent };
 }
