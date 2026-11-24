@@ -5,9 +5,10 @@ import { ADD_LABEL, BACK_TO_LIBRARY, PASTE_LABEL } from "../web/src/text.ts";
 import { TOPIC_PAGE, topicLinkLabel } from "../web/src/topic-text.ts";
 import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
 import { expectDocumentHeaders, watchContext } from "./document-checks.ts";
-import { type TopicCase, openIndex, phoneRailTarget } from "./index-flow.ts";
+import { openIndex, phoneRailTarget } from "./index-flow.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
+import { type TopicCase, savedItem } from "./saved-item.ts";
 import { settingsSteps } from "./settings-steps.ts";
 
 const X_LINK = "https://x.com/someone/status/1234567890";
@@ -72,14 +73,10 @@ async function pasteXLink(page: Page): Promise<void> {
 }
 
 async function readSavedPage(page: Page): Promise<void> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: ARTICLE_LINK,
-      page: { markdown: ARTICLE_TEXT, title: ARTICLE_TITLE, author: "Ada Example" },
-    },
+  await savedItem(page, {
+    url: ARTICLE_LINK,
+    page: { markdown: ARTICLE_TEXT, title: ARTICLE_TITLE, author: "Ada Example" },
   });
-
-  expect(saved.status()).toBe(201);
   await page.reload();
   await page
     .locator("article.it")
@@ -119,21 +116,17 @@ async function importListAgain(page: Page): Promise<void> {
 }
 
 async function openTopicPage(page: Page, topic: TopicCase): Promise<void> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: topic.link,
-      page: { markdown: ARTICLE_TEXT, title: topic.itemTitle },
-      digest: {
-        title: topic.itemTitle,
-        topic: topic.name,
-        tags: ["streams"],
-        summary: topic.summary,
-        keyPoints: ["Pipe streams instead of buffering them"],
-      },
+  await savedItem(page, {
+    url: topic.link,
+    page: { markdown: ARTICLE_TEXT, title: topic.itemTitle },
+    digest: {
+      title: topic.itemTitle,
+      topic: topic.name,
+      tags: ["streams"],
+      summary: topic.summary,
+      keyPoints: ["Pipe streams instead of buffering them"],
     },
   });
-
-  expect(saved.status()).toBe(201);
   await page.goto("/");
   await page
     .locator("article.it")

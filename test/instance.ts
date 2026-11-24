@@ -43,7 +43,7 @@ const POLL_MS = 25;
 
 export const SETTLE_DEADLINE_MS = 20_000;
 
-const ORIGIN = "http://localhost";
+export const ORIGIN = "http://localhost";
 
 const SESSION_COOKIE = "__Host-threadsift_session";
 
@@ -152,6 +152,22 @@ export class Instance {
 
   get sessionCookie(): string | null {
     return this.cookie;
+  }
+
+  get ownerCookie(): string {
+    if (this.cookie === null) throw new Error("The Instance holds no session");
+
+    return this.cookie;
+  }
+
+  request(path: string, init: RequestInit = {}): Promise<Response> {
+    const headers = new Headers(init.headers);
+
+    headers.set("origin", ORIGIN);
+
+    if (this.cookie !== null) headers.set("cookie", this.cookie);
+
+    return this.fetch(path, { ...init, headers });
   }
 
   get routes() {

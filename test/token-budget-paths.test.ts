@@ -6,7 +6,7 @@ import { parseLink } from "../src/core/contract/links.ts";
 import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
 import { callBoth, connectBoth, type Agents } from "./mcp-client.ts";
-import { itemTotal } from "./restoring-fixtures.ts";
+import { itemTotal } from "./restore-fixtures.ts";
 import {
   addBatch,
   addLink,

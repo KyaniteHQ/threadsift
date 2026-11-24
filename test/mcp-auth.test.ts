@@ -31,7 +31,7 @@ describe("/mcp admits only a valid agent token sent in the Authorization header,
   const status = async (headers: Readonly<Record<string, string>>, url?: string) =>
     (await mcpRequest(instance, url === undefined ? { headers } : { headers, url })).status;
 
-  const cookie = () => ({ cookie: instance.sessionCookie ?? "" });
+  const cookie = () => ({ cookie: instance.ownerCookie });
 
   before(async () => {
     instance = await Instance.start();

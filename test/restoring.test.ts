@@ -12,7 +12,7 @@ import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { redditAddressOf, threadOf } from "./reader-thread-fixtures.ts";
-import { holdLibrary, itemTotal } from "./restoring-fixtures.ts";
+import { holdLibrary, itemTotal } from "./restore-fixtures.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
 

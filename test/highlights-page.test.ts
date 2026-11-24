@@ -7,7 +7,7 @@ import {
   keepNote,
   countsOf,
   pageOf,
-  summary,
+  entryLines,
 } from "./highlights-page-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
@@ -77,7 +77,7 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
   it("lists each Highlight and each Note newest first with its Item's Source, title and saved date, and no entry for a cleared Note", async () => {
     const page = await pageOf(instance);
 
-    assert.deepEqual(summary(page), [
+    assert.deepEqual(entryLines(page), [
       `note:${String(thread)}:gamma pickles`,
       `note:${String(alpha)}:alpha chickpeas`,
       `highlight:${String(nothing)}:Nothing to see`,
@@ -137,7 +137,7 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
     );
 
     assert.deepEqual(
-      answers.map((answer) => summary(answer)),
+      answers.map((answer) => entryLines(answer)),
       [
         [`note:${String(thread)}:gamma pickles`, `highlight:${String(nothing)}:Nothing to see`],
         [`highlight:${String(bilby)}:bilby passage`],
@@ -181,7 +181,7 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
     );
 
     assert.deepEqual(
-      answers.map((answer) => summary(answer)),
+      answers.map((answer) => entryLines(answer)),
       [
         [`note:${String(alpha)}:alpha chickpeas`],
         [],
@@ -216,7 +216,7 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
       revision: note.revision,
     });
 
-    assert.deepEqual(summary(await pageOf(instance)).slice(0, 2), [
+    assert.deepEqual(entryLines(await pageOf(instance)).slice(0, 2), [
       `note:${String(alpha)}:alpha chickpeas, saved again`,
       `note:${String(thread)}:gamma pickles`,
     ]);

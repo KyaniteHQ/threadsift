@@ -1,13 +1,20 @@
 import assert from "node:assert/strict";
 import { type TestContext, after, afterEach, before, beforeEach, describe, it } from "node:test";
 
-import { RestoreErrorSchema, restoreAnswerSchema } from "../src/core/contract/restore-contract.ts";
-import { exportedZip, longPostText, savedLibrary, storedKeys } from "./export-restore-fixtures.ts";
+import {
+  RESTORE_PARTS_KEEP_MS,
+  RestoreErrorSchema,
+  restoreAnswerSchema,
+} from "../src/core/contract/restore-contract.ts";
+import { SECOND_MS } from "../src/core/contract/time-units.ts";
+import { listedKeys } from "../src/core/kernel/file-pages.ts";
+import { exportedZip, firstLongText, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { paste } from "./related-fixtures.ts";
 import {
   gaveUpInFiles,
   restoreStatus,
+  restoredDone,
   settledAfterRetries,
   settledRestore,
   startedRestore,
@@ -18,14 +25,7 @@ import { count, exec, nextSweep } from "./sqlite-fixtures.ts";
 
 const TEXT = new TextEncoder();
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-
-const AnswerSchema = restoreAnswerSchema(
-  "finished",
-  "superseded",
-  "not-resumable",
-  "incomplete-upload",
-);
+const AnswerSchema = restoreAnswerSchema("superseded", "not-resumable");
 
 const rowsIn = (instance: Instance, table: string) =>
   count(instance, `select count(*) as n from ${table}`);
@@ -33,16 +33,14 @@ const rowsIn = (instance: Instance, table: string) =>
 describe("the owner cancels, resumes and undoes a Restore", () => {
   let source: Instance;
   let zip: Uint8Array;
-  let longId: number;
+  let long: ReturnType<typeof firstLongText>;
   let target: Instance;
 
   before(async () => {
     source = await Instance.start();
     await source.setUp();
 
-    const library = await savedLibrary(source, { small: 1, long: 1 });
-
-    longId = library.longTextIds[0] ?? 0;
+    long = firstLongText(await savedLibrary(source, { inlineText: 1, fileText: 1 }));
     zip = await exportedZip(source);
   });
 
@@ -61,12 +59,12 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   it("cancels an upload at once, deletes its parts, and cancels again with 204", async () => {
     const id = await uploadedRestore(target, zip);
 
-    assert.deepEqual(await storedKeys(target, `restores/${String(id)}/`), [
+    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), [
       `restores/${String(id)}/part-1`,
     ]);
     assert.equal((await send("DELETE", id)).status, 204);
     assert.equal((await restoreStatus(target)).state, "cancelled");
-    assert.deepEqual(await storedKeys(target, `restores/${String(id)}/`), []);
+    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
     assert.equal((await send("DELETE", id)).status, 204);
     assert.equal((await target.send("POST", "/api/restore", { bytes: 1, parts: 1 })).status, 201);
   });
@@ -74,7 +72,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   it("cancels a Restore that the check refused with 204 and shows it cancelled", async () => {
     const refused = await startedRestore(target, TEXT.encode("this is not a zip"));
 
-    assert.equal((await settledRestore(target, ["failed"])).state, "failed");
+    await settledRestore(target, ["failed"]);
     assert.equal((await send("DELETE", refused)).status, 204);
     assert.deepEqual(await restoreStatus(target), {
       state: "cancelled",
@@ -86,7 +84,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   it("leaves an Item saved after the check refused the Restore when the owner cancels it", async () => {
     const refused = await startedRestore(target, TEXT.encode("this is not a zip"));
 
-    assert.equal((await settledRestore(target, ["failed"])).state, "failed");
+    await settledRestore(target, ["failed"]);
 
     const saved = await paste(target, "after-refusal", { title: "Saved after the refusal" });
 
@@ -98,7 +96,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   it("answers 409 superseded to a Cancel and a Resume of an older Restore, and leaves the newer upload open", async () => {
     const older = await startedRestore(target, TEXT.encode("this is not a zip"));
 
-    assert.equal((await settledRestore(target, ["failed"])).state, "failed");
+    await settledRestore(target, ["failed"]);
 
     const newer = await uploadedRestore(target, zip);
     const cancel = await send("DELETE", older);
@@ -112,28 +110,23 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
 
     const status = await restoreStatus(target);
 
-    assert.equal(status.state === "uploading" ? status.id : null, newer);
+    assert.ok(status.state === "uploading", JSON.stringify(status));
+    assert.equal(status.id, newer);
   });
 
   it("gives up a unit after 3 failed attempts and keeps the rows it wrote", async (t) => {
     await gaveUpInFiles(t, target, zip);
 
-    const held = await restoreStatus(target);
+    const held = await settledRestore(target, ["failed"]);
 
-    assert.equal(held.state === "failed" ? held.libraryEmpty : null, false);
+    assert.equal(held.libraryEmpty, false);
     assert.equal(rowsIn(target, "items"), 2);
   });
 
-  it("keeps the library closed to a Paste and a new upload after a Restore gave up, and keeps its parts", async (t) => {
+  it("keeps the parts of a Restore that gave up", async (t) => {
     const id = await gaveUpInFiles(t, target, zip);
 
-    const paste503 = await target.send("POST", "/api/items", {
-      url: "https://x.com/someone/status/3500000001",
-    });
-
-    assert.equal(paste503.status, 503);
-    assert.equal((await target.send("POST", "/api/restore", { bytes: 1, parts: 1 })).status, 409);
-    assert.deepEqual(await storedKeys(target, `restores/${String(id)}/`), [
+    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), [
       `restores/${String(id)}/part-1`,
     ]);
   });
@@ -144,14 +137,12 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     unblockItemFiles(target);
     assert.equal((await send("POST", id, "/resume")).status, 202);
 
-    const done = await settledRestore(target, ["done", "failed"]);
+    const done = await restoredDone(target);
 
-    assert.ok(done.state === "done", JSON.stringify(done));
     assert.equal(done.restored["items"], 2);
-    assert.equal(done.dropped["items"] ?? 0, 0);
     assert.ok(Object.values(done.dropped).every((dropped) => dropped === 0));
     assert.equal(done.files, 1);
-    assert.equal((await target.detail(longId)).postText, longPostText(`item-${String(longId)}`));
+    assert.equal((await target.detail(long.id)).postText, long.text);
   });
 
   it("opens the library to a Paste once a resumed Restore is done", async (t) => {
@@ -159,7 +150,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
 
     unblockItemFiles(target);
     assert.equal((await send("POST", id, "/resume")).status, 202);
-    assert.equal((await settledRestore(target, ["done", "failed"])).state, "done");
+    await restoredDone(target);
     assert.equal(
       (await target.send("POST", "/api/items", { url: "https://x.com/someone/status/3500000001" }))
         .status,
@@ -174,10 +165,10 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     exec(target, "insert into d1_migrations (name) values ('9999_newer.sql')");
     assert.equal((await send("POST", id, "/resume")).status, 202);
 
-    const failed = await settledRestore(target, ["failed", "done"]);
+    const failed = await settledRestore(target, ["failed"]);
 
-    assert.equal(failed.state === "failed" ? failed.failure : failed.state, "other-release");
-    assert.deepEqual(await storedKeys(target, "items/"), []);
+    assert.equal(failed.failure, "other-release");
+    assert.deepEqual(await listedKeys(target.core.files, "items/"), []);
     assert.equal(rowsIn(target, "items"), 2);
   });
 
@@ -214,8 +205,8 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   it("undoes a Restore that gave up by deleting every file under items/ and its parts", async (t) => {
     const id = await undone(t);
 
-    assert.deepEqual(await storedKeys(target, "items/"), []);
-    assert.deepEqual(await storedKeys(target, `restores/${String(id)}/`), []);
+    assert.deepEqual(await listedKeys(target.core.files, "items/"), []);
+    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
   });
 
   it("frees the library for a new upload once an undo is done", async (t) => {
@@ -232,7 +223,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     const failed = await settledAfterRetries(target, ["failed"]);
 
     assert.deepEqual(
-      failed.state === "failed" ? [failed.failure, failed.cancelFailed, failed.resumable] : null,
+      [failed.failure, failed.cancelFailed, failed.resumable],
       ["gave-up", true, false],
     );
 
@@ -250,13 +241,27 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   it("deletes the parts of a Restore that gave up 24 hours after its last update, and then refuses to resume it", async (t) => {
     const id = await gaveUpInFiles(t, target, zip);
 
-    exec(target, "update restores set updated_at = ? where id = ?", Date.now() - DAY_MS - 1000, id);
+    const parts = [`restores/${String(id)}/part-1`];
+
+    exec(
+      target,
+      "update restores set updated_at = ? where id = ?",
+      Date.now() - RESTORE_PARTS_KEEP_MS + SECOND_MS,
+      id,
+    );
     await nextSweep(target);
-    assert.deepEqual(await storedKeys(target, `restores/${String(id)}/`), []);
+    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), parts);
 
-    const status = await restoreStatus(target);
+    exec(
+      target,
+      "update restores set updated_at = ? where id = ?",
+      Date.now() - RESTORE_PARTS_KEEP_MS - SECOND_MS,
+      id,
+    );
+    await nextSweep(target);
+    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
 
-    assert.equal(status.state === "failed" ? status.resumable : null, false);
+    assert.equal((await settledRestore(target, ["failed"])).resumable, false);
 
     const resume = await send("POST", id, "/resume");
 

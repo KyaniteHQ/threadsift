@@ -1,12 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { Instance } from "./instance.ts";
+import { Instance, ORIGIN } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { itemTotal } from "./restoring-fixtures.ts";
+import { itemTotal } from "./restore-fixtures.ts";
 import { xLink } from "./token-budget-fixtures.ts";
-
-const ORIGIN = "http://localhost";
 
 const addressOf = (query: Readonly<Record<string, string>>) =>
   `/?${new URLSearchParams(query).toString()}`;
@@ -23,7 +21,7 @@ describe("a share from the installed app saves the link only for a signed-in own
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    ownerCookie = instance.sessionCookie ?? "";
+    ownerCookie = instance.ownerCookie;
     tokenValue = (await createAgentToken(instance, "shares", ["read", "add"])).value;
   });
 

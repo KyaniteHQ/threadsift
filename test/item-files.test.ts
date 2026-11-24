@@ -3,6 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { storedBytes } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { paste } from "./related-fixtures.ts";
@@ -128,14 +129,21 @@ const MediaRowSchema = z.object({
   content_type: z.string(),
 });
 
-const servedAs = (instance: Instance, key: string) =>
-  instance.fetch(`/api/files/${key}`, { headers: { cookie: instance.sessionCookie ?? "" } });
+const servedAs = (instance: Instance, key: string) => instance.request(`/api/files/${key}`);
 
 describe("an Article's inline images are stored when the declared type and the bytes agree, and every other one stays out of the file route", () => {
   let instance: Instance;
   let itemId: number;
   let otherId: number;
   let stored: readonly z.infer<typeof MediaRowSchema>[];
+
+  const storedPng = () => {
+    const png = stored.find(({ content_type: type }) => type === "image/png");
+
+    assert.ok(png !== undefined, "a PNG is stored");
+
+    return png;
+  };
 
   before(async () => {
     instance = await Instance.start();
@@ -168,10 +176,7 @@ describe("an Article's inline images are stored when the declared type and the b
   });
 
   it("serves a stored image with its own bytes, a generated filename and nosniff", async () => {
-    const png = stored.find(({ content_type: type }) => type === "image/png");
-    const response = await instance.fetch(`/api/files/${png?.file_key ?? ""}`, {
-      headers: { cookie: instance.sessionCookie ?? "" },
-    });
+    const response = await servedAs(instance, storedPng().file_key);
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("content-type"), "image/png");
@@ -186,9 +191,7 @@ describe("an Article's inline images are stored when the declared type and the b
   it("serves every stored type with its own content type", async () => {
     const served = await Promise.all(
       stored.map(async ({ file_key: key }) => {
-        const response = await instance.fetch(`/api/files/${key}`, {
-          headers: { cookie: instance.sessionCookie ?? "" },
-        });
+        const response = await servedAs(instance, key);
 
         await response.arrayBuffer();
 
@@ -218,21 +221,15 @@ describe("an Article's inline images are stored when the declared type and the b
   });
 
   it("answers 404, with the body of an unknown key, for image bytes in the store that no stored media row of the Item names", async () => {
-    const png = stored.find(({ content_type: type }) => type === "image/png");
-    const name = (png?.file_key ?? "").split("/").at(-1) ?? "";
+    const { file_key: pngKey } = storedPng();
+    const [name = ""] = pngKey.split("/").slice(-1);
     const orphans = [`items/${String(itemId)}/img-0-0-98.png`, `items/${String(otherId)}/${name}`];
     const unknown = `items/${String(itemId)}/img-0-0-99.png`;
 
     try {
       await Promise.all(orphans.map((key) => instance.core.files.put(key, PNG)));
 
-      const held = await Promise.all(
-        orphans.map(async (key) => {
-          const body = await instance.core.files.get(key);
-
-          return body === null ? null : new Uint8Array(await new Response(body).arrayBuffer());
-        }),
-      );
+      const held = await Promise.all(orphans.map((key) => storedBytes(instance, key)));
 
       assert.deepEqual(held, [PNG, PNG]);
 
@@ -245,11 +242,14 @@ describe("an Article's inline images are stored when the declared type and the b
         answers.map(({ status }) => status),
         [404, 404, 404],
       );
-      assert.deepEqual(bodies, [bodies[2], bodies[2], bodies[2]]);
+      assert.deepEqual(
+        bodies.map((body) => z.object({ error: z.string() }).parse(JSON.parse(body))),
+        Array.from({ length: 3 }, () => ({ error: "Not found" })),
+      );
       assert.ok(
         answers.every((answer) => answer.headers.get("x-content-type-options") === "nosniff"),
       );
-      const control = await servedAs(instance, png?.file_key ?? "");
+      const control = await servedAs(instance, pngKey);
 
       await control.arrayBuffer();
       assert.equal(control.status, 200);
@@ -259,11 +259,10 @@ describe("an Article's inline images are stored when the declared type and the b
   });
 
   it("serves the image to a token with the read scope and refuses a token without it", async () => {
-    const png = stored.find(({ content_type: type }) => type === "image/png");
     const reader = await createAgentToken(instance, "reads", ["read"]);
     const adder = await createAgentToken(instance, "adds", ["add"]);
 
-    const path = `/api/files/${png?.file_key ?? ""}`;
+    const path = `/api/files/${storedPng().file_key}`;
     const answers = await Promise.all(
       [reader, adder].map((token) =>
         instance.sendWithToken(token.value, "GET", path).then(({ status }) => status),

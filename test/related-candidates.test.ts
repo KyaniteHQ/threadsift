@@ -6,6 +6,7 @@ import { z } from "zod";
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { Instance } from "./instance.ts";
+import { selectorIn } from "./lost-highlight-fixtures.ts";
 import {
   REDDIT_THREAD,
   SECRET_KEY,
@@ -18,7 +19,7 @@ import {
   sentInput,
   until,
 } from "./related-fixtures.ts";
-import { restoreLibrary } from "./restoring-fixtures.ts";
+import { restoreLibrary } from "./restore-fixtures.ts";
 import { exec, rows } from "./sqlite-fixtures.ts";
 
 const TWELVE = "quasar lattice decoder notes alpha beta gamma delta epsilon zeta eta theta";
@@ -204,7 +205,6 @@ describe("the related pick matches only the Digest parts of an Item that has a D
 
     const text = (await instance.detail(highlighted)).postText ?? "";
     const quote = "quasar sentence";
-    const start = text.indexOf(quote);
 
     await instance.read(
       "POST",
@@ -213,12 +213,7 @@ describe("the related pick matches only the Digest parts of an Item that has a D
       {
         target: { kind: "post" },
         revision: (await instance.detail(highlighted)).highlights.revisions.post,
-        selector: {
-          exact: quote,
-          prefix: text.slice(Math.max(0, start - 32), start),
-          suffix: text.slice(start + quote.length, start + quote.length + 32),
-          hint: start,
-        },
+        selector: selectorIn(text, quote),
       },
     );
 

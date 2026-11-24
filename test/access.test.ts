@@ -145,7 +145,7 @@ describe("a request that matches no route answers 404, or 405 with Allow, and an
     const addOnly = await createAgentToken(instance, "add", ["add"]);
 
     callers = [
-      { cookie: instance.sessionCookie ?? "" },
+      { cookie: instance.ownerCookie },
       { authorization: `Bearer ${all.value}` },
       { authorization: `Bearer ${addOnly.value}` },
     ];
@@ -230,7 +230,7 @@ describe("a HEAD on the OpenRouter callback", () => {
 
     const { authorizationUrl } = ConnectStartResponseSchema.parse(JSON.parse(started.body));
     const state = new URL(authorizationUrl).searchParams.get("state");
-    const headers = { cookie: instance.sessionCookie ?? "" };
+    const headers = { cookie: instance.ownerCookie };
 
     const head = await instance.fetch(`${CALLBACK}?code=a-code&state=${state}`, {
       method: "HEAD",

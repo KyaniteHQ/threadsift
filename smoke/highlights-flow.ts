@@ -1,21 +1,19 @@
 import { type Page, expect } from "@playwright/test";
 
+import { codePointCount } from "../src/core/contract/code-points.ts";
+import { selectorAt } from "../src/core/contract/highlight-anchor.ts";
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
-import {
-  ItemDetailResponseSchema,
-  SavedItemResponseSchema,
-} from "../src/core/contract/item-route-wire.ts";
+import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { projectText } from "../src/core/contract/text-projection.ts";
 import { HIGHLIGHTS_PAGE } from "../web/src/highlights-page-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE } from "../web/src/text.ts";
-import { DESKTOP, PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { savedItem } from "./saved-item.ts";
+import { atPhoneWidth, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 const TITLE = "A page with fifty highlights and a note";
 
 const NOTE = "Check that the copy opens before the old file goes.";
-
-const CONTEXT_CHARACTERS = 32;
 
 const HIGHLIGHTS = 50;
 
@@ -35,45 +33,38 @@ async function detailOf(page: Page, id: number) {
 }
 
 async function keepHighlightsAndNote(page: Page): Promise<{ item: number; first: number }> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: "https://example.com/guides/highlights",
-      page: { markdown: MARKDOWN, title: TITLE },
-      digest: {
-        title: TITLE,
-        topic: "Highlights",
-        tags: ["highlights"],
-        summary: "The page holds one passage for each Highlight.",
-        keyPoints: ["A Highlight keeps a passage of the post text"],
-      },
+  const item = await savedItem(page, {
+    url: "https://example.com/guides/highlights",
+    page: { markdown: MARKDOWN, title: TITLE },
+    digest: {
+      title: TITLE,
+      topic: "Highlights",
+      tags: ["highlights"],
+      summary: "The page holds one passage for each Highlight.",
+      keyPoints: ["A Highlight keeps a passage of the post text"],
     },
   });
 
-  expect(saved.status()).toBe(201);
+  await expect.poll(async () => (await detailOf(page, item)).postText).not.toBeNull();
 
-  const { item } = SavedItemResponseSchema.parse(await saved.json());
-
-  await expect.poll(async () => (await detailOf(page, item.id)).postText).not.toBeNull();
-
-  const detail = await detailOf(page, item.id);
+  const detail = await detailOf(page, item);
   const text = projectText(detail.postText ?? "");
 
   const keep = async (number: number): Promise<number> => {
     const exact = sentence(number);
-    const hint = text.indexOf(exact);
+    const start = text.indexOf(exact);
 
-    expect(hint).toBeGreaterThanOrEqual(0);
+    expect(start).toBeGreaterThanOrEqual(0);
 
-    const kept = await page.request.post(`/api/items/${String(item.id)}/highlights`, {
+    const selector = selectorAt(text, codePointCount(text, start), codePointCount(exact));
+
+    expect(selector).not.toBeNull();
+
+    const kept = await page.request.post(`/api/items/${String(item)}/highlights`, {
       data: {
         target: { kind: "post" },
         revision: detail.highlights.revisions.post,
-        selector: {
-          exact,
-          prefix: text.slice(Math.max(0, hint - CONTEXT_CHARACTERS), hint),
-          suffix: text.slice(hint + exact.length, hint + exact.length + CONTEXT_CHARACTERS),
-          hint,
-        },
+        selector,
       },
     });
 
@@ -82,21 +73,20 @@ async function keepHighlightsAndNote(page: Page): Promise<{ item: number; first:
     return HighlightResponseSchema.parse(await kept.json()).highlight.id;
   };
 
-  const ids = await Array.from(
-    { length: HIGHLIGHTS },
-    (_unused, index) => HIGHLIGHTS - index,
-  ).reduce<Promise<readonly number[]>>(
-    async (done, number) => [...(await done), await keep(number)],
-    Promise.resolve([]),
-  );
+  const first = await keep(HIGHLIGHTS);
 
-  const note = await page.request.put(`/api/items/${String(item.id)}/note`, {
+  for (let number = HIGHLIGHTS - 1; number >= 1; number -= 1) {
+    // oxlint-disable-next-line eslint/no-await-in-loop -- The page lists Highlights in the order they were kept.
+    await keep(number);
+  }
+
+  const note = await page.request.put(`/api/items/${String(item)}/note`, {
     data: { body: NOTE, revision: detail.note.revision },
   });
 
   expect(note.status()).toBe(200);
 
-  return { item: item.id, first: ids[0] ?? 0 };
+  return { item, first };
 }
 
 export async function highlightsFlow(page: Page): Promise<void> {
@@ -132,11 +122,11 @@ export async function highlightsFlow(page: Page): Promise<void> {
   await expect(mark).toBeFocused();
   await expect(mark).toBeInViewport();
 
-  await page.setViewportSize(PHONE);
-  await page.goto("/highlights");
-  await expect(entries).toHaveCount(FIRST_PAGE);
-  await expectNoSidewaysScroll(page);
-  await page.setViewportSize(DESKTOP);
+  await atPhoneWidth(page, async () => {
+    await page.goto("/highlights");
+    await expect(entries).toHaveCount(FIRST_PAGE);
+    await expectNoSidewaysScroll(page);
+  });
 
   await page.goto(`/items/${String(item)}`);
   await expect(mark).not.toBeInViewport();

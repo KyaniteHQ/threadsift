@@ -2,11 +2,18 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
-import { joinedBytes } from "../src/core/contract/encoding.ts";
+import { joinedBytes, utf8Length } from "../src/core/contract/encoding.ts";
 import { RESTORE_DIRECTORY_BYTES } from "../src/core/contract/restore-contract.ts";
 import { readDirectory } from "../src/features/export/core/zip-directory.ts";
-import { type ZipSource, entryBytes } from "../src/features/export/core/zip-read.ts";
 import {
+  type ZipDirectory,
+  type ZipEntry,
+  type ZipSource,
+  entryBytes,
+} from "../src/features/export/core/zip-read.ts";
+import {
+  CENTRAL_RECORD_BYTES,
+  LOCAL_HEADER_BYTES,
   type ZipFile,
   dosTimeOf,
   endOfArchive,
@@ -38,6 +45,26 @@ export function sourceOf(bytes: Uint8Array): ZipSource {
 
 export function directoryOf(bytes: Uint8Array) {
   return readDirectory(sourceOf(bytes), RESTORE_DIRECTORY_BYTES);
+}
+
+export const dataStartOf = (entry: Readonly<ZipEntry>): number =>
+  entry.headerOffset + LOCAL_HEADER_BYTES + utf8Length(entry.name);
+
+export function centralRecordOf(directory: Readonly<ZipDirectory>, entry: Readonly<ZipEntry>) {
+  const before = directory.entries.slice(0, directory.entries.indexOf(entry));
+
+  return (
+    directory.offset +
+    before.reduce((total, { name }) => total + CENTRAL_RECORD_BYTES + utf8Length(name), 0)
+  );
+}
+
+export function entryMatching(directory: Readonly<ZipDirectory>, part: string): ZipEntry {
+  const found = directory.entries.find(({ name }) => name.includes(part));
+
+  assert.ok(found !== undefined, `the zip holds an entry with ${part} in its name`);
+
+  return found;
 }
 
 export async function entriesOf(bytes: Uint8Array): Promise<Entries> {
@@ -127,4 +154,22 @@ export function recordLines(entries: Entries, table: string): readonly string[] 
   return (manifestOf(entries).tables[table]?.files ?? []).flatMap((file) =>
     linesOf(entryOf(entries, `${root}${file}`)),
   );
+}
+
+export function withRecordLines(
+  entries: Entries,
+  table: string,
+  change: (lines: readonly string[]) => readonly string[],
+): Entries {
+  const name = nameEndingWith(entries, `/records/${table}.1.jsonl`);
+  const lines = change(linesOf(entryOf(entries, name)));
+  const next = withEntry(entries, name, TEXT.encode(lines.map((line) => `${line}\n`).join("")));
+
+  return withManifest(next, (manifest) => ({
+    ...manifest,
+    tables: {
+      ...manifest.tables,
+      [table]: { files: manifest.tables[table]?.files ?? [], rows: lines.length },
+    },
+  }));
 }

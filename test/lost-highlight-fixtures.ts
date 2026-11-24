@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
+import { codePointCount } from "../src/core/contract/code-points.ts";
+import { selectorAt } from "../src/core/contract/highlight-anchor.ts";
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import {
   type MergeProposal,
@@ -48,16 +50,24 @@ function pasteHolding(
   return paste(instance, slug, { title, postText: textHolding(passage) });
 }
 
+export function selectorIn(text: string, passage: string) {
+  const start = text.indexOf(passage);
+
+  assert.notEqual(start, -1, `${passage} is in the text`);
+
+  const selector = selectorAt(text, codePointCount(text, start), codePointCount(passage));
+
+  assert.ok(selector !== null, `${passage} is a run of whole code points`);
+
+  return { ...selector };
+}
+
 export async function keepPassage(
   instance: Instance,
   itemId: number,
   passage: string,
 ): Promise<number> {
   const reader = await instance.detail(itemId);
-  const text = reader.postText ?? "";
-  const start = text.indexOf(passage);
-
-  assert.notEqual(start, -1, `${passage} is in the text`);
 
   const { highlight } = await instance.read(
     "POST",
@@ -66,12 +76,7 @@ export async function keepPassage(
     {
       target: { kind: "post" },
       revision: reader.highlights.revisions.post,
-      selector: {
-        exact: passage,
-        prefix: text.slice(Math.max(0, start - 32), start),
-        suffix: text.slice(start + passage.length, start + passage.length + 32),
-        hint: start,
-      },
+      selector: selectorIn(reader.postText ?? "", passage),
     },
   );
 

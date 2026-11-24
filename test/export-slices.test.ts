@@ -14,26 +14,19 @@ import {
   EXPORT_LIBRARY,
   type SavedLibrary,
   type SliceEntry,
-  bytesOfKey,
   downloadedZip,
-  longPostText,
-  postTextKey,
+  firstLongText,
+  numberedKeys,
   readyExport,
   savedLibrary,
   sliceEntries,
-  storedKeys,
 } from "./export-restore-fixtures.ts";
+import { bytesOfKey, postTextKey } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { rows } from "./sqlite-fixtures.ts";
 import { entriesOf, entryOf, linesOf, manifestOf, recordLines, rootOf } from "./zip-fixtures.ts";
 
 const MigrationSchema = z.object({ name: z.string() });
-
-const bytesEqual = (left: Uint8Array | undefined, right: Uint8Array | undefined): boolean =>
-  left !== undefined &&
-  right !== undefined &&
-  left.length === right.length &&
-  left.every((byte, at) => byte === right[at]);
 
 describe("an Export of a library too big for one slice is one complete zip", () => {
   let instance: Instance;
@@ -58,13 +51,10 @@ describe("an Export of a library too big for one slice is one complete zip", () 
   after(() => instance.close());
 
   it("closes a slice at 40 Items or 8 MiB, so 50 Items with 5 post text files of 1.1 MB take at least 3 slices", async () => {
-    const keys = await storedKeys(instance, `exports/${String(exportId)}/`);
-    const named = (stem: string) => keys.filter((key) => key.includes(`/${stem}-`));
-
     assert.ok(parts >= 3, `${String(parts)} slices`);
-    assert.equal(named("part").length, parts);
-    assert.equal(named("dir").length, parts);
-    assert.equal(named("tail").length, 1);
+    assert.equal((await numberedKeys(instance, exportId, "part")).length, parts);
+    assert.equal((await numberedKeys(instance, exportId, "dir")).length, parts);
+    assert.equal((await numberedKeys(instance, exportId, "tail")).length, 1);
   });
 
   it("holds at most 40 Items and, after its first entry, at most 8 MiB of entries in every slice", async () => {
@@ -80,37 +70,28 @@ describe("an Export of a library too big for one slice is one complete zip", () 
         `slice ${String(at + 1)} holds ${String(items.size)} Items`,
       );
 
-      slice.slice(1).reduce((total, { name, size }) => {
-        assert.ok(total + size <= EXPORT_SLICE_BYTES, `${name} passes the slice cap`);
+      let total = slice[0]?.size ?? 0;
 
-        return total + size;
-      }, slice[0]?.size ?? 0);
+      for (const { name, size } of slice.slice(1)) {
+        assert.ok(total + size <= EXPORT_SLICE_BYTES, `${name} passes the slice cap`);
+        total += size;
+      }
     }
   });
 
   it("streams every part, then every directory, then the tail, as one zip of the size the status reports", async () => {
-    const keys = await storedKeys(instance, `exports/${String(exportId)}/`);
-    const numbered = (stem: string) =>
-      keys
-        .filter((key) => key.includes(`/${stem}-`))
-        .toSorted((left, right) => Number(left.split("-")[1]) - Number(right.split("-")[1]));
-
-    const stored = await Promise.all(
-      [...numbered("part"), ...numbered("dir"), ...numbered("tail")].map((key) =>
-        bytesOfKey(instance, key),
-      ),
+    const keys = await Promise.all(
+      ["part", "dir", "tail"].map((stem) => numberedKeys(instance, exportId, stem)),
     );
 
-    const joined = Buffer.concat(stored);
+    const stored = await Promise.all(keys.flat().map((key) => bytesOfKey(instance, key)));
 
     const status = await instance.read("GET", "/api/export", ExportStatusSchema);
 
-    assert.ok(bytesEqual(joined, zip));
+    assert.deepEqual(new Uint8Array(Buffer.concat(stored)), zip);
     assert.equal(status.state === "ready" ? status.zipBytes : -1, zip.length);
 
-    const answer = await instance.fetch(`/api/export/${String(exportId)}/download`, {
-      headers: { cookie: instance.sessionCookie ?? "" },
-    });
+    const answer = await instance.request(`/api/export/${String(exportId)}/download`);
 
     await answer.arrayBuffer();
     assert.equal(answer.headers.get("content-length"), String(zip.length));
@@ -125,7 +106,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     const entries = await entriesOf(zip);
 
     assert.deepEqual([...entries.keys()].toSorted(), [...independent.keys()].toSorted());
-    assert.ok([...entries].every(([name, bytes]) => bytesEqual(bytes, independent.get(name))));
+    assert.deepEqual(entries, independent);
     assert.match(rootOf(entries), /^threadsift-\d{4}-\d{2}-\d{2}\/$/u);
     assert.ok([...entries.keys()].every((name) => name.startsWith(rootOf(entries))));
   });
@@ -175,7 +156,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
       const inFolder = [...entries.keys()].filter((name) =>
         name.startsWith(`${root}items/${String(id)}/`),
       );
-      const isLong = library.longTextIds.includes(id);
+      const isLong = library.longTexts.has(id);
 
       assert.equal(
         inFolder.filter((name) => /\/note-[^/]+\.md$/u.test(name)).length,
@@ -185,11 +166,12 @@ describe("an Export of a library too big for one slice is one complete zip", () 
       assert.equal(inFolder.length, isLong ? 2 : 1, `files of ${String(id)}`);
     }
 
-    for (const id of library.longTextIds) {
-      const stored = entries.get(`${root}${postTextKey(id)}`);
-      const expected = new TextEncoder().encode(longPostText(`item-${String(id)}`));
-
-      assert.ok(bytesEqual(stored, expected), `post text file of ${String(id)}`);
+    for (const [id, text] of library.longTexts) {
+      assert.deepEqual(
+        entryOf(entries, `${root}${postTextKey(id)}`),
+        new TextEncoder().encode(text),
+        `post text file of ${String(id)}`,
+      );
     }
 
     const [first] = library.ids;
@@ -214,7 +196,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
 const sizeSum = (entries: readonly SliceEntry[] | undefined) =>
   (entries ?? []).reduce((total, { size }) => total + size, 0);
 
-const named = (entry: SliceEntry | undefined, pattern: RegExp) =>
+const isEntry = (entry: SliceEntry | undefined, pattern: RegExp) =>
   entry !== undefined && pattern.test(entry.name);
 
 describe("a slice ends where the next entry of an Item would pass 8 MiB", () => {
@@ -237,7 +219,9 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
     const [single] = await exported(BASE_TEXT_BYTES);
 
     return (
-      BASE_TEXT_BYTES + EXPORT_SLICE_BYTES - sizeSum(single?.filter((entry) => !named(entry, post)))
+      BASE_TEXT_BYTES +
+      EXPORT_SLICE_BYTES -
+      sizeSum(single?.filter((entry) => !isEntry(entry, post)))
     );
   };
 
@@ -245,8 +229,9 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
     instance = await Instance.start();
     await instance.setUp();
 
-    const library = await savedLibrary(instance, { small: 1, long: 1 });
-    const longId = library.longTextIds[0] ?? 0;
+    const { id: longId } = firstLongText(
+      await savedLibrary(instance, { inlineText: 1, fileText: 1 }),
+    );
 
     postKey = postTextKey(longId);
     note = new RegExp(`/items/${String(longId)}/note-[^/]+\\.md$`, "u");
@@ -259,25 +244,25 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
     const [first, second] = await exported(await exactFit());
 
     assert.equal(sizeSum(first), EXPORT_SLICE_BYTES);
-    assert.ok(named(first?.at(-1), note));
-    assert.ok(named(second?.[0], post));
+    assert.ok(isEntry(first?.at(-1), note));
+    assert.ok(isEntry(second?.[0], post));
   });
 
   it("starts an entry that passes the cap by 1 byte in the next slice", async () => {
     const [first, second] = await exported((await exactFit()) + 1);
 
     assert.ok(sizeSum(first) < EXPORT_SLICE_BYTES);
-    assert.ok((first ?? []).every((entry) => !named(entry, note)));
-    assert.ok(named(second?.[0], note));
+    assert.ok((first ?? []).every((entry) => !isEntry(entry, note)));
+    assert.ok(isEntry(second?.[0], note));
   });
 
   it("puts an entry above the cap first in a slice of its own, and still ends ready", async () => {
     const slices = await exported(EXPORT_SLICE_BYTES + 1);
 
     for (const pattern of [note, post]) {
-      const slice = slices.find((entries) => entries.some((entry) => named(entry, pattern)));
+      const slice = slices.find((entries) => entries.some((entry) => isEntry(entry, pattern)));
 
-      assert.ok(named(slice?.[0], pattern));
+      assert.ok(isEntry(slice?.[0], pattern));
       assert.equal(slice?.length, 1);
     }
   });

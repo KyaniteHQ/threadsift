@@ -1,20 +1,20 @@
 import assert from "node:assert/strict";
-import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { TestContext } from "node:test";
 
 import { z } from "zod";
 
+import { ItemListResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import {
   RestoreStatusSchema,
   type RestoreStatus,
   StartedRestoreSchema,
 } from "../src/core/contract/restore-contract.ts";
+import { exportedZip } from "./export-restore-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { until } from "./related-fixtures.ts";
 import { exec } from "./sqlite-fixtures.ts";
-
-const ORIGIN = "http://localhost";
 
 const AttemptLineSchema = z.object({
   event: z.literal("job-attempt-failed"),
@@ -22,14 +22,14 @@ const AttemptLineSchema = z.object({
   attempt: z.number(),
 });
 
-export function putPart(instance: Instance, id: number, bytes: Uint8Array): Promise<Response> {
-  return instance.fetch(`/api/restore/${String(id)}/parts/1`, {
+export function putPart(
+  instance: Instance,
+  { id, part }: Readonly<{ id: number; part: number }>,
+  bytes: Uint8Array,
+): Promise<Response> {
+  return instance.request(`/api/restore/${String(id)}/parts/${String(part)}`, {
     method: "PUT",
-    headers: {
-      "content-type": "application/octet-stream",
-      cookie: instance.sessionCookie ?? "",
-      origin: ORIGIN,
-    },
+    headers: { "content-type": "application/octet-stream" },
     body: bytes.slice(),
   });
 }
@@ -40,7 +40,7 @@ export async function uploadedRestore(instance: Instance, bytes: Uint8Array): Pr
     parts: 1,
   });
 
-  assert.equal((await putPart(instance, id, bytes)).status, 204);
+  assert.equal((await putPart(instance, { id, part: 1 }, bytes)).status, 204);
 
   return id;
 }
@@ -59,11 +59,26 @@ export function restoreStatus(instance: Instance): Promise<RestoreStatus> {
 
 type Settled = Exclude<RestoreStatus["state"], "uploading" | "running" | "cancelling">;
 
-export function settledRestore(instance: Instance, states: readonly Settled[]) {
-  return until(
-    () => restoreStatus(instance),
-    ({ state }) => states.some((settled) => settled === state),
-  );
+type SettledStatus<State extends Settled> = Extract<RestoreStatus, { state: State }>;
+
+const isSettled =
+  <State extends Settled>(states: readonly State[]) =>
+  (status: RestoreStatus): status is SettledStatus<State> =>
+    states.some((settled) => settled === status.state);
+
+export function settledRestore<State extends Settled>(
+  instance: Instance,
+  states: readonly State[],
+) {
+  return until(() => restoreStatus(instance), isSettled(states));
+}
+
+export async function restoredDone(instance: Instance) {
+  const status = await settledRestore(instance, ["done", "failed"]);
+
+  assert.ok(status.state === "done", JSON.stringify(status));
+
+  return status;
 }
 
 export function retryNow(instance: Instance): void {
@@ -71,28 +86,42 @@ export function retryNow(instance: Instance): void {
   instance.core.jobs.wake();
 }
 
-export function settledAfterRetries(instance: Instance, states: readonly Settled[]) {
-  return until(
-    () => {
-      retryNow(instance);
+export function settledAfterRetries<State extends Settled>(
+  instance: Instance,
+  states: readonly State[],
+) {
+  return until(() => {
+    retryNow(instance);
 
-      return restoreStatus(instance);
-    },
-    ({ state }) => states.some((settled) => settled === state),
-  );
+    return restoreStatus(instance);
+  }, isSettled(states));
 }
 
 function itemFilesPath(instance: Instance): string {
   return join(dirname(instance.databaseFile), "data", "files", "items");
 }
 
+const heldItemFilesPath = (instance: Instance): string => `${itemFilesPath(instance)}.held`;
+
 export function blockItemFiles(instance: Instance): void {
-  mkdirSync(dirname(itemFilesPath(instance)), { recursive: true });
-  writeFileSync(itemFilesPath(instance), "");
+  const path = itemFilesPath(instance);
+
+  mkdirSync(dirname(path), { recursive: true });
+
+  if (existsSync(path) && statSync(path).isDirectory())
+    renameSync(path, heldItemFilesPath(instance));
+
+  writeFileSync(path, "");
 }
 
 export function unblockItemFiles(instance: Instance): void {
-  rmSync(itemFilesPath(instance), { force: true });
+  const path = itemFilesPath(instance);
+
+  if (existsSync(path) && statSync(path).isFile()) rmSync(path);
+
+  if (existsSync(heldItemFilesPath(instance))) {
+    renameSync(heldItemFilesPath(instance), itemFilesPath(instance));
+  }
 }
 
 export function loggedAttempts(t: TestContext, kind: string): () => readonly number[] {
@@ -115,12 +144,35 @@ export async function gaveUpInFiles(t: TestContext, instance: Instance, bytes: U
 
   const failed = await settledAfterRetries(instance, ["failed"]);
 
-  assert.deepEqual(
-    failed.state === "failed" ? [failed.failure, failed.resumable] : null,
-    ["gave-up", true],
-    JSON.stringify(failed),
-  );
+  assert.deepEqual([failed.failure, failed.resumable], ["gave-up", true], JSON.stringify(failed));
   assert.deepEqual(attempts(), [1, 2, 3]);
 
   return id;
+}
+
+export function holdLibrary(
+  instance: Instance,
+  state: "running" | "failed",
+  failure: "gave-up" | "no-manifest" | null,
+  phase: "check" | "tables" = "tables",
+): void {
+  exec(
+    instance,
+    "insert into restores (id, state, phase, failure, bytes, parts, part_bytes, created_at, updated_at) values (1, ?, ?, ?, 1, 1, 1, 1, 1) on conflict (id) do update set state = excluded.state, phase = excluded.phase, failure = excluded.failure",
+    state,
+    phase,
+    failure,
+  );
+}
+
+export async function itemTotal(instance: Instance): Promise<number> {
+  return (await instance.read("GET", "/api/items", ItemListResponseSchema)).counts.total;
+}
+
+export async function restoreLibrary({
+  from,
+  into,
+}: Readonly<{ from: Instance; into: Instance }>): Promise<void> {
+  await startedRestore(into, await exportedZip(from));
+  await restoredDone(into);
 }

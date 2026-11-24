@@ -9,6 +9,7 @@ import {
 } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { Instance, type Json } from "./instance.ts";
+import { selectorIn } from "./lost-highlight-fixtures.ts";
 import { redditAddressOf, comment, threadOf } from "./reader-thread-fixtures.ts";
 
 interface Supplied {
@@ -175,9 +176,6 @@ describe("a link the owner pastes reaches the library, and the owner finds, read
     const reader = await instance.detail(saved.id);
     const text = reader.postText ?? "";
     const quote = "online backup command";
-    const start = text.indexOf(quote);
-
-    assert.notEqual(start, -1);
 
     const { highlight } = await instance.read(
       "POST",
@@ -186,12 +184,7 @@ describe("a link the owner pastes reaches the library, and the owner finds, read
       {
         target: { kind: "post" },
         revision: reader.highlights.revisions.post,
-        selector: {
-          exact: quote,
-          prefix: text.slice(Math.max(0, start - 32), start),
-          suffix: text.slice(start + quote.length, start + quote.length + 32),
-          hint: start,
-        },
+        selector: selectorIn(text, quote),
       },
     );
 

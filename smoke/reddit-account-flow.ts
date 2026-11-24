@@ -2,7 +2,7 @@ import { type Page, expect } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { REDDIT_ACCOUNT_TEXT } from "../web/src/reddit-account-text.ts";
-import { DESKTOP, PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { expectFitsPhone } from "./screen-checks.ts";
 
 const SESSION = "a-smoke-session-value.that_is-not-real";
 
@@ -43,9 +43,7 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateConnected)).toBeVisible();
   await expect(page.getByText(SESSION)).toHaveCount(0);
 
-  await page.setViewportSize(PHONE);
-  await expectNoSidewaysScroll(page);
-  await page.setViewportSize(DESKTOP);
+  await expectFitsPhone(page);
 
   await button(page, REDDIT_ACCOUNT_TEXT.disconnect).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.disconnected)).toBeVisible();
@@ -54,9 +52,7 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await button(page, REDDIT_ACCOUNT_TEXT.connectExtension).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.extensionMissing)).toBeVisible();
 
-  await page.setViewportSize(PHONE);
-  await expectNoSidewaysScroll(page);
-  await page.setViewportSize(DESKTOP);
+  await expectFitsPhone(page);
 
   const scopes = page.getByRole("group", { name: SETTINGS.scopesLabel });
 

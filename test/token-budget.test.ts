@@ -6,7 +6,7 @@ import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
 import { Instance } from "./instance.ts";
-import { itemTotal } from "./restoring-fixtures.ts";
+import { itemTotal } from "./restore-fixtures.ts";
 import { script } from "./sqlite-fixtures.ts";
 import {
   addBatch,

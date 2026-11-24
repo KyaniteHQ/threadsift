@@ -83,6 +83,14 @@ export async function saveProvider(instance: Instance): Promise<void> {
   assert.equal(saved.status, 200);
 }
 
+export function until<Value, Done extends Value>(
+  read: () => Value | Promise<Value>,
+  isDone: (value: Value) => value is Done,
+): Promise<Done>;
+export function until<Value>(
+  read: () => Value | Promise<Value>,
+  isDone: (value: Value) => boolean,
+): Promise<Value>;
 export async function until<Value>(
   read: () => Value | Promise<Value>,
   isDone: (value: Value) => boolean,
@@ -91,7 +99,10 @@ export async function until<Value>(
   let value = await read();
 
   while (!isDone(value)) {
-    assert.ok(Date.now() < deadline, "the state did not settle before its deadline");
+    assert.ok(
+      Date.now() < deadline,
+      `the state did not settle before its deadline: ${JSON.stringify(value)}`,
+    );
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.
     await delay(POLL_MS);
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.

@@ -1,24 +1,26 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, describe, it } from "node:test";
 
-import { type SavedLibrary, exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
+import {
+  MARKED_PASSAGE,
+  type SavedLibrary,
+  exportedZip,
+  firstLongText,
+  savedLibrary,
+} from "./export-restore-fixtures.ts";
+import { postTextKey } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { settledRestore, startedRestore } from "./restore-fixtures.ts";
+import { restoredDone, startedRestore } from "./restore-fixtures.ts";
 import {
   type Entries,
   entriesOf,
-  entryOf,
-  linesOf,
   manifestOf,
   nameEndingWith,
   rootOf,
-  withEntry,
-  withManifest,
+  withRecordLines,
   withoutEntry,
   zipOf,
 } from "./zip-fixtures.ts";
-
-const TEXT = new TextEncoder();
 
 describe("a Restore counts the rows and the files it leaves out, and anchors Highlights again in the restored text", () => {
   let source: Instance;
@@ -29,7 +31,7 @@ describe("a Restore counts the rows and the files it leaves out, and anchors Hig
   before(async () => {
     source = await Instance.start();
     await source.setUp();
-    library = await savedLibrary(source, { small: 3, long: 1 });
+    library = await savedLibrary(source, { inlineText: 3, fileText: 1 });
     entries = await entriesOf(await exportedZip(source));
   });
 
@@ -42,50 +44,38 @@ describe("a Restore counts the rows and the files it leaves out, and anchors Hig
     await target.setUp();
     await startedRestore(target, zipOf(changed));
 
-    return settledRestore(target, ["done", "failed"]);
+    return restoredDone(target);
   };
 
-  const withLines = (table: string, change: (lines: readonly string[]) => readonly string[]) => {
-    const name = nameEndingWith(entries, `/records/${table}.1.jsonl`);
-    const lines = change(linesOf(entryOf(entries, name)));
-    const next = withEntry(entries, name, TEXT.encode(lines.map((line) => `${line}\n`).join("")));
-
-    return withManifest(next, (manifest) => ({
-      ...manifest,
-      tables: {
-        ...manifest.tables,
-        [table]: { files: manifest.tables[table]?.files ?? [], rows: lines.length },
-      },
-    }));
-  };
+  const withLines = (table: string, change: (lines: readonly string[]) => readonly string[]) =>
+    withRecordLines(entries, table, change);
 
   it("leaves out a row that repeats the key of an earlier row and counts it in dropped", async () => {
     const done = await restored(withLines("topics", (lines) => [...lines, ...lines.slice(0, 1)]));
 
-    assert.ok(done.state === "done", JSON.stringify(done));
     assert.equal(done.dropped["topics"], 1);
     assert.equal(done.restored["topics"], manifestOf(entries).tables["topics"]?.rows);
   });
 
   it("leaves out a row whose parent is not in the zip, and the Item shows no Note", async () => {
     const orphan = withLines("notes", (lines) =>
-      lines.map((line) => line.replace(`"item_id":${String(library.marked)}`, '"item_id":9999')),
+      lines.map((line) =>
+        line.replace(`"item_id":${String(library.highlightedId)}`, '"item_id":9999'),
+      ),
     );
 
     const done = await restored(orphan);
 
-    assert.ok(done.state === "done", JSON.stringify(done));
     assert.equal(done.dropped["notes"], 1);
     assert.equal(done.restored["notes"], 0);
-    assert.equal((await target.detail(library.marked)).note.body, null);
+    assert.equal((await target.detail(library.highlightedId)).note.body, null);
   });
 
   it("counts a stored file the zip lacks as missing, keeps the Item and shows it with no text", async () => {
-    const longId = library.longTextIds[0] ?? 0;
-    const lacking = withoutEntry(entries, `${rootOf(entries)}items/${String(longId)}/post-1-1.md`);
+    const { id: longId } = firstLongText(library);
+    const lacking = withoutEntry(entries, `${rootOf(entries)}${postTextKey(longId)}`);
     const done = await restored(lacking);
 
-    assert.ok(done.state === "done", JSON.stringify(done));
     assert.equal(done.missingFiles, 1);
     assert.equal(done.files, 0);
 
@@ -109,11 +99,9 @@ describe("a Restore counts the rows and the files it leaves out, and anchors Hig
       new TextDecoder().decode(entries.get(nameEndingWith(entries, "/records/highlights.1.jsonl"))),
     );
 
-    const done = await restored(lost);
+    await restored(lost);
 
-    assert.ok(done.state === "done", JSON.stringify(done));
-
-    const { highlights, postText } = await target.detail(library.marked);
+    const { highlights, postText } = await target.detail(library.highlightedId);
 
     assert.deepEqual(
       highlights.items.map(({ status }) => status),
@@ -121,7 +109,7 @@ describe("a Restore counts the rows and the files it leaves out, and anchors Hig
     );
     assert.deepEqual(
       highlights.items.map((highlight) => ("start" in highlight ? highlight.start : null)),
-      [postText?.indexOf("quartz seam")],
+      [postText?.indexOf(MARKED_PASSAGE)],
     );
   });
 });

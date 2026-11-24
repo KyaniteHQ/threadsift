@@ -3,9 +3,10 @@ import { after, before, describe, it } from "node:test";
 
 import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import { Instance, type Json } from "./instance.ts";
+import { selectorIn } from "./lost-highlight-fixtures.ts";
 import { FACT, causeOf, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, until } from "./related-fixtures.ts";
-import { restoreLibrary } from "./restoring-fixtures.ts";
+import { restoreLibrary } from "./restore-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
 
@@ -105,15 +106,7 @@ describe("the Reader shows the comments that pass the script's first step until 
     const path = `/api/items/${String(id)}/highlights`;
     const revision = detail.highlights.revisions.comments ?? -1;
     const body = `${FACT} First.`;
-    const quote = "sqlite3 app.db";
-    const start = body.indexOf(quote);
-
-    const selector = {
-      exact: quote,
-      prefix: body.slice(Math.max(0, start - 32), start),
-      suffix: body.slice(start + quote.length, start + quote.length + 32),
-      hint: start,
-    };
+    const selector = selectorIn(body, "sqlite3 app.db");
 
     const shown = await instance.send("POST", path, {
       target: { kind: "comment", commentId: "t1_c1" },

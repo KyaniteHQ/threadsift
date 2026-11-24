@@ -3,45 +3,35 @@ import { after, afterEach, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { ExportStatusSchema, StartedExportSchema } from "../src/core/contract/export-contract.ts";
+import {
+  EXPORT_KEEP_MS,
+  ExportStatusSchema,
+  SETTLE_MS,
+  StartedExportSchema,
+} from "../src/core/contract/export-contract.ts";
+import { SECOND_MS } from "../src/core/contract/time-units.ts";
+import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import {
   type SavedLibrary,
-  bytesOfKey,
   downloadedZip,
-  postTextKey,
   readyExport,
   savedLibrary,
-  storedKeys,
 } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { until } from "./related-fixtures.ts";
-import { loggedAttempts, retryNow } from "./restore-fixtures.ts";
+import { blockItemFiles, loggedAttempts, retryNow, unblockItemFiles } from "./restore-fixtures.ts";
 import { exec, nextSweep, rows } from "./sqlite-fixtures.ts";
-import { entriesOf } from "./zip-fixtures.ts";
-
-const MINUTE_MS = 60_000;
-
-const HOUR_MS = 60 * MINUTE_MS;
+import { entriesOf, manifestOf } from "./zip-fixtures.ts";
 
 describe("one Export exists at a time and a stopped slice is retried, then given up", () => {
   let instance: Instance;
   let library: SavedLibrary;
-  let text: Uint8Array;
-
-  const key = () => postTextKey(library.longTextIds[0] ?? 0);
 
   const status = () => instance.read("GET", "/api/export", ExportStatusSchema);
 
-  const exportRows = () =>
-    rows(
-      instance,
-      z.object({ id: z.number(), state: z.string() }),
-      "select id, state from exports order by id",
-    );
-
   const startedWithoutText = async () => {
     await instance.send("DELETE", "/api/export");
-    await instance.core.files.delete([key()]);
+    blockItemFiles(instance);
 
     return instance.send("POST", "/api/export");
   };
@@ -65,12 +55,11 @@ describe("one Export exists at a time and a stopped slice is retried, then given
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    library = await savedLibrary(instance, { small: 1, linked: 39, long: 1 });
-    text = await bytesOfKey(instance, key());
+    library = await savedLibrary(instance, { inlineText: 1, linkOnly: 39, fileText: 1 });
   });
 
-  afterEach(async () => {
-    await instance.core.files.put(key(), text);
+  afterEach(() => {
+    unblockItemFiles(instance);
   });
 
   after(() => instance.close());
@@ -95,50 +84,60 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
   it("keeps the stored slices of a failed Export", async () => {
     const { id } = await failedExport();
+    const prefix = `exports/${String(id)}/`;
 
-    assert.ok(
-      (await storedKeys(instance, `exports/${String(id)}/`)).length > 0,
-      "the first slice stays stored while the Export is failed",
-    );
+    assert.deepEqual(await listedKeys(instance.core.files, prefix), [
+      `${prefix}dir-1-0`,
+      `${prefix}part-1-0`,
+    ]);
   });
 
   it("starts a new Export that completes after a failed one", async () => {
     const { id } = await failedExport();
 
-    await instance.core.files.put(key(), text);
+    unblockItemFiles(instance);
 
     const again = await readyExport(instance);
 
     assert.notEqual(again.id, id);
-    assert.ok((await entriesOf(await downloadedZip(instance, again.id))).size > 0);
+    assert.equal(
+      manifestOf(await entriesOf(await downloadedZip(instance, again.id))).tables["items"]?.rows,
+      library.ids.length,
+    );
   });
 
   it("deletes the objects of a failed Export 12 minutes after its last update, and not before", async () => {
     const { id } = await failedExport();
     const prefix = `exports/${String(id)}/`;
 
-    assert.ok((await storedKeys(instance, prefix)).length > 0);
+    unblockItemFiles(instance);
+    assert.ok((await listedKeys(instance.core.files, prefix)).length > 0);
 
     exec(
       instance,
       "update exports set updated_at = ? where id = ?",
-      Date.now() - 11 * MINUTE_MS,
+      Date.now() - SETTLE_MS + SECOND_MS,
       id,
     );
     await nextSweep(instance);
-    assert.ok((await storedKeys(instance, prefix)).length > 0, "11 minutes old");
+    assert.ok((await listedKeys(instance.core.files, prefix)).length > 0, "1 second short");
 
     exec(
       instance,
       "update exports set updated_at = ? where id = ?",
-      Date.now() - 13 * MINUTE_MS,
+      Date.now() - SETTLE_MS - SECOND_MS,
       id,
     );
     await nextSweep(instance);
-    assert.deepEqual(await storedKeys(instance, prefix), []);
+    assert.deepEqual(await listedKeys(instance.core.files, prefix), []);
     assert.deepEqual(
-      exportRows().find((row) => row.id === id),
-      { id, state: "expired" },
+      rows(
+        instance,
+        z.object({ id: z.number(), state: z.string() }),
+        "select id, state from exports where id = ?",
+        id,
+      ),
+      [{ id, state: "expired" }],
     );
   });
 
@@ -146,12 +145,12 @@ describe("one Export exists at a time and a stopped slice is retried, then given
     const first = await readyExport(instance);
     const prefix = `exports/${String(first.id)}/`;
 
-    assert.ok((await storedKeys(instance, prefix)).length > 0);
+    assert.ok((await listedKeys(instance.core.files, prefix)).length > 0);
 
     const second = await readyExport(instance);
 
     assert.notEqual(second.id, first.id);
-    assert.deepEqual(await storedKeys(instance, prefix), []);
+    assert.deepEqual(await listedKeys(instance.core.files, prefix), []);
   });
 
   it("answers 404 to the download of a replaced Export and 200 to the new one", async () => {
@@ -174,7 +173,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
     assert.equal((await instance.send("DELETE", "/api/export")).status, 204);
     assert.deepEqual(await status(), { state: "none" });
-    assert.deepEqual(await storedKeys(instance, prefix), []);
+    assert.deepEqual(await listedKeys(instance.core.files, prefix), []);
     assert.equal((await instance.send("DELETE", "/api/export")).status, 404);
   });
 
@@ -185,7 +184,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
     await instance.send("DELETE", "/api/export");
     await instance.core.files.put(`${prefix}part-9-9`, new Uint8Array(1));
     await nextSweep(instance);
-    assert.deepEqual(await storedKeys(instance, prefix), []);
+    assert.deepEqual(await listedKeys(instance.core.files, prefix), []);
   });
 
   it("keeps a ready Export 24 hours after it finished and removes it at the next sweep after that", async () => {
@@ -195,21 +194,21 @@ describe("one Export exists at a time and a stopped slice is retried, then given
     exec(
       instance,
       "update exports set finished_at = ? where id = ?",
-      Date.now() - 23 * HOUR_MS,
+      Date.now() - EXPORT_KEEP_MS + SECOND_MS,
       ready.id,
     );
     await nextSweep(instance);
     assert.equal((await status()).state, "ready");
-    assert.ok((await storedKeys(instance, prefix)).length > 0);
+    assert.ok((await listedKeys(instance.core.files, prefix)).length > 0);
 
     exec(
       instance,
       "update exports set finished_at = ? where id = ?",
-      Date.now() - 25 * HOUR_MS,
+      Date.now() - EXPORT_KEEP_MS - SECOND_MS,
       ready.id,
     );
     await nextSweep(instance);
     assert.deepEqual(await status(), { state: "none" });
-    assert.deepEqual(await storedKeys(instance, prefix), []);
+    assert.deepEqual(await listedKeys(instance.core.files, prefix), []);
   });
 });

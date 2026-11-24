@@ -18,7 +18,7 @@ import {
   sameAsRest,
 } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
-import { holdLibrary } from "./restoring-fixtures.ts";
+import { holdLibrary } from "./restore-fixtures.ts";
 import { exec } from "./sqlite-fixtures.ts";
 
 const RESTORING =
