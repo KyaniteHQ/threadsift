@@ -301,7 +301,7 @@ Container only. The loaded plug-ins are the registry `Ports.fetchers`. A self-ho
 
 ### Deadline
 
-The plug-in gets the fetch job's deadline signal. `pluginPage` calls nothing when the signal has already aborted, so a throwing matcher cannot turn an expired deadline into `unreadable`. Otherwise it races the answer against the signal. Only that signal aborting gives `timeout`, and an `AbortError` thrown while the signal is open is a plug-in failure.
+The plug-in gets the fetch job's deadline signal. `pluginPage` calls nothing when the signal has already aborted, so a throwing matcher cannot turn an expired deadline into `unreadable`. Otherwise it races the answer against the signal. Only that signal aborting gives `timeout`: a matcher that throws after the signal aborted and a signal that aborted before the plug-in's `fetch` starts (which is then not called) give it too. An `AbortError` thrown while the signal is open is a plug-in failure.
 
 The deadline stops the app waiting, not the plug-in: a synchronous loop, a runaway allocation, a timer or `process.exit()` still reach the whole process. Process isolation is not built, because the spec gives no isolation promise ("at their own risk").
 
