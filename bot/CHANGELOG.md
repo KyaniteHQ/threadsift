@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v12
+
+- A task id that Threadsift sends again with a new callback token opens with no `done` file left from the old token, so a repeat of the new send answers `already-open` and the cleanup of finished tasks no longer deletes the open task's folder after 7 days. No Instance change is needed.
+
 ## bot-v11
 
 - A task id with a leading zero, or a task id of 0, is refused as `bad-input` before any call, because the Instance answers 401 for it. The Instance sends only ids that start with 1 to 9.
