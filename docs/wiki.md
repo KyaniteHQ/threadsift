@@ -79,6 +79,8 @@ On a phone, a citation takes its own row at least `--target` (44px) tall, and th
 
 A failed overview shows its note and Try again above the Items, and the Items still list. With no Provider and no stored overview, the page shows a note and the Items only.
 
+An Item whose stored Digest is not valid JSON, or holds no Summary text, still lists with an empty Summary line, and the page answers 200.
+
 ## The Index
 
 The Index reads `topics` and `topic_pages`. It adds no table, no job and no AI task, so it works with no Provider saved.

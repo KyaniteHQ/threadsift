@@ -10,6 +10,7 @@ import {
   overviewState,
 } from "../../../core/contract/topic-overview-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { listedSummary } from "../../../core/kernel/digest-stored.ts";
 import { providerSet } from "../../../core/kernel/provider-saved.ts";
 import { digests, items, topicPages } from "../../../core/kernel/schema.ts";
 import { readDisagreements } from "./known-disagreements.ts";
@@ -29,7 +30,7 @@ function pageQuery(db: Database, topicId: number, cursor: Readonly<ItemCursor> |
       savedAt: items.savedAt,
       readState: items.readState,
       title: digests.title,
-      summary: sql<string>`json_extract(${digests.digest}, '$.summary')`,
+      summary: listedSummary(),
       digest: digests.taskId,
     })
     .from(items)

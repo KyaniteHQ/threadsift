@@ -43,7 +43,7 @@ Only the lifecycle module moves a row between states or removes it. A statement 
 
 `GET /api/proposals?cursor=` answers the owner's session and an agent token. The MCP endpoint has no tool for it. It lists `open` and `accepting` rows of every kind, 50 to a page, newest first by `id`.
 
-- A merge row shows its `items` counts as of the call. A disagreement row shows the title and `summary` of the stored Digest the row names, so the page shows the text the model judged and never a later text.
+- A merge row shows its `items` counts as of the call. A disagreement row shows the title and `summary` of the stored Digest the row names, so the page shows the text the model judged and never a later text. A Digest that is not valid JSON, or holds no Summary text, shows an empty `summary`, and the page still answers 200.
 - A row is listable while its subject condition holds: a merge row always, a `highlight-lost` row while its Highlight is not `attached`, an `overview-gap` row while the Topic still has the gap, and an `items-disagree` row while it stays listed (What hides and deletes a row). Each kind's query inner-joins its subject table, so a row with no subject row is not listed.
 - The page is one snapshot of the five kinds' results by id, so a hidden row leaves a full page and not a short one. The eligibility, the quote, the Item and the title come from one batch, because a later read could pair a row with a subject that the row was not chosen for.
 - `checkedAt` is the largest `last_run_at` of the weekly claims. `provider` says whether a Provider is saved.
