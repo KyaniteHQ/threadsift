@@ -35,14 +35,9 @@ released_tag() {
   tag_known "$tag" && echo "$tag"
 }
 
-temp=""
-trap '[[ -z "$temp" ]] || rm -f "$temp"' EXIT
-
 rewritten() {
   local file="$1" expression="$2"
-  [[ -n "$temp" ]] || temp="$(mktemp)"
-  sed -E "$expression" "$file" > "$temp"
-  cat "$temp" > "$file"
+  sed -E -i "$expression" "$file"
 }
 
 pin() {

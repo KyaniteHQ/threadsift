@@ -1,41 +1,37 @@
+import { joinedBytes } from "../contract/encoding.ts";
+
 export interface Capped {
   readonly bytes: Uint8Array;
   readonly cut: boolean;
 }
 
-function joinedChunks(chunks: readonly Uint8Array[], size: number): Uint8Array {
-  const bytes = new Uint8Array(size);
-  let at = 0;
+export async function readPrefix(
+  body: AsyncIterable<Uint8Array>,
+  maxBytes: number,
+): Promise<Uint8Array> {
+  const chunks: Uint8Array[] = [];
+  let size = 0;
 
-  for (const chunk of chunks) {
-    bytes.set(chunk, at);
-    at += chunk.length;
+  for await (const chunk of body) {
+    const kept = chunk.subarray(0, maxBytes - size);
+    chunks.push(kept);
+    size += kept.length;
+
+    if (size >= maxBytes) {
+      break;
+    }
   }
 
-  return bytes;
+  return joinedBytes(chunks);
 }
 
 export async function readCapped(
   body: AsyncIterable<Uint8Array>,
   maxBytes: number,
 ): Promise<Capped> {
-  const chunks: Uint8Array[] = [];
-  let size = 0;
-  let cut = false;
+  const prefix = await readPrefix(body, maxBytes + 1);
 
-  for await (const chunk of body) {
-    const room = maxBytes - size;
-    cut = chunk.length > room;
-    const kept = cut ? chunk.subarray(0, room) : chunk;
-    chunks.push(kept);
-    size += kept.length;
-
-    if (cut) {
-      break;
-    }
-  }
-
-  return { bytes: joinedChunks(chunks, size), cut };
+  return { bytes: prefix.subarray(0, maxBytes), cut: prefix.length > maxBytes };
 }
 
 class Overflow extends Error {}
@@ -90,5 +86,5 @@ export async function readWithin(
     return held <= maxBytes;
   });
 
-  return fits ? joinedChunks(chunks, held) : null;
+  return fits ? joinedBytes(chunks) : null;
 }

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { unicodeEscape } from "../contract/format.ts";
+import { type JsonField, escapedJson } from "../contract/format.ts";
 
 const SQLITE_CONSTANTS = new Set([
   "SQLITE_BUSY",
@@ -56,16 +56,8 @@ export function databaseCodeOf(cause: unknown, depth = 0): string {
   return depth < 2 ? databaseCodeOf(failure.data.cause, depth + 1) : "unknown";
 }
 
-const UNESCAPED_BY_JSON = /[\u007F-\u009F\u2028\u2029]/gu;
-
-type Field = number | string | null | readonly number[] | readonly string[];
-
-function lineOf(entry: Readonly<Record<string, Field>>): string {
-  return JSON.stringify(entry).replaceAll(UNESCAPED_BY_JSON, unicodeEscape);
-}
-
-export function report(event: string, fields: Readonly<Record<string, Field>>): void {
-  console.warn(lineOf({ event, ...fields }));
+export function report(event: string, fields: Readonly<Record<string, JsonField>>): void {
+  console.warn(escapedJson({ event, ...fields }));
 }
 
 export function logFailure(
@@ -73,7 +65,7 @@ export function logFailure(
   fields: Readonly<Record<string, string | number>>,
   cause: unknown,
 ): void {
-  console.error(lineOf({ event, ...fields, error: errorClassOf(cause) }));
+  console.error(escapedJson({ event, ...fields, error: errorClassOf(cause) }));
 }
 
 interface FailureLine {
@@ -98,7 +90,7 @@ export function reportFailure(failure: Readonly<FailureLine>, cause: unknown): v
   try {
     logFailure(failure.event, { ...failure.fields, ...codesOf(cause) }, cause);
   } catch {
-    console.error(JSON.stringify({ event: "failure-unreadable", failed: failure.event }));
+    console.error(escapedJson({ event: "failure-unreadable", failed: failure.event }));
   }
 }
 

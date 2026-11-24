@@ -1,6 +1,4 @@
-import { unicodeEscape } from "../contract/format.ts";
-
-const NOT_PLAIN_YAML = /[\u007F-\u009F\u2028\u2029\uFFFE\uFFFF]/gu;
+import { escapedJson, lineBreaksOf } from "../contract/format.ts";
 
 const INLINE_SPECIALS = /[\\`*_[\]<>&~|]/gu;
 
@@ -9,11 +7,7 @@ const BLOCK_MARKER = /^(\s{0,3})([#>+=-])/u;
 const LIST_NUMBER = /^(\s{0,3}\d+)([.)])/u;
 
 export function yamlScalar(value: string | null): string {
-  return JSON.stringify(value ?? "").replaceAll(NOT_PLAIN_YAML, unicodeEscape);
-}
-
-export function lineBreaksOf(text: string): string[] {
-  return text.split(/\r\n|\r|\n/u);
+  return escapedJson(value ?? "");
 }
 
 export function plainMarkdown(text: string): string {

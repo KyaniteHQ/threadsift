@@ -1,3 +1,5 @@
+import { joinedBytes } from "../../core/contract/encoding.ts";
+
 const decoder = new TextDecoder("latin1");
 
 export class MalformedResponse extends Error {
@@ -7,18 +9,6 @@ export class MalformedResponse extends Error {
 const CR = 13;
 
 const LF = 10;
-
-function concatenated(parts: readonly Uint8Array[]): Uint8Array {
-  const all = new Uint8Array(parts.reduce((total, part) => total + part.length, 0));
-
-  parts.reduce((at, part) => {
-    all.set(part, at);
-
-    return at + part.length;
-  }, 0);
-
-  return all;
-}
 
 function lineEnd(bytes: Uint8Array): number {
   return bytes.findIndex((byte, at) => byte === CR && bytes[at + 1] === LF);
@@ -116,7 +106,7 @@ export function byteReader(source: Readonly<AsyncIterable<Uint8Array>>): ByteRea
     if (bytes > limit) throw new MalformedResponse("a line is too long");
 
     const text = decoder.decode(
-      concatenated([...held, data.subarray(0, found.end)]).subarray(0, bytes),
+      joinedBytes([...held, data.subarray(0, found.end)]).subarray(0, bytes),
     );
 
     held.length = 0;

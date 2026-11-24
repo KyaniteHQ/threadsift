@@ -18,7 +18,7 @@ A batch that may only commit while a condition holds starts with an insert into 
 
 The helpers are `guardedResults`, `guardedWrite` and `guardedBatch`, and `insertGuard` for a batch that builds its own guard.
 
-- A helper reports a refusal only when the error is a failed guard check (`GUARD_REFUSED` lists the messages that count) and the condition no longer holds. That is a lost lease with nothing written.
+- A helper reports a refusal only when the error is a failed guard check (`GUARD_REFUSED` lists the messages that count, and a helper reads only the innermost error of the cause chain, because the message of a Drizzle wrapper holds the bound parameters) and the condition no longer holds. That is a lost lease with nothing written.
 - A helper rethrows any other error, because its outcome is unknown. A D1 batch whose answer is lost can have committed, and the condition then no longer holds because the batch itself changed it.
 - A driver that sends a write batch again after it committed would report that batch as lost, because the batch closed its own condition. Neither target does: D1 retries read-only queries only ([D1 retry queries](https://developers.cloudflare.com/d1/best-practices/retry-queries/)), and `node:sqlite` runs each batch once.
 - The guard insert uses Drizzle's `insert(guards).select(...)`, because a raw `db.run(sql)` inside a D1 batch fails in drizzle-orm 0.45.4 with `Cannot read properties of undefined (reading 'bind')`.

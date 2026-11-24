@@ -21,6 +21,18 @@ export function collapsed(text: string): string {
   return text.replaceAll(/\s+/gu, " ").trim();
 }
 
-export function unicodeEscape(character: string): string {
-  return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
+export function lineBreaksOf(text: string): string[] {
+  return text.split(/\r\n|\r|\n/u);
+}
+
+export type JsonField = number | string | null | readonly number[] | readonly string[];
+
+const UNESCAPED_BY_JSON = /[\u007F-\u009F\u2028\u2029\uFFFE\uFFFF]/gu;
+
+function unicodeEscape(character: string): string {
+  return "\\u" + Number(character.codePointAt(0)).toString(16).padStart(4, "0");
+}
+
+export function escapedJson(value: string | Readonly<Record<string, JsonField>>): string {
+  return JSON.stringify(value).replaceAll(UNESCAPED_BY_JSON, unicodeEscape);
 }

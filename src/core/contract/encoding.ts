@@ -12,6 +12,18 @@ export function prefixWithin(text: string, bytes: number): string {
   return text.slice(0, read);
 }
 
+export function joinedBytes(parts: readonly Uint8Array[]): Uint8Array<ArrayBuffer> {
+  const joined = new Uint8Array(parts.reduce((size, part) => size + part.length, 0));
+  let at = 0;
+
+  for (const part of parts) {
+    joined.set(part, at);
+    at += part.length;
+  }
+
+  return joined;
+}
+
 export function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

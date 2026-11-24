@@ -1,11 +1,12 @@
 import type { CommentNode } from "../../../core/contract/comment-view.ts";
 import { utf8Length } from "../../../core/contract/encoding.ts";
 import {
+  FILE_ROUTE,
   isImageRouteOf,
+  itemFilesPrefix,
   keyOfFileRoute,
-  mayHoldImageRouteOf,
 } from "../../../core/contract/file-keys.ts";
-import { collapsed } from "../../../core/contract/format.ts";
+import { collapsed, lineBreaksOf } from "../../../core/contract/format.ts";
 import type { Kind, ReadState, Source } from "../../../core/contract/item-contract.ts";
 import {
   COMMENTS_TITLE,
@@ -20,8 +21,13 @@ import {
   UNTITLED,
   handleOf,
 } from "../../../core/contract/reader-text.ts";
-import { lineBreaksOf, plainMarkdown, yamlScalar } from "../../../core/kernel/markdown-escape.ts";
-import { inlineImage, rewriteImages, scanMarkdown } from "../../../core/kernel/markdown-images.ts";
+import { plainMarkdown, yamlScalar } from "../../../core/kernel/markdown-escape.ts";
+import {
+  inlineImage,
+  mayHoldDestination,
+  rewriteImages,
+  scanMarkdown,
+} from "../../../core/kernel/markdown-images.ts";
 
 const SLUG_CODE_POINTS = 80;
 
@@ -150,7 +156,7 @@ function commentSection(nodes: readonly CommentNode[], source: Source): string[]
 }
 
 function imagesBesideNote(text: string, itemId: number, omittedImages: readonly string[]): string {
-  if (!mayHoldImageRouteOf(text, itemId)) return text;
+  if (!mayHoldDestination(text, FILE_ROUTE + itemFilesPrefix(itemId))) return text;
 
   const { images } = scanMarkdown(text, false);
 

@@ -16,7 +16,7 @@ import { type JobRow, jobs } from "../../../core/kernel/schema.ts";
 
 export const WAIT_CHECK_MS = 300_000;
 
-const WAITING = and(eq(jobs.kind, "fetch"), waitingFor("reddit-limit"));
+const WAITING = sql`(${eq(jobs.kind, "fetch")} and ${waitingFor("reddit-limit")})`;
 
 const OLDEST_WAITING = sql`(select min(${jobs.id}) from ${jobs} where ${WAITING})`;
 
@@ -114,11 +114,9 @@ function wakeOldest(db: Database, run: TurnRun, now: number): BatchItem<"sqlite"
   return wokenJobs(
     db,
     now,
-    and(
-      WAITING,
-      eq(jobs.id, sql`${OLDEST_WAITING}`),
-      sql`exists (select 1 from ${redditAccount} where ${ownedBy(run)})`,
-    ),
+    WAITING,
+    eq(jobs.id, sql`${OLDEST_WAITING}`),
+    sql`exists (select 1 from ${redditAccount} where ${ownedBy(run)})`,
   );
 }
 
@@ -146,11 +144,9 @@ function wakeWhenFree(db: Database, run: TurnRun, now: number): BatchItem<"sqlit
   return wokenJobs(
     db,
     now,
-    and(
-      eq(jobs.id, run.id),
-      WAITING,
-      sql`exists (select 1 from ${redditAccount} where ${takeable})`,
-    ),
+    eq(jobs.id, run.id),
+    WAITING,
+    sql`exists (select 1 from ${redditAccount} where ${takeable})`,
   );
 }
 
@@ -183,7 +179,7 @@ export function releaseWaiting(db: Database, now: number): BatchItem<"sqlite"> {
 }
 
 export function releaseWaitingWhen(db: Database, now: number, condition: SQL): BatchItem<"sqlite"> {
-  return wokenJobs(db, now, and(WAITING, condition));
+  return wokenJobs(db, now, WAITING, condition);
 }
 
 export function releaseWaitingWhenFree(db: Database, now: number): BatchItem<"sqlite"> {

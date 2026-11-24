@@ -237,13 +237,6 @@ export function keyOfFileRoute(path: string): string | null {
   return parseFileKey(key) === null ? null : key;
 }
 
-const ESCAPED_DESTINATION =
-  /\\[!-/:-@[-`{-~]|&(?:[A-Za-z][A-Za-z0-9]{0,30}|#[0-9]{1,7}|#[Xx][0-9A-Fa-f]{1,6});/u;
-
-export function mayHoldImageRouteOf(text: string, itemId: number): boolean {
-  return text.includes(FILE_ROUTE + itemFilesPrefix(itemId)) || ESCAPED_DESTINATION.test(text);
-}
-
 export function isImageRouteOf(path: string, itemId: number): boolean {
   const key = keyOfFileRoute(path);
 

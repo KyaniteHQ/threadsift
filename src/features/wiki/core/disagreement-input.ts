@@ -70,8 +70,8 @@ function newestItemsOf(db: Database, topicIds: readonly number[]) {
       topicId: sql<number>`${items.topicId}`.as("topic_id"),
       itemId: sql<number>`${items.id}`.as("item_id"),
       digest: sql<number>`${digests.taskId}`.as("digest"),
-      title: digestField("title").as("title"),
-      summary: digestField("summary").as("summary"),
+      title: digestField("title", digests.digest).as("title"),
+      summary: digestField("summary", digests.digest).as("summary"),
       place:
         sql<number>`row_number() over (partition by ${items.topicId} order by ${items.savedAt} desc, ${items.id} desc)`.as(
           "place",

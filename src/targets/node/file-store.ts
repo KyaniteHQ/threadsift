@@ -42,6 +42,10 @@ async function exists(path: string, wanted: Kind): Promise<boolean> {
   throw new FileRefused(`${path} is not a regular ${wanted}`);
 }
 
+async function refuseOtherKind(path: string, wanted: Kind): Promise<void> {
+  await exists(path, wanted);
+}
+
 async function allPresent(folders: readonly string[]): Promise<boolean> {
   const [first, ...rest] = folders;
 
@@ -57,7 +61,7 @@ async function ensureAll(folders: readonly string[]): Promise<void> {
 
   if (!(await exists(first, "directory"))) {
     await mkdir(first, { recursive: true });
-    await exists(first, "directory");
+    await refuseOtherKind(first, "directory");
   }
 
   await ensureAll(rest);
@@ -245,7 +249,7 @@ export function dataFileStore(dataDir: string): FileStore {
 
       const leaf = folder.path(parsed.root, parsed.ownerId, parsed.name);
 
-      await exists(leaf, "file");
+      await refuseOtherKind(leaf, "file");
 
       const temporary = folder.path(parsed.root, parsed.ownerId, temporaryName(parsed.name));
 

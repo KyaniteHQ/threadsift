@@ -235,7 +235,9 @@ export function answerWithin<Answer>(
   unanswered: Answer,
 ): Promise<Answer> {
   const deadline = AbortSignal.any([AbortSignal.timeout(PROBE_MS), shutdown]);
-  const answer = probe(deadline).catch(() => unanswered);
+  const answer = new Promise<Answer>((resolve) => {
+    resolve(probe(deadline));
+  }).catch(() => unanswered);
 
   const expired = new Promise<Answer>((resolve) => {
     deadline.addEventListener("abort", () => {

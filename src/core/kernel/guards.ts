@@ -45,21 +45,31 @@ function guardHeldOrUnread(db: Database, condition: Readonly<SQLWrapper>): Promi
   );
 }
 
-const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)/u;
+const GUARD_REFUSED = /CHECK constraint failed: (?:guards_hold|ok = 1)(?:: SQLITE_[^\n]*)?$/u;
 
-export function refusedBy(cause: unknown, refusal: Readonly<RegExp>): boolean {
-  for (let link = cause; link instanceof Error; link = link.cause) {
-    if (refusal.test(link.message)) return true;
+function innermostError(cause: unknown): Error | null {
+  const seen = new Set<Error>();
+  let innermost: Error | null = null;
+
+  for (let link = cause; link instanceof Error && !seen.has(link); link = link.cause) {
+    seen.add(link);
+    innermost = link;
   }
 
-  return false;
+  return innermost;
+}
+
+export function refusedBy(cause: unknown, refusal: Readonly<RegExp>): boolean {
+  const database = innermostError(cause);
+
+  return database !== null && refusal.test(database.message);
 }
 
 export function refusedByGuard(cause: unknown): boolean {
   return refusedBy(cause, GUARD_REFUSED);
 }
 
-async function nullWhenRefused<Result>(
+export async function unlessRefused<Result>(
   db: Database,
   condition: Readonly<SQLWrapper>,
   run: () => Promise<Result>,
@@ -71,14 +81,6 @@ async function nullWhenRefused<Result>(
 
     return null;
   }
-}
-
-export function unlessRefused<Written>(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  write: () => Promise<Written>,
-): Promise<Written | null> {
-  return nullWhenRefused(db, condition, write);
 }
 
 function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(
@@ -94,7 +96,7 @@ export function guardedResults(
   condition: Readonly<SQLWrapper>,
   writes: readonly BatchItem<"sqlite">[],
 ): Promise<readonly unknown[] | null> {
-  return nullWhenRefused(db, condition, async () => {
+  return unlessRefused(db, condition, async () => {
     const [, ...results] = await db.batch(guardedWrites(db, condition, writes));
 
     const written: readonly unknown[] = results.slice(0, writes.length);
@@ -117,7 +119,7 @@ export function guardedWrite<Write extends BatchItem<"sqlite">>(
   write: Write,
   rest: readonly BatchItem<"sqlite">[],
 ): Promise<Write["_"]["result"] | null> {
-  return nullWhenRefused(db, condition, async () => {
+  return unlessRefused(db, condition, async () => {
     const [, result] = await db.batch(guardedWrites(db, condition, [write, ...rest] as const));
 
     return result;

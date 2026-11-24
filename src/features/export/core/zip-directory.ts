@@ -1,4 +1,4 @@
-import { utf8Length } from "../../../core/contract/encoding.ts";
+import { joinedBytes, utf8Length } from "../../../core/contract/encoding.ts";
 import {
   ZipRefused,
   type ZipDirectory,
@@ -23,7 +23,6 @@ import {
   ZIP64_EXTRA_ID,
   ZIP64_LOCATOR_BYTES,
   ZIP64_LOCATOR_SIGNATURE,
-  joined,
 } from "./zip.ts";
 
 const END_SEARCH_BYTES = 0xff_ff + END_BYTES;
@@ -220,7 +219,7 @@ async function recordsOf(
   let pending: Uint8Array = new Uint8Array(0);
 
   for await (const chunk of source.read(offset, size)) {
-    pending = pending.length === 0 ? chunk : joined([pending, chunk]);
+    pending = pending.length === 0 ? chunk : joinedBytes([pending, chunk]);
 
     const parsed = parsedRecords(pending);
 
