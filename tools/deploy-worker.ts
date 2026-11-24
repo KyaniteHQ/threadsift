@@ -11,7 +11,7 @@ import {
   checkConfiguredCode,
 } from "../src/core/contract/setup-code.ts";
 import { SECRET_KEY_PATTERN } from "../src/core/kernel/sealed-secret.ts";
-import { settingVariablesOf } from "../src/targets/shared/settings.ts";
+import { PriceFlagSchema, settingVariablesOf } from "../src/targets/shared/settings.ts";
 
 const REQUIRED_SECRETS = ["THREADSIFT_SECRET_KEY", "SETUP_CODE"] as const;
 const WRANGLER = ["exec", "wrangler", "--env", ""];
@@ -50,9 +50,9 @@ function unusableSecrets(secrets: Readonly<z.infer<typeof SecretsSchema>>): read
     ...(checkConfiguredCode(set.PASSWORD_RESET_CODE, RESET_CODE_MIN).status === "short"
       ? [`PASSWORD_RESET_CODE must be at least ${RESET_CODE_MIN} characters`]
       : []),
-    ...(flag === undefined || flag === "true" || flag === "false"
+    ...(flag === undefined || PriceFlagSchema.safeParse(flag).success
       ? []
-      : ["THREADSIFT_OPENROUTER_MAX_PRICE_ZERO must be true or false"]),
+      : [`THREADSIFT_OPENROUTER_MAX_PRICE_ZERO must be ${PriceFlagSchema.options.join(" or ")}`]),
   ];
 }
 
