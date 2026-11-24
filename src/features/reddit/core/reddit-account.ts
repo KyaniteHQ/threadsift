@@ -30,9 +30,9 @@ import { answerOf } from "./reddit-session.ts";
 
 type AccountPorts = Pick<Ports, "db" | "secrets">;
 
-type DisconnectPorts = AccountPorts & Pick<Ports, "jobs">;
+type ChangePorts = AccountPorts & Pick<Ports, "jobs">;
 
-type VerifyPorts = DisconnectPorts & Pick<Ports, "redditSession">;
+type VerifyPorts = ChangePorts & Pick<Ports, "redditSession">;
 
 type ConnectOutcome =
   | { readonly kind: "connected"; readonly view: RedditAccountView }
@@ -107,7 +107,7 @@ export function savedAnswer(saved: Readonly<ConnectOutcome>):
 }
 
 export async function connectRedditAccount(
-  ports: Readonly<AccountPorts>,
+  ports: Readonly<ChangePorts>,
   text: string,
 ): Promise<ConnectOutcome> {
   const session = redditSessionOf(text);
@@ -116,13 +116,13 @@ export async function connectRedditAccount(
 
   if (ports.secrets === null) return { kind: "refused", reason: "secret-missing" };
 
-  await connectAccount(ports.db, await ports.secrets.seal(session), Date.now());
+  await connectAccount(ports, await ports.secrets.seal(session), Date.now());
 
   return { kind: "connected", view: await redditAccountState(ports) };
 }
 
 export async function disconnectRedditAccount(
-  ports: Readonly<DisconnectPorts>,
+  ports: Readonly<ChangePorts>,
 ): Promise<RedditAccountView> {
   await disconnectAccount(ports, Date.now());
 

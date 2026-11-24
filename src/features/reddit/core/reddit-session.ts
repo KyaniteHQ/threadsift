@@ -2,6 +2,7 @@ import { THREAD_CONTENT_BYTES } from "../../../core/contract/limits.ts";
 import { REDDIT_SESSION_COOKIE } from "../../../core/contract/reddit-account-contract.ts";
 import { OK, type RedditAnswer } from "../../../core/contract/reddit-http.ts";
 import { readCapped } from "../../../core/kernel/capped.ts";
+import { reportFailure } from "../../../core/kernel/failure-log.ts";
 import {
   NO_COMPRESSION,
   type NetworkResponse,
@@ -75,7 +76,9 @@ export async function answerOf(response: NetworkResponse): Promise<RedditAnswer>
     return answered && !cut
       ? { status, text: new TextDecoder().decode(bytes), remaining, reset, retryAfter }
       : { status: answered ? 0 : status, text: "", remaining, reset, retryAfter };
-  } catch {
+  } catch (cause) {
+    reportFailure({ event: "reddit-answer-unread", fields: { status } }, cause);
+
     return { status: 0, text: "", remaining, reset, retryAfter };
   }
 }

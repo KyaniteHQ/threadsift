@@ -46,7 +46,7 @@ A 403 or 429 is a primary limit when `x-ratelimit-remaining` is `0`, and a secon
 
 ### Cooldown and attempts
 
-- A limited answer stores the Instance's cooldown in `github_cooldown`, one row that never moves earlier. It lasts one hour at most (`MAX_COOLDOWN_MS`), because every documented primary limit is per hour, and a stored time further ahead is cut and written back. Saving or removing the token deletes the row in the same batch, because the token has its own limit.
+- A limited answer stores the Instance's cooldown in `github_cooldown`, one row that never moves earlier. It lasts one hour at most (`MAX_COOLDOWN_MS`), because every documented primary limit is per hour, and a stored time further ahead is cut and written back. Saving or removing the token deletes the row and makes every `fetch` job that waits with `github-rate-limit` due in the same batch, because the token has its own limit, and then queues those jobs. Removing a token that is not saved changes nothing. A `fetch` job that defers with `github-rate-limit` after the row was deleted is due at once.
 - Every request checks the cooldown first, so a Paste of any GitHub link waits for it. A request sent with a credential that was replaced or removed meanwhile stores no cooldown and goes out again with the current credential.
 - A limited attempt counts once, whichever request was limited. The first two defer the job. The third ends the Item `failed` with the reason `rate-limited`, keeps its saved content and drops a pending caller Digest like `gave-up`. Finding a cooldown counts no attempt.
 - Verify token sends no request during a stored cooldown and answers the refusal `rate-limited`. GitHub may count `GET /rate_limit` against the secondary limit, and a Verify during a secondary backoff would add to the load that caused it.
@@ -59,7 +59,7 @@ The title, author and community come from oEmbed. The thread comes from the firs
 
 The fill runs inside the fetch job next to the oEmbed request, only when the archive setting is on and the Item holds no thread. It reads Arctic Shift's post and comment tree with two guarded requests, one at a time: the post (`/api/posts/ids?ids=<id>`) and the whole tree (`/api/comments/tree?link_id=t3_<id>&limit=9999`).
 
-- On a 429 the request is sent once more after the seconds in `X-RateLimit-Reset`. A reset over 10 s or a second 429 leaves the Item Link-only without waiting.
+- On a 429 the request is sent once more after the seconds in `X-RateLimit-Reset`. The wait ends when the fetch deadline aborts, and the request is then not sent. A reset over 10 s or a second 429 leaves the Item Link-only without waiting.
 - An answer over 8 MiB, a timeout, an outage, a post the archive lacks and an answer the parser refuses all leave the Item Link-only. None of them fails the Item or retries the job.
 - The oEmbed title wins. The archive's title is used only when oEmbed failed.
 - When the archive puts a reply at the top of the tree because its parent is missing, the fill keeps the parent id, and the Reader groups those replies under one Context stub. The Extension, supplied JSON and connected account require the parent id to match the tree.
@@ -69,7 +69,7 @@ The fill runs inside the fetch job next to the oEmbed request, only when the arc
 
 The account is the first source for a post or comment with no saved thread, before the archive fill and whether or not the fill is on ([Connect a Reddit account](../guides/reddit-account.md)).
 
-- The turn check runs first, so a job that has to wait sends no request, not even oEmbed. One fill runs at a time, oldest job first ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md), The Reddit turn).
+- The turn check runs first, so a job that has to wait sends no request, not even oEmbed. The oEmbed request starts after the account step, so a job that waits after its first answer (a window too small for the hidden replies, or a 429) has sent that one request to Reddit and no oEmbed request. One fill runs at a time, oldest job first ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md), The Reddit turn).
 - The fill requests the post's `.json`, then the replies behind each `more` stub by permalink. Each address comes from `redditRefOf`, never from the pasted text. The Extension runs the same loop.
 - The limits are 500 ms between request starts (kept on the account row, so it holds from one fill to the next), at most 100 requests, 8 MiB held, a stop at the first 429, and a server deadline of 90 s. The Extension's deadline is 150 s.
 - Before each request the server asks whether the run still holds the turn, so Disconnect, `expired`, a closed or deleted job and a takeover stop the fill within one request.
@@ -79,12 +79,13 @@ The account is the first source for a post or comment with no saved thread, befo
 
 `Ports.redditSession` is one `get(path, cookie, signal)` to `www.reddit.com`. The shared adapter fixes the host, follows no redirect with the session, sends the app's `Threadsift/1` User-Agent, refuses a path without a leading `/` and a path or cookie with a line break, and cuts the body at `THREAD_CONTENT_BYTES`.
 
+- A request that throws and an answer whose body cannot be read or passes `THREAD_CONTENT_BYTES` both count as status 0 in the `reddit-fill` line. Each also writes its own line first: `reddit-request-failed`, or `reddit-answer-unread` with the status of the answer, and the error class in both (`RangeError` for a body over `THREAD_CONTENT_BYTES`). No line holds the cookie, the path or the body.
 - The container uses the platform `fetch`.
 - The Worker writes HTTP/1.1 by hand over `connect()` from `cloudflare:sockets`, because Reddit answers the Workers `fetch` client with 403 even with the cookie, while a raw socket from the same Worker got 200 ([Decisions and evidence](decisions-and-evidence.md), Reddit). It opens one connection for each request (`Connection: close`, because a socket cannot outlive its invocation), asks for `Accept-Encoding: identity` and refuses an encoded body. No maintained HTTP client over `connect()` exists, so the reader is the app's own.
 
 ### Request limit and session health
 
-- Reddit's `x-ratelimit-remaining` and `x-ratelimit-reset` (100 requests per about 600 s) are stored on the account row. No job takes the turn while the stored window is used up or `limited_until` is in the future.
+- Reddit's `x-ratelimit-remaining` and `x-ratelimit-reset` (100 requests per about 600 s) are stored on the account row. No job takes the turn while the stored window is used up or `limited_until` is in the future. A used-up window whose answer has no usable `x-ratelimit-reset` (absent, not a number, or `0`) is stored as resetting after `WAIT_CHECK_MS` (5 minutes), the longest wait of a waiting job, unless a later reset is already stored. A stored window reset is cut to one hour, like `limited_until`.
 - A 429 stores `window_remaining = 0` and `limited_until`: the largest of the answer's `x-ratelimit-reset`, its `Retry-After` and 60 s, cut to one hour. The job waits with `reddit-limit` and counts an attempt, and the third limited attempt uses the archive fill.
 - A first answer that shows fewer requests left than the hidden replies need is dropped, and the job waits for the reset and counts no attempt, so a thread with fetchable stubs is not stored. A thread that needs 100 requests or more is stored with stubs.
 - A 401 or 403 sends one `me.json` check with the same session. A 403 there is `blocked`, not `logged-out`, because Reddit answers 403 with the same network-security page to an altered session and to no session. A 401, or a 200 that names no account, is `logged-out` and sets the state `expired` at once.
@@ -300,7 +301,7 @@ Container only. The loaded plug-ins are the registry `Ports.fetchers`. A self-ho
 
 ### Deadline
 
-The plug-in gets the fetch job's deadline signal. `pluginPage` calls nothing when the signal has already aborted, so a throwing matcher cannot turn an expired deadline into `unreadable`. Otherwise it races the answer against the signal. Only that signal aborting gives `timeout`, and an `AbortError` thrown while the signal is open is a plug-in failure.
+The plug-in gets the fetch job's deadline signal. `pluginPage` calls nothing when the signal has already aborted, so a throwing matcher cannot turn an expired deadline into `unreadable`. Otherwise it races the answer against the signal. Only that signal aborting gives `timeout`: a matcher that throws after the signal aborted and a signal that aborted before the plug-in's `fetch` starts (which is then not called) give it too. An `AbortError` thrown while the signal is open is a plug-in failure.
 
 The deadline stops the app waiting, not the plug-in: a synchronous loop, a runaway allocation, a timer or `process.exit()` still reach the whole process. Process isolation is not built, because the spec gives no isolation promise ("at their own risk").
 
@@ -319,7 +320,7 @@ The loader runs first in `startNode`, before the CLI runners, the job loop and t
 
 One normalizer (lower-case host, no `www.`, tracking parameters dropped, short links followed) gives each Item its identity.
 
-- A redirect to Reddit or X stops without a request, so the oEmbed-only and X no-request rules ([Spec](../spec.md), Product) hold for a short link or a redirect. The pasted URL stays the identity, and the answer is `redirect-stopped`. The 21st redirect answers `redirect-limit` even when it points to Reddit or X.
+- A redirect to Reddit or X stops without a request, so the oEmbed-only and X no-request rules ([Spec](../spec.md), Product) hold for a short link or a redirect. The pasted URL stays the identity, and the answer is `redirect-stopped`. The 21st redirect answers `redirect-limit` even when it points to Reddit or X. One hop is the exception: a short link that redirects to a Reddit share link sends that share link's own request, with the share-link policy below, and the Item follows the share link to the post or comment. That hop is a request of its own with a new redirect count, so a short link that ends on a share link after 20 redirects makes one more request than the 20.
 - A short link (`SHORT_LINK_HOSTS`) or a Reddit share link is the only redirect that changes an Item's identity. Its final URL becomes the Item's URL, and the short link is recorded as an alias ([Short-link aliases](data-model-outline.md#short-link-aliases), which also says what a failed resolution saves). `resolveShortLink` reads no body on a hop that is not a short link host, because the fetch job reads the page, so a page that stalls after its headers still resolves. A short link that already has an alias is not resolved at all. Any other redirect only decides where the title comes from.
 - A final dot on a host (`x.com.`) is dropped before any of these rules.
 - A Reddit share link answers a redirect without a login, a cookie or a challenge: a 301 to `/r/<community>/comments/<post>/<title>/` for a post, or `/r/<community>/comments/<post>/comment/<comment id>/` for a comment (32 of 32 links checked on both targets). An unknown or removed code answers 307 to the community root, `old.reddit.com/r/<community>/s/<code>` answers 302 to a login page, and `reddit.com/s/<code>` answers 301 to a page that answers 200. Those links are saved as pasted.

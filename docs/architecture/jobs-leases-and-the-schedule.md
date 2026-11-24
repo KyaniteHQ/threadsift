@@ -215,7 +215,7 @@ The container runs 4 jobs at once, and two fills side by side would double the r
 - Losing the claim. A run that loses its claim releases the turn only when `busy_job` and `busy_attempt` are still its own, so the older run of a taken-over job leaves the takeover run's turn alone. Closing or deleting the job of a fill that is running does not free the turn.
 - During the fill. The fill asks before each request, the first one and the `me.json` check included, whether its run still holds the turn (`holdsTurn`). It stops at the first request it may not send, and writes no window to the account row once it lost the turn, so a second fill never starts while the first still sends.
 - Restart and crash. A restart expires the claim of every running job (`abandonRunning`), and the fill that was running takes its turn back through `busy_job`. A crash leaves `busy_until` to run out after at most the fill deadline plus the claim margin.
-- Account changes. An `expired` account and Disconnect make every waiting job due in one batch, and those jobs run on the archive path.
+- Account changes. An `expired` account and Disconnect make every waiting job due in one batch, and those jobs run on the archive path. Connect stores a session with no window and no limit, and makes every waiting job due in the same batch unless a run still holds the turn (`busy_until` in the future), because that run's close wakes the oldest waiting job. The woken jobs take the turn in order.
 
 ## The weekly claims
 

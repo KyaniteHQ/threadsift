@@ -37,6 +37,12 @@ function failure(module: string, stage: Stage) {
   return { module, stage };
 }
 
+function timedOut(module: string, cause: unknown): PluginFailure {
+  logFailure("fetcher-failed", failure(module, "timeout"), cause);
+
+  return TIMEOUT;
+}
+
 async function claim(
   [entry, ...rest]: readonly LoadedFetcher[],
   address: string,
@@ -47,6 +53,8 @@ async function claim(
   try {
     if (await entry.matches(address, deadline)) return { kind: "claimed", entry };
   } catch (error) {
+    if (deadline.aborted) return timedOut(entry.module, error);
+
     if (error instanceof NetworkFailure) return { kind: "failed", status: error.reason };
 
     logFailure("fetcher-failed", failure(entry.module, "matches"), error);
@@ -61,6 +69,8 @@ async function beforeDeadline(
   start: () => Promise<PluginPage>,
   deadline: AbortSignal,
 ): Promise<PluginPage | typeof EXPIRED> {
+  if (deadline.aborted) return EXPIRED;
+
   const finished = new AbortController();
 
   const expired = new Promise<typeof EXPIRED>((resolve) => {
@@ -90,16 +100,14 @@ async function fetchedFrom(
   try {
     answer = await beforeDeadline(() => fetchPage(address, { signal: deadline }), deadline);
   } catch (error) {
-    logFailure("fetcher-failed", failure(module, deadline.aborted ? "timeout" : "fetch"), error);
+    if (deadline.aborted) return timedOut(module, error);
 
-    return deadline.aborted ? TIMEOUT : UNREADABLE;
+    logFailure("fetcher-failed", failure(module, "fetch"), error);
+
+    return UNREADABLE;
   }
 
-  if (answer === EXPIRED) {
-    logFailure("fetcher-failed", failure(module, "timeout"), deadline.reason);
-
-    return TIMEOUT;
-  }
+  if (answer === EXPIRED) return timedOut(module, deadline.reason);
 
   const parsed = PluginPageSchema.safeParse(answer);
 

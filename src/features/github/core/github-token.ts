@@ -15,7 +15,7 @@ import { githubSettings } from "../../../core/kernel/github-tables.ts";
 import { parsedJson } from "../../../core/kernel/parsed-json.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { apiPolicy, rejectsToken, requestApi } from "./github-api.ts";
-import { endCooldown } from "./github-cooldown.ts";
+import { tokenChanged } from "./github-cooldown.ts";
 import {
   type GithubAuth,
   type TokenPorts,
@@ -25,6 +25,8 @@ import {
 import type { RateLimit } from "./github-rate-limit.ts";
 
 type VerifyPorts = TokenPorts & Pick<Ports, "network">;
+
+type ChangePorts = TokenPorts & Pick<Ports, "jobs">;
 
 const RateLimitSchema = z.object({
   rate: z.object({
@@ -56,7 +58,7 @@ export async function readGithubSettings(ports: Readonly<TokenPorts>): Promise<G
 }
 
 export async function saveGithubToken(
-  ports: Readonly<TokenPorts>,
+  ports: Readonly<ChangePorts>,
   { token }: Readonly<GithubTokenInput>,
 ) {
   const { secrets } = ports;
@@ -65,22 +67,23 @@ export async function saveGithubToken(
 
   const row = { id: 1, sealedToken: await secrets.seal(token) };
 
-  await ports.db.batch([
+  await tokenChanged(
+    ports,
     ports.db
       .insert(githubSettings)
       .values(row)
       .onConflictDoUpdate({ target: githubSettings.id, set: row }),
-    endCooldown(ports.db),
-  ]);
+  );
 
   return viewOf("token", ports);
 }
 
-export async function removeGithubToken(ports: Readonly<TokenPorts>): Promise<GithubSettingsView> {
-  await ports.db.batch([
-    ports.db.delete(githubSettings).where(eq(githubSettings.id, 1)),
-    endCooldown(ports.db),
-  ]);
+export async function removeGithubToken(ports: Readonly<ChangePorts>): Promise<GithubSettingsView> {
+  const [saved] = await ports.db.select().from(githubSettings).where(eq(githubSettings.id, 1));
+
+  if (saved !== undefined) {
+    await tokenChanged(ports, ports.db.delete(githubSettings).where(eq(githubSettings.id, 1)));
+  }
 
   return viewOf("anonymous", ports);
 }

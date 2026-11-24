@@ -1,7 +1,7 @@
 import { collapsed } from "../../../core/contract/format.ts";
 import { VAULT_TEXT } from "../../../core/contract/vault-text.ts";
+import { plainMarkdown, yamlScalar } from "../../../core/kernel/markdown-escape.ts";
 import type { VaultSubject } from "../../../core/kernel/vault-tables.ts";
-import { plainMarkdown, yamlScalar } from "../../media/core/markdown-escape.ts";
 import { vaultNotePath } from "./vault-paths.ts";
 
 export function wikiLink(subject: VaultSubject, label: string | null): string {
