@@ -1,5 +1,4 @@
-import { and, eq, exists, isNull, lte, or, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
+import { type SQL, and, eq, exists, isNull, lte, or, sql } from "drizzle-orm";
 
 import {
   RATE_LIMITED,
@@ -10,18 +9,18 @@ import {
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import {
+  enqueueWoken,
+  waitingFetches,
+  wakeWaitingFetches,
+  wokenJobs,
+} from "../../../core/kernel/job-waiting.ts";
+import {
   ACCOUNT_ROW,
   type AccountRow,
   redditAccount,
 } from "../../../core/kernel/reddit-account-tables.ts";
 import { retryAfterMs } from "../../../core/kernel/retry-after.ts";
-import {
-  WAIT_CHECK_MS,
-  enqueueWaiting,
-  releaseWaiting,
-  releaseWaitingWhen,
-  releaseWaitingWhenFree,
-} from "./reddit-account-queue.ts";
+import { REDDIT_WAIT, WAIT_CHECK_MS, accountIdle } from "./reddit-account-queue.ts";
 
 const REFUSALS_TO_EXPIRE = 3;
 
@@ -87,7 +86,7 @@ function windowResetOf(resetMs: number | null, emptied: boolean, now: number) {
 
   return emptied
     ? sql`case when ${redditAccount.windowResetsAt} > ${now} then ${redditAccount.windowResetsAt} else ${now + WAIT_CHECK_MS} end`
-    : redditAccount.windowResetsAt;
+    : undefined;
 }
 
 export async function recordWindow(
@@ -96,21 +95,16 @@ export async function recordWindow(
   { left, reset, retryAfter, limited }: Readonly<WindowRecord>,
   now: number,
 ): Promise<void> {
-  const changes: Partial<AccountRow> = { lastRequestAt: now };
-
-  if (limited) {
-    changes.windowRemaining = 0;
-    changes.limitedUntil = limitedUntilOf({ reset, retryAfter }, now);
-  } else if (left !== null) {
-    changes.windowRemaining = Math.floor(left);
-  }
-
-  const resetMs = usableResetMs(reset);
-  const emptied = !limited && changes.windowRemaining === 0;
+  const windowRemaining = limited ? 0 : left === null ? undefined : Math.floor(left);
 
   await db
     .update(redditAccount)
-    .set({ ...changes, windowResetsAt: windowResetOf(resetMs, emptied, now) })
+    .set({
+      lastRequestAt: now,
+      windowRemaining,
+      limitedUntil: limited ? limitedUntilOf({ reset, retryAfter }, now) : undefined,
+      windowResetsAt: windowResetOf(usableResetMs(reset), !limited && windowRemaining === 0, now),
+    })
     .where(ofSession(session));
 }
 
@@ -131,15 +125,16 @@ export async function connectAccount(
     connectedAt: now,
   } as const;
 
-  await ports.db.batch([
-    ports.db
-      .insert(redditAccount)
-      .values({ id: ACCOUNT_ROW, ...fresh })
-      .onConflictDoUpdate({ target: redditAccount.id, set: fresh }),
-    releaseWaitingWhenFree(ports.db, now),
-  ]);
-
-  await enqueueWaiting(ports, now, "all");
+  await wakeWaitingFetches(ports, REDDIT_WAIT, {
+    writes: [
+      ports.db
+        .insert(redditAccount)
+        .values({ id: ACCOUNT_ROW, ...fresh })
+        .onConflictDoUpdate({ target: redditAccount.id, set: fresh }),
+    ],
+    when: accountIdle(now),
+    now,
+  });
 }
 
 export async function confirmAccount(
@@ -159,20 +154,12 @@ export async function confirmAccount(
     .where(ofSession(session));
 }
 
-function releaseWhenExpired(
-  db: Database,
-  session: AccountSession,
-  now: number,
-): BatchItem<"sqlite"> {
-  return releaseWaitingWhen(
-    db,
-    now,
-    exists(
-      db
-        .select({ one: sql`1` })
-        .from(redditAccount)
-        .where(and(ofSession(session), eq(redditAccount.state, "expired"))),
-    ),
+function expiredSession(db: Database, session: AccountSession): SQL {
+  return exists(
+    db
+      .select({ one: sql`1` })
+      .from(redditAccount)
+      .where(and(ofSession(session), eq(redditAccount.state, "expired"))),
   );
 }
 
@@ -181,27 +168,26 @@ export async function expireAccount(
   session: AccountSession,
   now: number,
 ): Promise<void> {
-  await ports.db.batch([
-    ports.db
-      .update(redditAccount)
-      .set({ state: "expired", stateAt: now })
-      .where(and(ofSession(session), eq(redditAccount.state, "connected"))),
-    releaseWhenExpired(ports.db, session, now),
-  ]);
-
-  await enqueueWaiting(ports, now, "all");
+  await wakeWaitingFetches(ports, REDDIT_WAIT, {
+    writes: [
+      ports.db
+        .update(redditAccount)
+        .set({ state: "expired", stateAt: now })
+        .where(and(ofSession(session), eq(redditAccount.state, "connected"))),
+    ],
+    when: expiredSession(ports.db, session),
+    now,
+  });
 }
 
 export async function disconnectAccount(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
   now: number,
 ): Promise<void> {
-  await ports.db.batch([
-    ports.db.delete(redditAccount).where(eq(redditAccount.id, ACCOUNT_ROW)),
-    releaseWaiting(ports.db, now),
-  ]);
-
-  await enqueueWaiting(ports, now, "all");
+  await wakeWaitingFetches(ports, REDDIT_WAIT, {
+    writes: [ports.db.delete(redditAccount).where(eq(redditAccount.id, ACCOUNT_ROW))],
+    now,
+  });
 }
 
 export async function clearRefusals(
@@ -249,14 +235,14 @@ export async function countRefusal(
         ),
       )
       .returning({ state: redditAccount.state }),
-    releaseWhenExpired(ports.db, session, now),
+    wokenJobs(ports.db, now, waitingFetches(REDDIT_WAIT), expiredSession(ports.db, session)),
   ]);
 
   if (counted === undefined) return "ignored";
 
   if (counted.state !== "expired") return "counted";
 
-  await enqueueWaiting(ports, now, "all");
+  await enqueueWoken(ports, now, waitingFetches(REDDIT_WAIT), "all");
 
   return "expired";
 }

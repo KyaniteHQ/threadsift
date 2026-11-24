@@ -24,7 +24,7 @@ import {
   extentWith,
 } from "../../export/core/zip-read.ts";
 import { NAMED_FILES } from "./named-files.ts";
-import type { Release } from "./restore-check-unit.ts";
+import type { Release } from "./restore-source.ts";
 import { steppedUnit, tallied } from "./restore-unit.ts";
 
 const ITEM_FILE_BYTES = {

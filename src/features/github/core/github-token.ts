@@ -15,7 +15,7 @@ import { githubSettings } from "../../../core/kernel/github-tables.ts";
 import { parsedJson } from "../../../core/kernel/parsed-json.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { apiPolicy, rejectsToken, requestApi } from "./github-api.ts";
-import { tokenChanged } from "./github-cooldown.ts";
+import { writeEndingCooldown } from "./github-cooldown.ts";
 import {
   type GithubAuth,
   type TokenPorts,
@@ -67,7 +67,7 @@ export async function saveGithubToken(
 
   const row = { id: 1, sealedToken: await secrets.seal(token) };
 
-  await tokenChanged(
+  await writeEndingCooldown(
     ports,
     ports.db
       .insert(githubSettings)
@@ -79,10 +79,16 @@ export async function saveGithubToken(
 }
 
 export async function removeGithubToken(ports: Readonly<ChangePorts>): Promise<GithubSettingsView> {
-  const [saved] = await ports.db.select().from(githubSettings).where(eq(githubSettings.id, 1));
+  const [saved] = await ports.db
+    .select({ id: githubSettings.id })
+    .from(githubSettings)
+    .where(eq(githubSettings.id, 1));
 
   if (saved !== undefined) {
-    await tokenChanged(ports, ports.db.delete(githubSettings).where(eq(githubSettings.id, 1)));
+    await writeEndingCooldown(
+      ports,
+      ports.db.delete(githubSettings).where(eq(githubSettings.id, 1)),
+    );
   }
 
   return viewOf("anonymous", ports);

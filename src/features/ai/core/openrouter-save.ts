@@ -11,7 +11,7 @@ import { sessionIsLive } from "../../access/core/sessions.ts";
 import { type PreparedSave, prepareAiSettings, providerWrites } from "./ai-settings.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import { awaitOpenRouterActivation } from "./openrouter-exchange.ts";
-import { holdsSettings, reopenedWhileStored } from "./stored-settings.ts";
+import { holdsSettings, reopenedWhileStored } from "./openrouter-stored.ts";
 
 type Prepared = Awaited<ReturnType<typeof prepareAiSettings>>;
 

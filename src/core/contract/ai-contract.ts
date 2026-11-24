@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { utf8Length } from "./encoding.ts";
 import {
   type BindingProvider,
   type CliProvider,
@@ -166,6 +167,10 @@ export interface AiTaskRequest<Result> {
 export const SETTINGS_CHANGED = "settings-changed";
 
 export const AI_INPUT_BYTES = 14_000;
+
+export function fitsAiInput(text: string): boolean {
+  return utf8Length(text) <= AI_INPUT_BYTES;
+}
 
 export const AI_LIST_OUTPUT_TOKENS = 4096;
 

@@ -2,7 +2,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { Database } from "../../../core/kernel/database.ts";
 import type { ClaimedJob, Closing, JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { githubClosing } from "../../github/core/github-cooldown.ts";
+import { GITHUB_WAIT, githubClosing } from "../../github/core/github-cooldown.ts";
 import { redditClosed, redditClosing } from "../../reddit/core/reddit-account-queue.ts";
 import { isRedditJob } from "./fetch-read.ts";
 
@@ -11,7 +11,10 @@ export function fetchClosing(
   job: Readonly<ClaimedJob>,
   how: Closing,
 ): readonly BatchItem<"sqlite">[] {
-  return [...(isRedditJob(job) ? redditClosing(db, job, how) : []), ...githubClosing(db, job, how)];
+  return [
+    ...(isRedditJob(job) ? redditClosing(db, job, how) : []),
+    ...(how.kind === "deferred" && how.wait === GITHUB_WAIT ? [githubClosing(db, job)] : []),
+  ];
 }
 
 export async function fetchClosed(

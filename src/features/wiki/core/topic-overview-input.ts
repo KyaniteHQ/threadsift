@@ -1,6 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
-import { utf8Length } from "../../../core/contract/encoding.ts";
+import { fitsAiInput } from "../../../core/contract/ai-contract.ts";
 import {
   ADDED_READ_LIMIT,
   type BuiltFrom,
@@ -11,7 +11,6 @@ import { readStoredDigest } from "../../../core/kernel/digest-stored.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
 import { digests, items, topicPages, topics } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
-import { packWithinInputCap } from "../../ai/core/ai-input-packing.ts";
 import { notBuiltFrom, removedItemIds } from "./topic-coverage.ts";
 import { overviewWithout } from "./topic-overview-prune.ts";
 
@@ -195,27 +194,43 @@ function promptJson(
   });
 }
 
-function shortenings(item: Readonly<AddedItem>, included: readonly AddedItem[]): AddedItem[] {
+function fitted(
+  read: Readonly<OverviewRead>,
+  {
+    current,
+    included,
+    item,
+  }: Readonly<{
+    current: string | null;
+    included: readonly AddedItem[];
+    item: AddedItem;
+  }>,
+): AddedItem | null {
   const fewest = included.length === 0 ? 0 : item.keyPoints.length;
 
-  return Array.from({ length: item.keyPoints.length - fewest + 1 }, (_, cut) => ({
-    ...item,
-    keyPoints: item.keyPoints.slice(0, item.keyPoints.length - cut),
-  }));
+  for (let count = item.keyPoints.length; count >= fewest; count -= 1) {
+    const cut = { ...item, keyPoints: item.keyPoints.slice(0, count) };
+
+    if (fitsAiInput(promptJson(read, current, [...included, cut]))) return cut;
+  }
+
+  return null;
 }
 
 export function overviewPrompt(read: Readonly<OverviewRead>): OverviewPrompt {
+  const included: AddedItem[] = [];
+
   const gone = new Set(read.removed);
 
   const current = overviewWithout(read.page?.overview ?? null, read.removed);
 
-  const none: readonly AddedItem[] = [];
-  const included = packWithinInputCap(none, read.added, {
-    variants: shortenings,
-    add: (packed, item) => [...packed, item],
-    bytes: (packed) => utf8Length(promptJson(read, current, packed)),
-    stopAtFirstMiss: true,
-  });
+  for (const item of read.added) {
+    const sent = fitted(read, { current, included, item });
+
+    if (sent === null) break;
+
+    included.push(sent);
+  }
 
   const kept = (read.page?.builtFrom ?? []).map(({ item }) => item).filter((id) => !gone.has(id));
 

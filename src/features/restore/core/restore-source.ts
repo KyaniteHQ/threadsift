@@ -1,9 +1,15 @@
 import { restorePartKey } from "../../../core/contract/file-keys.ts";
 import { RESTORE_DIRECTORY_BYTES, partLength } from "../../../core/contract/restore-contract.ts";
 import type { FileStore } from "../../../core/kernel/file-store.ts";
+import type { Manifest } from "../../export/core/export-format.ts";
 import { readDirectory } from "../../export/core/zip-directory.ts";
 import type { ZipDirectory, ZipSource } from "../../export/core/zip-read.ts";
 import { RestoreRefused } from "./restore-refusal.ts";
+
+export interface Release {
+  readonly directory: ZipDirectory;
+  readonly manifest: Manifest;
+}
 
 interface UploadedZip {
   readonly id: number;

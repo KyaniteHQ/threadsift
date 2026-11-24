@@ -1,9 +1,8 @@
 import { type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { AI_INPUT_BYTES } from "../../../core/contract/ai-contract.ts";
+import { fitsAiInput } from "../../../core/contract/ai-contract.ts";
 import type { Digest } from "../../../core/contract/digest-schema.ts";
-import { utf8Length } from "../../../core/contract/encoding.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import {
   type StoredDigest,
@@ -12,7 +11,6 @@ import {
   unchangedDigests,
 } from "../../../core/kernel/digest-stored.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
-import { packWithinInputCap } from "../../ai/core/ai-input-packing.ts";
 import { candidateIds, relatedTerms } from "./related-candidates.ts";
 
 export interface PickItem {
@@ -149,16 +147,15 @@ export function pickPrompt({
 }: Readonly<Extract<PickRead, { kind: "read" }>>): PickPrompt {
   if (candidates.length === 0) return { kind: "empty" };
 
-  if (utf8Length(promptJson(source, [])) > AI_INPUT_BYTES) {
+  if (!fitsAiInput(promptJson(source, []))) {
     return { kind: "refused", reason: "source-over-cap" };
   }
 
-  const none: readonly PickItem[] = [];
-  const sent = packWithinInputCap(none, candidates, {
-    add: (packed, candidate) => [...packed, candidate],
-    bytes: (packed) => utf8Length(promptJson(source, packed)),
-    stopAtFirstMiss: false,
-  });
+  const sent: PickItem[] = [];
+
+  for (const candidate of candidates) {
+    if (fitsAiInput(promptJson(source, [...sent, candidate]))) sent.push(candidate);
+  }
 
   return sent.length === 0
     ? { kind: "refused", reason: "none-fit" }
