@@ -7,11 +7,11 @@ const BOT = join(import.meta.dirname, "..", "bot");
 const FENCE = /^( *)```(\S*)(?: (\S+))?\n([\s\S]*?)^\1```$/gmu;
 
 const COMMAND_ARM =
-  /^ {4}([\w-]+)\) method=([A-Z]+); template="([^"]+)"; credential=(agent|task) ;;$/gmu;
+  /^[ \t]*([\w-]+)\) method=([A-Z]+); template="([^"]+)"; credential=(agent|task) ;;$/gmu;
 
-const WORD_ARM = /^ {4}([\w:*|-]+)\) echo ([a-z]+(?:-[a-z]+)*) ;;$/gmu;
+const WORD_ARM = /^[ \t]*([\w:*|-]+)\) echo ([a-z]+(?:-[a-z]+)*) ;;$/gmu;
 
-const REASON_ARM = /^ {4}([a-z]+(?:-[a-z]+)*)\) sentence="/gmu;
+const REASON_ARM = /^[ \t]*([a-z]+(?:-[a-z]+)*)\) sentence="/gmu;
 
 interface Fence {
   readonly language: string;
@@ -99,7 +99,7 @@ export function commandsOf(script: string): readonly Command[] {
 export function flagsOf(script: string): readonly string[] {
   return [
     ...new Set(
-      [...script.matchAll(/^ {10}([a-z]*):([a-z]*)\) import_name=/gmu)].flatMap(
+      [...script.matchAll(/^[ \t]*([a-z]*):([a-z]*)\) import_name=/gmu)].flatMap(
         ([, first = "", second = ""]) => [first, second].filter((word) => word !== ""),
       ),
     ),

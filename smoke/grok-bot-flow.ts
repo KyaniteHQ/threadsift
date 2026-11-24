@@ -2,7 +2,7 @@ import { type Page, expect } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { GROK_BOT_TEXT } from "../web/src/grok-bot-text.ts";
-import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { DESKTOP, PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 const ADDRESS = "https://api2.cursor.sh/automations/webhook/00000000-0000-4000-8000-000000000000";
 
@@ -55,7 +55,7 @@ export async function grokBotFlow(page: Page): Promise<void> {
 
   await page.setViewportSize(PHONE);
   await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize(DESKTOP);
 
   await button(page, GROK_BOT_TEXT.remove).click();
   await expect(page.getByText(GROK_BOT_TEXT.removed)).toBeVisible();

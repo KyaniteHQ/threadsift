@@ -1,21 +1,10 @@
-import { DatabaseSync } from "node:sqlite";
-
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
 import { rows } from "./related-fixtures.ts";
+import { script } from "./sqlite-fixtures.ts";
 
 const AnyRowSchema = z.record(z.string(), z.unknown());
-
-export const script = (instance: Instance, statements: string): void => {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    database.exec(statements);
-  } finally {
-    database.close();
-  }
-};
 
 export const dump = (instance: Instance, query: string): string =>
   JSON.stringify(rows(instance, AnyRowSchema, query));
@@ -75,3 +64,5 @@ export const topicNameOf = (instance: Instance, itemId: number): string | null =
     "select topics.name as name from items left join topics on topics.id = items.topic_id where items.id = ?",
     itemId,
   )[0]?.name ?? null;
+
+export { script };

@@ -16,14 +16,13 @@ export function holdLibrary(
   failure: "gave-up" | "no-manifest" | null,
   phase: "check" | "tables" = "tables",
 ): void {
-  const database = new DatabaseSync(instance.databaseFile);
+  using database = new DatabaseSync(instance.databaseFile);
 
   database
     .prepare(
       "insert into restores (id, state, phase, failure, bytes, parts, part_bytes, created_at, updated_at) values (1, ?, ?, ?, 1, 1, 1, 1, 1) on conflict (id) do update set state = excluded.state, phase = excluded.phase, failure = excluded.failure",
     )
     .run(state, phase, failure);
-  database.close();
 }
 
 export async function itemTotal(instance: Instance): Promise<number> {

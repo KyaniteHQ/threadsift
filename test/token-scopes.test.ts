@@ -193,10 +193,9 @@ describe("a token whose stored scopes are unreadable", () => {
   let instance: Instance;
 
   const store = (id: number, scopes: string): void => {
-    const database = new DatabaseSync(instance.databaseFile);
+    using database = new DatabaseSync(instance.databaseFile);
 
     database.prepare("update agent_tokens set scopes = ? where id = ?").run(scopes, id);
-    database.close();
   };
 
   before(async () => {
@@ -249,7 +248,7 @@ describe("a token row stored without scopes", () => {
   after(() => instance.close());
 
   it("is refused by the database, which holds no default scopes for a token", () => {
-    const database = new DatabaseSync(instance.databaseFile);
+    using database = new DatabaseSync(instance.databaseFile);
 
     assert.throws(() => {
       database
@@ -258,6 +257,5 @@ describe("a token row stored without scopes", () => {
         )
         .run();
     }, /NOT NULL constraint failed: agent_tokens\.scopes/u);
-    database.close();
   });
 });

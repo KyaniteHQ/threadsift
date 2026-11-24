@@ -6,9 +6,10 @@ import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts"
 import { OBSIDIAN_TEXT } from "../web/src/obsidian-text.ts";
 import { backupFlow } from "./backup-flow.ts";
 import { grokBotFlow } from "./grok-bot-flow.ts";
+import { highlightsFlow } from "./highlights-flow.ts";
 import { proposalsFlow } from "./proposals-flow.ts";
 import { redditAccountFlow } from "./reddit-account-flow.ts";
-import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { DESKTOP, PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 function folderIndexArrived(): Promise<boolean> {
   const name = `threadsift-smoke-${process.env["THREADSIFT_SMOKE_PORT"] ?? "8799"}`;
@@ -25,6 +26,8 @@ function folderIndexArrived(): Promise<boolean> {
 }
 
 export async function settingsSteps(page: Page): Promise<void> {
+  await test.step("follow the settings panel's Highlights link, see 50 entries with the Note first, load the oldest Highlight, open its Item at its mark in the Reader, fit a phone width, and see the page empty after the Item is deleted", () =>
+    highlightsFlow(page));
   await test.step("follow the settings panel's Proposals link, see the no-Provider empty state with no Accept or Reject, reload on the address, and fit a phone width on the trailing-slash address", () =>
     proposalsFlow(page));
   await test.step("save a Grok Bot address and key in Settings, see the key marked saved after a reload, see a new address ask for a key, fit a phone width, and remove it", () =>
@@ -42,7 +45,7 @@ async function obsidianFlow(page: Page): Promise<void> {
   await expect(page.getByRole("link", { name: OBSIDIAN_TEXT.title, exact: true })).toBeVisible();
   await page.setViewportSize(PHONE);
   await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize(DESKTOP);
   await page.getByRole("link", { name: OBSIDIAN_TEXT.title, exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: OBSIDIAN_TEXT.title })).toBeVisible();
   const destination = page.getByRole("radiogroup", { name: OBSIDIAN_TEXT.modeLabel });
@@ -59,7 +62,7 @@ async function obsidianFlow(page: Page): Promise<void> {
     await expect(page.getByLabel(OBSIDIAN_TEXT.folderLabel)).toHaveValue("/tmp");
     await page.setViewportSize(PHONE);
     await expectNoSidewaysScroll(page);
-    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.setViewportSize(DESKTOP);
     await destination.getByRole("radio", { name: OBSIDIAN_TEXT.githubMode }).check();
   } else {
     await expect(destination).toHaveCount(0);
@@ -108,7 +111,7 @@ async function obsidianFlow(page: Page): Promise<void> {
   await page.request.delete(`/api/tokens/${String(token.token.id)}`);
   await page.setViewportSize(PHONE);
   await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize(DESKTOP);
   await page.getByRole("button", { name: OBSIDIAN_TEXT.remove, exact: true }).click();
   await expect(page.getByText(OBSIDIAN_TEXT.removed, { exact: true })).toBeVisible();
   await expect(page.getByText(OBSIDIAN_TEXT.missing, { exact: true })).toBeVisible();

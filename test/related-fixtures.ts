@@ -6,6 +6,7 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 export const SECRET_KEY = "0".repeat(64);
 
@@ -167,20 +168,6 @@ export function rows<Schema extends z.ZodType>(
   }
 }
 
-export function exec(
-  instance: Instance,
-  query: string,
-  ...params: readonly (string | number | null)[]
-) {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    database.prepare(query).run(...params);
-  } finally {
-    database.close();
-  }
-}
-
 const TaskSchema = z.object({
   id: z.number(),
   inputs: z.string(),
@@ -272,3 +259,5 @@ export async function pasteInOrder(
 
   return ids;
 }
+
+export { exec };

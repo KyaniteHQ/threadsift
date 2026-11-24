@@ -5,7 +5,7 @@ export interface Listening {
   readonly stop: () => void;
 }
 
-export function listening(fetch: (request: Request) => Promise<Response>): Promise<Listening> {
+export function listening(fetch: Parameters<typeof serve>[0]["fetch"]): Promise<Listening> {
   return new Promise((resolve) => {
     const server = serve({ fetch, port: 0, hostname: "127.0.0.1" }, ({ port }) => {
       resolve({

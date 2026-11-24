@@ -12,6 +12,9 @@ On 2026-11-21, on the owner's 16-core machine with Node 26, `pnpm test` passed 9
 - The signed-out check requests every route in the served API document except the public routes and the three task callback routes. It also sends six requests with other paths or methods beside the callbacks. Each request must receive a 401 with a Bearer challenge.
 - The Reddit archive setting tests check who may change the setting and whether the owner can read it back. They do not run an archive fill.
 - Real fetcher plug-in modules sit in a folder beside the tests, and the tests load them through the production loader.
+- The web app's list state, filters, counts and paging order, and the Extension's `fitThreadBody`, run in core tests on literal inputs, as the token budget form does. The modules that read `sessionStorage` or the DOM, or import `wxt/browser`, run only in a browser.
+- The shard reporter and the update tool for a Cloudflare copy's bindings run as child processes on temporary files, as the bot release check does. The deploy tool is not run, because it reaches a Cloudflare account.
+- The Node and Worker adapters that no route test reaches run on real sockets and folders: `answerAfterBody` behind a loopback HTTP server, `workerFetch` against a loopback server for the answers it passes through, and `vaultFolder` on a temporary folder with its lease read from a migrated database. No test or smoke produces Cloudflare's own 530 answer ([Open items and unverified claims](open-items-and-unverified-claims.md)).
 - The fetcher deadline test aborts `pluginPage` after all three fixture fetches start, because the job's own deadline is the fetch deadline ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
 - The Reddit-with-a-thread rule is not in the core tests, because the built-in route it falls back to requests reddit.com.
 
@@ -32,7 +35,6 @@ The live spec is the `live` Playwright project. [Testing](../testing.md) and [CI
 ## What no check covers
 
 - The Extension in a real browser.
-- The Highlights page in a browser.
 - Contrast and layout shift in a browser. The static `impeccable detect` check runs, and the smoke spec measures some touch targets against 44px on a phone.
 - Every Provider but Claude Code. Claude Code runs on the container only, so no check runs OpenRouter, any other HTTP Provider or the Codex executor ([Open items and unverified claims](open-items-and-unverified-claims.md)).
 - A broad check against a deployed copy. The deploy job only waits for the live Worker to answer 200.
