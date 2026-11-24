@@ -33,11 +33,11 @@ const TIMEOUT = { kind: "failed", status: "timeout" } as const;
 
 const EXPIRED = Symbol("the fetch deadline passed");
 
-function failure(module: string, stage: Stage) {
-  return { module, stage };
+function failure(module: string | null, stage: Stage) {
+  return module === null ? { stage } : { module, stage };
 }
 
-function timedOut(module: string, cause: unknown): PluginFailure {
+function timedOut(module: string | null, cause: unknown): PluginFailure {
   logFailure("fetcher-failed", failure(module, "timeout"), cause);
 
   return TIMEOUT;
@@ -131,11 +131,7 @@ export async function pluginPage(
   address: string,
   deadline: AbortSignal,
 ): Promise<PluginResult> {
-  if (deadline.aborted) {
-    logFailure("fetcher-failed", { stage: "timeout" }, deadline.reason);
-
-    return TIMEOUT;
-  }
+  if (deadline.aborted) return timedOut(null, deadline.reason);
 
   const claimed = await claim(fetchers, address, deadline);
 
