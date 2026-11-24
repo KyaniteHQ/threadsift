@@ -8,7 +8,7 @@ import { backupFlow } from "./backup-flow.ts";
 import { grokBotFlow } from "./grok-bot-flow.ts";
 import { proposalsFlow } from "./proposals-flow.ts";
 import { redditAccountFlow } from "./reddit-account-flow.ts";
-import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { DESKTOP, PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 function folderIndexArrived(): Promise<boolean> {
   const name = `threadsift-smoke-${process.env["THREADSIFT_SMOKE_PORT"] ?? "8799"}`;
@@ -42,7 +42,7 @@ async function obsidianFlow(page: Page): Promise<void> {
   await expect(page.getByRole("link", { name: OBSIDIAN_TEXT.title, exact: true })).toBeVisible();
   await page.setViewportSize(PHONE);
   await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize(DESKTOP);
   await page.getByRole("link", { name: OBSIDIAN_TEXT.title, exact: true }).click();
   await expect(page.getByRole("heading", { level: 1, name: OBSIDIAN_TEXT.title })).toBeVisible();
   const destination = page.getByRole("radiogroup", { name: OBSIDIAN_TEXT.modeLabel });
@@ -59,7 +59,7 @@ async function obsidianFlow(page: Page): Promise<void> {
     await expect(page.getByLabel(OBSIDIAN_TEXT.folderLabel)).toHaveValue("/tmp");
     await page.setViewportSize(PHONE);
     await expectNoSidewaysScroll(page);
-    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.setViewportSize(DESKTOP);
     await destination.getByRole("radio", { name: OBSIDIAN_TEXT.githubMode }).check();
   } else {
     await expect(destination).toHaveCount(0);
@@ -108,7 +108,7 @@ async function obsidianFlow(page: Page): Promise<void> {
   await page.request.delete(`/api/tokens/${String(token.token.id)}`);
   await page.setViewportSize(PHONE);
   await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await page.setViewportSize(DESKTOP);
   await page.getByRole("button", { name: OBSIDIAN_TEXT.remove, exact: true }).click();
   await expect(page.getByText(OBSIDIAN_TEXT.removed, { exact: true })).toBeVisible();
   await expect(page.getByText(OBSIDIAN_TEXT.missing, { exact: true })).toBeVisible();
