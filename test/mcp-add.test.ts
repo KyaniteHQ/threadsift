@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { Client } from "@modelcontextprotocol/client";
@@ -20,6 +19,7 @@ import {
 } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
 import { holdLibrary } from "./restoring-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const RESTORING =
   "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
@@ -170,10 +170,7 @@ describe("a failure inside a tool reaches the agent as a fixed Internal error wi
 
     await instance.settledItem(item.id);
 
-    const database = new DatabaseSync(instance.databaseFile);
-
-    database.exec("alter table notes rename to notes_hidden");
-    database.close();
+    exec(instance, "alter table notes rename to notes_hidden");
 
     const answer = await client.callTool({ name: "read", arguments: { id: item.id } });
 
@@ -188,10 +185,7 @@ describe("a failure inside a tool reaches the agent as a fixed Internal error wi
 
     await instance.settledItem(item.id);
 
-    const database = new DatabaseSync(instance.databaseFile);
-
-    database.prepare("update items set normalized_url = 'not a url' where id = ?").run(item.id);
-    database.close();
+    exec(instance, "update items set normalized_url = 'not a url' where id = ?", item.id);
 
     const answer = await client.callTool({ name: "read", arguments: { id: item.id } });
 

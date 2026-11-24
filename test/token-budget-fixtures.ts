@@ -64,16 +64,6 @@ function rows(instance: Instance, query: string): readonly unknown[] {
   }
 }
 
-export function execute(instance: Instance, statement: string): void {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    database.exec(statement);
-  } finally {
-    database.close();
-  }
-}
-
 export const dayOf = (instant: number): string => new Date(instant).toISOString().slice(0, 10);
 
 export function nextMidnight(now: number): number {

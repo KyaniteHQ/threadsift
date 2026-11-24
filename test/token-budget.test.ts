@@ -7,12 +7,12 @@ import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts
 import { parseLink } from "../src/core/contract/links.ts";
 import { Instance } from "./instance.ts";
 import { itemTotal } from "./restoring-fixtures.ts";
+import { script } from "./sqlite-fixtures.ts";
 import {
   addBatch,
   addLink,
   atClock,
   budgetOf,
-  execute,
   makeToken,
   nextMidnight,
   xLink,
@@ -168,7 +168,7 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
         const short = "https://t.co/knownshort";
 
-        execute(
+        script(
           instance,
           `insert into item_aliases (normalized_url, address, item_id) values ('${parseLink(short).normalizedUrl}', '${xLink(81)}', ${String(saved.item.id)})`,
         );
