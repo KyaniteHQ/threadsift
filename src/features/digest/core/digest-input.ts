@@ -25,6 +25,10 @@ export function digestInput(db: Database, id: number) {
     .where(eq(items.id, id));
 }
 
+export function pendingDigestOf(db: Database, id: number) {
+  return db.select({ pendingDigest: items.pendingDigest }).from(items).where(eq(items.id, id));
+}
+
 export type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
 
 export const DIGEST_INPUT = {
