@@ -38,3 +38,23 @@ export async function expectNoSidewaysScroll(page: Page): Promise<void> {
 
 export const expectFitsPhone = (page: Page): Promise<void> =>
   atPhoneWidth(page, () => expectNoSidewaysScroll(page));
+
+export async function expectScrollEnded(scroller: Locator): Promise<void> {
+  await expect
+    .poll(() =>
+      scroller.evaluate(async (element) => {
+        const before = element.scrollTop;
+
+        await new Promise<void>((resolve) => {
+          requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+              resolve();
+            });
+          });
+        });
+
+        return element.scrollTop - before;
+      }),
+    )
+    .toBe(0);
+}
