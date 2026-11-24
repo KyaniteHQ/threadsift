@@ -56,6 +56,8 @@ Details of the matching:
 
 ## Custom rules
 
+A core test copies the plug-in and the layout file into a temporary repository, writes fixture files, runs oxlint on them and checks, for each rule below, a fixture it refuses and one it passes. The layer rule's fixtures include an Extension alias. The fixtures carry their own copy of the rule options, so the test also checks that the repository's configuration enables the same Threadsift rules.
+
 ### `threadsift/no-comments`
 
 It refuses a prose comment. It keeps a shebang and the kinds that [Changing code](../agents/changing-code.md), No comments, lists.
