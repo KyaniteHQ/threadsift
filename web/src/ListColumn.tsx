@@ -1,15 +1,15 @@
 import { hasRows } from "./list-state.ts";
-import { ListBody, Notice } from "./ListBody.tsx";
+import { ListBody, RetryNotice } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
 import { Masthead } from "./Masthead.tsx";
 import { HINT_LIST } from "./reader-text.ts";
 import { SkipButton } from "./SkipButton.tsx";
-import { LOAD_FAILED, RETRY_LABEL } from "./text.ts";
+import { LOAD_FAILED } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
 
 function LookupNotice({ failed, again }: Readonly<{ failed: boolean; again: () => void }>) {
-  return failed ? <Notice text={LOAD_FAILED} action={again} label={RETRY_LABEL} alert /> : null;
+  return <RetryNotice failed={failed} text={LOAD_FAILED} action={again} />;
 }
 
 function LibraryList({

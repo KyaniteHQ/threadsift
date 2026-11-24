@@ -7,6 +7,36 @@ import { Original } from "./ReaderOriginal.tsx";
 import { RETRY_LABEL } from "./text.ts";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 
+export function ReaderNotices({
+  state,
+  retry,
+}: Readonly<{ state: DetailState; retry: () => void }>) {
+  return (
+    <>
+      <div className="rd-orig" role="alert">
+        {state.status === "failed" ? (
+          <>
+            <p className="rd-note">{READER_FAILED}</p>
+            <button type="button" className="btn btn-block" onClick={retry}>
+              {RETRY_LABEL}
+            </button>
+          </>
+        ) : null}
+      </div>
+      <output className="rd-orig">
+        {state.status === "ready" && state.stale ? (
+          <>
+            <span className="rd-note">{READER_STALE}</span>
+            <button type="button" className="btn btn-block" onClick={retry}>
+              {RETRY_LABEL}
+            </button>
+          </>
+        ) : null}
+      </output>
+    </>
+  );
+}
+
 export function ReaderContent({
   item,
   state,
@@ -16,33 +46,14 @@ export function ReaderContent({
   now,
 }: Readonly<{
   item: Item;
-  state: Exclude<DetailState, { status: "loading" }>;
+  state: Extract<DetailState, { status: "ready" }>;
   actions: DetailActions;
   announce: (text: string) => void;
   tryAgain: (item: Item) => void;
   now: number;
 }>) {
-  if (state.status === "failed") {
-    return (
-      <div className="rd-orig" role="alert">
-        <p className="rd-note">{READER_FAILED}</p>
-        <button type="button" className="btn btn-block" onClick={actions.retry}>
-          {RETRY_LABEL}
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
-      {state.stale ? (
-        <div className="rd-orig">
-          <output className="rd-note">{READER_STALE}</output>
-          <button type="button" className="btn btn-block" onClick={actions.retry}>
-            {RETRY_LABEL}
-          </button>
-        </div>
-      ) : null}
       <HighlightsProvider
         itemId={item.id}
         view={state.detail.highlights}

@@ -2,8 +2,8 @@ import { type LogPage, LogPageSchema } from "../../src/core/contract/log-contrac
 import { parsedFrom, withCursor } from "./calls.ts";
 import { usePagedRead } from "./use-paged-read.ts";
 
-function fetchLog(cursor: string | null): Promise<LogPage> {
-  return parsedFrom("GET", withCursor("/api/log", cursor), LogPageSchema);
+function fetchLog(cursor: string | null, signal?: AbortSignal): Promise<LogPage> {
+  return parsedFrom("GET", withCursor("/api/log", cursor), LogPageSchema, { signal });
 }
 
 function withMoreEntries(shown: Readonly<LogPage>, added: Readonly<LogPage>): LogPage {

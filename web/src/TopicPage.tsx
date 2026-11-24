@@ -1,8 +1,7 @@
 import { KnownDisagreements } from "./KnownDisagreements.tsx";
-import { EmptyState, Notice, Skeleton } from "./ListBody.tsx";
+import { EmptyState, RetryNotice, Skeleton } from "./ListBody.tsx";
 import { PageBar } from "./PageBar.tsx";
 import type { Route } from "./routing.ts";
-import { RETRY_LABEL } from "./text.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 import { TopicItemsSection } from "./TopicItemsSection.tsx";
 import { TopicOverview } from "./TopicOverview.tsx";
@@ -13,22 +12,16 @@ function Loading() {
   return <Skeleton label={TOPIC_PAGE.loading} row="rl-row" title="rl-title" />;
 }
 
-function Body({
+function Content({
   state,
-  retry,
   loadMore,
   write,
-}: Readonly<{
-  state: TopicState;
-  retry: () => void;
-  loadMore: () => void;
-  write: () => void;
-}>) {
+}: Readonly<{ state: TopicState; loadMore: () => void; write: () => void }>) {
   switch (state.status) {
     case "loading":
       return <Loading />;
     case "failed":
-      return <Notice text={TOPIC_PAGE.loadFailed} action={retry} label={RETRY_LABEL} alert />;
+      return null;
     case "missing":
       return <EmptyState heading={TOPIC_PAGE.notFoundHeading} line={TOPIC_PAGE.notFoundLine} />;
     case "ready":
@@ -46,6 +39,25 @@ function Body({
     default:
       return state satisfies never;
   }
+}
+
+function Body({
+  state,
+  retry,
+  loadMore,
+  write,
+}: Readonly<{
+  state: TopicState;
+  retry: () => void;
+  loadMore: () => void;
+  write: () => void;
+}>) {
+  return (
+    <>
+      <RetryNotice failed={state.status === "failed"} text={TOPIC_PAGE.loadFailed} action={retry} />
+      <Content state={state} loadMore={loadMore} write={write} />
+    </>
+  );
 }
 
 export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; route: Route }>) {

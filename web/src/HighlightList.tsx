@@ -2,7 +2,7 @@ import { type MouseEvent, memo, useCallback } from "react";
 
 import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
 import { HIGHLIGHTS_TITLE, NOT_FOUND } from "../../src/core/contract/reader-text.ts";
-import { useHighlights } from "./highlights-context.ts";
+import { type Failure, useHighlights } from "./highlights-context.ts";
 import { QuoteText } from "./QuoteText.tsx";
 import { REMOVE_LABEL, removeNamed } from "./reader-text.ts";
 import { RETRY_LABEL } from "./text.ts";
@@ -73,29 +73,39 @@ function reloadPage(): void {
   window.location.reload();
 }
 
-export const HighlightList = memo(function HighlightList() {
-  const { items, failure } = useHighlights();
-
-  return items.length === 0 && failure === null ? null : (
-    <section className="rd-hl">
-      <h3 className="rd-h">{HIGHLIGHTS_TITLE}</h3>
+function FailureAlert({ failure }: Readonly<{ failure: Failure | null }>) {
+  return (
+    <div role="alert">
       {failure === null ? null : (
-        <div role="alert">
+        <>
           <p className="rd-note">{failure.text}</p>
           {failure.reloads ? (
             <button type="button" className="btn" onClick={reloadPage}>
               {RETRY_LABEL}
             </button>
           ) : null}
-        </div>
+        </>
       )}
+    </div>
+  );
+}
+
+export const HighlightList = memo(function HighlightList() {
+  const { items, failure } = useHighlights();
+
+  return (
+    <>
+      <FailureAlert failure={failure} />
       {items.length === 0 ? null : (
-        <ul role="list" className="hl-list">
-          {items.map((highlight) => (
-            <Entry key={highlight.id} highlight={highlight} />
-          ))}
-        </ul>
+        <section className="rd-hl">
+          <h3 className="rd-h">{HIGHLIGHTS_TITLE}</h3>
+          <ul role="list" className="hl-list">
+            {items.map((highlight) => (
+              <Entry key={highlight.id} highlight={highlight} />
+            ))}
+          </ul>
+        </section>
       )}
-    </section>
+    </>
   );
 });

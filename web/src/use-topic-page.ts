@@ -7,7 +7,9 @@ import type {
 } from "../../src/core/contract/topic-overview-contract.ts";
 import { fetchTopicPage, retryTopicOverview } from "./api.ts";
 import { type More, newer } from "./list-paging.ts";
+import { readThrough } from "./read-through.ts";
 import type { Route } from "./routing.ts";
+import { useGuard } from "./use-form.ts";
 import { useLatest } from "./use-latest.ts";
 import { usePolling } from "./use-polling.ts";
 import { useSurvivorAddress } from "./use-survivor-address.ts";
@@ -39,37 +41,42 @@ function readyFrom(page: Readonly<TopicPage>): TopicReady {
   return { status: "ready", ...page, more: "idle" };
 }
 
-async function attempt(key: string, cursor: string | null) {
+async function attempt(key: string, cursor: string | null, signal: AbortSignal) {
   try {
-    return await fetchTopicPage(key, cursor);
+    return await fetchTopicPage(key, cursor, signal);
   } catch {
     return null;
   }
 }
 
-async function readThrough(
-  key: string,
-  last: Readonly<TopicItem> | undefined,
-  page: Readonly<TopicPage>,
-): Promise<TopicPage | null> {
-  const end = page.items.at(-1);
-
-  if (page.next === null || last === undefined || end === undefined || !newer(end, last)) {
-    return page;
-  }
-
-  const more = await fetchTopicPage(key, page.next);
-
-  if (more.outcome !== "found") return null;
-
-  return readThrough(key, last, { ...more.page, items: [...page.items, ...more.page.items] });
+function foundPage(read: Awaited<ReturnType<typeof fetchTopicPage>>): TopicPage | null {
+  return read.outcome === "found" ? read.page : null;
 }
 
-async function freshRead(key: string, last: Readonly<TopicItem> | undefined) {
-  try {
-    const first = await fetchTopicPage(key, null);
+function reaches(page: Readonly<TopicPage>, last: Readonly<TopicItem> | undefined): boolean {
+  const end = page.items.at(-1);
 
-    return first.outcome === "found" ? await readThrough(key, last, first.page) : null;
+  return last === undefined || end === undefined || !newer(end, last);
+}
+
+function joined(shown: Readonly<TopicPage>, added: Readonly<TopicPage>): TopicPage {
+  return { ...added, items: [...shown.items, ...added.items] };
+}
+
+async function freshRead(
+  key: string,
+  { last, signal }: Readonly<{ last: Readonly<TopicItem> | undefined; signal: AbortSignal }>,
+) {
+  try {
+    const first = foundPage(await fetchTopicPage(key, null, signal));
+
+    return first === null
+      ? null
+      : await readThrough(first, {
+          read: async (cursor) => foundPage(await fetchTopicPage(key, cursor, signal)),
+          joined,
+          covers: (shown) => reaches(shown, last),
+        });
   } catch {
     return null;
   }
@@ -88,7 +95,7 @@ type SetState = Dispatch<SetStateAction<TopicState>>;
 function useFirstRead(key: string, setState: SetState, ticket: Ticket) {
   return useCallback(async () => {
     const mine = ticket.take();
-    const read = await attempt(key, null);
+    const read = await attempt(key, null, ticket.signal());
 
     if (!ticket.matches(mine)) return;
 
@@ -111,7 +118,7 @@ function useLoadMore(
     const mine = ticket.now();
     setState({ ...current, more: "loading" });
 
-    void attempt(key, current.next).then((read) => {
+    void attempt(key, current.next, ticket.signal()).then((read) => {
       if (ticket.matches(mine)) {
         setState((now) => appended(now, read?.outcome === "found" ? read.page : null));
       }
@@ -147,7 +154,7 @@ function useOverviewPoll(
 
     if (loaded.status !== "ready" || loaded.more === "loading") return;
 
-    const page = await freshRead(key, loaded.items.at(-1));
+    const page = await freshRead(key, { last: loaded.items.at(-1), signal: ticket.signal() });
 
     if (page !== null && ticket.matches(mine)) {
       setState((now) => applyRefresh(now, { page, loaded }));
@@ -156,8 +163,10 @@ function useOverviewPoll(
 }
 
 function useWriteOverview(key: string, setState: SetState, reload: () => Promise<void>) {
+  const { guard } = useGuard();
+
   return useCallback((): void => {
-    const write = async () => {
+    guard(async () => {
       try {
         const overview = await retryTopicOverview(key);
 
@@ -166,10 +175,8 @@ function useWriteOverview(key: string, setState: SetState, reload: () => Promise
       } catch {
         await reload();
       }
-    };
-
-    void write();
-  }, [key, reload, setState]);
+    });
+  }, [guard, key, reload, setState]);
 }
 
 export function useTopicPage(key: string, replace: Route["replace"]) {
@@ -181,7 +188,11 @@ export function useTopicPage(key: string, replace: Route["replace"]) {
 
   useEffect(() => {
     void first();
-  }, [first]);
+
+    return () => {
+      ticket.take();
+    };
+  }, [first, ticket]);
 
   const retry = useCallback((): void => {
     setState(LOADING);

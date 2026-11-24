@@ -23,28 +23,21 @@ export interface RowControls {
   readonly reject: (proposal: Proposal) => void;
 }
 
-function Note({ children, alert }: Readonly<{ children: string; alert: boolean }>) {
-  return (
-    <p className="rd-note" role={alert ? "alert" : "status"}>
-      {children}
-    </p>
-  );
-}
-
 const BUSY_NOTES = {
   "merge-busy": PROPOSAL_WORDS.mergeBusy,
   "no-provider": PROPOSAL_WORDS.noProvider,
 } as const satisfies Record<Busy, string>;
 
-function ApplyingNotes({ proposal }: Readonly<{ proposal: Proposal }>) {
-  return (
-    <>
-      <Note alert={false}>{PROPOSAL_WORDS.applying}</Note>
-      {isMerge(proposal) && proposal.failedRuns > 0 && (
-        <p className="rd-note">{applyFailedNote(proposal.failedRuns)}</p>
-      )}
-    </>
-  );
+function alertOf(row: RowState): string | null {
+  if (row.kind !== "failed") return null;
+
+  return row.failure === "accept" ? PROPOSAL_WORDS.acceptFailed : PROPOSAL_WORDS.rejectFailed;
+}
+
+function statusOf(row: RowState, applying: boolean): string | null {
+  if (applying) return PROPOSAL_WORDS.applying;
+
+  return row.kind === "busy" ? BUSY_NOTES[row.busy] : null;
 }
 
 function Notes({
@@ -52,23 +45,17 @@ function Notes({
   row,
   applying,
 }: Readonly<{ proposal: Proposal; row: RowState; applying: boolean }>) {
-  if (applying) return <ApplyingNotes proposal={proposal} />;
-
-  switch (row.kind) {
-    case "failed":
-      return (
-        <Note alert>
-          {row.failure === "accept" ? PROPOSAL_WORDS.acceptFailed : PROPOSAL_WORDS.rejectFailed}
-        </Note>
-      );
-    case "busy":
-      return <Note alert={false}>{BUSY_NOTES[row.busy]}</Note>;
-    case "pressing":
-    case "idle":
-      return null;
-    default:
-      return row satisfies never;
-  }
+  return (
+    <>
+      <p className="rd-note" role="alert">
+        {applying ? null : alertOf(row)}
+      </p>
+      <output className="rd-note">{statusOf(row, applying)}</output>
+      {applying && isMerge(proposal) && proposal.failedRuns > 0 && (
+        <p className="rd-note">{applyFailedNote(proposal.failedRuns)}</p>
+      )}
+    </>
+  );
 }
 
 export function Actions({ proposal, row, accept, reject }: Readonly<RowControls>) {

@@ -7,6 +7,7 @@ const STORAGE_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
 const BAR_FALLBACK_HEIGHT = 56;
 const PASSAGE_LENGTH = 80;
+const PLACES_MAX = 100;
 
 const AnchorSchema = z.object({
   index: WholeCount,
@@ -15,35 +16,37 @@ const AnchorSchema = z.object({
   offset: z.number().nonnegative(),
 });
 
-const PlacesSchema = z.record(z.string(), AnchorSchema);
+const PlacesSchema = z.array(z.tuple([WholeCount, AnchorSchema]));
 
 export type Anchor = z.infer<typeof AnchorSchema>;
 
-type Places = z.infer<typeof PlacesSchema>;
+type Place = readonly [number, Readonly<Anchor>];
 
-function readPlaces(): Places {
+function readPlaces(): readonly Place[] {
   try {
     const stored = sessionStorage.getItem(STORAGE_KEY);
 
-    return stored === null ? {} : PlacesSchema.parse(JSON.parse(stored));
+    return stored === null ? [] : PlacesSchema.parse(JSON.parse(stored));
   } catch {
-    return {};
+    return [];
   }
 }
 
-function writePlaces(places: Readonly<Places>): void {
+function writePlaces(places: readonly Place[]): void {
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(places));
   } catch {}
 }
 
 export function placeOf(itemId: number): Anchor | null {
-  return readPlaces()[String(itemId)] ?? null;
+  return readPlaces().find(([id]) => id === itemId)?.[1] ?? null;
 }
 
 export function keepPlace(itemId: number, anchor: Readonly<Anchor> | null): void {
-  const { [String(itemId)]: _dropped, ...others } = readPlaces();
-  writePlaces(anchor === null ? others : { ...others, [String(itemId)]: anchor });
+  const others = readPlaces().filter(([id]) => id !== itemId);
+  const kept = anchor === null ? others : [...others, [itemId, anchor] as const];
+
+  writePlaces(kept.slice(-PLACES_MAX));
 }
 
 function topOf(slot: HTMLElement): number {

@@ -9,10 +9,13 @@ import { SCOPE_NAMES } from "./ScopePicker.tsx";
 import type { RowBudget } from "./token-budget.ts";
 import { useEscape, useFocusOnMount } from "./use-form.ts";
 
-interface RowActions {
+interface RevokeActions {
   readonly ask: (id: number) => void;
   readonly cancel: (id: number) => void;
   readonly revoke: (id: number) => Promise<void>;
+}
+
+interface BudgetActions {
   readonly editBudget: (id: number) => void;
   readonly cancelBudget: (id: number) => void;
   readonly saveBudget: (id: number, dailyBudget: number | null) => Promise<void>;
@@ -24,8 +27,7 @@ function budgetMeta({ budget }: Token): string {
     : filled(SETTINGS.budgetUsed, { added: String(budget.added), limit: String(budget.limit) });
 }
 
-function metaOf(token: Token): string {
-  const now = Date.now();
+function metaOf(token: Token, now: number): string {
   const created = filled(SETTINGS.created, { when: ageLabel(token.createdAt, now) });
 
   const used =
@@ -76,7 +78,8 @@ function Confirm({
 
 function useRowActions(
   id: number,
-  { ask, cancel, revoke, editBudget, cancelBudget, saveBudget }: Readonly<RowActions>,
+  { ask, cancel, revoke }: Readonly<RevokeActions>,
+  { editBudget, cancelBudget, saveBudget }: Readonly<BudgetActions>,
 ) {
   const askThis = useCallback(() => {
     ask(id);
@@ -159,7 +162,8 @@ function Aside({
   asking,
   revoking,
   budget,
-  actions,
+  revokeActions,
+  budgetActions,
   budgetRef,
   revokeRef,
 }: Readonly<{
@@ -167,12 +171,13 @@ function Aside({
   asking: boolean;
   revoking: boolean;
   budget: RowBudget;
-  actions: RowActions;
+  revokeActions: RevokeActions;
+  budgetActions: BudgetActions;
   budgetRef: RefObject<HTMLButtonElement | null>;
   revokeRef: RefObject<HTMLButtonElement | null>;
 }>) {
   const { askThis, cancelThis, revokeThis, editThis, cancelBudgetOfThis, saveBudgetOfThis } =
-    useRowActions(token.id, actions);
+    useRowActions(token.id, revokeActions, budgetActions);
 
   if (asking) {
     return <Confirm token={token} revoking={revoking} cancel={cancelThis} revoke={revokeThis} />;
@@ -199,20 +204,24 @@ function Aside({
 
 export function TokenRow({
   token,
+  now,
   asking,
   revoking,
   focusRevoke,
   focusBudget,
   budget,
-  actions,
+  revokeActions,
+  budgetActions,
 }: Readonly<{
   token: Token;
+  now: number;
   asking: boolean;
   revoking: boolean;
   focusRevoke: boolean;
   focusBudget: boolean;
   budget: RowBudget;
-  actions: RowActions;
+  revokeActions: RevokeActions;
+  budgetActions: BudgetActions;
 }>) {
   const { budgetButton, revokeButton } = useRowFocus(
     focusRevoke && !asking,
@@ -223,7 +232,7 @@ export function TokenRow({
     <li className="tok">
       <div className="tok-main">
         <p className="tok-name">{token.name}</p>
-        <p className="tok-meta">{metaOf(token)}</p>
+        <p className="tok-meta">{metaOf(token, now)}</p>
         <output className="fld-err">
           {token.budget.kind === "spent" ? SETTINGS.budgetSpent : null}
         </output>
@@ -233,7 +242,8 @@ export function TokenRow({
         asking={asking}
         revoking={revoking}
         budget={budget}
-        actions={actions}
+        revokeActions={revokeActions}
+        budgetActions={budgetActions}
         budgetRef={budgetButton}
         revokeRef={revokeButton}
       />

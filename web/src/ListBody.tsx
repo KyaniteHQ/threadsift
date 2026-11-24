@@ -51,14 +51,25 @@ export function Notice({
   text,
   action,
   label,
-  alert,
-}: Readonly<{ text: string; action: () => void; label: string; alert: boolean }>) {
+}: Readonly<{ text: string; action: () => void; label: string }>) {
   return (
-    <div className="noresults" role={alert ? "alert" : undefined}>
+    <div className="noresults">
       <p>{text}</p>
       <button type="button" className="btn" onClick={action}>
         {label}
       </button>
+    </div>
+  );
+}
+
+export function RetryNotice({
+  failed,
+  text,
+  action,
+}: Readonly<{ failed: boolean; text: string; action: () => void }>) {
+  return (
+    <div role="alert">
+      {failed ? <Notice text={text} action={action} label={RETRY_LABEL} /> : null}
     </div>
   );
 }
@@ -118,16 +129,13 @@ function ItemList({
 }
 
 function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) {
-  if (state === "failed") {
-    return <Notice text={LOAD_FAILED} action={more} label={RETRY_LABEL} alert />;
-  }
-
   return (
     <>
       {state === "loading" ? <Loading /> : null}
       <div className="noresults">
+        <p role="alert">{state === "failed" ? LOAD_FAILED : null}</p>
         <button type="button" className="btn" aria-disabled={state === "loading"} onClick={more}>
-          {LOAD_MORE}
+          {state === "failed" ? RETRY_LABEL : LOAD_MORE}
         </button>
       </div>
     </>
@@ -181,25 +189,25 @@ function LoadedList({
   );
 }
 
-export const ListBody = memo(function ListBody({
+function ListContent({
   list,
-  retry,
   clearAll,
   more,
-  ...shared
-}: Readonly<ListBodyProps>) {
-  if (list.status === "loading") {
-    return <Loading />;
-  }
+  shared,
+}: Readonly<{
+  list: ListState;
+  clearAll: ListBodyProps["clearAll"];
+  more: ListBodyProps["more"];
+  shared: Readonly<RowProps>;
+}>) {
+  if (list.status === "failed") return null;
 
-  if (list.status === "failed") {
-    return <Notice text={LOAD_FAILED} action={retry} label={RETRY_LABEL} alert />;
-  }
+  if (list.status === "loading") return <Loading />;
 
   const exhausted = isEmptyResult(list.items.length, list.next);
 
   if (exhausted && list.counts.total > 0) {
-    return <Notice text={NO_RESULTS} action={clearAll} label={CLEAR_ALL} alert={false} />;
+    return <Notice text={NO_RESULTS} action={clearAll} label={CLEAR_ALL} />;
   }
 
   if (exhausted) {
@@ -207,4 +215,19 @@ export const ListBody = memo(function ListBody({
   }
 
   return <LoadedList list={list} more={more} shared={shared} />;
+}
+
+export const ListBody = memo(function ListBody({
+  list,
+  retry,
+  clearAll,
+  more,
+  ...shared
+}: Readonly<ListBodyProps>) {
+  return (
+    <>
+      <RetryNotice failed={list.status === "failed"} text={LOAD_FAILED} action={retry} />
+      <ListContent list={list} clearAll={clearAll} more={more} shared={shared} />
+    </>
+  );
 });

@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useEffect, useMemo, useState } from "react";
 
-import type { ItemPage } from "../../src/core/contract/item-route-wire.ts";
+import type { ItemList, ItemPage } from "../../src/core/contract/item-route-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { fetchItems, fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
@@ -14,6 +14,7 @@ import {
   loaded,
   readFor,
 } from "./list-state.ts";
+import { readThrough } from "./read-through.ts";
 import { type Ticket, useTicket } from "./use-ticket.ts";
 
 export interface Reads {
@@ -25,39 +26,30 @@ export interface Reads {
 interface Reach {
   readonly edge: () => Item | undefined;
   readonly isCurrent: () => boolean;
+  readonly signal: AbortSignal;
 }
 
 function edgeOf(list: Readonly<ListState>, asked: string): Item | undefined {
   return readFor(list, asked) ? list.items.at(-1) : undefined;
 }
 
-async function continuing(
-  filters: Readonly<Filters>,
-  page: Readonly<ItemPage>,
-  reach: Readonly<Reach>,
-): Promise<ItemPage> {
+function reached(page: Readonly<ItemPage>, reach: Readonly<Reach>): boolean {
   const last = page.items.at(-1);
   const edge = reach.edge();
 
-  if (
-    page.next === null ||
-    !reach.isCurrent() ||
-    last === undefined ||
-    edge === undefined ||
-    !newer(last, edge)
-  ) {
-    return page;
-  }
-
-  const following = await continuing(filters, await fetchItemsAfter(filters, page.next), reach);
-
-  return { items: [...page.items, ...following.items], next: following.next };
+  return !reach.isCurrent() || last === undefined || edge === undefined || !newer(last, edge);
 }
 
-async function readThrough(filters: Readonly<Filters>, reach: Readonly<Reach>) {
-  const first = await fetchItems(filters);
+function joined(shown: Readonly<ItemList>, added: Readonly<ItemPage>): ItemList {
+  return { ...shown, items: [...shown.items, ...added.items], next: added.next };
+}
 
-  return { ...first, ...(await continuing(filters, first, reach)) };
+async function readItems(filters: Readonly<Filters>, reach: Readonly<Reach>) {
+  return readThrough(await fetchItems(filters, reach.signal), {
+    read: (cursor) => fetchItemsAfter(filters, cursor, reach.signal),
+    joined,
+    covers: (shown) => reached(shown, reach),
+  });
 }
 
 function useListRead(
@@ -74,10 +66,11 @@ function useListRead(
     const reach = {
       edge: () => edgeOf(latest.current, asked),
       isCurrent: () => ticket.matches(mine),
+      signal: ticket.signal(),
     };
 
     const read = async (): Promise<void> => {
-      const answer = await readThrough(query.filters, reach).catch(() => null);
+      const answer = await readItems(query.filters, reach).catch(() => null);
 
       if (!ticket.matches(mine)) return;
 
