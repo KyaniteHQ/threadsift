@@ -3,7 +3,7 @@ import { type SQLWrapper, sql } from "drizzle-orm";
 import type { RestoreFailure } from "../contract/restore-contract.ts";
 import type { Database } from "./database.ts";
 import { readOrAssume } from "./failure-log.ts";
-import { holdsNoRow, insertGuard } from "./guards.ts";
+import { holdsNoRow, insertGuard, refusedByGuard } from "./guards.ts";
 import { HOLDING, NOTHING_WRITTEN, type Standing, standingSql } from "./restore-standing.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { STALE } from "./vault-stale.ts";
@@ -108,7 +108,7 @@ export async function whileOpen<Result>(
   try {
     return await write();
   } catch (error) {
-    if (!(await heldOrUnread(db))) throw error;
+    if (!refusedByGuard(error) || !(await heldOrUnread(db))) throw error;
 
     return { kind: "restoring" };
   }
