@@ -54,22 +54,30 @@ function Lines({ overview }: Readonly<{ overview: Overview }>) {
 }
 
 function Status({ overview, write }: Readonly<{ overview: Overview; write: () => void }>) {
-  if (overview.state === "pending") {
-    return <output className="rd-note">{TOPIC_PAGE.overviewPending}</output>;
-  }
-
-  if (overview.state === "failed") {
-    return (
+  return (
+    <>
+      <output className="rd-note">
+        {overview.state === "pending" ? TOPIC_PAGE.overviewPending : null}
+      </output>
       <div className="tp-status" role="alert">
-        <p className="rd-note">{TOPIC_PAGE.overviewFailed}</p>
-        <button type="button" className="btn" onClick={write}>
-          {RETRY_LABEL}
-        </button>
+        {overview.state === "failed" ? (
+          <>
+            <p className="rd-note">{TOPIC_PAGE.overviewFailed}</p>
+            <button type="button" className="btn" onClick={write}>
+              {RETRY_LABEL}
+            </button>
+          </>
+        ) : null}
       </div>
-    );
-  }
+      <Unwritten overview={overview} write={write} />
+    </>
+  );
+}
 
-  if (overview.text !== null) return null;
+function Unwritten({ overview, write }: Readonly<{ overview: Overview; write: () => void }>) {
+  if (overview.state === "pending" || overview.state === "failed" || overview.text !== null) {
+    return null;
+  }
 
   if (!overview.provider) return <p className="rd-note">{TOPIC_PAGE.noProvider}</p>;
 

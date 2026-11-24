@@ -3,9 +3,9 @@ import { type MouseEvent, type RefObject, useCallback } from "react";
 import { type Filters, isEmptyResult } from "./filters.ts";
 import { HighlightEntry } from "./HighlightEntry.tsx";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
-import { EmptyState, ListHead, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
+import { EmptyState, ListHead, Notice, RESULTS_ID, RetryNotice, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
-import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
+import { CLEAR_ALL } from "./text.ts";
 import { useFocusNewEntries } from "./use-highlights-focus.ts";
 import { type PageState, type Ready, canLoadMore } from "./use-highlights-page.ts";
 
@@ -52,6 +52,15 @@ function EntryList({
   );
 }
 
+interface ShownProps {
+  readonly head: string;
+  readonly filters: Filters;
+  readonly now: number;
+  readonly loadMore: () => boolean;
+  readonly clearAll: () => void;
+  readonly list: RefObject<HTMLOListElement | null>;
+}
+
 function Listed({
   state,
   head,
@@ -60,15 +69,7 @@ function Listed({
   loadMore,
   clearAll,
   list,
-}: Readonly<{
-  state: Ready;
-  head: string;
-  filters: Filters;
-  now: number;
-  loadMore: () => boolean;
-  clearAll: () => void;
-  list: RefObject<HTMLOListElement | null>;
-}>) {
+}: Readonly<{ state: Ready } & ShownProps>) {
   const { length } = state.entries;
   const expectFocus = useFocusNewEntries(list, { count: length, more: state.more });
 
@@ -83,12 +84,7 @@ function Listed({
     <>
       <ListHead label={head} sort={HIGHLIGHTS_PAGE.sort} />
       {isEmptyResult(length, state.next) ? (
-        <Notice
-          text={HIGHLIGHTS_PAGE.noResults}
-          action={clearAll}
-          label={CLEAR_ALL}
-          alert={false}
-        />
+        <Notice text={HIGHLIGHTS_PAGE.noResults} action={clearAll} label={CLEAR_ALL} />
       ) : (
         <EntryList entries={state.entries} now={now} list={list} />
       )}
@@ -97,29 +93,31 @@ function Listed({
   );
 }
 
-export function HighlightsBody({
-  state,
-  retry,
-  ...listed
-}: Readonly<{
-  state: PageState;
-  head: string;
-  filters: Filters;
-  now: number;
-  retry: () => void;
-  loadMore: () => boolean;
-  clearAll: () => void;
-  list: RefObject<HTMLOListElement | null>;
-}>) {
-  if (state.status === "loading") return <Loading />;
+function HighlightsContent({ state, ...listed }: Readonly<{ state: PageState } & ShownProps>) {
+  if (state.status === "failed") return null;
 
-  if (state.status === "failed") {
-    return <Notice text={HIGHLIGHTS_PAGE.loadFailed} action={retry} label={RETRY_LABEL} alert />;
-  }
+  if (state.status === "loading") return <Loading />;
 
   return state.counts.total === 0 ? (
     <EmptyState heading={HIGHLIGHTS_PAGE.emptyHeading} line={HIGHLIGHTS_PAGE.emptyLine} />
   ) : (
     <Listed state={state} {...listed} />
+  );
+}
+
+export function HighlightsBody({
+  state,
+  retry,
+  ...listed
+}: Readonly<{ state: PageState; retry: () => void } & ShownProps>) {
+  return (
+    <>
+      <RetryNotice
+        failed={state.status === "failed"}
+        text={HIGHLIGHTS_PAGE.loadFailed}
+        action={retry}
+      />
+      <HighlightsContent state={state} {...listed} />
+    </>
   );
 }

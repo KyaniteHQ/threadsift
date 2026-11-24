@@ -3,7 +3,7 @@ import { type RefObject, use } from "react";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { postTextModule } from "./post-text-module.ts";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
-import { ReaderContent } from "./ReaderContent.tsx";
+import { ReaderContent, ReaderNotices } from "./ReaderContent.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
 
@@ -56,7 +56,9 @@ export function ReaderBody({
         loading={ready === null}
         tryAgain={tryAgain}
       />
-      {ready === null ? <ReaderLoading /> : <ReaderContent {...content} state={ready} />}
+      <ReaderNotices state={state} retry={actions.retry} />
+      {ready === null ? <ReaderLoading /> : null}
+      {state.status === "ready" ? <ReaderContent {...content} state={state} /> : null}
     </>
   );
 }

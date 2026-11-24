@@ -29,7 +29,7 @@ function Newer({
   takeNewer: () => void;
 }>) {
   return (
-    <div className="nt-newer" role="alert">
+    <div className="nt-newer">
       <p className="nt-msg">{NOTE_CHANGED}</p>
       <blockquote className="nt-text" dir="auto" aria-label={NOTE_NEWER_LABEL}>
         {note.body ?? <span className="nt-msg">{NOTE_NEWER_EMPTY}</span>}
@@ -63,19 +63,17 @@ function Refusals({
 }>) {
   return (
     <>
-      {failed ? (
-        <p className="nt-msg" role="alert">
-          {NOTE_FAILED}
-        </p>
-      ) : null}
-      {tooLong ? (
-        <p className="nt-msg" role="alert">
-          {NOTE_TOO_LONG}
-        </p>
-      ) : null}
-      {newer === null ? null : (
-        <Newer note={newer} pending={pending} keepMine={keepMine} takeNewer={takeNewer} />
-      )}
+      <p className="nt-msg" role="alert">
+        {failed ? NOTE_FAILED : null}
+      </p>
+      <p className="nt-msg" role="alert">
+        {tooLong ? NOTE_TOO_LONG : null}
+      </p>
+      <div role="alert">
+        {newer === null ? null : (
+          <Newer note={newer} pending={pending} keepMine={keepMine} takeNewer={takeNewer} />
+        )}
+      </div>
     </>
   );
 }
