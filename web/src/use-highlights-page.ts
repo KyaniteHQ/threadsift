@@ -24,7 +24,7 @@ export function canLoadMore(state: Readonly<Ready>, query: Readonly<Filters>): b
 
 export function useHighlightsPage(filters: Readonly<Filters>) {
   const read = useCallback(
-    async (cursor: string | null, signal?: AbortSignal): Promise<FilteredPage> => ({
+    async (cursor: string | null, signal: AbortSignal): Promise<FilteredPage> => ({
       ...(await fetchHighlightsPage(filters, cursor, signal)),
       query: filters,
     }),
