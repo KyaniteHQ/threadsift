@@ -37,6 +37,13 @@ const ALT_SPECIALS = /[\\`*_~[\]<>&|]/gu;
 
 const TITLE_SPECIALS = /["\\]/gu;
 
+const ESCAPED_DESTINATION =
+  /\\[!-/:-@[-`{-~]|&(?:[A-Za-z][A-Za-z0-9]{0,30}|#[0-9]{1,7}|#[Xx][0-9A-Fa-f]{1,6});/u;
+
+export function mayHoldDestination(markdown: string, prefix: string): boolean {
+  return markdown.includes(prefix) || ESCAPED_DESTINATION.test(markdown);
+}
+
 function walk(root: Readonly<MarkdownNode>): MarkdownNode[] {
   const found: MarkdownNode[] = [];
   const pending: MarkdownNode[] = [root];
