@@ -86,7 +86,7 @@ function windowResetOf(resetMs: number | null, emptied: boolean, now: number) {
 
   return emptied
     ? sql`case when ${redditAccount.windowResetsAt} > ${now} then ${redditAccount.windowResetsAt} else ${now + WAIT_CHECK_MS} end`
-    : redditAccount.windowResetsAt;
+    : undefined;
 }
 
 export async function recordWindow(
@@ -95,21 +95,16 @@ export async function recordWindow(
   { left, reset, retryAfter, limited }: Readonly<WindowRecord>,
   now: number,
 ): Promise<void> {
-  const changes: Partial<AccountRow> = { lastRequestAt: now };
-
-  if (limited) {
-    changes.windowRemaining = 0;
-    changes.limitedUntil = limitedUntilOf({ reset, retryAfter }, now);
-  } else if (left !== null) {
-    changes.windowRemaining = Math.floor(left);
-  }
-
-  const resetMs = usableResetMs(reset);
-  const emptied = !limited && changes.windowRemaining === 0;
+  const windowRemaining = limited ? 0 : left === null ? undefined : Math.floor(left);
 
   await db
     .update(redditAccount)
-    .set({ ...changes, windowResetsAt: windowResetOf(resetMs, emptied, now) })
+    .set({
+      lastRequestAt: now,
+      windowRemaining,
+      limitedUntil: limited ? limitedUntilOf({ reset, retryAfter }, now) : undefined,
+      windowResetsAt: windowResetOf(usableResetMs(reset), !limited && windowRemaining === 0, now),
+    })
     .where(ofSession(session));
 }
 
