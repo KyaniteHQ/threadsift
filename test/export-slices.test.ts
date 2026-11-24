@@ -217,12 +217,15 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
     await instance.core.files.put(postKey, new TextEncoder().encode("x".repeat(textBytes)));
 
     const ready = await readyExport(instance);
+    const zip = await downloadedZip(instance, ready.id);
 
-    return sliceEntries(instance, ready.id, await downloadedZip(instance, ready.id));
+    return { zip, slices: await sliceEntries(instance, ready.id, zip) };
   };
 
   const exactFit = async () => {
-    const [single] = await exported(BASE_TEXT_BYTES);
+    const {
+      slices: [single],
+    } = await exported(BASE_TEXT_BYTES);
 
     assert.ok(single !== undefined, "the Export holds a slice");
 
@@ -249,23 +252,37 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
   after(() => instance.close());
 
   it("takes an entry that fills the slice exactly, and starts the next entry in the next slice", async () => {
-    const { first, second } = firstTwo(await exported(await exactFit()));
+    const { first, second } = firstTwo((await exported(await exactFit())).slices);
 
     assert.equal(sizeSum(first), EXPORT_SLICE_BYTES);
     assert.ok(isEntry(first.at(-1), note));
     assert.ok(isEntry(second[0], post));
   });
 
-  it("starts an entry that passes the cap by 1 byte in the next slice", async () => {
-    const { first, second } = firstTwo(await exported((await exactFit()) + 1));
+  it("starts an entry that passes the cap by 1 byte in the next slice, with the post text file whole in the zip", async () => {
+    const textBytes = (await exactFit()) + 1;
+    const { zip, slices } = await exported(textBytes);
+    const { first, second } = firstTwo(slices);
+    const entries = await entriesOf(zip);
 
     assert.ok(sizeSum(first) < EXPORT_SLICE_BYTES);
     assert.ok(first.every((entry) => !isEntry(entry, note)));
     assert.ok(isEntry(second[0], note));
+    assert.deepEqual(
+      slices
+        .flat()
+        .filter((entry) => isEntry(entry, post))
+        .map(({ size }) => size),
+      [textBytes],
+    );
+    assert.deepEqual(
+      entryOf(entries, `${rootOf(entries)}${postKey}`),
+      new TextEncoder().encode("x".repeat(textBytes)),
+    );
   });
 
   it("puts an entry above the cap first in a slice of its own, and still ends ready", async () => {
-    const slices = await exported(EXPORT_SLICE_BYTES + 1);
+    const { slices } = await exported(EXPORT_SLICE_BYTES + 1);
 
     for (const pattern of [note, post]) {
       const slice = slices.find((entries) => entries.some((entry) => isEntry(entry, pattern)));
