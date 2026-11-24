@@ -25,13 +25,17 @@ export const MAX_ATTEMPTS = RETRY_DELAYS_MS.length + 1;
 
 export const JOB_STATES = ["queued", "running", "done"] as const;
 
+export const GITHUB_WAIT = "github-rate-limit";
+
 export const GROK_BOT_WAIT = "grok-bot";
 
+export const REDDIT_WAIT = "reddit-limit";
+
 export const WAIT_REASONS = [
-  "github-rate-limit",
+  GITHUB_WAIT,
   "topic-busy",
   GROK_BOT_WAIT,
-  "reddit-limit",
+  REDDIT_WAIT,
   "x-verify",
   "x-reread",
 ] as const;

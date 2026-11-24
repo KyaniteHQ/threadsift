@@ -1,7 +1,7 @@
 import { type SQL, and, eq, gt, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import type { WaitReason } from "../../../core/contract/job-contract.ts";
+import { GITHUB_WAIT } from "../../../core/contract/job-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { githubCooldown } from "../../../core/kernel/github-tables.ts";
 import { guardedBatch } from "../../../core/kernel/guards.ts";
@@ -10,8 +10,6 @@ import { waitingFor, wakeWaitingFetches, wokenJob } from "../../../core/kernel/j
 import type { JobRow } from "../../../core/kernel/schema.ts";
 import { type GithubAuth, CredentialChanged, credentialCurrent } from "./github-credential.ts";
 import { MAX_COOLDOWN_MS } from "./github-rate-limit.ts";
-
-export const GITHUB_WAIT = "github-rate-limit" satisfies WaitReason;
 
 const COOLDOWN_ROW = 1;
 

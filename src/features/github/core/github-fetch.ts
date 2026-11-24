@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { fromBase64 } from "../../../core/contract/encoding.ts";
 import type { FetchFailure } from "../../../core/contract/fetch-results.ts";
+import { GITHUB_WAIT } from "../../../core/contract/job-contract.ts";
 import { type RepositoryRef, repositoryRef } from "../../../core/contract/repository-ref.ts";
 import { WholeCount } from "../../../core/contract/whole-count.ts";
 import {
@@ -14,7 +15,6 @@ import { parsedJson } from "../../../core/kernel/parsed-json.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import type { Fetched } from "../../media/core/details.ts";
 import { type GithubRun, type Waiting, apiPolicy, rejectsToken, requestApi } from "./github-api.ts";
-import { GITHUB_WAIT } from "./github-cooldown.ts";
 import { withCurrentCredential } from "./github-credential.ts";
 import type { RateLimit } from "./github-rate-limit.ts";
 
