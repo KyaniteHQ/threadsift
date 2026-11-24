@@ -4,7 +4,7 @@ Renovate, the GitHub App, is the one update bot. Its configuration holds the sch
 
 - `oxlint` and `@oxlint/plugins` get their own PR at every update type, because both must stay on one exact version.
 - `@playwright/test` is never updated by Renovate. It must match the version of nixpkgs' `playwright-driver`, whose browsers the devenv shell provides, so it moves with the `devenv.lock` update.
-- When Renovate bumps pnpm, it also rewrites the `sha512` hash in `packageManager`, which the container build checks ([Container image](container-image.md), pnpm). A hash that does not match the tarball fails the container build.
+- When Renovate bumps pnpm, it also rewrites the `sha512` hash in `packageManager`, which the container build checks ([Container image](container-image.md), pnpm).
 - Renovate proposes an npm version only when it is 3 days old. This equals pnpm's `minimumReleaseAge`, so a PR never asks for a version that pnpm refuses to install.
 
 ## Security fixes
