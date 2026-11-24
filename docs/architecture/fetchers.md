@@ -69,7 +69,7 @@ The fill runs inside the fetch job next to the oEmbed request, only when the arc
 
 The account is the first source for a post or comment with no saved thread, before the archive fill and whether or not the fill is on ([Connect a Reddit account](../guides/reddit-account.md)).
 
-- The turn check runs first, so a job that has to wait sends no request, not even oEmbed. One fill runs at a time, oldest job first ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md), The Reddit turn).
+- The turn check runs first, so a job that has to wait sends no request, not even oEmbed. The oEmbed request starts after the account step, so a job that waits after its first answer (a window too small for the hidden replies, or a 429) has sent that one request to Reddit and no oEmbed request. One fill runs at a time, oldest job first ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md), The Reddit turn).
 - The fill requests the post's `.json`, then the replies behind each `more` stub by permalink. Each address comes from `redditRefOf`, never from the pasted text. The Extension runs the same loop.
 - The limits are 500 ms between request starts (kept on the account row, so it holds from one fill to the next), at most 100 requests, 8 MiB held, a stop at the first 429, and a server deadline of 90 s. The Extension's deadline is 150 s.
 - Before each request the server asks whether the run still holds the turn, so Disconnect, `expired`, a closed or deleted job and a takeover stop the fill within one request.
