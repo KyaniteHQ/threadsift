@@ -32,8 +32,16 @@ function readyFrom<Page extends PagedPage>(page: Readonly<Page>): PagedReady<Pag
 
 type Read<Page> = (cursor: string | null, signal: AbortSignal) => Promise<Page>;
 
-function attempt<Page>(read: Read<Page>, cursor: string | null, signal: AbortSignal) {
-  return read(cursor, signal).catch(() => null);
+async function attempt<Page>(
+  read: Read<Page>,
+  cursor: string | null,
+  signal: AbortSignal,
+): Promise<Page | null> {
+  try {
+    return await read(cursor, signal);
+  } catch {
+    return null;
+  }
 }
 
 function appended<Page extends PagedPage>(
