@@ -180,7 +180,7 @@ The cap holds without `Content-Length` too. A larger body answers 413 and writes
 
 ## The share route
 
-`/share` is the manifest's `share_target` action. It is declared `access("self", { cache: "no-store" })`, so the gate checks no session, token or origin, because the route decides for itself who is trusted. It caps the body and sets `Cache-Control: no-store` on every answer, the 413 included.
+`/share` is the manifest's `share_target` action. It is declared `access("self", { cache: "no-store" })`, so the gate checks no session, token or origin, because the route decides for itself who is trusted. It caps the body and sets `Cache-Control: no-store` on every answer to a `GET`, `HEAD` or `POST`, the 413 included. The 405 for another method comes from the catch-all gate and carries no `Cache-Control`; its body names no private data.
 
 A write needs a `POST` with all three of these (`sentByOwnPage`):
 
