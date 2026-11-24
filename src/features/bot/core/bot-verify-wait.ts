@@ -97,7 +97,7 @@ async function waitStep(
     case "timed-out":
       return (await timedOut(db, taskId)) ? refusedAi("timeout") : waitStep(db, context);
     case "waiting":
-      await pause(VERIFY_POLL_MS);
+      await pause(VERIFY_POLL_MS, signal);
 
       return waitStep(db, context);
     default: {
