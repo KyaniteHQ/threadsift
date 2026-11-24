@@ -7,7 +7,7 @@ import {
 } from "../../src/core/contract/topic-overview-contract.ts";
 import { InternalLink } from "./InternalLink.tsx";
 import { keyed } from "./keyed.ts";
-import { RETRY_LABEL } from "./text.ts";
+import { AlertRegion } from "./RetryRegions.tsx";
 import { TOPIC_PAGE, builtFromLabel, citationLabel } from "./topic-text.ts";
 
 type Cited = Overview["cited"][number];
@@ -59,25 +59,20 @@ function Status({ overview, write }: Readonly<{ overview: Overview; write: () =>
       <output className="rd-note">
         {overview.state === "pending" ? TOPIC_PAGE.overviewPending : null}
       </output>
-      <div className="tp-status" role="alert">
-        {overview.state === "failed" ? (
-          <>
-            <p className="rd-note">{TOPIC_PAGE.overviewFailed}</p>
-            <button type="button" className="btn" onClick={write}>
-              {RETRY_LABEL}
-            </button>
-          </>
-        ) : null}
-      </div>
-      <Unwritten overview={overview} write={write} />
+      <AlertRegion
+        className="tp-status"
+        text={overview.state === "failed" ? TOPIC_PAGE.overviewFailed : null}
+        retry={write}
+      />
+      {overview.state === "pending" || overview.state === "failed" ? null : (
+        <Unwritten overview={overview} write={write} />
+      )}
     </>
   );
 }
 
 function Unwritten({ overview, write }: Readonly<{ overview: Overview; write: () => void }>) {
-  if (overview.state === "pending" || overview.state === "failed" || overview.text !== null) {
-    return null;
-  }
+  if (overview.text !== null) return null;
 
   if (!overview.provider) return <p className="rd-note">{TOPIC_PAGE.noProvider}</p>;
 

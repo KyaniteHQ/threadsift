@@ -2,10 +2,10 @@ import { type MouseEvent, memo, useCallback } from "react";
 
 import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
 import { HIGHLIGHTS_TITLE, NOT_FOUND } from "../../src/core/contract/reader-text.ts";
-import { type Failure, useHighlights } from "./highlights-context.ts";
+import { useHighlights } from "./highlights-context.ts";
 import { QuoteText } from "./QuoteText.tsx";
 import { REMOVE_LABEL, removeNamed } from "./reader-text.ts";
-import { RETRY_LABEL } from "./text.ts";
+import { AlertRegion } from "./RetryRegions.tsx";
 
 function neighbourOf(entry: Element): HTMLElement | null {
   const next = entry.nextElementSibling ?? entry.previousElementSibling;
@@ -73,29 +73,15 @@ function reloadPage(): void {
   window.location.reload();
 }
 
-function FailureAlert({ failure }: Readonly<{ failure: Failure | null }>) {
-  return (
-    <div role="alert">
-      {failure === null ? null : (
-        <>
-          <p className="rd-note">{failure.text}</p>
-          {failure.reloads ? (
-            <button type="button" className="btn" onClick={reloadPage}>
-              {RETRY_LABEL}
-            </button>
-          ) : null}
-        </>
-      )}
-    </div>
-  );
-}
-
 export const HighlightList = memo(function HighlightList() {
   const { items, failure } = useHighlights();
 
   return (
     <>
-      <FailureAlert failure={failure} />
+      <AlertRegion
+        text={failure?.text ?? null}
+        retry={failure?.reloads === true ? reloadPage : null}
+      />
       {items.length === 0 ? null : (
         <section className="rd-hl">
           <h3 className="rd-h">{HIGHLIGHTS_TITLE}</h3>

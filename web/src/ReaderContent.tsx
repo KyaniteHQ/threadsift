@@ -4,7 +4,7 @@ import { NoteBox } from "./NoteBox.tsx";
 import { READER_FAILED, READER_STALE } from "./reader-text.ts";
 import { Agent } from "./ReaderColumn.tsx";
 import { Original } from "./ReaderOriginal.tsx";
-import { RETRY_LABEL } from "./text.ts";
+import { AlertRegion, StatusRegion } from "./RetryRegions.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 
 export function ReaderNotices({
@@ -13,26 +13,18 @@ export function ReaderNotices({
 }: Readonly<{ state: DetailState; retry: () => void }>) {
   return (
     <>
-      <div className="rd-orig" role="alert">
-        {state.status === "failed" ? (
-          <>
-            <p className="rd-note">{READER_FAILED}</p>
-            <button type="button" className="btn btn-block" onClick={retry}>
-              {RETRY_LABEL}
-            </button>
-          </>
-        ) : null}
-      </div>
-      <output className="rd-orig">
-        {state.status === "ready" && state.stale ? (
-          <>
-            <span className="rd-note">{READER_STALE}</span>
-            <button type="button" className="btn btn-block" onClick={retry}>
-              {RETRY_LABEL}
-            </button>
-          </>
-        ) : null}
-      </output>
+      <AlertRegion
+        className="rd-orig"
+        buttonClass="btn btn-block"
+        text={state.status === "failed" ? READER_FAILED : null}
+        retry={retry}
+      />
+      <StatusRegion
+        className="rd-orig"
+        buttonClass="btn btn-block"
+        text={state.status === "ready" && state.stale ? READER_STALE : null}
+        retry={retry}
+      />
     </>
   );
 }
