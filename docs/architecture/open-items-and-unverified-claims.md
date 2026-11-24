@@ -57,6 +57,10 @@ Not verified, because no stable public page or on-demand service produces the ca
 
 Open: the name check is missing on the local Worker under `wrangler dev`. A name that resolves to loopback, such as `localtest.me`, passes the core check there, because the Worker adapter calls the global `fetch`, which has no hook between the lookup and the connection. Run a Paste of such a name to see whether workerd connects.
 
+### Cloudflare's origin error on the Worker
+
+Not verified: a deployed Worker that fetches a host that does not resolve. `workerFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test covers only the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
+
 ### Article images, long post texts and Defuddle
 
 - Article images: the failure reasons `timeout`, `refused`, `redirect-limit`, `unsupported` and `type-mismatch`, a base64 image over 2 MiB, a percent-escaped `data:` payload, a Reddit or X address as an image's first address, a `<base href>` page, an image host that stalls past the 120 s deadline, a storage failure during `put`, the media publication on a deployed D1, and the Restore of `media` rows.
@@ -247,7 +251,7 @@ Not verified:
 ## Access, HTTP and screens
 
 - Open: the login throttle is global. Ten wrong passwords lock sign-in for 60 seconds, doubling to 1 hour, for the owner too, because the app has no client address it can trust behind a proxy or a Cloudflare route. A stranger who reaches the login can keep the owner out of the sign-in screen, while open sessions and agent tokens keep working. A per-address count would need a trusted forwarded-for header, which neither target guarantees ([Access](access-owner-login-agent-tokens-mcp.md), Throttle).
-- A request body over 64 MiB on the container. The 413 carries `Connection: close`, and RFC 9112 section 9.6 warns the client can get a reset before it reads the answer.
+- A request body well over 64 MiB on the container, or one that crosses a proxy. The 413 carries `Connection: close`, and RFC 9112 section 9.6 warns the client can get a reset before it reads the answer while it is still sending. Only bodies of exactly 64 MiB and of 64 MiB plus one byte on loopback ran, and each client received the 413.
 - Two setups at the same moment. Neither local runtime interleaves two requests between the owner check and the insert, so the `ON CONFLICT DO NOTHING` on the `owner` row is what keeps one owner, and deployed D1 can interleave them.
 - The CPU milliseconds of a password change on a deployed Worker (two scrypt runs in one request). It answered 204 in 1.6 s of wall time with no CPU-limit error.
 - Not run by the gate: a late `signed-out` answer to a session check does not close the library after the owner signs in, and a failed Revoke keeps its question open with its alert. Both need a response that Playwright holds until a later action finishes, and no smoke file holds a response.

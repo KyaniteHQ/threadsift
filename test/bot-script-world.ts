@@ -1,11 +1,11 @@
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ScriptFolder } from "./bot-script-run.ts";
-import { type Listening, listening } from "./bot-script-server.ts";
 import { intakeExample } from "./bot-skills-examples.ts";
 import { SECRET_KEY, relatedLibrary, retireTasks, saveBot } from "./bot-task-fixtures.ts";
 import { taskAfterStart } from "./bot-task-lifecycle.ts";
 import { fetcherFile } from "./fetcher-record.ts";
 import { Instance } from "./instance.ts";
+import { type Listening, listening } from "./loopback-server.ts";
 import { type IntakeTask, sentIntake } from "./x-intake-fixtures.ts";
 
 interface Servers {

@@ -12,6 +12,7 @@ On 2026-11-21, on the owner's 16-core machine with Node 26, `pnpm test` passed 9
 - The signed-out check requests every route in the served API document except the public routes and the three task callback routes. It also sends six requests with other paths or methods beside the callbacks. Each request must receive a 401 with a Bearer challenge.
 - The Reddit archive setting tests check who may change the setting and whether the owner can read it back. They do not run an archive fill.
 - Real fetcher plug-in modules sit in a folder beside the tests, and the tests load them through the production loader.
+- The Node and Worker adapters that no route test reaches run on real sockets and folders: `answerAfterBody` behind a loopback HTTP server, `workerFetch` against a loopback server for the answers it passes through, and `vaultFolder` on a temporary folder with its lease read from a migrated database. No test or smoke produces Cloudflare's own 530 answer ([Open items and unverified claims](open-items-and-unverified-claims.md)).
 - The fetcher deadline test aborts `pluginPage` after all three fixture fetches start, because the job's own deadline is the fetch deadline ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
 - The Reddit-with-a-thread rule is not in the core tests, because the built-in route it falls back to requests reddit.com.
 
