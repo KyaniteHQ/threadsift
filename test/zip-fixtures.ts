@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
+import { joinedBytes } from "../src/core/contract/encoding.ts";
 import { RESTORE_DIRECTORY_BYTES } from "../src/core/contract/restore-contract.ts";
 import { readDirectory } from "../src/features/export/core/zip-directory.ts";
 import { type ZipSource, entryBytes } from "../src/features/export/core/zip-read.ts";
@@ -9,7 +10,6 @@ import {
   type ZipFile,
   dosTimeOf,
   endOfArchive,
-  joined,
   packFiles,
 } from "../src/features/export/core/zip.ts";
 
@@ -58,7 +58,7 @@ export const ZIP_DOS = dosTimeOf(Date.UTC(2026, 10, 24));
 export function zipOfFiles(files: readonly ZipFile[]): Uint8Array {
   const packed = packFiles(files, { offset: 0, dos: ZIP_DOS });
 
-  return joined([
+  return joinedBytes([
     packed.data,
     packed.directory,
     endOfArchive({

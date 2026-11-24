@@ -101,13 +101,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
       ),
     );
 
-    const joined = new Uint8Array(stored.reduce((sum, bytes) => sum + bytes.length, 0));
-
-    stored.reduce((at, bytes) => {
-      joined.set(bytes, at);
-
-      return at + bytes.length;
-    }, 0);
+    const joined = Buffer.concat(stored);
 
     const status = await instance.read("GET", "/api/export", ExportStatusSchema);
 

@@ -1,18 +1,8 @@
+import { joinedBytes } from "../contract/encoding.ts";
+
 export interface Capped {
   readonly bytes: Uint8Array;
   readonly cut: boolean;
-}
-
-function joinedChunks(chunks: readonly Uint8Array[], size: number): Uint8Array {
-  const bytes = new Uint8Array(size);
-  let at = 0;
-
-  for (const chunk of chunks) {
-    bytes.set(chunk, at);
-    at += chunk.length;
-  }
-
-  return bytes;
 }
 
 export async function readCapped(
@@ -35,7 +25,7 @@ export async function readCapped(
     }
   }
 
-  return { bytes: joinedChunks(chunks, size), cut };
+  return { bytes: joinedBytes(chunks), cut };
 }
 
 class Overflow extends Error {}
@@ -90,5 +80,5 @@ export async function readWithin(
     return held <= maxBytes;
   });
 
-  return fits ? joinedChunks(chunks, held) : null;
+  return fits ? joinedBytes(chunks) : null;
 }
