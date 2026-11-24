@@ -12,13 +12,35 @@ import {
 } from "../src/core/contract/restore-contract.ts";
 import { exportedZip } from "./export-restore-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { until, exec } from "./related-fixtures.ts";
+import { until, exec, rows } from "./related-fixtures.ts";
 
 const AttemptLineSchema = z.object({
   event: z.literal("job-attempt-failed"),
   kind: z.string(),
   attempt: z.number(),
 });
+
+const ProgressSchema = z.object({
+  state: z.string(),
+  phase: z.string(),
+  cursor: z.string(),
+  restored: z.string(),
+  dropped: z.string(),
+  finished_at: z.number().nullable(),
+});
+
+export function restoreProgress(instance: Instance, id: number) {
+  const [row] = rows(
+    instance,
+    ProgressSchema,
+    "select state, phase, cursor, restored, dropped, finished_at from restores where id = ?",
+    id,
+  );
+
+  assert.ok(row !== undefined, "the Restore row exists");
+
+  return row;
+}
 
 export function putPart(instance: Instance, id: number, bytes: Uint8Array): Promise<Response> {
   return instance.request(`/api/restore/${String(id)}/parts/1`, {
