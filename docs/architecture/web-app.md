@@ -172,7 +172,7 @@ When `useItemDetail` fails to read `GET /api/items/:id` again and the Reader sti
 
 ### Reading place
 
-The Reader restores its reading place once, after its text and `document.fonts.ready` settle. `READ_DEADLINE_MS` bounds the wait, so a font that never answers cannot prevent restoration, and the text renders while the restore waits.
+The Reader restores its reading place once, after its text and `document.fonts.ready` settle. `READ_DEADLINE_MS` bounds the wait, so a font that never answers cannot prevent restoration, and the text renders while the restore waits. The Reader scrolls its slot to the top when the Item opens. From then on it records whether the owner scrolled, from the input a person makes (`wheel`, `touchmove`, a scroll key, or a press on the slot's own scrollbar), and not from the `scroll` event, which the browser also fires for the Reader's own reset and restore. The restore runs only when the owner has not scrolled, so a reader who started to scroll keeps that position even after scrolling back to the top. A reader who scrolled and closes the Reader or opens another Item during the wait has that place saved, and one who did not scroll keeps the saved place.
 
 A reading place lives in `sessionStorage`, so each tab keeps its own. It holds the block index, the fraction and the offset, and the first 80 characters of the block's text with white space collapsed. Restoring uses the block at that index only when its text still starts with the saved text. Otherwise it scrolls to the first block that does, and when none does the Reader stays at the top. A refresh, a new Digest or a different comment selection that adds or removes blocks therefore never lands the owner on unrelated text.
 
