@@ -1,5 +1,6 @@
 import { AI_INPUT_BYTES } from "../../../core/contract/ai-contract.ts";
 import { utf8Length } from "../../../core/contract/encoding.ts";
+import { packWithinInputCap } from "../../ai/core/ai-input-packing.ts";
 import type { SentTopic } from "./disagreement-task.ts";
 import { pairKey } from "./proposal-candidates.ts";
 
@@ -67,19 +68,11 @@ function withTopic(
   };
 }
 
-function fitted(
-  fill: Readonly<DisagreementFill>,
-  topic: Readonly<SentTopic>,
-  decided: Readonly<ReadonlySet<string>>,
-): DisagreementFill | null {
-  for (let count = topic.items.length; count >= MIN_ITEMS; count -= 1) {
-    const shortened = { ...topic, items: topic.items.slice(0, count) };
-    const grown = withTopic(fill, shortened, decidedOf(shortened, decided));
-
-    if (utf8Length(disagreementInput(grown)) <= AI_INPUT_BYTES) return grown;
-  }
-
-  return null;
+function shortenings(topic: Readonly<SentTopic>): SentTopic[] {
+  return Array.from({ length: Math.max(0, topic.items.length - MIN_ITEMS + 1) }, (_, cut) => ({
+    ...topic,
+    items: topic.items.slice(0, topic.items.length - cut),
+  }));
 }
 
 export function extendFill(
@@ -87,10 +80,12 @@ export function extendFill(
   topics: readonly Readonly<SentTopic>[],
   decided: Readonly<ReadonlySet<string>>,
 ): DisagreementFill {
-  return topics.reduce<DisagreementFill>(
-    (filled, topic) => fitted(filled, topic, decided) ?? filled,
-    fill,
-  );
+  return packWithinInputCap(fill, topics, {
+    variants: shortenings,
+    add: (packed, topic) => withTopic(packed, topic, decidedOf(topic, decided)),
+    bytes: (packed) => utf8Length(disagreementInput(packed)),
+    stopAtFirstMiss: false,
+  });
 }
 
 export function hasNoRoomForAnother(fill: Readonly<DisagreementFill>): boolean {

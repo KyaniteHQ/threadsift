@@ -12,6 +12,7 @@ import {
   unchangedDigests,
 } from "../../../core/kernel/digest-stored.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
+import { packWithinInputCap } from "../../ai/core/ai-input-packing.ts";
 import { candidateIds, relatedTerms } from "./related-candidates.ts";
 
 export interface PickItem {
@@ -152,13 +153,12 @@ export function pickPrompt({
     return { kind: "refused", reason: "source-over-cap" };
   }
 
-  const sent: PickItem[] = [];
-
-  for (const candidate of candidates) {
-    if (utf8Length(promptJson(source, [...sent, candidate])) <= AI_INPUT_BYTES) {
-      sent.push(candidate);
-    }
-  }
+  const none: readonly PickItem[] = [];
+  const sent = packWithinInputCap(none, candidates, {
+    add: (packed, candidate) => [...packed, candidate],
+    bytes: (packed) => utf8Length(promptJson(source, packed)),
+    stopAtFirstMiss: false,
+  });
 
   return sent.length === 0
     ? { kind: "refused", reason: "none-fit" }
