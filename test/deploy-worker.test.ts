@@ -28,6 +28,16 @@ const REFUSED = [
     rules: [KEY_RULE],
   },
   {
+    name: "a key one character too long",
+    secrets: { ...USABLE, THREADSIFT_SECRET_KEY: `${KEY}a` },
+    rules: [KEY_RULE],
+  },
+  {
+    name: "an empty setup code",
+    secrets: { ...USABLE, SETUP_CODE: "" },
+    rules: ["SETUP_CODE is empty"],
+  },
+  {
     name: "an empty key",
     secrets: { ...USABLE, THREADSIFT_SECRET_KEY: "" },
     rules: ["THREADSIFT_SECRET_KEY is empty"],
@@ -42,6 +52,15 @@ const REFUSED = [
     secrets: { ...USABLE, PASSWORD_RESET_CODE: "r".repeat(31) },
     rules: [RESET_RULE],
   },
+  ...(["true", "false"] as const).map((flag) => ({
+    name: `a short reset code beside the price flag value ${flag}`,
+    secrets: {
+      ...USABLE,
+      PASSWORD_RESET_CODE: "r".repeat(31),
+      THREADSIFT_OPENROUTER_MAX_PRICE_ZERO: flag,
+    },
+    rules: [RESET_RULE],
+  })),
   {
     name: "a reset code of 32 characters beside a price flag that is no flag value",
     secrets: {
@@ -61,7 +80,7 @@ const REFUSED = [
     },
     rules: ["THREADSIFT_SECRET_KEY is empty", SETUP_RULE, RESET_RULE, FLAG_RULE],
   },
-] as const;
+];
 
 function dryRun(secrets: Readonly<Record<string, string>>) {
   using folder = mkdtempDisposableSync(join(tmpdir(), "threadsift-deploy-secrets-"));
@@ -72,7 +91,7 @@ function dryRun(secrets: Readonly<Record<string, string>>) {
   const { status, stdout, stderr } = spawnSync(
     process.execPath,
     ["tools/deploy-worker.ts", "--dry-run", "--secrets-file", path],
-    { cwd: REPOSITORY, encoding: "utf8" },
+    { cwd: REPOSITORY, encoding: "utf8", env: { HOME: folder.path, PATH: "" } },
   );
 
   return { status, stdout, stderr, path };
