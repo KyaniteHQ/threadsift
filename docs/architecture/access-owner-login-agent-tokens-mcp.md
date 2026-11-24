@@ -121,7 +121,7 @@ A call to `/api/*` that matches no route for its method goes through `unrouted()
 - `refusingMethods` builds the 405 with Hono's `methodNotAllowed` middleware, which lists the methods of `app.routes` for the path and adds `HEAD` wherever `GET` is, so no list of paths or methods is kept by hand. The same middleware sits on `app.all("/*", ...)` for the paths that `createApp` registers outside `/api`, so `PUT /share` answers 405 with `Allow: GET, HEAD, POST` to every caller.
 - `/mcp` is one `all` route and refuses a method itself.
 - A path that no route registers is never a 405. On the container the web app's routes serve it after `createApp`. On the Worker, `isServerPath` sends only `/api`, `/share` and `/mcp` to `createApp`, and `serveDocument` answers the rest, so a `POST` to a page or an asset answers 404 on both.
-- `UNROUTED_PATHS` is the one path table left. The OpenRouter connect paths add the `private` cache headers to the 404 and the 405, and the file and export download paths add the `file` cache headers. The OpenRouter callback allows `GET` only: `getOnly` refuses a `HEAD` before the handler, and `refusingMethods` drops `HEAD` from its `Allow`.
+- `UNROUTED_PATHS` is the one path table left. The OpenRouter connect paths add the `private` cache headers to the 404 and the 405, the file and export download paths add the `file` cache headers, and `/api/ai-tasks/{id}` adds `Cache-Control: no-store`, as its `GET` route declares. The OpenRouter callback allows `GET` only: `getOnly` refuses a `HEAD` before the handler, and `refusingMethods` drops `HEAD` from its `Allow`.
 
 ## The task callback credential
 
@@ -224,7 +224,7 @@ The SDK's validators match hostnames without a port, so the gate has its own rul
 
 | `THREADSIFT_PUBLIC_ORIGIN` | `Host` must be | A present `Origin` must be |
 |---|---|---|
-| Set | That origin's host with its port. Loopback is refused, so a client on the same machine uses the public address | The whole origin: scheme, host and port |
+| Set | That origin's host with its port, also when that host is loopback. A request with another host, a loopback host included, is refused | The whole origin: scheme, host and port |
 | Not set | `localhost`, `127.0.0.1` or `[::1]` on any port. Reaching `/mcp` from another machine needs the variable | A loopback origin |
 
 A request without `Origin` passes, because CLI clients send none. `Origin: null`, a malformed one and an unlisted one answer 403.

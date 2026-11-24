@@ -1,4 +1,5 @@
 import type { RequestHeaders, WireResponse } from "../../core/kernel/network.ts";
+import { type ByteReader, MalformedResponse, byteReader } from "./http1-bytes.ts";
 
 const HEAD_LIMIT_BYTES = 16 * 1024;
 
@@ -14,12 +15,6 @@ const SWITCHING_PROTOCOLS = 101;
 
 const encoder = new TextEncoder();
 
-const decoder = new TextDecoder("latin1");
-
-class MalformedResponse extends Error {
-  override readonly name = "MalformedResponse";
-}
-
 export function requestBytes(host: string, path: string, headers: RequestHeaders): Uint8Array {
   const lines = Object.entries(headers).map(([name, value]) => `${name}: ${value}`);
 
@@ -28,84 +23,28 @@ export function requestBytes(host: string, path: string, headers: RequestHeaders
   );
 }
 
-function joined(first: Uint8Array, second: Uint8Array): Uint8Array {
-  const both = new Uint8Array(first.length + second.length);
-
-  both.set(first);
-  both.set(second, first.length);
-
-  return both;
-}
-
-function lineEnd(bytes: Uint8Array): number {
-  return bytes.findIndex((byte, at) => byte === 13 && bytes[at + 1] === 10);
-}
-
-interface ByteReader {
-  readonly line: (limit: number) => Promise<string | null>;
-  readonly take: (max: number) => Promise<Uint8Array | null>;
-}
-
-function byteReader(source: Readonly<AsyncIterable<Uint8Array>>): ByteReader {
-  const chunks = source[Symbol.asyncIterator]();
-  let buffer: Uint8Array = new Uint8Array(0);
-
-  const pull = async (): Promise<boolean> => {
-    const next = await chunks.next();
-
-    if (next.done === true) return false;
-
-    buffer = buffer.length === 0 ? next.value : joined(buffer, next.value);
-
-    return true;
-  };
-
-  const line = async (limit: number): Promise<string | null> => {
-    const end = lineEnd(buffer);
-
-    if (end >= 0) {
-      const text = decoder.decode(buffer.subarray(0, end));
-
-      buffer = buffer.subarray(end + 2);
-
-      return text;
-    }
-
-    if (buffer.length > limit) throw new MalformedResponse("a line is too long");
-
-    return (await pull()) ? line(limit) : null;
-  };
-
-  const take = async (max: number): Promise<Uint8Array | null> => {
-    if (buffer.length === 0 && !(await pull())) return null;
-
-    const part = buffer.subarray(0, max);
-
-    buffer = buffer.subarray(part.length);
-
-    return part;
-  };
-
-  return { line, take };
-}
-
 type HeaderMap = ReadonlyMap<string, string>;
 
-async function headLines(
-  reader: Readonly<ByteReader>,
-  lines: readonly string[] = [],
-): Promise<readonly string[]> {
-  const line = await reader.line(HEAD_LIMIT_BYTES);
+function headLines(reader: Readonly<ByteReader>): Promise<readonly string[]> {
+  const lines: string[] = [];
 
-  if (line === null) throw new MalformedResponse("the head ended early");
+  const next = async (bytes: number): Promise<readonly string[]> => {
+    const line = await reader.line(HEAD_LIMIT_BYTES);
 
-  if (line === "") return lines;
+    if (line === null) throw new MalformedResponse("the head ended early");
 
-  if (lines.join("").length + line.length > HEAD_LIMIT_BYTES) {
-    throw new MalformedResponse("the head is too long");
-  }
+    if (line === "") return lines;
 
-  return headLines(reader, [...lines, line]);
+    if (bytes + line.length > HEAD_LIMIT_BYTES) {
+      throw new MalformedResponse("the head is too long");
+    }
+
+    lines.push(line);
+
+    return next(bytes + line.length);
+  };
+
+  return next(0);
 }
 
 async function headersOf(reader: Readonly<ByteReader>): Promise<HeaderMap> {

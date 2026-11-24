@@ -1,9 +1,11 @@
-const LOCAL_HOSTS: ReadonlySet<string> = new Set(["localhost", "127.0.0.1"]);
+import { LOOPBACK_HOSTNAMES } from "../../core/contract/addresses.ts";
 
 class PublicOriginInvalid extends Error {
   constructor() {
+    const loopback = new Intl.ListFormat("en", { type: "disjunction" }).format(LOOPBACK_HOSTNAMES);
+
     super(
-      "THREADSIFT_PUBLIC_ORIGIN must be one origin: an https:// address with no credentials, path, query or fragment, or an http:// address on localhost or 127.0.0.1. Fix or remove the setting and start again.",
+      `THREADSIFT_PUBLIC_ORIGIN must be one origin: an https:// address with no credentials, path, query or fragment, or an http:// address on ${loopback}. Fix or remove the setting and start again.`,
     );
   }
 }
@@ -13,7 +15,9 @@ function isOriginOnly(
 ): boolean {
   if (url.href !== `${url.origin}/`) return false;
 
-  return url.protocol === "https:" || (url.protocol === "http:" && LOCAL_HOSTS.has(url.hostname));
+  return (
+    url.protocol === "https:" || (url.protocol === "http:" && LOOPBACK_HOSTNAMES.has(url.hostname))
+  );
 }
 
 export function publicOriginOf(configured: string | undefined): string | null {

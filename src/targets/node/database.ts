@@ -26,7 +26,8 @@ function inTransaction<T>(sqlite: DatabaseSync, work: () => T): T {
 
     return result;
   } catch (error) {
-    sqlite.exec("ROLLBACK");
+    if (sqlite.isTransaction) sqlite.exec("ROLLBACK");
+
     throw error;
   }
 }

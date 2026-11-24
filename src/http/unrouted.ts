@@ -1,5 +1,6 @@
 import { EXPORT_DOWNLOAD_PATH } from "../core/contract/export-contract.ts";
 import { FILE_ROUTE } from "../core/contract/file-keys.ts";
+import { AI_TASK_PATH } from "../core/contract/grok-bot-contract.ts";
 import { CONNECT_CALLBACK_PATH, CONNECT_START_PATH } from "../core/contract/openrouter-contract.ts";
 import type { Ctx, Plan } from "./access-steps.ts";
 import type { CacheKind } from "./response-headers.ts";
@@ -20,17 +21,25 @@ const CONNECT = new RegExp(
   "u",
 );
 
-const DOWNLOAD = new RegExp(
-  `^${EXPORT_DOWNLOAD_PATH.split("{id}")
-    .map((part) => literal(part))
-    .join("[^/]+")}$`,
-  "u",
-);
+function withId(path: string): RegExp {
+  return new RegExp(
+    `^${path
+      .split("{id}")
+      .map((part) => literal(part))
+      .join("[^/]+")}$`,
+    "u",
+  );
+}
+
+const DOWNLOAD = withId(EXPORT_DOWNLOAD_PATH);
+
+const AI_TASK = withId(AI_TASK_PATH);
 
 const UNROUTED_PATHS: readonly PathRule[] = [
   { path: CONNECT, cache: "private" },
   { path: FILES, cache: "file" },
   { path: DOWNLOAD, cache: "file" },
+  { path: AI_TASK, cache: "no-store" },
 ];
 
 export function unroutedPlan(c: Ctx): Plan {
