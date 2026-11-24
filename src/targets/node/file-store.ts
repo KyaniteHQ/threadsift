@@ -243,7 +243,10 @@ export function dataFileStore(dataDir: string): FileStore {
     put: async (parsed, bytes) => {
       await folder.ensureFolders(parsed.root, parsed.ownerId);
 
-      const { leaf } = await folder.locate(parsed);
+      const leaf = folder.path(parsed.root, parsed.ownerId, parsed.name);
+
+      await exists(leaf, "file");
+
       const temporary = folder.path(parsed.root, parsed.ownerId, temporaryName(parsed.name));
 
       await writeAtomically(temporary, leaf, bytes);
