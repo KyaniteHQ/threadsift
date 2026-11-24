@@ -19,7 +19,49 @@ const HEAD_CHUNKS = {
 
 const TAIL = "tail of the body";
 
-describe("the Worker's fetch returns an origin's answer as it was sent and follows no redirect", () => {
+const PAGE_CHUNKS = {
+  "one-chunk": [PAGE_TEXT],
+  "two-chunks": ["error code:", " 1016"],
+  "trailing-newline": [`${PAGE_TEXT}\n`],
+} as const;
+
+const CHUNK_GAP_MS = 30;
+
+const CHUNK_PROBE_DEADLINE_MS = 2000;
+
+function chunkedBody(
+  chunks: readonly string[],
+  whenSent: (controller: ReadableStreamDefaultController<Uint8Array>) => void,
+): ReadableStream<Uint8Array> {
+  return new ReadableStream<Uint8Array>({
+    start: (controller) => {
+      for (const [index, chunk] of chunks.entries()) {
+        setTimeout(() => {
+          controller.enqueue(TEXT.encode(chunk));
+        }, index * CHUNK_GAP_MS);
+      }
+      setTimeout(
+        () => {
+          whenSent(controller);
+        },
+        (chunks.length - 1) * CHUNK_GAP_MS,
+      );
+    },
+  });
+}
+
+async function firstTwoChunkLengths(url: string): Promise<readonly (number | undefined)[]> {
+  const answer = await fetch(url, { signal: AbortSignal.timeout(CHUNK_PROBE_DEADLINE_MS) });
+  assert.ok(answer.body);
+  const reader = answer.body.getReader();
+  const first = await reader.read();
+  const second = await reader.read();
+  await reader.cancel();
+
+  return [first.value?.length, second.value?.length];
+}
+
+describe("the Worker's fetch returns an origin's answer as it was sent, except a 530 whose whole body is an error code, and follows no redirect", () => {
   let server: Listening;
 
   const finishers = new Map<string, () => void>();
@@ -29,14 +71,21 @@ describe("the Worker's fetch returns an origin's answer as it was sent and follo
 
     for (const [name, chunks] of Object.entries(HEAD_CHUNKS)) {
       app.get(`/open-530/${name}`, () => {
-        const body = new ReadableStream<Uint8Array>({
-          start: (controller) => {
-            for (const chunk of chunks) controller.enqueue(TEXT.encode(chunk));
-            finishers.set(name, () => {
-              controller.enqueue(TEXT.encode(TAIL));
-              controller.close();
-            });
-          },
+        const body = chunkedBody(chunks, (controller) => {
+          finishers.set(name, () => {
+            controller.enqueue(TEXT.encode(TAIL));
+            controller.close();
+          });
+        });
+
+        return new Response(body, { status: 530 });
+      });
+    }
+
+    for (const [name, chunks] of Object.entries(PAGE_CHUNKS)) {
+      app.get(`/page-530/${name}`, () => {
+        const body = chunkedBody(chunks, (controller) => {
+          controller.close();
         });
 
         return new Response(body, { status: 530 });
@@ -52,6 +101,24 @@ describe("the Worker's fetch returns an origin's answer as it was sent and follo
 
   after(async () => {
     await server.stop();
+  });
+
+  it("sends the two-chunk bodies to the client as two chunks", async () => {
+    assert.deepEqual(await firstTwoChunkLengths(`${server.url}/page-530/two-chunks`), [11, 5]);
+    assert.deepEqual(await firstTwoChunkLengths(`${server.url}/open-530/two-chunks`), [40, 40]);
+  });
+
+  it("fails as an unreachable origin for a 530 whose whole body is an error code, sent in one chunk, in two, or with a trailing newline", async () => {
+    await Promise.all(
+      Object.keys(PAGE_CHUNKS).map(async (name) => {
+        const url = `${server.url}/page-530/${name}`;
+
+        await assert.rejects(
+          workerFetch(url),
+          new Error(`Cloudflare could not reach ${url}: ${PAGE_TEXT}`),
+        );
+      }),
+    );
   });
 
   it("returns a 530 whose body only quotes an error code, with its status and its whole body", async () => {

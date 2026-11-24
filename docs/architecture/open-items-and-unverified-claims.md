@@ -60,7 +60,7 @@ Open: the name check is missing on the local Worker under `wrangler dev`. A name
 
 ### Cloudflare's origin error on the Worker
 
-Not verified: a deployed Worker that fetches a host that does not resolve. `workerFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test covers only the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
+Not verified: a deployed Worker that fetches a host that does not resolve. `workerFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test sends that status and body from a local server, in one chunk, in two chunks and with a trailing newline, and covers the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
 
 ### Article images, long post texts and Defuddle
 
