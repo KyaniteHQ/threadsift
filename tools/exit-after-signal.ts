@@ -1,4 +1,8 @@
+import { bestEffort } from "../src/core/kernel/failure-log.ts";
+
 const EXIT_SIGNALS = ["SIGINT", "SIGTERM"] as const;
+
+const CLEANUP_FAILED = { event: "exit-cleanup-failed", fields: {} } as const;
 
 export function exitAfterSignal(cleanUp: () => Promise<void>): () => void {
   let leaving = false;
@@ -8,7 +12,7 @@ export function exitAfterSignal(cleanUp: () => Promise<void>): () => void {
   function onSignal(signal: NodeJS.Signals): void {
     if (leaving) return;
     leaving = true;
-    void cleanUp()
+    void bestEffort(CLEANUP_FAILED, cleanUp)
       .then(release)
       .then(() => process.kill(process.pid, signal));
   }
