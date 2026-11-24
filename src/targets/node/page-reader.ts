@@ -30,6 +30,8 @@ const MAX_HTML_BYTES = 5 * 1024 * 1024;
 
 const STOPPED = "the page reader stopped";
 
+const POST_FAILED = "the page reader could not take the request";
+
 class PageThread implements PageSource {
   private state: State = { kind: "idle" };
   private nextId = 0;
@@ -82,15 +84,22 @@ class PageThread implements PageSource {
   }
 
   private expire(id: number): void {
-    const entry = this.pending.get(id);
+    if (!this.reject(id, new PageReadTimeout())) return;
 
-    if (entry === undefined) return;
-
-    this.pending.delete(id);
-    entry.fail(new PageReadTimeout());
     this.terminate();
 
     for (const [otherId, other] of this.pending) this.post(otherId, other.request);
+  }
+
+  private reject(id: number, error: Readonly<Error>): boolean {
+    const entry = this.pending.get(id);
+
+    if (entry === undefined) return false;
+
+    this.pending.delete(id);
+    entry.fail(error);
+
+    return true;
   }
 
   private terminate(): void {
@@ -103,8 +112,12 @@ class PageThread implements PageSource {
   }
 
   private post(id: number, request: PageRequest): void {
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
-    this.workerThread().postMessage({ id, ...request });
+    try {
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
+      this.workerThread().postMessage({ id, ...request });
+    } catch (cause) {
+      this.reject(id, cause instanceof Error ? cause : new Error(POST_FAILED));
+    }
   }
 
   private workerThread(): Worker {
