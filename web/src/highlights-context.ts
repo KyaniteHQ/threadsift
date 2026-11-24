@@ -6,9 +6,17 @@ import { NO_INDEX, NO_SPANS, type SpanIndex, indexSpans } from "./highlight-targ
 import { provided } from "./provided.ts";
 import type { KeepDraft } from "./use-selection-draft.ts";
 
+export interface RemovePanel {
+  readonly kind: "remove";
+  readonly key: string;
+  readonly ids: readonly number[];
+  readonly mark: HTMLElement;
+  readonly viaKeyboard: boolean;
+}
+
 export type Panel =
   | { readonly kind: "keep"; readonly key: string; readonly draft: KeepDraft }
-  | { readonly kind: "remove"; readonly key: string; readonly id: number; readonly mark: Element };
+  | RemovePanel;
 
 export interface Reveal {
   readonly id: number;

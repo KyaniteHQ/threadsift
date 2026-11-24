@@ -33,6 +33,16 @@ export function revealInPane(element: HTMLElement): void {
   }
 }
 
+export function readerTitleOf(element: Element): HTMLElement | null {
+  for (let at = element.parentElement; at !== null; at = at.parentElement) {
+    const title = at.querySelector<HTMLElement>(".rd-title");
+
+    if (title !== null) return title;
+  }
+
+  return null;
+}
+
 export function scrollToTop(element: HTMLElement): void {
   const pane = scrollingPane(element);
 

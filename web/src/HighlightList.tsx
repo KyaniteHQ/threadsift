@@ -6,6 +6,7 @@ import { useHighlights } from "./highlights-context.ts";
 import { QuoteText } from "./QuoteText.tsx";
 import { REMOVE_LABEL, removeNamed } from "./reader-text.ts";
 import { AlertRegion } from "./RetryRegions.tsx";
+import { readerTitleOf } from "./reveal.ts";
 
 function neighbourOf(entry: Element): HTMLElement | null {
   const next = entry.nextElementSibling ?? entry.previousElementSibling;
@@ -13,22 +14,12 @@ function neighbourOf(entry: Element): HTMLElement | null {
   return next?.querySelector<HTMLElement>(".btn") ?? null;
 }
 
-function titleOf(entry: Element): HTMLElement | null {
-  for (let at = entry.parentElement; at !== null; at = at.parentElement) {
-    const title = at.querySelector<HTMLElement>(".rd-title");
-
-    if (title !== null) return title;
-  }
-
-  return null;
-}
-
 async function removeAndRefocus(
   entry: Element | null,
   removed: () => Promise<boolean>,
 ): Promise<void> {
   const neighbour = entry === null ? null : neighbourOf(entry);
-  const title = entry === null ? null : titleOf(entry);
+  const title = entry === null ? null : readerTitleOf(entry);
 
   if (await removed()) (neighbour?.isConnected === true ? neighbour : title)?.focus();
 }

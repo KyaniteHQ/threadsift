@@ -29,18 +29,25 @@ interface Placement {
   readonly gapBelow: number;
 }
 
+function scrolls(overflow: string): boolean {
+  return overflow === "auto" || overflow === "scroll";
+}
+
 function clipsOf(element: Element): Element[] {
   const clipping: Element[] = [];
+  let outermost: Element | null = null;
 
   for (let node = element.parentElement; node !== null; node = node.parentElement) {
     const { overflowX, overflowY } = getComputedStyle(node);
 
-    if (node.localName === "dialog" || overflowX !== "visible" || overflowY !== "visible") {
+    if (overflowX !== "visible" || overflowY !== "visible") outermost = node;
+
+    if (node.localName === "dialog" || scrolls(overflowX) || scrolls(overflowY)) {
       clipping.push(node);
     }
   }
 
-  return clipping;
+  return outermost === null || clipping.includes(outermost) ? clipping : [...clipping, outermost];
 }
 
 export function placementOf(popover: HTMLElement): Placement {
@@ -80,21 +87,43 @@ function clamp(value: number, low: number, high: number): number {
   return Math.max(low, Math.min(value, high));
 }
 
+const ROUNDING_PX = 1;
+
+function naturalHeight(popover: HTMLElement): number {
+  const { height } = popover.getBoundingClientRect();
+  const hidden = Array.from(popover.children, (child) =>
+    Math.max(child.scrollHeight - child.clientHeight, 0),
+  );
+
+  return height + hidden.reduce((sum, each) => sum + each, 0);
+}
+
 export function placePopover(
   popover: HTMLElement,
   source: Range | Element,
   placement: Readonly<Placement>,
 ) {
-  const { width, height } = popover.getBoundingClientRect();
   const { gapAbove, gapBelow, below } = placement;
   const edges = edgesOf(source);
   const bounds = visibleBox(placement);
-  const topAbove = edges.first.top - gapAbove - height;
-  const topBelow = edges.last.bottom + gapBelow;
-  const fitsAbove = topAbove >= bounds.top;
-  const fitsBelow = topBelow + height <= bounds.bottom;
-  const useBelow = below ? fitsBelow || !fitsAbove : !fitsAbove && fitsBelow;
-  const top = clamp(useBelow ? topBelow : topAbove, bounds.top, bounds.bottom - height);
+  const roomAbove = edges.first.top - gapAbove - bounds.top;
+  const roomBelow = bounds.bottom - edges.last.bottom - gapBelow;
+  const natural = naturalHeight(popover);
+  const fitsAbove = natural + ROUNDING_PX <= roomAbove;
+  const fitsBelow = natural + ROUNDING_PX <= roomBelow;
+  const fits = fitsAbove || fitsBelow;
+  const useBelow = fits ? (below ? fitsBelow : !fitsAbove) : roomBelow > roomAbove;
+  const room = fits ? bounds.bottom - bounds.top : Math.max(roomAbove, roomBelow);
+
+  popover.style.setProperty("--pop-room", `${Math.max(room, 0)}px`);
+
+  const { width, height } = popover.getBoundingClientRect();
+
+  const top = clamp(
+    useBelow ? edges.last.bottom + gapBelow : edges.first.top - gapAbove - height,
+    bounds.top,
+    bounds.bottom - height,
+  );
   const edge = useBelow ? edges.last : edges.first;
   const left = clamp(edge.left, bounds.left, bounds.right - width);
 
