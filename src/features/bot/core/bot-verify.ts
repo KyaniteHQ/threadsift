@@ -16,7 +16,7 @@ async function verifiedByBot(ports: VerifyPorts, signal: AbortSignal): Promise<V
   if (started.kind !== "started") return refusedAi("provider-busy");
 
   const { task, token } = started;
-  await sendBotTask(ports, { kind: verifyAnswering, task, token, claim: undefined });
+  await sendBotTask(ports, { kind: verifyAnswering, task, token, claim: undefined, signal });
 
   return awaitVerifiedDigest(ports.db, { taskId: task.id, signal });
 }

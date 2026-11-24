@@ -71,11 +71,13 @@ export async function sendBotTask(
     task,
     token,
     claim,
+    signal,
   }: Readonly<{
     kind: Pick<KindFace, "describe">;
     task: SentTask;
     token: string;
     claim: SQL | undefined;
+    signal?: AbortSignal | undefined;
   }>,
 ): Promise<BotSend> {
   const sending = { claim, taskId: task.id };
@@ -89,7 +91,7 @@ export async function sendBotTask(
     return failedSend(ports, sending, { result: connection.reason, status: null });
   }
 
-  const posted = await postToGrokBot(ports.network, connection, { body });
+  const posted = await postToGrokBot(ports.network, connection, { body, signal });
 
   report("grok-bot-send", {
     taskId: task.id,
@@ -97,8 +99,11 @@ export async function sendBotTask(
     status: posted.status ?? "none",
   });
 
-  if (posted.result !== "ok")
-    return failedSend(ports, sending, { ...posted, result: posted.result });
+  if (posted.result !== "ok") {
+    const result = signal?.aborted === true ? "timeout" : posted.result;
+
+    return failedSend(ports, sending, { ...posted, result });
+  }
 
   await sentTask(ports.db, claim, { taskId: task.id, now: Date.now() });
 
