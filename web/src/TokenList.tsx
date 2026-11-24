@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useMemo, useRef } from "react";
+import { type RefObject, useCallback, useRef, useState } from "react";
 
 import type { Token } from "../../src/core/contract/access-wire.ts";
 import { changeBudget, revokeToken } from "./access-api.ts";
@@ -124,16 +124,10 @@ export function TokenList({
   reread: () => void;
   nameField: RefObject<HTMLInputElement | null>;
 }>) {
+  const [now] = useState(Date.now);
   const revoke = useRevoke(tokens, removed, nameField);
   const budget = useBudget(changed, reread);
   const { flow } = revoke;
-  const { ask, cancel, revoke: revokeThis } = revoke.actions;
-  const { editBudget, cancelBudget, saveBudget } = budget.actions;
-
-  const actions = useMemo(
-    () => ({ ask, cancel, revoke: revokeThis, editBudget, cancelBudget, saveBudget }),
-    [ask, cancel, revokeThis, editBudget, cancelBudget, saveBudget],
-  );
 
   const asking = askedId(flow);
   const focusId = flow.kind === "idle" ? flow.focus : null;
@@ -148,12 +142,14 @@ export function TokenList({
             <TokenRow
               key={token.id}
               token={token}
+              now={now}
               asking={asking === token.id}
               revoking={flow.kind === "revoking"}
               focusRevoke={focusId === token.id}
               focusBudget={focusBudgetId === token.id}
               budget={rowBudget(budget.flow, token.id)}
-              actions={actions}
+              revokeActions={revoke.actions}
+              budgetActions={budget.actions}
             />
           ))}
         </ul>

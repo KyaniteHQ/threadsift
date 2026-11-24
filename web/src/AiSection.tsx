@@ -9,6 +9,7 @@ import type { AiView } from "./ai-api.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
 import { ConnectNotes, ConnectNotice } from "./ConnectControls.tsx";
+import { keyed } from "./keyed.ts";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
 import { type SavedKey, isSignedOut, useAiForm } from "./use-ai-form.ts";
@@ -23,8 +24,8 @@ function DigestResult({ digest }: Readonly<{ digest: Readonly<Digest> }>) {
       <p className="ai-meta">{[digest.topic, ...digest.tags].join(" · ")}</p>
       <p>{digest.summary}</p>
       <ul>
-        {digest.keyPoints.map((point) => (
-          <li key={point}>{point}</li>
+        {keyed(digest.keyPoints).map(({ key, text }) => (
+          <li key={key}>{text}</li>
         ))}
       </ul>
     </div>

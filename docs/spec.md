@@ -76,7 +76,7 @@ Threadsift has two aims:
 - **Card images.** Off hides the card picture only, never the reader's, and does not load the card pictures at all.
 - **Style.** One more look setting: Library (default) plus 10 styles ([Styles](design/styles.md)). While a Style other than Library is on, its fonts and accent replace Font and Accent. Those controls are disabled and say "Set by the style". Their stored values stay, and choosing Library restores them, including after a reload.
 - **Themes.** Light, Dark, Sepia and Match system. Match system follows the device; with no setting stored, the app draws Light.
-- **Storage.** All twelve look and view settings (Layout, Open items as, Theme and the nine Look settings) are stored together in the browser. Each Item's reading place is kept for the browser tab. The AI, GitHub token and Grok Bot settings are stored on the server, and the keys and tokens in them are sealed under the Instance's secret key ([Access](architecture/access-owner-login-agent-tokens-mcp.md)).
+- **Storage.** All twelve look and view settings (Layout, Open items as, Theme and the nine Look settings) are stored together in the browser. Each Item's reading place is kept for the browser tab, for the last 100 Items it saved a place in. The AI, GitHub token and Grok Bot settings are stored on the server, and the keys and tokens in them are sealed under the Instance's secret key ([Access](architecture/access-owner-login-agent-tokens-mcp.md)).
 - **Share from phone.** The app is an installable web app with a Web Share Target, so the Android Share menu sends a link into the same Paste as the paste box.
 - While the owner is signed in, a share from the installed app saves the link at once and opens the library with that Item's paste card. A known link opens its Item in the Reader.
 - A share the app cannot trust writes nothing. That means a link or form on another site, a request that lacks the browser's origin metadata, or any share while signed out. The library opens with the link in the paste box, and the owner presses Add. A signed-out share keeps its link through sign-in, a wrong password included.
@@ -263,7 +263,7 @@ Rules for the Digest:
 - A kept passage is marked in place, in List, Grid Page, Grid Sheet and on a phone. Pressing a mark offers Remove, and Escape closes the popover without closing the Reader.
 - The Highlights list at the end of the Reader holds every Highlight of the Item, and choosing one scrolls to its mark and opens the fold around it. A Highlight whose passage is gone shows its quote with the note "Passage no longer found because the item’s text changed."
 - **Note.** The Note box follows the Highlights list (Highlights, Notes and the Highlights page).
-- **Reading place.** Each browser tab remembers where the owner stopped in each Item and returns there on reopen, as long as the text at that place is still in the Item.
+- **Reading place.** Each browser tab remembers where the owner stopped in each Item, for the last 100 Items it saved a place in, and returns there on reopen, as long as the text at that place is still in the Item.
 - **Delete.** Delete asks "Delete this item?" with Cancel and Delete item. While the request runs both buttons and Escape do nothing, and after 20 seconds without an answer the dialog reports the failure and offers both again.
 
 ## Highlights, Notes and the Highlights page
