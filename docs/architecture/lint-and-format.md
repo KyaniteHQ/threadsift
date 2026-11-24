@@ -68,9 +68,9 @@ The rule matches the identifier `items` as the first argument. It does not see a
 
 ### `threadsift/no-server-value-import`
 
-It reports a value import whose chain reaches a server module (the `forbidden` option in the oxlint configuration lists them), because the bundler ships every module a value import reaches. A plugin rule sees only the file it lints, so the walk reads the other files itself. It scans their import statements with regular expressions and follows only relative `.ts`, `.tsx` and `.mts` paths. The plugin runs in Node, so `node:fs` works, as `pnpm lint` shows. The plugin docs ([Writing JS plugins](https://oxc.rs/docs/guide/usage/linter/js-plugins)) do not mention reading files, and the `@oxlint/plugins` types give a rule `context.cwd` and `context.filename`.
+It reports a value import whose chain reaches a server module (the `forbidden` option in the oxlint configuration lists them), because the bundler ships every module a value import reaches. A plugin rule sees only the file it lints, so the walk reads the other files itself. It scans their import statements with regular expressions and follows only `.ts`, `.tsx` and `.mts` files, reached by a relative path or, from an Extension file, by one of its WXT aliases (the same resolution as `threadsift/layer-imports`). The plugin runs in Node, so `node:fs` works, as `pnpm lint` shows. The plugin docs ([Writing JS plugins](https://oxc.rs/docs/guide/usage/linter/js-plugins)) do not mention reading files, and the `@oxlint/plugins` types give a rule `context.cwd` and `context.filename`.
 
-The rule sees no path alias, no `require` and no import in a file that the walk cannot scan as TypeScript. The repository has none of those, and the root TypeScript configuration sets no `paths`. The WXT and Vite configurations run in Node, so the folders above exclude them.
+The rule sees no `require`, no path alias outside the Extension and no import in a file that the walk cannot scan as TypeScript. The repository has none of those, and the root TypeScript configuration sets no `paths`. The WXT and Vite configurations run in Node, so the folders above exclude them.
 
 ### `threadsift/no-await-before-rethrow`
 

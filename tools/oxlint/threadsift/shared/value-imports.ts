@@ -1,5 +1,8 @@
 import { readFileSync, statSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { resolve } from "node:path";
+
+import { REPOSITORY_ROOT, repositoryPath } from "./bindings.ts";
+import { resolveSpecifier } from "./core-layout.ts";
 
 interface Scanned {
   readonly mtimeMs: number;
@@ -82,9 +85,11 @@ function isSourceFile(path: string): boolean {
 }
 
 export function sourceFileOf(from: string, specifier: string): string | null {
-  if (!specifier.startsWith(".")) return null;
+  const resolved = resolveSpecifier(repositoryPath(from), specifier);
 
-  const target = resolve(dirname(from), specifier);
+  if (resolved === null) return null;
+
+  const target = resolve(REPOSITORY_ROOT, resolved);
 
   return isSourceFile(target) ? target : null;
 }
