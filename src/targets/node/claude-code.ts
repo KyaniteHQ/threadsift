@@ -118,7 +118,7 @@ class ClaudeCode extends SlottedCli {
       signal,
     );
 
-    const result = await this.outcome(end, (exited) => this.answerOf(task.schema, exited));
+    const result = await this.outcome(end, signal, (exited) => this.answerOf(task.schema, exited));
 
     return { result, code: exitCode(end) };
   }
@@ -145,7 +145,7 @@ class ClaudeCode extends SlottedCli {
   ): AiExecution<Result> | null {
     const envelope = parsedJson(EnvelopeSchema, stdout);
 
-    if (envelope === null) return refusedAi(code === 0 ? "no-json" : "unreachable");
+    if (envelope === null) return code === 0 ? refusedAi("no-json") : null;
 
     if (!envelope.is_error) {
       const parsed = schema.safeParse(envelope.structured_output);

@@ -44,6 +44,8 @@ export function promptOf({ instructions, input }: Readonly<AiTaskRequest<unknown
   return `${instructions}\n\n${input}`;
 }
 
+type SignIn = "signed-in" | "signed-out" | "unanswered";
+
 export interface Attempt<Result> {
   readonly result: AiExecution<Result>;
   readonly code: number | null;
@@ -105,13 +107,30 @@ export abstract class SlottedCli implements CliRunner {
 
   protected async outcome<Result>(
     end: Readonly<ProcessEnd>,
+    stop: AbortSignal,
     read: (
       exited: Readonly<Extract<ProcessEnd, { readonly kind: "exited" }>>,
     ) => AiExecution<Result> | null,
   ): Promise<AiExecution<Result>> {
     if (end.kind !== "exited") return endRefusal(end);
 
-    return read(end) ?? refusedAi((await this.signedIn()) ? "unreachable" : "not-configured");
+    const answer = read(end);
+
+    if (answer !== null) return answer;
+
+    const state = await answerWithin<SignIn>(
+      stop,
+      (signal) => this.signInState(signal),
+      "unanswered",
+    );
+
+    if (stop.aborted) return refusedAi("timeout");
+
+    return refusedAi(state === "signed-out" ? "not-configured" : "unreachable");
+  }
+
+  private async signInState(signal: AbortSignal): Promise<SignIn> {
+    return (await this.probe(signal)) ? "signed-in" : "signed-out";
   }
 
   stop(): void {
