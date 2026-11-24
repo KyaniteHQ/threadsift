@@ -4,7 +4,13 @@ FROM node AS base
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY extension/package.json extension/package.json
-RUN npm install --global "$(node -p 'require("./package.json").packageManager')"
+RUN spec="$(node -p 'require("./package.json").packageManager')" \
+    && version="${spec#pnpm@}" && version="${version%%+*}" \
+    && hash="${spec##*+sha512.}" \
+    && npm pack "pnpm@$version" --loglevel=error --pack-destination /tmp \
+    && echo "$hash  /tmp/pnpm-$version.tgz" | sha512sum --check --strict \
+    && npm install --global "/tmp/pnpm-$version.tgz" \
+    && rm "/tmp/pnpm-$version.tgz"
 
 FROM base AS prod-deps
 RUN pnpm install --frozen-lockfile --prod --filter threadsift
