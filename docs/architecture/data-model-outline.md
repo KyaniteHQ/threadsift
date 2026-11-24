@@ -209,7 +209,7 @@ Not verified: the phone's own selection menu (iOS Safari, Android Chrome), the r
 
 The fetch guard's per-hop deadline and 20-redirect limit apply to each image.
 
-**Formats.** JPEG, PNG, GIF, WebP and AVIF, where the declared `Content-Type` and the bytes agree (`sniffImageType`, which follows the signatures of [WHATWG MIME Sniffing](https://mimesniff.spec.whatwg.org/#matching-an-image-type-pattern) section 6.1 and the AVIF brand). SVG, HTML, XML, PDF, an unknown type and a mismatch stay links (`not-an-image`, `type-mismatch`).
+**Formats.** JPEG, PNG, GIF, WebP and AVIF, where the declared `Content-Type` and the bytes agree (`sniffImageType`, which follows the signatures of [WHATWG MIME Sniffing](https://mimesniff.spec.whatwg.org/#matching-an-image-type-pattern) section 6.1 and the AVIF brand). The declared type `image/jpg` counts as `image/jpeg`. SVG, HTML, XML, PDF, an unknown type and a mismatch stay links (`not-an-image`, `type-mismatch`).
 
 **Fetching.** `guardedFetchBytes` gives the fetch guard's byte-level traversal an image policy. It refuses a Reddit or X link as the first address (the photo host `pbs.twimg.com` is not one) and stops at one in a redirect. A photo of an X post must start and stay on `https://pbs.twimg.com/media/` addresses. It follows no meta refresh and sends no owner credential, agent token or GitHub token.
 

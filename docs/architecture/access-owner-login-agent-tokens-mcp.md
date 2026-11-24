@@ -62,7 +62,7 @@ Both end every session and keep the agent tokens, which the signed-in owner revo
 - The code is an operator credential on the owner's own server, like `SETUP_CODE`, so it has no expiry. That departs on purpose from the Forgot Password Cheat Sheet's expiry advice. Its single use, the 32-character minimum (`RESET_CODE_MIN`) and its removal after use make up for it.
 - The code is compared by SHA-256 digests with `crypto.equal`, under the `reset` throttle kind.
 - One guarded batch holds only while the stored hash is unchanged and the code is unspent. It inserts the code's digest into `spent_reset_codes`, sets the hash, deletes every session and clears the `login` throttle row, because that lock protected the old password.
-- A spent digest stays refused after later codes are used.
+- A spent digest stays refused after later codes are used, and the same code a second time answers 409 `reset-used`.
 - When the batch fails, the reset answers `reset-used` if the code is spent and `password-changed` otherwise, so a reset never overwrites a change that committed after it read the hash.
 - The reset starts no session and sets no cookie.
 - A missing or short reset code answers 503, which reveals only whether a code exists, as the setup 503 does.
@@ -197,6 +197,7 @@ Missing metadata, `Origin: null` and an agent token never authorize a write.
 A trusted share calls `pasteLink` as the owner and answers 303 to `/?saved=<id>`, or `/?refreshed=<id>` for a known Item that had been fetched. Every other arrival writes nothing and answers 303 to `/?link=<link>`, with a `notice` from `PREFILL_NOTICES` (`empty`, `invalid`, `private`, `restoring`) when a trusted share saved nothing.
 
 - The link is the first `http:` or `https:` address in `url`, then `text`, then `title` (`sharedContentOf`). `linkIn` strips trailing punctuation, so an address that ends in `)`, such as a Wikipedia title with a bracket, loses it. That is the cost of the rule.
+- A share with words and no address prefills the first nonblank of `text`, `url` and `title` and carries `notice=invalid`.
 - The address carries at most 1,000 UTF-16 code units (`PREFILL_MAX`), so the redirect stays under Node's default header limit of 16 KiB even when every unit percent-encodes to 9 bytes, the worst case for a three-byte UTF-8 character. A longer link is cut to that and carries `notice=invalid`.
 
 ## MCP

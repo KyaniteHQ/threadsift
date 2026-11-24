@@ -86,6 +86,7 @@ A real GitHub `Retry-After` wait is unverified ([Open items and unverified claim
 The settings module seals tokens through the Instance's `Sealer`. A missing sealing key prevents Save.
 
 - Verify reads a candidate branch without saving or writing files. It does not prove Contents write permission or permission to update a protected branch. The mirror needs Contents write for its selected repository ([GraphQL authentication](https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#authenticating-with-a-personal-access-token) supports fine-grained tokens).
+- With no saved destination the settings view reads GitHub mode with no repository and the branch `main`, and it offers Folder where the target has a folder writer.
 - Disconnect and a switch of destination leave the previous target's files in place. Saving the new target queues the full library.
 
 ## Wikilinks
