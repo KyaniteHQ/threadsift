@@ -59,7 +59,7 @@ The title, author and community come from oEmbed. The thread comes from the firs
 
 The fill runs inside the fetch job next to the oEmbed request, only when the archive setting is on and the Item holds no thread. It reads Arctic Shift's post and comment tree with two guarded requests, one at a time: the post (`/api/posts/ids?ids=<id>`) and the whole tree (`/api/comments/tree?link_id=t3_<id>&limit=9999`).
 
-- On a 429 the request is sent once more after the seconds in `X-RateLimit-Reset`. A reset over 10 s or a second 429 leaves the Item Link-only without waiting.
+- On a 429 the request is sent once more after the seconds in `X-RateLimit-Reset`. The wait ends when the fetch deadline aborts, and the request is then not sent. A reset over 10 s or a second 429 leaves the Item Link-only without waiting.
 - An answer over 8 MiB, a timeout, an outage, a post the archive lacks and an answer the parser refuses all leave the Item Link-only. None of them fails the Item or retries the job.
 - The oEmbed title wins. The archive's title is used only when oEmbed failed.
 - When the archive puts a reply at the top of the tree because its parent is missing, the fill keeps the parent id, and the Reader groups those replies under one Context stub. The Extension, supplied JSON and connected account require the parent id to match the tree.

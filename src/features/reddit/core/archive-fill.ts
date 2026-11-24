@@ -57,7 +57,7 @@ async function requested(
 
   if (wait === null) return null;
 
-  await pause(wait);
+  await pause(wait, deadline);
 
   return requested(network, path, deadline, false);
 }
