@@ -1,6 +1,6 @@
 # Open items and unverified claims
 
-This page lists what v1 does not fully build or has not proven by a real run. "Not verified" means the code handles the case as written and no real run reached it. An entry leaves when a run proves it, and the proof goes to the doc that owns the topic. "Not run by the gate" marks a case that no test or smoke repeats, so a later change can break it unseen. Such an entry says why the gate cannot run the case or what a repeatable run needs. When a run by hand showed the case, the entry names that run, and it still stays until the gate runs the case. A case that needs a vendor to answer on demand, a clock to pass or a failure to happen stays here with the run that would settle it, because [Testing](../testing.md) allows no fakes, stubs or test-only seams.
+This page lists what v1 does not fully build, what it has not proven by a real run, and what the gate does not run. "Not verified" means the code handles the case as written and no real run reached it. Such an entry leaves when a run proves it, and the proof goes to the doc that owns the topic. "Not run by the gate" marks a case that no test or smoke repeats, so a later change can break it unseen. Such an entry says why the gate cannot run the case or what a repeatable run needs. When a run by hand showed the case, the entry names that run. The entry leaves when the gate runs the case, and a run by hand does not remove it. A case that needs a vendor to answer on demand, a clock to pass or a failure to happen stays here with the run that would settle it, because [Testing](../testing.md) allows no fakes, stubs or test-only seams.
 
 Contents:
 
@@ -41,7 +41,7 @@ Not verified on either install target: a real GitHub `Retry-After` answer follow
 
 ### Reddit share links
 
-- Not run by the gate: Reddit answered 403 to every share link request from the GitHub runner (2026-11-08), and 301 from the development machine. The cause is not confirmed, because the 403's body and headers were not logged.
+- Not verified: why Reddit answered 403 to every share link request from the GitHub runner (2026-11-08) and 301 from the development machine. The 403's body and headers were not logged.
 - Not verified: a share link that redirects to another host, a burst in one Import, a share link whose post was removed, `/u/` share links, and whether one comment can carry both its old 7-character id and the 12-character id new links use. That fact decides whether the Extension's canonical address joins an Item made by an older share link.
 
 ### Short-link aliases and link titles
@@ -105,7 +105,7 @@ Not verified:
 - The browsers' own Reddit permission prompts on Turn on and Connect Reddit, and the physical toolbar click. The runs pressed keys through `xdotool` in Chrome and turned `extensions.webextOptionalPermissionPrompts` off in Firefox.
 - Cancelling a Fill and framed Instance pages in Firefox. The `frameId` check on the relay port cannot be reached from a page.
 - A signed Firefox update through the store.
-- The Extension's `budget-spent` state in the gate. No test loads the built Extension, because its save code imports `wxt/browser`, which Node does not run. No live run checked how the Threadsift bot script handles a 429 from a real Instance (it maps `save:429` to `budget-spent`), and outside clients' handling of 429 and `Retry-After` is not checked.
+- Not run by the gate: the Extension's `budget-spent` state. No test loads the built Extension, because its save code imports `wxt/browser`, which Node does not run. No live run checked how the Threadsift bot script handles a 429 from a real Instance (it maps `save:429` to `budget-spent`), and outside clients' handling of 429 and `Retry-After` is not checked.
 - That a Reddit post page's `<title>` ends in the community name, which is why the Extension takes the title from Defuddle's Reddit extractor. Save a Reddit post page with the built Extension in Chromium and compare the stored title with `document.title`.
 
 ## X reader
@@ -291,7 +291,7 @@ A cancel after a Restore that wrote `reddit_settings` empties it, which reads as
 
 ## Threadsift bot, Share target and bot script
 
-- No core test exercises the `failed` answer when `mark` cannot read random bytes. On 2026-11-21, a local run of `unshare -rm sh -c 'mount --bind /dev/null /dev/urandom && bash bot/scripts/threadsift.sh mark'` printed `failed` and `no random bytes` and exited with status 2. The `check` job leaves the setup action’s `unprivileged-userns` input at its default of `false`.
+- Not run by the gate: the `failed` answer when `mark` cannot read random bytes. No core test exercises it. On 2026-11-21, a local run of `unshare -rm sh -c 'mount --bind /dev/null /dev/urandom && bash bot/scripts/threadsift.sh mark'` printed `failed` and `no random bytes` and exited with status 2. The `check` job leaves the setup action’s `unprivileged-userns` input at its default of `false`.
 - Not run for the Threadsift bot: an off-topic request (a coding task, a reply on X, a general chat) to a freshly imported bot, which would show whether the short profile keeps the boundary when the skill is not loaded. The bookmark sync routine and the import of all bookmarks on the live bot are unproven live by the owner's choice (2026-11-15). The bookmark folder tools have never been called, so folders are not imported.
 - The bot script's checks of an answer that a real Instance never sends: `failed` for a save whose 200 or 201 body has an `item.id` that is not an integer or a `url` that is not `/items/<item.id>`, and `failed` for a batch answer with fewer results than ids sent. A listener that answers by itself is a fake.
 - The Grok Bot shell tool ([the bot README](../../bot/README.md)): why a `threadsift.sh write` call is limited to 3,000 characters. The smallest size that failed was about 20,000 characters (it arrived with no command twice) and about 1,000 worked, so the size is not a measured maximum. Send heredoc calls of 1,000, 3,000, 10,000 and 20,000 characters from a Grok Bot chat and compare `wc -c` of each stored file with the text sent.
