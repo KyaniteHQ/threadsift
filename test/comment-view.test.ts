@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
+import { selectorIn } from "./highlight-selector.ts";
 import { Instance, type Json } from "./instance.ts";
-import { selectorIn } from "./lost-highlight-fixtures.ts";
 import { FACT, causeOf, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, until } from "./related-fixtures.ts";
 import { restoreLibrary } from "./restore-fixtures.ts";
@@ -104,7 +104,9 @@ describe("the Reader shows the comments that pass the script's first step until 
     const id = await paste("mark1", { content: threadOf("mark1") });
     const detail = await instance.detail(id);
     const path = `/api/items/${String(id)}/highlights`;
-    const revision = detail.highlights.revisions.comments ?? -1;
+    const revision = detail.highlights.revisions.comments;
+
+    assert.ok(revision !== undefined, "the Reader names the revision of the comments");
     const body = `${FACT} First.`;
     const selector = selectorIn(body, "sqlite3 app.db");
 

@@ -1,11 +1,13 @@
 import assert from "node:assert/strict";
 
-import { claimNextDue } from "../src/core/compose/jobs.ts";
+import { claimNextDue, executeClaimed } from "../src/core/compose/jobs.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { sentTask } from "./bot-kinds-fixtures.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";
+import { jobRow } from "./bot-task-rows.ts";
+import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 export async function claimedAgain(
   instance: Instance,
@@ -41,4 +43,17 @@ export async function unansweredClaim(instance: Instance, job: Readonly<ClaimedJ
   pastDeadline(instance, sent.id);
 
   return sent;
+}
+
+export async function retryAfterTimeout(instance: Instance, job: Readonly<ClaimedJob>) {
+  const now = Date.now();
+
+  await atClock(
+    () => now,
+    () => executeClaimed(instance.core, job),
+  );
+
+  const retry = jobRow(instance, job.id);
+
+  return { state: retry.state, attempts: retry.attempts, delay: retry.next_attempt_at - now };
 }

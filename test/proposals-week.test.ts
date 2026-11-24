@@ -3,11 +3,19 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { WEEK_MS } from "../src/core/contract/time-units.ts";
 import { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { SECRET_KEY, paste, saveProvider, until } from "./related-fixtures.ts";
-import { exec, rows, nextSweep } from "./sqlite-fixtures.ts";
-import { jobsOf, claims, moveClaimBack, WEEK_MS } from "./weekly-claim-fixtures.ts";
+import {
+  SECRET_KEY,
+  paste,
+  saveProvider,
+  until,
+  exec,
+  rows,
+  nextSweep,
+} from "./related-fixtures.ts";
+import { jobsOf, claims, moveClaimBack } from "./weekly-claim-fixtures.ts";
 
 async function seedLibrary(instance: Instance): Promise<number> {
   await paste(instance, "a", { title: "A", topic: "Game", tags: ["machine learning", "ml"] });
@@ -181,8 +189,7 @@ describe("deleting the Item that owns the weekly job", () => {
       "update scheduled_runs set last_run_at = last_run_at - ? where task = 'proposals'",
       WEEK_MS,
     );
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
+    await nextSweep(instance);
     assert.equal(jobsOf(instance, "proposals").length, 1);
     assert.notEqual(jobsOf(instance, "proposals")[0]?.item_id, owner);
   });

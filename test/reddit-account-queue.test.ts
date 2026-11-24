@@ -22,7 +22,7 @@ import {
   jobs,
   view,
 } from "./reddit-account-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 const WAIT_FOR_REDDIT: Closing = { kind: "deferred", wait: "reddit-limit" };
 
@@ -254,7 +254,7 @@ describe("Reddit answers decide when a fetch job may take its next turn", () => 
     await delay("120", "86400", HOUR_MS);
     await delay("86400", null, HOUR_MS);
     await record({ left: 5, reset: null, retryAfter: null, limited: false });
-    await waitsUntil(NOW + 3_600_000);
+    await waitsUntil(NOW + HOUR_MS);
   });
 
   const refuse = (thread: string) =>

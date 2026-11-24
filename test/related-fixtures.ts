@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
+import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
-import { rows } from "./sqlite-fixtures.ts";
 
 export const SECRET_KEY = "0".repeat(64);
 
@@ -99,10 +99,10 @@ export async function until<Value>(
   let value = await read();
 
   while (!isDone(value)) {
-    assert.ok(
-      Date.now() < deadline,
-      `the state did not settle before its deadline: ${JSON.stringify(value)}`,
-    );
+    if (Date.now() >= deadline) {
+      assert.fail(`the state did not settle before its deadline: ${JSON.stringify(value)}`);
+    }
+
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.
     await delay(POLL_MS);
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.
@@ -144,52 +144,6 @@ export async function paste(instance: Instance, slug: string, fixture: Fixture):
   return item.id;
 }
 
-const TaskSchema = z.object({
-  id: z.number(),
-  inputs: z.string(),
-  input_revision: z.number(),
-  state: z.string(),
-  refusal: z.string().nullable(),
-  item_id: z.number(),
-});
-
-export function pickTasks(instance: Instance, itemId: number) {
-  return rows(
-    instance,
-    TaskSchema,
-    "select id, inputs, input_revision, state, refusal, item_id from ai_tasks where kind = 'related_pick' and item_id = ? order by id",
-    itemId,
-  );
-}
-
-export async function firstPickTask(instance: Instance, itemId: number) {
-  const [task] = await until(
-    () => pickTasks(instance, itemId),
-    (tasks) => tasks.some(({ state }) => state !== "running"),
-  );
-
-  assert.ok(task !== undefined);
-
-  return task;
-}
-
-const InputSchema = z.object({
-  source: z.object({
-    id: z.number(),
-    title: z.string(),
-    topic: z.string(),
-    tags: z.array(z.string()),
-    summary: z.string(),
-  }),
-  candidates: z.array(
-    z.object({ id: z.number(), title: z.string(), topic: z.string(), summary: z.string() }),
-  ),
-});
-
-export function sentInput(inputs: string) {
-  return InputSchema.parse(JSON.parse(inputs));
-}
-
 const PairSchema = z.object({
   item_id: z.number(),
   related_id: z.number(),
@@ -206,19 +160,13 @@ export function pairsOf(instance: Instance, itemId: number) {
   );
 }
 
-const JobSchema = z.object({
-  id: z.number(),
-  kind: z.string(),
-  state: z.string(),
-  attempts: z.number(),
-});
-
-export function pickJobs(instance: Instance, itemId: number) {
-  return rows(
-    instance,
-    JobSchema,
-    "select id, kind, state, attempts from jobs where kind = 'related_pick' and item_id = ? order by id",
-    itemId,
+export function inOrder<Item>(
+  items: readonly Item[],
+  step: (item: Item) => Promise<void>,
+): Promise<void> {
+  return items.reduce<Promise<void>>(
+    (done, item) => done.then(() => step(item)),
+    Promise.resolve(),
   );
 }
 
@@ -228,10 +176,76 @@ export async function pasteInOrder(
 ): Promise<number[]> {
   const ids: number[] = [];
 
-  for (const [slug, fixture] of fixtures) {
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Items are saved one after the other so their ids rise in order.
+  await inOrder(fixtures, async ([slug, fixture]) => {
     ids.push(await paste(instance, slug, fixture));
-  }
+  });
 
   return ids;
 }
+
+type Param = string | number | null;
+
+export function exec(instance: Instance, query: string, ...params: readonly Param[]) {
+  using database = new DatabaseSync(instance.databaseFile);
+
+  database.prepare(query).run(...params);
+}
+
+export function script(instance: Instance, statements: string): void {
+  using database = new DatabaseSync(instance.databaseFile);
+
+  database.exec(statements);
+}
+
+export function rows<Schema extends z.ZodType>(
+  instance: Instance,
+  schema: Schema,
+  query: string,
+  ...params: readonly Param[]
+): z.infer<Schema>[] {
+  using database = new DatabaseSync(instance.databaseFile, { readOnly: true });
+
+  return database
+    .prepare(query)
+    .all(...params)
+    .map((row) => schema.parse(row));
+}
+
+const CountSchema = z.object({ n: z.number() });
+
+export function count(instance: Instance, query: string, ...params: readonly Param[]) {
+  const [row] = rows(instance, CountSchema, query, ...params);
+  if (row === undefined) throw new Error("The count query returned no row");
+
+  return row.n;
+}
+
+export const catalogVersion = (instance: Instance): number =>
+  count(instance, "select version as n from catalog_version where id = 1");
+
+export function seedPair(
+  instance: Instance,
+  source: number,
+  related: number,
+  position: number,
+  reason: string,
+): void {
+  exec(
+    instance,
+    "insert into related_items (item_id, related_id, position, reason) values (?, ?, ?, ?)",
+    source,
+    related,
+    position,
+    reason,
+  );
+}
+
+export async function nextSweep(instance: Instance): Promise<void> {
+  exec(instance, "delete from scheduled_runs where task = 'sweep'");
+  await instance.tick();
+}
+
+const MigrationSchema = z.object({ name: z.string() });
+
+export const latestMigration = (instance: Instance): string | undefined =>
+  rows(instance, MigrationSchema, "select max(name) as name from d1_migrations")[0]?.name;

@@ -2,14 +2,6 @@ import { type Page, expect } from "@playwright/test";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 
-export interface TopicCase {
-  readonly link: string;
-  readonly name: string;
-  readonly itemTitle: string;
-  readonly summary: string;
-  readonly address: RegExp;
-}
-
 interface SavedDigest {
   readonly title: string;
   readonly topic: string;

@@ -14,8 +14,7 @@ import {
   queueOverview,
   storePage,
 } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, saveProvider } from "./related-fixtures.ts";
-import { count, exec, nextSweep } from "./sqlite-fixtures.ts";
+import { SECRET_KEY, saveProvider, count, exec, nextSweep } from "./related-fixtures.ts";
 import { claims, moveClaimBack } from "./weekly-claim-fixtures.ts";
 
 const TASK = "overview_proposals";

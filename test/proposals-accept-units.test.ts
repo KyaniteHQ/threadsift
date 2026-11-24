@@ -6,7 +6,7 @@ import { z } from "zod";
 import { accept, linkVolume, mergeLines, seedVolume, tagsOfDigest } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { count, exec, rows } from "./sqlite-fixtures.ts";
+import { count, exec, nextSweep, rows } from "./related-fixtures.ts";
 
 const DigestTagsSchema = z.object({ tags: z.string() });
 
@@ -110,8 +110,7 @@ describe("the sweep finishes a merge that a request left open", () => {
 
   it("finishes the merge from the stored cursor, counts only the links that moved after an Item was deleted, and writes the Log line once", async () => {
     assert.equal((await instance.send("DELETE", "/api/items/100150")).status, 204);
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
+    await nextSweep(instance);
 
     assert.equal(count(instance, "select count(*) as n from tags where key = 'ml'"), 0);
     assert.equal(count(instance, "select count(*) as n from item_tags where tag_id = 2"), 149);

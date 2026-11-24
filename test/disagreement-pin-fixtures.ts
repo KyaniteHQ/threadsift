@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 
 export const pinRows = (instance: Instance) =>
   rows(

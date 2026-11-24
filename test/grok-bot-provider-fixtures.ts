@@ -4,11 +4,12 @@ import { setImmediate } from "node:timers/promises";
 
 import { z } from "zod";
 
+import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import { awaitVerifiedDigest } from "../src/features/bot/core/bot-verify-wait.ts";
 import { DIGEST_ANSWER } from "./bot-kinds-cases.ts";
 import { acceptedByBot, botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 
 export const VERIFY_PATH = "/api/settings/ai/verify";
 
@@ -105,7 +106,7 @@ export function occupyBot(instance: Instance, places: number): void {
     exec(
       instance,
       "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state, callback_hash, sent_at) values ('digest', '{}', 0, 'grok-bot', 1, ?, 'running', ?, 1)",
-      Date.now() + 3_600_000,
+      Date.now() + HOUR_MS,
       `occupied-${String(slot)}`,
     );
   }

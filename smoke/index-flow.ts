@@ -5,8 +5,16 @@ import { INDEX_PAGE } from "../web/src/index-text.ts";
 import { FILTERS_BUTTON, FILTER_GROUPS } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { visitSignedOut } from "./document-checks.ts";
-import { type TopicCase, savedItem } from "./saved-item.ts";
+import { savedItem } from "./saved-item.ts";
 import { atPhoneWidth, expectTarget } from "./screen-checks.ts";
+
+export interface TopicCase {
+  readonly link: string;
+  readonly name: string;
+  readonly itemTitle: string;
+  readonly summary: string;
+  readonly address: RegExp;
+}
 
 export async function openIndex(
   page: Page,
@@ -51,6 +59,34 @@ export async function openIndex(
 
     await visitSignedOut(browser, "/topics");
   });
+}
+
+export async function openTopicPage(page: Page, topic: TopicCase, markdown: string): Promise<void> {
+  await savedItem(page, {
+    url: topic.link,
+    page: { markdown, title: topic.itemTitle },
+    digest: {
+      title: topic.itemTitle,
+      topic: topic.name,
+      tags: ["streams"],
+      summary: topic.summary,
+      keyPoints: ["Pipe streams instead of buffering them"],
+    },
+  });
+  await page.goto("/");
+  await page
+    .locator("article.it")
+    .filter({ hasText: topic.itemTitle })
+    .getByRole("link")
+    .first()
+    .click();
+  await page.getByRole("link", { name: topicLinkLabel(topic.name) }).click();
+  await expect(page).toHaveURL(topic.address);
+  await page.reload();
+  await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
+  await expect(page.locator(".rl-row")).toContainText(topic.itemTitle);
+  await expect(page.locator(".rl-sum")).toContainText(topic.summary.split("\n").at(-1) ?? "");
+  await expect(page.getByText(TOPIC_PAGE.noProvider)).toBeVisible();
 }
 
 export async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {

@@ -1,16 +1,12 @@
 import assert from "node:assert/strict";
 import { type TestContext, after, afterEach, before, beforeEach, describe, it } from "node:test";
 
-import {
-  RESTORE_PARTS_KEEP_MS,
-  RestoreErrorSchema,
-  restoreAnswerSchema,
-} from "../src/core/contract/restore-contract.ts";
-import { SECOND_MS } from "../src/core/contract/time-units.ts";
+import { RestoreErrorSchema, restoreAnswerSchema } from "../src/core/contract/restore-contract.ts";
+import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { exportedZip, firstLongText, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste } from "./related-fixtures.ts";
+import { paste, count, exec, nextSweep } from "./related-fixtures.ts";
 import {
   gaveUpInFiles,
   restoreStatus,
@@ -21,7 +17,6 @@ import {
   unblockItemFiles,
   uploadedRestore,
 } from "./restore-fixtures.ts";
-import { count, exec, nextSweep } from "./sqlite-fixtures.ts";
 
 const NOT_A_ZIP = new TextEncoder().encode("this is not a zip");
 
@@ -243,21 +238,11 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
 
     const parts = [`restores/${String(id)}/part-1`];
 
-    exec(
-      target,
-      "update restores set updated_at = ? where id = ?",
-      Date.now() - RESTORE_PARTS_KEEP_MS + SECOND_MS,
-      id,
-    );
+    exec(target, "update restores set updated_at = ? where id = ?", Date.now() - 23 * HOUR_MS, id);
     await nextSweep(target);
     assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), parts);
 
-    exec(
-      target,
-      "update restores set updated_at = ? where id = ?",
-      Date.now() - RESTORE_PARTS_KEEP_MS - SECOND_MS,
-      id,
-    );
+    exec(target, "update restores set updated_at = ? where id = ?", Date.now() - 25 * HOUR_MS, id);
     await nextSweep(target);
     assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
 

@@ -12,7 +12,7 @@ import { xIntakeKind } from "../src/features/x/core/x-intake.ts";
 import { acceptedByBot, claimedNew } from "./bot-task-fixtures.ts";
 import type { Credential } from "./bot-task-http.ts";
 import type { Instance, Json } from "./instance.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 
 export interface IntakeTask {
   readonly itemId: number;

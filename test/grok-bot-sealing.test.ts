@@ -12,13 +12,12 @@ import {
   NEW_KEY,
   PATH,
   SECRET_KEY,
-  inOrder,
   saved,
   tested,
   view,
 } from "./grok-bot-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec, inOrder } from "./related-fixtures.ts";
 
 describe("an Instance with no sealing key, and a row sealed under another key", () => {
   let bare: Instance;

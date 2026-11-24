@@ -5,7 +5,6 @@ import type { TestContext } from "node:test";
 
 import { z } from "zod";
 
-import { ItemListResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import {
   RestoreStatusSchema,
   type RestoreStatus,
@@ -13,8 +12,7 @@ import {
 } from "../src/core/contract/restore-contract.ts";
 import { exportedZip } from "./export-restore-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { until } from "./related-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { until, exec } from "./related-fixtures.ts";
 
 const AttemptLineSchema = z.object({
   event: z.literal("job-attempt-failed"),
@@ -22,12 +20,8 @@ const AttemptLineSchema = z.object({
   attempt: z.number(),
 });
 
-export function putPart(
-  instance: Instance,
-  { id, part }: Readonly<{ id: number; part: number }>,
-  bytes: Uint8Array,
-): Promise<Response> {
-  return instance.request(`/api/restore/${String(id)}/parts/${String(part)}`, {
+export function putPart(instance: Instance, id: number, bytes: Uint8Array): Promise<Response> {
+  return instance.request(`/api/restore/${String(id)}/parts/1`, {
     method: "PUT",
     headers: { "content-type": "application/octet-stream" },
     body: bytes.slice(),
@@ -40,7 +34,7 @@ export async function uploadedRestore(instance: Instance, bytes: Uint8Array): Pr
     parts: 1,
   });
 
-  assert.equal((await putPart(instance, { id, part: 1 }, bytes)).status, 204);
+  assert.equal((await putPart(instance, id, bytes)).status, 204);
 
   return id;
 }
@@ -108,8 +102,9 @@ export function blockItemFiles(instance: Instance): void {
 
   mkdirSync(dirname(path), { recursive: true });
 
-  if (existsSync(path) && statSync(path).isDirectory())
+  if (statSync(path, { throwIfNoEntry: false })?.isDirectory() === true) {
     renameSync(path, heldItemFilesPath(instance));
+  }
 
   writeFileSync(path, "");
 }
@@ -117,7 +112,7 @@ export function blockItemFiles(instance: Instance): void {
 export function unblockItemFiles(instance: Instance): void {
   const path = itemFilesPath(instance);
 
-  if (existsSync(path) && statSync(path).isFile()) rmSync(path);
+  if (statSync(path, { throwIfNoEntry: false })?.isFile() === true) rmSync(path);
 
   if (existsSync(heldItemFilesPath(instance))) {
     renameSync(heldItemFilesPath(instance), itemFilesPath(instance));
@@ -163,10 +158,6 @@ export function holdLibrary(
     phase,
     failure,
   );
-}
-
-export async function itemTotal(instance: Instance): Promise<number> {
-  return (await instance.read("GET", "/api/items", ItemListResponseSchema)).counts.total;
 }
 
 export async function restoreLibrary({

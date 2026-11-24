@@ -2,8 +2,9 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
+import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { Instance } from "./instance.ts";
-import { count, exec, rows } from "./sqlite-fixtures.ts";
+import { count, exec, rows } from "./related-fixtures.ts";
 
 const TaskRowSchema = z.object({
   id: z.number(),
@@ -60,6 +61,17 @@ export function jobRow(instance: Instance, id: number) {
   return row;
 }
 
+export function reclaimed(instance: Instance, job: Readonly<{ id: number }>): void {
+  exec(
+    instance,
+    "update jobs set state = 'running', claim_expires = ? where id = ?",
+    Date.now() + HOUR_MS,
+    job.id,
+  );
+}
+
+export const waitsLong = (dueAt: number): boolean => dueAt > Date.now() + HOUR_MS / 2;
+
 export function insertedTask(
   instance: Instance,
   { kind, executor, token }: Readonly<{ kind: string; executor: string; token: string }>,
@@ -69,7 +81,7 @@ export function insertedTask(
     "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state, callback_hash) values (?, '{}', 0, ?, 1, ?, 'running', ?)",
     kind,
     executor,
-    Date.now() + 3_600_000,
+    Date.now() + HOUR_MS,
     digestOfToken(token),
   );
 

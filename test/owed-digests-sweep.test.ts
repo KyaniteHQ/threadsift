@@ -4,11 +4,10 @@ import { describe, it } from "node:test";
 import { z } from "zod";
 
 import { botInstance } from "./bot-task-fixtures.ts";
-import { inOrder } from "./grok-bot-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { hopThreadOf, toolsOf } from "./one-hop-fixtures.ts";
 import { redditAddressOf } from "./reader-thread-fixtures.ts";
-import { exec, nextSweep, rows } from "./sqlite-fixtures.ts";
+import { exec, nextSweep, rows, inOrder } from "./related-fixtures.ts";
 
 const STRANDED = 45;
 

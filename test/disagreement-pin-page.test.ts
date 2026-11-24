@@ -12,8 +12,7 @@ import {
   topicDisagreements,
 } from "./disagreement-pin-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { SECRET_KEY } from "./related-fixtures.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
 
 describe("the Topic page lists the disagreement Pins that still hold", () => {
   let instance: Instance;

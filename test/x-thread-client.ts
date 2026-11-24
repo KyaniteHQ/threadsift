@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
-import { count, rows } from "./sqlite-fixtures.ts";
+import { count, rows } from "./related-fixtures.ts";
 
 const ErrorSchema = z.object({ error: z.string() });
 

@@ -1,9 +1,8 @@
 import { z } from "zod";
 
+import { WEEK_MS } from "../src/core/contract/time-units.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
-
-export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+import { exec, rows } from "./related-fixtures.ts";
 
 const RunSchema = z.object({ last_run_at: z.number() });
 

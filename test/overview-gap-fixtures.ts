@@ -6,8 +6,7 @@ import type { OverviewGapProposal, ProposalPage } from "../src/core/contract/pro
 import type { Instance } from "./instance.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { paste } from "./related-fixtures.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { exec, inOrder, pasteInOrder, rows } from "./related-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 const GapSchema = z.object({
@@ -41,9 +40,9 @@ export function proposeGap(instance: Instance, topic: string, state = "open"): n
 }
 
 export function pasteInto(instance: Instance, topic: string, slugs: readonly string[]) {
-  return slugs.reduce<Promise<readonly number[]>>(
-    async (done, slug) => [...(await done), await paste(instance, slug, { title: slug, topic })],
-    Promise.resolve([]),
+  return pasteInOrder(
+    instance,
+    slugs.map((slug) => [slug, { title: slug, topic }] as const),
   );
 }
 
@@ -51,17 +50,13 @@ export async function pasteTopics(
   instance: Instance,
   topics: Readonly<Record<string, readonly string[]>>,
 ): Promise<Readonly<Record<string, readonly number[]>>> {
-  const made = await Object.entries(topics).reduce<
-    Promise<readonly (readonly [string, readonly number[]])[]>
-  >(
-    async (done, [topic, slugs]) => [
-      ...(await done),
-      [topic, await pasteInto(instance, topic, slugs)],
-    ],
-    Promise.resolve([]),
-  );
+  const made: Record<string, readonly number[]> = {};
 
-  return Object.fromEntries(made);
+  await inOrder(Object.entries(topics), async ([topic, slugs]) => {
+    made[topic] = await pasteInto(instance, topic, slugs);
+  });
+
+  return made;
 }
 
 export function addTopics(

@@ -7,8 +7,8 @@ import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { paste } from "./related-fixtures.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { paste, exec, rows } from "./related-fixtures.ts";
+import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 
@@ -22,18 +22,6 @@ const idOf = (instance: Instance, table: "tags" | "topics", name: string): numbe
 
 describe("the Proposals routes with Tag and Topic rows together", () => {
   let instance: Instance;
-
-  const seedTopic = (from: string, into: string, state: string, reason: string | null) => {
-    seedProposal(
-      instance,
-      "topic-merge",
-      {
-        from_topic_id: idOf(instance, "topics", from),
-        into_topic_id: idOf(instance, "topics", into),
-      },
-      { reason, state },
-    );
-  };
 
   const seedTag = (from: string, into: string, state: string, reason: string | null) => {
     seedProposal(
@@ -53,8 +41,8 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
     await paste(instance, "four", { title: "Four", topic: "Games" });
     await paste(instance, "five", { title: "Five", topic: "Game" });
     seedTag("llms", "llm", "open", "Plural of the same word.");
-    seedTopic("ML", "Machine learning", "open", "Short form of the name.");
-    seedTopic("Game", "Games", "rejected", "Decided.");
+    proposeTopics(instance, ["ML", "Machine learning"], "open", "Short form of the name.");
+    proposeTopics(instance, ["Game", "Games"], "rejected", "Decided.");
   });
 
   after(() => instance.close());

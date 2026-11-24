@@ -8,8 +8,7 @@ import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { paste } from "./related-fixtures.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { paste, exec, rows } from "./related-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 const TagSchema = z.object({ id: z.number(), name: z.string() });

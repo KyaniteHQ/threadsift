@@ -9,7 +9,7 @@ import { answered, answerTo, errorOf, rawAnswerTo } from "./bot-task-http.ts";
 import { taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Json } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 describe("the result route answers each status of its contract and writes nothing on a refusal", () => {
   let instance: ReadWorld["instance"];

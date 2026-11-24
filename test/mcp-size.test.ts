@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
 import {
   type AgentToken,
@@ -51,9 +50,6 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
   let instance: Instance;
   let token: AgentToken;
 
-  const itemTotal = async (): Promise<number | undefined> =>
-    (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total;
-
   const declared = (text: string) =>
     new Request(MCP_URL, {
       method: "POST",
@@ -93,7 +89,7 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
   });
 
   it("answers 413 to an oversized body, with a Content-Length or without, and writes nothing", async () => {
-    const totalBefore = await itemTotal();
+    const totalBefore = await instance.itemTotal();
 
     const text = call("add", {
       url: "https://x.com/someone/status/3000000001",
@@ -107,11 +103,11 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
     assert.equal(withoutLength.headers.has("content-length"), false);
     assert.equal((await instance.fetch(withLength)).status, 413);
     assert.equal((await instance.fetch(withoutLength)).status, 413);
-    assert.equal(await itemTotal(), totalBefore);
+    assert.equal(await instance.itemTotal(), totalBefore);
   });
 
   it("serves a chunked body inside the limit, and its add writes one Item", async () => {
-    const totalBefore = await itemTotal();
+    const totalBefore = await instance.itemTotal();
 
     const text = call("add", {
       url: "https://x.com/someone/status/3000000002",
@@ -122,7 +118,7 @@ describe("/mcp takes at most 64 KiB of request, whether or not the request says 
 
     assert.equal(request.headers.has("content-length"), false);
     assert.equal((await instance.fetch(request)).status, 200);
-    assert.equal(await itemTotal(), (totalBefore ?? 0) + 1);
+    assert.equal(await instance.itemTotal(), totalBefore + 1);
   });
 
   it("answers a body that is not JSON with a JSON-RPC parse error", async () => {

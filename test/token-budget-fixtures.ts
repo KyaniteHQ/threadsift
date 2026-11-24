@@ -5,7 +5,7 @@ import {
   TokenListResponseSchema,
 } from "../src/core/contract/access-wire.ts";
 import type { Instance, Json } from "./instance.ts";
-import { rows } from "./sqlite-fixtures.ts";
+import { rows } from "./related-fixtures.ts";
 
 const FIRST_STATUS = 5_000_000_000;
 

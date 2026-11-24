@@ -3,11 +3,11 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
+import { NOT_FOUND } from "../src/http/refusals.ts";
 import { storedBytes } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { paste } from "./related-fixtures.ts";
-import { rows } from "./sqlite-fixtures.ts";
+import { paste, rows } from "./related-fixtures.ts";
 
 const PNG = new Uint8Array(
   Buffer.from(
@@ -129,7 +129,8 @@ const MediaRowSchema = z.object({
   content_type: z.string(),
 });
 
-const servedAs = (instance: Instance, key: string) => instance.request(`/api/files/${key}`);
+const servedAs = (instance: Instance, key: string) =>
+  instance.fetch(`/api/files/${key}`, { headers: { cookie: instance.ownerCookie } });
 
 describe("an Article's inline images are stored when the declared type and the bytes agree, and every other one stays out of the file route", () => {
   let instance: Instance;
@@ -243,8 +244,8 @@ describe("an Article's inline images are stored when the declared type and the b
         [404, 404, 404],
       );
       assert.deepEqual(
-        bodies.map((body) => z.object({ error: z.string() }).parse(JSON.parse(body))),
-        Array.from({ length: 3 }, () => ({ error: "Not found" })),
+        bodies,
+        Array.from({ length: 3 }, () => JSON.stringify({ error: NOT_FOUND })),
       );
       assert.ok(
         answers.every((answer) => answer.headers.get("x-content-type-options") === "nosniff"),

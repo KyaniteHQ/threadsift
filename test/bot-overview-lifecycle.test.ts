@@ -7,7 +7,7 @@ import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtur
 import { retireTasks, selectGrokBot } from "./bot-task-fixtures.ts";
 import { insertedTask, jobRow, rowCount, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 const FILL = 10;
 

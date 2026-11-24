@@ -13,8 +13,7 @@ import {
   queueOverview,
   storePage,
 } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY } from "./related-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { SECRET_KEY, exec } from "./related-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 describe("overview-gap rows beside the other kinds", () => {

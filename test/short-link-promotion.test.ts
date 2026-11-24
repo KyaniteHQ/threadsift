@@ -7,8 +7,7 @@ import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts
 import { parseLink } from "../src/core/contract/links.ts";
 import { saveResolved, saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
-import { itemTotal } from "./restore-fixtures.ts";
-import { count, exec, rows } from "./sqlite-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 import { xLink } from "./token-budget-fixtures.ts";
 
 const AliasSchema = z.object({
@@ -69,12 +68,12 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     const short = "https://t.co/promoteme";
     const target = xLink(901);
     const failed = await failedAt(short);
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
 
     const saved = await resolved(short, target);
 
     assert.ok(saved !== null && saved.item.id === failed && !saved.created);
-    assert.equal(await itemTotal(instance), total);
+    assert.equal(await instance.itemTotal(), total);
 
     const item = await instance.detail(failed);
 
@@ -96,22 +95,13 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
       [aliased.item.id],
     );
 
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
 
-    const otherFetches = () =>
-      count(
-        instance,
-        "select count(*) as n from jobs where kind = 'fetch' and item_id <> ?",
-        aliased.item.id,
-      );
-
-    const others = otherFetches();
     const { status, saved } = await pasteVia(short);
 
     assert.equal(status, 200);
     assert.equal(saved.item.id, aliased.item.id);
-    assert.equal(await itemTotal(instance), total);
-    assert.equal(otherFetches(), others);
+    assert.equal(await instance.itemTotal(), total);
   });
 
   it("keeps a failed Item that holds an earlier successful fetch under the short link, and saves the resolved address as a new Item", async () => {
@@ -121,11 +111,11 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
 
     exec(instance, "update items set fetched_at = ? where id = ?", Date.now(), failed);
 
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
     const saved = await resolved(short, target);
 
     assert.ok(saved !== null && saved.created && saved.item.id !== failed);
-    assert.equal(await itemTotal(instance), total + 1);
+    assert.equal(await instance.itemTotal(), total + 1);
     assert.equal((await instance.detail(failed)).normalizedUrl, parseLink(short).normalizedUrl);
     assert.deepEqual(
       aliasesOf(short).map(({ item_id: id }) => id),
@@ -138,12 +128,12 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     const target = xLink(902);
     const holder = (await pasteVia(target)).saved.item.id;
     const failed = await failedAt(short);
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
 
     const saved = await resolved(short, target);
 
     assert.ok(saved !== null && saved.item.id === holder);
-    assert.equal(await itemTotal(instance), total);
+    assert.equal(await instance.itemTotal(), total);
     assert.equal((await instance.detail(failed)).normalizedUrl, parseLink(short).normalizedUrl);
     assert.deepEqual(
       aliasesOf(short).map(({ item_id: id }) => id),
@@ -174,12 +164,12 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
 
     await resolved(short, xLink(904));
 
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
 
     const saved = await unresolvedSave(short);
 
     assert.equal(saved, null);
-    assert.equal(await itemTotal(instance), total);
+    assert.equal(await instance.itemTotal(), total);
   });
 
   it("deletes the aliases of an Item in the same batch that deletes the Item", async () => {

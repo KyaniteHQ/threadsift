@@ -6,8 +6,7 @@ import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ConnectStartResponseSchema } from "../src/core/contract/openrouter-contract.ts";
 import { Instance, PASSWORD, SETUP_CODE } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { SECRET_KEY } from "./related-fixtures.ts";
-import { count } from "./sqlite-fixtures.ts";
+import { SECRET_KEY, count } from "./related-fixtures.ts";
 
 const WRONG_SETUP_CODE = "a-wrong-setup-code-of-sixteen";
 

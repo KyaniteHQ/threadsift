@@ -11,8 +11,15 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, paste, saveProvider } from "./related-fixtures.ts";
-import { count, exec, rows, nextSweep } from "./sqlite-fixtures.ts";
+import {
+  SECRET_KEY,
+  paste,
+  saveProvider,
+  count,
+  exec,
+  rows,
+  nextSweep,
+} from "./related-fixtures.ts";
 import { claims, moveClaimBack } from "./weekly-claim-fixtures.ts";
 
 const LostSchema = z.object({

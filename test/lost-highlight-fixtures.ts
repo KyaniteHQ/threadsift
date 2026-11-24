@@ -2,8 +2,6 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
-import { codePointCount } from "../src/core/contract/code-points.ts";
-import { selectorAt } from "../src/core/contract/highlight-anchor.ts";
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import {
   type MergeProposal,
@@ -11,9 +9,9 @@ import {
   type ProposalPage,
   ProposalPageSchema,
 } from "../src/core/contract/proposal-contract.ts";
+import { selectorIn } from "./highlight-selector.ts";
 import type { Instance } from "./instance.ts";
-import { paste, saveProvider } from "./related-fixtures.ts";
-import { exec, rows, nextSweep } from "./sqlite-fixtures.ts";
+import { paste, saveProvider, exec, rows, nextSweep } from "./related-fixtures.ts";
 
 export const ColumnsSchema = z.object({
   id: z.number(),
@@ -50,18 +48,6 @@ function pasteHolding(
   return paste(instance, slug, { title, postText: textHolding(passage) });
 }
 
-export function selectorIn(text: string, passage: string) {
-  const start = text.indexOf(passage);
-
-  assert.notEqual(start, -1, `${passage} is in the text`);
-
-  const selector = selectorAt(text, codePointCount(text, start), codePointCount(passage));
-
-  assert.ok(selector !== null, `${passage} is a run of whole code points`);
-
-  return { ...selector };
-}
-
 export async function keepPassage(
   instance: Instance,
   itemId: number,
@@ -69,16 +55,15 @@ export async function keepPassage(
 ): Promise<number> {
   const reader = await instance.detail(itemId);
 
-  const { highlight } = await instance.read(
-    "POST",
-    `/api/items/${String(itemId)}/highlights`,
-    HighlightResponseSchema,
-    {
-      target: { kind: "post" },
-      revision: reader.highlights.revisions.post,
-      selector: selectorIn(reader.postText ?? "", passage),
-    },
-  );
+  const created = await instance.send("POST", `/api/items/${String(itemId)}/highlights`, {
+    target: { kind: "post" },
+    revision: reader.highlights.revisions.post,
+    selector: selectorIn(reader.postText ?? "", passage),
+  });
+
+  assert.equal(created.status, 201, created.body);
+
+  const { highlight } = HighlightResponseSchema.parse(JSON.parse(created.body));
 
   return highlight.id;
 }

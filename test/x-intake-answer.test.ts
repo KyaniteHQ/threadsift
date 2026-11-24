@@ -5,7 +5,7 @@ import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts"
 import { botInstance } from "./bot-task-fixtures.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 import {
   answerOf,
   contentOf,

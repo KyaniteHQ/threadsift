@@ -7,7 +7,6 @@ import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { callBoth, connectBoth, type Agents } from "./mcp-client.ts";
-import { itemTotal } from "./restore-fixtures.ts";
 import {
   addBatch,
   addLink,
@@ -52,7 +51,7 @@ describe("every way a token adds an Item draws on the same daily budget", () => 
 
   it("counts a link, a link with a page, a link with a thread and each new link of a batch", async () => {
     const token = await makeToken(instance, 10);
-    const itemsBefore = await itemTotal(instance);
+    const itemsBefore = await instance.itemTotal();
 
     assert.equal((await addLink(instance, token, 1)).status, 201);
     assert.equal((await withPage(token, "https://example.com/budget-page")).status, 201);
@@ -62,7 +61,7 @@ describe("every way a token adds an Item draws on the same daily budget", () => 
     const state = await budgetOf(instance, token.id);
 
     assert.ok(state.kind === "within" && state.added === 5 && state.left === 5);
-    assert.equal(await itemTotal(instance), itemsBefore + 5);
+    assert.equal(await instance.itemTotal(), itemsBefore + 5);
   });
 
   it("attributes a short link whose resolution failed to its token and counts it toward the budget", async () => {
@@ -88,7 +87,7 @@ describe("every way a token adds an Item draws on the same daily budget", () => 
 
     await addLink(instance, token, 11);
 
-    const itemsBefore = await itemTotal(instance);
+    const itemsBefore = await instance.itemTotal();
 
     const answers = await Promise.all([
       addLink(instance, token, 12),
@@ -108,7 +107,7 @@ describe("every way a token adds an Item draws on the same daily budget", () => 
       ),
     );
 
-    assert.equal(await itemTotal(instance), itemsBefore);
+    assert.equal(await instance.itemTotal(), itemsBefore);
   });
 
   it("counts the add tool of /mcp, and refuses it as a tool error once the budget is spent", async () => {

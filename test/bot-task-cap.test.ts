@@ -20,7 +20,7 @@ import {
 import { step } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 const START = { inputs: "{}", inputRevision: 1, context: "{}" } as const;
 

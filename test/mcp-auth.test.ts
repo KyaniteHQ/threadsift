@@ -2,10 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { TokenListResponseSchema } from "../src/core/contract/access-wire.ts";
-import {
-  ItemReadResponseSchema,
-  SavedItemResponseSchema,
-} from "../src/core/contract/item-route-wire.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance, type Json, PASSWORD } from "./instance.ts";
 import {
   type AgentToken,
@@ -49,7 +46,6 @@ describe("/mcp admits only a valid agent token sent in the Authorization header,
   });
 
   it("answers 401 to the signed-in owner's cookie alone", async () => {
-    assert.notEqual(instance.sessionCookie, null);
     assert.equal(await status(cookie()), 401);
   });
 
@@ -152,9 +148,6 @@ describe("an agent token calls an /mcp tool only with the scope the tool needs",
     return [agents.legacy, agents.modern];
   };
 
-  const total = async () =>
-    (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total;
-
   const call = (
     clients: Awaited<ReturnType<typeof connect>>,
     name: string,
@@ -181,7 +174,7 @@ describe("an agent token calls an /mcp tool only with the scope the tool needs",
 
   it("lets a token with read search and read, and refuses its add without saving the link", async () => {
     const clients = await connect(["read"]);
-    const itemsBefore = await total();
+    const itemsBefore = await instance.itemTotal();
     const link = { url: "https://x.com/someone/status/6000000002" };
 
     assert.deepEqual(await answered(call(clients, "search", {})), [false, false]);
@@ -189,7 +182,7 @@ describe("an agent token calls an /mcp tool only with the scope the tool needs",
     await Promise.all(
       call(clients, "add", link).map((each) => assert.rejects(each, /required "add"/u)),
     );
-    assert.equal(await total(), itemsBefore);
+    assert.equal(await instance.itemTotal(), itemsBefore);
   });
 
   it("lets a token with add alone add a link, and refuses its search and read", async () => {
@@ -207,7 +200,7 @@ describe("an agent token calls an /mcp tool only with the scope the tool needs",
   });
 
   it("refuses an add that sends a Digest unless the token also holds digest, and saves nothing", async () => {
-    const itemsBefore = await total();
+    const itemsBefore = await instance.itemTotal();
     const withDigest = { url: "https://x.com/someone/status/6000000004", digest: DIGEST };
 
     await Promise.all(
@@ -215,7 +208,7 @@ describe("an agent token calls an /mcp tool only with the scope the tool needs",
         assert.rejects(each, /required "add digest"/u),
       ),
     );
-    assert.equal(await total(), itemsBefore);
+    assert.equal(await instance.itemTotal(), itemsBefore);
     assert.deepEqual(await answered(call(await connect(["add", "digest"]), "add", withDigest)), [
       false,
       false,

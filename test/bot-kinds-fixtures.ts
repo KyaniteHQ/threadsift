@@ -14,7 +14,7 @@ import {
 import { answered } from "./bot-task-http.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance, Json } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 export { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 

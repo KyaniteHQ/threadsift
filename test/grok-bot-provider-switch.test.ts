@@ -14,11 +14,10 @@ import {
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { startedTask } from "./bot-task-lifecycle.ts";
-import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
+import { insertedTask, jobRow, rowCount, taskRow, taskRows, waitsLong } from "./bot-task-rows.ts";
 import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { pairsOf, saveProvider } from "./related-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { pairsOf, saveProvider, exec } from "./related-fixtures.ts";
 import { waitingIntake } from "./x-intake-fixtures.ts";
 
 describe("a Related pick on Grok Bot follows the lifecycle through the production runner, and a change of Provider abandons what is open", () => {
@@ -75,9 +74,9 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     await executeClaimed(instance.core, job);
     assert.equal(jobRow(instance, job.id).next_attempt_at, taskRow(instance, task.id).deadline);
 
-    assert.ok(jobRow(instance, job.id).next_attempt_at > Date.now() + 30 * 60_000);
+    assert.ok(waitsLong(jobRow(instance, job.id).next_attempt_at));
     const intakeDue = jobRow(instance, intake.job.id).next_attempt_at;
-    assert.ok(intakeDue > Date.now() + 30 * 60_000);
+    assert.ok(waitsLong(intakeDue));
 
     await saveProvider(instance);
 

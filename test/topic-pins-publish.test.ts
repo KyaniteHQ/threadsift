@@ -5,8 +5,7 @@ import { z } from "zod";
 
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { paste, until } from "./related-fixtures.ts";
-import { count, exec, rows } from "./sqlite-fixtures.ts";
+import { paste, until, count, exec, nextSweep, rows } from "./related-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 const TARGET = "Machine Learning";
@@ -102,8 +101,7 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
       "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at) select 'digest', id, original_url, 'queued', 0, 0, 0 from items where id = ?",
       id,
     );
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
+    await nextSweep(instance);
     await until(
       () => stored(instance, id),
       (row) => row !== undefined,

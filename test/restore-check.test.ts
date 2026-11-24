@@ -12,7 +12,6 @@ import { Instance } from "./instance.ts";
 import { until } from "./related-fixtures.ts";
 import { VARIANTS } from "./restore-check-variants.ts";
 import {
-  itemTotal,
   restoredDone,
   settledRestore,
   startedRestore,
@@ -56,7 +55,7 @@ describe("the check refuses a zip it cannot trust before it writes a record", ()
       () => listedKeys(target.core.files, `restores/${String(id)}/`),
       (keys) => keys.length === 0,
     );
-    assert.equal(await itemTotal(target), 0);
+    assert.equal(await target.itemTotal(), 0);
   };
 
   it("has a test for every refusal code the Restore routes document", () => {
@@ -89,6 +88,6 @@ describe("the check refuses a zip it cannot trust before it writes a record", ()
     const done = await restoredDone(target);
 
     assert.equal(done.id, id);
-    assert.equal(await itemTotal(target), 3);
+    assert.equal(await target.itemTotal(), 3);
   });
 });

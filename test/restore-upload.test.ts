@@ -5,8 +5,8 @@ import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/r
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { exec } from "./related-fixtures.ts";
 import { putPart, restoreStatus, settledRestore } from "./restore-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
 
 const codeOf = (body: string) => RestoreErrorSchema.parse(JSON.parse(body)).code;
 
@@ -66,7 +66,7 @@ describe("an upload that is not whole or not allowed is refused before the check
   it("refuses a part of the wrong length with 400 and keeps the upload open with no part received", async () => {
     const id = await created();
 
-    assert.equal((await putPart(target, { id, part: 1 }, zip.slice(1))).status, 400);
+    assert.equal((await putPart(target, id, zip.slice(1))).status, 400);
 
     assert.deepEqual(await receivedParts(), []);
     await cancelled(id);
@@ -97,8 +97,8 @@ describe("an upload that is not whole or not allowed is refused before the check
   it("accepts the same part twice and starts once", async () => {
     const id = await created();
 
-    assert.equal((await putPart(target, { id, part: 1 }, zip)).status, 204);
-    assert.equal((await putPart(target, { id, part: 1 }, zip)).status, 204);
+    assert.equal((await putPart(target, id, zip)).status, 204);
+    assert.equal((await putPart(target, id, zip)).status, 204);
 
     assert.deepEqual(await receivedParts(), [1]);
     assert.equal((await target.send("POST", `/api/restore/${String(id)}/start`)).status, 202);
@@ -141,7 +141,7 @@ describe("a part that arrives after its Restore left the upload is not kept", ()
       },
     );
 
-    const late = await putPart(target, { id, part: 1 }, zip);
+    const late = await putPart(target, id, zip);
 
     assert.equal(late.status, 409);
     assert.equal(codeOf(await late.text()), "not-uploading");
@@ -157,7 +157,7 @@ describe("a part that arrives after its Restore left the upload is not kept", ()
 
     assert.equal((await target.send("DELETE", `/api/restore/${String(id)}`)).status, 204);
 
-    const late = await putPart(target, { id, part: 1 }, zip);
+    const late = await putPart(target, id, zip);
 
     assert.equal(late.status, 409);
     assert.equal(codeOf(await late.text()), "not-uploading");

@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { rows, script } from "./sqlite-fixtures.ts";
+import { rows, script } from "./related-fixtures.ts";
 
 const AnyRowSchema = z.record(z.string(), z.unknown());
 
@@ -21,6 +21,9 @@ export const item = (
   insert into digests (item_id, digest, title, topic, task_id, generation, created_at)
     values (${String(id)}, '${JSON.stringify({ title: "T", topic, tags: digestTags, summary: "S", keyPoints: ["K"] })}', 'T', '${topic}', ${String(id)}, 0, 1);
   ${tags.map((tag) => `insert into item_tags (item_id, tag_id) values (${String(id)}, ${String(tag)});`).join("\n")}`;
+
+export const topicPin = (id: number, into: number): string =>
+  `insert into pins (id, kind, from_key, from_name, into_topic_id, created_at) values (${String(id)}, 'topic-merge', 'ml', 'ML', ${String(into)}, 1);`;
 
 export const seedTopicItems = (
   instance: Instance,

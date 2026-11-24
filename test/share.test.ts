@@ -3,7 +3,6 @@ import { after, before, describe, it } from "node:test";
 
 import { Instance, ORIGIN } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { itemTotal } from "./restore-fixtures.ts";
 import { xLink } from "./token-budget-fixtures.ts";
 
 const addressOf = (query: Readonly<Record<string, string>>) =>
@@ -45,21 +44,21 @@ describe("a share from the installed app saves the link only for a signed-in own
 
   it("saves the link at once, opens the library on that Item, and opens a known link on the same Item as refreshed", async () => {
     const link = xLink(1);
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
 
     const first = await share({ url: link }, { ...OWN_PAGE, cookie: ownerCookie });
     const id = Number(/^\/\?saved=(?<id>[1-9]\d*)$/u.exec(first ?? "")?.groups?.["id"]);
 
     assert.ok(id > 0, `the answer is /?saved=<id>, not ${String(first)}`);
     assert.equal((await instance.detail(id)).originalUrl, link);
-    assert.equal(await itemTotal(instance), total + 1);
+    assert.equal(await instance.itemTotal(), total + 1);
 
     await instance.settledItem(id);
 
     const again = await share({ url: link }, { ...OWN_PAGE, cookie: ownerCookie });
 
     assert.equal(again, `/?refreshed=${String(id)}`);
-    assert.equal(await itemTotal(instance), total + 1);
+    assert.equal(await instance.itemTotal(), total + 1);
   });
 
   const untrusted = [
@@ -79,7 +78,7 @@ describe("a share from the installed app saves the link only for a signed-in own
 
   it("writes nothing for a request that is not from the app's own page, and opens the library with the link in the paste box", async () => {
     const link = xLink(2);
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
 
     const answers = await Promise.all(
       untrusted.map(async ({ name, headers }) => ({
@@ -92,12 +91,12 @@ describe("a share from the installed app saves the link only for a signed-in own
       answers,
       untrusted.map(({ name }) => ({ name, location: linkInBox(link) })),
     );
-    assert.equal(await itemTotal(instance), total);
+    assert.equal(await instance.itemTotal(), total);
   });
 
   it("writes nothing while signed out, and for an agent token that sends the page's headers", async () => {
     const link = xLink(3);
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
 
     const signedOut = await share({ url: link }, OWN_PAGE);
     const withToken = await share(
@@ -107,12 +106,12 @@ describe("a share from the installed app saves the link only for a signed-in own
 
     assert.deepEqual(signedOut, linkInBox(link));
     assert.deepEqual(withToken, signedOut);
-    assert.equal(await itemTotal(instance), total);
+    assert.equal(await instance.itemTotal(), total);
   });
 
   it("writes nothing for a GET, whose link comes from the query", async () => {
     const link = xLink(4);
-    const total = await itemTotal(instance);
+    const total = await instance.itemTotal();
 
     const response = await instance.fetch(`/share?url=${encodeURIComponent(link)}`, {
       headers: { ...OWN_PAGE, cookie: ownerCookie },
@@ -120,7 +119,7 @@ describe("a share from the installed app saves the link only for a signed-in own
 
     assert.equal(response.status, 303);
     assert.equal(response.headers.get("location"), linkInBox(link));
-    assert.equal(await itemTotal(instance), total);
+    assert.equal(await instance.itemTotal(), total);
   });
 });
 

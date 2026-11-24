@@ -5,22 +5,21 @@ import { z } from "zod";
 
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
+import { selectorIn } from "./highlight-selector.ts";
 import { Instance } from "./instance.ts";
-import { selectorIn } from "./lost-highlight-fixtures.ts";
 import {
   REDDIT_THREAD,
   SECRET_KEY,
-  firstPickTask,
   pairsOf,
   paste,
   pasteInOrder,
-  pickTasks,
   saveProvider,
-  sentInput,
   until,
+  exec,
+  rows,
 } from "./related-fixtures.ts";
+import { firstPickTask, pickTasks, sentInput } from "./related-pick-fixtures.ts";
 import { restoreLibrary } from "./restore-fixtures.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
 
 const TWELVE = "quasar lattice decoder notes alpha beta gamma delta epsilon zeta eta theta";
 

@@ -7,7 +7,7 @@ import { runJob } from "../src/core/compose/jobs.ts";
 import { botInstance, pastDeadline } from "./bot-task-fixtures.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 import { answerOf } from "./x-intake-bodies.ts";
 import { intakeTo, sentIntake } from "./x-intake-fixtures.ts";
 import { itemRow } from "./x-intake-rows.ts";

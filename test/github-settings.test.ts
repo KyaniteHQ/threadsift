@@ -11,8 +11,7 @@ import {
 import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
 import { Instance } from "./instance.ts";
 import { seedGithubCooldown } from "./one-hop-fixtures.ts";
-import { SECRET_KEY } from "./related-fixtures.ts";
-import { count, exec, rows } from "./sqlite-fixtures.ts";
+import { SECRET_KEY, count, exec, rows } from "./related-fixtures.ts";
 
 const SETTINGS = "/api/settings/github";
 

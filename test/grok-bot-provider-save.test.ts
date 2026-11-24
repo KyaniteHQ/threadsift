@@ -17,8 +17,7 @@ import {
   usedAsProvider,
 } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { saveProvider } from "./related-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { saveProvider, exec } from "./related-fixtures.ts";
 
 const REFUSAL = z.object({ error: z.string(), code: z.string() });
 

@@ -4,7 +4,7 @@ import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import { accept } from "./accept-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { count, rows } from "./sqlite-fixtures.ts";
+import { count, rows } from "./related-fixtures.ts";
 
 export { removeProposals } from "./proposal-seed.ts";
 
@@ -22,7 +22,7 @@ export function proposeTopics(
   instance: Instance,
   [from, into]: readonly [string, string],
   state = "open",
-  reason = "Same subject.",
+  reason: string | null = "Same subject.",
 ): number {
   return seedProposal(
     instance,

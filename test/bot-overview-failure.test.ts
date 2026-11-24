@@ -9,7 +9,7 @@ import { botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { taskRow, topicFailures } from "./bot-task-rows.ts";
 import { seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 const THIRD_SEND = 2;
 

@@ -16,7 +16,7 @@ import {
   fetchJob,
   jobs,
 } from "./reddit-account-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 const REDDIT_LINK = "https://www.reddit.com/comments/q1/";
 

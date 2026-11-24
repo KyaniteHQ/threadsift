@@ -12,9 +12,8 @@ import {
   savedLibrary,
 } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste } from "./related-fixtures.ts";
+import { paste, count } from "./related-fixtures.ts";
 import { restoreStatus, restoredDone, settledRestore, startedRestore } from "./restore-fixtures.ts";
-import { count } from "./sqlite-fixtures.ts";
 import {
   type Entries,
   dataStartOf,

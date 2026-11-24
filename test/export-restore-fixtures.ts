@@ -4,14 +4,11 @@ import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { ExportStatusSchema, StartedExportSchema } from "../src/core/contract/export-contract.ts";
 import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
-import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { placePostText } from "../src/features/thread/core/post-text-files.ts";
-import { bytesOfKey, itemTextAt, postTextKey } from "./file-store-fixtures.ts";
-import { inOrder } from "./grok-bot-fixtures.ts";
+import { itemTextAt, postTextKey } from "./file-store-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
-import { pasteInOrder, until } from "./related-fixtures.ts";
-import { directoryOf } from "./zip-fixtures.ts";
+import { pasteInOrder, until, inOrder } from "./related-fixtures.ts";
 
 export const MARKED_PASSAGE = "quartz seam";
 
@@ -159,48 +156,4 @@ export async function exportedZip(instance: Instance): Promise<Uint8Array> {
   const { id } = await readyExport(instance);
 
   return downloadedZip(instance, id);
-}
-
-export async function numberedKeys(
-  instance: Instance,
-  id: number,
-  stem: string,
-): Promise<readonly string[]> {
-  const keys = await listedKeys(instance.core.files, `exports/${String(id)}/`);
-
-  return keys
-    .filter((key) => key.includes(`/${stem}-`))
-    .toSorted((left, right) => Number(left.split("-")[1]) - Number(right.split("-")[1]));
-}
-
-export interface SliceEntry {
-  readonly name: string;
-  readonly size: number;
-}
-
-export async function sliceEntries(
-  instance: Instance,
-  id: number,
-  zip: Uint8Array,
-): Promise<readonly (readonly SliceEntry[])[]> {
-  const parts = await numberedKeys(instance, id, "part");
-
-  const lengths = await Promise.all(
-    parts.map(async (key) => (await bytesOfKey(instance, key)).length),
-  );
-  const ends = lengths.map((_, at) =>
-    lengths.slice(0, at + 1).reduce((sum, length) => sum + length, 0),
-  );
-  const { entries } = await directoryOf(zip);
-
-  return ends.map((end, at) =>
-    entries
-      .filter(
-        ({ headerOffset, name }) =>
-          headerOffset >= (ends[at - 1] ?? 0) &&
-          headerOffset < end &&
-          !name.endsWith("/threadsift.json"),
-      )
-      .map(({ name, size }) => ({ name, size })),
-  );
 }

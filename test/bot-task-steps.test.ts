@@ -17,16 +17,14 @@ import {
 import { answered } from "./bot-task-http.ts";
 import {
   applied,
-  reclaimed,
   startedTask,
   sentRelatedTask,
   step,
   taskAfterStart,
 } from "./bot-task-lifecycle.ts";
-import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
+import { jobRow, reclaimed, taskRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { pairsOf, paste } from "./related-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { pairsOf, paste, exec } from "./related-fixtures.ts";
 
 const SEND_FAILED = /send failed: unreachable/u;
 
@@ -265,7 +263,11 @@ describe("an answer that no longer fits fails the task, and the job starts a new
   });
 
   it("when the stored answer no longer fits its kind", async () => {
-    const { task, job } = await answeredTask([library.candidates[1] ?? 0]);
+    const candidate = library.candidates[1];
+
+    assert.ok(candidate !== undefined);
+
+    const { task, job } = await answeredTask([candidate]);
 
     exec(instance, "update ai_tasks set result = '\"x\"' where id = ?", task.id);
     await assert.rejects(step(instance, job), /no longer fits/u);

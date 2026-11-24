@@ -10,8 +10,8 @@ import {
 } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
+import { selectorIn } from "./highlight-selector.ts";
 import { Instance, type Json, SETTLE_DEADLINE_MS } from "./instance.ts";
-import { selectorIn } from "./lost-highlight-fixtures.ts";
 
 interface Supplied {
   readonly page?: Json;

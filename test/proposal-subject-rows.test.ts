@@ -11,7 +11,7 @@ import {
 import { Instance } from "./instance.ts";
 import { subjectTable } from "./proposal-seed.ts";
 import { COLUMNS, type SubjectStorage, subjectStorage } from "./proposal-storage-fixtures.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 
 const PARENT = {
   "tag-merge": "tags",

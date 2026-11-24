@@ -19,8 +19,7 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { SECRET_KEY, saveProvider, until } from "./related-fixtures.ts";
-import { exec, rows, nextSweep } from "./sqlite-fixtures.ts";
+import { SECRET_KEY, saveProvider, until, exec, rows, nextSweep } from "./related-fixtures.ts";
 import { moveClaimBack } from "./weekly-claim-fixtures.ts";
 
 const reject = (instance: Instance, id: number) =>

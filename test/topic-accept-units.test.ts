@@ -7,7 +7,7 @@ import { seedLogEntries } from "./log-fixtures.ts";
 import { mergesOf, readPage } from "./lost-highlight-fixtures.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";
-import { count, nextSweep, script } from "./sqlite-fixtures.ts";
+import { count, nextSweep, script } from "./related-fixtures.ts";
 import {
   answerOf,
   itemsOf,

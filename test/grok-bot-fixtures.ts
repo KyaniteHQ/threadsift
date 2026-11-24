@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { GrokBotTestSchema, GrokBotViewSchema } from "../src/core/contract/grok-bot-contract.ts";
 import type { Instance } from "./instance.ts";
-import { rows } from "./sqlite-fixtures.ts";
+import { rows } from "./related-fixtures.ts";
 
 export const SECRET_KEY = "ab".repeat(32);
 
@@ -22,16 +22,6 @@ const RowSchema = z.object({
   sealed_key: z.string(),
   updated_at: z.number(),
 });
-
-export function inOrder<Item>(
-  items: readonly Item[],
-  step: (item: Item) => Promise<void>,
-): Promise<void> {
-  return items.reduce<Promise<void>>(
-    (done, item) => done.then(() => step(item)),
-    Promise.resolve(),
-  );
-}
 
 export const saved = (instance: Instance) =>
   rows(instance, RowSchema, "select webhook_url, sealed_key, updated_at from grok_bot_settings");

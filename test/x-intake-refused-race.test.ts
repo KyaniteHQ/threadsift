@@ -7,8 +7,7 @@ import { applied } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow } from "./bot-task-rows.ts";
 import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { until } from "./related-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { until, exec } from "./related-fixtures.ts";
 import { intakeTo, sentIntake, stepOf, waitingIntake } from "./x-intake-fixtures.ts";
 
 const UNREADABLE = { content: "this is not a thread" };

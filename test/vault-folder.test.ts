@@ -15,8 +15,7 @@ import { after, before, describe, it } from "node:test";
 import { VaultResultSchema, VaultViewSchema } from "../src/core/contract/vault-contract.ts";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { paste, until } from "./related-fixtures.ts";
-import { nextSweep } from "./sqlite-fixtures.ts";
+import { paste, until, nextSweep } from "./related-fixtures.ts";
 
 const SETTINGS = "/api/settings/obsidian";
 

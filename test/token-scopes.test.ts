@@ -9,8 +9,7 @@ import {
 import { type Answer, Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
-import { SECRET_KEY, paste, saveProvider } from "./related-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { SECRET_KEY, paste, saveProvider, exec } from "./related-fixtures.ts";
 
 type Send = (method: string, path: string, body?: Json) => Promise<Answer>;
 

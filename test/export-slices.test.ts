@@ -1,8 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { readStoredZip } from "../smoke/zip-read.ts";
 import {
   EXPORT_SLICE_BYTES,
@@ -13,20 +11,21 @@ import { BACKUP_TABLES } from "../src/core/kernel/backup-tables.ts";
 import {
   EXPORT_LIBRARY,
   type SavedLibrary,
-  type SliceEntry,
   downloadedZip,
   firstLongText,
-  numberedKeys,
   readyExport,
   savedLibrary,
-  sliceEntries,
 } from "./export-restore-fixtures.ts";
-import { bytesOfKey, postTextKey } from "./file-store-fixtures.ts";
+import {
+  bytesOfKey,
+  postTextKey,
+  type SliceEntry,
+  numberedKeys,
+  sliceEntries,
+} from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { rows } from "./sqlite-fixtures.ts";
+import { latestMigration } from "./related-fixtures.ts";
 import { entriesOf, entryOf, linesOf, manifestOf, recordLines, rootOf } from "./zip-fixtures.ts";
-
-const MigrationSchema = z.object({ name: z.string() });
 
 describe("an Export of a library too big for one slice is one complete zip", () => {
   let instance: Instance;
@@ -119,14 +118,8 @@ describe("an Export of a library too big for one slice is one complete zip", () 
   it("lists every backup table with the row count of its record files, and the library's own counts", async () => {
     const entries = await entriesOf(zip);
     const manifest = manifestOf(entries);
-    const [applied] = rows(
-      instance,
-      MigrationSchema,
-      "select max(name) as name from d1_migrations",
-    );
-
     assert.equal(manifest.format, 1);
-    assert.equal(manifest.migration, applied?.name);
+    assert.equal(manifest.migration, latestMigration(instance));
     assert.equal(manifest.openItems, 0);
     assert.deepEqual(
       Object.keys(manifest.tables).toSorted(),

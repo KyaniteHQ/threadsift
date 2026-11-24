@@ -3,7 +3,7 @@ import { z } from "zod";
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import type { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, rows } from "./sqlite-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 

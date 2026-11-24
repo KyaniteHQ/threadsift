@@ -1,6 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 
 import { claimNextDue, dueIds } from "../src/core/compose/jobs.ts";
+import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { XThreadValue } from "../src/core/contract/x-wire.ts";
 import { enqueueItemJobs } from "../src/core/kernel/job-rows.ts";
 import { jobs, xVerifications } from "../src/core/kernel/schema.ts";
@@ -105,7 +106,7 @@ export async function jobAfterNewerAnswer(
   });
   await db
     .update(jobs)
-    .set({ attempts: 2, waitReason: "x-verify", nextAttemptAt: Date.now() + 3_600_000 })
+    .set({ attempts: 2, waitReason: "x-verify", nextAttemptAt: Date.now() + HOUR_MS })
     .where(eq(jobs.itemId, itemId));
   await db.batch([
     ...queuedVerification(db, {

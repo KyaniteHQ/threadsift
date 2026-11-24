@@ -2,13 +2,12 @@ import { type Page, expect, test } from "@playwright/test";
 
 import { IMPORT, countLabel } from "../web/src/import-text.ts";
 import { ADD_LABEL, BACK_TO_LIBRARY, PASTE_LABEL } from "../web/src/text.ts";
-import { TOPIC_PAGE, topicLinkLabel } from "../web/src/topic-text.ts";
 import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
 import { expectDocumentHeaders, watchContext } from "./document-checks.ts";
-import { openIndex, phoneRailTarget } from "./index-flow.ts";
+import { type TopicCase, openIndex, openTopicPage, phoneRailTarget } from "./index-flow.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
-import { type TopicCase, savedItem } from "./saved-item.ts";
+import { savedItem } from "./saved-item.ts";
 import { settingsSteps } from "./settings-steps.ts";
 
 const X_LINK = "https://x.com/someone/status/1234567890";
@@ -115,34 +114,6 @@ async function importListAgain(page: Page): Promise<void> {
   await expect(page.getByText(IMPORT.resumeComplete)).toBeVisible();
 }
 
-async function openTopicPage(page: Page, topic: TopicCase): Promise<void> {
-  await savedItem(page, {
-    url: topic.link,
-    page: { markdown: ARTICLE_TEXT, title: topic.itemTitle },
-    digest: {
-      title: topic.itemTitle,
-      topic: topic.name,
-      tags: ["streams"],
-      summary: topic.summary,
-      keyPoints: ["Pipe streams instead of buffering them"],
-    },
-  });
-  await page.goto("/");
-  await page
-    .locator("article.it")
-    .filter({ hasText: topic.itemTitle })
-    .getByRole("link")
-    .first()
-    .click();
-  await page.getByRole("link", { name: topicLinkLabel(topic.name) }).click();
-  await expect(page).toHaveURL(topic.address);
-  await page.reload();
-  await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
-  await expect(page.locator(".rl-row")).toContainText(topic.itemTitle);
-  await expect(page.locator(".rl-sum")).toContainText(topic.summary.split("\n").at(-1) ?? "");
-  await expect(page.getByText(TOPIC_PAGE.noProvider)).toBeVisible();
-}
-
 test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, lists the Digests it published on the Log, and shows no Related Items without a Provider", async ({
   page,
   browser,
@@ -164,9 +135,9 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
   await test.step("paste the same list after a reload and be told it was fully imported", () =>
     importListAgain(page));
   await test.step("open the Topic page from the Reader and reload it on its address", () =>
-    openTopicPage(page, DOTTED_TOPIC));
+    openTopicPage(page, DOTTED_TOPIC, ARTICLE_TEXT));
   await test.step("open a Topic made only of dots, which needs the tilde address", () =>
-    openTopicPage(page, DOTS_ONLY_TOPIC));
+    openTopicPage(page, DOTS_ONLY_TOPIC, ARTICLE_TEXT));
   await test.step("follow the settings panel's Index link, see a Topic with its count, open its page from the row, and visit the Index signed out", () =>
     openIndex(page, browser, INDEXED_TOPIC, ARTICLE_TEXT));
   await test.step("follow the settings panel's Log link, see ingest above topic, open the Item and the Topic page, reload, see a phone-width line wrap with two links at least 44px across and tall, open the Log and Item at their trailing-slash addresses, and delete the Item", () =>
