@@ -93,17 +93,12 @@ export async function sendBotTask(
 
   const posted = await postToGrokBot(ports.network, connection, { body, signal });
 
-  report("grok-bot-send", {
-    taskId: task.id,
-    result: posted.result,
-    status: posted.status ?? "none",
-  });
+  const result =
+    posted.result === "unreachable" && signal?.aborted === true ? "timeout" : posted.result;
 
-  if (posted.result !== "ok") {
-    const result = signal?.aborted === true ? "timeout" : posted.result;
+  report("grok-bot-send", { taskId: task.id, result, status: posted.status ?? "none" });
 
-    return failedSend(ports, sending, { ...posted, result });
-  }
+  if (result !== "ok") return failedSend(ports, sending, { result, status: posted.status });
 
   await sentTask(ports.db, claim, { taskId: task.id, now: Date.now() });
 
