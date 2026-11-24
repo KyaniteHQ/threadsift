@@ -54,8 +54,6 @@ export async function callbackTask(c: Context): Promise<AiTaskRow | Response> {
   return (await carriesOtherAccess(c, ports)) ? credentialOnly(c) : credentialRequired(c);
 }
 
-export const UNSUPPORTED_TASK = "unsupported-task";
-
 export const CREDENTIAL_REFUSALS = {
   401: jsonBody(
     ErrorResponseSchema,

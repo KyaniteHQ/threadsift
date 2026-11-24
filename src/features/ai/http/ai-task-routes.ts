@@ -10,11 +10,13 @@ import type { Ports } from "../../../core/kernel/ports.ts";
 import { access, RESULT_CAP, ITEM_CAP } from "../../../http/access.ts";
 import { cacheHeaderList, jsonBody, jsonRequest, noContent } from "../../../http/openapi.ts";
 import { IdParamSchema } from "../../../http/route-input.ts";
-import { CREDENTIAL_REFUSALS, UNSUPPORTED_TASK } from "../../../http/task-credential.ts";
+import { CREDENTIAL_REFUSALS } from "../../../http/task-credential.ts";
 import { TaskReadSchema, readableTask } from "../../bot/core/ai-task-read.ts";
 import { BotAnswerSchema, acceptBotAnswer, type AnswerOutcome } from "../../bot/core/bot-answer.ts";
 import { acceptIntake } from "../../x/core/x-intake-answer.ts";
 import { countedRefusals, refusedBody } from "./intake-body.ts";
+
+const UNSUPPORTED_TASK = "unsupported-task";
 
 const readRoute = createRoute({
   method: "get",
