@@ -34,12 +34,28 @@ function withoutOversized(files: readonly VaultFile[]) {
   return { kept: files.filter((file) => !omitted.has(file)), oversized };
 }
 
+async function readPlannedSource(reader: Reader, subjectId: number) {
+  const first = await readPlanSource(reader.ports, subjectId);
+
+  if (first === undefined) return null;
+
+  const planned = itemFilePlan(first);
+
+  if (planned.kind !== "missing") return { read: first, planned };
+
+  reader.signal.throwIfAborted();
+
+  const second = await readPlanSource(reader.ports, subjectId);
+
+  return second === undefined ? null : { read: second, planned: itemFilePlan(second) };
+}
+
 async function itemFiles(reader: Reader, subjectId: number): Promise<SubjectFiles> {
   reader.signal.throwIfAborted();
-  const read = await readPlanSource(reader.ports, subjectId);
+  const source = await readPlannedSource(reader, subjectId);
   reader.signal.throwIfAborted();
-  if (read === undefined) return { files: [], oversized: [] };
-  const planned = itemFilePlan(read);
+  if (source === null) return { files: [], oversized: [] };
+  const { read, planned } = source;
   if (planned.kind === "missing") throw new VaultNoteFailure("file-missing");
   const { postText, stored, note } = planned.plan;
   const assets = withoutOversized([

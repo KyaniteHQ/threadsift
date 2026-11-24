@@ -106,7 +106,7 @@ GitHub's [FileAddition and FileChanges](https://docs.github.com/en/graphql/refer
 - adds an Item's assets in earlier commits, writes its note last, then deletes obsolete assets,
 - when it removes an Item, deletes the note before its assets, because removal reverses that dependency.
 
-A missing file parks that Item and leaves others eligible. The size rules:
+A missing file parks that Item and leaves others eligible. The Item's files are planned from one database read and the post text file read after it, so a refresh that lands between the two makes the first plan miss. `readPlannedSource` reads the Item once more when the first plan is missing, and only a second miss parks the Item, the way `getItem` and the Export read an Item again. The size rules:
 
 - An Item file above 100 MiB is omitted, and the writer records its path once in the Log. An omitted image's embed is removed from the Item note. Stored images are checked by size before reading them.
 - An Item file that exceeds the writer's 8 MiB budget and fits GitHub's file limit stays queued with `file-too-large`.
