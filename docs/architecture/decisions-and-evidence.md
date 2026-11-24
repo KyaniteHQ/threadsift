@@ -2,7 +2,7 @@
 
 [The spec](../spec.md) states what the app does. This page holds the reasons behind its product decisions and the measured or sourced facts the spec leaves out. A fact here carries the command, address or source that shows it. [Open items and unverified claims](open-items-and-unverified-claims.md) holds a fact no run has proven.
 
-Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job).
+Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads).
 
 ## Product decisions
 
@@ -232,3 +232,7 @@ The same two commands with `--candidate` set to an entry that builds the ports f
 ## CPU of a login and a fetch job
 
 Measured on a throwaway pull request copy of the Worker (2026-11-07). A login with scrypt at N=2^15, r=8, p=3 and `maxmem` of 64 MiB used 198 to 211 ms of CPU and 531 to 905 ms of wall time. A fetch job on four pages used 36 to 4,457 ms of CPU. The spread within a page was as large as the spread between pages, so the figures do not isolate Defuddle's share. The largest total is 1.5 % of the `limits.cpu_ms` of 300,000.
+
+## Aborted list reads
+
+An aborted request ends the browser's side only. In a local Worker run (`wrangler dev`, one saved Item), a Playwright script typed the 6 characters `sqlite` into the search box and counted the `GET /api/items?q=` requests with the page events `requestfinished` and `requestfailed`. Before the ticket aborted a superseded read, 6 requests finished and none failed. After it, 1 finished and 5 failed with `net::ERR_ABORTED`, and the list showed one row and no alert. The Worker log showed 6 finished handlers in both runs, so the saving is the browser's: no response is parsed, and no stale answer is held, for the 5 requests.

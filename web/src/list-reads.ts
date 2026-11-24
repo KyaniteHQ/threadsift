@@ -25,6 +25,7 @@ export interface Reads {
 interface Reach {
   readonly edge: () => Item | undefined;
   readonly isCurrent: () => boolean;
+  readonly signal: AbortSignal;
 }
 
 function edgeOf(list: Readonly<ListState>, asked: string): Item | undefined {
@@ -49,13 +50,17 @@ async function continuing(
     return page;
   }
 
-  const following = await continuing(filters, await fetchItemsAfter(filters, page.next), reach);
+  const following = await continuing(
+    filters,
+    await fetchItemsAfter(filters, page.next, reach.signal),
+    reach,
+  );
 
   return { items: [...page.items, ...following.items], next: following.next };
 }
 
 async function readThrough(filters: Readonly<Filters>, reach: Readonly<Reach>) {
-  const first = await fetchItems(filters);
+  const first = await fetchItems(filters, reach.signal);
 
   return { ...first, ...(await continuing(filters, first, reach)) };
 }
@@ -74,6 +79,7 @@ function useListRead(
     const reach = {
       edge: () => edgeOf(latest.current, asked),
       isCurrent: () => ticket.matches(mine),
+      signal: ticket.signal(),
     };
 
     const read = async (): Promise<void> => {

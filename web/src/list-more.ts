@@ -18,7 +18,7 @@ async function readNext(
 ): Promise<void> {
   setList((now) => withMore(now, query, cursor, "loading"));
   const mine = ticket.now();
-  const page = await fetchItemsAfter(asked, cursor).catch(() => null);
+  const page = await fetchItemsAfter(asked, cursor, ticket.signal()).catch(() => null);
 
   if (!ticket.matches(mine)) return;
 

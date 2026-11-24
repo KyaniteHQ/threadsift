@@ -39,9 +39,9 @@ function readyFrom(page: Readonly<TopicPage>): TopicReady {
   return { status: "ready", ...page, more: "idle" };
 }
 
-async function attempt(key: string, cursor: string | null) {
+async function attempt(key: string, cursor: string | null, signal: AbortSignal) {
   try {
-    return await fetchTopicPage(key, cursor);
+    return await fetchTopicPage(key, cursor, signal);
   } catch {
     return null;
   }
@@ -88,7 +88,7 @@ type SetState = Dispatch<SetStateAction<TopicState>>;
 function useFirstRead(key: string, setState: SetState, ticket: Ticket) {
   return useCallback(async () => {
     const mine = ticket.take();
-    const read = await attempt(key, null);
+    const read = await attempt(key, null, ticket.signal());
 
     if (!ticket.matches(mine)) return;
 
@@ -111,7 +111,7 @@ function useLoadMore(
     const mine = ticket.now();
     setState({ ...current, more: "loading" });
 
-    void attempt(key, current.next).then((read) => {
+    void attempt(key, current.next, ticket.signal()).then((read) => {
       if (ticket.matches(mine)) {
         setState((now) => appended(now, read?.outcome === "found" ? read.page : null));
       }
@@ -181,7 +181,11 @@ export function useTopicPage(key: string, replace: Route["replace"]) {
 
   useEffect(() => {
     void first();
-  }, [first]);
+
+    return () => {
+      ticket.take();
+    };
+  }, [first, ticket]);
 
   const retry = useCallback((): void => {
     setState(LOADING);
