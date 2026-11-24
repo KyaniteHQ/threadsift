@@ -12,7 +12,7 @@ import {
 import { within } from "../../../core/contract/deadline.ts";
 import type { Provider } from "../../../core/contract/provider-families.ts";
 import { failedAiTask, insertTask } from "../../../core/kernel/ai-task-rows.ts";
-import { bestEffort } from "../../../core/kernel/failure-log.ts";
+import { bestEffort, logFailure } from "../../../core/kernel/failure-log.ts";
 import { holding } from "../../../core/kernel/job-rows.ts";
 import type { AiPorts } from "../../../core/kernel/ports.ts";
 import type { JobRow } from "../../../core/kernel/schema.ts";
@@ -180,7 +180,9 @@ async function execute<Result>(
     }
 
     return { ...result, taskId, provider: config.provider, model: modelOf(config) };
-  } catch {
+  } catch (error) {
+    logFailure("ai-task-run-failed", { taskId }, error);
+
     return failTask(ports, taskId);
   }
 }

@@ -1,7 +1,7 @@
 import { type SQL, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
-import { logFailure } from "../../../core/kernel/failure-log.ts";
+import { logFailure, readOrAssume } from "../../../core/kernel/failure-log.ts";
 import { guardHolds } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { grokBotChosen } from "../../../core/kernel/provider-saved.ts";
@@ -14,12 +14,10 @@ function storedRow(row: PreparedRow): SQL {
   return sql`(exists (select 1 from ${settings} where ${settings.id} = ${row.id} and ${settings.sealedKey} = ${row.sealedKey} and ${settings.provider} = ${row.provider} and ${settings.model} = ${row.model}) and not ${grokBotChosen()})`;
 }
 
-export async function holdsSettings(db: Database, row: PreparedRow): Promise<boolean> {
-  try {
-    return await guardHolds(db, storedRow(row));
-  } catch {
-    return false;
-  }
+export function holdsSettings(db: Database, row: PreparedRow): Promise<boolean> {
+  return readOrAssume(false, { event: "stored-settings-read-failed", fields: {} }, () =>
+    guardHolds(db, storedRow(row)),
+  );
 }
 
 export async function reopenedWhileStored(

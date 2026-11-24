@@ -4,6 +4,7 @@ import {
   VERIFY_INPUT,
 } from "../../../core/contract/ai-contract.ts";
 import { completedAiTask } from "../../../core/kernel/ai-task-rows.ts";
+import { logFailure } from "../../../core/kernel/failure-log.ts";
 import type { AiPorts } from "../../../core/kernel/ports.ts";
 import { failTask, runAiTask } from "../../ai/core/ai-tasks.ts";
 import { DIGEST_TASK } from "../../digest/core/digest-task.ts";
@@ -30,7 +31,9 @@ export async function verifyAi(ports: AiPorts, ai: ModelAi, attempt: AbortSignal
 
   try {
     await completedAiTask(ports.db, { taskId: result.taskId, result: digest });
-  } catch {
+  } catch (error) {
+    logFailure("verify-completion-failed", { taskId: result.taskId }, error);
+
     return failTask(ports, result.taskId);
   }
 
