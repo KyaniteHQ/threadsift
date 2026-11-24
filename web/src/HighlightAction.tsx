@@ -1,4 +1,5 @@
 import {
+  type ReactNode,
   type SyntheticEvent,
   use,
   useCallback,
@@ -121,32 +122,43 @@ function RemoveButton({
   );
 }
 
+function RowPart({
+  id,
+  className,
+  whole,
+  children,
+}: Readonly<{ id: string; className: string; whole: string | null; children: ReactNode }>) {
+  return whole === null ? (
+    <span id={id} className={className}>
+      {children}
+    </span>
+  ) : (
+    <>
+      <span id={id} className="vh">
+        <QuoteText text={whole} />
+      </span>
+      <span className={className} aria-hidden="true">
+        {children}
+      </span>
+    </>
+  );
+}
+
 function RemoveRow({ panel, highlight }: Readonly<{ panel: RemovePanel; highlight: Highlight }>) {
   const { exact, prefix, suffix } = highlight.selector;
   const { head, tail } = quoteEnds(exact);
   const before = contextTail(prefix);
   const id = useId();
-  const parts = [`${id}-before`, `${id}-quote`, `${id}-after`];
-  const [beforeId, quoteId] = parts;
+  const parts = [`${id}-before`, `${id}-quote`, `${id}-after`] as const;
 
   return (
     <li className="hl-pop-row">
-      {before === prefix ? null : (
-        <span id={beforeId} className="vh">
-          <QuoteText text={prefix} />
-        </span>
-      )}
-      {tail === null ? null : (
-        <span id={quoteId} className="vh">
-          <QuoteText text={exact} />
-        </span>
-      )}
       <span className="hl-quote">
         <span>
-          <span id={before === prefix ? beforeId : undefined} className="hl-ctx">
+          <RowPart id={parts[0]} className="hl-ctx" whole={before === prefix ? null : prefix}>
             <QuoteText text={before} />
-          </span>
-          <span id={tail === null ? quoteId : undefined} className="hl-exact">
+          </RowPart>
+          <RowPart id={parts[1]} className="hl-exact" whole={tail === null ? null : exact}>
             <QuoteText text={head} />
             {tail === null ? null : (
               <>
@@ -154,7 +166,7 @@ function RemoveRow({ panel, highlight }: Readonly<{ panel: RemovePanel; highligh
                 <QuoteText text={tail} />
               </>
             )}
-          </span>
+          </RowPart>
           <span id={parts[2]} className="hl-ctx">
             <QuoteText text={suffix} />
           </span>
