@@ -60,9 +60,7 @@
     ],
     "media": [
       "article-images.ts",
-      "candidate-link.ts",
       "details.ts",
-      "markdown-escape.ts",
       "media-reads.ts",
       "media-writes.ts",
       "store-media.ts"

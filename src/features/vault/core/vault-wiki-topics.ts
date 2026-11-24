@@ -4,8 +4,8 @@ import { overviewLine } from "../../../core/contract/topic-overview-contract.ts"
 import { VAULT_TEXT } from "../../../core/contract/vault-text.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { itemTitle } from "../../../core/kernel/item-title.ts";
+import { plainMarkdown } from "../../../core/kernel/markdown-escape.ts";
 import { digests, items, topicPages, topics } from "../../../core/kernel/schema.ts";
-import { plainMarkdown } from "../../media/core/markdown-escape.ts";
 import { disagreementPage } from "../../wiki/core/known-disagreements.ts";
 import { topicIndexRows } from "../../wiki/core/topic-index.ts";
 import {

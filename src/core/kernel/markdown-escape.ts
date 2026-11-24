@@ -1,3 +1,5 @@
+import { unicodeEscape } from "../contract/format.ts";
+
 const NOT_PLAIN_YAML = /[\u007F-\u009F\u2028\u2029\uFFFE\uFFFF]/gu;
 
 const INLINE_SPECIALS = /[\\`*_[\]<>&~|]/gu;
@@ -5,10 +7,6 @@ const INLINE_SPECIALS = /[\\`*_[\]<>&~|]/gu;
 const BLOCK_MARKER = /^(\s{0,3})([#>+=-])/u;
 
 const LIST_NUMBER = /^(\s{0,3}\d+)([.)])/u;
-
-function unicodeEscape(character: string): string {
-  return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
-}
 
 export function yamlScalar(value: string | null): string {
   return JSON.stringify(value ?? "").replaceAll(NOT_PLAIN_YAML, unicodeEscape);

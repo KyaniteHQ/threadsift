@@ -16,8 +16,8 @@ import {
   UNTITLED,
   handleOf,
 } from "../../../core/contract/reader-text.ts";
+import { lineBreaksOf, plainMarkdown, yamlScalar } from "../../../core/kernel/markdown-escape.ts";
 import { inlineImage, rewriteImages, scanMarkdown } from "../../../core/kernel/markdown-images.ts";
-import { lineBreaksOf, plainMarkdown, yamlScalar } from "../../media/core/markdown-escape.ts";
 
 const SLUG_CODE_POINTS = 80;
 
