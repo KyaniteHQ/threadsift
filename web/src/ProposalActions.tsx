@@ -28,16 +28,30 @@ const BUSY_NOTES = {
   "no-provider": PROPOSAL_WORDS.noProvider,
 } as const satisfies Record<Busy, string>;
 
-function alertOf(row: RowState): string | null {
-  if (row.kind !== "failed") return null;
-
-  return row.failure === "accept" ? PROPOSAL_WORDS.acceptFailed : PROPOSAL_WORDS.rejectFailed;
+interface NoteTexts {
+  readonly alert: string | null;
+  readonly status: string | null;
 }
 
-function statusOf(row: RowState, applying: boolean): string | null {
-  if (applying) return PROPOSAL_WORDS.applying;
+const NO_NOTES: NoteTexts = { alert: null, status: null };
 
-  return row.kind === "busy" ? BUSY_NOTES[row.busy] : null;
+function notesOf(row: RowState, applying: boolean): NoteTexts {
+  if (applying) return { alert: null, status: PROPOSAL_WORDS.applying };
+
+  switch (row.kind) {
+    case "failed":
+      return {
+        alert: row.failure === "accept" ? PROPOSAL_WORDS.acceptFailed : PROPOSAL_WORDS.rejectFailed,
+        status: null,
+      };
+    case "busy":
+      return { alert: null, status: BUSY_NOTES[row.busy] };
+    case "pressing":
+    case "idle":
+      return NO_NOTES;
+    default:
+      return row satisfies never;
+  }
 }
 
 function Notes({
@@ -45,12 +59,14 @@ function Notes({
   row,
   applying,
 }: Readonly<{ proposal: Proposal; row: RowState; applying: boolean }>) {
+  const { alert, status } = notesOf(row, applying);
+
   return (
     <>
       <p className="rd-note" role="alert">
-        {applying ? null : alertOf(row)}
+        {alert}
       </p>
-      <output className="rd-note">{statusOf(row, applying)}</output>
+      <output className="rd-note">{status}</output>
       {applying && isMerge(proposal) && proposal.failedRuns > 0 && (
         <p className="rd-note">{applyFailedNote(proposal.failedRuns)}</p>
       )}
