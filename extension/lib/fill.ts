@@ -4,8 +4,9 @@ import { ItemBaseSchema } from "../../src/core/contract/item-wire.ts";
 import { parseLink, redditRefOf } from "../../src/core/contract/links.ts";
 import { type Config, holdsInstanceAccess, instanceAnswer, instanceRequest } from "./config.ts";
 import { fillActive, loadConfig } from "./credentials.ts";
+import { logRequestFailure } from "./log.ts";
 import { type ThreadTab, fetchThread } from "./reddit-thread.ts";
-import { send } from "./save.ts";
+import { send } from "./save-request.ts";
 
 const ListedSchema = z.object({ items: z.array(ItemBaseSchema.pick({ fillable: true })) });
 
@@ -24,7 +25,9 @@ async function isWaiting(config: Readonly<Config>, url: string): Promise<boolean
     const listed = response.ok ? await instanceAnswer(response, ListedSchema) : null;
 
     return listed?.items.some(({ fillable }) => fillable) === true;
-  } catch {
+  } catch (cause) {
+    logRequestFailure("fill-lookup-failed", cause);
+
     return false;
   }
 }

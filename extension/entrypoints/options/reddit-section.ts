@@ -1,3 +1,5 @@
+import { browser } from "wxt/browser";
+
 import { deferWhileWorking, newestRequest } from "../../lib/newest-request.ts";
 import { button, element, replaceControls, say } from "../../lib/page-look.ts";
 import {
@@ -92,3 +94,11 @@ export async function refreshReddit(): Promise<void> {
 
   if (isNewest()) move(next);
 }
+
+function followPermissions(): void {
+  if (current.kind !== "working") void refreshReddit();
+}
+
+browser.permissions.onAdded.addListener(followPermissions);
+
+browser.permissions.onRemoved.addListener(followPermissions);

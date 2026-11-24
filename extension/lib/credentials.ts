@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 
 import { type Config, hasRedditAccess, instanceOrigin } from "./config.ts";
+import { logFailure } from "./log.ts";
 import type { ConfigView } from "./state.ts";
 import { type Stored, StoredSchema } from "./stored-keys.ts";
 
@@ -29,8 +30,12 @@ export function storeFill(on: boolean): Promise<void> {
 }
 
 export async function restrictStorage(): Promise<void> {
-  if ("setAccessLevel" in browser.storage.local) {
-    await browser.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+  try {
+    if ("setAccessLevel" in browser.storage.local) {
+      await browser.storage.local.setAccessLevel({ accessLevel: "TRUSTED_CONTEXTS" });
+    }
+  } catch (cause) {
+    logFailure("storage-restrict-failed", cause);
   }
 }
 
