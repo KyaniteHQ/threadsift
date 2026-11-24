@@ -13,7 +13,6 @@ import { useField } from "./use-form.ts";
 import {
   type Outcome,
   type Task,
-  type Unavailable,
   outcomeOf,
   runningAction,
   useAction,
@@ -70,8 +69,6 @@ function useDraft(view: VaultView) {
   return { mode, setMode, repository, branch, folder, token, fields };
 }
 
-const SENDS_THE_REQUEST: Unavailable = null;
-
 function useTasks(fields: Draft, changed: (view: VaultView) => void, clear: () => void) {
   return useMemo(() => {
     const perform =
@@ -115,7 +112,7 @@ function useActions(
   const removeNow = useAction({
     run,
     action: "remove",
-    unavailable: SENDS_THE_REQUEST,
+    unavailable: unavailable.remove,
     task: task.remove,
   });
 
