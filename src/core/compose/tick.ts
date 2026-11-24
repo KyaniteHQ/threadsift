@@ -14,7 +14,10 @@ export async function tick(ports: JobPorts): Promise<void> {
   const claimed = await claimingRun(ports.db, SWEEP_TASK, Date.now(), TICK_SPACING_MS, sql`true`);
 
   if (claimed.length > 0) {
-    await bestEffort({ event: "sweep-failed", fields: {} }, () => sweep(ports));
-    await bestEffort({ event: "vault-tick-failed", fields: {} }, () => mirrorVault(ports));
+    try {
+      await sweep(ports);
+    } finally {
+      await bestEffort({ event: "vault-tick-failed", fields: {} }, () => mirrorVault(ports));
+    }
   }
 }

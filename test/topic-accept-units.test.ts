@@ -202,7 +202,7 @@ describe("the sweep stage records failed Topic merge units", () => {
       count(instance, "select coalesce(failed_runs, 0) as n from proposals where id = ?", second);
 
     const failingSweep = async (runs: number): Promise<void> => {
-      await sweep(instance);
+      await assert.rejects(sweep(instance), /the unit fails/u);
 
       assert.equal(failedRuns(), runs);
     };

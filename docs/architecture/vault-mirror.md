@@ -56,7 +56,7 @@ The generation and target identify the singleton lease. `currentVaultNotes` chec
 - Every acknowledgement removes only sequences at or below those read. An answer lost after GitHub committed leaves the queue for another attempt.
 - Each `createCommitOnBranch` carries `expectedHeadOid`, so a moved branch, including a reset, refuses the entire commit. A stale-head refusal reads the new tip and rebuilds from the queue, at most three attempts per lease.
 - REST is used only for branch, commit and subtree reads.
-- The tick runs the sweep and the mirror as separate best-effort tasks.
+- The tick runs the mirror after the sweep, also when the sweep failed, and rethrows the sweep's error after the mirror. A failure inside the mirror is logged as `vault-mirror-failed`, and one that escapes it as `vault-tick-failed`. Neither fails the tick.
 
 ## Bounds, files and retry
 
