@@ -274,7 +274,7 @@ Rules for the Digest:
 - A Note is plain text of up to 10,000 code points, saved with the Save button or Ctrl or Cmd with Enter.
 - When the Note changed elsewhere since the owner loaded it, the save is refused and the Reader shows the newer Note beside the owner's text, with a choice to keep the owner's text or take the newer one. Text the owner typed and did not save stays in that browser for the Item.
 - A second page lists every Highlight and every Item Note, newest first, each with its Item's Source, title and date and a link back to that place in the Reader. Search and the Source, Topic and Tag filters work there too.
-- The page opens from the Highlights link in the settings panel, beside Instance settings, and at `/highlights`. It shows 50 entries at a time with Load more.
+- The page opens from the Highlights link, the first of the page links in the settings panel, and at `/highlights`. It shows 50 entries at a time with Load more.
 - A Highlight is dated when it was kept and a Note when it was last saved. A Note the owner cleared has no entry.
 - Search there matches only the entry's own quote or Note text, not the Item's title, Summary or Tags.
 
@@ -308,7 +308,7 @@ The agent builds the synthesis once, when an Item arrives, and keeps it current,
 
 ### Index and Log
 
-- The Index lists every Topic with its Item count and its overview line. It is reached from a link in the settings panel beside Highlights and lives at `/topics`.
+- The Index lists every Topic with its Item count and its overview line. It is reached from the Index link in the settings panel, between the Import link and the Log link, and lives at `/topics`.
 - A row appears once for each Topic, ascending by its catalog key, 50 to a page with Load more, and opens the Topic page. A Topic whose Items were all deleted stays in the list with 0. The overview line is the first line of the stored overview.
 - The Log lists committed library changes and files the Vault mirror skipped, newest first, and lives at `/log`, reached from a link in the settings panel beside the Index. It is 50 lines to a page with Load more.
 - It records the actions listed under Log entry in [GLOSSARY](../GLOSSARY.md). A result that is discarded, stale or rolled back adds nothing.
