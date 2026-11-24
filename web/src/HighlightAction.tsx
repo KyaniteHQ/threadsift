@@ -9,10 +9,19 @@ import {
 } from "react";
 
 import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
+import { highlightIds } from "./highlight-ids.ts";
 import { type Panel, PanelContext, type RemovePanel, useHighlights } from "./highlights-context.ts";
 import { placePopover, placementOf } from "./place-popover.ts";
 import { QuoteText } from "./QuoteText.tsx";
-import { KEEP_GROUP, KEEP_LABEL, REMOVE_GROUP, REMOVE_LABEL, removeNamed } from "./reader-text.ts";
+import {
+  ELLIPSIS,
+  KEEP_GROUP,
+  KEEP_LABEL,
+  REMOVE_GROUP,
+  REMOVE_LABEL,
+  quoteEnds,
+  removeNamed,
+} from "./reader-text.ts";
 import { readerTitleOf } from "./reveal.ts";
 
 function placedWhileShown(element: HTMLElement, panel: Readonly<Panel>): () => void {
@@ -36,27 +45,38 @@ function placedWhileShown(element: HTMLElement, panel: Readonly<Panel>): () => v
 
   place();
   resized.observe(element);
+  element.addEventListener("keydown", refuseRepeat);
   window.addEventListener("scroll", again, true);
   window.addEventListener("resize", again);
 
   return () => {
     resized.disconnect();
+    element.removeEventListener("keydown", refuseRepeat);
     cancelAnimationFrame(frame);
     window.removeEventListener("scroll", again, true);
     window.removeEventListener("resize", again);
   };
 }
 
-function markAfterRemove(panel: Readonly<RemovePanel>, removed: number): HTMLElement | null {
-  if (panel.mark.isConnected) return panel.mark;
+function carries(mark: HTMLElement, left: readonly number[]): boolean {
+  return highlightIds(mark.dataset["highlights"] ?? "").some((id) => left.includes(id));
+}
 
-  const left = panel.ids.filter((id) => id !== removed);
+function markAfterRemove(
+  panel: Readonly<RemovePanel>,
+  left: readonly number[],
+): HTMLElement | null {
+  if (panel.mark.isConnected && carries(panel.mark, left)) return panel.mark;
 
   return left.length === 0
     ? null
     : document.querySelector<HTMLElement>(
         left.map((id) => `mark[data-highlights~="${id}"]`).join(),
       );
+}
+
+function refuseRepeat(event: KeyboardEvent): void {
+  if (event.repeat) event.preventDefault();
 }
 
 function RemoveButton({
@@ -71,8 +91,10 @@ function RemoveButton({
   const removeIt = useCallback((): void => {
     const title = button.current === null ? null : readerTitleOf(button.current);
 
-    const refocus = (): void => {
-      (markAfterRemove(panel, id) ?? title)?.focus({ preventScroll: true });
+    const refocus = (removed: boolean): void => {
+      const left = removed ? panel.ids.filter((each) => each !== id) : panel.ids;
+
+      (markAfterRemove(panel, left) ?? title)?.focus({ preventScroll: true });
     };
 
     void remove(id).then(refocus);
@@ -94,6 +116,7 @@ function RemoveButton({
 
 function RemoveRow({ panel, highlight }: Readonly<{ panel: RemovePanel; highlight: Highlight }>) {
   const { exact, prefix, suffix } = highlight.selector;
+  const { head, tail } = quoteEnds(exact);
   const id = useId();
   const parts = [`${id}-before`, `${id}-quote`, `${id}-after`];
 
@@ -105,7 +128,13 @@ function RemoveRow({ panel, highlight }: Readonly<{ panel: RemovePanel; highligh
             <QuoteText text={prefix} />
           </span>
           <span id={parts[1]} className="hl-exact">
-            <QuoteText text={exact} />
+            <QuoteText text={head} />
+            {tail === null ? null : (
+              <>
+                {ELLIPSIS}
+                <QuoteText text={tail} />
+              </>
+            )}
           </span>
           <span id={parts[2]} className="hl-ctx">
             <QuoteText text={suffix} />

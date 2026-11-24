@@ -121,6 +121,7 @@ export const PICTURE_LABEL = "Image";
 
 const REMOVE_NAMED = "Remove highlight: {quote}";
 const QUOTE_SHORT_CODE_POINTS = 40;
+export const ELLIPSIS = "…";
 const POSTED = "posted {when}";
 const CODE_ONE = "Code block, 1 line";
 const CODE_MANY = "Code block, {count} lines";
@@ -150,13 +151,22 @@ export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: numb
   return filled(rereferenceIndex > 1 ? FOOTNOTE_BACK_AGAIN : FOOTNOTE_BACK, values);
 }
 
+export function quoteEnds(exact: string): { readonly head: string; readonly tail: string | null } {
+  const points = Array.from(exact);
+  const edge = QUOTE_SHORT_CODE_POINTS / 2;
+
+  return points.length > QUOTE_SHORT_CODE_POINTS
+    ? { head: points.slice(0, edge).join(""), tail: points.slice(-edge).join("") }
+    : { head: exact, tail: null };
+}
+
 export function removeNamed(exact: string): string {
   const words = collapsed(exact.replaceAll(STORED_PICTURE_TEXT, PICTURE_LABEL));
   const points = Array.from(words);
 
   const quote =
     points.length > QUOTE_SHORT_CODE_POINTS
-      ? `${points.slice(0, QUOTE_SHORT_CODE_POINTS).join("")}…`
+      ? `${points.slice(0, QUOTE_SHORT_CODE_POINTS).join("")}${ELLIPSIS}`
       : words;
 
   return filled(REMOVE_NAMED, { quote });

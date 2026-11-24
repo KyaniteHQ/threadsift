@@ -50,7 +50,8 @@ export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
 
     const onKeyDown = (event: KeyboardEvent): void => {
       const modified = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-      const next = event.key === "Enter" && !modified ? removePanelOf(event, true) : null;
+      const next =
+        event.key === "Enter" && !modified && !event.repeat ? removePanelOf(event, true) : null;
 
       if (next !== null && event.target === next.mark) {
         event.preventDefault();

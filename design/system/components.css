@@ -426,9 +426,10 @@ button.hl-quote:hover { background: var(--surface-2); }
 button.hl-quote:active { background: var(--press); }
 .hl-gone { grid-column: 1; }
 .hl-entry > .btn { grid-column: 2; grid-row: 1 / span 2; }
-.hl-pop { position: fixed; inset: auto; width: max-content; max-width: min(var(--pop-w), 100%); margin: var(--s2) 0; padding: var(--s1); overflow: visible; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); }
+.hl-pop { position: fixed; inset: auto; box-sizing: border-box; width: max-content; max-width: min(var(--pop-w), 100%); max-height: var(--pop-room); margin: var(--s2) 0; padding: var(--s1); overflow: visible; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); }
 @media (pointer: coarse) { .hl-pop { margin-top: var(--target); } }
-.hl-pop-list { display: flex; flex-direction: column; max-height: calc(var(--vh) - var(--bar-h) * 2 - var(--s6)); margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.hl-pop:popover-open { display: flex; flex-direction: column; }
+.hl-pop-list { display: flex; flex-direction: column; min-height: 0; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
 .hl-pop-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s3); padding-block: var(--s1); padding-inline-start: var(--s2); }
 .hl-pop-row + .hl-pop-row { border-top: 1px solid var(--line); }
 .hl-ctx { color: var(--muted); }
