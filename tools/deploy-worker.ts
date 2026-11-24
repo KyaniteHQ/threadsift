@@ -52,7 +52,9 @@ function unusableSecrets(secrets: Readonly<z.infer<typeof SecretsSchema>>): read
       : []),
     ...(flag === undefined || PriceFlagSchema.safeParse(flag).success
       ? []
-      : [`THREADSIFT_OPENROUTER_MAX_PRICE_ZERO must be ${PriceFlagSchema.options.join(" or ")}`]),
+      : [
+          `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO must be ${Object.values(PriceFlagSchema.enum).join(" or ")}`,
+        ]),
   ];
 }
 
