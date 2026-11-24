@@ -15,7 +15,7 @@ interface SaveStateFacts<Action extends SaveAction> {
   readonly tone: Tone;
   readonly badge: string;
   readonly action: Action;
-  readonly readsReddit: boolean;
+  readonly leavesRedditUnknown: boolean;
 }
 
 type SaveStateTable = {
@@ -27,42 +27,54 @@ type SaveStateTable = {
 function notSaved<Action extends Exclude<SaveAction, "open-item">>(
   text: string,
   action: Action,
-  readsReddit: boolean,
+  reddit: Readonly<Pick<SaveStateFacts<Action>, "leavesRedditUnknown">>,
 ): SaveStateFacts<Action> {
-  return { text, tone: "warn", badge: TEXT.badgeNotSaved, action, readsReddit };
+  return { text, tone: "warn", badge: TEXT.badgeNotSaved, action, ...reddit };
 }
 
 function savedWithWarning(text: string): SaveStateFacts<"open-item"> {
-  return { text, tone: "warn", badge: TEXT.badgeSaved, action: "open-item", readsReddit: true };
+  return {
+    text,
+    tone: "warn",
+    badge: TEXT.badgeSaved,
+    action: "open-item",
+    leavesRedditUnknown: true,
+  };
 }
 
 export const SAVE_STATE_FACTS = {
-  saving: { text: TEXT.saving, tone: "plain", badge: "", action: "none", readsReddit: false },
+  saving: {
+    text: TEXT.saving,
+    tone: "plain",
+    badge: "",
+    action: "none",
+    leavesRedditUnknown: false,
+  },
   saved: {
     text: TEXT.saved,
     tone: "ok",
     badge: TEXT.badgeSaved,
     action: "open-item",
-    readsReddit: true,
+    leavesRedditUnknown: true,
   },
   "saved-incomplete": savedWithWarning(TEXT.savedIncomplete),
   "saved-page": savedWithWarning(TEXT.savedPage),
-  "not-configured": notSaved(TEXT.notConfigured, "settings", false),
-  "access-missing": notSaved(TEXT.accessMissing, "settings", false),
-  "page-blocked": notSaved(TEXT.pageBlocked, "retry", true),
-  "token-refused": notSaved(TEXT.tokenRefused, "settings", false),
-  "scope-refused": notSaved(TEXT.scopeRefused, "settings", true),
-  "too-large": notSaved(TEXT.tooLarge, "retry", true),
-  "private-link": notSaved(TEXT.privateLink, "retry", true),
-  "unsupported-link": notSaved(TEXT.unsupportedLink, "retry", true),
-  "thread-kept": notSaved(TEXT.threadKept, "none", true),
-  "budget-spent": notSaved(TEXT.budgetSpent, "none", true),
-  unreachable: notSaved(TEXT.unreachable, "retry", false),
-  failed: notSaved(TEXT.failed, "retry", true),
+  "not-configured": notSaved(TEXT.notConfigured, "settings", { leavesRedditUnknown: false }),
+  "access-missing": notSaved(TEXT.accessMissing, "settings", { leavesRedditUnknown: false }),
+  "page-blocked": notSaved(TEXT.pageBlocked, "retry", { leavesRedditUnknown: true }),
+  "token-refused": notSaved(TEXT.tokenRefused, "settings", { leavesRedditUnknown: false }),
+  "scope-refused": notSaved(TEXT.scopeRefused, "settings", { leavesRedditUnknown: true }),
+  "too-large": notSaved(TEXT.tooLarge, "retry", { leavesRedditUnknown: true }),
+  "private-link": notSaved(TEXT.privateLink, "retry", { leavesRedditUnknown: true }),
+  "unsupported-link": notSaved(TEXT.unsupportedLink, "retry", { leavesRedditUnknown: true }),
+  "thread-kept": notSaved(TEXT.threadKept, "none", { leavesRedditUnknown: true }),
+  "budget-spent": notSaved(TEXT.budgetSpent, "none", { leavesRedditUnknown: true }),
+  unreachable: notSaved(TEXT.unreachable, "retry", { leavesRedditUnknown: false }),
+  failed: notSaved(TEXT.failed, "retry", { leavesRedditUnknown: true }),
 } satisfies SaveStateTable;
 
 export function leavesRedditUnknown({ kind }: Readonly<SaveState>): boolean {
-  return SAVE_STATE_FACTS[kind].readsReddit;
+  return SAVE_STATE_FACTS[kind].leavesRedditUnknown;
 }
 
 export function opensItem(state: Readonly<SaveState>): state is Readonly<SavedState> {
