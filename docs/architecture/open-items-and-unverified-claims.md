@@ -278,7 +278,7 @@ Not verified:
 - The cost of reading a slice's part on R2. A slice reads its part as a stream from the start and skips to its window, because the file store has no byte range, so a slice reads on average half a part of 32 MiB for 1.5 MB of records.
 - A browser uploading a zip of several GiB in 32 MiB parts, a slow link, a failed part, and a part of 32 MiB on a Worker.
 - The request body limit of the owner's reverse proxy or tunnel, and an upload above 1 GB through one. No run crossed a proxy.
-- A zip over 4 GiB (the ZIP64 path of the zip reader), and a zip written by another release.
+- A zip over 4 GiB. The core tests run the ZIP64 records of the zip writer and reader with 65,536 entries and with an entry at an offset past 4 GiB, but no run read or wrote that many bytes. Also a zip written by another release.
 - A comparison of 20 searches and 50 Items with the source. The live proof compared 51 Item documents and 6 images, and no search.
 - A real D1 row near the 2,000,000-byte limit of a bound string ([D1 limits](https://developers.cloudflare.com/d1/platform/limits/)). `RESTORE_BIND_BYTES` keeps a window at 1.9 MB.
 - How the owner finishes the Items that had an open job in an Export taken during an Import, because nothing resumes their work after a Restore.
