@@ -8,7 +8,7 @@ Renovate, the GitHub App, is the one update bot. Its configuration holds the sch
 
 ## Security fixes
 
-GitHub's Dependabot alerts and the OSV database feed Renovate's security PRs, which skip the 3-day wait. A fix younger than 3 days still fails pnpm's install, so that PR also adds the package to `minimumReleaseAgeExclude` in the pnpm workspace settings. Dependabot's own version and security PRs stay off, because both bots would open a PR for the same bump.
+GitHub's Dependabot alerts and the OSV database feed Renovate's security PRs, which skip the 3-day wait. A fix younger than 3 days still fails pnpm's install, so that PR also adds the package to `minimumReleaseAgeExclude` in the pnpm workspace settings. The entry does nothing once its version is 3 days old, so the next PR that touches the package removes it. Dependabot's own version and security PRs stay off, because both bots would open a PR for the same bump.
 
 ## Update `devenv.lock` by hand
 

@@ -141,4 +141,5 @@ try {
   const reason = error instanceof Error ? error.message : String(error);
 
   process.stderr.write(`docs:impact could not compare with ${base}: ${reason}\n`);
+  process.exitCode = 1;
 }

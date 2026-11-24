@@ -1,6 +1,7 @@
 import { readRepository, readText } from "./doc-lines.ts";
 import {
   OPEN_FOLDERS,
+  isBrowserSide,
   isMisplaced,
   isTestSide,
   layout,
@@ -11,7 +12,6 @@ import type { Place } from "./oxlint/threadsift/shared/core-layout.ts";
 import { importedSpecifiersOf } from "./oxlint/threadsift/shared/value-imports.ts";
 
 const CODE_FILE = /\.[cm]?[jt]sx?$/u;
-const BROWSER_ROOTS = ["web/", "extension/", "design/"];
 
 const repository = readRepository();
 const failures: string[] = [];
@@ -104,8 +104,7 @@ function noteImport(importer: string, to: Place): void {
 
 function readImports(): void {
   for (const importer of repository.files) {
-    if (!CODE_FILE.test(importer) || BROWSER_ROOTS.some((root) => importer.startsWith(root)))
-      continue;
+    if (!CODE_FILE.test(importer) || isBrowserSide(importer)) continue;
 
     for (const specifier of importedSpecifiersOf(readText(importer))) {
       const target = resolveSpecifier(importer, specifier);

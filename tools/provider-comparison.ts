@@ -4,7 +4,7 @@ import type { FileHandle } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 import { AI_DEADLINE_MS } from "../src/core/contract/ai-contract.ts";
-import { withCleanup } from "../src/core/kernel/failure-log.ts";
+import { errorClassOf, withCleanup } from "../src/core/kernel/failure-log.ts";
 import { DIGEST_TASK } from "../src/features/digest/core/digest-task.ts";
 import { submittedAmong } from "../src/features/thread/core/thread-selection.ts";
 import {
@@ -105,8 +105,8 @@ async function outcome(item: Readonly<ComparisonItem>, provider: PreparedProvide
       digest: result.result,
       keptComments: submittedAmong(result.result.keptComments, item.submitted),
     } as const;
-  } catch {
-    return { kind: "unavailable", reason: "executor-failed" } as const;
+  } catch (error) {
+    return { kind: "unavailable", reason: `executor-failed:${errorClassOf(error)}` } as const;
   }
 }
 
@@ -149,8 +149,11 @@ async function recordProvider(
     provider = shutdown.signal.aborted
       ? { kind: "unavailable", reason: "interrupted" }
       : await checkedProvider(spec, folder);
-  } catch {
-    provider = { kind: "unavailable", reason: "provider-initialization-failed" };
+  } catch (error) {
+    provider = {
+      kind: "unavailable",
+      reason: `provider-initialization-failed:${errorClassOf(error)}`,
+    };
   }
 
   await withCleanup(
