@@ -5,9 +5,9 @@ import { z } from "zod";
 
 import { executeClaimed, runJob } from "../src/core/compose/jobs.ts";
 import { SECRET_KEY, saveBot } from "./bot-task-fixtures.ts";
+import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { exec, rows } from "./related-fixtures.ts";
-import { atClock } from "./token-budget-fixtures.ts";
 import { xAddressOf, claimedFetchJob, insertedXItem } from "./x-intake-fixtures.ts";
 import { X_LINK } from "./x-thread-fixtures.ts";
 

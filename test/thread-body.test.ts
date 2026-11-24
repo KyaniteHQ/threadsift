@@ -11,6 +11,9 @@ const LIMIT = 8 * MEBIBYTE;
 
 const bytesOf = (text: string): number => new Blob([text]).size;
 
+const exactlyFull = () =>
+  "x".repeat(LIMIT - bytesOf(JSON.stringify({ url: LINK, content: ["thread", ""] })));
+
 describe("the Extension sends a thread body of at most 8 MiB and drops trailing answers to get there", () => {
   it("sends every answer, with fill only when the Fill setting asked for it", () => {
     const answers = ["thread", "first answer", "second answer"] as const;
@@ -49,16 +52,14 @@ describe("the Extension sends a thread body of at most 8 MiB and drops trailing 
   });
 
   it("keeps a body of exactly 8 MiB and drops the last answer of a body one byte over", () => {
-    const empty = bytesOf(JSON.stringify({ url: LINK, content: ["thread", ""] }));
-    const filler = "x".repeat(LIMIT - empty);
+    const filler = exactlyFull();
 
     assert.equal(fitThreadBody(LINK, ["thread", filler], false)?.content.length, 2);
     assert.deepEqual(fitThreadBody(LINK, ["thread", `${filler}x`], false)?.content, ["thread"]);
   });
 
   it("keeps the answers that fit once a trailing answer and its comma are gone", () => {
-    const empty = bytesOf(JSON.stringify({ url: LINK, content: ["thread", ""] }));
-    const filler = "x".repeat(LIMIT - empty);
+    const filler = exactlyFull();
 
     assert.deepEqual(fitThreadBody(LINK, ["thread", filler, "b"], false)?.content, [
       "thread",

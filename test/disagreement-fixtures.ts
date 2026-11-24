@@ -1,9 +1,8 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { script } from "./pin-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, paste, rows, until } from "./related-fixtures.ts";
+import { paste, pasteInOrder, until, script, exec, rows } from "./related-fixtures.ts";
 import { jobsOf } from "./weekly-claim-fixtures.ts";
 
 export interface Seeded {
@@ -159,19 +158,19 @@ export function pasteItems(
   instance: Instance,
   specs: readonly Readonly<Pasted>[],
 ): Promise<readonly number[]> {
-  return specs.reduce<Promise<readonly number[]>>(async (pending, spec, at) => {
-    const ids = await pending;
-
-    const id = await paste(instance, `disagree/${String(at)}`, {
-      title: spec.title ?? `Title ${String(at + 1)}`,
-      topic: spec.topic,
-      summary: spec.summary ?? `Summary ${String(at + 1)}.`,
-      noDigest: spec.noDigest === true,
-      url: `https://example.com/disagree/${String(at)}`,
-    });
-
-    return [...ids, id];
-  }, Promise.resolve([]));
+  return pasteInOrder(
+    instance,
+    specs.map((spec, at) => [
+      `disagree/${String(at)}`,
+      {
+        title: spec.title ?? `Title ${String(at + 1)}`,
+        topic: spec.topic,
+        summary: spec.summary ?? `Summary ${String(at + 1)}.`,
+        noDigest: spec.noDigest === true,
+        url: `https://example.com/disagree/${String(at)}`,
+      },
+    ]),
+  );
 }
 
 export async function replaceDigest(

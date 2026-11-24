@@ -6,8 +6,8 @@ import { Instance } from "./instance.ts";
 import { seedLogEntries } from "./log-fixtures.ts";
 import { mergesOf, readPage } from "./lost-highlight-fixtures.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
-import { script, seedTopicItems } from "./pin-fixtures.ts";
-import { count } from "./related-fixtures.ts";
+import { seedTopicItems } from "./pin-fixtures.ts";
+import { count, nextSweep, script } from "./related-fixtures.ts";
 import {
   answerOf,
   itemsOf,
@@ -73,7 +73,7 @@ describe("Accept of a Topic row that one request cannot finish", () => {
       ),
       1,
     );
-    await sweep(instance);
+    await nextSweep(instance);
 
     assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
     assert.equal(count(instance, "select count(*) as n from proposals"), 0);
@@ -97,17 +97,12 @@ describe("Accept of a Topic row that the sweep continues after an Item was delet
     const { loser } = await acceptingProposal(instance);
     const remaining = count(instance, "select max(id) as n from items where topic_id = ?", loser);
     assert.equal((await instance.send("DELETE", `/api/items/${String(remaining)}`)).status, 204);
-    await sweep(instance);
+    await nextSweep(instance);
 
     assert.deepEqual(await topicMergeLines(instance), ["Loser into Survivor | 3 Items"]);
     assert.equal(count(instance, "select count(*) as n from proposals"), 0);
   });
 });
-
-const sweep = async (instance: Instance): Promise<void> => {
-  script(instance, "delete from scheduled_runs where task = 'sweep'");
-  await instance.tick();
-};
 
 interface Library {
   readonly instance: Instance;
@@ -202,7 +197,7 @@ describe("the sweep stage records failed Topic merge units", () => {
       count(instance, "select coalesce(failed_runs, 0) as n from proposals where id = ?", second);
 
     const failingSweep = async (runs: number): Promise<void> => {
-      await assert.rejects(sweep(instance), /the unit fails/u);
+      await assert.rejects(nextSweep(instance), /the unit fails/u);
 
       assert.equal(failedRuns(), runs);
     };
@@ -218,7 +213,7 @@ describe("the sweep stage records failed Topic merge units", () => {
       [[second, "accepting", 3]],
     );
     script(instance, "drop trigger test_on_pin");
-    await sweep(instance);
+    await nextSweep(instance);
 
     assert.equal(count(instance, "select count(*) as n from proposals"), 0);
   });

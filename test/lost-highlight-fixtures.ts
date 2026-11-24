@@ -9,9 +9,9 @@ import {
   type ProposalPage,
   ProposalPageSchema,
 } from "../src/core/contract/proposal-contract.ts";
+import { selectorIn } from "./highlight-selector.ts";
 import type { Instance } from "./instance.ts";
-import { exec, paste, rows, saveProvider } from "./related-fixtures.ts";
-import { nextTick } from "./weekly-claim-fixtures.ts";
+import { paste, saveProvider, exec, rows, nextSweep } from "./related-fixtures.ts";
 
 export const ColumnsSchema = z.object({
   id: z.number(),
@@ -54,26 +54,16 @@ export async function keepPassage(
   passage: string,
 ): Promise<number> {
   const reader = await instance.detail(itemId);
-  const text = reader.postText ?? "";
-  const start = text.indexOf(passage);
 
-  assert.notEqual(start, -1, `${passage} is in the text`);
+  const created = await instance.send("POST", `/api/items/${String(itemId)}/highlights`, {
+    target: { kind: "post" },
+    revision: reader.highlights.revisions.post,
+    selector: selectorIn(reader.postText ?? "", passage),
+  });
 
-  const { highlight } = await instance.read(
-    "POST",
-    `/api/items/${String(itemId)}/highlights`,
-    HighlightResponseSchema,
-    {
-      target: { kind: "post" },
-      revision: reader.highlights.revisions.post,
-      selector: {
-        exact: passage,
-        prefix: text.slice(Math.max(0, start - 32), start),
-        suffix: text.slice(start + passage.length, start + passage.length + 32),
-        hint: start,
-      },
-    },
-  );
+  assert.equal(created.status, 201, created.body);
+
+  const { highlight } = HighlightResponseSchema.parse(JSON.parse(created.body));
 
   return highlight.id;
 }
@@ -128,7 +118,7 @@ export async function proposeLost(
     Date.now(),
   );
   exec(instance, "delete from scheduled_runs where task = 'highlight_proposals'");
-  await nextTick(instance);
+  await nextSweep(instance);
 
   const [row] = rows(
     instance,

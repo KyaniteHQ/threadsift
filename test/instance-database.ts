@@ -7,6 +7,8 @@ import { openDatabase } from "../src/targets/node/database.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 
+export const openMigrated = (file: string) => openDatabase(file, MIGRATIONS);
+
 export function instanceDatabase(template?: Readonly<Uint8Array>) {
   using cleanup = new DisposableStack();
   const folder = cleanup.use(mkdtempDisposableSync(join(tmpdir(), "threadsift-test-"))).path;

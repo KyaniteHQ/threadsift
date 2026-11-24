@@ -4,10 +4,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 import type { Client } from "@modelcontextprotocol/client";
 
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
-import {
-  ItemReadResponseSchema,
-  SavedItemResponseSchema,
-} from "../src/core/contract/item-route-wire.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
 import {
   type Agents,
@@ -18,8 +15,8 @@ import {
   sameAsRest,
 } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
-import { holdLibrary } from "./restoring-fixtures.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
+import { holdLibrary } from "./restore-fixtures.ts";
 
 const RESTORING =
   "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
@@ -27,9 +24,6 @@ const RESTORING =
 describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
   let instance: Instance;
   let agents: Agents;
-
-  const total = async (): Promise<number | undefined> =>
-    (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total;
 
   before(async () => {
     instance = await Instance.start();
@@ -73,7 +67,7 @@ describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
   });
 
   it("refuses a link on the Instance's own network with the text of the 400, and saves nothing", async () => {
-    const totalBefore = await total();
+    const totalBefore = await instance.itemTotal();
     const refusal = await instance.send("POST", "/api/items", { url: "http://10.0.0.5/admin" });
 
     assert.equal(refusal.status, 400);
@@ -87,11 +81,11 @@ describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
         [{ type: "text", text: ErrorResponseSchema.parse(JSON.parse(refusal.body)).error }],
       ]),
     );
-    assert.equal(await total(), totalBefore);
+    assert.equal(await instance.itemTotal(), totalBefore);
   });
 
   it("refuses an invalid link and an invalid Digest as tool errors, and saves nothing", async () => {
-    const totalBefore = await total();
+    const totalBefore = await instance.itemTotal();
 
     await Promise.all(
       [
@@ -110,7 +104,7 @@ describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
         }
       }),
     );
-    assert.equal(await total(), totalBefore);
+    assert.equal(await instance.itemTotal(), totalBefore);
   });
 });
 
@@ -139,10 +133,7 @@ describe("add keeps the refusal that POST /api/items gives while a Restore holds
     const added = await client.callTool({ name: "add", arguments: { url: link } });
 
     assert.equal(added.isError, true);
-    assert.equal(
-      (await instance.read("GET", "/api/items", ItemReadResponseSchema)).counts?.total,
-      0,
-    );
+    assert.equal(await instance.itemTotal(), 0);
     assert.deepEqual(added.content, [{ type: "text", text: RESTORING }]);
     assert.notEqual((await client.callTool({ name: "search", arguments: {} })).isError, true);
   });

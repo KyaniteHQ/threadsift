@@ -1,21 +1,20 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { PAGE_SIZE } from "../src/core/contract/paging.ts";
+import { MINUTE_MS, SECOND_MS } from "../src/core/contract/time-units.ts";
+import { atClock } from "./clock-fixtures.ts";
 import {
   keepAt,
   keepEach,
   keepNote,
   countsOf,
   pageOf,
-  summary,
+  entryLines,
 } from "./highlights-page-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
-import { exec, paste, REDDIT_THREAD } from "./related-fixtures.ts";
-
-const PAGE_SIZE = 50;
-
-const SECOND_MS = 1000;
+import { paste, REDDIT_THREAD } from "./related-fixtures.ts";
 
 describe("the Highlights page lists every Highlight and every Item Note newest first, with search and filters that read the entry's own text", () => {
   let instance: Instance;
@@ -51,7 +50,6 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
       tags: ["gamma"],
       url: "https://www.reddit.com/r/science/comments/q1/a_thread/",
       content: JSON.stringify(REDDIT_THREAD),
-      noDigest: false,
     });
 
     start = Date.now();
@@ -76,7 +74,7 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
   it("lists each Highlight and each Note newest first with its Item's Source, title and saved date, and no entry for a cleared Note", async () => {
     const page = await pageOf(instance);
 
-    assert.deepEqual(summary(page), [
+    assert.deepEqual(entryLines(page), [
       `note:${String(thread)}:gamma pickles`,
       `note:${String(alpha)}:alpha chickpeas`,
       `highlight:${String(nothing)}:Nothing to see`,
@@ -136,7 +134,7 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
     );
 
     assert.deepEqual(
-      answers.map((answer) => summary(answer)),
+      answers.map((answer) => entryLines(answer)),
       [
         [`note:${String(thread)}:gamma pickles`, `highlight:${String(nothing)}:Nothing to see`],
         [`highlight:${String(bilby)}:bilby passage`],
@@ -180,7 +178,7 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
     );
 
     assert.deepEqual(
-      answers.map((answer) => summary(answer)),
+      answers.map((answer) => entryLines(answer)),
       [
         [`note:${String(alpha)}:alpha chickpeas`],
         [],
@@ -215,18 +213,20 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
       revision: note.revision,
     });
 
-    assert.deepEqual(summary(await pageOf(instance)).slice(0, 2), [
+    assert.deepEqual(entryLines(await pageOf(instance)).slice(0, 2), [
       `note:${String(alpha)}:alpha chickpeas, saved again`,
       `note:${String(thread)}:gamma pickles`,
     ]);
   });
 });
 
+const idsOf = (entries: readonly { readonly kind: string; readonly id: number }[]) =>
+  entries.map(({ kind, id }) => `${kind}:${String(id)}`);
+
 describe("the Highlights page shows 50 entries at a time and pages by cursor without repeating or skipping an entry, also among entries of one date", () => {
   let instance: Instance;
   let itemId: number;
-  let listed: readonly string[];
-  const tied = Date.now() - 60_000;
+  const tied = Date.now() - MINUTE_MS;
   const passages = Array.from(
     { length: PAGE_SIZE + 1 },
     (_, at) => `token${String(at).padStart(2, "0")}`,
@@ -239,8 +239,10 @@ describe("the Highlights page shows 50 entries at a time and pages by cursor wit
       title: "Many passages",
       postText: textHolding(passages.join(" ")),
     });
-    await keepEach(instance, itemId, passages);
-    exec(instance, "update highlights set created_at = ?", tied);
+    await atClock(
+      () => tied,
+      () => keepEach(instance, itemId, passages),
+    );
     await keepNote(instance, tied, { itemId, body: "A Note of the same date", revision: 0 });
   });
 
@@ -269,19 +271,19 @@ describe("the Highlights page shows 50 entries at a time and pages by cursor wit
     );
     assert.ok(all.every(({ date }) => date === tied));
     assert.equal(first.counts.total, PAGE_SIZE + 2);
-
-    listed = all.map(({ kind, id }) => `${kind}:${String(id)}`);
   });
 
   it("repeats none and skips none when a Highlight is kept between the two reads, and shows the new one first from the top", async () => {
     const first = await pageOf(instance);
+    const listed = idsOf([
+      ...first.entries,
+      ...(await pageOf(instance, `?cursor=${first.next ?? ""}`)).entries,
+    ]);
+
     const added = await keepPassage(instance, itemId, "token05 token06");
     const second = await pageOf(instance, `?cursor=${first.next ?? ""}`);
 
-    assert.deepEqual(
-      [...first.entries, ...second.entries].map(({ kind, id }) => `${kind}:${String(id)}`),
-      listed,
-    );
+    assert.deepEqual(idsOf([...first.entries, ...second.entries]), listed);
     assert.equal((await pageOf(instance)).entries[0]?.id, added);
   });
 });

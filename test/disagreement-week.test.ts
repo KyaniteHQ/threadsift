@@ -13,7 +13,7 @@ import {
   tasksOf,
 } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
+import { SECRET_KEY, saveProvider, exec } from "./related-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 describe("the Topics the weekly disagreement check reads", () => {

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
-import { Instance, PASSWORD } from "./instance.ts";
+import { Instance, ORIGIN, PASSWORD } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 
 const RESET_CODE = "a-reset-code-of-at-least-thirty-two-characters";
@@ -20,7 +20,7 @@ const refusalCode = (body: string) => ErrorResponseSchema.parse(JSON.parse(body)
 const reset = (instance: Instance, code: string, password = NEW_PASSWORD) =>
   instance.fetch("/api/password/reset", {
     method: "POST",
-    headers: { origin: "http://localhost", "content-type": "application/json" },
+    headers: { origin: ORIGIN, "content-type": "application/json" },
     body: JSON.stringify({ code, password }),
   });
 
@@ -33,7 +33,7 @@ describe("a lost password is reset with the one-use code the server holds, and t
     instance = await Instance.start({ resetCode: RESET_CODE });
     await instance.setUp();
     token = await createAgentToken(instance, "survives the reset", ["read"]);
-    ownerCookie = instance.sessionCookie ?? "";
+    ownerCookie = instance.ownerCookie;
   });
 
   after(() => instance.close());

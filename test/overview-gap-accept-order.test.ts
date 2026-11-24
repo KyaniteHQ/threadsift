@@ -18,7 +18,7 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
+import { SECRET_KEY, saveProvider, exec } from "./related-fixtures.ts";
 
 describe("Accept of an overview-gap row chooses the run's owner from the Topic as it is when the call is made", () => {
   let instance: Instance;

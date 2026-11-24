@@ -2,23 +2,21 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { botInstance, chooseGrokBot } from "./bot-task-fixtures.ts";
+import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { causeOf, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { SECRET_KEY, saveProvider, until } from "./related-fixtures.ts";
-import { restoreLibrary } from "./restoring-fixtures.ts";
+import { restoreLibrary } from "./restore-fixtures.ts";
 
 const RETRY_STEP_MS = 150_000;
 
-async function tickLater(instance: Instance, offsetMs: number): Promise<void> {
+function tickLater(instance: Instance, offsetMs: number): Promise<void> {
   const real = Date.now;
 
-  Date.now = () => real() + offsetMs;
-
-  try {
-    await instance.tick();
-  } finally {
-    Date.now = real;
-  }
+  return atClock(
+    () => real() + offsetMs,
+    () => instance.tick(),
+  );
 }
 
 describe("the Reader names why a Digest has not filtered the comments", () => {

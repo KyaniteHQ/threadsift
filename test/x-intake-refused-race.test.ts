@@ -1,17 +1,16 @@
 import assert from "node:assert/strict";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
+import { SECOND_MS } from "../src/core/contract/time-units.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow } from "./bot-task-rows.ts";
+import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec, until } from "./related-fixtures.ts";
-import { atClock } from "./token-budget-fixtures.ts";
+import { until, exec } from "./related-fixtures.ts";
 import { intakeTo, sentIntake, stepOf, waitingIntake } from "./x-intake-fixtures.ts";
 
 const UNREADABLE = { content: "this is not a thread" };
-
-const SECOND_MS = 1000;
 
 describe("a refusal that lands while the job's send is still being recorded or after the job moved on", () => {
   let instance: Instance;

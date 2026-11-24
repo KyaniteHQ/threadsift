@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempDisposableSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -48,6 +48,7 @@ it("also fails", () => {
 
 describe("the shard reporter writes one summary of a shard, with each failed test and its error", () => {
   let folder = "";
+  let scratch: ReturnType<typeof mkdtempDisposableSync>;
 
   const run = (...files: readonly string[]) => {
     const answer = spawnSync(
@@ -66,14 +67,15 @@ describe("the shard reporter writes one summary of a shard, with each failed tes
   };
 
   before(() => {
-    folder = mkdtempSync(join(tmpdir(), "threadsift-shard-reporter-"));
+    scratch = mkdtempDisposableSync(join(tmpdir(), "threadsift-shard-reporter-"));
+    folder = scratch.path;
     writeFileSync(join(folder, "passing.test.mjs"), PASSING);
     writeFileSync(join(folder, "failing.test.mjs"), FAILING);
     writeFileSync(join(folder, "also-failing.test.mjs"), ALSO_FAILING);
   });
 
   after(() => {
-    rmSync(folder, { recursive: true, force: true });
+    scratch.remove();
   });
 
   it("reports success and no failure text for a shard whose tests pass or are skipped", () => {

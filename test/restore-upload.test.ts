@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
-import { exportedZip, savedLibrary, storedKeys } from "./export-restore-fixtures.ts";
+import { listedKeys } from "../src/core/kernel/file-pages.ts";
+import { exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 import { putPart, restoreStatus, settledRestore } from "./restore-fixtures.ts";
@@ -17,7 +18,7 @@ describe("an upload that is not whole or not allowed is refused before the check
   before(async () => {
     source = await Instance.start();
     await source.setUp();
-    await savedLibrary(source, { small: 2, long: 0 });
+    await savedLibrary(source, { inlineText: 2, fileText: 0 });
     zip = await exportedZip(source);
     target = await Instance.start();
     await target.setUp();
@@ -54,15 +55,20 @@ describe("an upload that is not whole or not allowed is refused before the check
     assert.equal((await target.send("DELETE", `/api/restore/${String(id)}`)).status, 204);
   };
 
+  const receivedParts = async () => {
+    const status = await restoreStatus(target);
+
+    assert.ok(status.state === "uploading", `the Restore is uploading, not ${status.state}`);
+
+    return status.received;
+  };
+
   it("refuses a part of the wrong length with 400 and keeps the upload open with no part received", async () => {
     const id = await created();
 
     assert.equal((await putPart(target, id, zip.slice(1))).status, 400);
 
-    const status = await restoreStatus(target);
-
-    assert.equal(status.state, "uploading");
-    assert.deepEqual(status.state === "uploading" ? status.received : null, []);
+    assert.deepEqual(await receivedParts(), []);
     await cancelled(id);
   });
 
@@ -94,9 +100,7 @@ describe("an upload that is not whole or not allowed is refused before the check
     assert.equal((await putPart(target, id, zip)).status, 204);
     assert.equal((await putPart(target, id, zip)).status, 204);
 
-    const received = await restoreStatus(target);
-
-    assert.deepEqual(received.state === "uploading" ? received.received : null, [1]);
+    assert.deepEqual(await receivedParts(), [1]);
     assert.equal((await target.send("POST", `/api/restore/${String(id)}/start`)).status, 202);
     assert.equal((await target.send("POST", `/api/restore/${String(id)}/start`)).status, 409);
     assert.equal((await settledRestore(target, ["done"])).state, "done");
@@ -111,7 +115,7 @@ describe("a part that arrives after its Restore left the upload is not kept", ()
     const source = await Instance.start();
 
     await source.setUp();
-    await savedLibrary(source, { small: 1, long: 0 });
+    await savedLibrary(source, { inlineText: 1, fileText: 0 });
     zip = await exportedZip(source);
     await source.close();
     target = await Instance.start();
@@ -142,7 +146,7 @@ describe("a part that arrives after its Restore left the upload is not kept", ()
     assert.equal(late.status, 409);
     assert.equal(codeOf(await late.text()), "not-uploading");
     assert.equal(put.mock.callCount(), 1);
-    assert.deepEqual(await storedKeys(target, `restores/${String(id)}/`), []);
+    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
   });
 
   it("answers 409 not-uploading to a part of a Restore that was cancelled before the write", async () => {
@@ -157,6 +161,6 @@ describe("a part that arrives after its Restore left the upload is not kept", ()
 
     assert.equal(late.status, 409);
     assert.equal(codeOf(await late.text()), "not-uploading");
-    assert.deepEqual(await storedKeys(target, `restores/${String(id)}/`), []);
+    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
   });
 });

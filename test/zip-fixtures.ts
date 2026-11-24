@@ -2,18 +2,25 @@ import assert from "node:assert/strict";
 
 import { z } from "zod";
 
-import { joinedBytes } from "../src/core/contract/encoding.ts";
+import { joinedBytes, utf8Length } from "../src/core/contract/encoding.ts";
 import { RESTORE_DIRECTORY_BYTES } from "../src/core/contract/restore-contract.ts";
 import { readDirectory } from "../src/features/export/core/zip-directory.ts";
-import { type ZipSource, entryBytes } from "../src/features/export/core/zip-read.ts";
 import {
+  type ZipDirectory,
+  type ZipEntry,
+  type ZipSource,
+  entryBytes,
+} from "../src/features/export/core/zip-read.ts";
+import {
+  CENTRAL_RECORD_BYTES,
+  LOCAL_HEADER_BYTES,
   type ZipFile,
   dosTimeOf,
   endOfArchive,
   packFiles,
 } from "../src/features/export/core/zip.ts";
 
-const TEXT = new TextEncoder();
+export const TEXT = new TextEncoder();
 
 const ManifestSchema = z.looseObject({
   format: z.number(),
@@ -38,6 +45,39 @@ export function sourceOf(bytes: Uint8Array): ZipSource {
 
 export function directoryOf(bytes: Uint8Array) {
   return readDirectory(sourceOf(bytes), RESTORE_DIRECTORY_BYTES);
+}
+
+export const dataStartOf = (entry: Readonly<ZipEntry>): number =>
+  entry.headerOffset + LOCAL_HEADER_BYTES + utf8Length(entry.name);
+
+const CENTRAL_NAME_LENGTH_AT = 28;
+
+export function centralRecordOf(
+  zip: Uint8Array,
+  directory: Readonly<ZipDirectory>,
+  entry: Readonly<ZipEntry>,
+) {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+
+  return directory.entries
+    .slice(0, directory.entries.indexOf(entry))
+    .reduce(
+      (at) =>
+        at +
+        CENTRAL_RECORD_BYTES +
+        view.getUint16(at + CENTRAL_NAME_LENGTH_AT, true) +
+        view.getUint16(at + CENTRAL_NAME_LENGTH_AT + 2, true) +
+        view.getUint16(at + CENTRAL_NAME_LENGTH_AT + 4, true),
+      directory.offset,
+    );
+}
+
+export function entryMatching(directory: Readonly<ZipDirectory>, part: string): ZipEntry {
+  const found = directory.entries.find(({ name }) => name.includes(part));
+
+  assert.ok(found !== undefined, `the zip holds an entry with ${part} in its name`);
+
+  return found;
 }
 
 export async function entriesOf(bytes: Uint8Array): Promise<Entries> {
@@ -127,4 +167,26 @@ export function recordLines(entries: Entries, table: string): readonly string[] 
   return (manifestOf(entries).tables[table]?.files ?? []).flatMap((file) =>
     linesOf(entryOf(entries, `${root}${file}`)),
   );
+}
+
+export function withRecordLines(
+  entries: Entries,
+  table: string,
+  change: (lines: readonly string[]) => readonly string[],
+): Entries {
+  const name = nameEndingWith(entries, `/records/${table}.1.jsonl`);
+  const old = linesOf(entryOf(entries, name));
+  const lines = change(old);
+  const next = withEntry(entries, name, TEXT.encode(lines.map((line) => `${line}\n`).join("")));
+
+  return withManifest(next, (manifest) => ({
+    ...manifest,
+    tables: {
+      ...manifest.tables,
+      [table]: {
+        files: manifest.tables[table]?.files ?? [],
+        rows: (manifest.tables[table]?.rows ?? 0) + lines.length - old.length,
+      },
+    },
+  }));
 }

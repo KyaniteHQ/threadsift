@@ -6,7 +6,6 @@ import type { z } from "zod";
 import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
-import { ItemListResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { calls } from "./fetchers/batch.mts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
@@ -26,9 +25,6 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
 
   const batch = (body: Json, headers: Readonly<Record<string, string>> = {}) =>
     instance.send("POST", "/api/items/batch", body, headers);
-
-  const total = async () =>
-    (await instance.read("GET", "/api/items", ItemListResponseSchema)).counts.total;
 
   const importOf = async (name: string) => {
     const answer = await instance.send("GET", `/api/imports/${name}`);
@@ -84,7 +80,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       }
     }
 
-    const itemsBefore = await total();
+    const itemsBefore = await instance.itemTotal();
 
     const repeated = {
       ...body,
@@ -111,7 +107,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     for (const result of again.results) {
       if ("item" in result) assert.equal(result.item.status, "ready");
     }
-    assert.equal(await total(), itemsBefore);
+    assert.equal(await instance.itemTotal(), itemsBefore);
   });
 
   it("reads the cursor back, and a call without import leaves it alone", async () => {
@@ -140,7 +136,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
   });
 
   it("answers 400 with the entry's index and saves nothing, moving no cursor, when one entry is invalid", async () => {
-    const itemsBefore = await total();
+    const itemsBefore = await instance.itemTotal();
 
     const bad = [
       { url: "not a link" },
@@ -162,12 +158,12 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       assert.match(ErrorResponseSchema.parse(JSON.parse(answer.body)).error, /^links\.1/u);
     }
 
-    assert.equal(await total(), itemsBefore);
+    assert.equal(await instance.itemTotal(), itemsBefore);
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
   });
 
   it("answers 400 for 0 links, 101 links and a malformed import, and saves nothing", async () => {
-    const itemsBefore = await total();
+    const itemsBefore = await instance.itemTotal();
 
     const refused = [
       await batch({ links: [] }),
@@ -181,7 +177,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       refused.map((answer) => answer.status),
       [400, 400, 400, 400, 400],
     );
-    assert.equal(await total(), itemsBefore);
+    assert.equal(await instance.itemTotal(), itemsBefore);
   });
 
   it("saves 100 links in one call", async () => {

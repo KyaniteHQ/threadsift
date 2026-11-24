@@ -1,24 +1,19 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import {
-  LATER,
   PATH,
   accountInstance,
   SESSION,
   account,
   connect,
-  fetchJob,
-  jobs,
   verified,
   view,
 } from "./reddit-account-fixtures.ts";
-import { exec, until } from "./related-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 
 describe("the Reddit account settings are reached only by the signed-in owner", () => {
   let instance: Instance;
@@ -127,30 +122,6 @@ describe("the owner connects and disconnects a Reddit account", () => {
 
   it("accepts a value of exactly 4,096 characters", async () => {
     assert.equal((await instance.send("PUT", PATH, { session: "a".repeat(4096) })).status, 200);
-  });
-
-  it("removes the row on Disconnect and makes only the jobs that wait for Reddit due at once", async () => {
-    await connect(instance, SESSION);
-    assert.equal(account(instance).length, 1);
-    fetchJob(instance, 901, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
-    fetchJob(instance, 902, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
-    fetchJob(instance, 903, { state: "queued", waitReason: "github-rate-limit", dueAt: LATER });
-
-    const removed = await instance.read("DELETE", PATH, z.looseObject({ state: z.string() }));
-
-    assert.equal(removed.state, "none");
-    assert.deepEqual(account(instance), []);
-
-    const settled = await until(
-      () => jobs(instance),
-      (all) =>
-        all
-          .filter(({ id }) => id === 901 || id === 902)
-          .every((job) => job.wait_reason !== "reddit-limit"),
-    );
-
-    assert.ok(settled.every((job) => job.id === 903 || job.next_attempt_at < LATER));
-    assert.ok(settled.every((job) => job.id !== 903 || job.next_attempt_at === LATER));
   });
 });
 

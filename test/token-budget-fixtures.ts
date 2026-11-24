@@ -1,5 +1,3 @@
-import { DatabaseSync } from "node:sqlite";
-
 import { z } from "zod";
 
 import {
@@ -7,6 +5,7 @@ import {
   TokenListResponseSchema,
 } from "../src/core/contract/access-wire.ts";
 import type { Instance, Json } from "./instance.ts";
+import { rows } from "./related-fixtures.ts";
 
 const FIRST_STATUS = 5_000_000_000;
 
@@ -54,16 +53,6 @@ export const addBatch = (instance: Instance, token: BudgetToken, numbers: readon
     links: numbers.map((number) => ({ url: xLink(number) })),
   });
 
-function rows(instance: Instance, query: string): readonly unknown[] {
-  const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
-
-  try {
-    return database.prepare(query).all();
-  } finally {
-    database.close();
-  }
-}
-
 export const dayOf = (instant: number): string => new Date(instant).toISOString().slice(0, 10);
 
 export function nextMidnight(now: number): number {
@@ -76,37 +65,14 @@ export function secondsUntilMidnight(now: number): number {
   return Math.ceil((nextMidnight(now) - now) / 1000);
 }
 
-export async function atClock<Result>(
-  clock: () => number,
-  run: () => Promise<Result>,
-): Promise<Result> {
-  const real = Date.now;
-  Date.now = clock;
-
-  try {
-    return await run();
-  } finally {
-    Date.now = real;
-  }
-}
-
-export function steppingClock(start: number): () => number {
-  let calls = 0;
-
-  return () => start + calls++;
-}
-
 export function itemsSavedByDay(
   instance: Instance,
   tokenId: number,
 ): readonly (readonly [string, number])[] {
-  return z
-    .array(z.object({ day: z.string(), saved: z.number() }))
-    .parse(
-      rows(
-        instance,
-        `select date(saved_at / 1000, 'unixepoch') as day, count(*) as saved from items where added_by_token = ${String(tokenId)} group by day order by day`,
-      ),
-    )
-    .map(({ day, saved }) => [day, saved] as const);
+  return rows(
+    instance,
+    z.object({ day: z.string(), saved: z.number() }),
+    "select date(saved_at / 1000, 'unixepoch') as day, count(*) as saved from items where added_by_token = ? group by day order by day",
+    tokenId,
+  ).map(({ day, saved }) => [day, saved] as const);
 }

@@ -116,8 +116,7 @@ export class ScriptWorld {
   }
 
   async close(): Promise<void> {
-    this.servers.real.stop();
-    this.servers.failing.stop();
+    await Promise.all([this.servers.real.stop(), this.servers.failing.stop()]);
     this.folder.remove();
     await this.instance.close();
   }

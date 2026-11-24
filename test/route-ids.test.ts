@@ -75,15 +75,13 @@ describe("every id in a path and every number in an Item or Highlight cursor rea
     const init: RequestInit = {
       method: call.method,
       headers: {
-        origin: "http://localhost",
-        cookie: instance.sessionCookie ?? "",
         "content-type": call.json ? "application/json" : "application/octet-stream",
       },
     };
 
     if (call.method !== "GET" && call.method !== "DELETE") init.body = call.json ? "{}" : "x";
 
-    const response = await instance.fetch(url, init);
+    const response = await instance.request(url, init);
 
     return { status: response.status, text: await response.text() };
   }

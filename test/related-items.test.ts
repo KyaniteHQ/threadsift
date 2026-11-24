@@ -3,35 +3,14 @@ import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { Instance } from "./instance.ts";
-import { count, SECRET_KEY, exec, pairsOf, paste } from "./related-fixtures.ts";
-
-function seed(
-  instance: Instance,
-  source: number,
-  related: number,
-  position: number,
-  reason: string,
-): void {
-  exec(
-    instance,
-    "insert into related_items (item_id, related_id, position, reason) values (?, ?, ?, ?)",
-    source,
-    related,
-    position,
-    reason,
-  );
-}
+import { SECRET_KEY, pairsOf, paste, count, seedPair } from "./related-fixtures.ts";
 
 function refused(instance: Instance, query: string, ...params: readonly (string | number)[]): void {
-  const database = new DatabaseSync(instance.databaseFile);
+  using database = new DatabaseSync(instance.databaseFile);
 
-  try {
-    database.exec("PRAGMA foreign_keys = ON");
+  database.exec("PRAGMA foreign_keys = ON");
 
-    assert.throws(() => database.prepare(query).run(...params));
-  } finally {
-    database.close();
-  }
+  assert.throws(() => database.prepare(query).run(...params));
 }
 
 describe("an Item's Related Items are read through the API and leave with either Item", () => {
@@ -56,10 +35,10 @@ describe("an Item's Related Items are read through the API and leave with either
     gap = await paste(instance, "gap", { title: "Third Digest title" });
     last = await paste(instance, "last", { title: "Last Digest title" });
     alone = await paste(instance, "alone", { title: "Alone" });
-    seed(instance, source, last, 4, "Reason of the last");
-    seed(instance, source, first, 0, "Reason of the first");
-    seed(instance, source, gap, 2, "Reason of the third");
-    seed(instance, source, digestless, 1, "Reason of the second");
+    seedPair(instance, source, last, 4, "Reason of the last");
+    seedPair(instance, source, first, 0, "Reason of the first");
+    seedPair(instance, source, gap, 2, "Reason of the third");
+    seedPair(instance, source, digestless, 1, "Reason of the second");
   });
 
   after(() => instance.close());
@@ -115,7 +94,7 @@ describe("the related_items table refuses a row that contradicts itself", () => 
     a = await paste(instance, "a", { title: "A" });
     b = await paste(instance, "b", { title: "B" });
     c = await paste(instance, "c", { title: "C" });
-    seed(instance, a, b, 0, "A reason");
+    seedPair(instance, a, b, 0, "A reason");
   });
 
   after(() => instance.close());

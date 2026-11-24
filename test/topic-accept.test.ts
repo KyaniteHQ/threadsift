@@ -7,7 +7,7 @@ import { accept, propose } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
 import { dump } from "./pin-fixtures.ts";
-import { catalogVersion, count, exec, paste, rows } from "./related-fixtures.ts";
+import { paste, catalogVersion, count, exec, rows } from "./related-fixtures.ts";
 import {
   answerOf,
   itemsOf,

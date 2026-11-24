@@ -2,10 +2,9 @@ import assert from "node:assert/strict";
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
+  mkdtempDisposableSync,
   readFileSync,
   readdirSync,
-  rmSync,
   statSync,
   symlinkSync,
   writeFileSync,
@@ -14,73 +13,62 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
-import type { VaultKind } from "../src/core/kernel/vault-tables.ts";
-import {
-  gitBlobSha,
-  type VaultChange,
-  VaultFileConflict,
-} from "../src/core/kernel/vault-target.ts";
+import { type VaultChange, VaultFileConflict } from "../src/core/kernel/vault-target.ts";
 import { VaultFailure } from "../src/features/vault/core/vault-failure.ts";
 import { vaultFolder } from "../src/targets/node/vault-folder.ts";
 import { heldFolderLease } from "./vault-lease-fixtures.ts";
 
 const NOTE = "Threadsift/items/1/note-1.md";
 
-const current = (): Promise<boolean> => Promise.resolve(true);
+const RECEIPT = "Threadsift/.written/items/1/note-1.md";
 
-const change = ({
-  path,
-  kind,
-  text,
-}: Readonly<{ path: string; kind: VaultKind; text: string | null }>): VaultChange => {
-  const base = { path, subjectId: 1, noteKind: kind, sequence: 1, sha: null };
+const FIRST_SHA = "fe4f02ad058b43f6ed467fdf65b935107529564b";
+
+const note = (text: string | null, path = NOTE): VaultChange => {
+  const base = { path, subjectId: 1, noteKind: "item", sequence: 1, sha: null } as const;
 
   return text === null
     ? { ...base, kind: "delete" }
     : { ...base, kind: "put", bytes: new TextEncoder().encode(text) };
 };
 
-const note = (text: string | null, path = NOTE): VaultChange =>
-  change({ path, kind: "item", text });
-
 describe("Folder mode writes a mounted vault folder and owns only the files it wrote", () => {
   let root = "";
+  let scratch: ReturnType<typeof mkdtempDisposableSync>;
   let vault = "";
   let outside = "";
+  let lease: Awaited<ReturnType<typeof heldFolderLease>>;
 
   const target = (signal = new AbortController().signal) => vaultFolder(vault, signal);
 
-  const write = (files: readonly VaultChange[], isCurrent = current) =>
-    target().write({ files, current: isCurrent });
+  const write = (files: readonly VaultChange[]) =>
+    target().write({ files, current: lease.current });
 
   const inVault = (path: string) => join(vault, path);
 
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "threadsift-vault-folder-"));
+  beforeEach(async () => {
+    scratch = mkdtempDisposableSync(join(tmpdir(), "threadsift-vault-folder-"));
+    root = scratch.path;
     vault = join(root, "vault");
     outside = join(root, "outside");
     mkdirSync(vault);
     mkdirSync(outside);
+    lease = await heldFolderLease(vault);
   });
 
   afterEach(() => {
-    if (root === "") return;
-
-    rmSync(root, { recursive: true, force: true });
-    root = "";
+    lease[Symbol.dispose]();
+    scratch.remove();
   });
 
   it("publishes a note at its path and keeps a hard-link receipt of it under .written", async () => {
     await write([note("first")]);
 
     assert.equal(readFileSync(inVault(NOTE), "utf8"), "first");
-    assert.equal(
-      statSync(inVault(NOTE)).ino,
-      statSync(inVault(`Threadsift/.written/items/1/note-1.md`)).ino,
-    );
+    assert.equal(statSync(inVault(NOTE)).ino, statSync(inVault(RECEIPT)).ino);
     assert.deepEqual(await target().subjects(), [{ kind: "item", subjectId: 1 }]);
     assert.deepEqual(await target().files({ kind: "item", subjectId: 1 }), [
-      { path: NOTE, sha: await gitBlobSha(new TextEncoder().encode("first")) },
+      { path: NOTE, sha: FIRST_SHA },
     ]);
   });
 
@@ -89,10 +77,7 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
     await write([note("second")]);
 
     assert.equal(readFileSync(inVault(NOTE), "utf8"), "second");
-    assert.equal(
-      statSync(inVault(NOTE)).ino,
-      statSync(inVault(`Threadsift/.written/items/1/note-1.md`)).ino,
-    );
+    assert.equal(statSync(inVault(NOTE)).ino, statSync(inVault(RECEIPT)).ino);
     assert.deepEqual(readdirSync(inVault("Threadsift/.written/.staging")), []);
   });
 
@@ -141,13 +126,13 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
     assert.equal(existsSync(join(root, "escape.md")), false);
   });
 
-  it("writes nothing once a restore has fenced its lease on the stored settings", async () => {
-    using lease = await heldFolderLease(vault);
-
-    await write([note("first")], lease.current);
+  it("writes nothing once a Restore has fenced the lease the Folder write holds", async () => {
+    await write([note("first")]);
     await lease.fence();
 
-    await assert.rejects(write([note("second")], lease.current), { reason: "stale" });
+    await assert.rejects(write([note("second")]), {
+      reason: "stale",
+    });
     assert.equal(readFileSync(inVault(NOTE), "utf8"), "first");
   });
 
@@ -156,9 +141,12 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
 
     stop.abort();
 
-    await assert.rejects(target(stop.signal).write({ files: [note("mine")], current }), {
-      name: "AbortError",
-    });
+    await assert.rejects(
+      target(stop.signal).write({ files: [note("mine")], current: lease.current }),
+      {
+        name: "AbortError",
+      },
+    );
     assert.deepEqual(readdirSync(vault), []);
   });
 

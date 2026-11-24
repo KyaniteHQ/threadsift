@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { EXPORT_TEXT } from "../web/src/export-text.ts";
-import { DESKTOP, PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { expectFitsPhone } from "./screen-checks.ts";
 import { readStoredZip } from "./zip-read.ts";
 
 const EXPORT_WAIT_MS = 90_000;
@@ -98,9 +98,7 @@ export async function backupFlow(page: Page): Promise<void> {
 
   expectManifestNamesItems(await downloadedZip(page), itemIds);
 
-  await page.setViewportSize(PHONE);
-  await expectNoSidewaysScroll(page);
-  await page.setViewportSize(DESKTOP);
+  await expectFitsPhone(page);
 
   await sectionButton(page, EXPORT_TEXT.remove).click();
   await expect(sectionButton(page, EXPORT_TEXT.start)).toBeVisible();

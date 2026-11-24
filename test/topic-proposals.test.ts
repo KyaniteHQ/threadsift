@@ -4,9 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { Instance } from "./instance.ts";
-import { seedProposal } from "./proposal-seed.ts";
-import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
-import { topicId } from "./topic-accept-fixtures.ts";
+import { SECRET_KEY, paste, saveProvider, until, exec, rows } from "./related-fixtures.ts";
+import { proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
 describe("the Topic job's input and its owner Item", () => {
   let instance: Instance;
@@ -31,16 +30,8 @@ describe("the Topic job's input and its owner Item", () => {
   it("sends the undecided pairs, most used first, and leaves out a Topic with no Item and both decided pairs", async () => {
     exec(instance, "insert into topics (key, name) values ('game', 'Game')");
 
-    const decided = (from: string, into: string, reason: string | null, state: string) =>
-      seedProposal(
-        instance,
-        "topic-merge",
-        { from_topic_id: topicId(instance, from), into_topic_id: topicId(instance, into) },
-        { reason, state },
-      );
-
-    decided("ML", "Machine learning", "The same subject.", "rejected");
-    decided("machine-learning", "Machine learning", null, "declined");
+    proposeTopics(instance, ["ML", "Machine learning"], "rejected", "The same subject.");
+    proposeTopics(instance, ["machine-learning", "Machine learning"], "declined", null);
     await instance.tick();
 
     const [task] = await until(

@@ -21,45 +21,37 @@ export function seedProposal(
   subject: Readonly<Record<string, number>>,
   { id, reason = "A reason.", state = "open", createdAt = 1, run }: Readonly<Seed> = {},
 ): number {
-  const database = new DatabaseSync(instance.databaseFile);
+  using database = new DatabaseSync(instance.databaseFile);
 
-  try {
-    const head = database
-      .prepare(
-        "insert into proposals (id, kind, reason, state, created_at, cursor, moved, unit_revision) values (?, ?, ?, ?, ?, ?, ?, ?) returning id",
-      )
-      .get(
-        id ?? null,
-        kind,
-        reason,
-        state,
-        createdAt,
-        run?.cursor ?? null,
-        run?.moved ?? null,
-        run?.unitRevision ?? null,
-      );
+  const head = database
+    .prepare(
+      "insert into proposals (id, kind, reason, state, created_at, cursor, moved, unit_revision) values (?, ?, ?, ?, ?, ?, ?, ?) returning id",
+    )
+    .get(
+      id ?? null,
+      kind,
+      reason,
+      state,
+      createdAt,
+      run?.cursor ?? null,
+      run?.moved ?? null,
+      run?.unitRevision ?? null,
+    );
 
-    const proposalId = Number(head?.["id"]);
-    const columns = Object.keys(subject);
+  const proposalId = Number(head?.["id"]);
+  const columns = Object.keys(subject);
 
-    database
-      .prepare(
-        `insert into ${subjectTable(kind)} (proposal_id, kind, ${columns.join(", ")}) values (?, ?, ${columns.map(() => "?").join(", ")})`,
-      )
-      .run(proposalId, kind, ...Object.values(subject));
+  database
+    .prepare(
+      `insert into ${subjectTable(kind)} (proposal_id, kind, ${columns.join(", ")}) values (?, ?, ${columns.map(() => "?").join(", ")})`,
+    )
+    .run(proposalId, kind, ...Object.values(subject));
 
-    return proposalId;
-  } finally {
-    database.close();
-  }
+  return proposalId;
 }
 
 export function removeProposals(instance: Instance): void {
-  const database = new DatabaseSync(instance.databaseFile);
+  using database = new DatabaseSync(instance.databaseFile);
 
-  try {
-    for (const kind of PROPOSAL_KINDS) database.prepare(`delete from ${subjectTable(kind)}`).run();
-  } finally {
-    database.close();
-  }
+  for (const kind of PROPOSAL_KINDS) database.prepare(`delete from ${subjectTable(kind)}`).run();
 }

@@ -9,7 +9,7 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, exec, paste } from "./related-fixtures.ts";
+import { SECRET_KEY, paste, exec } from "./related-fixtures.ts";
 
 describe("the Proposals page lists a row only while its subject still holds", () => {
   let instance: Instance;

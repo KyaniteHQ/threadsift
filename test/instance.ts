@@ -5,6 +5,7 @@ import type { z } from "zod";
 import { tick } from "../src/core/compose/tick.ts";
 import {
   ItemDetailResponseSchema,
+  ItemListResponseSchema,
   ItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
 import { hasOwner } from "../src/features/access/core/owner.ts";
@@ -43,7 +44,7 @@ const POLL_MS = 25;
 
 export const SETTLE_DEADLINE_MS = 20_000;
 
-const ORIGIN = "http://localhost";
+export const ORIGIN = "http://localhost";
 
 const SESSION_COOKIE = "__Host-threadsift_session";
 
@@ -150,8 +151,24 @@ export class Instance {
     return Promise.resolve(this.app.request(input, init));
   }
 
-  get sessionCookie(): string | null {
+  get ownerCookie(): string {
+    if (this.cookie === null) throw new Error("The Instance holds no session");
+
     return this.cookie;
+  }
+
+  private ownerHeaders(extra: HeadersInit = {}): Headers {
+    const headers = new Headers({ origin: ORIGIN });
+
+    for (const [name, value] of new Headers(extra)) headers.set(name, value);
+
+    if (this.cookie !== null) headers.set("cookie", this.cookie);
+
+    return headers;
+  }
+
+  request(path: string, init: RequestInit = {}): Promise<Response> {
+    return this.fetch(path, { ...init, headers: this.ownerHeaders(init.headers) });
   }
 
   get routes() {
@@ -176,11 +193,10 @@ export class Instance {
     body: Json = null,
     extraHeaders: Readonly<Record<string, string>> = {},
   ): Promise<Answer> {
-    const headers = new Headers({ origin: ORIGIN, ...extraHeaders });
-
-    if (this.cookie !== null) headers.set("cookie", this.cookie);
-
-    const response = await this.app.request(path, requestOf(method, headers, body));
+    const response = await this.app.request(
+      path,
+      requestOf(method, this.ownerHeaders(extraHeaders), body),
+    );
 
     const session = sessionPair(response);
 
@@ -194,15 +210,13 @@ export class Instance {
     path: string,
     body: Json = null,
   ): Promise<Answer> {
-    const headers = new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" });
-
     const worker = createApp({
       ...this.ports,
       ai: { ...this.ports.ai, publicOnly: true },
       xFetcher: null,
     });
 
-    const response = await worker.request(path, requestOf(method, headers, body));
+    const response = await worker.request(path, requestOf(method, this.ownerHeaders(), body));
 
     return { status: response.status, body: await response.text() };
   }
@@ -253,6 +267,10 @@ export class Instance {
     );
 
     return item;
+  }
+
+  async itemTotal(): Promise<number> {
+    return (await this.read("GET", "/api/items", ItemListResponseSchema)).counts.total;
   }
 
   async detail(id: number) {

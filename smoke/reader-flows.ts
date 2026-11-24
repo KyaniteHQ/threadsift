@@ -1,10 +1,8 @@
 import { type Page, expect } from "@playwright/test";
 
-import {
-  ItemDetailResponseSchema,
-  SavedItemResponseSchema,
-} from "../src/core/contract/item-route-wire.ts";
+import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
+import { savedItem } from "./saved-item.ts";
 
 const THREAD_ID = "3000000000000000001";
 
@@ -53,23 +51,17 @@ export async function readerWithoutProvider(
   page: Page,
   { topic, markdown, sentence }: Readonly<PastedCase>,
 ): Promise<void> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: topic.link,
-      page: { markdown, title: topic.itemTitle },
-      digest: {
-        title: topic.itemTitle,
-        topic: topic.name,
-        tags: ["backups"],
-        summary: topic.summary,
-        keyPoints: ["No Provider is saved"],
-      },
+  const item = await savedItem(page, {
+    url: topic.link,
+    page: { markdown, title: topic.itemTitle },
+    digest: {
+      title: topic.itemTitle,
+      topic: topic.name,
+      tags: ["backups"],
+      summary: topic.summary,
+      keyPoints: ["No Provider is saved"],
     },
   });
-
-  expect(saved.status()).toBe(201);
-
-  const { item } = SavedItemResponseSchema.parse(await saved.json());
 
   await page.goto("/");
   await page
@@ -81,28 +73,24 @@ export async function readerWithoutProvider(
   await expect(page.locator(".reader")).toContainText(sentence);
   await expect(page.getByRole("heading", { name: RELATED.title })).toHaveCount(0);
 
-  const detail = await page.request.get(`/api/items/${String(item.id)}`);
+  const detail = await page.request.get(`/api/items/${String(item)}`);
 
   expect(ItemDetailResponseSchema.parse(await detail.json()).item.related).toEqual([]);
 }
 
 export async function readXThread(page: Page): Promise<void> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: THREAD_LINK,
-      content: JSON.stringify(THREAD),
-      digest: {
-        title: THREAD_TITLE,
-        topic: "Databases",
-        tags: ["sqlite"],
-        summary: "Use the online backup command.\nCheck the copy opens.",
-        keyPoints: ["A plain copy can tear a page"],
-        keptComments: ["t1_3000000000000000011", "t1_3000000000000000012"],
-      },
+  await savedItem(page, {
+    url: THREAD_LINK,
+    content: JSON.stringify(THREAD),
+    digest: {
+      title: THREAD_TITLE,
+      topic: "Databases",
+      tags: ["sqlite"],
+      summary: "Use the online backup command.\nCheck the copy opens.",
+      keyPoints: ["A plain copy can tear a page"],
+      keptComments: ["t1_3000000000000000011", "t1_3000000000000000012"],
     },
   });
-
-  expect(saved.status()).toBe(201);
   await page.goto("/");
 
   const row = page.locator("article.it").filter({ hasText: THREAD_TITLE });

@@ -1,18 +1,25 @@
+import assert from "node:assert/strict";
+
 import { z } from "zod";
 
 import type { RestoreRefusal } from "../src/core/contract/restore-contract.ts";
+import type { ZipDirectory } from "../src/features/export/core/zip-read.ts";
 import {
   type Entries,
+  centralRecordOf,
+  dataStartOf,
   directoryOf,
+  entryMatching,
   nameEndingWith,
   rootOf,
   withEntry,
   withManifest,
+  withRecordLines,
   withoutEntry,
   zipOf,
+  zipOfFiles,
+  TEXT,
 } from "./zip-fixtures.ts";
-
-const TEXT = new TextEncoder();
 
 const RowSchema = z.record(z.string(), z.unknown());
 
@@ -20,23 +27,42 @@ const CENTRAL_METHOD_AT = 10;
 
 const CENTRAL_CRC_AT = 16;
 
-const LOCAL_HEADER_BYTES = 30;
-
 type Variant = (entries: Entries, zip: Uint8Array) => Uint8Array | Promise<Uint8Array>;
 
-const jsonLines = (entries: Entries, name: string) =>
-  new TextDecoder().decode(entries.get(name)).split("\n");
+const changedFirstLine = (entries: Entries, table: string, change: (row: string) => string) =>
+  withRecordLines(entries, table, ([first = "", ...rest]) => [change(first), ...rest]);
 
-const changedFirstLine = (entries: Entries, table: string, change: (row: string) => string) => {
-  const name = nameEndingWith(entries, `/records/${table}.1.jsonl`);
-  const [first = "", ...rest] = jsonLines(entries, name);
+const BAD_NAMES: readonly (readonly [string, readonly string[]])[] = [
+  ["an absolute name", ["/root/a.txt"]],
+  ["an empty segment", ["root//a.txt"]],
+  ["a backslash", ["root/a\\b.txt"]],
+  ["a NUL character", ["root/a\0b.txt"]],
+  ["a dot segment", ["root/./a.txt"]],
+  ["two root folders", ["root/a.txt", "other/b.txt"]],
+  ["an entry outside any folder", ["a.txt"]],
+  ["a name used twice", ["root/a.txt", "root/a.txt"]],
+];
 
-  return withEntry(entries, name, TEXT.encode([change(first), ...rest].join("\n")));
-};
+const zipNamed = (names: readonly string[]) =>
+  zipOfFiles(names.map((name) => ({ name, bytes: TEXT.encode(name) })));
+
+function zipWithRawName(): Uint8Array {
+  const zip = zipNamed(["root/aa"]);
+  const name = TEXT.encode("root/aa");
+
+  for (let at = 0; at + name.length <= zip.length; at += 1) {
+    if (name.every((byte, position) => zip[at + position] === byte)) {
+      zip[at + name.length - 2] = 0xff;
+      zip[at + name.length - 1] = 0xfe;
+    }
+  }
+
+  return zip;
+}
 
 async function patched(
   zip: Uint8Array,
-  change: (copy: Uint8Array, directory: Readonly<{ offset: number }>) => void,
+  change: (copy: Uint8Array, directory: Readonly<ZipDirectory>) => void,
 ): Promise<Uint8Array> {
   const directory = await directoryOf(zip);
   const copy = zip.slice();
@@ -53,8 +79,15 @@ export const VARIANTS: readonly (readonly [RestoreRefusal, string, Variant])[] =
     "unsupported-compression",
     "an entry that is not stored",
     (_, zip) =>
-      patched(zip, (copy, { offset }) => {
-        new DataView(copy.buffer).setUint16(offset + CENTRAL_METHOD_AT, 8, true);
+      patched(zip, (copy, directory) => {
+        const [first] = directory.entries;
+
+        assert.ok(first !== undefined);
+        new DataView(copy.buffer).setUint16(
+          centralRecordOf(copy, directory, first) + CENTRAL_METHOD_AT,
+          8,
+          true,
+        );
       }),
   ],
   [
@@ -68,6 +101,12 @@ export const VARIANTS: readonly (readonly [RestoreRefusal, string, Variant])[] =
     "an entry outside the one root folder",
     (entries) => zipOf(withEntry(entries, "elsewhere/file.md", TEXT.encode("x"))),
   ],
+  ...BAD_NAMES.map(([name, names]): readonly [RestoreRefusal, string, Variant] => [
+    "bad-entry-name",
+    `${name} in the directory`,
+    () => zipNamed(names),
+  ]),
+  ["bad-entry-name", "a name that is not UTF-8", zipWithRawName],
   [
     "no-manifest",
     "a zip with no manifest",
@@ -176,10 +215,9 @@ export const VARIANTS: readonly (readonly [RestoreRefusal, string, Variant])[] =
   [
     "crc",
     "a note whose bytes changed after the checksum was written",
-    (entries, zip) =>
+    (_, zip) =>
       patched(zip, (copy, directory) => {
-        const note = [...entries.keys()].findIndex((name) => name.includes("/items/1/note-"));
-        const at = readEntryStart(copy, directory.offset, note);
+        const at = dataStartOf(entryMatching(directory, "/items/1/note-"));
 
         copy[at] = (copy[at] ?? 0) ^ 0xff;
       }),
@@ -188,27 +226,14 @@ export const VARIANTS: readonly (readonly [RestoreRefusal, string, Variant])[] =
     "crc",
     "a record file whose stored checksum is wrong",
     (_, zip) =>
-      patched(zip, (copy, { offset }) => {
-        new DataView(copy.buffer).setUint32(offset + CENTRAL_CRC_AT, 12_345, true);
+      patched(zip, (copy, directory) => {
+        const record = entryMatching(directory, "/records/topics.1.jsonl");
+
+        new DataView(copy.buffer).setUint32(
+          centralRecordOf(copy, directory, record) + CENTRAL_CRC_AT,
+          12_345,
+          true,
+        );
       }),
   ],
 ];
-
-function readEntryStart(zip: Uint8Array, directoryOffset: number, index: number): number {
-  const view = new DataView(zip.buffer);
-  const at = Array.from({ length: index }).reduce<number>(
-    (position) =>
-      position +
-      46 +
-      view.getUint16(position + 28, true) +
-      view.getUint16(position + 30, true) +
-      view.getUint16(position + 32, true),
-    directoryOffset,
-  );
-
-  const local = view.getUint32(at + 42, true);
-
-  return (
-    local + LOCAL_HEADER_BYTES + view.getUint16(local + 26, true) + view.getUint16(local + 28, true)
-  );
-}

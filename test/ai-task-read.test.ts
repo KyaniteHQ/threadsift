@@ -110,7 +110,7 @@ describe("the task read answers what the bot has to do to the task's own credent
 
     const forbidden = await Promise.all([
       readOf(world.instance, task.id, world.agentToken),
-      readOf(world.instance, task.id, null, world.instance.sessionCookie ?? ""),
+      readOf(world.instance, task.id, null, world.instance.ownerCookie),
     ]);
 
     assert.deepEqual(

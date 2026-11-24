@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { dueIds, claimNextDue } from "../src/core/compose/jobs.ts";
+import { DAY_MS } from "../src/core/contract/time-units.ts";
 import {
   type BotLibrary,
   SECRET_KEY,
@@ -16,9 +17,7 @@ import { answered } from "./bot-task-http.ts";
 import { applied, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { exec, pairsOf } from "./related-fixtures.ts";
-
-const DAY_MS = 24 * 3_600_000;
+import { pairsOf, exec, nextSweep } from "./related-fixtures.ts";
 
 describe("an answer reaches its job whichever happens first, the answer or the sender's deferral", () => {
   let instance: Instance;
@@ -114,11 +113,6 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
 
   after(() => instance.close());
 
-  const sweep = async () => {
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-  };
-
   it("keeps an answered task, and an unanswered task with a job, past the deadline, and still expires a task with no job", async () => {
     retireTasks(instance);
 
@@ -150,7 +144,7 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
       owned.id,
       plain,
     );
-    await sweep();
+    await nextSweep(instance);
 
     assert.deepEqual(
       [answeredTask.id, owned.id, plain].map((id) => state(id)),
@@ -178,7 +172,7 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
       answeredTask.id,
       owned.id,
     );
-    await sweep();
+    await nextSweep(instance);
 
     assert.deepEqual(
       [answeredTask.id, owned.id].map((id) => state(id)),

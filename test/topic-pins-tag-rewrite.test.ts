@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { sql } from "drizzle-orm";
@@ -7,11 +6,10 @@ import { sql } from "drizzle-orm";
 import { guardedBatch } from "../src/core/kernel/guards.ts";
 import { readRewrite } from "../src/features/wiki/core/tag-rewrite.ts";
 import { topicLinked, topicMoves } from "../src/features/wiki/core/topic-moves.ts";
-import { openDatabase } from "../src/targets/node/database.ts";
+import { openMigrated } from "./instance-database.ts";
 import { Instance } from "./instance.ts";
-import { dump, item, script } from "./pin-fixtures.ts";
-
-const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
+import { dump, item } from "./pin-fixtures.ts";
+import { script } from "./related-fixtures.ts";
 
 describe("a Tag rewrite that read a Digest before a Topic rewrite changed it", () => {
   let instance: Instance;
@@ -30,7 +28,7 @@ describe("a Tag rewrite that read a Digest before a Topic rewrite changed it", (
   after(() => instance.close());
 
   it("keeps the Topic name the Topic rewrite wrote and still renames the Tag", async () => {
-    const database = openDatabase(instance.databaseFile, MIGRATIONS);
+    const database = openMigrated(instance.databaseFile);
 
     try {
       const unit = await readRewrite(database.db, {
@@ -76,7 +74,7 @@ describe("a Topic rewrite that read its Items before a publication linked one of
   after(() => instance.close());
 
   it("leaves the Digest and the link of that Item on the other Topic and moves the rest", async () => {
-    const database = openDatabase(instance.databaseFile, MIGRATIONS);
+    const database = openMigrated(instance.databaseFile);
 
     try {
       const moves = await topicLinked(database.db, 2);

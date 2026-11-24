@@ -12,7 +12,7 @@ import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { redditAddressOf, threadOf } from "./reader-thread-fixtures.ts";
-import { holdLibrary, itemTotal } from "./restoring-fixtures.ts";
+import { holdLibrary } from "./restore-fixtures.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
 
@@ -44,7 +44,7 @@ describe("a batch refused while a Restore holds the library keeps its old cursor
 
     assert.equal(stopped.status, 503);
     assert.equal(UnavailableResponseSchema.parse(JSON.parse(stopped.body)).code, "restoring");
-    assert.equal(await itemTotal(instance), 1);
+    assert.equal(await instance.itemTotal(), 1);
 
     const read = await instance.send("GET", `/api/imports/${name}`);
 
@@ -102,7 +102,7 @@ describe("an Item is refused through every door while a Restore holds the librar
     await instance.send("POST", "/api/items", { url: known });
     holdLibrary(instance, "running", null);
 
-    const stored = await itemTotal(instance);
+    const stored = await instance.itemTotal();
 
     const doors = [
       {
@@ -155,7 +155,7 @@ describe("an Item is refused through every door while a Restore holds the librar
       );
     }
 
-    assert.equal(await itemTotal(instance), stored);
+    assert.equal(await instance.itemTotal(), stored);
   });
 
   it("stores no failed short link while a Restore holds the library and stores it once the run is no longer holding", async () => {
@@ -171,17 +171,17 @@ describe("an Item is refused through every door while a Restore holds the librar
 
     holdLibrary(instance, "running", null);
 
-    const stored = await itemTotal(instance);
+    const stored = await instance.itemTotal();
 
     await assert.rejects(unresolved(), /^Error: CHECK constraint failed: guards_hold$/u);
-    assert.equal(await itemTotal(instance), stored);
+    assert.equal(await instance.itemTotal(), stored);
 
     holdLibrary(instance, "failed", "no-manifest");
 
     const saved = await unresolved();
 
     assert.equal(saved?.kind === "saved" && saved.created, true);
-    assert.equal(await itemTotal(instance), stored + 1);
+    assert.equal(await instance.itemTotal(), stored + 1);
   });
 
   it("refuses a Paste while a failed run that gave up holds the library and accepts it after a failure that does not", async () => {
@@ -189,18 +189,18 @@ describe("an Item is refused through every door while a Restore holds the librar
 
     holdLibrary(instance, "failed", "gave-up");
 
-    const stored = await itemTotal(instance);
+    const stored = await instance.itemTotal();
     const refused = await instance.send("POST", "/api/items", link);
 
     assert.equal(refused.status, 503);
     assert.equal(UnavailableResponseSchema.parse(JSON.parse(refused.body)).code, "restoring");
-    assert.equal(await itemTotal(instance), stored);
+    assert.equal(await instance.itemTotal(), stored);
 
     holdLibrary(instance, "failed", "no-manifest");
 
     const accepted = await instance.send("POST", "/api/items", link);
 
     assert.equal(accepted.status, 201);
-    assert.equal(await itemTotal(instance), stored + 1);
+    assert.equal(await instance.itemTotal(), stored + 1);
   });
 });

@@ -23,16 +23,6 @@ const RowSchema = z.object({
   updated_at: z.number(),
 });
 
-export function inOrder<Item>(
-  items: readonly Item[],
-  step: (item: Item) => Promise<void>,
-): Promise<void> {
-  return items.reduce<Promise<void>>(
-    (done, item) => done.then(() => step(item)),
-    Promise.resolve(),
-  );
-}
-
 export const saved = (instance: Instance) =>
   rows(instance, RowSchema, "select webhook_url, sealed_key, updated_at from grok_bot_settings");
 

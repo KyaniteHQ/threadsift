@@ -8,29 +8,17 @@ import { jobRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { entryCount } from "./log-fixtures.ts";
 import {
-  count,
   SECRET_KEY,
-  exec,
-  firstPickTask,
   pairsOf,
   paste,
-  pickJobs,
-  pickTasks,
-  rows,
   saveProvider,
+  seedPair,
   until,
+  count,
+  exec,
+  rows,
 } from "./related-fixtures.ts";
-
-function seed(instance: Instance, source: number, related: number, position: number): void {
-  exec(
-    instance,
-    "insert into related_items (item_id, related_id, position, reason) values (?, ?, ?, ?)",
-    source,
-    related,
-    position,
-    "An earlier reason",
-  );
-}
+import { firstPickTask, pickJobs, pickTasks } from "./related-pick-fixtures.ts";
 
 function openPicks(instance: Instance, itemId: number): number {
   return pickJobs(instance, itemId).filter(({ state }) => state !== "done").length;
@@ -96,7 +84,7 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
     await instance.setUp();
     id = await paste(instance, "source", { title: "Quasar lattice decoder", tags: ["quasar"] });
     other = await paste(instance, "other", { title: "Quasar lattice", tags: ["quasar"] });
-    seed(instance, id, other, 0);
+    seedPair(instance, id, other, 0, "An earlier reason");
     await saveProvider(instance);
     id = await paste(instance, "source", { title: "Quasar lattice decoder", tags: ["quasar"] });
   });
@@ -167,8 +155,8 @@ describe("an Item with no term or no candidate gets an empty set and makes no AI
     neighbour = await paste(instance, "neighbour", { title: "Neighbour" });
     noTerm = await paste(instance, "no-term", { title: "!!!", tags: ["?"] });
     noCandidate = await paste(instance, "no-candidate", { title: "Zyxwvut" });
-    seed(instance, noTerm, neighbour, 0);
-    seed(instance, noCandidate, neighbour, 0);
+    seedPair(instance, noTerm, neighbour, 0, "An earlier reason");
+    seedPair(instance, noCandidate, neighbour, 0, "An earlier reason");
     await saveProvider(instance);
     await paste(instance, "no-term", { title: "!!!", tags: ["?"] });
     await paste(instance, "no-candidate", { title: "Zyxwvut" });

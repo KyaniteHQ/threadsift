@@ -10,6 +10,7 @@ import {
 } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
+import { selectorIn } from "./highlight-selector.ts";
 import { Instance, type Json, SETTLE_DEADLINE_MS } from "./instance.ts";
 
 interface Supplied {
@@ -181,9 +182,6 @@ describe("a self-hoster's fetcher plug-in reads the links it claims, and only th
     const first = await pasted("https://flaky.test/doc");
     const text = first.postText ?? "";
     const quote = "returned its text";
-    const start = text.indexOf(quote);
-
-    assert.notEqual(start, -1);
 
     await instance.read(
       "POST",
@@ -192,12 +190,7 @@ describe("a self-hoster's fetcher plug-in reads the links it claims, and only th
       {
         target: { kind: "post" },
         revision: first.highlights.revisions.post,
-        selector: {
-          exact: quote,
-          prefix: text.slice(Math.max(0, start - 32), start),
-          suffix: text.slice(start + quote.length, start + quote.length + 32),
-          hint: start,
-        },
+        selector: selectorIn(text, quote),
       },
     );
     await instance.read("PUT", `/api/items/${String(first.id)}/note`, NoteResponseSchema, {

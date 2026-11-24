@@ -22,7 +22,7 @@ export function proposeTopics(
   instance: Instance,
   [from, into]: readonly [string, string],
   state = "open",
-  reason = "Same subject.",
+  reason: string | null = "Same subject.",
 ): number {
   return seedProposal(
     instance,

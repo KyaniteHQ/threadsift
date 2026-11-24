@@ -10,7 +10,7 @@ import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts
 import { relatedKind } from "../src/features/related/core/related-kind.ts";
 import { acceptedByBot, openJob, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec, until } from "./related-fixtures.ts";
+import { until } from "./related-fixtures.ts";
 
 type ClaimedJob = Awaited<ReturnType<typeof openJob>>;
 
@@ -77,13 +77,4 @@ export function sendFor(
   >,
 ) {
   return sendBotTask(instance.core, { kind: relatedKind, claim: holding(job), task, token });
-}
-
-export function reclaimed(instance: Instance, job: Readonly<ClaimedJob>): void {
-  exec(
-    instance,
-    "update jobs set state = 'running', claim_expires = ? where id = ?",
-    Date.now() + 3_600_000,
-    job.id,
-  );
 }

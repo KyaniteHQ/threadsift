@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtempDisposableSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
@@ -8,7 +8,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { BACKUP_TABLES, type BackupTable } from "../src/core/kernel/backup-tables.ts";
-import { openDatabase } from "../src/targets/node/database.ts";
+import { openMigrated } from "./instance-database.ts";
 
 type ExclusionReason =
   | "login-data"
@@ -52,8 +52,6 @@ const EXCLUDED_TABLES = {
   sqlite_sequence: "carried-in-manifest",
 } as const satisfies Readonly<Record<string, ExclusionReason>>;
 
-const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
-
 const NamesSchema = z.array(z.object({ name: z.string() }));
 
 const twice = (names: readonly string[]): string[] =>
@@ -88,24 +86,22 @@ function columnProblems(
 }
 
 describe("a database migrated from scratch has no table and no column of an included table that the backup lists leave unplaced", () => {
-  let folder = "";
+  const cleanup = new DisposableStack();
   let database: DatabaseSync;
 
   const namesOf = (sql: string): string[] =>
     NamesSchema.parse(database.prepare(sql).all()).map((row) => row.name);
 
-  before(async () => {
-    folder = await mkdtemp(join(tmpdir(), "threadsift-backup-tables-"));
+  before(() => {
+    const folder = cleanup.use(mkdtempDisposableSync(join(tmpdir(), "threadsift-backup-tables-")));
+    const file = join(folder.path, "threadsift.db");
 
-    const file = join(folder, "threadsift.db");
-
-    openDatabase(file, MIGRATIONS).close();
-    database = new DatabaseSync(file, { readOnly: true });
+    openMigrated(file).close();
+    database = cleanup.use(new DatabaseSync(file, { readOnly: true }));
   });
 
-  after(async () => {
-    database.close();
-    await rm(folder, { recursive: true, force: true });
+  after(() => {
+    cleanup.dispose();
   });
 
   it("places every table in exactly one list", () => {

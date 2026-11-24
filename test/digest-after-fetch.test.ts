@@ -8,7 +8,7 @@ import { botProviderInstance } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { hopThreadOf, toolsOf } from "./one-hop-fixtures.ts";
 import { redditAddressOf } from "./reader-thread-fixtures.ts";
-import { rows, until } from "./related-fixtures.ts";
+import { until, rows } from "./related-fixtures.ts";
 
 const ADDRESS = redditAddressOf("q1");
 
