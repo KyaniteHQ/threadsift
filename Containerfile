@@ -4,9 +4,8 @@ FROM node AS base
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY extension/package.json extension/package.json
-RUN spec="$(node -p 'require("./package.json").packageManager')" \
-    && version="${spec#pnpm@}" && version="${version%%+*}" \
-    && hash="${spec##*+sha512.}" \
+RUN spec="$(node -e 'const pinned = /^pnpm@(\d+\.\d+\.\d+)\+sha512\.([0-9a-f]{128})$/.exec(require("./package.json").packageManager); if (pinned === null) throw new Error("packageManager is not pnpm@<version>+sha512.<128 hex>"); console.log(pinned[1], pinned[2]);')" \
+    && version="${spec% *}" && hash="${spec#* }" \
     && npm pack "pnpm@$version" --loglevel=error --pack-destination /tmp \
     && echo "$hash  /tmp/pnpm-$version.tgz" | sha512sum --check --strict \
     && npm install --global "/tmp/pnpm-$version.tgz" \
