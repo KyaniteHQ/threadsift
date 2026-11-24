@@ -5,27 +5,33 @@ export interface Capped {
   readonly cut: boolean;
 }
 
-export async function readCapped(
+export async function readPrefix(
   body: AsyncIterable<Uint8Array>,
   maxBytes: number,
-): Promise<Capped> {
+): Promise<Uint8Array> {
   const chunks: Uint8Array[] = [];
   let size = 0;
-  let cut = false;
 
   for await (const chunk of body) {
-    const room = maxBytes - size;
-    cut = chunk.length > room;
-    const kept = cut ? chunk.subarray(0, room) : chunk;
+    const kept = chunk.subarray(0, maxBytes - size);
     chunks.push(kept);
     size += kept.length;
 
-    if (cut) {
+    if (size >= maxBytes) {
       break;
     }
   }
 
-  return { bytes: joinedBytes(chunks), cut };
+  return joinedBytes(chunks);
+}
+
+export async function readCapped(
+  body: AsyncIterable<Uint8Array>,
+  maxBytes: number,
+): Promise<Capped> {
+  const prefix = await readPrefix(body, maxBytes + 1);
+
+  return { bytes: prefix.subarray(0, maxBytes), cut: prefix.length > maxBytes };
 }
 
 class Overflow extends Error {}

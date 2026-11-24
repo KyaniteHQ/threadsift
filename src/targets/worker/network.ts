@@ -1,3 +1,4 @@
+import { readPrefix } from "../../core/kernel/capped.ts";
 import { bestEffort } from "../../core/kernel/failure-log.ts";
 import { networkOver } from "../../core/kernel/network-transport.ts";
 import {
@@ -18,22 +19,8 @@ async function firstBytes(body: ReadableStream<Uint8Array> | null): Promise<stri
     return "";
   }
 
-  const reader = body.getReader();
-
-  const prefixFrom = async (taken: Uint8Array): Promise<Uint8Array> => {
-    if (taken.length >= ERROR_PAGE_BYTES) return taken;
-
-    const { done, value } = await reader.read();
-
-    if (done) return taken;
-
-    return prefixFrom(
-      new Uint8Array([...taken, ...value.subarray(0, ERROR_PAGE_BYTES - taken.length)]),
-    );
-  };
-
-  const prefix = await prefixFrom(new Uint8Array(0));
-  void bestEffort(PEEK_NOT_CANCELLED, () => reader.cancel());
+  const prefix = await readPrefix(body.values({ preventCancel: true }), ERROR_PAGE_BYTES);
+  void bestEffort(PEEK_NOT_CANCELLED, () => body.cancel());
 
   return new TextDecoder().decode(prefix);
 }
