@@ -18,7 +18,7 @@ The button copies the repository into the deployer's own GitHub account, "where 
 `pnpm run deploy` builds the web app and deploys the Worker. D1 must exist before Wrangler can apply migrations, and provisioning during the Worker deploy happens too late. The command therefore creates a missing D1 database, applies the migrations without a confirmation prompt, and then runs `wrangler deploy --keep-vars`. The [self-hosting guide](../guides/self-hosting.md#deploy-on-cloudflare-with-the-cli) lists the steps.
 
 - It accepts JSON only and passes the secrets file to Wrangler unchanged. Wrangler's JSON path applies no environment override or expansion.
-- It refuses an empty `THREADSIFT_SECRET_KEY` or `SETUP_CODE`. If you leave a secret out of the file, the Worker must already hold it, or the command stops.
+- It refuses a secrets file that holds an empty `THREADSIFT_SECRET_KEY` or `SETUP_CODE`, a `THREADSIFT_SECRET_KEY` that is not 64 hex characters, a `SETUP_CODE` shorter than 16 characters, a `PASSWORD_RESET_CODE` shorter than 32 characters, or a `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` that is neither `true` nor `false`. These are the rules the Instance applies when it reads those values, so such a file stops the command before anything is built or deployed, and the message names each broken rule. If you leave a secret out of the file, the Worker must already hold it, or the command stops.
 - `--dry-run` checks the build and configuration offline. The file must hold both secrets, because an offline check cannot verify inherited ones.
 
 ## Workers Paid
