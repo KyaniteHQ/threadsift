@@ -250,7 +250,7 @@ The owner's one free-text Note per Item.
 
 **The page.** `/highlights` is reached from the Highlights link in the settings panel (`PageLinks`). The link is not a control of its own in the masthead row, because a second 44 px control there made the masthead scroll sideways at 1440 px in the mono Font at Small text size and Compact density, and moved the gear. The Index link sits in the settings panel for the same reason. The page reuses the Library's search box and filters with the Read group left out, because an entry has no read state of its own. A Highlight kept across a stored picture holds `STORED_PICTURE_TEXT` (U+FFFC) where the picture was, and `QuoteText` draws it as an inline chip.
 
-**Arrival.** An entry links to `/items/<id>?highlight=<id>` or `/items/<id>?note`, and `arrivalPlace` reads the query. `ReaderPane` holds one `Arrivals` ledger, so each address and kind arrives once even when the Sheet and page subtrees remount each other. `watchPlace` does not restore the saved reading place while the ledger still holds the arrival, because the restore would set the scroll again after the arrival had scrolled.
+**Arrival.** An entry links to `/items/<id>?highlight=<id>` or `/items/<id>?note`, and `arrivalPlace` reads the query. `ReaderPane` holds one `Arrivals` ledger, so each address and kind arrives once even when the Sheet and page subtrees remount each other. `watchAfterFonts` does not restore the saved reading place while the ledger still holds the arrival, because the restore would set the scroll again after the arrival had scrolled.
 
 ## The library wiki
 

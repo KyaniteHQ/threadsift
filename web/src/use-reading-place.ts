@@ -6,7 +6,12 @@ import { anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts
 
 const SAVE_DELAY_MS = 400;
 
-function watchPlace(slot: HTMLElement, itemId: number): () => void {
+type Phase =
+  | { readonly kind: "waiting"; readonly moved: boolean }
+  | { readonly kind: "watching"; readonly watching: AbortController }
+  | { readonly kind: "closed" };
+
+function watchPlace(slot: HTMLElement, itemId: number, signal: AbortSignal): void {
   let timer = 0;
 
   const save = (): void => {
@@ -19,14 +24,17 @@ function watchPlace(slot: HTMLElement, itemId: number): () => void {
     timer = window.setTimeout(save, SAVE_DELAY_MS);
   };
 
-  slot.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("pagehide", save);
+  slot.addEventListener("scroll", onScroll, { passive: true, signal });
+  window.addEventListener("pagehide", save, { signal });
+  signal.addEventListener("abort", save, { once: true });
+}
 
-  return () => {
-    save();
-    slot.removeEventListener("scroll", onScroll);
-    window.removeEventListener("pagehide", save);
-  };
+function startWatching(slot: HTMLElement, itemId: number): AbortController {
+  const watching = new AbortController();
+
+  watchPlace(slot, itemId, watching.signal);
+
+  return watching;
 }
 
 function restorePlace(slot: HTMLElement, itemId: number): void {
@@ -53,43 +61,38 @@ function watchOwnerScroll(slot: HTMLElement, signal: AbortSignal, onMove: () => 
     (event) => {
       if (SCROLL_KEYS.has(event.key)) onMove();
     },
-    { passive: true, signal },
+    { signal },
   );
   slot.addEventListener(
     "pointerdown",
     (event) => {
       if (event.target === slot) onMove();
     },
-    { passive: true, signal },
+    { signal },
   );
 }
 
-function watchAfterFonts(slot: HTMLElement, itemId: number, arriving: boolean): () => void {
-  slot.scrollTop = 0;
-
-  if (arriving) return watchPlace(slot, itemId);
-
+function waitForFonts(slot: HTMLElement, itemId: number): () => void {
   const waiting = new AbortController();
-  let moved = false;
-  let stop: (() => void) | undefined;
+  let phase: Phase = { kind: "waiting", moved: false };
 
   const keepMoved = (): void => {
-    if (moved) keepPlace(itemId, anchorAt(slot));
+    if (phase.kind === "waiting" && phase.moved) keepPlace(itemId, anchorAt(slot));
   };
 
   const restore = (): void => {
-    if (waiting.signal.aborted) return;
+    if (phase.kind !== "waiting") return;
 
     waiting.abort();
     window.clearTimeout(deadline);
-    if (!moved) restorePlace(slot, itemId);
-    stop = watchPlace(slot, itemId);
+    if (!phase.moved) restorePlace(slot, itemId);
+    phase = { kind: "watching", watching: startWatching(slot, itemId) };
   };
 
   const deadline = window.setTimeout(restore, READ_DEADLINE_MS);
 
   watchOwnerScroll(slot, waiting.signal, () => {
-    moved = true;
+    if (phase.kind === "waiting") phase = { kind: "waiting", moved: true };
   });
   window.addEventListener("pagehide", keepMoved, { signal: waiting.signal });
   void document.fonts.ready.then(restore);
@@ -97,10 +100,26 @@ function watchAfterFonts(slot: HTMLElement, itemId: number, arriving: boolean): 
   return () => {
     window.clearTimeout(deadline);
 
-    if (stop === undefined) {
+    if (phase.kind === "waiting") {
       waiting.abort();
       keepMoved();
-    } else stop();
+    } else if (phase.kind === "watching") {
+      phase.watching.abort();
+    }
+
+    phase = { kind: "closed" };
+  };
+}
+
+function watchAfterFonts(slot: HTMLElement, itemId: number, arriving: boolean): () => void {
+  slot.scrollTop = 0;
+
+  if (!arriving) return waitForFonts(slot, itemId);
+
+  const watching = startWatching(slot, itemId);
+
+  return () => {
+    watching.abort();
   };
 }
 
