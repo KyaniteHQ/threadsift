@@ -3,7 +3,7 @@ import type { Context } from "hono";
 
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import { byteSize } from "../../../core/contract/format.ts";
-import { ERROR_TEXT_MAX } from "../../../core/contract/grok-bot-contract.ts";
+import { AI_TASK_PATH, ERROR_TEXT_MAX } from "../../../core/contract/grok-bot-contract.ts";
 import { MAX_ROW_BYTES } from "../../../core/contract/limits.ts";
 import { IntakeAnswerSchema, refusedBodyOf } from "../../../core/contract/x-intake-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
@@ -18,7 +18,7 @@ import { countedRefusals, refusedBody } from "./intake-body.ts";
 
 const readRoute = createRoute({
   method: "get",
-  path: "/api/ai-tasks/{id}",
+  path: AI_TASK_PATH,
   middleware: access("callback", { body: RESULT_CAP, cache: "no-store" }),
   request: { params: IdParamSchema },
   responses: {
@@ -40,7 +40,7 @@ const readRoute = createRoute({
 
 const resultRoute = createRoute({
   method: "post",
-  path: "/api/ai-tasks/{id}/result",
+  path: `${AI_TASK_PATH}/result`,
   middleware: access("callback", { body: RESULT_CAP }),
   request: {
     params: IdParamSchema,
@@ -65,7 +65,7 @@ const resultRoute = createRoute({
 
 const intakeRoute = createRoute({
   method: "post",
-  path: "/api/ai-tasks/{id}/intake",
+  path: `${AI_TASK_PATH}/intake`,
   middleware: [access("callback", { body: ITEM_CAP }), countedRefusals] as const,
   request: {
     params: IdParamSchema,

@@ -109,6 +109,7 @@ const UNMATCHED: readonly Row[] = [
   ["PUT", "/api/tokens/1", 405, ["PATCH", "DELETE"]],
   ["GET", "/api/logout", 405, ["POST"]],
   ["OPTIONS", "/api/ai-tasks/1/result", 405, ["POST"]],
+  ["DELETE", "/api/ai-tasks/1", 405, ["GET", "HEAD"], ["cache-control", "no-store"]],
   ["POST", "/api/settings/ai/openrouter/callback", 405, ["GET"]],
   ["DELETE", "/api/settings/ai/openrouter/start", 405, ["POST"], ["cache-control", "no-store"]],
   [
