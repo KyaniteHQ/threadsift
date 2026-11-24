@@ -43,8 +43,14 @@ export function limitedUntilOf(
   return now + Math.min(wait, MAX_LIMIT_MS);
 }
 
+function usableResetMs(reset: string | null): number | null {
+  const wait = millisecondsOf(reset);
+
+  return wait === null || wait <= 0 ? null : wait;
+}
+
 export function resetAtOf(reset: string | null, now: number): number {
-  return now + Math.min(millisecondsOf(reset) ?? WAIT_CHECK_MS, WAIT_CHECK_MS);
+  return now + Math.min(usableResetMs(reset) ?? WAIT_CHECK_MS, WAIT_CHECK_MS);
 }
 
 export async function accountRow(db: Database): Promise<AccountRow | null> {
@@ -75,13 +81,20 @@ export function windowRecordOf(answer: Readonly<RedditAnswer>): WindowRecord {
   };
 }
 
+function windowResetOf(resetMs: number | null, emptied: boolean, now: number) {
+  if (resetMs !== null) return now + Math.min(resetMs, MAX_LIMIT_MS);
+
+  return emptied
+    ? sql`case when ${redditAccount.windowResetsAt} > ${now} then ${redditAccount.windowResetsAt} else ${now + WAIT_CHECK_MS} end`
+    : redditAccount.windowResetsAt;
+}
+
 export async function recordWindow(
   db: Database,
   session: AccountSession,
   { left, reset, retryAfter, limited }: Readonly<WindowRecord>,
   now: number,
 ): Promise<void> {
-  const resetMs = millisecondsOf(reset);
   const changes: Partial<AccountRow> = { lastRequestAt: now };
 
   if (limited) {
@@ -91,9 +104,13 @@ export async function recordWindow(
     changes.windowRemaining = Math.floor(left);
   }
 
-  if (resetMs !== null) changes.windowResetsAt = now + resetMs;
+  const resetMs = usableResetMs(reset);
+  const emptied = !limited && changes.windowRemaining === 0;
 
-  await db.update(redditAccount).set(changes).where(ofSession(session));
+  await db
+    .update(redditAccount)
+    .set({ ...changes, windowResetsAt: windowResetOf(resetMs, emptied, now) })
+    .where(ofSession(session));
 }
 
 export async function connectAccount(

@@ -244,7 +244,7 @@ describe("Reddit answers decide when a fetch job may take its next turn", () => 
     await waitsUntil(NOW + 60_000);
   });
 
-  it("honours the longest 429 delay, caps Retry-After at one hour and waits for an exhausted window to reset", async () => {
+  it("honours the longest 429 delay, and caps Retry-After and the window reset at one hour", async () => {
     const delay = async (reset: string, retryAfter: string | null, wait: number) => {
       await record({ left: null, reset, retryAfter, limited: true });
       await waitsUntil(NOW + wait);
@@ -253,7 +253,7 @@ describe("Reddit answers decide when a fetch job may take its next turn", () => 
     await delay("900", "Wed, 21 Oct 2026 07:28:00 GMT", 900_000);
     await delay("120", new Date(NOW + 1_200_000).toUTCString(), 1_200_000);
     await delay("120", "86400", 3_600_000);
-    await delay("86400", null, 86_400_000);
+    await delay("86400", null, 3_600_000);
     await record({ left: 5, reset: null, retryAfter: null, limited: false });
     await waitsUntil(NOW + 3_600_000);
   });

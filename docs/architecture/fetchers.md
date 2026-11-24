@@ -84,7 +84,7 @@ The account is the first source for a post or comment with no saved thread, befo
 
 ### Request limit and session health
 
-- Reddit's `x-ratelimit-remaining` and `x-ratelimit-reset` (100 requests per about 600 s) are stored on the account row. No job takes the turn while the stored window is used up or `limited_until` is in the future.
+- Reddit's `x-ratelimit-remaining` and `x-ratelimit-reset` (100 requests per about 600 s) are stored on the account row. No job takes the turn while the stored window is used up or `limited_until` is in the future. A used-up window whose answer has no usable `x-ratelimit-reset` (absent, not a number, or `0`) is stored as resetting after `WAIT_CHECK_MS` (5 minutes), the longest wait of a waiting job, unless a later reset is already stored. A stored window reset is cut to one hour, like `limited_until`.
 - A 429 stores `window_remaining = 0` and `limited_until`: the largest of the answer's `x-ratelimit-reset`, its `Retry-After` and 60 s, cut to one hour. The job waits with `reddit-limit` and counts an attempt, and the third limited attempt uses the archive fill.
 - A first answer that shows fewer requests left than the hidden replies need is dropped, and the job waits for the reset and counts no attempt, so a thread with fetchable stubs is not stored. A thread that needs 100 requests or more is stored with stubs.
 - A 401 or 403 sends one `me.json` check with the same session. A 403 there is `blocked`, not `logged-out`, because Reddit answers 403 with the same network-security page to an altered session and to no session. A 401, or a 200 that names no account, is `logged-out` and sets the state `expired` at once.
