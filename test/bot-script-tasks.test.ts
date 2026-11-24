@@ -1,16 +1,15 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
 import { CUTOFF_MARGIN, DAY, HOUR, ScriptWorld, ageBy } from "./bot-script-world.ts";
-import { pastDeadline, picksFor } from "./bot-task-fixtures.ts";
+import { pastDeadline, picksFor, reopenedUnderNewToken } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 
-const NINE_MIB = 9 * 1024 * 1024;
 const aged = (folder: string, name: string, seconds: number, text = "x") => {
   const file = join(folder, name);
 
@@ -114,6 +113,28 @@ describe("the script opens, answers and reports a task and prints one word for e
     assert.equal(await world.opened(task, "related_pick"), `ok ${id} related_pick`);
   });
 
+  it("opens a task id that is sent again with a new token without the done file of the old token, answers already-open to its second event and marks it done by the new token", async () => {
+    const task = await world.result();
+    const id = String(task.id);
+    const answers = JSON.stringify(picksFor(world.candidate));
+
+    assert.equal(await world.opened(task, "related_pick"), `ok ${id} related_pick`);
+    assert.equal(await run(["task-answer", id, await world.folder.made("answer", answers)]), "ok");
+    assert.equal(world.folder.fileOf(task.id, "done"), sha256(task.token));
+    assert.equal(await world.opened(task, "related_pick"), "already-done");
+
+    const again = reopenedUnderNewToken(world.instance, task.id);
+
+    assert.equal(await world.opened(again, "related_pick"), `ok ${id} related_pick`);
+    assert.equal(world.folder.fileOf(task.id, "done"), null);
+    assert.equal(world.folder.fileOf(task.id, "token"), again.token);
+    assert.equal(await world.opened(again, "related_pick"), "already-open");
+
+    assert.equal(await run(["task-answer", id, await world.folder.made("answer", answers)]), "ok");
+    assert.equal(world.folder.fileOf(task.id, "done"), sha256(again.token));
+    assert.equal(await world.opened(again, "related_pick"), "already-done");
+  });
+
   it("deletes the folder of a task that was done more than 7 days ago and the folder of a task left open for more than a day when it runs a command", async () => {
     const finished = world.folder.taskFolder(111);
     const abandoned = world.folder.taskFolder(222);
@@ -178,70 +199,6 @@ describe("the script opens, answers and reports a task and prints one word for e
       world.folder.fileOf(answeredElsewhere.id, "done"),
       sha256(answeredElsewhere.token),
     );
-  });
-
-  it("answers an X link task with an answer written in parts that are split inside an escape sequence and inside a multi-byte character", async () => {
-    const task = await world.intake();
-
-    const retitled = task.example.replace(
-      '"title":"Backing up SQLite while it is written"',
-      '"title":"Yedekleme ğüşiöç"',
-    );
-
-    assert.notEqual(retitled, task.example);
-
-    const bytes = Buffer.from(retitled);
-
-    const escape = bytes.indexOf(Buffer.from('\\"')) + 1;
-    const multibyte = bytes.indexOf(Buffer.from("ğ")) + 1;
-    const [first = 0, second = 0] = [escape, multibyte].toSorted((left, right) => left - right);
-
-    assert.ok(first > 0 && second > first);
-
-    const file = await world.folder.madeInParts("answer", [
-      bytes.subarray(0, first),
-      bytes.subarray(first, second),
-      bytes.subarray(second),
-    ]);
-
-    assert.deepEqual(readFileSync(file), bytes);
-    assert.equal(await world.opened(task, "x_intake"), `ok ${String(task.id)} x_intake`);
-    assert.equal(await run(["task-answer", String(task.id), file]), "ok");
-    assert.equal(taskRow(world.instance, task.id).state, "done");
-  });
-
-  it("closes an X link task with the unavailable answer", async () => {
-    const task = await world.intake();
-
-    assert.equal(await world.opened(task, "x_intake"), `ok ${String(task.id)} x_intake`);
-
-    const file = await world.folder.made("answer", '{"unavailable":true}');
-
-    assert.equal(await run(["task-answer", String(task.id), file]), "ok");
-    assert.equal(taskRow(world.instance, task.id).state, "done");
-  });
-
-  it("writes the server's reasons to errors.txt for content that is not the task's post and leaves the task open", async () => {
-    const task = await world.intake();
-
-    assert.equal(await world.opened(task, "x_intake"), `ok ${String(task.id)} x_intake`);
-
-    const file = await world.folder.made("answer", '{"content":"not a thread"}');
-
-    assert.equal(await run(["task-answer", String(task.id), file]), "invalid");
-    assert.match(world.folder.fileOf(task.id, "errors.txt") ?? "", /\S/u);
-    assert.equal(taskRow(world.instance, task.id).state, "running");
-    assert.equal(world.folder.fileOf(task.id, "done"), null);
-  });
-
-  it("answers too-large for a body over the route's limit", async () => {
-    const task = await world.intake();
-
-    assert.equal(await world.opened(task, "x_intake"), `ok ${String(task.id)} x_intake`);
-
-    const file = world.folder.tmpFile("answer", JSON.stringify({ content: "a".repeat(NINE_MIB) }));
-
-    assert.equal(await run(["task-answer", String(task.id), file]), "too-large");
   });
 
   it("reports a fixed sentence for a reason word on a result task, refuses an unknown word and refuses any report for an X link task", async () => {

@@ -98,6 +98,12 @@ export function acceptedByBot(instance: Instance, taskId: number) {
   return { id: taskId, token: credential.value };
 }
 
+export function reopenedUnderNewToken(instance: Instance, taskId: number) {
+  exec(instance, "update ai_tasks set state = 'running', answered_at = null where id = ?", taskId);
+
+  return acceptedByBot(instance, taskId);
+}
+
 interface QueuedJob {
   readonly kind: JobKind;
   readonly itemId: number;

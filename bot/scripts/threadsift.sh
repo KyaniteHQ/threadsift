@@ -443,7 +443,7 @@ if [[ "$word" == ok ]]; then
       printf '%s' "$token" > "$work/token"
       stored_file "$work/token" "$folder/token"
       stored_file "$response" "$folder/task.json"
-      rm -f "${folder:?}"/errors.txt
+      rm -f "${folder:?}"/errors.txt "${folder:?}"/done
       word="ok $id $kind"
       ;;
   esac
