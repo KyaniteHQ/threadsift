@@ -1,6 +1,6 @@
 # Open items and unverified claims
 
-This page lists what v1 does not fully build or has not proven by a real run. "Not verified" means the code handles the case as written and no real run reached it. An entry leaves when a run proves it, and the proof goes to the doc that owns the topic. A case that needs a vendor to answer on demand, a clock to pass or a failure to happen stays here with the run that would settle it, because [Testing](../testing.md) allows no fakes, stubs or test-only seams.
+This page lists what v1 does not fully build or has not proven by a real run. "Not verified" means the code handles the case as written and no real run reached it. An entry leaves when a run proves it, and the proof goes to the doc that owns the topic. "Not run by the gate" marks a case that no test or smoke repeats, so a later change can break it unseen. Such an entry says why the gate cannot run the case or what a repeatable run needs. When a run by hand showed the case, the entry names that run, and it still stays until the gate runs the case. A case that needs a vendor to answer on demand, a clock to pass or a failure to happen stays here with the run that would settle it, because [Testing](../testing.md) allows no fakes, stubs or test-only seams.
 
 Contents:
 
