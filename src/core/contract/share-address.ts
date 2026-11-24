@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { CanonicalNumberTextSchema } from "./canonical-number.ts";
+
 export const SHARE_PATH = "/share";
 
 const PREFILL_MAX = 1000;
@@ -12,14 +14,9 @@ export type ShareArrival =
   | { readonly kind: "saved"; readonly id: number; readonly refreshed: boolean }
   | { readonly kind: "prefill"; readonly value: string; readonly notice: PrefillNotice | null };
 
-const IdSchema = z
-  .string()
-  .regex(/^[1-9]\d{0,14}$/u)
-  .transform(Number);
-
 const AddressSchema = z.object({
-  saved: IdSchema.optional(),
-  refreshed: IdSchema.optional(),
+  saved: CanonicalNumberTextSchema.optional(),
+  refreshed: CanonicalNumberTextSchema.optional(),
   link: z.string().max(PREFILL_MAX).optional(),
   notice: z.enum(PREFILL_NOTICES).optional(),
 });
