@@ -31,7 +31,10 @@ The deploy button builds from the repository root, because a monorepo subdirecto
 | `tools/` | the build and check scripts, `tools/oxlint/` for the lint rule plugins, and `tools/copy/` for the script that writes every text a user reads in the product |
 | `docs/` | the docs |
 | `.claude/` | the agents, their skills and the lint hook ([Changing code](../agents/changing-code.md)) |
-| `.agents/skills/` | the skills the Antigravity CLI loads |
+| `.codex/` | the Codex hooks: the Impeccable check after an edit and its design pass when a turn ends |
+| `.impeccable/` | the settings of the Impeccable check, and the sidecar of the design system doc that its documenter writes |
+| `.vscode/` | the editor settings that run oxlint and oxfmt on save, and the recommended oxc extension |
+| `.agents/skills/` | the skills the Antigravity CLI loads, and the link to the Impeccable skill that the Codex hooks run |
 | `.github/workflows/` | the gate, the live deploy and check, the release, the contributor licence agreement and the update workflow of Cloudflare copies |
 
 The docs call the two halves of a feature the core half and the http half. None of `src/core/`, `src/features/` and `src/http/` imports `node:*`, `cloudflare:*` or `src/targets/` ([One codebase, two install targets](one-codebase-two-install-targets.md)).

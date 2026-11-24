@@ -113,7 +113,7 @@ The command lists the doc lines that a change may make untrue ([Changing code](.
 
 ## Fixes that run without review
 
-The commit hook and the agent hook apply safe fixes only. The agent hook runs after each edit to a file in the project or in one of its git worktrees, and lints with that checkout's own `node_modules`. Suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
+The commit hook and the agent hook apply safe fixes only. The agent hook is Claude Code's: it runs after each Edit, MultiEdit or Write of a file in the project or in one of its git worktrees, and only when that checkout has its own installed oxlint. An edit made through a shell command is not linted. Codex runs no lint hook, so a Codex edit meets the lint at the commit hook or at `pnpm lint:fix`. Suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
 
 ## Outside the lint
 
