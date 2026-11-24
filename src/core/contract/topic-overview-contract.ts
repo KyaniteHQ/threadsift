@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { AiRefusalSchema } from "./ai-contract.ts";
 import { CATALOG_KEY_MAX } from "./catalog-key-limit.ts";
+import { lineBreaksOf } from "./format.ts";
 import { SOURCES } from "./item-contract.ts";
 
 export const TopicKeyParamSchema = z.object({ key: z.string().min(1).max(CATALOG_KEY_MAX) });
@@ -69,8 +70,6 @@ export function citationId(token: string): number | null {
   return id === undefined ? null : Number(id);
 }
 
-const LINE_BREAK = /\r\n|\r|\n/u;
-
 export function sourcedLine(row: string): Readonly<OverviewLine> | null {
   const [, text = "", sources = ""] = SOURCED_LINE.exec(row.trim()) ?? [];
 
@@ -78,7 +77,7 @@ export function sourcedLine(row: string): Readonly<OverviewLine> | null {
 }
 
 export function overviewLines(text: string): readonly string[] {
-  return text.split(LINE_BREAK).filter((line) => line.trim() !== "");
+  return lineBreaksOf(text).filter((line) => line.trim() !== "");
 }
 
 export function overviewLine(text: string): string | null {

@@ -5,7 +5,7 @@ import {
   keyOfFileRoute,
   mayHoldImageRouteOf,
 } from "../../../core/contract/file-keys.ts";
-import { collapsed } from "../../../core/contract/format.ts";
+import { collapsed, lineBreaksOf } from "../../../core/contract/format.ts";
 import type { Kind, ReadState, Source } from "../../../core/contract/item-contract.ts";
 import {
   COMMENTS_TITLE,
@@ -20,7 +20,7 @@ import {
   UNTITLED,
   handleOf,
 } from "../../../core/contract/reader-text.ts";
-import { lineBreaksOf, plainMarkdown, yamlScalar } from "../../../core/kernel/markdown-escape.ts";
+import { plainMarkdown, yamlScalar } from "../../../core/kernel/markdown-escape.ts";
 import { inlineImage, rewriteImages, scanMarkdown } from "../../../core/kernel/markdown-images.ts";
 
 const SLUG_CODE_POINTS = 80;
