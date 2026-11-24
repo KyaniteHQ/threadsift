@@ -54,6 +54,10 @@ export function answersFromAlias({ address }: Readonly<Pick<AliasedItem, "addres
   return !isRedditShareLink(address);
 }
 
+export function itemAddress({ address, normalizedUrl }: Readonly<AliasedItem>): string {
+  return parseLink(address).normalizedUrl === normalizedUrl ? address : normalizedUrl;
+}
+
 function isObserved(
   { address, itemId }: Readonly<Record<"address" | "itemId", Readonly<SQLWrapper>>>,
   stale: Readonly<AliasedItem> | undefined,

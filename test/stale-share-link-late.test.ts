@@ -117,6 +117,25 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     });
   });
 
+  withEachExisting([{}]).forEach(({ existing }) => {
+    it(`saves a new Item at the post and records the alias when the owner deleted the Item of a stale alias while the resolution ran, for a ${existing} Paste`, async () => {
+      const short = `https://t.co/latedeleted${existing}`;
+      const post = redditPost(`latedeleted${existing}`);
+      const stale = await stagedStaleAlias(instance, short);
+      const snapshot = await aliasOf(instance, short);
+
+      assert.equal((await instance.send("DELETE", `/api/items/${String(stale.id)}`)).status, 204);
+      assert.deepEqual(aliasesAt(instance, short), []);
+
+      const total = await instance.itemTotal();
+      const saved = await repastedFrom(instance, short, resolvedTo(post), snapshot, existing);
+
+      assert.ok(saved !== null && saved.created && saved.item.id !== stale.id);
+      assert.equal(await instance.itemTotal(), total + 1);
+      assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, post, saved.item.id)]);
+    });
+  });
+
   it("answers restoring when a Restore starts before a keeping Paste promotes the Item of a stale alias", async () => {
     const short = "https://t.co/restoreraces";
     const stale = await stagedStaleAlias(instance, short);

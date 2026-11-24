@@ -161,6 +161,59 @@ describe("a short link whose alias ends at a Reddit share link is resolved again
       assert.equal(await instance.itemTotal(), total);
       await stillAtShareLink(instance, stale.id, stale.share);
       assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, stale.share, stale.id)]);
+      assert.equal(fetchesAt(instance, stale.id, stale.share), existing === "refresh" ? 2 : 1);
+    });
+  });
+
+  const MOVED_ALREADY = [
+    {
+      key: "made",
+      moved: "the short link that made the Item moved it and the second short link fails",
+      promoter: "first",
+      resolution: FAILED,
+    },
+    {
+      key: "other",
+      moved: "another short link moved the Item and the one that made it fails",
+      promoter: "second",
+      resolution: FAILED,
+    },
+    {
+      key: "page",
+      moved: "the second short link now leads to a community page",
+      promoter: "first",
+      resolution: resolvedTo("https://www.reddit.com/r/library/"),
+    },
+  ] as const;
+
+  withEachExisting(MOVED_ALREADY).forEach(({ key, moved, promoter, resolution, existing }) => {
+    it(`answers with the Item that another alias already moved to its post, and queues ${existing === "refresh" ? "one fetch at the Item's own address and none at the share link" : "no fetch"}, when ${moved}, for a ${existing} Paste`, async () => {
+      const tag = `${key}${existing}`;
+      const [first, second] = [`https://t.co/movedfirst${tag}`, `https://t.co/movedsecond${tag}`];
+      const post = redditPost(`moved${tag}`);
+      const stale = await stagedStaleAlias(instance, first);
+
+      await firstResolved(instance, second, stale.share);
+
+      const [promoting, failing] = promoter === "first" ? [first, second] : [second, first];
+      const promoted = await repasted(instance, promoting, resolvedTo(post));
+
+      assert.ok(promoted !== null && promoted.item.id === stale.id);
+      exec(instance, "update jobs set state = 'done' where item_id = ?", stale.id);
+
+      const [own, total, atShareLink] = [
+        parseLink(post).normalizedUrl,
+        await instance.itemTotal(),
+        fetchesAt(instance, stale.id, stale.share),
+      ];
+
+      const saved = await repasted(instance, failing, resolution, existing);
+
+      assert.ok(saved !== null && saved.item.id === stale.id && !saved.created);
+      assert.equal(await instance.itemTotal(), total);
+      assert.equal(fetchesAt(instance, stale.id, own), existing === "refresh" ? 1 : 0);
+      assert.equal(fetchesAt(instance, stale.id, stale.share), atShareLink);
+      assert.deepEqual(aliasesAt(instance, failing), [aliasRow(failing, stale.share, stale.id)]);
     });
   });
 

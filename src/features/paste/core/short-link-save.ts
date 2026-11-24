@@ -22,6 +22,7 @@ import {
   holdsAlias,
   holdsNoFailedItem,
   holdsNoRival,
+  itemAddress,
   promotableFailedItem,
   promotionClosingJobs,
   recordAlias,
@@ -147,7 +148,7 @@ export function saveResolution(
   ) {
     return saveKept(ports, {
       shortLink: shortLink.normalizedUrl,
-      paste: { originalUrl: pasted, address: stale.address, digest, addedByToken },
+      paste: { originalUrl: pasted, address: itemAddress(stale), digest, addedByToken },
       existing,
       stale,
     });
