@@ -1,6 +1,7 @@
 import { type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
+import { listedSummary } from "../../../core/kernel/digest-stored.ts";
 import { itemsDisagreeProposals, proposals, topics } from "../../../core/kernel/schema.ts";
 import { acceptDisagreement } from "./disagreement-accept.ts";
 import {
@@ -22,7 +23,7 @@ function sideColumns(
   return {
     id: sql<number>`${id}`.as(`${prefix}_id`),
     title: sql<string>`${title}`.as(`${prefix}_title`),
-    summary: sql<string>`json_extract(${stored}, '$.summary')`.as(`${prefix}_summary`),
+    summary: listedSummary(stored).as(`${prefix}_summary`),
   };
 }
 
