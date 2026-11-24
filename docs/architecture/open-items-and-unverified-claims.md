@@ -263,6 +263,7 @@ Not verified:
 
 ### Export
 
+- The V8 fault behind the loop-free `fitting` in the Export slice code. The cause is shown only by flags on Node 26.13.1 (`--no-maglev` and `--no-maglev-loop-peeling` remove it, [Export, backup and restore](export-backup-and-restore.md) lists the flags that do not). No standalone case reproduces it, it is not reported to Node or V8, and the Worker target's runtime (workerd) and newer Node releases were not checked. `entriesOf` and `completeLines` have the same counting shape; a comparison of both with a reference on random inputs, run in one process with the Export and Restore core tests, gave the same results under both flag sets, and no wrong result was found.
 - On a deployed Worker: a slice at the 8 MiB budget (the largest slice run was 3.9 MB), so the CRC-32 time over 8 MiB, the memory of a slice under the 128 MB isolate limit and the subrequest count of a slice are open. The Workers invocation metric counts `fetch` calls and not D1 or R2 binding calls, and Workers observability reports no memory figure.
 - A browser saving a zip of several GiB from `GET /api/export/{id}/download`, the Worker download of a multi-gigabyte zip, a client that disconnects early on the deployed Worker, and a ZIP64 zip made by the whole export chain and not by the zip writer alone.
 - The download limit on the Worker, from the Workers limits and not measured: it reads 2 objects per slice and the tail, each a subrequest of the one invocation that streams the zip, so 10,000 subrequests (Workers Paid) end a download at 4,998 slices ([Export, backup and restore](export-backup-and-restore.md) has the recount). The Cloudflare target does not support the Free plan. The largest download run on a Worker is 6.1 MB in 4 slices.
@@ -277,7 +278,7 @@ Not verified:
 - The cost of reading a slice's part on R2. A slice reads its part as a stream from the start and skips to its window, because the file store has no byte range, so a slice reads on average half a part of 32 MiB for 1.5 MB of records.
 - A browser uploading a zip of several GiB in 32 MiB parts, a slow link, a failed part, and a part of 32 MiB on a Worker.
 - The request body limit of the owner's reverse proxy or tunnel, and an upload above 1 GB through one. No run crossed a proxy.
-- A zip over 4 GiB (the ZIP64 path of the zip reader), and a zip written by another release.
+- A zip over 4 GiB. The core tests run the ZIP64 records of the zip writer and reader with 65,536 entries and with an entry at an offset past 4 GiB, but no run read or wrote that many bytes. Also a zip written by another release.
 - A comparison of 20 searches and 50 Items with the source. The live proof compared 51 Item documents and 6 images, and no search.
 - A real D1 row near the 2,000,000-byte limit of a bound string ([D1 limits](https://developers.cloudflare.com/d1/platform/limits/)). `RESTORE_BIND_BYTES` keeps a window at 1.9 MB.
 - How the owner finishes the Items that had an open job in an Export taken during an Import, because nothing resumes their work after a Restore.

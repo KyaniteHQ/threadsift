@@ -10,10 +10,15 @@ import { type RefusalDetail, RestoreRefused, restoreRefusalOf } from "./restore-
 import { readRestoreDirectory } from "./restore-source.ts";
 import { endedUnit, steppedUnit } from "./restore-unit.ts";
 
+export interface Release {
+  readonly directory: ZipDirectory;
+  readonly manifest: Manifest;
+}
+
 async function readRelease(
   { db }: Pick<JobPorts, "db">,
   source: Readonly<ZipSource>,
-): Promise<Readonly<{ directory: ZipDirectory; manifest: Manifest }>> {
+): Promise<Release> {
   const directory = await readRestoreDirectory(source);
   const manifest = await readManifest(source, directory);
   const running = await appliedMigration(db);
@@ -47,21 +52,23 @@ function refusedUnit(
   return endedUnit(db, run, { state: "failed", failure: code, updatedAt: Date.now() });
 }
 
-export async function refusedRelease(
+type VerifiedRelease =
+  | { readonly kind: "current"; readonly release: Release }
+  | { readonly kind: "refused"; readonly outcome: JobOutcome };
+
+export async function verifiedRelease(
   ports: Pick<JobPorts, "db">,
   run: Readonly<RestoreRow>,
   source: Readonly<ZipSource>,
-): Promise<JobOutcome | null> {
+): Promise<VerifiedRelease> {
   try {
-    await readRelease(ports, source);
-
-    return null;
+    return { kind: "current", release: await readRelease(ports, source) };
   } catch (error) {
     const refusal = restoreRefusalOf(error);
 
     if (refusal?.code !== "other-release") throw error;
 
-    return refusedUnit(ports.db, run, refusal, error);
+    return { kind: "refused", outcome: refusedUnit(ports.db, run, refusal, error) };
   }
 }
 

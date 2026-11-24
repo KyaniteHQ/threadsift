@@ -59,18 +59,26 @@ function headOf({ note, postText }: Readonly<ItemFilePlan>): readonly ZipFile[] 
   ];
 }
 
+function fitting(sizes: readonly number[], skip: number, used: number): number {
+  let total = used;
+
+  const refused = sizes.findIndex((size, at) => {
+    if (at < skip) return false;
+
+    if (total !== 0 && total + size > EXPORT_SLICE_BYTES) return true;
+
+    total += size;
+
+    return false;
+  });
+
+  return refused === -1 ? Math.max(skip, sizes.length) : refused;
+}
+
 function choose(plan: Readonly<ItemFilePlan>, { skip, used }: Readonly<Place>): Chosen {
   const head = headOf(plan);
   const sizes = [...head.map(({ bytes }) => bytes.length), ...plan.stored.map(({ size }) => size)];
-
-  let total = used;
-  let at = skip;
-
-  while (at < sizes.length && (total === 0 || total + (sizes[at] ?? 0) <= EXPORT_SLICE_BYTES)) {
-    total += sizes[at] ?? 0;
-    at += 1;
-  }
-
+  const at = fitting(sizes, skip, used);
   const headCount = head.length;
 
   return {

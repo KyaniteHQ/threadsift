@@ -166,7 +166,7 @@
       "digest-publish.ts"
     ],
     "paste": ["item-save.ts"],
-    "export": [],
+    "export": ["zip.ts"],
     "restore": [],
     "related": ["related-task.ts"],
     "bot": ["bot-verify-wait.ts"]
