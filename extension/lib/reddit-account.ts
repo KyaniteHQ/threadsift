@@ -15,7 +15,7 @@ import {
   instanceAnswer,
   instanceRequest,
 } from "./config.ts";
-import { logFailure } from "./log.ts";
+import { logFailure, logRequestFailure } from "./log.ts";
 import { oneAtATime } from "./one-at-a-time.ts";
 
 const accountWrites = oneAtATime();
@@ -52,7 +52,9 @@ async function call(
 ): Promise<RedditConnectState> {
   try {
     return await stateOf(await instanceRequest(config, "/api/reddit-account", request));
-  } catch {
+  } catch (cause) {
+    logRequestFailure("reddit-account-request-failed", cause);
+
     return "unreachable";
   }
 }
