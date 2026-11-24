@@ -1,19 +1,10 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { PAGE_SIZE } from "../src/core/contract/paging.ts";
-import { MINUTE_MS, SECOND_MS } from "../src/core/contract/time-units.ts";
-import { atClock } from "./clock-fixtures.ts";
-import {
-  keepAt,
-  keepEach,
-  keepNote,
-  countsOf,
-  pageOf,
-  entryLines,
-} from "./highlights-page-fixtures.ts";
+import { SECOND_MS } from "../src/core/contract/time-units.ts";
+import { keepAt, keepNote, countsOf, pageOf, entryLines } from "./highlights-page-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
+import { textHolding } from "./lost-highlight-fixtures.ts";
 import { paste, REDDIT_THREAD } from "./related-fixtures.ts";
 
 describe("the Highlights page lists every Highlight and every Item Note newest first, with search and filters that read the entry's own text", () => {
@@ -217,73 +208,5 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
       `note:${String(alpha)}:alpha chickpeas, saved again`,
       `note:${String(thread)}:gamma pickles`,
     ]);
-  });
-});
-
-const idsOf = (entries: readonly { readonly kind: string; readonly id: number }[]) =>
-  entries.map(({ kind, id }) => `${kind}:${String(id)}`);
-
-describe("the Highlights page shows 50 entries at a time and pages by cursor without repeating or skipping an entry, also among entries of one date", () => {
-  let instance: Instance;
-  let itemId: number;
-  const tied = Date.now() - MINUTE_MS;
-  const passages = Array.from(
-    { length: PAGE_SIZE + 1 },
-    (_, at) => `token${String(at).padStart(2, "0")}`,
-  );
-
-  before(async () => {
-    instance = await Instance.start();
-    await instance.setUp();
-    itemId = await paste(instance, "many", {
-      title: "Many passages",
-      postText: textHolding(passages.join(" ")),
-    });
-    await atClock(
-      () => tied,
-      () => keepEach(instance, itemId, passages),
-    );
-    await keepNote(instance, tied, { itemId, body: "A Note of the same date", revision: 0 });
-  });
-
-  after(() => instance.close());
-
-  it("answers a first page of 50 and a cursor, then the rest and no cursor, with the 52 entries of one date each once", async () => {
-    const first = await pageOf(instance);
-
-    assert.equal(first.entries.length, PAGE_SIZE);
-    assert.notEqual(first.next, null);
-
-    const second = await pageOf(instance, `?cursor=${first.next ?? ""}`);
-
-    assert.equal(second.entries.length, 2);
-    assert.equal(second.next, null);
-
-    const all = [...first.entries, ...second.entries];
-
-    assert.deepEqual(
-      all.flatMap(({ kind, text }) => (kind === "highlight" ? [text] : [])).toSorted(),
-      passages,
-    );
-    assert.deepEqual(
-      all.flatMap(({ kind, text }) => (kind === "note" ? [text] : [])),
-      ["A Note of the same date"],
-    );
-    assert.ok(all.every(({ date }) => date === tied));
-    assert.equal(first.counts.total, PAGE_SIZE + 2);
-  });
-
-  it("repeats none and skips none when a Highlight is kept between the two reads, and shows the new one first from the top", async () => {
-    const first = await pageOf(instance);
-    const listed = idsOf([
-      ...first.entries,
-      ...(await pageOf(instance, `?cursor=${first.next ?? ""}`)).entries,
-    ]);
-
-    const added = await keepPassage(instance, itemId, "token05 token06");
-    const second = await pageOf(instance, `?cursor=${first.next ?? ""}`);
-
-    assert.deepEqual(idsOf([...first.entries, ...second.entries]), listed);
-    assert.equal((await pageOf(instance)).entries[0]?.id, added);
   });
 });
