@@ -10,14 +10,11 @@ import {
   ROUTES,
   type Route,
   type Variant,
-  counted,
-  inSequence,
-  median,
-  percentile,
   request,
   WORKING_TREE,
-  startHarness,
+  withHarness,
 } from "./worker-build-cost-harness.ts";
+import { counted, inSequence, median, percentile } from "./worker-build-cost-stats.ts";
 
 const Counts = z.object({
   pairs: z.coerce.number().int().positive().default(400),
@@ -79,8 +76,7 @@ function report(route: Readonly<Route>, samples: Readonly<Samples>): string {
   ].join("\n");
 }
 
-const harness = await startHarness([baseline, candidate], "worker-build-cost-wall-time");
-try {
+await withHarness([baseline, candidate], "worker-build-cost-wall-time", async (harness) => {
   const load = [loadavg()[0]];
   const results = await inSequence(ROUTES, async (route) => {
     const samples = await measure(harness, route);
@@ -94,6 +90,4 @@ try {
   if (values.out !== undefined) {
     writeFileSync(values.out, JSON.stringify({ pairs, warmup, load, results }));
   }
-} finally {
-  await harness.stop();
-}
+});

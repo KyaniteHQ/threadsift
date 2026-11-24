@@ -10,13 +10,11 @@ import {
   ROUTES,
   type Route,
   type Variant,
-  counted,
-  inSequence,
-  median,
   request,
   WORKING_TREE,
-  startHarness,
+  withHarness,
 } from "./worker-build-cost-harness.ts";
+import { counted, inSequence, median } from "./worker-build-cost-stats.ts";
 
 const TICKS_PER_SECOND = 100;
 const SLOW_ROUTE_DIVISOR = 4;
@@ -85,8 +83,7 @@ async function measure(harness: Readonly<Harness>, route: Readonly<Route>) {
   return { count, perRound };
 }
 
-const harness = await startHarness([baseline, candidate], "worker-build-cost-cpu-time");
-try {
+await withHarness([baseline, candidate], "worker-build-cost-cpu-time", async (harness) => {
   console.log(
     "| route | requests per round | baseline CPU ms per request | candidate CPU ms per request | added ms |",
   );
@@ -106,6 +103,4 @@ try {
   if (values.out !== undefined) {
     writeFileSync(values.out, JSON.stringify({ requests, rounds, warmup, results }));
   }
-} finally {
-  await harness.stop();
-}
+});
