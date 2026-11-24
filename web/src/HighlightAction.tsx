@@ -19,6 +19,7 @@ import {
   KEEP_LABEL,
   REMOVE_GROUP,
   REMOVE_LABEL,
+  contextTail,
   quoteEnds,
   removeNamed,
 } from "./reader-text.ts";
@@ -42,19 +43,25 @@ function placedWhileShown(element: HTMLElement, panel: Readonly<Panel>): () => v
   };
 
   const resized = new ResizeObserver(again);
+  const listeners = new AbortController();
+  const { signal } = listeners;
 
   place();
   resized.observe(element);
-  element.addEventListener("keydown", refuseRepeat);
-  window.addEventListener("scroll", again, true);
-  window.addEventListener("resize", again);
+  element.addEventListener("keydown", refuseRepeat, { signal });
+  window.addEventListener("resize", again, { signal });
+  window.addEventListener(
+    "scroll",
+    (event) => {
+      if (!(event.target instanceof Node && element.contains(event.target))) again();
+    },
+    { capture: true, signal },
+  );
 
   return () => {
     resized.disconnect();
-    element.removeEventListener("keydown", refuseRepeat);
     cancelAnimationFrame(frame);
-    window.removeEventListener("scroll", again, true);
-    window.removeEventListener("resize", again);
+    listeners.abort();
   };
 }
 
@@ -76,7 +83,7 @@ function markAfterRemove(
 }
 
 function refuseRepeat(event: KeyboardEvent): void {
-  if (event.repeat) event.preventDefault();
+  if (event.repeat && (event.key === "Enter" || event.key === " ")) event.preventDefault();
 }
 
 function RemoveButton({
@@ -125,7 +132,7 @@ function RemoveRow({ panel, highlight }: Readonly<{ panel: RemovePanel; highligh
       <span className="hl-quote">
         <span>
           <span id={parts[0]} className="hl-ctx">
-            <QuoteText text={prefix} />
+            <QuoteText text={contextTail(prefix)} />
           </span>
           <span id={parts[1]} className="hl-exact">
             <QuoteText text={head} />

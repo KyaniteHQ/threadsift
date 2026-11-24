@@ -1,5 +1,6 @@
 import type { CommentCount, UnfilteredCause } from "../../src/core/contract/comment-view.ts";
 import { collapsed, groupedNumber } from "../../src/core/contract/format.ts";
+import { CONTEXT_CODE_POINTS } from "../../src/core/contract/highlight-anchor.ts";
 import type { Source } from "../../src/core/contract/item-contract.ts";
 import { NOTE_MAX_CODE_POINTS } from "../../src/core/contract/note-contract.ts";
 import { UNTITLED } from "../../src/core/contract/reader-text.ts";
@@ -149,6 +150,13 @@ export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: numb
   };
 
   return filled(rereferenceIndex > 1 ? FOOTNOTE_BACK_AGAIN : FOOTNOTE_BACK, values);
+}
+
+export function contextTail(prefix: string): string {
+  const points = Array.from(prefix);
+  const kept = CONTEXT_CODE_POINTS / 2;
+
+  return points.length > kept ? `${ELLIPSIS}${points.slice(-kept).join("")}` : prefix;
 }
 
 export function quoteEnds(exact: string): { readonly head: string; readonly tail: string | null } {

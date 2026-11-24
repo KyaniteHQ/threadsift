@@ -87,6 +87,15 @@ function clamp(value: number, low: number, high: number): number {
   return Math.max(low, Math.min(value, high));
 }
 
+function naturalHeight(popover: HTMLElement): number {
+  const { height } = popover.getBoundingClientRect();
+  const hidden = Array.from(popover.children, (child) =>
+    Math.max(child.scrollHeight - child.clientHeight, 0),
+  );
+
+  return height + hidden.reduce((sum, each) => sum + each, 0);
+}
+
 export function placePopover(
   popover: HTMLElement,
   source: Range | Element,
@@ -97,19 +106,17 @@ export function placePopover(
   const bounds = visibleBox(placement);
   const roomAbove = edges.first.top - gapAbove - bounds.top;
   const roomBelow = bounds.bottom - edges.last.bottom - gapBelow;
-
-  const sized = (room: number): DOMRect => {
-    popover.style.setProperty("--pop-room", `${Math.max(room, 0)}px`);
-
-    return popover.getBoundingClientRect();
-  };
-
-  const whole = sized(bounds.bottom - bounds.top);
-  const fitsAbove = whole.height <= roomAbove;
-  const fitsBelow = whole.height <= roomBelow;
+  const natural = naturalHeight(popover);
+  const fitsAbove = natural <= roomAbove;
+  const fitsBelow = natural <= roomBelow;
   const fits = fitsAbove || fitsBelow;
   const useBelow = fits ? (below ? fitsBelow : !fitsAbove) : roomBelow > roomAbove;
-  const { width, height } = fits ? whole : sized(Math.max(roomAbove, roomBelow));
+  const room = fits ? bounds.bottom - bounds.top : Math.max(roomAbove, roomBelow);
+
+  popover.style.setProperty("--pop-room", `${Math.max(room, 0)}px`);
+
+  const { width, height } = popover.getBoundingClientRect();
+
   const top = clamp(
     useBelow ? edges.last.bottom + gapBelow : edges.first.top - gapAbove - height,
     bounds.top,
