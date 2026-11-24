@@ -63,12 +63,11 @@ async function nullWhenRefused<Result>(
   db: Database,
   condition: Readonly<SQLWrapper>,
   run: () => Promise<Result>,
-  couldBeRefusal: (cause: unknown) => boolean,
 ): Promise<Result | null> {
   try {
     return await run();
   } catch (error) {
-    if (!couldBeRefusal(error) || (await guardHeldOrUnread(db, condition))) throw error;
+    if (!refusedByGuard(error) || (await guardHeldOrUnread(db, condition))) throw error;
 
     return null;
   }
@@ -79,7 +78,7 @@ export function unlessRefused<Written>(
   condition: Readonly<SQLWrapper>,
   write: () => Promise<Written>,
 ): Promise<Written | null> {
-  return nullWhenRefused(db, condition, write, () => true);
+  return nullWhenRefused(db, condition, write);
 }
 
 function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(
@@ -95,18 +94,13 @@ export function guardedResults(
   condition: Readonly<SQLWrapper>,
   writes: readonly BatchItem<"sqlite">[],
 ): Promise<readonly unknown[] | null> {
-  return nullWhenRefused(
-    db,
-    condition,
-    async () => {
-      const [, ...results] = await db.batch(guardedWrites(db, condition, writes));
+  return nullWhenRefused(db, condition, async () => {
+    const [, ...results] = await db.batch(guardedWrites(db, condition, writes));
 
-      const written: readonly unknown[] = results.slice(0, writes.length);
+    const written: readonly unknown[] = results.slice(0, writes.length);
 
-      return written;
-    },
-    refusedByGuard,
-  );
+    return written;
+  });
 }
 
 export async function guardedBatch(
@@ -123,14 +117,9 @@ export function guardedWrite<Write extends BatchItem<"sqlite">>(
   write: Write,
   rest: readonly BatchItem<"sqlite">[],
 ): Promise<Write["_"]["result"] | null> {
-  return nullWhenRefused(
-    db,
-    condition,
-    async () => {
-      const [, result] = await db.batch(guardedWrites(db, condition, [write, ...rest] as const));
+  return nullWhenRefused(db, condition, async () => {
+    const [, result] = await db.batch(guardedWrites(db, condition, [write, ...rest] as const));
 
-      return result;
-    },
-    refusedByGuard,
-  );
+    return result;
+  });
 }

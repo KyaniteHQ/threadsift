@@ -237,9 +237,9 @@ The two weekly checks that call no model (lost Highlights, Topics whose overview
 One tick claims each due task in `scheduled_runs` and enqueues jobs. Cloudflare calls the tick from a Cron Trigger every minute, and the container calls it from a timer every 60 seconds. The tick calls no model, because a Cron Trigger under an hourly interval gets 30 seconds of CPU ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)).
 
 - Spacing. The tick sweeps at most once in 30 seconds (`TICK_SPACING_MS`), claimed in `scheduled_runs` so two ticks do not both sweep. A stored time more than one spacing ahead of the clock counts as old, because the clock moved back, so a step back of an hour on the container's host does not stop the sweeps for that hour.
-- Vault. After the sweep, the tick runs the Vault mirror.
+- Vault. After the sweep, the tick runs the Vault mirror, also when the sweep failed. A failure inside the mirror is logged as `vault-mirror-failed`, and one that escapes it as `vault-tick-failed`. Neither fails the tick.
 - Limit. The sweep enqueues at most 100 due rows (`SWEEP_LIMIT`) in one `sendBatch` call, which takes up to 100 messages and one `delaySeconds` for the batch ([Queues docs, JavaScript APIs](https://developers.cloudflare.com/queues/configuration/javascript-apis/)).
-- Failures. A stage that throws is logged as `sweep-stage-failed` with its name, and the later stages still run. The sweep then throws the first error, so the tick reports it (the local scheduled endpoint answers 500).
+- Failures. A stage that throws is logged as `sweep-stage-failed` with its name, and the later stages still run. The sweep then throws the first error. The tick rethrows it after the Vault mirror ran, so the Worker's scheduled handler rejects and the container's job loop logs `job-loop-failed`.
 
 The sweep runs its stages one after another. The re-queue of due jobs comes first, so a later stage can fail without costing a lost Queue message or an expired claim its recovery.
 
