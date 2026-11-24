@@ -3,7 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { placePostText } from "../src/features/thread/core/post-text-files.ts";
 import { Instance } from "./instance.ts";
-import { exec, paste } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const LIMIT = 1_000_000;
 

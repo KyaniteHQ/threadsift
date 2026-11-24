@@ -17,7 +17,8 @@ import { startedTask } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, rowCount, taskRow, taskRows } from "./bot-task-rows.ts";
 import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec, pairsOf, saveProvider } from "./related-fixtures.ts";
+import { pairsOf, saveProvider } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 import { waitingIntake } from "./x-intake-fixtures.ts";
 
 describe("a Related pick on Grok Bot follows the lifecycle through the production runner, and a change of Provider abandons what is open", () => {

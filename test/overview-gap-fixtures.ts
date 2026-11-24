@@ -6,7 +6,8 @@ import type { OverviewGapProposal, ProposalPage } from "../src/core/contract/pro
 import type { Instance } from "./instance.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 const GapSchema = z.object({

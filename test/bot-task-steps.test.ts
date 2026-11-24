@@ -25,7 +25,8 @@ import {
 } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { exec, pairsOf, paste } from "./related-fixtures.ts";
+import { pairsOf, paste } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const SEND_FAILED = /send failed: unreachable/u;
 

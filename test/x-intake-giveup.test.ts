@@ -6,7 +6,7 @@ import { MAX_ATTEMPTS } from "../src/core/contract/job-contract.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 import { sentIntake } from "./x-intake-fixtures.ts";
 
 describe("an X link task that the bot did not answer ends with its fetch job", () => {

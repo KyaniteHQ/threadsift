@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { count, rows } from "./related-fixtures.ts";
+import { count, rows } from "./sqlite-fixtures.ts";
 
 const ALL_TABLES = ["items", "jobs", "ai_tasks", "reddit_comments", "digests"] as const;
 

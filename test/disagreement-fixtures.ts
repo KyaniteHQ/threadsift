@@ -1,9 +1,9 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { script } from "./pin-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, paste, rows, until } from "./related-fixtures.ts";
+import { paste, until } from "./related-fixtures.ts";
+import { script, exec, rows } from "./sqlite-fixtures.ts";
 import { jobsOf } from "./weekly-claim-fixtures.ts";
 
 export interface Seeded {

@@ -1,10 +1,9 @@
-import { DatabaseSync } from "node:sqlite";
-
 import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance, type Json } from "./instance.ts";
 import { redditAddressOf, listing, postListing } from "./reader-thread-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 
 export const DIGEST = {
   title: "A linked page",
@@ -68,16 +67,7 @@ export function toolsOf(instance: Instance) {
     statement: string,
     ...params: (string | number)[]
   ): z.infer<Schema>[] => {
-    const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
-
-    try {
-      return database
-        .prepare(statement)
-        .all(...params)
-        .map((row) => schema.parse({ ...row }));
-    } finally {
-      database.close();
-    }
+    return rows(instance, schema, statement, ...params);
   };
 
   const candidates = (itemId: number) =>
@@ -144,15 +134,7 @@ export const hopLines = (warnings: readonly string[]) =>
   warnings.filter((line) => line.includes('"digest-hop"'));
 
 export function seedGithubCooldown(instance: Instance): void {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    database
-      .prepare("insert into github_cooldown (id, until) values (1, ?)")
-      .run(Date.now() + COOLDOWN_MS);
-  } finally {
-    database.close();
-  }
+  exec(instance, "insert into github_cooldown (id, until) values (1, ?)", Date.now() + COOLDOWN_MS);
 }
 
 export const hopResults = (warnings: readonly string[]) =>

@@ -18,7 +18,7 @@ import {
   sameAsRest,
 } from "./mcp-client.ts";
 import { KEPT_ARTICLE, type Library, NOTE_BODY, NOTE_WORD, seedLibrary } from "./mcp-fixtures.ts";
-import { exec } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const MISSING_ID = 999_999;
 

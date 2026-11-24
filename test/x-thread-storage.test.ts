@@ -7,7 +7,8 @@ import { utf8Length } from "../src/core/contract/encoding.ts";
 import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
 import { Instance, type Json } from "./instance.ts";
-import { SECRET_KEY, count, exec, rows, saveProvider, until } from "./related-fixtures.ts";
+import { SECRET_KEY, saveProvider, until } from "./related-fixtures.ts";
+import { count, exec, rows } from "./sqlite-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import {
   CUT_CASES,

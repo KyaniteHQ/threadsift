@@ -24,7 +24,7 @@ import {
   storedKeys,
 } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { rows } from "./related-fixtures.ts";
+import { rows } from "./sqlite-fixtures.ts";
 import { entriesOf, entryOf, linesOf, manifestOf, recordLines, rootOf } from "./zip-fixtures.ts";
 
 const MigrationSchema = z.object({ name: z.string() });

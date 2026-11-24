@@ -7,7 +7,8 @@ import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 

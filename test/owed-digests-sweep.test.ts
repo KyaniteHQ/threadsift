@@ -8,7 +8,7 @@ import { inOrder } from "./grok-bot-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { hopThreadOf, toolsOf } from "./one-hop-fixtures.ts";
 import { redditAddressOf } from "./reader-thread-fixtures.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { exec, nextSweep, rows } from "./sqlite-fixtures.ts";
 
 const STRANDED = 45;
 
@@ -36,11 +36,6 @@ function digestJobItems(instance: Instance): readonly number[] {
     ItemId,
     "select item_id from jobs where kind = 'digest' order by item_id",
   ).map(({ item_id: id }) => id);
-}
-
-async function nextSweep(instance: Instance): Promise<void> {
-  exec(instance, "delete from scheduled_runs where task = 'sweep'");
-  await instance.tick();
 }
 
 describe("the sweep opens Digest jobs for Items that have a Digest source and no Digest, a few at a time, oldest first, while Grok Bot is the Provider", () => {

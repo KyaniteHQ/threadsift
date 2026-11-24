@@ -6,7 +6,7 @@ import { z } from "zod";
 import { accept, linkVolume, mergeLines, seedVolume, tagsOfDigest } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { count, exec, rows } from "./related-fixtures.ts";
+import { count, exec, rows } from "./sqlite-fixtures.ts";
 
 const DigestTagsSchema = z.object({ tags: z.string() });
 

@@ -8,15 +8,15 @@ import {
   type SavedLibrary,
   bytesOfKey,
   downloadedZip,
-  nextSweep,
   postTextKey,
   readyExport,
   savedLibrary,
   storedKeys,
 } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec, rows, until } from "./related-fixtures.ts";
+import { until } from "./related-fixtures.ts";
 import { loggedAttempts, retryNow } from "./restore-fixtures.ts";
+import { exec, nextSweep, rows } from "./sqlite-fixtures.ts";
 import { entriesOf } from "./zip-fixtures.ts";
 
 const MINUTE_MS = 60_000;

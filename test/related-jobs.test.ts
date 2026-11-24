@@ -8,18 +8,16 @@ import { jobRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { entryCount } from "./log-fixtures.ts";
 import {
-  count,
   SECRET_KEY,
-  exec,
   firstPickTask,
   pairsOf,
   paste,
   pickJobs,
   pickTasks,
-  rows,
   saveProvider,
   until,
 } from "./related-fixtures.ts";
+import { count, exec, rows } from "./sqlite-fixtures.ts";
 
 function seed(instance: Instance, source: number, related: number, position: number): void {
   exec(

@@ -11,7 +11,8 @@ import {
 } from "../src/features/digest/core/digest-publish.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
-import { item, script, topicNameOf } from "./pin-fixtures.ts";
+import { item, topicNameOf } from "./pin-fixtures.ts";
+import { script } from "./sqlite-fixtures.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 

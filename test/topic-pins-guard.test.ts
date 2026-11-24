@@ -6,7 +6,7 @@ import { guardHolds } from "../src/core/kernel/guards.ts";
 import { pinnedDigest } from "../src/features/wiki/core/pins.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
-import { script } from "./pin-fixtures.ts";
+import { script } from "./sqlite-fixtures.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 

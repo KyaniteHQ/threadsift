@@ -18,7 +18,7 @@ import {
   view,
 } from "./grok-bot-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 describe("an Instance with no sealing key, and a row sealed under another key", () => {
   let bare: Instance;

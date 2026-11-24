@@ -18,7 +18,8 @@ import {
   verified,
   view,
 } from "./reddit-account-fixtures.ts";
-import { exec, until } from "./related-fixtures.ts";
+import { until } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 describe("the Reddit account settings are reached only by the signed-in owner", () => {
   let instance: Instance;

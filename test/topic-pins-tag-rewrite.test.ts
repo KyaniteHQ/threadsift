@@ -9,7 +9,8 @@ import { readRewrite } from "../src/features/wiki/core/tag-rewrite.ts";
 import { topicLinked, topicMoves } from "../src/features/wiki/core/topic-moves.ts";
 import { openDatabase } from "../src/targets/node/database.ts";
 import { Instance } from "./instance.ts";
-import { dump, item, script } from "./pin-fixtures.ts";
+import { dump, item } from "./pin-fixtures.ts";
+import { script } from "./sqlite-fixtures.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
 

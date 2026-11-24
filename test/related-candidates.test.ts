@@ -9,18 +9,17 @@ import { Instance } from "./instance.ts";
 import {
   REDDIT_THREAD,
   SECRET_KEY,
-  exec,
   firstPickTask,
   pairsOf,
   paste,
   pasteInOrder,
   pickTasks,
-  rows,
   saveProvider,
   sentInput,
   until,
 } from "./related-fixtures.ts";
 import { restoreLibrary } from "./restoring-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 
 const TWELVE = "quasar lattice decoder notes alpha beta gamma delta epsilon zeta eta theta";
 

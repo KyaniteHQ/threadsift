@@ -13,7 +13,8 @@ import {
 import { Instance } from "./instance.ts";
 import { listedIds, readPage } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { SECRET_KEY, count, exec, saveProvider } from "./related-fixtures.ts";
+import { SECRET_KEY, saveProvider } from "./related-fixtures.ts";
+import { count, exec } from "./sqlite-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 import { jobsOf } from "./weekly-claim-fixtures.ts";
 

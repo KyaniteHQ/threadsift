@@ -6,7 +6,7 @@ import { type Sent, botInstance, openJobOf, sentTask } from "./bot-kinds-fixture
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { catalogVersion, count } from "./related-fixtures.ts";
+import { catalogVersion, count } from "./sqlite-fixtures.ts";
 
 const WEEKLY = new Set(["proposals", "topic_proposals"]);
 

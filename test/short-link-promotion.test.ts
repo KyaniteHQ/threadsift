@@ -7,8 +7,8 @@ import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts
 import { parseLink } from "../src/core/contract/links.ts";
 import { saveResolved, saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
 import { itemTotal } from "./restoring-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 import { xLink } from "./token-budget-fixtures.ts";
 
 const AliasSchema = z.object({

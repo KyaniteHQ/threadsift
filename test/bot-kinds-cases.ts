@@ -5,7 +5,8 @@ import { SentTopicsSchema } from "../src/features/wiki/core/disagreement-task.ts
 import { SentPairsSchema } from "../src/features/wiki/core/proposal-sent.ts";
 import { seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance, Json } from "./instance.ts";
-import { count, REDDIT_THREAD, exec, paste } from "./related-fixtures.ts";
+import { REDDIT_THREAD, paste } from "./related-fixtures.ts";
+import { count, exec } from "./sqlite-fixtures.ts";
 
 export type BotKindName = Exclude<OwnedJobKind, IntakeJobKind | "related_pick">;
 

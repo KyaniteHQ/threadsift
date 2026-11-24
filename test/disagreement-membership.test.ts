@@ -3,7 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { runWeek, seedDigested, seedTopics, sentOf, tasksOf } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
+import { SECRET_KEY, saveProvider } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 import { jobsOf, claims } from "./weekly-claim-fixtures.ts";
 
 const span = (from: number, count: number): readonly number[] =>

@@ -16,7 +16,8 @@ import { answered } from "./bot-task-http.ts";
 import { applied, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { exec, pairsOf } from "./related-fixtures.ts";
+import { pairsOf } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const DAY_MS = 24 * 3_600_000;
 

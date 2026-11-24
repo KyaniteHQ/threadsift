@@ -8,7 +8,8 @@ import {
 } from "../src/core/contract/reddit-account-contract.ts";
 import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
 import { Instance } from "./instance.ts";
-import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
+import { SECRET_KEY } from "./related-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 
 export const PATH = "/api/settings/reddit-account";
 

@@ -4,8 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
 import { exportedZip, savedLibrary, storedKeys } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 import { putPart, restoreStatus, settledRestore } from "./restore-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const codeOf = (body: string) => RestoreErrorSchema.parse(JSON.parse(body)).code;
 

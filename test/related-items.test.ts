@@ -3,7 +3,8 @@ import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { Instance } from "./instance.ts";
-import { count, SECRET_KEY, exec, pairsOf, paste } from "./related-fixtures.ts";
+import { SECRET_KEY, pairsOf, paste } from "./related-fixtures.ts";
+import { count, exec } from "./sqlite-fixtures.ts";
 
 function seed(
   instance: Instance,

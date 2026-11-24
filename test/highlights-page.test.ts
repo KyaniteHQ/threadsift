@@ -11,7 +11,8 @@ import {
 } from "./highlights-page-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
-import { exec, paste, REDDIT_THREAD } from "./related-fixtures.ts";
+import { paste, REDDIT_THREAD } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const PAGE_SIZE = 50;
 

@@ -2,15 +2,9 @@ import assert from "node:assert/strict";
 import { type TestContext, after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import { RestoreErrorSchema, restoreAnswerSchema } from "../src/core/contract/restore-contract.ts";
-import {
-  exportedZip,
-  longPostText,
-  nextSweep,
-  savedLibrary,
-  storedKeys,
-} from "./export-restore-fixtures.ts";
+import { exportedZip, longPostText, savedLibrary, storedKeys } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { count, exec, paste } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
 import {
   gaveUpInFiles,
   restoreStatus,
@@ -20,6 +14,7 @@ import {
   unblockItemFiles,
   uploadedRestore,
 } from "./restore-fixtures.ts";
+import { count, exec, nextSweep } from "./sqlite-fixtures.ts";
 
 const TEXT = new TextEncoder();
 

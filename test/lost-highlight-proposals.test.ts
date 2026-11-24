@@ -13,7 +13,8 @@ import {
   textHolding,
 } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { SECRET_KEY, paste, rows } from "./related-fixtures.ts";
+import { SECRET_KEY, paste } from "./related-fixtures.ts";
+import { rows } from "./sqlite-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 const highlightColumns = (instance: Instance) =>

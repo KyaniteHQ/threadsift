@@ -5,7 +5,8 @@ import { z } from "zod";
 
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { paste, rows } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
+import { rows } from "./sqlite-fixtures.ts";
 
 const PNG = new Uint8Array(
   Buffer.from(

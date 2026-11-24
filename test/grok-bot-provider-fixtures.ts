@@ -8,7 +8,7 @@ import { awaitVerifiedDigest } from "../src/features/bot/core/bot-verify-wait.ts
 import { DIGEST_ANSWER } from "./bot-kinds-cases.ts";
 import { acceptedByBot, botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 
 export const VERIFY_PATH = "/api/settings/ai/verify";
 

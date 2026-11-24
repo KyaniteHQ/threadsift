@@ -19,8 +19,9 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
-import { moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
+import { SECRET_KEY, saveProvider, until } from "./related-fixtures.ts";
+import { exec, rows, nextSweep } from "./sqlite-fixtures.ts";
+import { moveClaimBack } from "./weekly-claim-fixtures.ts";
 
 const reject = (instance: Instance, id: number) =>
   instance.send("POST", `/api/proposals/${String(id)}/reject`);
@@ -161,9 +162,9 @@ describe("Reject of an overview-gap row", () => {
     ]);
     assert.deepEqual((await readPage(instance)).proposals, []);
 
-    await nextTick(instance);
+    await nextSweep(instance);
     moveClaimBack(instance, "overview_proposals");
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.deepEqual(
       proposalRows(instance).filter(({ kind }) => kind === "overview-gap"),

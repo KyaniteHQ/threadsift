@@ -3,7 +3,7 @@ import { createHash } from "node:crypto";
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { count, exec, rows } from "./related-fixtures.ts";
+import { count, exec, rows } from "./sqlite-fixtures.ts";
 
 const TaskRowSchema = z.object({
   id: z.number(),

@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { VaultResultSchema } from "../src/core/contract/vault-contract.ts";
 import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const VERIFY = "/api/settings/obsidian/verify";
 const TARGET = { mode: "github", repository: "owner/notes", branch: "main" } as const;

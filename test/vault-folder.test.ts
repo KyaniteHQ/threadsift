@@ -16,7 +16,7 @@ import { VaultResultSchema, VaultViewSchema } from "../src/core/contract/vault-c
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
 import { paste } from "./related-fixtures.ts";
-import { nextTick } from "./weekly-claim-fixtures.ts";
+import { nextSweep } from "./sqlite-fixtures.ts";
 
 const SETTINGS = "/api/settings/obsidian";
 
@@ -33,7 +33,7 @@ async function drained(
   missing: () => Promise<readonly string[]> | readonly string[],
   rounds = ROUNDS,
 ): Promise<void> {
-  await nextTick(instance);
+  await nextSweep(instance);
 
   const left = await missing();
 
@@ -152,8 +152,8 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
 
       return seen.mode === "folder" && seen.conflicts.length > 0 ? [] : ["a named conflict"];
     });
-    await nextTick(instance);
-    await nextTick(instance);
+    await nextSweep(instance);
+    await nextSweep(instance);
 
     const current = await view();
 

@@ -5,7 +5,7 @@ import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { sentTask } from "./bot-kinds-fixtures.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 export async function claimedAgain(
   instance: Instance,

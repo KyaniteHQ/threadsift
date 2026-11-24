@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { TokenListResponseSchema } from "../src/core/contract/access-wire.ts";
@@ -11,6 +10,7 @@ import { type Answer, Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
 import { SECRET_KEY, paste, saveProvider } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 type Send = (method: string, path: string, body?: Json) => Promise<Answer>;
 
@@ -193,9 +193,7 @@ describe("a token whose stored scopes are unreadable", () => {
   let instance: Instance;
 
   const store = (id: number, scopes: string): void => {
-    using database = new DatabaseSync(instance.databaseFile);
-
-    database.prepare("update agent_tokens set scopes = ? where id = ?").run(scopes, id);
+    exec(instance, "update agent_tokens set scopes = ? where id = ?", scopes, id);
   };
 
   before(async () => {
@@ -248,14 +246,11 @@ describe("a token row stored without scopes", () => {
   after(() => instance.close());
 
   it("is refused by the database, which holds no default scopes for a token", () => {
-    using database = new DatabaseSync(instance.databaseFile);
-
     assert.throws(() => {
-      database
-        .prepare(
-          "insert into agent_tokens (name, digest, created_at) values ('no scopes', 'digest', 0)",
-        )
-        .run();
+      exec(
+        instance,
+        "insert into agent_tokens (name, digest, created_at) values ('no scopes', 'digest', 0)",
+      );
     }, /NOT NULL constraint failed: agent_tokens\.scopes/u);
   });
 });

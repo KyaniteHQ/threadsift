@@ -5,7 +5,8 @@ import { runJob } from "../src/core/compose/jobs.ts";
 import { acceptedByBot, botInstance } from "./bot-task-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
-import { exec, until } from "./related-fixtures.ts";
+import { until } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 import { answerOf, contentOf, digestOf } from "./x-intake-bodies.ts";
 import {
   advancedContent,

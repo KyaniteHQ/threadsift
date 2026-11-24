@@ -1,12 +1,11 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
-import { exec } from "./sqlite-fixtures.ts";
+import { rows } from "./sqlite-fixtures.ts";
 
 export const SECRET_KEY = "0".repeat(64);
 
@@ -134,40 +133,6 @@ export async function paste(instance: Instance, slug: string, fixture: Fixture):
   return item.id;
 }
 
-const CountSchema = z.object({ n: z.number() });
-
-const CatalogVersionSchema = z.object({ version: z.number() });
-
-export const catalogVersion = (instance: Instance): number =>
-  CatalogVersionSchema.parse(
-    rows(instance, CatalogVersionSchema, "select version from catalog_version where id = 1")[0],
-  ).version;
-
-export function count(instance: Instance, query: string, ...params: readonly (string | number)[]) {
-  const [row] = rows(instance, CountSchema, query, ...params);
-  if (row === undefined) throw new Error("The count query returned no row");
-
-  return row.n;
-}
-
-export function rows<Schema extends z.ZodType>(
-  instance: Instance,
-  schema: Schema,
-  query: string,
-  ...params: readonly (string | number)[]
-): z.infer<Schema>[] {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    return database
-      .prepare(query)
-      .all(...params)
-      .map((row) => schema.parse(row));
-  } finally {
-    database.close();
-  }
-}
-
 const TaskSchema = z.object({
   id: z.number(),
   inputs: z.string(),
@@ -259,5 +224,3 @@ export async function pasteInOrder(
 
   return ids;
 }
-
-export { exec };

@@ -5,8 +5,9 @@ import { z } from "zod";
 
 import { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
-import { jobsOf, claims, moveClaimBack, nextTick, WEEK_MS } from "./weekly-claim-fixtures.ts";
+import { SECRET_KEY, paste, saveProvider, until } from "./related-fixtures.ts";
+import { exec, rows, nextSweep } from "./sqlite-fixtures.ts";
+import { jobsOf, claims, moveClaimBack, WEEK_MS } from "./weekly-claim-fixtures.ts";
 
 async function seedLibrary(instance: Instance): Promise<number> {
   await paste(instance, "a", { title: "A", topic: "Game", tags: ["machine learning", "ml"] });
@@ -30,7 +31,7 @@ describe("each weekly model check has its own claim", () => {
       await withoutDigest.setUp();
       await paste(withoutDigest, "without-digest", { title: "No Digest", noDigest: true });
       await saveProvider(withoutDigest);
-      await nextTick(withoutDigest);
+      await nextSweep(withoutDigest);
       for (const task of MODEL_TASKS) {
         assert.deepEqual([claims(withoutDigest, task), jobsOf(withoutDigest, task)], [[], []]);
       }
@@ -41,13 +42,13 @@ describe("each weekly model check has its own claim", () => {
     library = await Instance.start({ secretKey: SECRET_KEY });
     await library.setUp();
     owner = await seedLibrary(library);
-    await nextTick(library);
+    await nextSweep(library);
     for (const task of MODEL_TASKS) {
       assert.deepEqual([claims(library, task), jobsOf(library, task)], [[], []]);
     }
 
     await saveProvider(library);
-    await nextTick(library);
+    await nextSweep(library);
   });
 
   after(() => library.close());
@@ -76,13 +77,13 @@ describe("each weekly model check has its own claim", () => {
       };
 
       close();
-      await nextTick(library);
+      await nextSweep(library);
       assert.equal(jobsOf(library, task).length, 1);
       assert.deepEqual(claims(library, task), claimed);
 
       close();
       moveClaimBack(library, task);
-      await nextTick(library);
+      await nextSweep(library);
       assert.deepEqual(otherJobs(), priorJobs);
       assert.equal(jobsOf(library, task).length, 2);
       assert.deepEqual(otherClaims(), untouched);
@@ -94,14 +95,14 @@ describe("each weekly model check has its own claim", () => {
         Date.now() + WEEK_MS + 60_000,
         task,
       );
-      await nextTick(library);
+      await nextSweep(library);
       assert.deepEqual(otherJobs(), priorJobs);
       assert.equal(jobsOf(library, task).length, 3);
       assert.ok((claims(library, task)[0]?.last_run_at ?? Infinity) <= Date.now());
 
       close();
       exec(library, "delete from scheduled_runs where task = ?", task);
-      await nextTick(library);
+      await nextSweep(library);
       assert.equal(jobsOf(library, task).length, 4);
       assert.deepEqual(otherClaims(), untouched);
       assert.deepEqual(otherJobs(), priorJobs);
@@ -109,7 +110,7 @@ describe("each weekly model check has its own claim", () => {
       assert.notEqual(jobsOf(library, task).at(-1)?.state, "done");
       moveClaimBack(library, task);
       const old = claims(library, task)[0]?.last_run_at;
-      await nextTick(library);
+      await nextSweep(library);
       assert.equal(jobsOf(library, task).length, 4);
       assert.ok((claims(library, task)[0]?.last_run_at ?? 0) > (old ?? 0));
     });

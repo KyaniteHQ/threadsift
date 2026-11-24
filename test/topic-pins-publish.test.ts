@@ -5,7 +5,8 @@ import { z } from "zod";
 
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { count, exec, paste, rows, until } from "./related-fixtures.ts";
+import { paste, until } from "./related-fixtures.ts";
+import { count, exec, rows } from "./sqlite-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 const TARGET = "Machine Learning";

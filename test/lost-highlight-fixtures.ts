@@ -10,8 +10,8 @@ import {
   ProposalPageSchema,
 } from "../src/core/contract/proposal-contract.ts";
 import type { Instance } from "./instance.ts";
-import { exec, paste, rows, saveProvider } from "./related-fixtures.ts";
-import { nextTick } from "./weekly-claim-fixtures.ts";
+import { paste, saveProvider } from "./related-fixtures.ts";
+import { exec, rows, nextSweep } from "./sqlite-fixtures.ts";
 
 export const ColumnsSchema = z.object({
   id: z.number(),
@@ -128,7 +128,7 @@ export async function proposeLost(
     Date.now(),
   );
   exec(instance, "delete from scheduled_runs where task = 'highlight_proposals'");
-  await nextTick(instance);
+  await nextSweep(instance);
 
   const [row] = rows(
     instance,

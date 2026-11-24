@@ -11,7 +11,8 @@ import {
   StartedRestoreSchema,
 } from "../src/core/contract/restore-contract.ts";
 import type { Instance } from "./instance.ts";
-import { exec, until } from "./related-fixtures.ts";
+import { until } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const ORIGIN = "http://localhost";
 

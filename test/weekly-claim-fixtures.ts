@@ -1,14 +1,9 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 
 export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-
-export async function nextTick(instance: Instance): Promise<void> {
-  exec(instance, "delete from scheduled_runs where task = 'sweep'");
-  await instance.tick();
-}
 
 const RunSchema = z.object({ last_run_at: z.number() });
 

@@ -5,7 +5,8 @@ import { z } from "zod";
 
 import { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { SECRET_KEY, exec, paste, rows, saveProvider, until } from "./related-fixtures.ts";
+import { SECRET_KEY, paste, saveProvider, until } from "./related-fixtures.ts";
+import { exec, rows } from "./sqlite-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 describe("the Topic job's input and its owner Item", () => {

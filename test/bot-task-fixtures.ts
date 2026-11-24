@@ -10,7 +10,8 @@ import { type JobRow, jobs } from "../src/core/kernel/schema.ts";
 import { newCallbackCredential } from "../src/features/ai/core/callback-credential.ts";
 import { KEY, PATH, SECRET_KEY, inOrder } from "./grok-bot-fixtures.ts";
 import { type Answer, Instance, type Json } from "./instance.ts";
-import { count, exec, paste, rows } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
+import { count, exec, rows } from "./sqlite-fixtures.ts";
 
 export { SECRET_KEY };
 

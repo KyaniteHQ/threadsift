@@ -21,7 +21,7 @@ import {
   jobs,
   view,
 } from "./reddit-account-fixtures.ts";
-import { exec } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 const HOUR_MS = 3_600_000;
 

@@ -7,7 +7,8 @@ import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { inOrder } from "./grok-bot-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
-import { exec, paste, until } from "./related-fixtures.ts";
+import { paste, until } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 import { directoryOf } from "./zip-fixtures.ts";
 
 const MARKED_PASSAGE = "quartz seam";
@@ -168,11 +169,6 @@ export async function bytesOfKey(instance: Instance, key: string): Promise<Uint8
   assert.ok(body !== null, `${key} is stored`);
 
   return new Uint8Array(await new Response(body).arrayBuffer());
-}
-
-export async function nextSweep(instance: Instance): Promise<void> {
-  exec(instance, "delete from scheduled_runs where task = 'sweep'");
-  await instance.tick();
 }
 
 export interface SliceEntry {

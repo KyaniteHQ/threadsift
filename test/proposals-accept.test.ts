@@ -9,7 +9,8 @@ import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { accept, mergeLines, propose, tagId, tagNames, tagsOfDigest } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { catalogVersion, count, paste, rows } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
+import { catalogVersion, count, rows } from "./sqlite-fixtures.ts";
 
 const PinSchema = z.object({
   from_key: z.string(),

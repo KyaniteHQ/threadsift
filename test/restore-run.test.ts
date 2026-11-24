@@ -14,8 +14,9 @@ import {
   savedLibrary,
 } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { count, paste } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
 import { restoreStatus, settledRestore, startedRestore } from "./restore-fixtures.ts";
+import { count } from "./sqlite-fixtures.ts";
 import { type Entries, directoryOf, entriesOf, manifestOf, recordLines } from "./zip-fixtures.ts";
 
 const CodeSchema = z.object({ code: z.string() });

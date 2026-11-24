@@ -11,8 +11,9 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { count, SECRET_KEY, exec, paste, rows, saveProvider } from "./related-fixtures.ts";
-import { claims, moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
+import { SECRET_KEY, paste, saveProvider } from "./related-fixtures.ts";
+import { count, exec, rows, nextSweep } from "./sqlite-fixtures.ts";
+import { claims, moveClaimBack } from "./weekly-claim-fixtures.ts";
 
 const LostSchema = z.object({
   id: z.number(),
@@ -49,7 +50,7 @@ describe("the weekly lost-Highlight check with no Provider saved", () => {
     assert.deepEqual([claims(instance, TASK), lostRows(instance)], [[], []]);
 
     await saveProvider(instance);
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.equal(claims(instance, TASK).length, 1);
     assert.equal(lostRows(instance).length, 1);
   });
@@ -84,7 +85,7 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
 
     const tasks = rows(instance, z.unknown(), "select * from ai_tasks order by id");
 
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.deepEqual(highlightIds(instance), [gone, ambiguous]);
     assert.deepEqual(
@@ -111,14 +112,14 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     const [claimed] = claims(instance, TASK);
 
     await keepLostHighlight(instance, "second");
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.deepEqual(lostRows(instance), stored);
     assert.deepEqual(claims(instance, TASK), [claimed]);
   });
 
   it("stores a row for a Highlight that has none once the claim is 7 days old", async () => {
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.equal(lostRows(instance).length, 3);
   });
@@ -138,12 +139,12 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     );
     assert.equal(lostRows(instance).length, 3);
 
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.equal(highlightIds(instance).includes(first.highlight_id), true);
     assert.equal(lostRows(instance).length, 3);
 
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.deepEqual(highlightIds(instance).includes(first.highlight_id), false);
     assert.equal(lostRows(instance).length, 2);
   });
@@ -162,7 +163,7 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     assert.equal(highlightStatus(instance, first.highlight_id), "gone");
 
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.deepEqual(
       lostRows(instance).filter(({ highlight_id }) => highlight_id === first.highlight_id),
@@ -190,7 +191,7 @@ describe("the weekly lost-Highlight check with more than 20 lost Highlights", ()
   after(() => instance.close());
 
   it("stores 20 rows for the newest Highlights, lists the newest first, and stores the other 5 the next week", async () => {
-    await nextTick(instance);
+    await nextSweep(instance);
 
     const first = highlightIds(instance);
 
@@ -207,7 +208,7 @@ describe("the weekly lost-Highlight check with more than 20 lost Highlights", ()
     );
 
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.deepEqual(
       highlightIds(instance).toSorted((a, b) => a - b),
       Array.from({ length: 25 }, (_, at) => at + 1),

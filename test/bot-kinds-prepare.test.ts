@@ -6,7 +6,7 @@ import { KIND_CASES } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, selectGrokBot } from "./bot-kinds-fixtures.ts";
 import { jobRow, rowCount, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 describe("what a kind does when there is nothing to ask the bot", () => {
   let instance: Instance;

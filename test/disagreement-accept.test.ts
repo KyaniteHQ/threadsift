@@ -16,7 +16,8 @@ import {
 import { Instance } from "./instance.ts";
 import { lockedWriter } from "./locked-writer.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, exec } from "./related-fixtures.ts";
+import { SECRET_KEY } from "./related-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 
 describe("Accept of a disagreement keeps the pair as a Pin", () => {
   let instance: Instance;

@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { pasteItems, tokenOf } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
-import { script } from "./pin-fixtures.ts";
+import { script } from "./sqlite-fixtures.ts";
 
 describe("the Proposals list filters disagreement rows before the page limit", () => {
   let instance: Instance;

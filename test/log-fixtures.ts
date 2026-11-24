@@ -2,7 +2,8 @@ import { z } from "zod";
 
 import { type LogEntry, LogPageSchema } from "../src/core/contract/log-contract.ts";
 import type { Instance } from "./instance.ts";
-import { count, exec, paste, rows } from "./related-fixtures.ts";
+import { paste } from "./related-fixtures.ts";
+import { count, exec, rows } from "./sqlite-fixtures.ts";
 
 export function readLog(instance: Instance, query = "") {
   return instance.read("GET", `/api/log${query}`, LogPageSchema);
