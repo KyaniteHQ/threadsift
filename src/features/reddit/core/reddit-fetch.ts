@@ -6,6 +6,7 @@ import type { Concluded, Fetched } from "../../media/core/details.ts";
 import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import { fetchedOfOembed } from "./oembed-details.ts";
 import { accountThread } from "./reddit-account-fetch.ts";
+import { REDDIT_WAIT } from "./reddit-account-queue.ts";
 import { accountTurn } from "./reddit-account-turn.ts";
 
 type RedditPorts = Pick<
@@ -41,7 +42,7 @@ export async function fetchedWithThread(
   const turn = await accountTurn(ports, source);
 
   if (turn.kind === "waiting") {
-    return { status: "waiting", until: turn.until, limited: false, wait: "reddit-limit" };
+    return { status: "waiting", until: turn.until, limited: false, wait: REDDIT_WAIT };
   }
 
   const account =
@@ -57,7 +58,7 @@ export async function fetchedWithThread(
       status: "waiting",
       until: account.until,
       limited: account.limited,
-      wait: "reddit-limit",
+      wait: REDDIT_WAIT,
     };
   }
 

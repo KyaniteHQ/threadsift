@@ -1,4 +1,5 @@
 import { type SQL, type SQLWrapper, and, asc, eq, lte, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 import { INTAKE_JOB_KINDS, type WaitReason } from "../contract/job-contract.ts";
 import type { Database } from "./database.ts";
@@ -61,4 +62,28 @@ export async function enqueueWoken(
     rows.map(({ id }) => id),
     0,
   );
+}
+
+export function waitingFetches(reason: WaitReason): SQL {
+  return sql`(${eq(jobs.kind, "fetch")} and ${waitingFor(reason)})`;
+}
+
+export async function wakeWaitingFetches(
+  ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
+  reason: WaitReason,
+  {
+    writes,
+    when,
+    now,
+  }: Readonly<{
+    writes: readonly [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
+    when?: SQL | undefined;
+    now: number;
+  }>,
+): Promise<void> {
+  const waiting = waitingFetches(reason);
+
+  await ports.db.batch([...writes, wokenJobs(ports.db, now, waiting, when)]);
+
+  await enqueueWoken(ports, now, waiting, "all");
 }
