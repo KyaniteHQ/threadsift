@@ -49,6 +49,7 @@ async function obsidianFlow(page: Page): Promise<void> {
   await expect(
     page.getByRole("button", { name: OBSIDIAN_TEXT.remove, exact: true }),
   ).toHaveAccessibleDescription(OBSIDIAN_TEXT.missing);
+  await expect(page.getByText(OBSIDIAN_TEXT.missing, { exact: true })).toBeVisible();
   const destination = page.getByRole("radiogroup", { name: OBSIDIAN_TEXT.modeLabel });
   if (process.env["THREADSIFT_TARGET"] === "container") {
     await expect(destination.getByRole("radio", { name: OBSIDIAN_TEXT.githubMode })).toBeChecked();
