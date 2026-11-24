@@ -51,6 +51,7 @@ Not verified, because no stable public page or on-demand service produces the ca
 - A short link whose target moves or dies between two Pastes, and two simultaneous Pastes that resolve to different targets.
 - The alias guard of the success batch (`holdsNoRival`) and the batch of two first saves that run together, which the single-process test database cannot overlap. The guard of the failure write is covered by a core test. The last proof of the success batch is a container run (2026-11-08).
 - That a Paste that has read its alias and is still resolving shows nothing, because it writes nothing before its batch.
+- The repeat Paste of a short link whose alias ends at a Reddit share link, through `saveItem`: the core tests call `saveResolution` with a literal resolution and the stored alias, so what the Paste writes for each resolution is checked. Three parts are checked only by reading, because no local host can answer for a short link host or for Reddit: the early return from the alias when its address is no share link, the call from `saveShortLink` to `resolveShortLink` for a stale alias, and the second hop of `resolveShortLink` from a short link to a share link and on to its post.
 - A meta refresh that leads to the target's Item, to a private address, to Reddit or X, past the 20th redirect, or with a delay above 0.
 - A `<title>` after the 512 KiB cap, a remote title that changes between two Pastes, and the `deflate` encoding on a page with a title.
 - The paste box's notices for `unreadable` and `failed`.

@@ -29,7 +29,7 @@ import {
 } from "../../media/core/details.ts";
 import { fetchedOfOembed } from "../../reddit/core/oembed-details.ts";
 
-type ShortLinkResolution =
+export type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
   | { readonly kind: "failed"; readonly fetched: Exclude<Concluded, { status: "ok" }> };
 

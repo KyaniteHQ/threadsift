@@ -164,7 +164,7 @@
       "digest-prompt.ts",
       "digest-publish.ts"
     ],
-    "paste": ["item-save.ts"],
+    "paste": ["item-save.ts", "short-link-aliases.ts"],
     "export": ["zip.ts"],
     "restore": [],
     "related": ["related-task.ts"],

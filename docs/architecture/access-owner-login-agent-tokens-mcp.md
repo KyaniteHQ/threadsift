@@ -151,7 +151,7 @@ One random token per connected agent: `tsa_` and 32 random bytes in base64url, s
 
 - The count is the Items a token added in the current UTC day. A deleted Item frees its place, a save that fails after the insert still counts, and a refresh never counts.
 - The owner's session and tokens with no budget have no cap. A new token starts at 200 Items a day (`DEFAULT_TOKEN_BUDGET`).
-- Known links, short-link aliases included, do not count.
+- Known links, short-link aliases included, do not count. A short link whose alias ends at a Reddit share link counts as possibly new, whatever Item sits under the short link, because the next Paste resolves it again and can add an Item.
 - A limited request reads the count once before saving and is refused whole when its possibly new Items would cross the cap. A refusal answers 429 with `code: budget-spent` and `Retry-After` until the next UTC midnight.
 - Two requests at the same moment can read the same count and both pass, exceeding the limit by one request's links. A batch holds up to `BATCH_LINKS_MAX` (100) links. A held link deleted during a batch and a batch that crosses midnight are not checked again. This is enough for one owner's agents.
 

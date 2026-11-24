@@ -18,7 +18,8 @@ import {
 import { hasNoThread, ownerOf } from "../../thread/core/thread-store.ts";
 
 export type { Existing, Paste, Saved } from "../../item/core/item-rows.ts";
-export { saveResolved, saveUnresolved } from "./short-link-save.ts";
+export { type ShortLinkPaste, saveResolution, saveResolved } from "./short-link-save.ts";
+export { saveUnresolved } from "./unresolved-save.ts";
 
 export async function savedItem(
   ports: Ports,
