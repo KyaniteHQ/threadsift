@@ -5,7 +5,7 @@ import { HIGHLIGHTS_PAGE } from "../web/src/highlights-page-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE } from "../web/src/text.ts";
 import { HIGHLIGHTS, NOTE, TITLE, keepHighlightsAndNote, sentence } from "./highlights-seed.ts";
-import { atPhoneWidth, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { atPhoneWidth, expectNoSidewaysScroll, expectScrollEnded } from "./screen-checks.ts";
 
 export async function highlightsFlow(page: Page): Promise<void> {
   const { item, first } = await keepHighlightsAndNote(page);
@@ -39,9 +39,10 @@ export async function highlightsFlow(page: Page): Promise<void> {
   await expect(mark).toContainText(sentence(HIGHLIGHTS));
   await expect(mark).toBeFocused();
   await expect(mark).toBeInViewport();
+  await expectScrollEnded(page.locator(".reader-slot"));
 
+  await page.goto("/highlights");
   await atPhoneWidth(page, async () => {
-    await page.goto("/highlights");
     await expect(entries).toHaveCount(PAGE_SIZE);
     await expectNoSidewaysScroll(page);
   });
