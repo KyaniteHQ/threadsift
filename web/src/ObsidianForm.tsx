@@ -45,9 +45,9 @@ function Destination({ mode, busy, setMode }: Readonly<Pick<Form, "mode" | "busy
   );
 }
 
-function statusOf(view: VaultView): string {
+function statusOf(view: VaultView): string | null {
   if (view.mode === "folder") return TEXT.folderConfigured;
-  if (view.token === "none") return TEXT.missing;
+  if (view.token === "none") return null;
   return view.token === "saved" ? TEXT.configured : TEXT.unreadable;
 }
 
@@ -65,9 +65,11 @@ function FolderConflicts({ view }: Readonly<{ view: Extract<VaultView, { mode: "
 }
 
 function VaultStatus({ view }: Readonly<{ view: VaultView }>) {
+  const status = statusOf(view);
+
   return (
     <>
-      <p>{statusOf(view)}</p>
+      {status === null ? null : <p>{status}</p>}
       {view.mode === "folder" ? <FolderConflicts key={view.folder} view={view} /> : null}
     </>
   );

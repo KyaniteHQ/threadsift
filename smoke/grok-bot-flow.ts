@@ -33,6 +33,9 @@ export async function grokBotFlow(page: Page): Promise<void> {
   await expect(button(page, GROK_BOT_TEXT.test)).toHaveAccessibleDescription(
     GROK_BOT_TEXT.resultNotConfigured,
   );
+  await expect(button(page, GROK_BOT_TEXT.remove)).toHaveAccessibleDescription(
+    GROK_BOT_TEXT.removeNothing,
+  );
 
   await addressField(page).fill(ADDRESS);
   await button(page, GROK_BOT_TEXT.save).click();
