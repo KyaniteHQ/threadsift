@@ -15,7 +15,7 @@ import {
 import type { ConfigView } from "../../lib/state.ts";
 import { FILL_KEY } from "../../lib/stored-keys.ts";
 import { TEXT } from "../../lib/text.ts";
-import { redditSection, refreshReddit } from "./reddit-section.ts";
+import { followRedditPermissions, redditSection, refreshReddit } from "./reddit-section.ts";
 
 const REFUSAL_TEXT: Readonly<Record<Refusal, string>> = {
   address: TEXT.addressInvalid,
@@ -242,6 +242,8 @@ async function followFill(): Promise<void> {
 
   if (isNewest()) moveFill(next);
 }
+
+followRedditPermissions();
 
 browser.permissions.onAdded.addListener(() => void followFill());
 
