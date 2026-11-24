@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
+import { parseLink } from "../../src/core/contract/links.ts";
 import { SuppliedPageSchema } from "../../src/core/contract/supplied-page.ts";
 import { holdsInstanceAccess } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
@@ -30,25 +31,45 @@ function capturedPage(tabId: number): Promise<Captured | null> {
   );
 }
 
-async function bodyOf(tab: Readonly<ThreadTab>): Promise<Saving | null> {
+function pageKey(address: string): string {
+  const { origin, pathname, search } = new URL(parseLink(address).normalizedUrl);
+
+  return `${origin}${pathname.replace(/\/+$/u, "")}${search}`;
+}
+
+function isSamePage(started: string, captured: string): boolean {
+  return URL.canParse(captured) && pageKey(captured) === pageKey(started);
+}
+
+type Prepared =
+  | { readonly step: "send"; readonly saving: Saving }
+  | { readonly step: "stop"; readonly state: SaveState };
+
+function stopped(state: SaveState): Prepared {
+  return { step: "stop", state };
+}
+
+async function bodyOf(tab: Readonly<ThreadTab>): Promise<Prepared> {
   const thread = await fetchThread(tab);
 
-  if (thread !== null) return thread;
+  if (thread !== null) return { step: "send", saving: thread };
 
   const captured = await capturedPage(tab.id);
 
-  if (captured === null) return null;
+  if (captured === null) return stopped({ kind: "page-blocked" });
+
+  if (!isSamePage(tab.url, captured.url)) return stopped({ kind: "failed" });
 
   const { url, ...page } = captured;
 
   return {
-    body: { url, page },
-    completeness: pageCompleteness(tab),
+    step: "send",
+    saving: { body: { url, page }, completeness: pageCompleteness(tab) },
   };
 }
 
 export async function savePage(): Promise<SaveState> {
-  const config = await loadConfig();
+  const [tab, config] = await Promise.all([activeTab(), loadConfig()]);
 
   if (config === null) return { kind: "not-configured" };
 
@@ -56,8 +77,7 @@ export async function savePage(): Promise<SaveState> {
     return { kind: "access-missing" };
   }
 
-  const tab = await activeTab();
-  const saving = tab === null ? null : await bodyOf(tab);
+  const prepared = tab === null ? stopped({ kind: "page-blocked" }) : await bodyOf(tab);
 
-  return saving === null ? { kind: "page-blocked" } : send(config, saving);
+  return prepared.step === "send" ? send(config, prepared.saving) : prepared.state;
 }

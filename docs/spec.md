@@ -63,6 +63,7 @@ Threadsift has two aims:
 - A browser extension for desktop Chrome and Firefox saves the page in the owner's own tab in one click. Firefox for Android is not supported.
 - Any http or https page works except a page on x.com, twitter.com or github.com, a page on a link shortener's own address (`bit.ly`, `t.co` and the other short-link hosts) and a Reddit page that is not a post or comment. The server refuses those, and the Extension says it cannot save them.
 - On a Reddit thread it sends the thread's `.json` and falls back to Defuddle's Reddit extractor when that request fails or its answers cannot be assembled into one thread.
+- A page capture is sent only when the tab still holds the page the Save started on, with a hash, a tracking parameter or a trailing slash the page adds itself ignored. When the tab moved to another page meanwhile, nothing is sent and the Extension says it could not save.
 - With "Fill saved Reddit Items" on, opening a Link-only Reddit Item's thread fills that Item.
 - In the self-hosted builds, the Extension's Connect Reddit button connects the owner's Reddit account ([Connect a Reddit account](guides/reddit-account.md)).
 - The owner enters the Instance's address and an agent token on the Extension's settings page, and the browser asks permission for that one host when the address is saved.
