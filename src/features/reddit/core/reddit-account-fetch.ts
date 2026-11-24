@@ -17,7 +17,7 @@ import {
   hiddenIn,
   permalinkPath,
 } from "../../../core/contract/thread-fill.ts";
-import { report } from "../../../core/kernel/failure-log.ts";
+import { report, reportFailure } from "../../../core/kernel/failure-log.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import type { ParsedThread } from "../../thread/core/thread-parse.ts";
 import { type TurnRun, WAIT_CHECK_MS, holdsTurn } from "./reddit-account-queue.ts";
@@ -260,7 +260,9 @@ export async function accountThread(
           AbortSignal.any([deadline, AbortSignal.timeout(deadlineMs)]),
         ),
       );
-    } catch {
+    } catch (cause) {
+      reportFailure({ event: "reddit-request-failed", fields: {} }, cause);
+
       return NO_ANSWER;
     }
   };
