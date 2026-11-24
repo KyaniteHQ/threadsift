@@ -231,7 +231,7 @@ For the states `none`, `expired` and `unreadable`, the Extension button leads th
 
 `useBackup` polls running exports through the shared `usePolling`. One `<output className="bk-state">` stays mounted in every state and only changes its text. A running export shows no percentage, because the total is unknown while it runs.
 
-`GET /api/export` returns only `gave-up` and `list-changed` as failures (`SHOWN_EXPORT_FAILURES`). The web app has no text for `cancelled` and `replaced`, because `exportStatus` answers `none` for both. Start export tolerates a 409 (another tab started one), Delete export tolerates a 404, and each reads the state again as its own step, so a failed read does not turn a successful press into an error line.
+`GET /api/export` returns only `gave-up` and `list-changed` as failures (`SHOWN_EXPORT_FAILURES`). The web app has no text for `cancelled` and `replaced`, because `exportStatus` answers `none` for both. Start export tolerates a 409 (another tab started one), Delete export tolerates a 404, and each reads the state again as its own step. A read that fails after a press that succeeded shows `EXPORT_TEXT.loadFailed` in the result line, so a successful press never shows the failure line of Start, Stop and Delete.
 
 ### Restore block
 

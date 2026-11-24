@@ -25,9 +25,14 @@ function settled(call: () => Promise<void>, ticket: Ticket, refresh: () => Promi
   return async () => {
     ticket.take();
     await call();
-    await refresh();
 
-    return null;
+    try {
+      await refresh();
+
+      return null;
+    } catch {
+      return { kind: "error", text: EXPORT_TEXT.loadFailed };
+    }
   };
 }
 
