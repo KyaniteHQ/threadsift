@@ -6,6 +6,7 @@ import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts"
 import { OBSIDIAN_TEXT } from "../web/src/obsidian-text.ts";
 import { backupFlow } from "./backup-flow.ts";
 import { grokBotFlow } from "./grok-bot-flow.ts";
+import { highlightsFlow } from "./highlights-flow.ts";
 import { proposalsFlow } from "./proposals-flow.ts";
 import { redditAccountFlow } from "./reddit-account-flow.ts";
 import { DESKTOP, PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
@@ -25,6 +26,8 @@ function folderIndexArrived(): Promise<boolean> {
 }
 
 export async function settingsSteps(page: Page): Promise<void> {
+  await test.step("follow the settings panel's Highlights link, see 50 entries with the Note first, load the oldest Highlight, open its Item at its mark in the Reader, fit a phone width, and see the page empty after the Item is deleted", () =>
+    highlightsFlow(page));
   await test.step("follow the settings panel's Proposals link, see the no-Provider empty state with no Accept or Reject, reload on the address, and fit a phone width on the trailing-slash address", () =>
     proposalsFlow(page));
   await test.step("save a Grok Bot address and key in Settings, see the key marked saved after a reload, see a new address ask for a key, fit a phone width, and remove it", () =>
