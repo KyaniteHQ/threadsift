@@ -7,9 +7,8 @@ import {
   type VaultTarget,
   vaultFileSize,
 } from "../../../core/kernel/vault-target.ts";
-import { itemFilePlan } from "../../item/core/item-files.ts";
 import { itemNote } from "../../item/core/item-note.ts";
-import { readPlanSource } from "../../item/core/plan-source.ts";
+import { readAgainOnce, readPlannedItem } from "../../item/core/plan-source.ts";
 import { itemWikiSections } from "./vault-markdown.ts";
 import { vaultFilePath, vaultNotePath } from "./vault-paths.ts";
 import { vaultWikiContent } from "./vault-wiki.ts";
@@ -34,25 +33,13 @@ function withoutOversized(files: readonly VaultFile[]) {
   return { kept: files.filter((file) => !omitted.has(file)), oversized };
 }
 
-async function readPlannedSource(reader: Reader, subjectId: number) {
-  const first = await readPlanSource(reader.ports, subjectId);
-
-  if (first === undefined) return null;
-
-  const planned = itemFilePlan(first);
-
-  if (planned.kind !== "missing") return { read: first, planned };
-
-  reader.signal.throwIfAborted();
-
-  const second = await readPlanSource(reader.ports, subjectId);
-
-  return second === undefined ? null : { read: second, planned: itemFilePlan(second) };
-}
-
 async function itemFiles(reader: Reader, subjectId: number): Promise<SubjectFiles> {
   reader.signal.throwIfAborted();
-  const source = await readPlannedSource(reader, subjectId);
+  const source = await readAgainOnce(
+    () => readPlannedItem(reader.ports, subjectId),
+    (read) => read?.planned.kind === "missing",
+    reader.signal,
+  );
   reader.signal.throwIfAborted();
   if (source === null) return { files: [], oversized: [] };
   const { read, planned } = source;
