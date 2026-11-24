@@ -109,9 +109,9 @@ describe("the container answers a request without reading its body, then discard
     agent = new Agent({ keepAlive: true, maxSockets: 1 });
   });
 
-  after(() => {
+  after(async () => {
     agent.destroy();
-    server.stop();
+    await server.stop();
   });
 
   it("keeps the connection usable for the next request when the client sends the body more slowly than the server library waits for an unread one", async () => {

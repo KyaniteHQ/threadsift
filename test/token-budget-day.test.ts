@@ -1,17 +1,16 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { atClock, steppingClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
   addLink,
-  atClock,
   budgetOf,
   dayOf,
   itemsSavedByDay,
   makeToken,
   nextMidnight,
   secondsUntilMidnight,
-  steppingClock,
   xLink,
 } from "./token-budget-fixtures.ts";
 

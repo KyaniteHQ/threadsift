@@ -50,8 +50,8 @@ describe("the Worker's fetch returns an origin's answer as it was sent and follo
     server = await listening(app.fetch);
   });
 
-  after(() => {
-    server.stop();
+  after(async () => {
+    await server.stop();
   });
 
   it("returns a 530 whose body only quotes an error code, with its status and its whole body", async () => {

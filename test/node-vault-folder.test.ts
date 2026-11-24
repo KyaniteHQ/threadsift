@@ -12,48 +12,45 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { afterEach, beforeEach, describe, it } from "node:test";
+import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
-import type { VaultKind } from "../src/core/kernel/vault-tables.ts";
-import {
-  gitBlobSha,
-  type VaultChange,
-  VaultFileConflict,
-} from "../src/core/kernel/vault-target.ts";
+import { type VaultChange, VaultFileConflict } from "../src/core/kernel/vault-target.ts";
 import { VaultFailure } from "../src/features/vault/core/vault-failure.ts";
 import { vaultFolder } from "../src/targets/node/vault-folder.ts";
 import { heldFolderLease } from "./vault-lease-fixtures.ts";
 
 const NOTE = "Threadsift/items/1/note-1.md";
 
-const current = (): Promise<boolean> => Promise.resolve(true);
+const FIRST_SHA = "fe4f02ad058b43f6ed467fdf65b935107529564b";
 
-const change = ({
-  path,
-  kind,
-  text,
-}: Readonly<{ path: string; kind: VaultKind; text: string | null }>): VaultChange => {
-  const base = { path, subjectId: 1, noteKind: kind, sequence: 1, sha: null };
+const note = (text: string | null, path = NOTE): VaultChange => {
+  const base = { path, subjectId: 1, noteKind: "item", sequence: 1, sha: null } as const;
 
   return text === null
     ? { ...base, kind: "delete" }
     : { ...base, kind: "put", bytes: new TextEncoder().encode(text) };
 };
 
-const note = (text: string | null, path = NOTE): VaultChange =>
-  change({ path, kind: "item", text });
-
 describe("Folder mode writes a mounted vault folder and owns only the files it wrote", () => {
   let root = "";
   let vault = "";
   let outside = "";
+  let lease: Awaited<ReturnType<typeof heldFolderLease>>;
 
   const target = (signal = new AbortController().signal) => vaultFolder(vault, signal);
 
-  const write = (files: readonly VaultChange[], isCurrent = current) =>
-    target().write({ files, current: isCurrent });
+  const write = (files: readonly VaultChange[]) =>
+    target().write({ files, current: lease.current });
 
   const inVault = (path: string) => join(vault, path);
+
+  before(async () => {
+    lease = await heldFolderLease("/a-folder-the-lease-names");
+  });
+
+  after(() => {
+    lease[Symbol.dispose]();
+  });
 
   beforeEach(() => {
     root = mkdtempSync(join(tmpdir(), "threadsift-vault-folder-"));
@@ -64,10 +61,7 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
   });
 
   afterEach(() => {
-    if (root === "") return;
-
     rmSync(root, { recursive: true, force: true });
-    root = "";
   });
 
   it("publishes a note at its path and keeps a hard-link receipt of it under .written", async () => {
@@ -80,7 +74,7 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
     );
     assert.deepEqual(await target().subjects(), [{ kind: "item", subjectId: 1 }]);
     assert.deepEqual(await target().files({ kind: "item", subjectId: 1 }), [
-      { path: NOTE, sha: await gitBlobSha(new TextEncoder().encode("first")) },
+      { path: NOTE, sha: FIRST_SHA },
     ]);
   });
 
@@ -142,12 +136,14 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
   });
 
   it("writes nothing once a restore has fenced its lease on the stored settings", async () => {
-    using lease = await heldFolderLease(vault);
+    using fenced = await heldFolderLease(vault);
 
-    await write([note("first")], lease.current);
-    await lease.fence();
+    await target().write({ files: [note("first")], current: fenced.current });
+    await fenced.fence();
 
-    await assert.rejects(write([note("second")], lease.current), { reason: "stale" });
+    await assert.rejects(target().write({ files: [note("second")], current: fenced.current }), {
+      reason: "stale",
+    });
     assert.equal(readFileSync(inVault(NOTE), "utf8"), "first");
   });
 
@@ -156,9 +152,12 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
 
     stop.abort();
 
-    await assert.rejects(target(stop.signal).write({ files: [note("mine")], current }), {
-      name: "AbortError",
-    });
+    await assert.rejects(
+      target(stop.signal).write({ files: [note("mine")], current: lease.current }),
+      {
+        name: "AbortError",
+      },
+    );
     assert.deepEqual(readdirSync(vault), []);
   });
 

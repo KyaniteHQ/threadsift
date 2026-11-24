@@ -1,8 +1,8 @@
 import { HighlightsPageResponseSchema } from "../src/core/contract/highlights-page-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
+import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { keepPassage } from "./lost-highlight-fixtures.ts";
-import { atClock } from "./token-budget-fixtures.ts";
 
 export const keepNote = (
   instance: Instance,

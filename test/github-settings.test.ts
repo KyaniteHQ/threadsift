@@ -77,19 +77,21 @@ describe("the GitHub token is sealed on the Instance, never returned, and cannot
 
     assert.equal(sealedTokens(instance).length, 1);
     assert.ok(sealed !== undefined && !sealed.includes(TOKEN));
-    assert.equal(await sealer.open(sealed ?? ""), TOKEN);
+    assert.equal(await sealer.open(sealed), TOKEN);
     assert.ok(!saved.body.includes(TOKEN));
     assert.ok(!(await instance.send("GET", SETTINGS)).body.includes(TOKEN));
     assert.deepEqual(await settingsOf(instance), { token: "saved", secretReady: true });
   });
 
   it("replaces the saved token in the same row, and removes it, and removing again still succeeds", async () => {
+    await instance.send("PUT", SETTINGS, { token: TOKEN });
     await instance.send("PUT", SETTINGS, { token: NEXT_TOKEN });
 
     const [replaced, ...others] = sealedTokens(instance);
 
     assert.deepEqual(others, []);
-    assert.equal(await sealer.open(replaced ?? ""), NEXT_TOKEN);
+    assert.ok(replaced !== undefined);
+    assert.equal(await sealer.open(replaced), NEXT_TOKEN);
 
     assert.deepEqual(await instance.read("DELETE", SETTINGS, GithubSettingsViewSchema), {
       token: "none",
@@ -179,12 +181,12 @@ describe("a stored GitHub cooldown answers Verify with rate-limited, and a chang
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
-    await instance.send("PUT", SETTINGS, { token: TOKEN });
   });
 
   after(() => instance.close());
 
   it("refuses Verify with rate-limited and no status while the cooldown holds", async () => {
+    await instance.send("PUT", SETTINGS, { token: TOKEN });
     seedGithubCooldown(instance);
 
     assert.deepEqual(await verify(instance), {
@@ -196,13 +198,18 @@ describe("a stored GitHub cooldown answers Verify with rate-limited, and a chang
   });
 
   it("deletes the cooldown when the token is replaced", async () => {
+    await instance.send("PUT", SETTINGS, { token: TOKEN });
+    seedGithubCooldown(instance);
+    assert.equal(cooldowns(instance), 1);
     await instance.send("PUT", SETTINGS, { token: NEXT_TOKEN });
 
     assert.equal(cooldowns(instance), 0);
   });
 
   it("deletes the cooldown when the token is removed", async () => {
+    await instance.send("PUT", SETTINGS, { token: TOKEN });
     seedGithubCooldown(instance);
+    assert.equal(cooldowns(instance), 1);
 
     await instance.send("DELETE", SETTINGS);
 
@@ -210,6 +217,7 @@ describe("a stored GitHub cooldown answers Verify with rate-limited, and a chang
   });
 
   it("keeps the cooldown when there was no token to remove", async () => {
+    await instance.send("DELETE", SETTINGS);
     seedGithubCooldown(instance);
 
     await instance.send("DELETE", SETTINGS);

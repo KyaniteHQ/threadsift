@@ -5,13 +5,13 @@ import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
+import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { itemTotal } from "./restore-fixtures.ts";
 import { script } from "./sqlite-fixtures.ts";
 import {
   addBatch,
   addLink,
-  atClock,
   budgetOf,
   makeToken,
   nextMidnight,

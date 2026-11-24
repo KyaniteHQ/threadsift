@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { FilterCounts } from "../src/core/contract/filter-counts-contract.ts";
-import type { ReadState, Source } from "../src/core/contract/item-contract.ts";
 import { type Item, ItemSchema } from "../src/core/contract/item-wire.ts";
 import {
   type ListState,
@@ -15,17 +14,10 @@ import {
   withoutItem,
 } from "../web/src/list-state.ts";
 
-const itemOf = (
-  id: number,
-  savedAt: number,
-  {
-    readState = "unread",
-    source = "reddit",
-  }: Readonly<{ readState?: ReadState; source?: Source }> = {},
-): Item =>
+const itemOf = (id: number, savedAt: number): Item =>
   ItemSchema.parse({
     id,
-    source,
+    source: "reddit",
     kind: "reddit-post",
     normalizedUrl: `https://example.com/${String(id)}`,
     originalUrl: `https://example.com/${String(id)}`,
@@ -39,7 +31,7 @@ const itemOf = (
     fetchedAt: null,
     fetch: null,
     xNote: null,
-    readState,
+    readState: "unread",
     stars: null,
     commentCount: null,
     wait: null,
@@ -49,6 +41,10 @@ const itemOf = (
     reason: null,
     retry: null,
   });
+
+const FIVE = itemOf(5, 500);
+
+const FOUR = itemOf(4, 400);
 
 const COUNTS: FilterCounts = {
   total: 3,
@@ -76,10 +72,16 @@ const ready = (items: readonly Item[], next: string | null, query = ""): Ready =
   more: "idle",
 });
 
-const idsOf = (list: Readonly<ListState>): readonly number[] =>
-  list.status === "ready" ? list.items.map(({ id }) => id) : [];
+function readyOf(list: Readonly<ListState>): Readonly<Ready> {
+  if (list.status !== "ready") assert.fail(`the list is ${list.status}`);
 
-const moreOf = (list: Readonly<ListState>) => (list.status === "ready" ? list.more : null);
+  return list;
+}
+
+const idsOf = (list: Readonly<ListState>): readonly number[] =>
+  readyOf(list).items.map(({ id }) => id);
+
+const moreOf = (list: Readonly<ListState>) => readyOf(list).more;
 
 const placing = (list: Ready, item: Item): ListState =>
   withRead(withKnown(list, item), { ...item, readState: "read" }, true);
@@ -88,9 +90,6 @@ const reading = (list: Ready, unfiltered: boolean): ListState =>
   withRead(list, { ...FIVE, readState: "read" }, unfiltered);
 
 const page = (items: readonly Item[], next: string | null) => ({ items, next });
-
-const FIVE = itemOf(5, 500);
-const FOUR = itemOf(4, 400);
 
 describe("a read-state change places an Item that the list holds only apart, by its saved date and id", () => {
   it("puts it between the rows it sorts between", () => {
@@ -123,14 +122,14 @@ describe("a read-state change keeps the rows and the counts true", () => {
     const list = reading(ready([FIVE, FOUR], null), true);
 
     assert.deepEqual(idsOf(list), [5, 4]);
-    assert.equal(list.status === "ready" ? list.items[0]?.readState : null, "read");
+    assert.equal(readyOf(list).items[0]?.readState, "read");
   });
 
   it("moves the unread and read counts of an unfiltered list", () => {
     const list = reading(ready([FIVE, FOUR], null), true);
 
-    assert.equal(list.status === "ready" ? list.counts.unread : null, 1);
-    assert.deepEqual(list.status === "ready" ? list.counts.reads : null, [
+    assert.equal(readyOf(list).counts.unread, 1);
+    assert.deepEqual(readyOf(list).counts.reads, [
       { key: "unread", count: 1 },
       { key: "read", count: 2 },
     ]);
@@ -139,7 +138,7 @@ describe("a read-state change keeps the rows and the counts true", () => {
   it("leaves the counts of a filtered list to the next read, because the server counts them", () => {
     const list = reading(ready([FIVE, FOUR], null), false);
 
-    assert.deepEqual(list.status === "ready" ? list.counts : null, COUNTS);
+    assert.deepEqual(readyOf(list).counts, COUNTS);
   });
 
   it("changes nothing for an Item the list does not know or for an answer equal to what it holds", () => {
@@ -159,7 +158,7 @@ describe("the pages the browser reads join the list without repeating or skippin
     });
 
     assert.deepEqual(idsOf(next), [5, 4, 3]);
-    assert.equal(next.status === "ready" ? next.next : "no list", null);
+    assert.equal(readyOf(next).next, null);
   });
 
   it("drops a page that was read for another query or another cursor", () => {
@@ -201,7 +200,7 @@ describe("the pages the browser reads join the list without repeating or skippin
         [9, "Item 9"],
       ],
     );
-    assert.equal(after.status === "ready" ? after.query : null, "?q=a");
+    assert.equal(readyOf(after).query, "?q=a");
   });
 });
 

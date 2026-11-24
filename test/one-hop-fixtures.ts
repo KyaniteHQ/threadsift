@@ -134,7 +134,11 @@ export const hopLines = (warnings: readonly string[]) =>
   warnings.filter((line) => line.includes('"digest-hop"'));
 
 export function seedGithubCooldown(instance: Instance): void {
-  exec(instance, "insert into github_cooldown (id, until) values (1, ?)", Date.now() + COOLDOWN_MS);
+  exec(
+    instance,
+    "insert or replace into github_cooldown (id, until) values (1, ?)",
+    Date.now() + COOLDOWN_MS,
+  );
 }
 
 export const hopResults = (warnings: readonly string[]) =>

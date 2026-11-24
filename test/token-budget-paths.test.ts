@@ -4,6 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
 import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
+import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { callBoth, connectBoth, type Agents } from "./mcp-client.ts";
 import { itemTotal } from "./restore-fixtures.ts";
@@ -11,7 +12,6 @@ import {
   addBatch,
   addLink,
   budgetOf,
-  atClock,
   makeToken,
   secondsUntilMidnight,
   xLink,
