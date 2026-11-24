@@ -298,6 +298,7 @@ The agent builds the synthesis once, when an Item arrives, and keeps it current,
 - The page is reached from the Topic in the Reader and in the filters pane. Its address holds the Topic's catalog key, so `İstanbul` and `istanbul` are one page.
 - The address of a Topic that an accepted merge removed shows the Topic it was merged into, and Try again acts on the survivor.
 - A failed overview shows on the page with Try again and the list of Items still shows. With no Provider saved and no stored overview, the page shows a note and the Items.
+- An Item whose stored Digest is not valid JSON, or holds no Summary text, still appears in the list of its Topic page, with an empty Summary line.
 - Deleting an Item removes it from the list at once, and the overview runs drop it from the overview.
 - Below the overview the page lists the pairs of its Items whose disagreement the owner accepted, under "Known disagreements", each with the agent's reason and a link to each Item, newest first, at most 20, and only while both Items carry the Digests the pair was accepted on.
 
