@@ -4,7 +4,7 @@
 
 ## bot-v12
 
-- A task id that Threadsift sends again with a new callback token opens with no `done` file left from the old token, so a repeat of the new send answers `already-open` and the cleanup of finished tasks no longer deletes the open task's folder after 7 days. No Instance change is needed.
+- A task id that Threadsift sends again with a new callback token opens with no `done` file left from the old token, so a repeat of the new send answers `already-open` while the opened task is under an hour old, and the cleanup of finished tasks no longer deletes the open task's folder after 7 days. No Instance change is needed.
 
 ## bot-v11
 

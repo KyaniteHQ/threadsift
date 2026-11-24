@@ -30,7 +30,7 @@ description: >-
   TS_<hex2>
   ```
 - The script deletes every file you give it when it ends, whatever it prints. To retry a call, run `mark` and write the file again. `search` and `topics` leave a file of their own, `search-<hex1>.json` or `topics-<hex1>.json`, in `~/threadsift/tmp/`, where `<hex1>` is the hex of the `mark` the call used. When a run ends, run `~/threadsift/threadsift.sh forget <hex1>` once for each of those hexes.
-- Each task id is answered exactly once. The script writes `~/threadsift/tasks/<taskId>/done` after `ok` or `closed`; never answer again for that id.
+- Each send of a task is answered exactly once. The script writes `~/threadsift/tasks/<taskId>/done` after `ok` or `closed`, and a repeat of the same send prints `already-done`. When `task-open` prints `ok <taskId> <kind>`, answer that task, even if you answered that id before.
 - Routine runs stay quiet and end with one status line. Wake the owner only for the one-time alerts below.
 - `~/threadsift/threadsift.sh` missing: run the bootstrap line under "Setup and update", then go on.
 - Script `not-configured`: if `~/threadsift/state/alerted-not-configured` is missing, create it and wake the owner once: "Threadsift is not configured. Say: set up threadsift." Otherwise stay quiet.
