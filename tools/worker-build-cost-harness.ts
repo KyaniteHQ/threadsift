@@ -8,6 +8,7 @@ import { z } from "zod";
 
 import { pause } from "../src/core/contract/pause.ts";
 import { bestEffort, errnoCodeOf, reportFailure } from "../src/core/kernel/failure-log.ts";
+import { exitAfterSignal } from "./exit-after-signal.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const WORKER_FOLDER = join(ROOT, "src", "targets", "worker");
@@ -207,14 +208,20 @@ export async function startHarness(
   folderName: string,
 ): Promise<Harness> {
   const state = join(ROOT, ".wrangler", folderName);
-  let groups: readonly number[] = [];
-  const cleanUp = (): Promise<void> => tearDown(state, groups);
+  let spawned: Promise<readonly number[]> = Promise.resolve([]);
+  let finished: Promise<void> | undefined;
+  const cleanUp = (): Promise<void> => {
+    finished ??= bestEffort(CLEANUP_FAILED, async () => tearDown(state, await spawned));
+
+    return finished;
+  };
+  const release = exitAfterSignal(cleanUp);
 
   try {
     const prepared = prepare(versions, state);
     const { envFile } = prepared;
 
-    const settled = await Promise.allSettled([
+    const pending = Promise.allSettled([
       startWorker(FIRST_PORT, join(state, "baseline"), envFile, [
         "--config",
         configFile("baseline"),
@@ -224,18 +231,25 @@ export async function startHarness(
         configFile("candidate"),
       ]),
     ]);
-    const [baseline, candidate] = settled;
 
-    groups = settled.flatMap((worker) => (worker.status === "fulfilled" ? [worker.value] : []));
+    spawned = pending.then((workers) =>
+      workers.flatMap((worker) => (worker.status === "fulfilled" ? [worker.value] : [])),
+    );
+    const [baseline, candidate] = await pending;
+
     if (baseline.status === "rejected") throw baseline.reason;
     if (candidate.status === "rejected") throw candidate.reason;
 
     return {
       variants: await serving(prepared, [baseline.value, candidate.value]),
-      stop: () => bestEffort(CLEANUP_FAILED, cleanUp),
+      stop: async (): Promise<void> => {
+        await cleanUp();
+        release();
+      },
     };
   } catch (error) {
     await bestEffort(CLEANUP_FAILED, cleanUp);
+    release();
     throw error;
   }
 }
