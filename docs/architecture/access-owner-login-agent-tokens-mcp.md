@@ -118,7 +118,7 @@ A call to `/api/*` that matches no route for its method goes through `unrouted()
 - The owner's session and any agent token, whatever its scopes, get 404 when no route has the path, and 405 with an `Allow` header when the path has routes for other methods (RFC 9110 9.1 and 15.5.6). That includes `/api/ai-tasks/{id}/result` and `/intake`.
 - A call with no credentials gets 401 for both, because a caller who has signed in nothing must not learn which paths exist.
 - The gate asks for a session or a token and no scope (`"any"` in `Plan.credentials`), and runs no `csrf` check, because no answer depends on either.
-- `refusingMethods` builds the 405 with Hono's `methodNotAllowed` middleware, which lists the methods of `app.routes` for the path and adds `HEAD` wherever `GET` is, so no list of paths or methods is kept by hand. The same middleware sits on `app.all("/*", ...)` for the paths that `createApp` registers outside `/api`, so `PUT /share` answers 405 with `Allow: GET, HEAD, POST` to every caller.
+- `refusingMethods` builds the 405 with Hono's `methodNotAllowed` middleware, which lists the methods of `app.routes` for the path and adds `HEAD` wherever `GET` is, so no list of paths or methods is kept by hand. The same middleware sits on `app.all("/*", ...)` for the paths that `createApp` registers outside `/api`, so `PUT /share` answers 405 with `Allow: GET, HEAD, POST` to every caller whose body is within the cap; a larger body answers 413 first.
 - `/mcp` is one `all` route and refuses a method itself.
 - A path that no route registers is never a 405. On the container the web app's routes serve it after `createApp`. On the Worker, `isServerPath` sends only `/api`, `/share` and `/mcp` to `createApp`, and `serveDocument` answers the rest, so a `POST` to a page or an asset answers 404 on both.
 - `UNROUTED_PATHS` is the one path table left. The OpenRouter connect paths add the `private` cache headers to the 404 and the 405, the file and export download paths add the `file` cache headers, and `/api/ai-tasks/{id}` adds `Cache-Control: no-store`, as its `GET` route declares. The OpenRouter callback allows `GET` only: `getOnly` refuses a `HEAD` before the handler, and `refusingMethods` drops `HEAD` from its `Allow`.
@@ -180,7 +180,7 @@ The cap holds without `Content-Length` too. A larger body answers 413 and writes
 
 ## The share route
 
-`/share` is the manifest's `share_target` action. It is declared `access("self", { cache: "no-store" })`, so the gate checks no session, token or origin, because the route decides for itself who is trusted. It caps the body and sets `Cache-Control: no-store` on every answer, the 413 included.
+`/share` is the manifest's `share_target` action. It is declared `access("self", { cache: "no-store" })`, so the gate checks no session, token or origin, because the route decides for itself who is trusted. It caps the body and sets `Cache-Control: no-store` on every answer to a `GET`, `HEAD` or `POST`, the 413 included. Another method never reaches the route ([Unrouted paths](#unrouted-paths)). Its 405, or its 413 for a body over the cap, carries no `Cache-Control`, and its body is a fixed message that names no private data.
 
 A write needs a `POST` with all three of these (`sentByOwnPage`):
 
