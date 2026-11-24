@@ -109,7 +109,7 @@ It refuses a path, a link, a symbol paired with a path, or a line number that th
 
 ### `pnpm docs:impact [base]`
 
-The command lists the doc lines that a change may make untrue ([Changing code](../agents/changing-code.md), Finish).
+The command lists the doc lines that a change may make untrue ([Changing code](../agents/changing-code.md), Finish). It exits 1 and prints the reason when it cannot compare with the base.
 
 ## Fixes that run without review
 
