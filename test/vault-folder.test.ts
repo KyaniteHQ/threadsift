@@ -6,6 +6,7 @@ import {
   mkdtempDisposableSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -13,9 +14,10 @@ import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
 
 import { VaultResultSchema, VaultViewSchema } from "../src/core/contract/vault-contract.ts";
+import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { paste, until, nextSweep } from "./related-fixtures.ts";
+import { count, paste, until, nextSweep } from "./related-fixtures.ts";
 
 const SETTINGS = "/api/settings/obsidian";
 
@@ -48,6 +50,14 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   const at = (path: string) => `${vault}/${path}`;
   const text = (path: string) => readFileSync(at(path), "utf8");
   const view = () => instance.read("GET", SETTINGS, VaultViewSchema);
+
+  const conflicts = async () => {
+    const seen = await view();
+
+    assert.ok(seen.mode === "folder");
+
+    return seen.conflicts;
+  };
 
   const verify = (folder: string) =>
     instance.read("POST", `${SETTINGS}/verify`, VaultResultSchema, { mode: "folder", folder });
@@ -144,21 +154,67 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.ok(text("Threadsift/Index.md").includes(`[[${topicPage}|Reading]]`));
   });
 
-  it("names the path of a note the owner already holds, records the conflict once, and keeps writing the other Items", async () => {
+  it("names the path of a note the owner already holds, and keeps writing the other Items", async () => {
     await swept(instance, view, (seen) => seen.mode === "folder" && seen.conflicts.length > 0);
-    await nextSweep(instance);
-    await nextSweep(instance);
 
-    const current = await view();
-
-    assert.ok(current.mode === "folder");
-    assert.deepEqual(current.conflicts, [noteOf(conflicted)]);
+    assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
     assert.equal(text(noteOf(conflicted)), OWNER_NOTE);
-    assert.deepEqual(
-      (await lines(instance)).filter((line) => line.startsWith("vault-file-conflict")),
-      [`vault-file-conflict | ${noteOf(conflicted)}`],
-    );
     assert.ok(existsSync(at(noteOf(mirrored))));
+  });
+
+  const retryAt = () =>
+    count(instance, "select retry_at as n from mirror_notes where conflict_path is not null");
+
+  const conflictLines = async () =>
+    (await lines(instance)).filter((line) => line.startsWith("vault-file-conflict"));
+
+  it("does not try the path again at a clock before the park ends", async () => {
+    const parkedUntil = retryAt();
+
+    await atClock(
+      () => parkedUntil - 1,
+      () => nextSweep(instance),
+    );
+
+    assert.equal(retryAt(), parkedUntil);
+    assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
+    assert.deepEqual(await conflictLines(), [`vault-file-conflict | ${noteOf(conflicted)}`]);
+  });
+
+  it("tries the path again at the instant the park ends, and still holds one Log line and the owner's file", async () => {
+    const first = retryAt();
+
+    await atClock(
+      () => first,
+      () => nextSweep(instance),
+    );
+
+    assert.equal(retryAt(), first + 60_000);
+    assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
+    assert.equal(text(noteOf(conflicted)), OWNER_NOTE);
+    assert.deepEqual(await conflictLines(), [`vault-file-conflict | ${noteOf(conflicted)}`]);
+  });
+
+  it("writes the note once the owner's file is gone, clears the conflict and keeps the Log line", async () => {
+    const path = at(noteOf(conflicted));
+    const aside = at("owner-note.md");
+
+    renameSync(path, aside);
+
+    try {
+      const parkedUntil = retryAt();
+
+      await atClock(
+        () => parkedUntil,
+        () => nextSweep(instance),
+      );
+
+      assert.deepEqual(await conflicts(), []);
+      assert.ok(text(noteOf(conflicted)).includes('aliases: ["Conflicted"]'));
+      assert.deepEqual(await conflictLines(), [`vault-file-conflict | ${noteOf(conflicted)}`]);
+    } finally {
+      renameSync(aside, path);
+    }
   });
 
   it("rewrites the notes a library change touches", async () => {
