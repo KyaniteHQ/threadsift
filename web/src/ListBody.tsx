@@ -6,12 +6,12 @@ import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { More } from "./list-paging.ts";
 import type { ListState } from "./list-state.ts";
+import { LoadMore } from "./LoadMore.tsx";
 import {
   CLEAR_ALL,
   EMPTY_LIST,
   LOADING_LABEL,
   LOAD_FAILED,
-  LOAD_MORE,
   NO_RESULTS,
   RETRY_LABEL,
 } from "./text.ts";
@@ -132,12 +132,13 @@ function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) 
   return (
     <>
       {state === "loading" ? <Loading /> : null}
-      <div className="noresults">
-        <p role="alert">{state === "failed" ? LOAD_FAILED : null}</p>
-        <button type="button" className="btn" aria-disabled={state === "loading"} onClick={more}>
-          {state === "failed" ? RETRY_LABEL : LOAD_MORE}
-        </button>
-      </div>
+      <LoadMore
+        variant="column"
+        more={state}
+        failedText={LOAD_FAILED}
+        disabled={state === "loading"}
+        loadMore={more}
+      />
     </>
   );
 }
