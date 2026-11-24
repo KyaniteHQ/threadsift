@@ -2,18 +2,13 @@ import { CheckCursorSchema, entering } from "../../../core/contract/restore-cont
 import { logFailure } from "../../../core/kernel/failure-log.ts";
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
-import { type Manifest, appliedMigration } from "../../export/core/export-format.ts";
-import type { ZipDirectory, ZipSource } from "../../export/core/zip-read.ts";
+import { appliedMigration } from "../../export/core/export-format.ts";
+import type { ZipSource } from "../../export/core/zip-read.ts";
 import { type Env, advance, rowsMatch } from "./restore-check-scan.ts";
 import { checkedTables, readManifest } from "./restore-check.ts";
 import { type RefusalDetail, RestoreRefused, restoreRefusalOf } from "./restore-refusal.ts";
-import { readRestoreDirectory } from "./restore-source.ts";
+import { type Release, readRestoreDirectory } from "./restore-source.ts";
 import { endedUnit, steppedUnit } from "./restore-unit.ts";
-
-export interface Release {
-  readonly directory: ZipDirectory;
-  readonly manifest: Manifest;
-}
 
 async function readRelease(
   { db }: Pick<JobPorts, "db">,

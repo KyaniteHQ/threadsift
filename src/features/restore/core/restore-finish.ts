@@ -11,8 +11,8 @@ import {
 } from "../../../core/kernel/schema.ts";
 import type { Manifest } from "../../export/core/export-format.ts";
 import { EMBEDDED_JOB_ID } from "./named-files.ts";
-import type { Release } from "./restore-check-unit.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
+import type { Release } from "./restore-source.ts";
 import { endedUnit, tallied } from "./restore-unit.ts";
 
 const sqliteSequence = sqliteTable("sqlite_sequence", {

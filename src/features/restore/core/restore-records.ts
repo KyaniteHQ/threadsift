@@ -12,10 +12,11 @@ import {
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
 import { type ZipSource, bytesAt, entrySpan } from "../../export/core/zip-read.ts";
-import { type Release, verifiedRelease } from "./restore-check-unit.ts";
+import { verifiedRelease } from "./restore-check-unit.ts";
 import { type Lines, completeLines } from "./restore-lines.ts";
 import { RESTORE_ORDER } from "./restore-registry.ts";
 import { insertRows, knownTable } from "./restore-rows.ts";
+import type { Release } from "./restore-source.ts";
 import { steppedUnit, tallied } from "./restore-unit.ts";
 
 interface Opened {
