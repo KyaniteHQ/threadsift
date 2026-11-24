@@ -92,7 +92,7 @@ Every screen the app draws takes its look from the design system, and a screen a
 - **Settings:** the settings table (`SETTINGS`) is the one table of settings, and every other list of settings is built from it.
 - **Behaviour:** the clickable prototype shows how each screen behaves.
 - **Styles:** the 10 Style blocks live in the token stylesheet, with a palette for each Theme. Their fonts load from the Instance.
-- **Accessibility:** every text and background pair is at least 4.5:1 and every mark a person needs to see a control or its state at least 3:1, in every theme with every accent and Style. Text is never under 12px. Under 480px every target is at least 44px. The open row is marked by a bar as well as by colour. Motion has a reduced-motion form.
+- **Accessibility:** every text and background pair is at least 4.5:1 and every mark a person needs to see a control or its state at least 3:1, in every theme with every accent and Style. Text is never under 12px. Under 480px every target is at least 44px, except the width of a link or a Highlight mark in the text of a post or comment, a code block included, which keeps the width of its text. The open row is marked by a bar as well as by colour. Motion has a reduced-motion form.
 - **Keyboard:** the first Tab stop in the Library is a button that moves focus to the first Item; j and k move through Items, Enter opens, m marks read or unread, / focuses search, the left and right arrows step to the previous or next Item while one is open in Grid, and Escape closes the open Item.
 - **Review:** the building agent checks screenshots in every theme before a screen lands ([Reviewing code](agents/reviewing-code.md)).
 

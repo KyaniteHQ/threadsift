@@ -215,7 +215,7 @@ Spacing runs on six steps (`s1` to `s6`). Density multiplies the vertical spacin
 
 List is three panes: the sidebar (wordmark, paste box and filter rail), the item list and the reader pane. Under `--bp-medium` the sidebar becomes a header above the list. Under `--bp-narrow` everything stacks into one column and items open full page. Grid is a header row (wordmark, search, paste box), a filter bar, then a card grid centred at most `--page-max` wide. In Grid, an item opens as a full page or as a sheet over the dimmed grid, with Previous and Next buttons outside the sheet.
 
-The app measures its own width and writes every band it is under to `data-bp` (`--bp-phone`, `--bp-narrow`, `--bp-medium` and `--bp-wide`). Components read that attribute instead of media queries, so a preview can draw the phone form inside a wide window. Under 480px every control grows to the 44px target (`--target`).
+The app measures its own width and writes every band it is under to `data-bp` (`--bp-phone`, `--bp-narrow`, `--bp-medium` and `--bp-wide`). Components read that attribute instead of media queries, so a preview can draw the phone form inside a wide window. Under 480px every control grows to the 44px target (`--target`); a link and a Highlight mark in post or comment text keep the width of their text, as the target rule under Do's and Don'ts says.
 
 ### Named Rules
 **The Still Root Rule.** The app root never scrolls. Each pane scrolls itself, and keeping an item in view scrolls only its own pane.
@@ -269,7 +269,7 @@ Opening an item grows its card or row into the reader over `--dur-move` with `--
 - **Do** add a new Look option as a `data-*` rule on the app root that lists only the tokens it changes, and add the option to the settings table in `design/system/settings-table.ts`.
 - **Do** keep every text and background pair at 4.5:1 or more, and every mark, icon and border a person needs to see a control or its state at 3:1 or more, in every theme with every accent and Style.
 - **Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or an empty unread dot. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.
-- **Do** make every target at least 44px under 480px, except the width of a link inside rendered post or comment text (`.md`). That link keeps the width of its text, and `--link-pad` sets its height (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).
+- **Do** make every target at least 44px under 480px, except the width of a link or a Highlight mark in the text of a rendered post or comment (`.md`), a code block included. Each keeps the width of its text, so two marks side by side never share a tap area, and `--link-pad` sets its height. A mark that wraps a picture has the picture's size (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).
 - **Do** mark the open row with its 3px bar as well as its tint.
 - **Do** give every animation a reduced-motion form.
 - **Do** keep the reading column at the Text width setting's measure, and keep the unread dot on the first metadata line, never on a picture.
