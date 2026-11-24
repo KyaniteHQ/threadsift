@@ -155,7 +155,6 @@ export function EmptyState({ heading, line }: Readonly<{ heading: string; line: 
 
 interface ListBodyProps extends RowProps {
   readonly list: ListState;
-  readonly retry: () => void;
   readonly clearAll: () => void;
   readonly more: () => void;
 }
@@ -190,17 +189,12 @@ function LoadedList({
   );
 }
 
-function ListContent({
+export const ListBody = memo(function ListBody({
   list,
   clearAll,
   more,
-  shared,
-}: Readonly<{
-  list: ListState;
-  clearAll: ListBodyProps["clearAll"];
-  more: ListBodyProps["more"];
-  shared: Readonly<RowProps>;
-}>) {
+  ...shared
+}: Readonly<ListBodyProps>) {
   if (list.status === "failed") return null;
 
   if (list.status === "loading") return <Loading />;
@@ -216,19 +210,4 @@ function ListContent({
   }
 
   return <LoadedList list={list} more={more} shared={shared} />;
-}
-
-export const ListBody = memo(function ListBody({
-  list,
-  retry,
-  clearAll,
-  more,
-  ...shared
-}: Readonly<ListBodyProps>) {
-  return (
-    <>
-      <RetryNotice failed={list.status === "failed"} text={LOAD_FAILED} action={retry} />
-      <ListContent list={list} clearAll={clearAll} more={more} shared={shared} />
-    </>
-  );
 });
