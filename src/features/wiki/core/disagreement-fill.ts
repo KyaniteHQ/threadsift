@@ -1,18 +1,24 @@
-import { AI_INPUT_BYTES } from "../../../core/contract/ai-contract.ts";
-import { utf8Length } from "../../../core/contract/encoding.ts";
-import { packWithinInputCap } from "../../ai/core/ai-input-packing.ts";
+import { fitsAiInput } from "../../../core/contract/ai-contract.ts";
 import type { SentTopic } from "./disagreement-task.ts";
 import { pairKey } from "./proposal-candidates.ts";
 
 type DecidedPair = readonly [number, number];
 
+interface HeldTopic {
+  readonly topic: Readonly<SentTopic>;
+  readonly topicJson: string;
+  readonly pairsJson: readonly string[];
+}
+
+export type DisagreementFill = readonly Readonly<HeldTopic>[];
+
 const MIN_ITEMS = 2;
 
 const SMALLEST_ITEM = { id: 0, title: "", summary: "" };
 
-const SMALLEST_TOPIC_BYTES = utf8Length(
-  JSON.stringify({ id: 0, name: "", items: [SMALLEST_ITEM, SMALLEST_ITEM] }),
-);
+const SMALLEST_TOPIC = JSON.stringify({ id: 0, name: "", items: [SMALLEST_ITEM, SMALLEST_ITEM] });
+
+export const EMPTY_FILL: DisagreementFill = [];
 
 function decidedOf(
   topic: Readonly<SentTopic>,
@@ -34,60 +40,51 @@ function wireTopic({ id, name, items }: Readonly<SentTopic>) {
   };
 }
 
-export interface DisagreementFill {
-  readonly sent: readonly Readonly<SentTopic>[];
-  readonly topicsJson: string;
-  readonly pairsJson: string;
-}
-
-export const EMPTY_FILL: DisagreementFill = { sent: [], topicsJson: "", pairsJson: "" };
-
-export function disagreementInput({
-  topicsJson,
-  pairsJson,
-}: Readonly<Pick<DisagreementFill, "topicsJson" | "pairsJson">>): string {
-  return `{"topics":[${topicsJson}],"decided":[${pairsJson}]}`;
-}
-
-function joined(held: string, added: readonly string[]): string {
-  return [...(held === "" ? [] : [held]), ...added].join(",");
-}
-
-function withTopic(
-  fill: Readonly<DisagreementFill>,
-  topic: Readonly<SentTopic>,
-  pairs: readonly DecidedPair[],
-): DisagreementFill {
+function heldTopic(topic: Readonly<SentTopic>, decided: Readonly<ReadonlySet<string>>): HeldTopic {
   return {
-    sent: [...fill.sent, topic],
-    topicsJson: joined(fill.topicsJson, [JSON.stringify(wireTopic(topic))]),
-    pairsJson: joined(
-      fill.pairsJson,
-      pairs.map((pair) => JSON.stringify(pair)),
-    ),
+    topic,
+    topicJson: JSON.stringify(wireTopic(topic)),
+    pairsJson: decidedOf(topic, decided).map((pair) => JSON.stringify(pair)),
   };
 }
 
-function shortenings(topic: Readonly<SentTopic>): SentTopic[] {
-  return Array.from({ length: Math.max(0, topic.items.length - MIN_ITEMS + 1) }, (_, cut) => ({
-    ...topic,
-    items: topic.items.slice(0, topic.items.length - cut),
-  }));
+export function disagreementInput(fill: DisagreementFill): string {
+  const topics = fill.map(({ topicJson }) => topicJson).join(",");
+  const pairs = fill.flatMap(({ pairsJson }) => pairsJson).join(",");
+
+  return `{"topics":[${topics}],"decided":[${pairs}]}`;
+}
+
+export function sentOf(fill: DisagreementFill): readonly Readonly<SentTopic>[] {
+  return fill.map(({ topic }) => topic);
+}
+
+function withFirstFitting(
+  fill: DisagreementFill,
+  topic: Readonly<SentTopic>,
+  decided: Readonly<ReadonlySet<string>>,
+): DisagreementFill {
+  for (let count = topic.items.length; count >= MIN_ITEMS; count -= 1) {
+    const grown = [...fill, heldTopic({ ...topic, items: topic.items.slice(0, count) }, decided)];
+
+    if (fitsAiInput(disagreementInput(grown))) return grown;
+  }
+
+  return fill;
 }
 
 export function extendFill(
-  fill: Readonly<DisagreementFill>,
+  fill: DisagreementFill,
   topics: readonly Readonly<SentTopic>[],
   decided: Readonly<ReadonlySet<string>>,
 ): DisagreementFill {
-  return packWithinInputCap(fill, topics, {
-    variants: shortenings,
-    add: (packed, topic) => withTopic(packed, topic, decidedOf(topic, decided)),
-    bytes: (packed) => utf8Length(disagreementInput(packed)),
-    stopAtFirstMiss: false,
-  });
+  let held = fill;
+
+  for (const topic of topics) held = withFirstFitting(held, topic, decided);
+
+  return held;
 }
 
-export function hasNoRoomForAnother(fill: Readonly<DisagreementFill>): boolean {
-  return utf8Length(disagreementInput(fill)) + SMALLEST_TOPIC_BYTES > AI_INPUT_BYTES;
+export function hasNoRoomForAnother(fill: DisagreementFill): boolean {
+  return !fitsAiInput(disagreementInput(fill) + SMALLEST_TOPIC);
 }

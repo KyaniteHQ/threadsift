@@ -22,6 +22,7 @@ import {
   disagreementInput,
   extendFill,
   hasNoRoomForAnother,
+  sentOf,
 } from "./disagreement-fill.ts";
 import { decidedPairs } from "./disagreement-pins.ts";
 import { DISAGREEMENT_ITEMS, type SentItem, type SentTopic } from "./disagreement-task.ts";
@@ -126,7 +127,7 @@ function candidateOf(rows: readonly Readonly<ReadRow>[]): SentTopic | null {
 
 async function withPage(
   db: Database,
-  fill: Readonly<DisagreementFill>,
+  fill: DisagreementFill,
   page: readonly Readonly<Place>[],
 ): Promise<DisagreementFill> {
   const rows = await newestItemsOf(
@@ -150,7 +151,7 @@ async function withPage(
 
 async function gather(
   db: Database,
-  fill: Readonly<DisagreementFill>,
+  fill: DisagreementFill,
   place: Readonly<Place> | null,
 ): Promise<DisagreementFill> {
   const page = await topicsAfter(db, place);
@@ -165,8 +166,7 @@ async function gather(
 
 export async function readDisagreementInput(db: Database) {
   const fill = await gather(db, EMPTY_FILL, null);
+  const sent = sentOf(fill);
 
-  return fill.sent.length === 0
-    ? null
-    : { input: disagreementInput(fill), inputRevision: 0, sent: fill.sent };
+  return sent.length === 0 ? null : { input: disagreementInput(fill), inputRevision: 0, sent };
 }

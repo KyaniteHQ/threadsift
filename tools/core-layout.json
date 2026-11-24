@@ -32,7 +32,6 @@
       "sessions.ts"
     ],
     "ai": [
-      "ai-input-packing.ts",
       "ai-kind-publish.ts",
       "ai-kind-types.ts",
       "ai-kind.ts",
