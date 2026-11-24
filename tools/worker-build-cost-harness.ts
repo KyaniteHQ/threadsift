@@ -1,9 +1,13 @@
-import { type ChildProcess, execFileSync, spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
+import { once } from "node:events";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { z } from "zod";
+
+import { pause } from "../src/core/contract/pause.ts";
+import { bestEffort, errnoCodeOf, reportFailure } from "../src/core/kernel/failure-log.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const WORKER_FOLDER = join(ROOT, "src", "targets", "worker");
@@ -13,6 +17,7 @@ const PASSWORD = "a measurement password of fifteen or more";
 const START_DEADLINE_MS = 240_000;
 const START_POLL_MS = 500;
 const SETTLE_MS = 1500;
+const CLEANUP_FAILED = { event: "worker-build-cost-cleanup-failed", fields: {} } as const;
 
 export const ROUTES = [
   { name: "GET /api/session", path: "/api/session", authorized: false },
@@ -36,18 +41,13 @@ export interface Harness {
 }
 
 const TokenSchema = z.object({ value: z.string() });
+const ProcessGroupSchema = z.number().int().positive();
 
 function sourceOf(version: string): string {
   if (existsSync(version)) return readFileSync(version, "utf8");
   return execFileSync("git", ["show", `${version}:${CANDIDATE_ENTRY}`], {
     cwd: ROOT,
     encoding: "utf8",
-  });
-}
-
-function pause(ms: number): Promise<void> {
-  return new Promise((done) => {
-    setTimeout(done, ms);
   });
 }
 
@@ -91,13 +91,13 @@ async function ownerToken(origin: string, setupCode: string): Promise<string> {
   return TokenSchema.parse(await created.json()).value;
 }
 
-function startWorker(
+async function startWorker(
   port: number,
   state: string,
   envFile: string,
   config: readonly string[],
-): ChildProcess {
-  return spawn(
+): Promise<number> {
+  const worker = spawn(
     "worker-local",
     [
       state,
@@ -112,13 +112,19 @@ function startWorker(
     ],
     { cwd: ROOT, detached: true, stdio: "ignore" },
   );
+  await once(worker, "spawn");
+  return ProcessGroupSchema.parse(worker.pid);
 }
 
 function signalGroup(group: number, signal: NodeJS.Signals): void {
   try {
     process.kill(-group, signal);
-  } catch {
-    process.stderr.write(`process group ${group} already ended\n`);
+  } catch (error) {
+    if (errnoCodeOf(error) === "ESRCH") {
+      process.stderr.write(`process group ${group} already ended\n`);
+    } else {
+      reportFailure({ event: "worker-build-cost-group-not-signalled", fields: { group } }, error);
+    }
   }
 }
 
@@ -134,8 +140,7 @@ const entryFile = (name: string): string => `worker-build-cost-${name}.tmp.ts`;
 
 const configFile = (name: string): string => `wrangler.worker-build-cost-${name}.tmp.jsonc`;
 
-function prepare(versions: readonly [string, string], folderName: string): Prepared {
-  const state = join(ROOT, ".wrangler", folderName);
+function prepare(versions: readonly [string, string], state: string): Prepared {
   mkdirSync(state, { recursive: true, mode: 0o700 });
   const setupCode = randomBytes(24).toString("base64url");
   const envFile = join(state, "env");
@@ -161,6 +166,12 @@ function removeTemporaryFiles(state: string): void {
     rmSync(join(ROOT, configFile(name)), { force: true });
   }
   rmSync(state, { recursive: true, force: true });
+}
+
+async function tearDown(state: string, groups: readonly number[]): Promise<void> {
+  for (const group of groups) signalGroup(group, "SIGTERM");
+  await pause(SETTLE_MS);
+  removeTemporaryFiles(state);
 }
 
 async function serving(
@@ -195,31 +206,36 @@ export async function startHarness(
   versions: readonly [string, string],
   folderName: string,
 ): Promise<Harness> {
-  const prepared = prepare(versions, folderName);
-  const { state, envFile } = prepared;
-  const groups: readonly [number, number] = [
-    startWorker(FIRST_PORT, join(state, "baseline"), envFile, ["--config", configFile("baseline")])
-      .pid ?? 0,
-    startWorker(FIRST_PORT + 1, join(state, "candidate"), envFile, [
-      "--config",
-      configFile("candidate"),
-    ]).pid ?? 0,
-  ];
-  const signalAll = (): void => {
-    for (const group of groups) signalGroup(group, "SIGTERM");
-  };
+  const state = join(ROOT, ".wrangler", folderName);
+  let groups: readonly number[] = [];
+  const cleanUp = (): Promise<void> => tearDown(state, groups);
+
   try {
+    const prepared = prepare(versions, state);
+    const { envFile } = prepared;
+
+    const settled = await Promise.allSettled([
+      startWorker(FIRST_PORT, join(state, "baseline"), envFile, [
+        "--config",
+        configFile("baseline"),
+      ]),
+      startWorker(FIRST_PORT + 1, join(state, "candidate"), envFile, [
+        "--config",
+        configFile("candidate"),
+      ]),
+    ]);
+    const [baseline, candidate] = settled;
+
+    groups = settled.flatMap((worker) => (worker.status === "fulfilled" ? [worker.value] : []));
+    if (baseline.status === "rejected") throw baseline.reason;
+    if (candidate.status === "rejected") throw candidate.reason;
+
     return {
-      variants: await serving(prepared, groups),
-      stop: async (): Promise<void> => {
-        signalAll();
-        await pause(SETTLE_MS);
-        removeTemporaryFiles(state);
-      },
+      variants: await serving(prepared, [baseline.value, candidate.value]),
+      stop: () => bestEffort(CLEANUP_FAILED, cleanUp),
     };
   } catch (error) {
-    signalAll();
-    removeTemporaryFiles(state);
+    await bestEffort(CLEANUP_FAILED, cleanUp);
     throw error;
   }
 }
