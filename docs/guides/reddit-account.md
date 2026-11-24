@@ -40,7 +40,7 @@ When the account expires, the Extension's popup and settings page offer **Reconn
 
 ## Replace, disconnect or let it expire
 
-- **Replace.** Paste a new value and choose **Connect**.
+- **Replace.** Paste a new value and choose **Connect**. The waiting links become due and use the new session.
 - **Disconnect.** Choose **Disconnect**. The waiting links become due and are filled from the archive.
 - **Expiry.** When Reddit says the session is logged out, Settings shows it as expired, and links are filled from the archive until you connect again. Other refusals from Reddit do not expire the account.
 - **Key changed.** When Settings says the Instance can no longer open the session, follow [Keep the secret key](self-hosting.md#keep-the-secret-key).

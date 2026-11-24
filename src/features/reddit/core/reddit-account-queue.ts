@@ -186,6 +186,14 @@ export function releaseWaitingWhen(db: Database, now: number, condition: SQL): B
   return wokenJobs(db, now, and(WAITING, condition));
 }
 
+export function releaseWaitingWhenFree(db: Database, now: number): BatchItem<"sqlite"> {
+  return releaseWaitingWhen(
+    db,
+    now,
+    sql`not exists (select 1 from ${redditAccount} where ${redditAccount.id} = ${ACCOUNT_ROW} and ${redditAccount.busyUntil} > ${now})`,
+  );
+}
+
 export async function enqueueWaiting(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
   now: number,

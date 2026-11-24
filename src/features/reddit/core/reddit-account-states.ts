@@ -20,6 +20,7 @@ import {
   enqueueWaiting,
   releaseWaiting,
   releaseWaitingWhen,
+  releaseWaitingWhenFree,
 } from "./reddit-account-queue.ts";
 
 const REFUSALS_TO_EXPIRE = 3;
@@ -114,7 +115,7 @@ export async function recordWindow(
 }
 
 export async function connectAccount(
-  db: Database,
+  ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
   sealedSession: string,
   now: number,
 ): Promise<void> {
@@ -130,10 +131,15 @@ export async function connectAccount(
     connectedAt: now,
   } as const;
 
-  await db
-    .insert(redditAccount)
-    .values({ id: ACCOUNT_ROW, ...fresh })
-    .onConflictDoUpdate({ target: redditAccount.id, set: fresh });
+  await ports.db.batch([
+    ports.db
+      .insert(redditAccount)
+      .values({ id: ACCOUNT_ROW, ...fresh })
+      .onConflictDoUpdate({ target: redditAccount.id, set: fresh }),
+    releaseWaitingWhenFree(ports.db, now),
+  ]);
+
+  await enqueueWaiting(ports, now, "all");
 }
 
 export async function confirmAccount(
