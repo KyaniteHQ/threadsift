@@ -11,6 +11,16 @@ The `Containerfile` builds on the official `node:26-slim` image, pinned by diges
 
 Operators install the CLIs into the data volume, so no derived image is needed.
 
+## pnpm
+
+The `packageManager` field carries the version and the SHA-512 hash of the pnpm tarball, in the form Corepack defines: `pnpm@<version>+sha512.<hex>`. The hash is the hex form of the `dist.integrity` that the npm registry lists for that version, so `sha512sum` of the downloaded `pnpm-<version>.tgz` equals it. Corepack in the devenv shell checks the same hash when it downloads pnpm, and does not check a copy that is already in its cache.
+
+`node:26-slim` ships no Corepack, because Node 25 and later do not bundle it ([Corepack](https://github.com/nodejs/corepack#readme)). The `base` stage therefore checks the tarball with what the image has, and installs no package and no helper to do it. A field in any other form, or a tarball that does not match the hash, stops the build.
+
+The hash covers the pnpm wrapper tarball only. The pnpm 12 tarball holds a launcher, and the native binary comes from the `@pnpm/exe.<platform>` package that npm installs next to it. npm checks that package against the integrity in the registry's metadata, and the hash in `packageManager` does not pin it.
+
+Renovate keeps the hash current. When it bumps pnpm, `updateArtifacts` of its npm manager writes the new `+sha512.<hex>` from the registry's integrity for the new version ([Dependency updates](dependency-updates.md)).
+
 ## The data volume
 
 One volume at `/data` holds the database, the files, and the install folder and login of each CLI. The `node` user owns it, so the owner installs a CLI without root. The image sets `DATA_DIR=/data`. The default data folder of the container target, `/app/.data`, is a link to `/data`, so an empty `DATA_DIR=` or a start without the variable also lands in the volume.
