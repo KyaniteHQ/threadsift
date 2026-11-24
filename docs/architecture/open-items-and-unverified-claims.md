@@ -48,7 +48,7 @@ Not verified on either install target: a real GitHub `Retry-After` answer follow
 Not verified, because no stable public page or on-demand service produces the case, and the container's adapter reaches only globally reachable addresses, so no local redirect server can stand in for a short link host:
 
 - A short link whose target moves or dies between two Pastes, and two simultaneous Pastes that resolve to different targets.
-- The two alias guards (the success batch and the failure write) in the current suites. Their last proof is a container run (2026-11-08).
+- The alias guard of the success batch (`holdsNoRival`) and the batch of two first saves that run together, which the single-process test database cannot overlap. The guard of the failure write is covered by a core test. The last proof of the success batch is a container run (2026-11-08).
 - That a Paste that has read its alias and is still resolving shows nothing, because it writes nothing before its batch.
 - A meta refresh that leads to the target's Item, to a private address, to Reddit or X, past the 20th redirect, or with a delay above 0.
 - A `<title>` after the 512 KiB cap, a remote title that changes between two Pastes, and the `deflate` encoding on a page with a title.
@@ -74,7 +74,7 @@ Open: the name check is missing on the local Worker under `wrangler dev`. A name
 No run has read a repository from a deployed Worker, and no run from the development address can exhaust the budget other programs there share.
 
 - Limits: the headers and message of a real primary or secondary limit, whether GitHub answers 403 or 429, a `retry-after` in HTTP-date form, the attempt count (two deferrals, then the `rate-limited` failure), the waits of a limit with no usable time, two limited answers that extend the cooldown at once, the 24-hour queue delay clamp, and recovery after a real limit.
-- No test covers the cooldown check on a Paste or on Verify, the deferral under a held claim, the screens, and Try again from the terminal `rate-limited` failure during a cooldown.
+- No test covers the cooldown check on a Paste, the deferral under a held claim, the screens, and Try again from the terminal `rate-limited` failure during a cooldown. A Paste of a GitHub link in a test would reach `api.github.com` as soon as the cooldown ends.
 - The fetch: a `status` outcome for any answer but a 404, a README over `README_ANSWER_BYTES` (570 KiB to 1 MB would spend the shared budget), a README that is not Markdown, that `X-GitHub-Api-Version` takes effect, and that no other host receives the GitHub headers.
 - The token: a CI run with the workflow's own `GITHUB_TOKEN` (limit 1,000 per repository), a working token that GitHub revoked after it was saved, that a redirect to another origin drops the token, the refusal of a repository marked `private` before the README request, and a rate-limited answer to a request that carried a token.
 

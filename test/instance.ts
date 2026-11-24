@@ -25,6 +25,7 @@ interface StartOptions {
   readonly publicOrigin?: string | undefined;
   readonly fetchers?: string | undefined;
   readonly secretKey?: string | undefined;
+  readonly resetCode?: string | undefined;
 }
 
 let ownerTemplate: Promise<Uint8Array> | undefined;
@@ -123,6 +124,7 @@ export class Instance {
     publicOrigin,
     fetchers,
     secretKey,
+    resetCode,
   }: StartOptions = {}): Promise<Instance> {
     const template = fresh ? undefined : await templateDatabase();
     await using cleanup = new AsyncDisposableStack();
@@ -131,6 +133,7 @@ export class Instance {
     const environment = nodeEnvironment({
       DATA_DIR: database.dataDir,
       SETUP_CODE,
+      PASSWORD_RESET_CODE: resetCode,
       THREADSIFT_SECRET_KEY: secretKey,
       THREADSIFT_PUBLIC_ORIGIN: publicOrigin,
       THREADSIFT_FETCHERS: fetchers,
