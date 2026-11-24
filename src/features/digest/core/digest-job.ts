@@ -5,15 +5,15 @@ import type { ClaimedJob, JobOutcome, JobPorts } from "../../../core/kernel/job-
 import { defineJob } from "../../../core/kernel/job-spec.ts";
 import { attemptCaller } from "./digest-caller.ts";
 import { DIGEST_DEADLINE_MS } from "./digest-hop.ts";
-import { DIGEST_INPUT, pendingDigestOf } from "./digest-input.ts";
+import { DIGEST_INPUT, lacksPendingDigest } from "./digest-input.ts";
 import { digestKind } from "./digest-kind.ts";
 import { emptyInput } from "./digest-prepare.ts";
 import { readForPublishing } from "./digest-publish.ts";
 
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
-  const [held] = await pendingDigestOf(ports.db, job.itemId);
+  const [held] = await lacksPendingDigest(ports.db, job.itemId);
 
-  if (held?.pendingDigest === null) return digestKind.attempt(ports, job);
+  if (held?.lacksPending === true) return digestKind.attempt(ports, job);
 
   const { item, anchors } = await readForPublishing(ports.db, job.itemId);
 

@@ -25,8 +25,11 @@ export function digestInput(db: Database, id: number) {
     .where(eq(items.id, id));
 }
 
-export function pendingDigestOf(db: Database, id: number) {
-  return db.select({ pendingDigest: items.pendingDigest }).from(items).where(eq(items.id, id));
+export function lacksPendingDigest(db: Database, id: number) {
+  return db
+    .select({ lacksPending: sql<boolean>`${items.pendingDigest} is null`.mapWith(Boolean) })
+    .from(items)
+    .where(eq(items.id, id));
 }
 
 export type DigestInput = Awaited<ReturnType<typeof digestInput>>[number];
