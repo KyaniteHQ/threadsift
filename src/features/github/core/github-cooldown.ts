@@ -32,7 +32,7 @@ export async function cooldownUntil(db: Database, now: number): Promise<number |
   return ceiling;
 }
 
-const WAITING = and(eq(jobs.kind, "fetch"), waitingFor("github-rate-limit"));
+const WAITING = sql`(${eq(jobs.kind, "fetch")} and ${waitingFor("github-rate-limit")})`;
 
 export async function tokenChanged(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
@@ -61,7 +61,7 @@ export function githubClosing(
 
   const cooldownHolds = sql`exists (select 1 from ${githubCooldown} where ${githubCooldown.id} = ${COOLDOWN_ROW} and ${githubCooldown.until} > ${now})`;
 
-  return [wokenJobs(db, now, and(eq(jobs.id, job.id), WAITING, not(cooldownHolds)))];
+  return [wokenJobs(db, now, eq(jobs.id, job.id), WAITING, not(cooldownHolds))];
 }
 
 export async function startCooldown(

@@ -26,18 +26,26 @@ export const WAIT_VIEW_COLUMNS = {
   ),
 };
 
-export function wokenJobs(db: Database, now: number, where: SQL | undefined) {
-  return db.update(jobs).set({ nextAttemptAt: now }).where(where);
+export function wokenJobs(
+  db: Database,
+  now: number,
+  first: SQL,
+  ...rest: readonly (SQLWrapper | undefined)[]
+) {
+  return db
+    .update(jobs)
+    .set({ nextAttemptAt: now })
+    .where(and(first, ...rest));
 }
 
 export function wokenJob(db: Database, jobId: number, now: number, when?: Readonly<SQLWrapper>) {
-  return wokenJobs(db, now, and(eq(jobs.id, jobId), jobOpen(), when && sql`${when}`));
+  return wokenJobs(db, now, eq(jobs.id, jobId), jobOpen(), when && sql`${when}`);
 }
 
 export async function enqueueWoken(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
   now: number,
-  where: SQL | undefined,
+  where: SQL,
   which: "oldest" | "all",
 ): Promise<void> {
   const due = ports.db
