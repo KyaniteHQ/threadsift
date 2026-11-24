@@ -9,6 +9,7 @@ import {
   RestoreStatusSchema,
   type RestoreStatus,
   StartedRestoreSchema,
+  entering,
 } from "../src/core/contract/restore-contract.ts";
 import { exportedZip } from "./export-restore-fixtures.ts";
 import type { Instance } from "./instance.ts";
@@ -40,6 +41,16 @@ export function restoreProgress(instance: Instance, id: number) {
   assert.ok(row !== undefined, "the Restore row exists");
 
   return row;
+}
+
+export function movedToPhase(instance: Instance, id: number, phase: "tables" | "finish"): void {
+  exec(
+    instance,
+    "update restores set phase = ?, cursor = ? where id = ?",
+    phase,
+    entering(phase).cursor,
+    id,
+  );
 }
 
 export function putPart(instance: Instance, id: number, bytes: Uint8Array): Promise<Response> {
