@@ -1,35 +1,30 @@
-import { SERVER_MODULES } from "../oxlint.config.ts";
+import type { DummyRuleMap } from "oxlint";
+
+import repositoryConfig from "../oxlint.config.ts";
 
 const TRUSTED_MODULE = "src/core/kernel/failure-log.ts";
 
+const threadsiftRules = (rules: DummyRuleMap | undefined) =>
+  Object.fromEntries(
+    Object.entries(rules ?? {}).filter(([name]) => name.startsWith("threadsift/")),
+  );
+
 export const CONFIG = {
   jsPlugins: [{ name: "threadsift", specifier: "./tools/oxlint/threadsift/index.ts" }],
-  rules: {
-    "threadsift/no-comments": "error",
-    "threadsift/layer-imports": "error",
-    "threadsift/static-import-source": "error",
-    "threadsift/no-await-before-rethrow": [
-      "error",
-      { cannotThrow: { [TRUSTED_MODULE]: ["bestEffort"] }, finalizers: true },
-    ],
-    "threadsift/no-restricted-import-types": [
-      "error",
-      { patterns: [{ regex: "^node:", message: "A runtime module belongs in an adapter." }] },
-    ],
-  },
-  overrides: [
-    { files: ["src/**"], rules: { "threadsift/no-item-insert": "error" } },
-    {
-      files: ["web/src/**", "extension/lib/**"],
-      rules: {
-        "threadsift/no-server-value-import": ["error", { forbidden: SERVER_MODULES }],
-      },
-    },
-  ],
+  rules: threadsiftRules(repositoryConfig.rules),
+  overrides: (repositoryConfig.overrides ?? []).flatMap(({ files, excludeFiles, rules }) => {
+    const kept = threadsiftRules(rules);
+
+    return Object.keys(kept).length === 0 ? [] : [{ files, excludeFiles, rules: kept }];
+  }),
 };
 
 export const FIXTURES = {
-  [TRUSTED_MODULE]: "export async function bestEffort(): Promise<void> {}\n",
+  [TRUSTED_MODULE]: [
+    "export async function bestEffort(): Promise<void> {}",
+    "export async function readOrAssume(): Promise<void> {}",
+    "",
+  ].join("\n"),
 
   "src/core/kernel/up.ts":
     'import { entry } from "../../features/item/core/entry.ts";\nexport { entry };\n',
@@ -59,6 +54,8 @@ export const FIXTURES = {
 
   "src/features/item/core/direct-insert.ts":
     "export const save = (database: Database) => database.insert(items).values({ id: 1 });\n",
+  "src/features/item/core/item-rows.ts":
+    "export const save = (database: Database) => database.insert(items).values({ id: 1 });\n",
   "src/features/item/core/other-insert.ts":
     "export const save = (database: Database) => database.insert(labels).values({ id: 1 });\n",
 
@@ -70,11 +67,17 @@ export const FIXTURES = {
 
   "web/src/value-node.ts": 'import { readFileSync } from "node:fs";\nexport { readFileSync };\n',
   "web/src/type-node.ts": 'import type { Stats } from "node:fs";\nexport type { Stats };\n',
+  "web/src/value-hono-package.ts":
+    'import { serve } from "@hono/node-server";\nexport { serve };\n',
+  "web/src/value-cloudflare.ts": 'import { env } from "cloudflare:workers";\nexport { env };\n',
+  "web/src/value-drizzle.ts": 'import { sql } from "drizzle-orm";\nexport { sql };\n',
   "web/shared/serving.ts": 'export { serve } from "hono";\n',
   "web/shared/types.ts": 'export type { Context } from "hono";\n',
   "web/src/through-value.ts": 'import { serve } from "../shared/serving.ts";\nexport { serve };\n',
   "web/src/through-type.ts":
     'import { type Context } from "../shared/types.ts";\nexport type { Context };\n',
+  "extension/entrypoints/value-node.ts":
+    'import { readFileSync } from "node:fs";\nexport { readFileSync };\n',
   "extension/shared/runtime.ts":
     'import { readFileSync } from "node:fs";\nexport { readFileSync };\n',
   "extension/lib/through-alias.ts":

@@ -56,7 +56,7 @@ Details of the matching:
 
 ## Custom rules
 
-A core test copies the plug-in and the layout file into a temporary repository, writes fixture files, runs oxlint on them and checks, for each rule below, a fixture it refuses and one it passes. The layer rule's fixtures include an Extension alias. The fixtures carry their own copy of the rule options, so the test also checks that the repository's configuration enables the same Threadsift rules.
+A core test copies the plug-in and the layout file into a temporary repository, writes fixture files, runs oxlint on them and checks, for each rule below, a fixture it refuses and one it passes. The layer rule's fixtures include an Extension alias. The run takes the Threadsift rules, their options and their file scopes from the repository's configuration, so the test also checks that every Threadsift rule the configuration enables refuses at least one fixture.
 
 ### `threadsift/no-comments`
 
