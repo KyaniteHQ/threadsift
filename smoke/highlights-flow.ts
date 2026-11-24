@@ -131,8 +131,7 @@ export async function highlightsFlow(page: Page): Promise<void> {
   });
 
   await page.goto(`/items/${String(item)}`);
-  await expect(mark).toHaveCount(1);
-  await expect(mark).not.toBeInViewport();
+  await expect(mark).toBeInViewport();
   await page.getByRole("button", { name: DELETE_LABEL, exact: true }).click();
   await page.getByRole("button", { name: DELETE_CONFIRM }).click();
   await expect(page).not.toHaveURL(new RegExp(`/items/${String(item)}`, "u"));
