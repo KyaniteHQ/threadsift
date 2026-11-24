@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { dueIds, claimNextDue } from "../src/core/compose/jobs.ts";
+import { DAY_MS } from "../src/core/contract/time-units.ts";
 import {
   type BotLibrary,
   SECRET_KEY,
@@ -18,8 +19,6 @@ import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
 import { pairsOf } from "./related-fixtures.ts";
 import { exec } from "./sqlite-fixtures.ts";
-
-const DAY_MS = 24 * 3_600_000;
 
 describe("an answer reaches its job whichever happens first, the answer or the sender's deferral", () => {
   let instance: Instance;

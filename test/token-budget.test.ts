@@ -8,7 +8,7 @@ import { parseLink } from "../src/core/contract/links.ts";
 import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { itemTotal } from "./restore-fixtures.ts";
-import { script } from "./sqlite-fixtures.ts";
+import { exec } from "./sqlite-fixtures.ts";
 import {
   addBatch,
   addLink,
@@ -168,9 +168,12 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
         const short = "https://t.co/knownshort";
 
-        script(
+        exec(
           instance,
-          `insert into item_aliases (normalized_url, address, item_id) values ('${parseLink(short).normalizedUrl}', '${xLink(81)}', ${String(saved.item.id)})`,
+          "insert into item_aliases (normalized_url, address, item_id) values (?, ?, ?)",
+          parseLink(short).normalizedUrl,
+          xLink(81),
+          saved.item.id,
         );
 
         await Promise.all([82, 83, 84].map((number) => addLink(instance, token, number)));

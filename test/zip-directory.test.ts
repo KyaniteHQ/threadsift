@@ -16,15 +16,13 @@ import {
   endOfArchive,
   packFiles,
 } from "../src/features/export/core/zip.ts";
-import { ZIP_DOS, directoryOf, sourceOf, zipOfFiles } from "./zip-fixtures.ts";
+import { ZIP_DOS, directoryOf, sourceOf, zipOfFiles, TEXT } from "./zip-fixtures.ts";
 
 const FAR_OFFSET = 2 ** 32 + 100;
 
 const ZIP64_END_RECORD = [0x50, 0x4b, 0x06, 0x06];
 
 const ZIP64_TAIL_BYTES = ZIP64_END_BYTES + ZIP64_LOCATOR_BYTES;
-
-const TEXT = new TextEncoder();
 
 const fileOf = (name: string, text = "") => ({ name, bytes: TEXT.encode(text) });
 

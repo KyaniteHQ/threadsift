@@ -4,6 +4,7 @@ import { codePointCount } from "../src/core/contract/code-points.ts";
 import { selectorAt } from "../src/core/contract/highlight-anchor.ts";
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import { PAGE_SIZE } from "../src/core/contract/paging.ts";
 import { projectText } from "../src/core/contract/text-projection.ts";
 import { HIGHLIGHTS_PAGE } from "../web/src/highlights-page-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
@@ -16,8 +17,6 @@ const TITLE = "A page with fifty highlights and a note";
 const NOTE = "Check that the copy opens before the old file goes.";
 
 const HIGHLIGHTS = 50;
-
-const FIRST_PAGE = 50;
 
 const sentence = (number: number): string =>
   `Highlight ${String(number).padStart(2, "0")} keeps its own place in the text.`;
@@ -48,7 +47,10 @@ async function keepHighlightsAndNote(page: Page): Promise<{ item: number; first:
   await expect.poll(async () => (await detailOf(page, item)).postText).not.toBeNull();
 
   const detail = await detailOf(page, item);
-  const text = projectText(detail.postText ?? "");
+
+  if (detail.postText === null) throw new Error("the Item holds no post text");
+
+  const text = projectText(detail.postText);
 
   const keep = async (number: number): Promise<number> => {
     const exact = sentence(number);
@@ -101,7 +103,7 @@ export async function highlightsFlow(page: Page): Promise<void> {
 
   const entries = page.locator(".hp-it");
 
-  await expect(entries).toHaveCount(FIRST_PAGE);
+  await expect(entries).toHaveCount(PAGE_SIZE);
   await expect(entries.first().locator(".hp-kind .label")).toHaveText(HIGHLIGHTS_PAGE.kindNote);
   await expect(entries.first()).toContainText(NOTE);
   await expect(entries.nth(1)).toContainText(sentence(1));
@@ -124,11 +126,12 @@ export async function highlightsFlow(page: Page): Promise<void> {
 
   await atPhoneWidth(page, async () => {
     await page.goto("/highlights");
-    await expect(entries).toHaveCount(FIRST_PAGE);
+    await expect(entries).toHaveCount(PAGE_SIZE);
     await expectNoSidewaysScroll(page);
   });
 
   await page.goto(`/items/${String(item)}`);
+  await expect(mark).toHaveCount(1);
   await expect(mark).not.toBeInViewport();
   await page.getByRole("button", { name: DELETE_LABEL, exact: true }).click();
   await page.getByRole("button", { name: DELETE_CONFIRM }).click();

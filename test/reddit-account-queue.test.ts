@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
+import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { ClaimedRow, Closing } from "../src/core/kernel/job-outcome.ts";
 import { redditClosing, takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
 import {
@@ -22,8 +23,6 @@ import {
   view,
 } from "./reddit-account-fixtures.ts";
 import { exec } from "./sqlite-fixtures.ts";
-
-const HOUR_MS = 3_600_000;
 
 const WAIT_FOR_REDDIT: Closing = { kind: "deferred", wait: "reddit-limit" };
 
@@ -252,8 +251,8 @@ describe("Reddit answers decide when a fetch job may take its next turn", () => 
     await delay("120", "300", 300_000);
     await delay("900", "Wed, 21 Oct 2026 07:28:00 GMT", 900_000);
     await delay("120", new Date(NOW + 1_200_000).toUTCString(), 1_200_000);
-    await delay("120", "86400", 3_600_000);
-    await delay("86400", null, 3_600_000);
+    await delay("120", "86400", HOUR_MS);
+    await delay("86400", null, HOUR_MS);
     await record({ left: 5, reset: null, retryAfter: null, limited: false });
     await waitsUntil(NOW + 3_600_000);
   });

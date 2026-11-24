@@ -7,8 +7,6 @@ import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { paste } from "./related-fixtures.ts";
 
-const NOTE_MAX_CODE_POINTS = 10_000;
-
 describe("a Note is saved against the revision the owner loaded, and a save of a stale revision is refused with the current Note", () => {
   let instance: Instance;
   let itemId: number;
@@ -86,8 +84,8 @@ describe("a Note is saved against the revision the owner loaded, and a save of a
   it("accepts 10,000 code points, counted as code points and not as UTF-16 units, and refuses 10,001 with 400", async () => {
     const { revision } = await noteOf();
 
-    const atLimit = await put(itemId, "\u{1D4D0}".repeat(NOTE_MAX_CODE_POINTS), revision);
-    const over = await put(itemId, "\u{1D4D0}".repeat(NOTE_MAX_CODE_POINTS + 1), revision + 1);
+    const atLimit = await put(itemId, "\u{1D4D0}".repeat(10_000), revision);
+    const over = await put(itemId, "\u{1D4D0}".repeat(10_001), revision + 1);
 
     assert.equal(atLimit.status, 200);
     assert.equal(over.status, 400);

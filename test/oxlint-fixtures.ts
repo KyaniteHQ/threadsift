@@ -1,3 +1,5 @@
+import { SERVER_MODULES } from "../oxlint.config.ts";
+
 const TRUSTED_MODULE = "src/core/kernel/failure-log.ts";
 
 export const CONFIG = {
@@ -20,10 +22,7 @@ export const CONFIG = {
     {
       files: ["web/src/**", "extension/lib/**"],
       rules: {
-        "threadsift/no-server-value-import": [
-          "error",
-          { forbidden: ["^(drizzle-orm|hono)(/|$)", "^node:"] },
-        ],
+        "threadsift/no-server-value-import": ["error", { forbidden: SERVER_MODULES }],
       },
     },
   ],

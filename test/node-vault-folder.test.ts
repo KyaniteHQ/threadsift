@@ -2,17 +2,16 @@ import assert from "node:assert/strict";
 import {
   existsSync,
   mkdirSync,
-  mkdtempSync,
+  mkdtempDisposableSync,
   readFileSync,
   readdirSync,
-  rmSync,
   statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { type VaultChange, VaultFileConflict } from "../src/core/kernel/vault-target.ts";
 import { VaultFailure } from "../src/features/vault/core/vault-failure.ts";
@@ -20,6 +19,8 @@ import { vaultFolder } from "../src/targets/node/vault-folder.ts";
 import { heldFolderLease } from "./vault-lease-fixtures.ts";
 
 const NOTE = "Threadsift/items/1/note-1.md";
+
+const RECEIPT = "Threadsift/.written/items/1/note-1.md";
 
 const FIRST_SHA = "fe4f02ad058b43f6ed467fdf65b935107529564b";
 
@@ -33,6 +34,7 @@ const note = (text: string | null, path = NOTE): VaultChange => {
 
 describe("Folder mode writes a mounted vault folder and owns only the files it wrote", () => {
   let root = "";
+  let scratch: ReturnType<typeof mkdtempDisposableSync>;
   let vault = "";
   let outside = "";
   let lease: Awaited<ReturnType<typeof heldFolderLease>>;
@@ -44,34 +46,26 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
 
   const inVault = (path: string) => join(vault, path);
 
-  before(async () => {
-    lease = await heldFolderLease("/a-folder-the-lease-names");
-  });
-
-  after(() => {
-    lease[Symbol.dispose]();
-  });
-
-  beforeEach(() => {
-    root = mkdtempSync(join(tmpdir(), "threadsift-vault-folder-"));
+  beforeEach(async () => {
+    scratch = mkdtempDisposableSync(join(tmpdir(), "threadsift-vault-folder-"));
+    root = scratch.path;
     vault = join(root, "vault");
     outside = join(root, "outside");
     mkdirSync(vault);
     mkdirSync(outside);
+    lease = await heldFolderLease(vault);
   });
 
   afterEach(() => {
-    rmSync(root, { recursive: true, force: true });
+    lease[Symbol.dispose]();
+    scratch.remove();
   });
 
   it("publishes a note at its path and keeps a hard-link receipt of it under .written", async () => {
     await write([note("first")]);
 
     assert.equal(readFileSync(inVault(NOTE), "utf8"), "first");
-    assert.equal(
-      statSync(inVault(NOTE)).ino,
-      statSync(inVault(`Threadsift/.written/items/1/note-1.md`)).ino,
-    );
+    assert.equal(statSync(inVault(NOTE)).ino, statSync(inVault(RECEIPT)).ino);
     assert.deepEqual(await target().subjects(), [{ kind: "item", subjectId: 1 }]);
     assert.deepEqual(await target().files({ kind: "item", subjectId: 1 }), [
       { path: NOTE, sha: FIRST_SHA },
@@ -83,10 +77,7 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
     await write([note("second")]);
 
     assert.equal(readFileSync(inVault(NOTE), "utf8"), "second");
-    assert.equal(
-      statSync(inVault(NOTE)).ino,
-      statSync(inVault(`Threadsift/.written/items/1/note-1.md`)).ino,
-    );
+    assert.equal(statSync(inVault(NOTE)).ino, statSync(inVault(RECEIPT)).ino);
     assert.deepEqual(readdirSync(inVault("Threadsift/.written/.staging")), []);
   });
 
@@ -135,13 +126,11 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
     assert.equal(existsSync(join(root, "escape.md")), false);
   });
 
-  it("writes nothing once a restore has fenced its lease on the stored settings", async () => {
-    using fenced = await heldFolderLease(vault);
+  it("writes nothing once a Restore has fenced the lease the Folder write holds", async () => {
+    await write([note("first")]);
+    await lease.fence();
 
-    await target().write({ files: [note("first")], current: fenced.current });
-    await fenced.fence();
-
-    await assert.rejects(target().write({ files: [note("second")], current: fenced.current }), {
+    await assert.rejects(write([note("second")]), {
       reason: "stale",
     });
     assert.equal(readFileSync(inVault(NOTE), "utf8"), "first");

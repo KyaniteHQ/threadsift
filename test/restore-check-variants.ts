@@ -18,9 +18,8 @@ import {
   withoutEntry,
   zipOf,
   zipOfFiles,
+  TEXT,
 } from "./zip-fixtures.ts";
-
-const TEXT = new TextEncoder();
 
 const RowSchema = z.record(z.string(), z.unknown());
 
@@ -85,7 +84,7 @@ export const VARIANTS: readonly (readonly [RestoreRefusal, string, Variant])[] =
 
         assert.ok(first !== undefined);
         new DataView(copy.buffer).setUint16(
-          centralRecordOf(directory, first) + CENTRAL_METHOD_AT,
+          centralRecordOf(copy, directory, first) + CENTRAL_METHOD_AT,
           8,
           true,
         );
@@ -231,7 +230,7 @@ export const VARIANTS: readonly (readonly [RestoreRefusal, string, Variant])[] =
         const record = entryMatching(directory, "/records/topics.1.jsonl");
 
         new DataView(copy.buffer).setUint32(
-          centralRecordOf(directory, record) + CENTRAL_CRC_AT,
+          centralRecordOf(copy, directory, record) + CENTRAL_CRC_AT,
           12_345,
           true,
         );

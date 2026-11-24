@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempDisposableSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { after, before, describe, it } from "node:test";
@@ -38,6 +38,7 @@ type Found = readonly Readonly<{ rule: string; line: number; message: string }>[
 
 describe("the custom oxlint rules refuse what the lint and format architecture says and pass what it allows", () => {
   let repository = "";
+  let scratch: ReturnType<typeof mkdtempDisposableSync>;
   const found = new Map<string, Found[number][]>();
 
   const at = (path: string): Found => found.get(path) ?? [];
@@ -51,7 +52,8 @@ describe("the custom oxlint rules refuse what the lint and format architecture s
       .toSorted((left, right) => left.localeCompare(right));
 
   before(() => {
-    repository = mkdtempSync(join(tmpdir(), "threadsift-oxlint-rules-"));
+    scratch = mkdtempDisposableSync(join(tmpdir(), "threadsift-oxlint-rules-"));
+    repository = scratch.path;
     cpSync(
       join(ROOT, "tools", "oxlint", "threadsift"),
       join(repository, "tools", "oxlint", "threadsift"),
@@ -71,8 +73,11 @@ describe("the custom oxlint rules refuse what the lint and format architecture s
     const run = spawnSync(
       join(ROOT, "node_modules", ".bin", "oxlint"),
       ["--format=json", "src", "web", "extension"],
-      { cwd: repository, encoding: "utf8" },
+      { cwd: repository, encoding: "utf8", env: { PATH: dirname(process.execPath) } },
     );
+
+    assert.equal(run.stderr, "", "oxlint loads the plug-in without a message");
+    assert.equal(run.status, 1, "oxlint reports the fixture diagnostics");
 
     for (const { code, filename, message, labels } of OutputSchema.parse(JSON.parse(run.stdout))
       .diagnostics) {
@@ -88,7 +93,7 @@ describe("the custom oxlint rules refuse what the lint and format architecture s
   });
 
   after(() => {
-    rmSync(repository, { recursive: true, force: true });
+    scratch.remove();
   });
 
   it("tests the Threadsift rules that the repository's configuration enables, and no others", () => {

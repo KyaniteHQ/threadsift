@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempDisposableSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
@@ -94,6 +94,7 @@ function listed(body: string, heading: RegExp): readonly string[] {
 
 describe("the update tool writes a copy's resource ids into the release's Worker configuration and lists the new bindings", () => {
   let folder = "";
+  let scratch: ReturnType<typeof mkdtempDisposableSync>;
 
   const write = (name: string, text: string): string => {
     writeFileSync(join(folder, name), text);
@@ -119,11 +120,12 @@ describe("the update tool writes a copy's resource ids into the release's Worker
   };
 
   beforeEach(() => {
-    folder = mkdtempSync(join(tmpdir(), "threadsift-update-bindings-"));
+    scratch = mkdtempDisposableSync(join(tmpdir(), "threadsift-update-bindings-"));
+    folder = scratch.path;
   });
 
   afterEach(() => {
-    rmSync(folder, { recursive: true, force: true });
+    scratch.remove();
   });
 
   it("copies the ids and names of the copy's bindings, by binding name and not by position, in every environment", () => {

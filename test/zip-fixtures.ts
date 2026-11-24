@@ -20,7 +20,7 @@ import {
   packFiles,
 } from "../src/features/export/core/zip.ts";
 
-const TEXT = new TextEncoder();
+export const TEXT = new TextEncoder();
 
 const ManifestSchema = z.looseObject({
   format: z.number(),
@@ -50,13 +50,26 @@ export function directoryOf(bytes: Uint8Array) {
 export const dataStartOf = (entry: Readonly<ZipEntry>): number =>
   entry.headerOffset + LOCAL_HEADER_BYTES + utf8Length(entry.name);
 
-export function centralRecordOf(directory: Readonly<ZipDirectory>, entry: Readonly<ZipEntry>) {
-  const before = directory.entries.slice(0, directory.entries.indexOf(entry));
+const CENTRAL_NAME_LENGTH_AT = 28;
 
-  return (
-    directory.offset +
-    before.reduce((total, { name }) => total + CENTRAL_RECORD_BYTES + utf8Length(name), 0)
-  );
+export function centralRecordOf(
+  zip: Uint8Array,
+  directory: Readonly<ZipDirectory>,
+  entry: Readonly<ZipEntry>,
+) {
+  const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
+
+  return directory.entries
+    .slice(0, directory.entries.indexOf(entry))
+    .reduce(
+      (at) =>
+        at +
+        CENTRAL_RECORD_BYTES +
+        view.getUint16(at + CENTRAL_NAME_LENGTH_AT, true) +
+        view.getUint16(at + CENTRAL_NAME_LENGTH_AT + 2, true) +
+        view.getUint16(at + CENTRAL_NAME_LENGTH_AT + 4, true),
+      directory.offset,
+    );
 }
 
 export function entryMatching(directory: Readonly<ZipDirectory>, part: string): ZipEntry {
@@ -162,14 +175,18 @@ export function withRecordLines(
   change: (lines: readonly string[]) => readonly string[],
 ): Entries {
   const name = nameEndingWith(entries, `/records/${table}.1.jsonl`);
-  const lines = change(linesOf(entryOf(entries, name)));
+  const old = linesOf(entryOf(entries, name));
+  const lines = change(old);
   const next = withEntry(entries, name, TEXT.encode(lines.map((line) => `${line}\n`).join("")));
 
   return withManifest(next, (manifest) => ({
     ...manifest,
     tables: {
       ...manifest.tables,
-      [table]: { files: manifest.tables[table]?.files ?? [], rows: lines.length },
+      [table]: {
+        files: manifest.tables[table]?.files ?? [],
+        rows: (manifest.tables[table]?.rows ?? 0) + lines.length - old.length,
+      },
     },
   }));
 }

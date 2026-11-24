@@ -1,11 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
+import { SECOND_MS } from "../src/core/contract/time-units.ts";
 import { retryAfterMs } from "../src/core/kernel/retry-after.ts";
 
 const NOW = Date.UTC(2026, 10, 20, 12, 0, 0);
-
-const SECOND_MS = 1000;
 
 const YEAR_MS = 365 * 24 * 3600 * SECOND_MS;
 

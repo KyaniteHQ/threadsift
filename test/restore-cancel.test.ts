@@ -23,7 +23,7 @@ import {
 } from "./restore-fixtures.ts";
 import { count, exec, nextSweep } from "./sqlite-fixtures.ts";
 
-const TEXT = new TextEncoder();
+const NOT_A_ZIP = new TextEncoder().encode("this is not a zip");
 
 const AnswerSchema = restoreAnswerSchema("superseded", "not-resumable");
 
@@ -70,7 +70,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   });
 
   it("cancels a Restore that the check refused with 204 and shows it cancelled", async () => {
-    const refused = await startedRestore(target, TEXT.encode("this is not a zip"));
+    const refused = await startedRestore(target, NOT_A_ZIP);
 
     await settledRestore(target, ["failed"]);
     assert.equal((await send("DELETE", refused)).status, 204);
@@ -82,7 +82,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   });
 
   it("leaves an Item saved after the check refused the Restore when the owner cancels it", async () => {
-    const refused = await startedRestore(target, TEXT.encode("this is not a zip"));
+    const refused = await startedRestore(target, NOT_A_ZIP);
 
     await settledRestore(target, ["failed"]);
 
@@ -94,7 +94,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   });
 
   it("answers 409 superseded to a Cancel and a Resume of an older Restore, and leaves the newer upload open", async () => {
-    const older = await startedRestore(target, TEXT.encode("this is not a zip"));
+    const older = await startedRestore(target, NOT_A_ZIP);
 
     await settledRestore(target, ["failed"]);
 
@@ -178,7 +178,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     unblockItemFiles(target);
     await target.core.files.put(
       "items/1/post-9-9.md",
-      TEXT.encode("an object that a unit put while the cancel started"),
+      new TextEncoder().encode("an object that a unit put while the cancel started"),
     );
 
     assert.equal((await send("DELETE", id)).status, 202);

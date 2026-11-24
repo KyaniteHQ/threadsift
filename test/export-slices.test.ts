@@ -70,9 +70,13 @@ describe("an Export of a library too big for one slice is one complete zip", () 
         `slice ${String(at + 1)} holds ${String(items.size)} Items`,
       );
 
-      let total = slice[0]?.size ?? 0;
+      const [head, ...rest] = slice;
 
-      for (const { name, size } of slice.slice(1)) {
+      assert.ok(head !== undefined, `slice ${String(at + 1)} holds an entry`);
+
+      let total = head.size;
+
+      for (const { name, size } of rest) {
         assert.ok(total + size <= EXPORT_SLICE_BYTES, `${name} passes the slice cap`);
         total += size;
       }
@@ -89,7 +93,8 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     const status = await instance.read("GET", "/api/export", ExportStatusSchema);
 
     assert.deepEqual(new Uint8Array(Buffer.concat(stored)), zip);
-    assert.equal(status.state === "ready" ? status.zipBytes : -1, zip.length);
+    assert.equal(status.state, "ready");
+    assert.equal(status.zipBytes, zip.length);
 
     const answer = await instance.request(`/api/export/${String(exportId)}/download`);
 
@@ -175,13 +180,13 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     }
 
     const [first] = library.ids;
-    const note = new TextDecoder().decode(
-      entries.get(
-        [...entries.keys()].find((name) =>
-          name.startsWith(`${root}items/${String(first)}/note-`),
-        ) ?? "",
-      ),
+    const noteName = [...entries.keys()].find((name) =>
+      name.startsWith(`${root}items/${String(first)}/note-`),
     );
+
+    assert.ok(noteName !== undefined, "the Export holds the Markdown note of the first Item");
+
+    const note = new TextDecoder().decode(entryOf(entries, noteName));
 
     assert.match(note, /Title of item-0/u);
     assert.match(note, /A short summary\./u);
@@ -193,11 +198,19 @@ describe("an Export of a library too big for one slice is one complete zip", () 
   });
 });
 
-const sizeSum = (entries: readonly SliceEntry[] | undefined) =>
-  (entries ?? []).reduce((total, { size }) => total + size, 0);
+const sizeSum = (entries: readonly SliceEntry[]) =>
+  entries.reduce((total, { size }) => total + size, 0);
 
 const isEntry = (entry: SliceEntry | undefined, pattern: RegExp) =>
   entry !== undefined && pattern.test(entry.name);
+
+function firstTwo(slices: readonly (readonly SliceEntry[])[]) {
+  const [first, second] = slices;
+
+  assert.ok(first !== undefined && second !== undefined, "the Export holds two slices");
+
+  return { first, second };
+}
 
 describe("a slice ends where the next entry of an Item would pass 8 MiB", () => {
   let instance: Instance;
@@ -218,10 +231,12 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
   const exactFit = async () => {
     const [single] = await exported(BASE_TEXT_BYTES);
 
+    assert.ok(single !== undefined, "the Export holds a slice");
+
     return (
       BASE_TEXT_BYTES +
       EXPORT_SLICE_BYTES -
-      sizeSum(single?.filter((entry) => !isEntry(entry, post)))
+      sizeSum(single.filter((entry) => !isEntry(entry, post)))
     );
   };
 
@@ -241,19 +256,19 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
   after(() => instance.close());
 
   it("takes an entry that fills the slice exactly, and starts the next entry in the next slice", async () => {
-    const [first, second] = await exported(await exactFit());
+    const { first, second } = firstTwo(await exported(await exactFit()));
 
     assert.equal(sizeSum(first), EXPORT_SLICE_BYTES);
-    assert.ok(isEntry(first?.at(-1), note));
-    assert.ok(isEntry(second?.[0], post));
+    assert.ok(isEntry(first.at(-1), note));
+    assert.ok(isEntry(second[0], post));
   });
 
   it("starts an entry that passes the cap by 1 byte in the next slice", async () => {
-    const [first, second] = await exported((await exactFit()) + 1);
+    const { first, second } = firstTwo(await exported((await exactFit()) + 1));
 
     assert.ok(sizeSum(first) < EXPORT_SLICE_BYTES);
-    assert.ok((first ?? []).every((entry) => !isEntry(entry, note)));
-    assert.ok(isEntry(second?.[0], note));
+    assert.ok(first.every((entry) => !isEntry(entry, note)));
+    assert.ok(isEntry(second[0], note));
   });
 
   it("puts an entry above the cap first in a slice of its own, and still ends ready", async () => {
@@ -262,8 +277,9 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
     for (const pattern of [note, post]) {
       const slice = slices.find((entries) => entries.some((entry) => isEntry(entry, pattern)));
 
-      assert.ok(isEntry(slice?.[0], pattern));
-      assert.equal(slice?.length, 1);
+      assert.ok(slice !== undefined, `a slice holds ${String(pattern)}`);
+      assert.ok(isEntry(slice[0], pattern));
+      assert.equal(slice.length, 1);
     }
   });
 });
