@@ -428,6 +428,11 @@ button.hl-quote:active { background: var(--press); }
 .hl-entry > .btn { grid-column: 2; grid-row: 1 / span 2; }
 .hl-pop { position: fixed; inset: auto; margin: var(--s2) 0; padding: var(--s1); overflow: visible; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); }
 @media (pointer: coarse) { .hl-pop { margin-top: var(--target); } }
+.hl-pop:has(> .hl-pop-list) { width: max-content; max-width: min(var(--pop-w), calc(100% - var(--s4) * 2)); }
+.hl-pop-list { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; }
+.hl-pop-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s3); padding-block: var(--s1); padding-inline-start: var(--s2); }
+.hl-pop-row + .hl-pop-row { border-top: 1px solid var(--line); }
+.hl-pop .hl-quote { -webkit-line-clamp: 1; }
 
 .rd-nt { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
 .nt-field { box-sizing: border-box; display: block; width: 100%; min-height: calc(var(--field-h) * 3); padding: var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font-family: var(--f-ui); font-size: var(--t-body); line-height: var(--lh-text); resize: vertical; }

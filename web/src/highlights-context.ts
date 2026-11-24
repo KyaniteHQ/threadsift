@@ -8,7 +8,12 @@ import type { KeepDraft } from "./use-selection-draft.ts";
 
 export type Panel =
   | { readonly kind: "keep"; readonly key: string; readonly draft: KeepDraft }
-  | { readonly kind: "remove"; readonly key: string; readonly id: number; readonly mark: Element };
+  | {
+      readonly kind: "remove";
+      readonly key: string;
+      readonly ids: readonly number[];
+      readonly mark: Element;
+    };
 
 export interface Reveal {
   readonly id: number;

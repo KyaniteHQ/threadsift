@@ -26,16 +26,16 @@ export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
   useEffect(() => {
     const onClick = (event: MouseEvent): void => {
       const mark = markOf(event);
-      const id = highlightIds(mark?.dataset["highlights"] ?? "")[0];
+      const ids = highlightIds(mark?.dataset["highlights"] ?? "");
       const key = mark?.closest<HTMLElement>(BODY_SELECTOR)?.dataset["target"];
 
-      if (mark === null || key === undefined || id === undefined || !Number.isInteger(id)) {
+      if (mark === null || key === undefined || !ids.every((id) => Number.isInteger(id))) {
         setClicked(null);
       } else if (followsLink(event, mark)) {
         setClicked(null);
       } else if (document.getSelection()?.isCollapsed ?? true) {
         event.preventDefault();
-        setClicked({ kind: "remove", key, id, mark });
+        setClicked({ kind: "remove", key, ids, mark });
       }
     };
 
