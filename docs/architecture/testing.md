@@ -6,7 +6,7 @@
 
 `pnpm test` runs the core tests in shards: one Node process per available CPU, capped at the number of test files. Files in a shard share a process, so they pay the app import cost once.
 
-On 2026-11-21, on the owner's 16-core machine with Node 26, `pnpm test` passed 993 tests in 140 files. Later changes added test files, so these counts describe the suite of that day. Two default runs took 31.1 s and 28.8 s wall time. One run of `taskset -c 0-3 pnpm test` took 59.8 s. One run of `pnpm test 1` passed the same 993 tests in 237.3 s with all files in one process. Separate runs that day computed 29 password hashes with 16 shards, 17 with four shards, and 14 with one process. Each shard hashes the template owner's password once. The remaining hashes come from tests that set up an owner on an empty Instance, sign in or change the password.
+On 2026-11-21, on the owner's 16-core machine with Node 26, `pnpm test` passed 993 tests in 140 files. Two default runs took 31.1 s and 28.8 s wall time. One run of `taskset -c 0-3 pnpm test` took 59.8 s. One run of `pnpm test 1` passed the same 993 tests in 237.3 s with all files in one process. Separate runs that day computed 29 password hashes with 16 shards, 17 with four shards, and 14 with one process. Each shard hashes the template owner's password once. The remaining hashes come from tests that set up an owner on an empty Instance, sign in or change the password.
 
 The Export and Restore test files build their libraries through the real routes. On 2026-11-24, on a 24-core machine under load, 8 of them took 104 s run one after the other, and the longest, the Cancel and undo file, 27 s.
 
