@@ -84,7 +84,9 @@ process.once("SIGTERM", () => {
 async function outcome(item: Readonly<ComparisonItem>, provider: PreparedProvider) {
   if (shutdown.signal.aborted) return { kind: "unavailable", reason: "interrupted" } as const;
   if (item.kind === "unavailable") return { kind: "unavailable", reason: item.reason } as const;
-  if (provider.kind === "unavailable") return provider;
+  if (provider.kind === "unavailable") {
+    return { kind: "unavailable", reason: provider.reason } as const;
+  }
 
   try {
     const result = await provider.run(
@@ -106,7 +108,7 @@ async function outcome(item: Readonly<ComparisonItem>, provider: PreparedProvide
       keptComments: submittedAmong(result.result.keptComments, item.submitted),
     } as const;
   } catch (error) {
-    return { kind: "unavailable", reason: `executor-failed:${errorClassOf(error)}` } as const;
+    return { kind: "unavailable", reason: "executor-failed", error: errorClassOf(error) } as const;
   }
 }
 
@@ -129,6 +131,7 @@ async function recordItem(
       model: spec.model,
       effort: "effort" in spec ? spec.effort : undefined,
       availability: provider.kind === "unavailable" ? provider.reason : "ready",
+      availabilityError: provider.kind === "unavailable" ? provider.error : undefined,
       elapsedMs,
       result,
     }) + "\n",
@@ -152,7 +155,8 @@ async function recordProvider(
   } catch (error) {
     provider = {
       kind: "unavailable",
-      reason: `provider-initialization-failed:${errorClassOf(error)}`,
+      reason: "provider-initialization-failed",
+      error: errorClassOf(error),
     };
   }
 
