@@ -1,6 +1,10 @@
 import type { CommentNode } from "../../../core/contract/comment-view.ts";
 import { utf8Length } from "../../../core/contract/encoding.ts";
-import { isImageRouteOf, keyOfFileRoute } from "../../../core/contract/file-keys.ts";
+import {
+  isImageRouteOf,
+  keyOfFileRoute,
+  mayHoldImageRouteOf,
+} from "../../../core/contract/file-keys.ts";
 import { collapsed } from "../../../core/contract/format.ts";
 import type { Kind, ReadState, Source } from "../../../core/contract/item-contract.ts";
 import {
@@ -146,6 +150,8 @@ function commentSection(nodes: readonly CommentNode[], source: Source): string[]
 }
 
 function imagesBesideNote(text: string, itemId: number, omittedImages: readonly string[]): string {
+  if (!mayHoldImageRouteOf(text, itemId)) return text;
+
   const { images } = scanMarkdown(text, false);
 
   return rewriteImages(
