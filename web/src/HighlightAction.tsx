@@ -124,17 +124,29 @@ function RemoveButton({
 function RemoveRow({ panel, highlight }: Readonly<{ panel: RemovePanel; highlight: Highlight }>) {
   const { exact, prefix, suffix } = highlight.selector;
   const { head, tail } = quoteEnds(exact);
+  const before = contextTail(prefix);
   const id = useId();
   const parts = [`${id}-before`, `${id}-quote`, `${id}-after`];
+  const [beforeId, quoteId] = parts;
 
   return (
     <li className="hl-pop-row">
+      {before === prefix ? null : (
+        <span id={beforeId} className="vh">
+          <QuoteText text={prefix} />
+        </span>
+      )}
+      {tail === null ? null : (
+        <span id={quoteId} className="vh">
+          <QuoteText text={exact} />
+        </span>
+      )}
       <span className="hl-quote">
         <span>
-          <span id={parts[0]} className="hl-ctx">
-            <QuoteText text={contextTail(prefix)} />
+          <span id={before === prefix ? beforeId : undefined} className="hl-ctx">
+            <QuoteText text={before} />
           </span>
-          <span id={parts[1]} className="hl-exact">
+          <span id={tail === null ? quoteId : undefined} className="hl-exact">
             <QuoteText text={head} />
             {tail === null ? null : (
               <>

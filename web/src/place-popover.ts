@@ -87,6 +87,8 @@ function clamp(value: number, low: number, high: number): number {
   return Math.max(low, Math.min(value, high));
 }
 
+const ROUNDING_PX = 1;
+
 function naturalHeight(popover: HTMLElement): number {
   const { height } = popover.getBoundingClientRect();
   const hidden = Array.from(popover.children, (child) =>
@@ -107,8 +109,8 @@ export function placePopover(
   const roomAbove = edges.first.top - gapAbove - bounds.top;
   const roomBelow = bounds.bottom - edges.last.bottom - gapBelow;
   const natural = naturalHeight(popover);
-  const fitsAbove = natural <= roomAbove;
-  const fitsBelow = natural <= roomBelow;
+  const fitsAbove = natural + ROUNDING_PX <= roomAbove;
+  const fitsBelow = natural + ROUNDING_PX <= roomBelow;
   const fits = fitsAbove || fitsBelow;
   const useBelow = fits ? (below ? fitsBelow : !fitsAbove) : roomBelow > roomAbove;
   const room = fits ? bounds.bottom - bounds.top : Math.max(roomAbove, roomBelow);
