@@ -1,6 +1,6 @@
 import type { z } from "zod";
 
-import { logRequestFailure } from "./log.ts";
+import { logFailureClass } from "./log.ts";
 
 export async function resultInTab<Schema extends z.ZodType>(
   inject: () => Promise<readonly Readonly<{ result?: unknown }>[]>,
@@ -13,11 +13,11 @@ export async function resultInTab<Schema extends z.ZodType>(
 
     if (parsed.success) return parsed.data;
 
-    logRequestFailure(event, parsed.error);
+    logFailureClass(event, parsed.error);
 
     return null;
   } catch (cause) {
-    logRequestFailure(event, cause);
+    logFailureClass(event, cause);
 
     return null;
   }

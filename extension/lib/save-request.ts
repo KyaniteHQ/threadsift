@@ -5,7 +5,7 @@ import { SavedItemResponseSchema } from "../../src/core/contract/item-route-wire
 import { type SaveItemInput, SaveRefusalSchema } from "../../src/core/contract/save-wire.ts";
 import { UNSUPPORTED_PAGE_LINK } from "../../src/core/contract/supplied-page.ts";
 import { type Config, instanceAnswer, instanceRequest } from "./config.ts";
-import { logRequestFailure } from "./log.ts";
+import { logFailureClass } from "./log.ts";
 import type { Completeness, Fetched } from "./reddit-thread.ts";
 import type { SaveState } from "./state.ts";
 import type { ThreadBody } from "./thread-body.ts";
@@ -51,7 +51,13 @@ async function stateOf(
 
       if (saved === null) return { kind: "failed" };
 
-      const itemUrl = new URL(saved.url, origin).href;
+      const itemUrl = URL.parse(saved.url, origin)?.href;
+
+      if (itemUrl === undefined) {
+        logFailureClass("save-request-failed", new TypeError("the saved address does not parse"));
+
+        return { kind: "failed" };
+      }
 
       return { kind: SAVED_KIND[completeness], itemUrl };
     }
@@ -79,13 +85,13 @@ export async function send(
   config: Readonly<Config>,
   { body, completeness }: Readonly<Saving>,
 ): Promise<SaveState> {
-  try {
-    const response = await instanceRequest(config, "/api/items", { method: "POST", body });
+  const response = await instanceRequest(config, "/api/items", {
+    method: "POST",
+    body,
+    event: "save-request-failed",
+  });
 
-    return await stateOf(response, config.origin, completeness);
-  } catch (cause) {
-    logRequestFailure("save-request-failed", cause);
-
-    return { kind: "unreachable" };
-  }
+  return response === null
+    ? { kind: "unreachable" }
+    : stateOf(response, config.origin, completeness);
 }

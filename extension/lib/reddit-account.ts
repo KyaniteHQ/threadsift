@@ -15,7 +15,7 @@ import {
   instanceAnswer,
   instanceRequest,
 } from "./config.ts";
-import { logFailure, logRequestFailure } from "./log.ts";
+import { logFailure } from "./log.ts";
 import { oneAtATime } from "./one-at-a-time.ts";
 
 const accountWrites = oneAtATime();
@@ -50,13 +50,12 @@ async function call(
     body?: z.input<typeof RedditSessionInputSchema>;
   }>,
 ): Promise<RedditConnectState> {
-  try {
-    return await stateOf(await instanceRequest(config, "/api/reddit-account", request));
-  } catch (cause) {
-    logRequestFailure("reddit-account-request-failed", cause);
+  const response = await instanceRequest(config, "/api/reddit-account", {
+    ...request,
+    event: "reddit-account-request-failed",
+  });
 
-    return "unreachable";
-  }
+  return response === null ? "unreachable" : stateOf(response);
 }
 
 type Cookie = { readonly value: string } | { readonly state: "signed-out" | "failed" };
