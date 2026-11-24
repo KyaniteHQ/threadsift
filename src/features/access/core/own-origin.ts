@@ -1,4 +1,4 @@
-const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
+import { LOOPBACK_HOSTNAMES } from "../../../core/contract/addresses.ts";
 
 const AUTHORITY = /^(?<name>\[[0-9a-f:.]+\]|[^\s/?#@[\]:]+)(?::(?<port>\d{1,5}))?$/u;
 

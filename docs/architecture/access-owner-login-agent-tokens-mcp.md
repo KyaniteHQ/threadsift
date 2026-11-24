@@ -224,7 +224,7 @@ The SDK's validators match hostnames without a port, so the gate has its own rul
 
 | `THREADSIFT_PUBLIC_ORIGIN` | `Host` must be | A present `Origin` must be |
 |---|---|---|
-| Set | That origin's host with its port. Loopback is refused, so a client on the same machine uses the public address | The whole origin: scheme, host and port |
+| Set | That origin's host with its port, also when that host is loopback. A request with another host, a loopback host included, is refused | The whole origin: scheme, host and port |
 | Not set | `localhost`, `127.0.0.1` or `[::1]` on any port. Reaching `/mcp` from another machine needs the variable | A loopback origin |
 
 A request without `Origin` passes, because CLI clients send none. `Origin: null`, a malformed one and an unlisted one answer 403.
