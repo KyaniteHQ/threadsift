@@ -78,7 +78,8 @@ describe("one Export exists at a time and a stopped slice is retried, then given
     const attempts = loggedAttempts(t, "export");
     const { status: end } = await failedExport();
 
-    assert.equal(end.state === "failed" ? end.failure : "", "gave-up");
+    assert.ok(end.state === "failed", `the Export failed, not ${end.state}`);
+    assert.equal(end.failure, "gave-up");
     assert.deepEqual(attempts(), [1, 2, 3]);
   });
 

@@ -55,15 +55,20 @@ describe("an upload that is not whole or not allowed is refused before the check
     assert.equal((await target.send("DELETE", `/api/restore/${String(id)}`)).status, 204);
   };
 
+  const receivedParts = async () => {
+    const status = await restoreStatus(target);
+
+    assert.ok(status.state === "uploading", `the Restore is uploading, not ${status.state}`);
+
+    return status.received;
+  };
+
   it("refuses a part of the wrong length with 400 and keeps the upload open with no part received", async () => {
     const id = await created();
 
     assert.equal((await putPart(target, { id, part: 1 }, zip.slice(1))).status, 400);
 
-    const status = await restoreStatus(target);
-
-    assert.equal(status.state, "uploading");
-    assert.deepEqual(status.state === "uploading" ? status.received : null, []);
+    assert.deepEqual(await receivedParts(), []);
     await cancelled(id);
   });
 
@@ -95,9 +100,7 @@ describe("an upload that is not whole or not allowed is refused before the check
     assert.equal((await putPart(target, { id, part: 1 }, zip)).status, 204);
     assert.equal((await putPart(target, { id, part: 1 }, zip)).status, 204);
 
-    const received = await restoreStatus(target);
-
-    assert.deepEqual(received.state === "uploading" ? received.received : null, [1]);
+    assert.deepEqual(await receivedParts(), [1]);
     assert.equal((await target.send("POST", `/api/restore/${String(id)}/start`)).status, 202);
     assert.equal((await target.send("POST", `/api/restore/${String(id)}/start`)).status, 409);
     assert.equal((await settledRestore(target, ["done"])).state, "done");
