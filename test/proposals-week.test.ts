@@ -15,7 +15,7 @@ import {
   rows,
   nextSweep,
 } from "./related-fixtures.ts";
-import { jobsOf, claims, moveClaimBack } from "./weekly-claim-fixtures.ts";
+import { jobsOf, claims, moveClaimBack, sweptWithClaim } from "./weekly-claim-fixtures.ts";
 
 async function seedLibrary(instance: Instance): Promise<number> {
   await paste(instance, "a", { title: "A", topic: "Game", tags: ["machine learning", "ml"] });
@@ -121,6 +121,28 @@ describe("each weekly model check has its own claim", () => {
       await nextSweep(library);
       assert.equal(jobsOf(library, task).length, 4);
       assert.ok((claims(library, task)[0]?.last_run_at ?? 0) > (old ?? 0));
+    });
+  });
+
+  MODEL_TASKS.forEach((task) => {
+    it(`claims ${task} again exactly one week after its last claim, and not 1 ms before, and when the claim lies exactly one week ahead only 1 ms further`, async () => {
+      const close = () => {
+        exec(
+          library,
+          "update jobs set state = 'done', claim_expires = null where kind in (?, ?, ?)",
+          ...MODEL_TASKS,
+        );
+      };
+      const held = jobsOf(library, task).length;
+
+      close();
+      assert.equal(await sweptWithClaim(library, task, 1 - 604_800_000), held);
+      close();
+      assert.equal(await sweptWithClaim(library, task, -604_800_000), held + 1);
+      close();
+      assert.equal(await sweptWithClaim(library, task, 604_800_000), held + 1);
+      close();
+      assert.equal(await sweptWithClaim(library, task, 604_800_001), held + 2);
     });
   });
 });

@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { dueIds, claimNextDue } from "../src/core/compose/jobs.ts";
-import { DAY_MS } from "../src/core/contract/time-units.ts";
 import {
   type BotLibrary,
   SECRET_KEY,
@@ -17,7 +16,7 @@ import { answered } from "./bot-task-http.ts";
 import { applied, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { pairsOf, exec, nextSweep } from "./related-fixtures.ts";
+import { pairsOf, exec, sweptWith } from "./related-fixtures.ts";
 
 describe("an answer reaches its job whichever happens first, the answer or the sender's deferral", () => {
   let instance: Instance;
@@ -104,6 +103,16 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
 
   const state = (id: number) => taskRow(instance, id).state;
 
+  const sweptAfterDeadline = (ids: readonly number[], ageMs: number) =>
+    sweptWith(instance, (now) => {
+      exec(
+        instance,
+        `update ai_tasks set deadline = ? where id in (${ids.map(() => "?").join(", ")})`,
+        now - ageMs,
+        ...ids,
+      );
+    });
+
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
@@ -134,22 +143,13 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
 
     exec(instance, "update ai_tasks set job_id = null where id = ?", plain);
 
-    const past = Date.now() - 1000;
+    const states = () => [answeredTask.id, owned.id, plain].map((id) => state(id));
 
-    exec(
-      instance,
-      "update ai_tasks set deadline = ? where id in (?, ?, ?)",
-      past,
-      answeredTask.id,
-      owned.id,
-      plain,
-    );
-    await nextSweep(instance);
+    await sweptAfterDeadline([answeredTask.id, owned.id, plain], 0);
+    assert.deepEqual(states(), ["running", "running", "running"]);
 
-    assert.deepEqual(
-      [answeredTask.id, owned.id, plain].map((id) => state(id)),
-      ["running", "running", "failed"],
-    );
+    await sweptAfterDeadline([answeredTask.id, owned.id, plain], 1);
+    assert.deepEqual(states(), ["running", "running", "failed"]);
     assert.notEqual(taskRow(instance, answeredTask.id).result, null);
     assert.equal(taskRow(instance, plain).refusal, "timeout");
   });
@@ -165,15 +165,13 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
         .status,
       204,
     );
-    exec(
-      instance,
-      "update ai_tasks set deadline = ? where id in (?, ?)",
-      Date.now() - DAY_MS - 1000,
-      answeredTask.id,
-      owned.id,
+    await sweptAfterDeadline([answeredTask.id, owned.id], 86_400_000);
+    assert.deepEqual(
+      [answeredTask.id, owned.id].map((id) => state(id)),
+      ["running", "running"],
     );
-    await nextSweep(instance);
 
+    await sweptAfterDeadline([answeredTask.id, owned.id], 86_400_001);
     assert.deepEqual(
       [answeredTask.id, owned.id].map((id) => state(id)),
       ["failed", "failed"],

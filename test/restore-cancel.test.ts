@@ -3,10 +3,9 @@ import { type TestContext, after, afterEach, before, beforeEach, describe, it } 
 
 import { RestoreErrorSchema, restoreAnswerSchema } from "../src/core/contract/restore-contract.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
-import { atClock } from "./clock-fixtures.ts";
 import { exportedZip, firstLongText, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste, count, exec, nextSweep } from "./related-fixtures.ts";
+import { paste, count, exec, nextSweepAt } from "./related-fixtures.ts";
 import {
   gaveUpInFiles,
   movedToPhase,
@@ -268,10 +267,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
 
     const sweptAt = async (updatedAt: number) => {
       exec(target, "update restores set updated_at = ? where id = ?", updatedAt, id);
-      await atClock(
-        () => now,
-        () => nextSweep(target),
-      );
+      await nextSweepAt(target, now);
 
       return listedKeys(target.core.files, keys);
     };

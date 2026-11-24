@@ -15,10 +15,9 @@ import { tmpdir } from "node:os";
 import { after, before, describe, it } from "node:test";
 
 import { VaultResultSchema, VaultViewSchema } from "../src/core/contract/vault-contract.ts";
-import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { count, paste, until, nextSweep } from "./related-fixtures.ts";
+import { count, paste, until, nextSweep, nextSweepAt } from "./related-fixtures.ts";
 
 const SETTINGS = "/api/settings/obsidian";
 
@@ -192,10 +191,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   it("does not try the path again at a clock before the park ends", async () => {
     const parkedUntil = retryAt();
 
-    await atClock(
-      () => parkedUntil - 1,
-      () => nextSweep(instance),
-    );
+    await nextSweepAt(instance, parkedUntil - 1);
 
     assert.equal(retryAt(), parkedUntil);
     assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
@@ -205,10 +201,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   it("tries the path again at the instant the park ends, and still holds one Log line and the owner's file", async () => {
     const first = retryAt();
 
-    await atClock(
-      () => first,
-      () => nextSweep(instance),
-    );
+    await nextSweepAt(instance, first);
 
     assert.equal(retryAt(), first + 60_000);
     assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
@@ -223,12 +216,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     renameSync(path, aside);
 
     try {
-      const parkedUntil = retryAt();
-
-      await atClock(
-        () => parkedUntil,
-        () => nextSweep(instance),
-      );
+      await nextSweepAt(instance, retryAt());
 
       assert.deepEqual(await conflicts(), []);
       assert.ok(text(noteOf(conflicted)).includes('aliases: ["Conflicted"]'));

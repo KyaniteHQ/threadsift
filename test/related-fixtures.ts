@@ -5,6 +5,7 @@ import { setTimeout as delay } from "node:timers/promises";
 import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import { atClock } from "./clock-fixtures.ts";
 import type { Instance, Json } from "./instance.ts";
 
 export const SECRET_KEY = "0".repeat(64);
@@ -243,6 +244,19 @@ export function seedPair(
 export async function nextSweep(instance: Instance): Promise<void> {
   exec(instance, "delete from scheduled_runs where task = 'sweep'");
   await instance.tick();
+}
+
+export const nextSweepAt = (instance: Instance, now: number): Promise<void> =>
+  atClock(
+    () => now,
+    () => nextSweep(instance),
+  );
+
+export async function sweptWith(instance: Instance, write: (now: number) => void): Promise<void> {
+  const now = Date.now();
+
+  write(now);
+  await nextSweepAt(instance, now);
 }
 
 const MigrationSchema = z.object({ name: z.string() });
