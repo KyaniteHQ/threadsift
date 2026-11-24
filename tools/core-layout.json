@@ -99,7 +99,12 @@
       "topic-overview-job.ts",
       "topic-overview-kind.ts"
     ],
-    "github": ["github-api-wire.ts", "github-fetch.ts", "github-rate-limit.ts"],
+    "github": [
+      "github-api-wire.ts",
+      "github-cooldown.ts",
+      "github-fetch.ts",
+      "github-rate-limit.ts"
+    ],
     "vault": ["vault-failure.ts", "vault-mirror.ts", "vault-paths.ts", "vault-state.ts"],
     "x": [
       "x-fetcher.ts",

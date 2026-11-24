@@ -1,12 +1,12 @@
-import { type SQL, and, asc, eq, gte, isNull, lte, not, or, sql } from "drizzle-orm";
+import { type SQL, and, eq, gte, isNull, lte, not, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { CLAIM_MARGIN_MS } from "../../../core/contract/job-contract.ts";
 import { FILL_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { Closing, JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { enqueueQuietly, holding, jobIsOpen } from "../../../core/kernel/job-rows.ts";
-import { waitingFor, wokenJobs } from "../../../core/kernel/job-waiting.ts";
+import { holding, jobIsOpen } from "../../../core/kernel/job-rows.ts";
+import { enqueueWoken, waitingFor, wokenJobs } from "../../../core/kernel/job-waiting.ts";
 import {
   ACCOUNT_ROW,
   type AccountRow,
@@ -194,22 +194,10 @@ export function releaseWaitingWhenFree(db: Database, now: number): BatchItem<"sq
   );
 }
 
-export async function enqueueWaiting(
+export function enqueueWaiting(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
   now: number,
   which: "oldest" | "all",
 ): Promise<void> {
-  const due = ports.db
-    .select({ id: jobs.id })
-    .from(jobs)
-    .where(and(WAITING, lte(jobs.nextAttemptAt, now)))
-    .orderBy(asc(jobs.id));
-
-  const rows = await (which === "oldest" ? due.limit(1) : due);
-
-  await enqueueQuietly(
-    ports,
-    rows.map(({ id }) => id),
-    0,
-  );
+  return enqueueWoken(ports, now, WAITING, which);
 }

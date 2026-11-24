@@ -1,7 +1,9 @@
-import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, asc, eq, lte, sql } from "drizzle-orm";
 
 import { INTAKE_JOB_KINDS, type WaitReason } from "../contract/job-contract.ts";
 import type { Database } from "./database.ts";
+import type { JobPorts } from "./job-outcome.ts";
+import { enqueueQuietly } from "./job-rows.ts";
 import { jobIs, jobOpen } from "./job-tables.ts";
 import { listed } from "./schema-checks.ts";
 import { items, jobs } from "./schema.ts";
@@ -30,4 +32,25 @@ export function wokenJobs(db: Database, now: number, where: SQL | undefined) {
 
 export function wokenJob(db: Database, jobId: number, now: number, when?: Readonly<SQLWrapper>) {
   return wokenJobs(db, now, and(eq(jobs.id, jobId), jobOpen(), when && sql`${when}`));
+}
+
+export async function enqueueWoken(
+  ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
+  now: number,
+  where: SQL | undefined,
+  which: "oldest" | "all",
+): Promise<void> {
+  const due = ports.db
+    .select({ id: jobs.id })
+    .from(jobs)
+    .where(and(where, lte(jobs.nextAttemptAt, now)))
+    .orderBy(asc(jobs.id));
+
+  const rows = await (which === "oldest" ? due.limit(1) : due);
+
+  await enqueueQuietly(
+    ports,
+    rows.map(({ id }) => id),
+    0,
+  );
 }
