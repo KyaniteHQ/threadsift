@@ -1,7 +1,6 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { MINUTE_MS } from "../src/core/contract/time-units.ts";
 import { atClock, steppingClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
@@ -97,32 +96,32 @@ describe("an agent token's day is the UTC day, and a refusal says how long until
     const token = await makeToken(instance, 1);
     const midnight = nextMidnight(Date.now());
 
-    const lastMinute = await atClock(
-      () => midnight - MINUTE_MS,
+    const lastMs = await atClock(
+      () => midnight - 1,
       async () => [await addLink(instance, token, 51), await addLink(instance, token, 52)],
     );
 
     assert.deepEqual(
-      lastMinute.map(({ status }) => status),
+      lastMs.map(({ status }) => status),
       [201, 429],
     );
 
-    const firstMinute = await atClock(
-      () => midnight + MINUTE_MS,
+    const firstMs = await atClock(
+      () => midnight,
       async () => ({
         budget: await budgetOf(instance, token.id),
         adds: [await addLink(instance, token, 52), await addLink(instance, token, 53)],
       }),
     );
 
-    assert.equal(firstMinute.budget.kind, "within");
+    assert.equal(firstMs.budget.kind, "within");
     assert.deepEqual(
-      firstMinute.adds.map(({ status }) => status),
+      firstMs.adds.map(({ status }) => status),
       [201, 429],
     );
     assert.deepEqual(itemsSavedByDay(instance, token.id), [
-      [dayOf(midnight - MINUTE_MS), 1],
-      [dayOf(midnight + MINUTE_MS), 1],
+      [dayOf(midnight - 1), 1],
+      [dayOf(midnight), 1],
     ]);
   });
 });

@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { once } from "node:events";
-import { Agent, type ClientRequest, type IncomingHttpHeaders, request } from "node:http";
+import {
+  Agent,
+  type ClientRequest,
+  type IncomingHttpHeaders,
+  type IncomingMessage,
+  request,
+} from "node:http";
 import type { Socket } from "node:net";
 import { after, before, describe, it } from "node:test";
 import { setTimeout as sleep } from "node:timers/promises";
@@ -87,6 +93,16 @@ async function* slowBody(): AsyncGenerator<Uint8Array> {
   yield new Uint8Array(1000);
 }
 
+function bodyBytesRead({ method, url, httpVersion, rawHeaders, socket }: IncomingMessage): number {
+  const fields = Array.from(
+    { length: rawHeaders.length / 2 },
+    (_, at) => `${rawHeaders[2 * at] ?? ""}: ${rawHeaders[2 * at + 1] ?? ""}`,
+  );
+  const head = [`${method ?? ""} ${url ?? ""} HTTP/${httpVersion}`, ...fields].join("\r\n");
+
+  return socket.bytesRead - Buffer.byteLength(`${head}\r\n\r\n`);
+}
+
 function* bodyOf(length: number): Generator<Uint8Array> {
   const chunk = new Uint8Array(MEBIBYTE);
 
@@ -98,10 +114,15 @@ function* bodyOf(length: number): Generator<Uint8Array> {
 describe("the container answers a request without reading its body, then discards the body", () => {
   let server: Listening;
   let agent: Agent;
+  let bodyBytesReadAtAnswer = 0;
 
   before(async () => {
     const app = new Hono<{ Bindings: HttpBindings }>();
 
+    app.use("*", async (context, next) => {
+      await next();
+      bodyBytesReadAtAnswer = bodyBytesRead(context.env.incoming);
+    });
     app.use("*", answerAfterBody);
     app.post("/refused", (context) => context.text("no", 401));
     app.post("/too-large", (context) => context.text("too large", 413));
@@ -152,15 +173,25 @@ describe("the container answers a request without reading its body, then discard
     assert.equal(second.socket, first.socket);
   });
 
-  it("ends the answer to a body of 64 MiB plus one byte with Connection: close, after the client sent all of it", async () => {
-    const answer = await upload({
-      agent,
-      url: `${server.url}/too-large`,
-      length: DISCARD_LIMIT_BYTES + 1,
-      parts: bodyOf(DISCARD_LIMIT_BYTES + 1),
-    });
+  it("ends the answer to a body of 64 MiB plus one byte with Connection: close, after the server read all of it", async () => {
+    const fresh = new Agent({ keepAlive: true, maxSockets: 1 });
 
-    assert.equal(answer.status, 413);
-    assert.equal(answer.headers["connection"], "close");
+    try {
+      const answer = await upload({
+        agent: fresh,
+        url: `${server.url}/too-large`,
+        length: DISCARD_LIMIT_BYTES + 1,
+        parts: bodyOf(DISCARD_LIMIT_BYTES + 1),
+      });
+
+      assert.equal(answer.status, 413);
+      assert.equal(answer.headers["connection"], "close");
+      assert.ok(
+        bodyBytesReadAtAnswer >= DISCARD_LIMIT_BYTES + 1,
+        `${String(bodyBytesReadAtAnswer)} body bytes`,
+      );
+    } finally {
+      fresh.destroy();
+    }
   });
 });

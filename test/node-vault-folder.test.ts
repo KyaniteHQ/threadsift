@@ -14,7 +14,6 @@ import { join } from "node:path";
 import { afterEach, beforeEach, describe, it } from "node:test";
 
 import { type VaultChange, VaultFileConflict } from "../src/core/kernel/vault-target.ts";
-import { VaultFailure } from "../src/features/vault/core/vault-failure.ts";
 import { vaultFolder } from "../src/targets/node/vault-folder.ts";
 import { heldFolderLease } from "./vault-lease-fixtures.ts";
 
@@ -112,7 +111,6 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
     symlinkSync(outside, inVault("Threadsift"));
 
     await assert.rejects(write([note("mine")]), { reason: "folder-path" });
-    await assert.rejects(target().verify(), { reason: "folder-path" });
     assert.deepEqual(readdirSync(outside), []);
   });
 
@@ -148,19 +146,5 @@ describe("Folder mode writes a mounted vault folder and owns only the files it w
       },
     );
     assert.deepEqual(readdirSync(vault), []);
-  });
-
-  it("names a path that is a file, not a folder", async () => {
-    writeFileSync(inVault("a-file"), "");
-
-    await assert.rejects(
-      vaultFolder(inVault("a-file"), new AbortController().signal).verify(),
-      (error) => {
-        assert.ok(error instanceof VaultFailure);
-        assert.equal(error.reason, "folder-path");
-
-        return true;
-      },
-    );
   });
 });

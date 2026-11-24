@@ -2,11 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { readStoredZip } from "../smoke/zip-read.ts";
-import {
-  EXPORT_SLICE_BYTES,
-  EXPORT_SLICE_ITEMS,
-  ExportStatusSchema,
-} from "../src/core/contract/export-contract.ts";
+import { ExportStatusSchema } from "../src/core/contract/export-contract.ts";
 import { BACKUP_TABLES } from "../src/core/kernel/backup-tables.ts";
 import {
   EXPORT_LIBRARY,
@@ -26,6 +22,8 @@ import {
 import { Instance } from "./instance.ts";
 import { latestMigration } from "./related-fixtures.ts";
 import { entriesOf, entryOf, linesOf, manifestOf, recordLines, rootOf } from "./zip-fixtures.ts";
+
+const SLICE_BYTES = 8_388_608;
 
 describe("an Export of a library too big for one slice is one complete zip", () => {
   let instance: Instance;
@@ -56,7 +54,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     assert.equal((await numberedKeys(instance, exportId, "tail")).length, 1);
   });
 
-  it("holds at most 40 Items and, after its first entry, at most 8 MiB of entries in every slice", async () => {
+  it("holds 40 Items in its first slice, at most 40 in every slice and, after its first entry, at most 8 MiB of entries", async () => {
     const slices = await sliceEntries(instance, exportId, zip);
 
     assert.equal(slices.length, parts);
@@ -64,10 +62,9 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     for (const [at, slice] of slices.entries()) {
       const items = new Set(slice.flatMap(({ name }) => /\/items\/(\d+)\//u.exec(name)?.[1] ?? []));
 
-      assert.ok(
-        items.size <= EXPORT_SLICE_ITEMS,
-        `slice ${String(at + 1)} holds ${String(items.size)} Items`,
-      );
+      assert.ok(items.size <= 40, `slice ${String(at + 1)} holds ${String(items.size)} Items`);
+
+      if (at === 0) assert.equal(items.size, 40);
 
       const [head, ...rest] = slice;
 
@@ -76,7 +73,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
       let total = head.size;
 
       for (const { name, size } of rest) {
-        assert.ok(total + size <= EXPORT_SLICE_BYTES, `${name} passes the slice cap`);
+        assert.ok(total + size <= SLICE_BYTES, `${name} passes the slice cap`);
         total += size;
       }
     }
@@ -217,20 +214,19 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
     await instance.core.files.put(postKey, new TextEncoder().encode("x".repeat(textBytes)));
 
     const ready = await readyExport(instance);
+    const zip = await downloadedZip(instance, ready.id);
 
-    return sliceEntries(instance, ready.id, await downloadedZip(instance, ready.id));
+    return { zip, slices: await sliceEntries(instance, ready.id, zip) };
   };
 
   const exactFit = async () => {
-    const [single] = await exported(BASE_TEXT_BYTES);
+    const {
+      slices: [single],
+    } = await exported(BASE_TEXT_BYTES);
 
     assert.ok(single !== undefined, "the Export holds a slice");
 
-    return (
-      BASE_TEXT_BYTES +
-      EXPORT_SLICE_BYTES -
-      sizeSum(single.filter((entry) => !isEntry(entry, post)))
-    );
+    return BASE_TEXT_BYTES + SLICE_BYTES - sizeSum(single.filter((entry) => !isEntry(entry, post)));
   };
 
   before(async () => {
@@ -249,23 +245,37 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
   after(() => instance.close());
 
   it("takes an entry that fills the slice exactly, and starts the next entry in the next slice", async () => {
-    const { first, second } = firstTwo(await exported(await exactFit()));
+    const { first, second } = firstTwo((await exported(await exactFit())).slices);
 
-    assert.equal(sizeSum(first), EXPORT_SLICE_BYTES);
+    assert.equal(sizeSum(first), SLICE_BYTES);
     assert.ok(isEntry(first.at(-1), note));
     assert.ok(isEntry(second[0], post));
   });
 
-  it("starts an entry that passes the cap by 1 byte in the next slice", async () => {
-    const { first, second } = firstTwo(await exported((await exactFit()) + 1));
+  it("starts an entry that passes the cap by 1 byte in the next slice, with the post text file whole in the zip", async () => {
+    const textBytes = (await exactFit()) + 1;
+    const { zip, slices } = await exported(textBytes);
+    const { first, second } = firstTwo(slices);
+    const entries = await entriesOf(zip);
 
-    assert.ok(sizeSum(first) < EXPORT_SLICE_BYTES);
+    assert.ok(sizeSum(first) < SLICE_BYTES);
     assert.ok(first.every((entry) => !isEntry(entry, note)));
     assert.ok(isEntry(second[0], note));
+    assert.deepEqual(
+      slices
+        .flat()
+        .filter((entry) => isEntry(entry, post))
+        .map(({ size }) => size),
+      [textBytes],
+    );
+    assert.deepEqual(
+      entryOf(entries, `${rootOf(entries)}${postKey}`),
+      new TextEncoder().encode("x".repeat(textBytes)),
+    );
   });
 
   it("puts an entry above the cap first in a slice of its own, and still ends ready", async () => {
-    const slices = await exported(EXPORT_SLICE_BYTES + 1);
+    const { slices } = await exported(SLICE_BYTES + 1);
 
     for (const pattern of [note, post]) {
       const slice = slices.find((entries) => entries.some((entry) => isEntry(entry, pattern)));

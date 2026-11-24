@@ -2,13 +2,14 @@ import assert from "node:assert/strict";
 import { type TestContext, after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import { RestoreErrorSchema, restoreAnswerSchema } from "../src/core/contract/restore-contract.ts";
-import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { exportedZip, firstLongText, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste, count, exec, nextSweep } from "./related-fixtures.ts";
+import { paste, count, exec, nextSweepAt } from "./related-fixtures.ts";
 import {
   gaveUpInFiles,
+  movedToPhase,
+  restoreProgress,
   restoreStatus,
   restoredDone,
   settledAfterRetries,
@@ -167,6 +168,31 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     assert.equal(rowsIn(target, "items"), 2);
   });
 
+  const refusedInPhase = async (t: TestContext, phase: "tables" | "finish") => {
+    const id = await gaveUpInFiles(t, target, zip);
+
+    unblockItemFiles(target);
+    movedToPhase(target, id, phase);
+    exec(target, "insert into d1_migrations (name) values ('9999_newer.sql')");
+
+    const held = restoreProgress(target, id);
+
+    assert.equal((await send("POST", id, "/resume")).status, 202);
+
+    const failed = await settledRestore(target, ["failed"]);
+
+    assert.equal(failed.failure, "other-release");
+    assert.deepEqual(restoreProgress(target, id), { ...held, state: "failed" });
+    assert.deepEqual(await listedKeys(target.core.files, "items/"), []);
+    assert.equal(rowsIn(target, "items"), 2);
+  };
+
+  it("checks the release again in the tables phase, so a newer migration ends a resumed Restore with other-release and writes nothing further", (t) =>
+    refusedInPhase(t, "tables"));
+
+  it("checks the release again in the finish phase, so a newer migration ends a resumed Restore with other-release and writes nothing further", (t) =>
+    refusedInPhase(t, "finish"));
+
   const undone = async (t: TestContext) => {
     const id = await gaveUpInFiles(t, target, zip);
 
@@ -236,15 +262,18 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
   it("deletes the parts of a Restore that gave up 24 hours after its last update, and then refuses to resume it", async (t) => {
     const id = await gaveUpInFiles(t, target, zip);
 
-    const parts = [`restores/${String(id)}/part-1`];
+    const keys = `restores/${String(id)}/`;
+    const now = Date.now();
 
-    exec(target, "update restores set updated_at = ? where id = ?", Date.now() - 23 * HOUR_MS, id);
-    await nextSweep(target);
-    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), parts);
+    const sweptAt = async (updatedAt: number) => {
+      exec(target, "update restores set updated_at = ? where id = ?", updatedAt, id);
+      await nextSweepAt(target, now);
 
-    exec(target, "update restores set updated_at = ? where id = ?", Date.now() - 25 * HOUR_MS, id);
-    await nextSweep(target);
-    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
+      return listedKeys(target.core.files, keys);
+    };
+
+    assert.deepEqual(await sweptAt(now - 86_400_000), [`${keys}part-1`]);
+    assert.deepEqual(await sweptAt(now - 86_400_001), []);
 
     assert.equal((await settledRestore(target, ["failed"])).resumable, false);
 

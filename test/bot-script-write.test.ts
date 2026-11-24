@@ -7,7 +7,6 @@ import {
   readdirSync,
   rmSync,
   symlinkSync,
-  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,7 +15,7 @@ import { after, before, describe, it } from "node:test";
 
 import { ITEM_REQUEST_BYTES } from "../src/core/contract/limits.ts";
 import { ScriptFolder } from "./bot-script-run.ts";
-import { ScriptWorld } from "./bot-script-world.ts";
+import { CUTOFF_MARGIN, DAY, ScriptWorld, ageBy } from "./bot-script-world.ts";
 
 const HEX_WORD = /^TS_[0-9a-f]{32}$/u;
 const HEX = "0123456789abcdef0123456789abcdef";
@@ -207,9 +206,8 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
     writeFileSync(old, "x");
     writeFileSync(recent, "x");
 
-    const then = Date.now() / 1000 - 2 * 24 * 3600;
-
-    utimesSync(old, then, then);
+    ageBy(old, DAY + CUTOFF_MARGIN);
+    ageBy(recent, DAY - CUTOFF_MARGIN);
 
     assert.equal(await run(["write", `new-${HEX}.txt`], "text"), "ok");
     assert.equal(existsSync(old), false);

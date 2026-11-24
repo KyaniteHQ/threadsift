@@ -43,11 +43,15 @@ describe("Disconnect removes the Reddit account and makes due at once only the j
     );
 
     assert.deepEqual(
-      settled.map(({ id, wait_reason: reason, next_attempt_at: due }) => [id, reason, due < LATER]),
+      settled.map(({ id, wait_reason: reason, next_attempt_at: due }) => [
+        id,
+        reason,
+        Math.sign(due - LATER),
+      ]),
       [
-        [901, null, true],
-        [902, null, true],
-        [903, "github-rate-limit", false],
+        [901, null, -1],
+        [902, null, -1],
+        [903, "github-rate-limit", 0],
       ],
     );
   });

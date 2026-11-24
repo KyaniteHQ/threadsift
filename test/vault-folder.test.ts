@@ -6,7 +6,9 @@ import {
   mkdtempDisposableSync,
   readFileSync,
   readdirSync,
+  renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -15,7 +17,7 @@ import { after, before, describe, it } from "node:test";
 import { VaultResultSchema, VaultViewSchema } from "../src/core/contract/vault-contract.ts";
 import { Instance } from "./instance.ts";
 import { lines } from "./log-fixtures.ts";
-import { paste, until, nextSweep } from "./related-fixtures.ts";
+import { count, paste, until, nextSweep, nextSweepAt } from "./related-fixtures.ts";
 
 const SETTINGS = "/api/settings/obsidian";
 
@@ -42,6 +44,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   let instance: Instance;
   let vault: string;
   let scratch: ReturnType<typeof mkdtempDisposableSync>;
+  let outside: ReturnType<typeof mkdtempDisposableSync>;
   let conflicted: number;
   let mirrored: number;
 
@@ -49,12 +52,21 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   const text = (path: string) => readFileSync(at(path), "utf8");
   const view = () => instance.read("GET", SETTINGS, VaultViewSchema);
 
+  const conflicts = async () => {
+    const seen = await view();
+
+    assert.ok(seen.mode === "folder");
+
+    return seen.conflicts;
+  };
+
   const verify = (folder: string) =>
     instance.read("POST", `${SETTINGS}/verify`, VaultResultSchema, { mode: "folder", folder });
 
   before(async () => {
     scratch = mkdtempDisposableSync(`${tmpdir()}/threadsift-vault-`);
     vault = scratch.path;
+    outside = mkdtempDisposableSync(`${tmpdir()}/threadsift-vault-outside-`);
     instance = await Instance.start();
     await instance.setUp();
     conflicted = await paste(instance, "conflicted", { title: "Conflicted", topic: "Reading" });
@@ -64,6 +76,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   after(async () => {
     await instance.close();
     scratch.remove();
+    outside.remove();
   });
 
   it("offers Folder on this Instance and starts on GitHub with nothing saved", async () => {
@@ -96,6 +109,23 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
       chmodSync(locked, 0o700);
       rmSync(locked, { recursive: true });
     }
+  });
+
+  it("names a path that is a file and a Threadsift folder that is a symbolic link, and writes nothing", async () => {
+    writeFileSync(at("a-file"), "");
+    assert.deepEqual(await verify(at("a-file")), { kind: "refused", reason: "folder-path" });
+    rmSync(at("a-file"));
+
+    symlinkSync(outside.path, at("Threadsift"));
+
+    try {
+      assert.deepEqual(await verify(vault), { kind: "refused", reason: "folder-path" });
+      assert.deepEqual(readdirSync(outside.path), []);
+    } finally {
+      rmSync(at("Threadsift"));
+    }
+
+    assert.deepEqual(readdirSync(vault), []);
   });
 
   it("saves the folder, reads it back, and mirrors every Item note, the Topic page, the Index and the Log under Threadsift", async () => {
@@ -144,21 +174,56 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.ok(text("Threadsift/Index.md").includes(`[[${topicPage}|Reading]]`));
   });
 
-  it("names the path of a note the owner already holds, records the conflict once, and keeps writing the other Items", async () => {
+  it("names the path of a note the owner already holds, and keeps writing the other Items", async () => {
     await swept(instance, view, (seen) => seen.mode === "folder" && seen.conflicts.length > 0);
-    await nextSweep(instance);
-    await nextSweep(instance);
 
-    const current = await view();
-
-    assert.ok(current.mode === "folder");
-    assert.deepEqual(current.conflicts, [noteOf(conflicted)]);
+    assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
     assert.equal(text(noteOf(conflicted)), OWNER_NOTE);
-    assert.deepEqual(
-      (await lines(instance)).filter((line) => line.startsWith("vault-file-conflict")),
-      [`vault-file-conflict | ${noteOf(conflicted)}`],
-    );
     assert.ok(existsSync(at(noteOf(mirrored))));
+  });
+
+  const retryAt = () =>
+    count(instance, "select retry_at as n from mirror_notes where conflict_path is not null");
+
+  const conflictLines = async () =>
+    (await lines(instance)).filter((line) => line.startsWith("vault-file-conflict"));
+
+  it("does not try the path again at a clock before the park ends", async () => {
+    const parkedUntil = retryAt();
+
+    await nextSweepAt(instance, parkedUntil - 1);
+
+    assert.equal(retryAt(), parkedUntil);
+    assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
+    assert.deepEqual(await conflictLines(), [`vault-file-conflict | ${noteOf(conflicted)}`]);
+  });
+
+  it("tries the path again at the instant the park ends, and still holds one Log line and the owner's file", async () => {
+    const first = retryAt();
+
+    await nextSweepAt(instance, first);
+
+    assert.equal(retryAt(), first + 60_000);
+    assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
+    assert.equal(text(noteOf(conflicted)), OWNER_NOTE);
+    assert.deepEqual(await conflictLines(), [`vault-file-conflict | ${noteOf(conflicted)}`]);
+  });
+
+  it("writes the note once the owner's file is gone, clears the conflict and keeps the Log line", async () => {
+    const path = at(noteOf(conflicted));
+    const aside = at("owner-note.md");
+
+    renameSync(path, aside);
+
+    try {
+      await nextSweepAt(instance, retryAt());
+
+      assert.deepEqual(await conflicts(), []);
+      assert.ok(text(noteOf(conflicted)).includes('aliases: ["Conflicted"]'));
+      assert.deepEqual(await conflictLines(), [`vault-file-conflict | ${noteOf(conflicted)}`]);
+    } finally {
+      renameSync(aside, path);
+    }
   });
 
   it("rewrites the notes a library change touches", async () => {

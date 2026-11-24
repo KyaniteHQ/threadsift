@@ -1,3 +1,5 @@
+import { utimesSync } from "node:fs";
+
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ScriptFolder } from "./bot-script-run.ts";
 import { intakeExample } from "./bot-skills-examples.ts";
@@ -7,6 +9,18 @@ import { fetcherFile } from "./fetcher-record.ts";
 import { Instance } from "./instance.ts";
 import { type Listening, listening } from "./loopback-server.ts";
 import { type IntakeTask, sentIntake } from "./x-intake-fixtures.ts";
+
+export const MINUTE = 60;
+export const HOUR = 60 * MINUTE;
+export const DAY = 24 * HOUR;
+
+export const CUTOFF_MARGIN = MINUTE / 2;
+
+export const ageBy = (file: string, seconds: number) => {
+  const then = Date.now() / 1000 - seconds;
+
+  utimesSync(file, then, then);
+};
 
 interface Servers {
   readonly real: Listening;

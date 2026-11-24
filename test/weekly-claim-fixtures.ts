@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { WEEK_MS } from "../src/core/contract/time-units.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { exec, rows, sweptWith } from "./related-fixtures.ts";
 
 const RunSchema = z.object({ last_run_at: z.number() });
 
@@ -25,3 +25,20 @@ export const jobsOf = (instance: Instance, kind: string) =>
     "select id, item_id, state from jobs where kind = ? order by id",
     kind,
   );
+
+export async function sweptWithClaim(
+  instance: Instance,
+  task: string,
+  claimOffsetMs: number,
+): Promise<number> {
+  await sweptWith(instance, (now) => {
+    exec(
+      instance,
+      "update scheduled_runs set last_run_at = ? where task = ?",
+      now + claimOffsetMs,
+      task,
+    );
+  });
+
+  return jobsOf(instance, task).length;
+}
