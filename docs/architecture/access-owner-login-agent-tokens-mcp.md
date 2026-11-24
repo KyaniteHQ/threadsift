@@ -180,7 +180,7 @@ The cap holds without `Content-Length` too. A larger body answers 413 and writes
 
 ## The share route
 
-`/share` is the manifest's `share_target` action. It is declared `access("self", { cache: "no-store" })`, so the gate checks no session, token or origin, because the route decides for itself who is trusted. It caps the body and sets `Cache-Control: no-store` on every answer to a `GET`, `HEAD` or `POST`, the 413 included. Another method reaches the catch-all route, where `refusingMethods` answers 405, or the gate answers 413 when the body is over the cap. Neither answer carries `Cache-Control`. Each body is a fixed message and names no private data.
+`/share` is the manifest's `share_target` action. It is declared `access("self", { cache: "no-store" })`, so the gate checks no session, token or origin, because the route decides for itself who is trusted. It caps the body and sets `Cache-Control: no-store` on every answer to a `GET`, `HEAD` or `POST`, the 413 included. Another method never reaches the route ([Unrouted paths](#unrouted-paths)). Its 405, or its 413 for a body over the cap, carries no `Cache-Control`, and its body is a fixed message that names no private data.
 
 A write needs a `POST` with all three of these (`sentByOwnPage`):
 
