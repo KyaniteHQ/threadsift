@@ -27,6 +27,8 @@ const PAGE_CHUNKS = {
 
 const CHUNK_GAP_MS = 30;
 
+const CHUNK_PROBE_DEADLINE_MS = 2000;
+
 function chunkedBody(
   chunks: readonly string[],
   whenSent: (controller: ReadableStreamDefaultController<Uint8Array>) => void,
@@ -49,7 +51,7 @@ function chunkedBody(
 }
 
 async function firstTwoChunkLengths(url: string): Promise<readonly (number | undefined)[]> {
-  const answer = await fetch(url);
+  const answer = await fetch(url, { signal: AbortSignal.timeout(CHUNK_PROBE_DEADLINE_MS) });
   assert.ok(answer.body);
   const reader = answer.body.getReader();
   const first = await reader.read();
