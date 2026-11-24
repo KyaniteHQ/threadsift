@@ -166,7 +166,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 ### Share links
 
 - `redd.it/<id>` becomes `/r/all/comments/<id>/` without a request.
-- A `reddit.com/r/<community>/s/<code>` link needs one redirect, which Reddit answers without a login. The Item is the post or comment it leads to, with the share link kept as an alias. A redirect that does not end on a post or comment leaves a Link-only Item under the share link, and the Extension saves the thread at its canonical URL.
+- A `reddit.com/r/<community>/s/<code>` link needs one redirect, which Reddit answers without a login. The Item is the post or comment it leads to, with the share link kept as an alias. A redirect that does not end on a post or comment leaves a Link-only Item under the share link, and the Extension saves the thread at its canonical URL. A short link that redirects to a share link is followed through it the same way, and a Link-only Item then stays under the short link.
 
 ### Fetcher plug-ins (container only)
 
