@@ -59,6 +59,7 @@ function capturedPage(tabId: number): Promise<Captured | null> {
   return resultInTab(
     () => browser.scripting.executeScript({ target: { tabId }, files: ["/capture.js"] }),
     CapturedSchema,
+    "page-capture-failed",
   );
 }
 

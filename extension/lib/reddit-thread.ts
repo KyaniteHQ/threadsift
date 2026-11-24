@@ -104,7 +104,7 @@ async function answerFor(
   address: string,
   deadlineMs: number,
   signal: AbortSignal | undefined,
-): Promise<TabAnswer> {
+): Promise<TabAnswer | null> {
   if (stopped(signal)) return NO_ANSWER;
 
   const cancelEvent = `threadsift-cancel-${crypto.randomUUID()}`;
@@ -126,9 +126,10 @@ async function answerFor(
           args: [address, deadlineMs, THREAD_CONTENT_BYTES, cancelEvent],
         }),
       TabAnswerSchema,
+      "tab-read-failed",
     );
 
-    if (answer === null) return NO_ANSWER;
+    if (answer === null) return null;
 
     if (answer.failure !== null) {
       logFailure("reddit-thread-read-failed", new Error(answer.failure));
@@ -170,13 +171,26 @@ export async function fetchThread(
 
   if (ref === null) return null;
 
-  const first = await answerFor(tab.id, threadAddress(tab), REQUEST_DEADLINE_MS, signal);
+  const tabLost = new AbortController();
+  const stop = signal === undefined ? tabLost.signal : AbortSignal.any([signal, tabLost.signal]);
+
+  const read = async (address: string, deadlineMs: number): Promise<TabAnswer> => {
+    const answer = await answerFor(tab.id, address, deadlineMs, signal);
+
+    if (answer !== null) return answer;
+
+    tabLost.abort();
+
+    return NO_ANSWER;
+  };
+
+  const first = await read(threadAddress(tab), REQUEST_DEADLINE_MS);
   const hidden = hiddenIn(first, ref.postId);
 
-  if (hidden === null || stopped(signal)) return null;
+  if (hidden === null || stopped(stop)) return null;
 
   const filled = await fillAnswers(
-    (address, deadlineMs) => answerFor(tab.id, address, deadlineMs, signal),
+    read,
     {
       addressFor: (commentId) =>
         `${new URL(tab.url).origin}${permalinkPath(ref.postId, commentId)}`,
@@ -184,10 +198,10 @@ export async function fetchThread(
       first,
       hidden,
     },
-    { deadlineMs: THREAD_READ_DEADLINE_MS, signal },
+    { deadlineMs: THREAD_READ_DEADLINE_MS, signal: stop },
   );
 
-  if (stopped(signal)) return null;
+  if (stopped(stop)) return null;
 
   const body = fitThreadBody(tab.url, filled.answers, fill === true);
 
