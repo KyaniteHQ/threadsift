@@ -1,3 +1,4 @@
+import { REDDIT_WAIT } from "../../../core/contract/job-contract.ts";
 import type { LinkRoute } from "../../../core/contract/links.ts";
 import type { ClaimedJob } from "../../../core/kernel/job-outcome.ts";
 import { isLastAttempt } from "../../../core/kernel/job-retry.ts";
@@ -6,7 +7,6 @@ import type { Concluded, Fetched } from "../../media/core/details.ts";
 import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import { fetchedOfOembed } from "./oembed-details.ts";
 import { accountThread } from "./reddit-account-fetch.ts";
-import { REDDIT_WAIT } from "./reddit-account-queue.ts";
 import { accountTurn } from "./reddit-account-turn.ts";
 
 type RedditPorts = Pick<

@@ -1,5 +1,6 @@
 import { type SQL, and, eq, exists, isNull, lte, or, sql } from "drizzle-orm";
 
+import { REDDIT_WAIT } from "../../../core/contract/job-contract.ts";
 import {
   RATE_LIMITED,
   type RedditAnswer,
@@ -20,7 +21,7 @@ import {
   redditAccount,
 } from "../../../core/kernel/reddit-account-tables.ts";
 import { retryAfterMs } from "../../../core/kernel/retry-after.ts";
-import { REDDIT_WAIT, WAIT_CHECK_MS, accountIdle } from "./reddit-account-queue.ts";
+import { WAIT_CHECK_MS, accountIdle } from "./reddit-account-queue.ts";
 
 const REFUSALS_TO_EXPIRE = 3;
 

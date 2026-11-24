@@ -63,6 +63,7 @@ Threadsift has two aims:
 - A browser extension for desktop Chrome and Firefox saves the page in the owner's own tab in one click. Firefox for Android is not supported.
 - Any http or https page works except a page on x.com, twitter.com or github.com, a page on a link shortener's own address (`bit.ly`, `t.co` and the other short-link hosts) and a Reddit page that is not a post or comment. The server refuses those, and the Extension says it cannot save them.
 - On a Reddit thread it sends the thread's `.json` and falls back to Defuddle's Reddit extractor when that request fails or its answers cannot be assembled into one thread.
+- A page capture is sent only when the tab still holds the page the Save started on, with a hash, a tracking parameter or a trailing slash the page adds itself ignored. When the tab moved to another page meanwhile, nothing is sent and the Extension says it could not save.
 - With "Fill saved Reddit Items" on, opening a Link-only Reddit Item's thread fills that Item.
 - In the self-hosted builds, the Extension's Connect Reddit button connects the owner's Reddit account ([Connect a Reddit account](guides/reddit-account.md)).
 - The owner enters the Instance's address and an agent token on the Extension's settings page, and the browser asks permission for that one host when the address is saved.
@@ -297,6 +298,7 @@ The agent builds the synthesis once, when an Item arrives, and keeps it current,
 - The page is reached from the Topic in the Reader and in the filters pane. Its address holds the Topic's catalog key, so `İstanbul` and `istanbul` are one page.
 - The address of a Topic that an accepted merge removed shows the Topic it was merged into, and Try again acts on the survivor.
 - A failed overview shows on the page with Try again and the list of Items still shows. With no Provider saved and no stored overview, the page shows a note and the Items.
+- An Item whose stored Digest is not valid JSON, or holds no Summary text, still appears in the list of its Topic page, with an empty Summary line.
 - Deleting an Item removes it from the list at once, and the overview runs drop it from the overview.
 - Below the overview the page lists the pairs of its Items whose disagreement the owner accepted, under "Known disagreements", each with the agent's reason and a link to each Item, newest first, at most 20, and only while both Items carry the Digests the pair was accepted on.
 

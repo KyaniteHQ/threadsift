@@ -7,7 +7,8 @@ import { join, resolve } from "node:path";
 import { z } from "zod";
 
 import { pause } from "../src/core/contract/pause.ts";
-import { bestEffort, errnoCodeOf, reportFailure } from "../src/core/kernel/failure-log.ts";
+import { bestEffort, errnoCodeOf, withCleanup } from "../src/core/kernel/failure-log.ts";
+import { attemptEvery } from "./attempt-every.ts";
 import { exitAfterSignal } from "./exit-after-signal.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
@@ -121,11 +122,9 @@ function signalGroup(group: number, signal: NodeJS.Signals): void {
   try {
     process.kill(-group, signal);
   } catch (error) {
-    if (errnoCodeOf(error) === "ESRCH") {
-      process.stderr.write(`process group ${group} already ended\n`);
-    } else {
-      reportFailure({ event: "worker-build-cost-group-not-signalled", fields: { group } }, error);
-    }
+    if (errnoCodeOf(error) !== "ESRCH") throw error;
+
+    process.stderr.write(`process group ${group} already ended\n`);
   }
 }
 
@@ -161,18 +160,30 @@ function prepare(versions: readonly [string, string], state: string): Prepared {
   return { state, setupCode, envFile };
 }
 
-function removeTemporaryFiles(state: string): void {
-  for (const name of NAMES) {
-    rmSync(join(WORKER_FOLDER, entryFile(name)), { force: true });
-    rmSync(join(ROOT, configFile(name)), { force: true });
-  }
-  rmSync(state, { recursive: true, force: true });
+function removals(state: string): (() => void)[] {
+  const files = NAMES.flatMap((name) => [
+    join(WORKER_FOLDER, entryFile(name)),
+    join(ROOT, configFile(name)),
+  ]);
+
+  return [
+    ...files.map((file) => () => {
+      rmSync(file, { force: true });
+    }),
+    () => {
+      rmSync(state, { recursive: true, force: true });
+    },
+  ];
 }
 
 async function tearDown(state: string, groups: readonly number[]): Promise<void> {
-  for (const group of groups) signalGroup(group, "SIGTERM");
-  await pause(SETTLE_MS);
-  removeTemporaryFiles(state);
+  await attemptEvery([
+    ...groups.map((group) => () => {
+      signalGroup(group, "SIGTERM");
+    }),
+    () => pause(SETTLE_MS),
+    ...removals(state),
+  ]);
 }
 
 async function serving(
@@ -201,9 +212,22 @@ async function serving(
   ];
 }
 
+function startWorkers(
+  state: string,
+  envFile: string,
+): Promise<[PromiseSettledResult<number>, PromiseSettledResult<number>]> {
+  return Promise.allSettled([
+    startWorker(FIRST_PORT, join(state, "baseline"), envFile, ["--config", configFile("baseline")]),
+    startWorker(FIRST_PORT + 1, join(state, "candidate"), envFile, [
+      "--config",
+      configFile("candidate"),
+    ]),
+  ]);
+}
+
 export const WORKING_TREE = CANDIDATE_ENTRY;
 
-export async function startHarness(
+async function startHarness(
   versions: readonly [string, string],
   folderName: string,
 ): Promise<Harness> {
@@ -211,26 +235,17 @@ export async function startHarness(
   let spawned: Promise<readonly number[]> = Promise.resolve([]);
   let finished: Promise<void> | undefined;
   const cleanUp = (): Promise<void> => {
-    finished ??= bestEffort(CLEANUP_FAILED, async () => tearDown(state, await spawned));
+    finished ??= spawned.then((groups) => tearDown(state, groups));
 
     return finished;
   };
-  const release = exitAfterSignal(cleanUp);
+  const release = exitAfterSignal(() => bestEffort(CLEANUP_FAILED, cleanUp));
 
   try {
     const prepared = prepare(versions, state);
     const { envFile } = prepared;
 
-    const pending = Promise.allSettled([
-      startWorker(FIRST_PORT, join(state, "baseline"), envFile, [
-        "--config",
-        configFile("baseline"),
-      ]),
-      startWorker(FIRST_PORT + 1, join(state, "candidate"), envFile, [
-        "--config",
-        configFile("candidate"),
-      ]),
-    ]);
+    const pending = startWorkers(state, envFile);
 
     spawned = pending.then((workers) =>
       workers.flatMap((worker) => (worker.status === "fulfilled" ? [worker.value] : [])),
@@ -243,8 +258,11 @@ export async function startHarness(
     return {
       variants: await serving(prepared, [baseline.value, candidate.value]),
       stop: async (): Promise<void> => {
-        await cleanUp();
-        release();
+        try {
+          await cleanUp();
+        } finally {
+          release();
+        }
       },
     };
   } catch (error) {
@@ -252,6 +270,20 @@ export async function startHarness(
     release();
     throw error;
   }
+}
+
+export async function withHarness<Result>(
+  versions: readonly [string, string],
+  folderName: string,
+  body: (harness: Readonly<Harness>) => Promise<Result>,
+): Promise<Result> {
+  const harness = await startHarness(versions, folderName);
+
+  return withCleanup(
+    CLEANUP_FAILED,
+    () => body(harness),
+    () => harness.stop(),
+  );
 }
 
 export async function request(variant: Readonly<Variant>, route: Readonly<Route>): Promise<void> {
@@ -263,28 +295,4 @@ export async function request(variant: Readonly<Variant>, route: Readonly<Route>
   if (response.status !== 200) {
     throw new Error(`${route.name} on ${variant.name} answered ${response.status}`);
   }
-}
-
-export function median(values: readonly number[]): number {
-  return percentile(values, 50);
-}
-
-export function percentile(values: readonly number[], rank: number): number {
-  const sorted = values.toSorted((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.floor((rank / 100) * sorted.length))] ?? 0;
-}
-
-export function inSequence<T, R>(
-  items: readonly T[],
-  run: (item: T) => Promise<R>,
-): Promise<readonly R[]> {
-  return items.reduce<Promise<R[]>>(async (done, item) => {
-    const results = await done;
-    results.push(await run(item));
-    return results;
-  }, Promise.resolve([]));
-}
-
-export function counted(total: number): readonly number[] {
-  return Array.from({ length: total }, (_, index) => index);
 }

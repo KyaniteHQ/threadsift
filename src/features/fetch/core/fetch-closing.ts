@@ -1,8 +1,9 @@
 import type { BatchItem } from "drizzle-orm/batch";
 
+import { GITHUB_WAIT } from "../../../core/contract/job-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { ClaimedJob, Closing, JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { GITHUB_WAIT, githubClosing } from "../../github/core/github-cooldown.ts";
+import { githubClosing } from "../../github/core/github-cooldown.ts";
 import { redditClosed, redditClosing } from "../../reddit/core/reddit-account-queue.ts";
 import { isRedditJob } from "./fetch-read.ts";
 

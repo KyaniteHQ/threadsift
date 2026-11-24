@@ -1,7 +1,7 @@
 import { type SQL, and, eq, gte, isNull, lte, not, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { CLAIM_MARGIN_MS, type WaitReason } from "../../../core/contract/job-contract.ts";
+import { CLAIM_MARGIN_MS, REDDIT_WAIT } from "../../../core/contract/job-contract.ts";
 import { FILL_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { Closing, JobPorts } from "../../../core/kernel/job-outcome.ts";
@@ -15,8 +15,6 @@ import {
 import { type JobRow, jobs } from "../../../core/kernel/schema.ts";
 
 export const WAIT_CHECK_MS = 300_000;
-
-export const REDDIT_WAIT = "reddit-limit" satisfies WaitReason;
 
 const WAITING = waitingFetches(REDDIT_WAIT);
 
