@@ -8,12 +8,9 @@ import {
 } from "react";
 
 import type { More } from "./list-paging.ts";
+import { type PagedPage, readThrough } from "./read-through.ts";
 import { useLatest } from "./use-latest.ts";
 import { type Ticket, useTicket } from "./use-ticket.ts";
-
-export interface PagedPage {
-  readonly next: string | null;
-}
 
 export type PagedReady<Page extends PagedPage> = Page & {
   readonly status: "ready";
@@ -57,27 +54,16 @@ function appended<Page extends PagedPage>(
   return page === null ? { ...now, more: "failed" } : readyFrom(joined(now, page));
 }
 
-async function readThrough<Page extends PagedPage>(
-  read: Read<Page>,
-  joined: (shown: Readonly<Page>, added: Readonly<Page>) => Page,
-  covers: (shown: Readonly<Page>) => boolean,
-  shown: Readonly<Page>,
-): Promise<Page | null> {
-  if (shown.next === null || covers(shown)) return shown;
-
-  const added = await attempt(read, shown.next);
-
-  return added === null ? null : readThrough(read, joined, covers, joined(shown, added));
-}
-
 async function reloaded<Page extends PagedPage>(
   read: Read<Page>,
   joined: (shown: Readonly<Page>, added: Readonly<Page>) => Page,
-  covers: (shown: Readonly<Page>) => boolean,
+  { covers, signal }: Readonly<{ covers: (shown: Readonly<Page>) => boolean; signal: AbortSignal }>,
 ): Promise<Page | null> {
-  const first = await attempt(read, null);
+  const first = await attempt(read, null, signal);
 
-  return first === null ? null : readThrough(read, joined, covers, first);
+  return first === null
+    ? null
+    : readThrough(first, { read: (cursor) => attempt(read, cursor, signal), joined, covers });
 }
 
 async function firstRead<Page extends PagedPage>(
@@ -137,7 +123,10 @@ export function usePagedRead<Page extends PagedPage>(
       if (loaded.status !== "ready" || loaded.more === "loading" || reloading.current > 0) return;
 
       const mine = ticket.now();
-      const page = await reloaded(read, joined, (shown) => covers(shown, loaded));
+      const page = await reloaded(read, joined, {
+        covers: (shown) => covers(shown, loaded),
+        signal: ticket.signal(),
+      });
 
       if (page === null || !ticket.matches(mine)) return;
 

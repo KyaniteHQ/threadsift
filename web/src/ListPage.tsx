@@ -3,8 +3,9 @@ import { type MouseEvent, type ReactNode, useCallback, useRef } from "react";
 import { EmptyState, RetryNotice, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { PageBar } from "./PageBar.tsx";
+import type { PagedPage } from "./read-through.ts";
 import { useFocusNewRows } from "./use-focus-new-rows.ts";
-import type { Paged, PagedPage, PagedReady } from "./use-paged-read.ts";
+import type { Paged, PagedReady } from "./use-paged-read.ts";
 
 interface ListText {
   readonly title: string;
