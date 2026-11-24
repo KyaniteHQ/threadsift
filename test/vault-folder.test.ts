@@ -8,6 +8,7 @@ import {
   readdirSync,
   renameSync,
   rmSync,
+  symlinkSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -44,6 +45,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   let instance: Instance;
   let vault: string;
   let scratch: ReturnType<typeof mkdtempDisposableSync>;
+  let outside: ReturnType<typeof mkdtempDisposableSync>;
   let conflicted: number;
   let mirrored: number;
 
@@ -65,6 +67,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   before(async () => {
     scratch = mkdtempDisposableSync(`${tmpdir()}/threadsift-vault-`);
     vault = scratch.path;
+    outside = mkdtempDisposableSync(`${tmpdir()}/threadsift-vault-outside-`);
     instance = await Instance.start();
     await instance.setUp();
     conflicted = await paste(instance, "conflicted", { title: "Conflicted", topic: "Reading" });
@@ -74,6 +77,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   after(async () => {
     await instance.close();
     scratch.remove();
+    outside.remove();
   });
 
   it("offers Folder on this Instance and starts on GitHub with nothing saved", async () => {
@@ -106,6 +110,23 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
       chmodSync(locked, 0o700);
       rmSync(locked, { recursive: true });
     }
+  });
+
+  it("names a path that is a file and a Threadsift folder that is a symbolic link, and writes nothing", async () => {
+    writeFileSync(at("a-file"), "");
+    assert.deepEqual(await verify(at("a-file")), { kind: "refused", reason: "folder-path" });
+    rmSync(at("a-file"));
+
+    symlinkSync(outside.path, at("Threadsift"));
+
+    try {
+      assert.deepEqual(await verify(vault), { kind: "refused", reason: "folder-path" });
+      assert.deepEqual(readdirSync(outside.path), []);
+    } finally {
+      rmSync(at("Threadsift"));
+    }
+
+    assert.deepEqual(readdirSync(vault), []);
   });
 
   it("saves the folder, reads it back, and mirrors every Item note, the Topic page, the Index and the Log under Threadsift", async () => {
