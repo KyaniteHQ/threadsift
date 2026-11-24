@@ -1,10 +1,19 @@
-import { type SyntheticEvent, use, useCallback, useLayoutEffect, useRef } from "react";
+import {
+  type SyntheticEvent,
+  use,
+  useCallback,
+  useId,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+} from "react";
 
 import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
-import { type Panel, PanelContext, useHighlights } from "./highlights-context.ts";
+import { type Panel, PanelContext, type RemovePanel, useHighlights } from "./highlights-context.ts";
 import { placePopover, placementOf } from "./place-popover.ts";
 import { QuoteText } from "./QuoteText.tsx";
 import { KEEP_GROUP, KEEP_LABEL, REMOVE_GROUP, REMOVE_LABEL, removeNamed } from "./reader-text.ts";
+import { readerTitleOf } from "./reveal.ts";
 
 function placedWhileShown(element: HTMLElement, panel: Readonly<Panel>): () => void {
   if (!element.matches(":popover-open")) element.showPopover();
@@ -23,70 +32,143 @@ function placedWhileShown(element: HTMLElement, panel: Readonly<Panel>): () => v
     frame = requestAnimationFrame(place);
   };
 
+  const resized = new ResizeObserver(again);
+
   place();
+  resized.observe(element);
   window.addEventListener("scroll", again, true);
   window.addEventListener("resize", again);
 
   return () => {
+    resized.disconnect();
     cancelAnimationFrame(frame);
     window.removeEventListener("scroll", again, true);
     window.removeEventListener("resize", again);
   };
 }
 
-function RemoveButton({ id, label }: Readonly<{ id: number; label: string }>) {
+function markAfterRemove(panel: Readonly<RemovePanel>, removed: number): HTMLElement | null {
+  if (panel.mark.isConnected) return panel.mark;
+
+  const left = panel.ids.filter((id) => id !== removed);
+
+  return left.length === 0
+    ? null
+    : document.querySelector<HTMLElement>(
+        left.map((id) => `mark[data-highlights~="${id}"]`).join(),
+      );
+}
+
+function RemoveButton({
+  panel,
+  id,
+  label,
+  described,
+}: Readonly<{ panel: RemovePanel; id: number; label: string; described?: string }>) {
   const { remove } = useHighlights();
+  const button = useRef<HTMLButtonElement>(null);
 
   const removeIt = useCallback((): void => {
-    void remove(id);
-  }, [remove, id]);
+    const title = button.current === null ? null : readerTitleOf(button.current);
+
+    const refocus = (): void => {
+      (markAfterRemove(panel, id) ?? title)?.focus({ preventScroll: true });
+    };
+
+    void remove(id).then(refocus);
+  }, [remove, panel, id]);
 
   return (
-    <button type="button" className="btn" aria-label={label} onClick={removeIt}>
+    <button
+      ref={button}
+      type="button"
+      className="btn"
+      aria-label={label}
+      aria-describedby={described}
+      onClick={removeIt}
+    >
       {REMOVE_LABEL}
     </button>
   );
 }
 
-function RemoveRow({ highlight }: Readonly<{ highlight: Highlight }>) {
-  const { exact } = highlight.selector;
+function RemoveRow({ panel, highlight }: Readonly<{ panel: RemovePanel; highlight: Highlight }>) {
+  const { exact, prefix, suffix } = highlight.selector;
+  const id = useId();
+  const parts = [`${id}-before`, `${id}-quote`, `${id}-after`];
 
   return (
     <li className="hl-pop-row">
       <span className="hl-quote">
-        <QuoteText text={exact} />
+        <span>
+          <span id={parts[0]} className="hl-ctx">
+            <QuoteText text={prefix} />
+          </span>
+          <span id={parts[1]} className="hl-exact">
+            <QuoteText text={exact} />
+          </span>
+          <span id={parts[2]} className="hl-ctx">
+            <QuoteText text={suffix} />
+          </span>
+        </span>
       </span>
-      <RemoveButton id={highlight.id} label={removeNamed(exact)} />
+      <RemoveButton
+        panel={panel}
+        id={highlight.id}
+        label={removeNamed(exact)}
+        described={parts.join(" ")}
+      />
     </li>
   );
 }
 
-function RemoveAction({ ids }: Readonly<{ ids: readonly number[] }>) {
-  const { items } = useHighlights();
-  const highlights = items.filter(({ id }) => ids.includes(id));
-  const [only] = highlights;
+function RemoveAction({
+  panel,
+  rows,
+}: Readonly<{ panel: RemovePanel; rows: readonly Highlight[] }>) {
+  const [only] = rows;
 
-  if (highlights.length > 1) {
+  if (rows.length > 1) {
     return (
       <ul role="list" className="hl-pop-list">
-        {highlights.map((highlight) => (
-          <RemoveRow key={highlight.id} highlight={highlight} />
+        {rows.map((highlight) => (
+          <RemoveRow key={highlight.id} panel={panel} highlight={highlight} />
         ))}
       </ul>
     );
   }
 
-  return only === undefined ? null : <RemoveButton id={only.id} label={REMOVE_GROUP} />;
+  return only === undefined ? null : (
+    <RemoveButton panel={panel} id={only.id} label={REMOVE_GROUP} />
+  );
 }
 
+const NO_ROWS: readonly Highlight[] = [];
+
 function Popover({ panel }: Readonly<{ panel: Panel }>) {
-  const { keep, dismiss } = useHighlights();
+  const { keep, dismiss, items } = useHighlights();
   const popover = useRef<HTMLDivElement>(null);
+
+  const rows = useMemo(
+    () => (panel.kind === "remove" ? items.filter(({ id }) => panel.ids.includes(id)) : NO_ROWS),
+    [items, panel],
+  );
+
+  const lost = panel.kind === "remove" && rows.length === 0;
+
+  useLayoutEffect(() => {
+    if (panel.kind === "remove" && (rows.length === 0 || !panel.mark.isConnected)) dismiss();
+  }, [panel, rows, dismiss]);
 
   useLayoutEffect(
     () => (popover.current === null ? undefined : placedWhileShown(popover.current, panel)),
     [panel],
   );
+
+  useLayoutEffect(() => {
+    if (panel.kind === "remove" && panel.viaKeyboard)
+      popover.current?.querySelector("button")?.focus();
+  }, [panel]);
 
   const closed = useCallback(
     (event: SyntheticEvent<HTMLDivElement>): void => {
@@ -99,6 +181,8 @@ function Popover({ panel }: Readonly<{ panel: Panel }>) {
     if (panel.kind === "keep") keep(panel.draft);
   }, [panel, keep]);
 
+  if (lost) return null;
+
   return (
     <div ref={popover} popover="auto" className="hl-pop" onToggle={closed}>
       {panel.kind === "keep" ? (
@@ -106,7 +190,7 @@ function Popover({ panel }: Readonly<{ panel: Panel }>) {
           {KEEP_LABEL}
         </button>
       ) : (
-        <RemoveAction ids={panel.ids} />
+        <RemoveAction panel={panel} rows={rows} />
       )}
     </div>
   );
