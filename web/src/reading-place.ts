@@ -16,11 +16,21 @@ const AnchorSchema = z.object({
   offset: z.number().nonnegative(),
 });
 
-const PlacesSchema = z.array(z.tuple([WholeCount, AnchorSchema]));
+const PairsSchema = z.array(z.tuple([WholeCount, AnchorSchema]));
+
+const PlacesSchema = z.union([
+  PairsSchema,
+  z
+    .record(z.string(), AnchorSchema)
+    .transform((record) =>
+      Object.entries(record).map(([id, anchor]): [number, Anchor] => [Number(id), anchor]),
+    )
+    .pipe(PairsSchema),
+]);
 
 export type Anchor = z.infer<typeof AnchorSchema>;
 
-type Place = readonly [number, Readonly<Anchor>];
+type Place = Readonly<z.infer<typeof PairsSchema>[number]>;
 
 function readPlaces(): readonly Place[] {
   try {
