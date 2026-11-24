@@ -112,7 +112,7 @@ function useActions(
   const removeNow = useAction({
     run,
     action: "remove",
-    unavailable: unavailable.remove,
+    unavailable: null,
     task: task.remove,
   });
 

@@ -205,7 +205,7 @@ export function useRedditAccountForm(view: RedditAccountView, changed: Changed) 
   const disconnectNow = useAction({
     run,
     action: "remove",
-    unavailable: unavailable.remove,
+    unavailable: null,
     task: useDisconnect(session, changed),
   });
 

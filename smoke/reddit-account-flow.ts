@@ -24,6 +24,12 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await expect(button(page, REDDIT_ACCOUNT_TEXT.verify)).toHaveAccessibleDescription(
     REDDIT_ACCOUNT_TEXT.resultNotConfigured,
   );
+  await expect(button(page, REDDIT_ACCOUNT_TEXT.disconnect)).toHaveAccessibleDescription(
+    REDDIT_ACCOUNT_TEXT.removeNothing,
+  );
+  await expect(
+    section(page).getByText(REDDIT_ACCOUNT_TEXT.removeNothing, { exact: true }),
+  ).toBeVisible();
 
   await button(page, REDDIT_ACCOUNT_TEXT.connect).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.valueNeeded)).toBeVisible();

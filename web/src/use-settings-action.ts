@@ -122,6 +122,21 @@ interface ButtonSet<Check extends string> {
   readonly saveSecondary?: boolean;
 }
 
+function removeButton(
+  labels: Labels,
+  reason: Unavailable,
+  onClick: () => void,
+): ActionButton<"remove"> {
+  return {
+    action: "remove",
+    ...labels,
+    blocked: reason !== null,
+    hint: reason ?? undefined,
+    onClick,
+    secondary: true,
+  };
+}
+
 export function useActionButtons<Check extends string>({
   check,
   labels,
@@ -151,13 +166,7 @@ export function useActionButtons<Check extends string>({
         onClick: press.check,
         secondary: true,
       },
-      {
-        action: "remove",
-        ...labels.remove,
-        blocked: removeReason !== null,
-        onClick: press.remove,
-        secondary: true,
-      },
+      removeButton(labels.remove, removeReason, press.remove),
     ],
     [
       check,
