@@ -20,3 +20,7 @@ export function byteSize(bytes: number): string {
 export function collapsed(text: string): string {
   return text.replaceAll(/\s+/gu, " ").trim();
 }
+
+export function unicodeEscape(character: string): string {
+  return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
+}

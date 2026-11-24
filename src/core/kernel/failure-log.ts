@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { unicodeEscape } from "../contract/format.ts";
+
 const SQLITE_CONSTANTS = new Set([
   "SQLITE_BUSY",
   "SQLITE_CORRUPT",
@@ -54,11 +56,16 @@ export function databaseCodeOf(cause: unknown, depth = 0): string {
   return depth < 2 ? databaseCodeOf(failure.data.cause, depth + 1) : "unknown";
 }
 
-export function report(
-  event: string,
-  fields: Readonly<Record<string, number | string | null | readonly number[] | readonly string[]>>,
-): void {
-  console.warn(JSON.stringify({ event, ...fields }));
+const UNESCAPED_BY_JSON = /[\u007F-\u009F\u2028\u2029]/gu;
+
+type Field = number | string | null | readonly number[] | readonly string[];
+
+function lineOf(entry: Readonly<Record<string, Field>>): string {
+  return JSON.stringify(entry).replaceAll(UNESCAPED_BY_JSON, unicodeEscape);
+}
+
+export function report(event: string, fields: Readonly<Record<string, Field>>): void {
+  console.warn(lineOf({ event, ...fields }));
 }
 
 export function logFailure(
@@ -66,7 +73,7 @@ export function logFailure(
   fields: Readonly<Record<string, string | number>>,
   cause: unknown,
 ): void {
-  console.error(JSON.stringify({ event, ...fields, error: errorClassOf(cause) }));
+  console.error(lineOf({ event, ...fields, error: errorClassOf(cause) }));
 }
 
 interface FailureLine {
