@@ -195,5 +195,7 @@ export async function fetchThread(
 
   const unfilled = unfilledStubsOf(body.content, ref.postId);
 
+  if (unfilled === null) return null;
+
   return { body, completeness: unfilled === 0 ? "whole" : "replies-missing" };
 }
