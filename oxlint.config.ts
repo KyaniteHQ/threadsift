@@ -12,7 +12,6 @@ const NODE_GLOBALS = ["process", "Buffer", "global", "__dirname", "__filename", 
 const CANNOT_THROW = {
   "src/core/kernel/failure-log.ts": ["bestEffort", "readOrAssume"],
   "src/core/kernel/guards.ts": ["guardHeldOrUnread"],
-  "src/core/kernel/restore-hold.ts": ["heldOrUnread"],
 };
 
 const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];

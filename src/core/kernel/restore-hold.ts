@@ -2,8 +2,7 @@ import { type SQLWrapper, sql } from "drizzle-orm";
 
 import type { RestoreFailure } from "../contract/restore-contract.ts";
 import type { Database } from "./database.ts";
-import { readOrAssume } from "./failure-log.ts";
-import { holdsNoRow, insertGuard, refusedByGuard } from "./guards.ts";
+import { holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { HOLDING, NOTHING_WRITTEN, type Standing, standingSql } from "./restore-standing.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { STALE } from "./vault-stale.ts";
@@ -91,12 +90,6 @@ export function restoreGuard(db: Database) {
 
 export type Closed = { readonly kind: "restoring" };
 
-function heldOrUnread(db: Database): Promise<boolean> {
-  return readOrAssume(false, { event: "restore-hold-read-failed", fields: {} }, () =>
-    restoreHoldsLibrary(db),
-  );
-}
-
 export function orRestoreHolds(db: Database, condition: Readonly<SQLWrapper>) {
   return sql`(${condition}) or not ${holdsNoRestore(db)}`;
 }
@@ -105,13 +98,11 @@ export async function whileOpen<Result>(
   db: Database,
   write: () => Promise<Result>,
 ): Promise<Result | Closed> {
-  try {
-    return await write();
-  } catch (error) {
-    if (!refusedByGuard(error) || !(await heldOrUnread(db))) throw error;
+  const written = await unlessRefused(db, holdsNoRestore(db), async () => ({
+    result: await write(),
+  }));
 
-    return { kind: "restoring" };
-  }
+  return written === null ? { kind: "restoring" } : written.result;
 }
 
 export type Ending =
