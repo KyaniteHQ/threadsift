@@ -2,7 +2,7 @@ import { type LogPage, LogPageSchema } from "../../src/core/contract/log-contrac
 import { parsedFrom, withCursor } from "./calls.ts";
 import { usePagedRead } from "./use-paged-read.ts";
 
-function fetchLog(cursor: string | null, signal?: AbortSignal): Promise<LogPage> {
+function fetchLog(cursor: string | null, signal: AbortSignal): Promise<LogPage> {
   return parsedFrom("GET", withCursor("/api/log", cursor), LogPageSchema, { signal });
 }
 

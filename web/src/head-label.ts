@@ -1,4 +1,7 @@
+import type { HighlightsPage } from "../../src/core/contract/highlights-page-wire.ts";
 import { filled } from "./filled.ts";
+import { type Filters, isFiltered, isSearching } from "./filters.ts";
+import { matchedCount } from "./list-counts.ts";
 
 export const ITEM_HEAD = {
   one: "1 item, {unread} unread",
@@ -32,4 +35,16 @@ export function headLabel(
         : words.matchingText;
 
   return filled(template, values);
+}
+
+export function highlightsHeadText(
+  counts: Readonly<HighlightsPage["counts"]>,
+  filters: Readonly<Filters>,
+): string {
+  if (counts.total === 0) return "";
+
+  const shown = isFiltered(filters) ? matchedCount(counts, filters) : null;
+  const text = isSearching(filters) ? filters.q.trim() : "";
+
+  return headLabel(HIGHLIGHTS_HEAD, { total: counts.total, shown }, text);
 }

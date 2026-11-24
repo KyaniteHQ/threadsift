@@ -70,14 +70,14 @@ export async function putReadState(id: number, readState: ReadState): Promise<It
   ).item;
 }
 
-export function fetchItems(filters: Readonly<Filters>, signal?: AbortSignal): Promise<ItemList> {
+export function fetchItems(filters: Readonly<Filters>, signal: AbortSignal): Promise<ItemList> {
   return parsedFrom("GET", `/api/items${queryOf(filters)}`, ItemListResponseSchema, { signal });
 }
 
 export function fetchItemsAfter(
   filters: Readonly<Filters>,
   cursor: string,
-  signal?: AbortSignal,
+  signal: AbortSignal,
 ): Promise<ItemPage> {
   return parsedFrom("GET", `/api/items${queryOf(filters, cursor)}`, ItemPageResponseSchema, {
     signal,
@@ -87,7 +87,7 @@ export function fetchItemsAfter(
 export function fetchHighlightsPage(
   filters: Readonly<Filters>,
   cursor: string | null,
-  signal?: AbortSignal,
+  signal: AbortSignal,
 ): Promise<HighlightsPage> {
   return parsedFrom(
     "GET",
@@ -104,7 +104,7 @@ type TopicRead =
 export async function fetchTopicPage(
   key: string,
   cursor: string | null,
-  signal?: AbortSignal,
+  signal: AbortSignal,
 ): Promise<TopicRead> {
   const page = await parsedOrNull(
     "GET",

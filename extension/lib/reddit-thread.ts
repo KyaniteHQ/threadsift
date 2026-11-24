@@ -95,17 +95,13 @@ function cancelInTab(cancelEvent: string): void {
   window.dispatchEvent(new Event(cancelEvent));
 }
 
-function stopped(signal: AbortSignal | undefined): boolean {
-  return signal?.aborted === true;
-}
-
 async function answerFor(
   tabId: number,
   address: string,
   deadlineMs: number,
-  signal: AbortSignal | undefined,
+  signal: AbortSignal,
 ): Promise<TabAnswer | null> {
-  if (stopped(signal)) return NO_ANSWER;
+  if (signal.aborted) return null;
 
   const cancelEvent = `threadsift-cancel-${crypto.randomUUID()}`;
 
@@ -115,7 +111,7 @@ async function answerFor(
       .catch(() => null);
   };
 
-  signal?.addEventListener("abort", cancel, { once: true });
+  signal.addEventListener("abort", cancel, { once: true });
 
   try {
     const answer = await resultInTab(
@@ -137,7 +133,7 @@ async function answerFor(
 
     return answer;
   } finally {
-    signal?.removeEventListener("abort", cancel);
+    signal.removeEventListener("abort", cancel);
   }
 }
 
@@ -175,7 +171,7 @@ export async function fetchThread(
   const stop = signal === undefined ? tabLost.signal : AbortSignal.any([signal, tabLost.signal]);
 
   const read = async (address: string, deadlineMs: number): Promise<TabAnswer> => {
-    const answer = await answerFor(tab.id, address, deadlineMs, signal);
+    const answer = await answerFor(tab.id, address, deadlineMs, stop);
 
     if (answer !== null) return answer;
 
@@ -187,7 +183,7 @@ export async function fetchThread(
   const first = await read(threadAddress(tab), REQUEST_DEADLINE_MS);
   const hidden = hiddenIn(first, ref.postId);
 
-  if (hidden === null || stopped(stop)) return null;
+  if (hidden === null || stop.aborted) return null;
 
   const filled = await fillAnswers(
     read,
@@ -201,7 +197,7 @@ export async function fetchThread(
     { deadlineMs: THREAD_READ_DEADLINE_MS, signal: stop },
   );
 
-  if (stopped(stop)) return null;
+  if (stop.aborted) return null;
 
   const body = fitThreadBody(tab.url, filled.answers, fill === true);
 

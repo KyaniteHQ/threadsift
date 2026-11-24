@@ -1,36 +1,33 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export interface Ticket {
-  readonly take: () => number;
-  readonly now: () => number;
-  readonly matches: (mine: number) => boolean;
-  readonly signal: () => AbortSignal;
+  readonly take: () => AbortSignal;
+  readonly current: () => AbortSignal;
 }
 
 function newTicket(): Ticket {
-  let count = 0;
-  let abort: AbortController | null = null;
+  let controller = new AbortController();
 
   return {
     take: () => {
-      abort?.abort();
-      abort = null;
-      count += 1;
+      controller.abort();
+      controller = new AbortController();
 
-      return count;
+      return controller.signal;
     },
-    now: () => count,
-    matches: (mine) => count === mine,
-    signal: () => {
-      abort ??= new AbortController();
-
-      return abort.signal;
-    },
+    current: () => controller.signal,
   };
 }
 
 export function useTicket(): Ticket {
   const [ticket] = useState(newTicket);
+
+  useEffect(
+    () => () => {
+      ticket.take();
+    },
+    [ticket],
+  );
 
   return ticket;
 }

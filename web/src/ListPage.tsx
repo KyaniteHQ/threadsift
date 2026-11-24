@@ -76,7 +76,7 @@ function Rows<Page extends PagedPage, Row>({
   );
 }
 
-function Content<Page extends PagedPage, Row>({
+function Body<Page extends PagedPage, Row>({
   state,
   loadMore,
   listing,
@@ -98,41 +98,30 @@ function Content<Page extends PagedPage, Row>({
   }
 }
 
-function Body<Page extends PagedPage, Row>({
-  source: { state, retry, loadMore },
-  listing,
-  draw,
-}: Readonly<{ source: Source<Page> } & Shown<Page, Row>>) {
-  const retryLoad = useCallback(() => {
-    void retry();
-  }, [retry]);
-
-  return (
-    <>
-      <RetryNotice
-        failed={state.status === "failed"}
-        text={listing.text.loadFailed}
-        action={retryLoad}
-      />
-      <Content state={state} loadMore={loadMore} listing={listing} draw={draw} />
-    </>
-  );
-}
-
 export function ListPage<Page extends PagedPage, Row>({
   source,
   listing,
   draw,
   notice = null,
 }: Readonly<{ source: Source<Page>; notice?: string | null } & Shown<Page, Row>>) {
-  const loading = source.state.status === "loading";
+  const { state, retry, loadMore } = source;
+  const loading = state.status === "loading";
+
+  const retryLoad = useCallback(() => {
+    void retry();
+  }, [retry]);
 
   return (
     <div className="pg">
       <PageBar title={listing.text.title} ready={!loading} />
       <main className="pg-col rl-col" aria-busy={loading}>
         {notice === null ? null : <p className="rd-note">{notice}</p>}
-        <Body source={source} listing={listing} draw={draw} />
+        <RetryNotice
+          failed={state.status === "failed"}
+          text={listing.text.loadFailed}
+          action={retryLoad}
+        />
+        <Body state={state} loadMore={loadMore} listing={listing} draw={draw} />
       </main>
     </div>
   );

@@ -6,7 +6,7 @@ import type {
   TopicPage,
 } from "../../src/core/contract/topic-overview-contract.ts";
 import { fetchTopicPage, retryTopicOverview } from "./api.ts";
-import { type More, newer } from "./list-paging.ts";
+import { type More, reaches } from "./list-paging.ts";
 import { readThrough } from "./read-through.ts";
 import type { Route } from "./routing.ts";
 import { useGuard } from "./use-form.ts";
@@ -41,22 +41,14 @@ function readyFrom(page: Readonly<TopicPage>): TopicReady {
   return { status: "ready", ...page, more: "idle" };
 }
 
-async function attempt(key: string, cursor: string | null, signal: AbortSignal) {
-  try {
-    return await fetchTopicPage(key, cursor, signal);
-  } catch {
-    return null;
-  }
+type TopicRead = Awaited<ReturnType<typeof fetchTopicPage>>;
+
+function attempt(key: string, cursor: string | null, signal: AbortSignal) {
+  return fetchTopicPage(key, cursor, signal).catch(() => null);
 }
 
-function foundPage(read: Awaited<ReturnType<typeof fetchTopicPage>>): TopicPage | null {
-  return read.outcome === "found" ? read.page : null;
-}
-
-function reaches(page: Readonly<TopicPage>, last: Readonly<TopicItem> | undefined): boolean {
-  const end = page.items.at(-1);
-
-  return last === undefined || end === undefined || !newer(end, last);
+function foundPage(read: TopicRead | null): TopicPage | null {
+  return read?.outcome === "found" ? read.page : null;
 }
 
 function joined(shown: Readonly<TopicPage>, added: Readonly<TopicPage>): TopicPage {
@@ -67,19 +59,15 @@ async function freshRead(
   key: string,
   { last, signal }: Readonly<{ last: Readonly<TopicItem> | undefined; signal: AbortSignal }>,
 ) {
-  try {
-    const first = foundPage(await fetchTopicPage(key, null, signal));
+  const first = foundPage(await fetchTopicPage(key, null, signal));
 
-    return first === null
-      ? null
-      : await readThrough(first, {
-          read: async (cursor) => foundPage(await fetchTopicPage(key, cursor, signal)),
-          joined,
-          covers: (shown) => reaches(shown, last),
-        });
-  } catch {
-    return null;
-  }
+  return first === null
+    ? null
+    : readThrough(first, {
+        read: async (cursor) => foundPage(await fetchTopicPage(key, cursor, signal)),
+        joined,
+        covers: (shown) => reaches(shown, last),
+      });
 }
 
 function appended(now: TopicState, page: Readonly<TopicPage> | null): TopicState {
@@ -94,10 +82,10 @@ type SetState = Dispatch<SetStateAction<TopicState>>;
 
 function useFirstRead(key: string, setState: SetState, ticket: Ticket) {
   return useCallback(async () => {
-    const mine = ticket.take();
-    const read = await attempt(key, null, ticket.signal());
+    const signal = ticket.take();
+    const read = await attempt(key, null, signal);
 
-    if (!ticket.matches(mine)) return;
+    if (signal.aborted) return;
 
     if (read === null) setState(FAILED);
     else setState(read.outcome === "missing" ? MISSING : readyFrom(read.page));
@@ -115,13 +103,11 @@ function useLoadMore(
 
     if (current.status !== "ready" || current.next === null || current.more === "loading") return;
 
-    const mine = ticket.now();
+    const signal = ticket.current();
     setState({ ...current, more: "loading" });
 
-    void attempt(key, current.next, ticket.signal()).then((read) => {
-      if (ticket.matches(mine)) {
-        setState((now) => appended(now, read?.outcome === "found" ? read.page : null));
-      }
+    void attempt(key, current.next, signal).then((read) => {
+      if (!signal.aborted) setState((now) => appended(now, foundPage(read)));
 
       return read;
     });
@@ -150,13 +136,13 @@ function useOverviewPoll(
 
   usePolling(pending, async () => {
     const loaded = latest.current;
-    const mine = ticket.now();
+    const signal = ticket.current();
 
     if (loaded.status !== "ready" || loaded.more === "loading") return;
 
-    const page = await freshRead(key, { last: loaded.items.at(-1), signal: ticket.signal() });
+    const page = await freshRead(key, { last: loaded.items.at(-1), signal }).catch(() => null);
 
-    if (page !== null && ticket.matches(mine)) {
+    if (page !== null && !signal.aborted) {
       setState((now) => applyRefresh(now, { page, loaded }));
     }
   });
@@ -188,11 +174,7 @@ export function useTopicPage(key: string, replace: Route["replace"]) {
 
   useEffect(() => {
     void first();
-
-    return () => {
-      ticket.take();
-    };
-  }, [first, ticket]);
+  }, [first]);
 
   const retry = useCallback((): void => {
     setState(LOADING);

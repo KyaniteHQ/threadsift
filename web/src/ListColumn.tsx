@@ -8,10 +8,6 @@ import { LOAD_FAILED } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
 
-function LookupNotice({ failed, again }: Readonly<{ failed: boolean; again: () => void }>) {
-  return <RetryNotice failed={failed} text={LOAD_FAILED} action={again} />;
-}
-
 function LibraryList({
   view,
   look,
@@ -21,14 +17,18 @@ function LibraryList({
 
   return (
     <main ref={listPane} className="list" tabIndex={-1}>
-      <LookupNotice failed={actions.lookupFailed} again={actions.lookAgain} />
+      <RetryNotice failed={actions.lookupFailed} text={LOAD_FAILED} action={actions.lookAgain} />
+      <RetryNotice
+        failed={library.list.status === "failed"}
+        text={LOAD_FAILED}
+        action={actions.retryAndKeepPlace}
+      />
       <ListBody
         list={library.list}
         cardImages={look.settings.images === "on"}
         openId={openId}
         attention={actions.attention}
         attended={actions.attended}
-        retry={actions.retryAndKeepPlace}
         tryAgain={actions.tryAgain}
         clearAll={view.clearAll}
         open={side.reader.open}

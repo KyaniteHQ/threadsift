@@ -91,13 +91,12 @@ function pollItem(id: number, polled: Readonly<Polled>): () => void {
   };
 
   const read = async (): Promise<void> => {
-    const mine = polled.ticket.now();
+    const mine = polled.ticket.current();
     const fetched = await readStatus(id, wanted).catch(() => FAILED);
 
     if (fetched === null || stopped) return;
 
-    if (!polled.ticket.matches(mine) || fetched === FAILED || deliver(id, fetched, polled))
-      schedule();
+    if (mine.aborted || fetched === FAILED || deliver(id, fetched, polled)) schedule();
   };
 
   const resume = (): void => {

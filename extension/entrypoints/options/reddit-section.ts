@@ -95,10 +95,11 @@ export async function refreshReddit(): Promise<void> {
   if (isNewest()) move(next);
 }
 
-function followPermissions(): void {
+function refreshUnlessPressing(): void {
   if (current.kind !== "working") void refreshReddit();
 }
 
-browser.permissions.onAdded.addListener(followPermissions);
-
-browser.permissions.onRemoved.addListener(followPermissions);
+export function followRedditPermissions(): void {
+  browser.permissions.onAdded.addListener(refreshUnlessPressing);
+  browser.permissions.onRemoved.addListener(refreshUnlessPressing);
+}

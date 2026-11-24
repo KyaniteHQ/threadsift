@@ -5,7 +5,7 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { fetchItems, fetchItemsAfter } from "./api.ts";
 import { type Filters, queryOf } from "./filters.ts";
 import { useMore } from "./list-more.ts";
-import { newer } from "./list-paging.ts";
+import { reaches } from "./list-paging.ts";
 import {
   type ListState,
   type SetList,
@@ -25,19 +25,11 @@ export interface Reads {
 
 interface Reach {
   readonly edge: () => Item | undefined;
-  readonly isCurrent: () => boolean;
   readonly signal: AbortSignal;
 }
 
 function edgeOf(list: Readonly<ListState>, asked: string): Item | undefined {
   return readFor(list, asked) ? list.items.at(-1) : undefined;
-}
-
-function reached(page: Readonly<ItemPage>, reach: Readonly<Reach>): boolean {
-  const last = page.items.at(-1);
-  const edge = reach.edge();
-
-  return !reach.isCurrent() || last === undefined || edge === undefined || !newer(last, edge);
 }
 
 function joined(shown: Readonly<ItemList>, added: Readonly<ItemPage>): ItemList {
@@ -48,7 +40,7 @@ async function readItems(filters: Readonly<Filters>, reach: Readonly<Reach>) {
   return readThrough(await fetchItems(filters, reach.signal), {
     read: (cursor) => fetchItemsAfter(filters, cursor, reach.signal),
     joined,
-    covers: (shown) => reached(shown, reach),
+    covers: (shown) => reach.signal.aborted || reaches(shown, reach.edge()),
   });
 }
 
@@ -60,19 +52,14 @@ function useListRead(
   const { setList, ticket } = wiring;
 
   useEffect(() => {
-    const mine = ticket.take();
+    const signal = ticket.take();
     const asked = queryOf(query.filters);
-
-    const reach = {
-      edge: () => edgeOf(latest.current, asked),
-      isCurrent: () => ticket.matches(mine),
-      signal: ticket.signal(),
-    };
+    const reach = { edge: () => edgeOf(latest.current, asked), signal };
 
     const read = async (): Promise<void> => {
       const answer = await readItems(query.filters, reach).catch(() => null);
 
-      if (!ticket.matches(mine)) return;
+      if (signal.aborted) return;
 
       if (answer === null) {
         setList(failedList);
@@ -82,10 +69,6 @@ function useListRead(
     };
 
     void read();
-
-    return () => {
-      ticket.take();
-    };
   }, [latest, query, ticket, setList]);
 }
 

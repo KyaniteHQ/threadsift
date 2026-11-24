@@ -7,20 +7,6 @@ import { ReaderContent, ReaderNotices } from "./ReaderContent.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
 
-function useReadyState(
-  state: DetailState,
-  slot: RefObject<HTMLElement | null>,
-  itemId: number,
-): Exclude<DetailState, { status: "loading" }> | null {
-  use(postTextModule());
-
-  const ready = state.status === "loading" ? null : state;
-
-  useReadingPlace(slot, itemId, ready?.status === "ready");
-
-  return ready;
-}
-
 export function ReaderBody({
   item,
   slot,
@@ -42,7 +28,10 @@ export function ReaderBody({
   focusTitle: boolean;
   tryAgain: (item: Item) => void;
 }>) {
-  const ready = useReadyState(state, slot, item.id);
+  use(postTextModule());
+  useReadingPlace(slot, item.id, state.status === "ready");
+
+  const loading = state.status === "loading";
   const content = { item, actions, announce, tryAgain, now };
 
   return (
@@ -53,11 +42,11 @@ export function ReaderBody({
         now={now}
         titleId={titleId}
         focusTitle={focusTitle}
-        loading={ready === null}
+        loading={loading}
         tryAgain={tryAgain}
       />
       <ReaderNotices state={state} retry={actions.retry} />
-      {ready === null ? <ReaderLoading /> : null}
+      {loading ? <ReaderLoading /> : null}
       {state.status === "ready" ? <ReaderContent {...content} state={state} /> : null}
     </>
   );

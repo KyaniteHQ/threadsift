@@ -1,7 +1,7 @@
 import type { ImportState } from "../../src/core/contract/import-contract.ts";
 import { doneOf } from "../../src/core/contract/import-list.ts";
+import { pause } from "../../src/core/contract/pause.ts";
 import { readImportState } from "./import-api.ts";
-import { pause } from "./pause.ts";
 import { POLL_MS } from "./poll-interval.ts";
 import { IMPORT_BATCH_PATIENCE_MS } from "./write-deadlines.ts";
 

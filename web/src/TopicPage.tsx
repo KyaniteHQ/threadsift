@@ -12,7 +12,7 @@ function Loading() {
   return <Skeleton label={TOPIC_PAGE.loading} row="rl-row" title="rl-title" />;
 }
 
-function Content({
+function Body({
   state,
   loadMore,
   write,
@@ -41,25 +41,6 @@ function Content({
   }
 }
 
-function Body({
-  state,
-  retry,
-  loadMore,
-  write,
-}: Readonly<{
-  state: TopicState;
-  retry: () => void;
-  loadMore: () => void;
-  write: () => void;
-}>) {
-  return (
-    <>
-      <RetryNotice failed={state.status === "failed"} text={TOPIC_PAGE.loadFailed} action={retry} />
-      <Content state={state} loadMore={loadMore} write={write} />
-    </>
-  );
-}
-
 export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; route: Route }>) {
   const { state, retry, loadMore, writeOverview } = useTopicPage(topicKey, route.replace);
   const name = state.status === "ready" ? state.topic.name : "";
@@ -69,7 +50,12 @@ export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; rout
     <div className="pg">
       <PageBar title={name} ready={state.status !== "loading"} />
       <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
-        <Body state={state} retry={retry} loadMore={loadMore} write={writeOverview} />
+        <RetryNotice
+          failed={state.status === "failed"}
+          text={TOPIC_PAGE.loadFailed}
+          action={retry}
+        />
+        <Body state={state} loadMore={loadMore} write={writeOverview} />
       </main>
     </div>
   );

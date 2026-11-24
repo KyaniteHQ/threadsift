@@ -6,12 +6,12 @@ import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { More } from "./list-paging.ts";
 import type { ListState } from "./list-state.ts";
+import { LoadMore } from "./LoadMore.tsx";
 import {
   CLEAR_ALL,
   EMPTY_LIST,
   LOADING_LABEL,
   LOAD_FAILED,
-  LOAD_MORE,
   NO_RESULTS,
   RETRY_LABEL,
 } from "./text.ts";
@@ -132,12 +132,13 @@ function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) 
   return (
     <>
       {state === "loading" ? <Loading /> : null}
-      <div className="noresults">
-        <p role="alert">{state === "failed" ? LOAD_FAILED : null}</p>
-        <button type="button" className="btn" aria-disabled={state === "loading"} onClick={more}>
-          {state === "failed" ? RETRY_LABEL : LOAD_MORE}
-        </button>
-      </div>
+      <LoadMore
+        variant="column"
+        more={state}
+        failedText={LOAD_FAILED}
+        disabled={state === "loading"}
+        loadMore={more}
+      />
     </>
   );
 }
@@ -154,7 +155,6 @@ export function EmptyState({ heading, line }: Readonly<{ heading: string; line: 
 
 interface ListBodyProps extends RowProps {
   readonly list: ListState;
-  readonly retry: () => void;
   readonly clearAll: () => void;
   readonly more: () => void;
 }
@@ -189,17 +189,12 @@ function LoadedList({
   );
 }
 
-function ListContent({
+export const ListBody = memo(function ListBody({
   list,
   clearAll,
   more,
-  shared,
-}: Readonly<{
-  list: ListState;
-  clearAll: ListBodyProps["clearAll"];
-  more: ListBodyProps["more"];
-  shared: Readonly<RowProps>;
-}>) {
+  ...shared
+}: Readonly<ListBodyProps>) {
   if (list.status === "failed") return null;
 
   if (list.status === "loading") return <Loading />;
@@ -215,19 +210,4 @@ function ListContent({
   }
 
   return <LoadedList list={list} more={more} shared={shared} />;
-}
-
-export const ListBody = memo(function ListBody({
-  list,
-  retry,
-  clearAll,
-  more,
-  ...shared
-}: Readonly<ListBodyProps>) {
-  return (
-    <>
-      <RetryNotice failed={list.status === "failed"} text={LOAD_FAILED} action={retry} />
-      <ListContent list={list} clearAll={clearAll} more={more} shared={shared} />
-    </>
-  );
 });

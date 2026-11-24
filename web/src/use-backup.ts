@@ -13,11 +13,11 @@ type Changed = (view: ExportStatus) => void;
 
 function useReader(changed: Changed, ticket: Ticket) {
   return useCallback(async (): Promise<void> => {
-    const mine = ticket.take();
+    const signal = ticket.take();
 
     const view = await fetchExportStatus();
 
-    if (ticket.matches(mine)) changed(view);
+    if (!signal.aborted) changed(view);
   }, [changed, ticket]);
 }
 
