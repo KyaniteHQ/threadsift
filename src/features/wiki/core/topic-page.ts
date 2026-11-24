@@ -30,7 +30,7 @@ function pageQuery(db: Database, topicId: number, cursor: Readonly<ItemCursor> |
       savedAt: items.savedAt,
       readState: items.readState,
       title: digests.title,
-      summary: listedSummary(),
+      summary: listedSummary(digests.digest),
       digest: digests.taskId,
     })
     .from(items)
