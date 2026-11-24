@@ -5,9 +5,10 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
+import type { Existing } from "../src/features/item/core/item-rows.ts";
 import { saveResolved, saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { count, exec, rows } from "./related-fixtures.ts";
 import { xLink } from "./token-budget-fixtures.ts";
 
 const AliasSchema = z.object({
@@ -42,12 +43,17 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     return saved.item.id;
   };
 
-  const resolved = (short: string, target: string, address = target) =>
+  const resolved = (
+    short: string,
+    target: string,
+    address = target,
+    existing: Existing = "refresh",
+  ) =>
     saveResolved(instance.core, {
       shortLink: parseLink(short).normalizedUrl,
       paste: { originalUrl: short, address, digest: undefined, addedByToken: null },
       link: parseLink(target),
-      existing: "refresh",
+      existing,
     });
 
   const aliasesOf = (short: string) =>
@@ -158,6 +164,39 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
       [first.item.id],
     );
   });
+
+  const refusedRival = async (short: string, first: string, second: string, existing: Existing) => {
+    const aliased = await resolved(short, first);
+
+    assert.ok(aliased !== null, "the first resolution saves an Item");
+
+    const total = await instance.itemTotal();
+    const saved = await resolved(short, second, second, existing);
+
+    assert.equal(saved, null);
+    assert.equal(await instance.itemTotal(), total);
+    assert.equal(
+      count(
+        instance,
+        "select count(*) as n from items where normalized_url = ?",
+        parseLink(second).normalizedUrl,
+      ),
+      0,
+    );
+    assert.equal(
+      (await instance.detail(aliased.item.id)).normalizedUrl,
+      parseLink(first).normalizedUrl,
+    );
+    assert.deepEqual(aliasesOf(short), [
+      { normalized_url: parseLink(short).normalizedUrl, address: first, item_id: aliased.item.id },
+    ]);
+  };
+
+  it("refuses a second resolution of an aliased short link to another identity, and leaves the alias and the Items as they were", () =>
+    refusedRival("https://t.co/rivalrefresh", xLink(909), xLink(910), "refresh"));
+
+  it("refuses a second resolution of an aliased short link to another identity when the Paste keeps an existing Item", () =>
+    refusedRival("https://t.co/rivalkeep", xLink(911), xLink(912), "keep"));
 
   it("makes no failed Item for a short link that already has an alias", async () => {
     const short = "https://t.co/aliasedfirst";
