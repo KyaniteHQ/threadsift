@@ -51,7 +51,7 @@ Details of the matching:
 - It resolves relative specifiers and the Extension's WXT aliases `@/`, `~/`, `@@/` and `~~/`, which the Extension's generated tsconfig maps to the Extension folder. The root TypeScript configuration, the Vite configuration and the web app define no alias, and the Extension defines no other.
 - A `require()`, `createRequire(...)()` or `import()` whose source is computed is reported when a string in it names a path under `src/core` or `src/features`, or, in a file of `web/`, `extension/` or `design/`, a path under `src/http` or `src/targets`. A source with no such string, such as `import(pathToFileURL(path).href)` in the container's fetcher module loader, is not seen.
 - `new URL(..., import.meta.url)` and `import.meta.resolve` load nothing and are not checked.
-- No code outside `design/prototype/` calls `require` or `createRequire`.
+- No linted file calls `require` or `createRequire`.
 - The rule applies to every linted file, so it has no `files` override and no exception. The packages a browser may load are the job of `threadsift/no-server-value-import`.
 
 ## Custom rules
@@ -72,7 +72,7 @@ The rule matches the identifier `items` as the first argument. It does not see a
 
 It reports a value import whose chain reaches a server module (the `forbidden` option in the oxlint configuration lists them), because the bundler ships every module a value import reaches. A plugin rule sees only the file it lints, so the walk reads the other files itself. It scans their import statements with regular expressions and follows only `.ts`, `.tsx` and `.mts` files, reached by a relative path or, from an Extension file, by one of its WXT aliases (the same resolution as `threadsift/layer-imports`). The plugin runs in Node, so `node:fs` works, as `pnpm lint` shows. The plugin docs ([Writing JS plugins](https://oxc.rs/docs/guide/usage/linter/js-plugins)) do not mention reading files, and the `@oxlint/plugins` types give a rule `context.cwd` and `context.filename`.
 
-The rule sees no `require`, no path alias outside the Extension and no import in a file that the walk cannot scan as TypeScript. The repository has none of those, and the root TypeScript configuration sets no `paths`. The WXT and Vite configurations run in Node, so the folders above exclude them.
+The rule sees no `require`, no path alias outside the Extension and no import in a file that the walk cannot scan as TypeScript. In the folders it covers, no file calls `require` or uses another alias, every relative import names a TypeScript file or a style sheet, which holds no import of code, and the root TypeScript configuration sets no `paths`. The WXT and Vite configurations run in Node, so the folders above exclude them.
 
 ### `threadsift/no-await-before-rethrow`
 
