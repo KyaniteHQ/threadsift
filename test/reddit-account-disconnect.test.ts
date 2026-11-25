@@ -33,6 +33,7 @@ describe("Disconnect removes the Reddit account and makes due at once only the j
     fetchJob(instance, 903, { state: "queued", waitReason: "github-rate-limit", dueAt: LATER });
 
     const removed = await instance.read("DELETE", PATH, z.looseObject({ state: z.string() }));
+    const observedAt = Date.now();
 
     assert.equal(removed.state, "none");
     assert.deepEqual(account(instance), []);
@@ -46,12 +47,12 @@ describe("Disconnect removes the Reddit account and makes due at once only the j
       settled.map(({ id, wait_reason: reason, next_attempt_at: due }) => [
         id,
         reason,
-        Math.sign(due - LATER),
+        due <= observedAt ? "due" : due,
       ]),
       [
-        [901, null, -1],
-        [902, null, -1],
-        [903, "github-rate-limit", 0],
+        [901, null, "due"],
+        [902, null, "due"],
+        [903, "github-rate-limit", LATER],
       ],
     );
   });

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { tagId } from "./accept-fixtures.ts";
+import { propose } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
   ColumnsSchema,
@@ -12,9 +12,8 @@ import {
   readPage,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { seedProposal } from "./proposal-seed.ts";
 import { SECRET_KEY, paste, rows } from "./related-fixtures.ts";
-import { topicId } from "./topic-accept-fixtures.ts";
+import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 const highlightColumns = (instance: Instance) =>
   rows(instance, ColumnsSchema, "select * from highlights order by id");
@@ -35,21 +34,8 @@ describe("lost-Highlight Proposals beside Tag and Topic rows", () => {
       topic: "Machine learning",
       tags: ["llm", "llms"],
     });
-    seedProposal(
-      instance,
-      "tag-merge",
-      { from_tag_id: tagId(instance, "llms"), into_tag_id: tagId(instance, "llm") },
-      { reason: "Plural." },
-    );
-    seedProposal(
-      instance,
-      "topic-merge",
-      {
-        from_topic_id: topicId(instance, "ML"),
-        into_topic_id: topicId(instance, "Machine learning"),
-      },
-      { reason: "Short form." },
-    );
+    propose(instance, ["llms", "llm"]);
+    proposeTopics(instance, ["ML", "Machine learning"]);
 
     const bareItem = await paste(instance, "bare", {
       title: "unused",

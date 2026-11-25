@@ -7,21 +7,26 @@ import { BACKUP_TABLES } from "../src/core/kernel/backup-tables.ts";
 import {
   EXPORT_LIBRARY,
   type SavedLibrary,
+  type SliceEntry,
   downloadedZip,
+  exportPieces,
   firstLongText,
   readyExport,
   savedLibrary,
-} from "./export-restore-fixtures.ts";
-import {
-  bytesOfKey,
-  postTextKey,
-  type SliceEntry,
-  numberedKeys,
   sliceEntries,
-} from "./file-store-fixtures.ts";
+} from "./export-restore-fixtures.ts";
+import { bytesOfKey, postTextKey } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { latestMigration } from "./related-fixtures.ts";
-import { entriesOf, entryOf, linesOf, manifestOf, recordLines, rootOf } from "./zip-fixtures.ts";
+import {
+  assertSameBytes,
+  entriesOf,
+  entryOf,
+  linesOf,
+  manifestOf,
+  recordLines,
+  rootOf,
+} from "./zip-fixtures.ts";
 
 const SLICE_BYTES = 8_388_608;
 
@@ -49,9 +54,11 @@ describe("an Export of a library too big for one slice is one complete zip", () 
 
   it("closes a slice at 40 Items or 8 MiB, so 50 Items with 5 post text files of 1.1 MB take at least 3 slices", async () => {
     assert.ok(parts >= 3, `${String(parts)} slices`);
-    assert.equal((await numberedKeys(instance, exportId, "part")).length, parts);
-    assert.equal((await numberedKeys(instance, exportId, "dir")).length, parts);
-    assert.equal((await numberedKeys(instance, exportId, "tail")).length, 1);
+    const pieces = await exportPieces(instance, exportId);
+
+    assert.equal(pieces.parts.length, parts);
+    assert.equal(pieces.directories.length, parts);
+    assert.equal(pieces.tails.length, 1);
   });
 
   it("holds 40 Items in its first slice, at most 40 in every slice and, after its first entry, at most 8 MiB of entries", async () => {
@@ -80,15 +87,15 @@ describe("an Export of a library too big for one slice is one complete zip", () 
   });
 
   it("streams every part, then every directory, then the tail, as one zip of the size the status reports", async () => {
-    const keys = await Promise.all(
-      ["part", "dir", "tail"].map((stem) => numberedKeys(instance, exportId, stem)),
-    );
+    const { parts: partKeys, directories, tails } = await exportPieces(instance, exportId);
 
-    const stored = await Promise.all(keys.flat().map((key) => bytesOfKey(instance, key)));
+    const stored = await Promise.all(
+      [...partKeys, ...directories, ...tails].map((key) => bytesOfKey(instance, key)),
+    );
 
     const status = await instance.read("GET", "/api/export", ExportStatusSchema);
 
-    assert.deepEqual(new Uint8Array(Buffer.concat(stored)), zip);
+    assertSameBytes(Buffer.concat(stored), zip, "the stored pieces in download order");
     assert.equal(status.state, "ready");
     assert.equal(status.zipBytes, zip.length);
 
@@ -107,7 +114,9 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     const entries = await entriesOf(zip);
 
     assert.deepEqual([...entries.keys()].toSorted(), [...independent.keys()].toSorted());
-    assert.deepEqual(entries, independent);
+    for (const [name, bytes] of entries) {
+      assertSameBytes(bytes, entryOf(independent, name), name);
+    }
     assert.match(rootOf(entries), /^threadsift-\d{4}-\d{2}-\d{2}\/$/u);
     assert.ok([...entries.keys()].every((name) => name.startsWith(rootOf(entries))));
   });
@@ -162,7 +171,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     }
 
     for (const [id, text] of library.longTexts) {
-      assert.deepEqual(
+      assertSameBytes(
         entryOf(entries, `${root}${postTextKey(id)}`),
         new TextEncoder().encode(text),
         `post text file of ${String(id)}`,
@@ -270,9 +279,10 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
         .map(({ size }) => size),
       [textBytes],
     );
-    assert.deepEqual(
+    assertSameBytes(
       entryOf(entries, `${rootOf(entries)}${postKey}`),
       new TextEncoder().encode("x".repeat(textBytes)),
+      "post text file",
     );
   });
 
