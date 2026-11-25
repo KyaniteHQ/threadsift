@@ -35,7 +35,7 @@ const save = (
   link: string,
   digest: Readonly<{ title: string; topic: string; tags: readonly string[] }>,
 ): Promise<number> =>
-  savedItem(page, {
+  savedItem(page.request, {
     url: link,
     page: { markdown: MARKDOWN, title: digest.title },
     digest: { ...digest, summary: "A short summary.", keyPoints: ["One point"] },

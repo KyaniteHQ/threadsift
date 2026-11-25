@@ -20,7 +20,7 @@ const MARKDOWN = Array.from({ length: HIGHLIGHTS }, (_unused, index) => sentence
 );
 
 export async function keepHighlightsAndNote(page: Page): Promise<{ item: number; first: number }> {
-  const item = await savedItem(page, {
+  const item = await savedItem(page.request, {
     url: "https://example.com/guides/highlights",
     page: { markdown: MARKDOWN, title: TITLE },
     digest: {

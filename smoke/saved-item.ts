@@ -1,30 +1,18 @@
-import { type APIRequestContext, type Page, expect } from "@playwright/test";
+import { type APIRequestContext, expect } from "@playwright/test";
 
 import {
   ItemDetailResponseSchema,
   SavedItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
-
-interface SavedDigest {
-  readonly title: string;
-  readonly topic: string;
-  readonly tags: readonly string[];
-  readonly summary: string;
-  readonly keyPoints: readonly string[];
-  readonly keptComments?: readonly string[];
-}
-
-type SavedContent =
-  | { readonly page: Readonly<{ markdown: string; title: string; author?: string }> }
-  | { readonly content: string };
+import type { SaveItemInput } from "../src/core/contract/save-wire.ts";
 
 export async function savedItem(
-  page: Page,
-  { url, digest, ...content }: Readonly<{ url: string; digest?: SavedDigest } & SavedContent>,
+  request: APIRequestContext,
+  input: Readonly<SaveItemInput>,
 ): Promise<number> {
-  const saved = await page.request.post("/api/items", { data: { url, ...content, digest } });
+  const saved = await request.post("/api/items", { data: input });
 
-  expect(saved.status()).toBe(201);
+  expect(saved.status(), `the Paste of ${input.url}`).toBe(201);
 
   return SavedItemResponseSchema.parse(await saved.json()).item.id;
 }
@@ -36,12 +24,12 @@ export async function itemDetail(request: APIRequestContext, id: number) {
 }
 
 export const savedTopicItem = (
-  page: Page,
+  request: APIRequestContext,
   topic: Readonly<{ link: string; name: string; itemTitle: string; summary: string }>,
   markdown: string,
   { tag, keyPoint }: Readonly<{ tag: string; keyPoint: string }>,
 ): Promise<number> =>
-  savedItem(page, {
+  savedItem(request, {
     url: topic.link,
     page: { markdown, title: topic.itemTitle },
     digest: {
