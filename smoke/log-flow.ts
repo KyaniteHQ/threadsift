@@ -9,7 +9,9 @@ import { topicLinkLabel } from "../web/src/topic-text.ts";
 import { savedItem } from "./saved-item.ts";
 import { atPhoneWidth, expectNoSidewaysScroll, expectTarget } from "./screen-checks.ts";
 
-const FILLERS = 22;
+const LINES_PER_FILLER = 2;
+
+const FILLERS = Math.ceil((PAGE_SIZE + 1) / LINES_PER_FILLER);
 
 const STAMP_PATTERN = "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}";
 
