@@ -1,11 +1,11 @@
-import { and, eq, gte, lt, sql } from "drizzle-orm";
+import { and, eq, gte, lt } from "drizzle-orm";
 
 import {
   BUDGET_SPENT,
   type BudgetSpent,
   type TokenBudget,
 } from "../../../core/contract/agent-token-contract.ts";
-import { isRefusedLink, parseLink } from "../../../core/contract/links.ts";
+import { isRedditShareLink, isRefusedLink, parseLink } from "../../../core/contract/links.ts";
 import { DAY_MS } from "../../../core/contract/time-units.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
@@ -67,15 +67,22 @@ async function possiblyNew(db: Database, urls: readonly string[]): Promise<numbe
 
   const listed = [...links];
 
-  const [heldItems, heldAliases] = await Promise.all([
-    db.$count(items, among(items.normalizedUrl, listed)),
-    db.$count(
-      itemAliases,
-      sql`${among(itemAliases.normalizedUrl, listed)} and ${itemAliases.normalizedUrl} not in (select ${items.normalizedUrl} from ${items})`,
-    ),
+  const [heldItems, aliases] = await Promise.all([
+    db.select({ key: items.normalizedUrl }).from(items).where(among(items.normalizedUrl, listed)),
+    db
+      .select({ key: itemAliases.normalizedUrl, address: itemAliases.address })
+      .from(itemAliases)
+      .where(among(itemAliases.normalizedUrl, listed)),
   ]);
 
-  return links.size - heldItems - heldAliases;
+  const known = new Set(heldItems.map(({ key }) => key));
+
+  for (const { key, address } of aliases) {
+    if (isRedditShareLink(address)) known.delete(key);
+    else known.add(key);
+  }
+
+  return links.size - known.size;
 }
 
 export async function withinBudget<Saved>(

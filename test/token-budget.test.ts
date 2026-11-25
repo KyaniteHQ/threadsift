@@ -3,11 +3,9 @@ import { after, before, describe, it } from "node:test";
 
 import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
-import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
-import { parseLink } from "../src/core/contract/links.ts";
 import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { failedUnder, firstResolved } from "./short-link-fixtures.ts";
 import {
   addBatch,
   addLink,
@@ -161,19 +159,9 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
       async () => {
         const token = await makeToken(instance, 3);
 
-        const saved = SavedItemResponseSchema.parse(
-          JSON.parse((await instance.send("POST", "/api/items", { url: xLink(81) })).body),
-        );
-
         const short = "https://t.co/knownshort";
 
-        exec(
-          instance,
-          "insert into item_aliases (normalized_url, address, item_id) values (?, ?, ?)",
-          parseLink(short).normalizedUrl,
-          xLink(81),
-          saved.item.id,
-        );
+        await firstResolved(instance, short, xLink(81));
 
         await Promise.all([82, 83, 84].map((number) => addLink(instance, token, number)));
 
@@ -214,6 +202,46 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
         });
       },
     );
+  });
+
+  [
+    { under: "the share link only", link: "stalealias", spender: 301, failed: false },
+    {
+      under: "the share link and a failed Item under the short link",
+      link: "stalefailed",
+      spender: 302,
+      failed: true,
+    },
+  ].forEach(({ under, link, spender, failed }) => {
+    it(`counts a short link whose alias ends at a Reddit share link as possibly new when an Item holds ${under}, so a spent token is refused`, async () => {
+      const short = `https://t.co/${link}`;
+      const share = `https://www.reddit.com/r/library/s/${link}`;
+
+      await firstResolved(instance, `https://t.co/${link}holder`, share);
+
+      if (failed) assert.ok((await failedUnder(instance, short)) !== null);
+
+      await firstResolved(instance, short, share);
+
+      const now = Date.now();
+
+      await atClock(
+        () => now,
+        async () => {
+          const token = await makeToken(instance, 1);
+
+          assert.equal((await addLink(instance, token, spender)).status, 201);
+          assert.equal((await budgetOf(instance, token.id)).kind, "spent");
+
+          const refused = await instance.sendWithToken(token.value, "POST", "/api/items", {
+            url: short,
+          });
+
+          assert.equal(refused.status, 429);
+          assert.equal(BudgetRefusalSchema.parse(JSON.parse(refused.body)).code, "budget-spent");
+        },
+      );
+    });
   });
 
   it("keeps the Items a token added when the token is revoked", async () => {

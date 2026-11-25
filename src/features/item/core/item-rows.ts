@@ -11,6 +11,7 @@ import {
   insertGuard,
   unlessRefused,
 } from "../../../core/kernel/guards.ts";
+import { closeItemJobs } from "../../../core/kernel/job-close.ts";
 import { enqueueRows, openingJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { orRestoreHolds, restoreGuard } from "../../../core/kernel/restore-hold.ts";
@@ -108,9 +109,15 @@ export function queuedRows(
 
 type Statements = readonly BatchItem<"sqlite">[];
 
+type AsBatchItems<Tuple extends readonly unknown[]> = {
+  readonly [Index in keyof Tuple]: BatchItem<"sqlite">;
+};
+
+type Promotion = readonly [...AsBatchItems<ReturnType<typeof closeItemJobs>>, BatchItem<"sqlite">];
+
 export interface Around {
   readonly guard: Readonly<SQLWrapper>;
-  readonly before: readonly [] | readonly [BatchItem<"sqlite">];
+  readonly before: readonly [] | Promotion;
   readonly after: Statements;
 }
 
@@ -156,10 +163,9 @@ async function written(
     return settled(results);
   }
 
-  const [promote] = before;
-  const [, , , ...results] = await db.batch([
+  const [, , , , , , ...results] = await db.batch([
     checked,
-    promote,
+    ...before,
     heldGuard,
     insert,
     ...rest,

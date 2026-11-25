@@ -1,16 +1,34 @@
-import { and, eq, isNotNull, isNull, ne, notExists, sql } from "drizzle-orm";
+import {
+  type SQLWrapper,
+  and,
+  eq,
+  exists,
+  isNotNull,
+  isNull,
+  ne,
+  not,
+  notExists,
+  sql,
+} from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import type { Link } from "../../../core/contract/links.ts";
+import { type Link, isRedditShareLink, parseLink } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { holdsNoRow } from "../../../core/kernel/guards.ts";
+import { closeItemJobs } from "../../../core/kernel/job-close.ts";
 import { itemAliases, items } from "../../../core/kernel/schema.ts";
 
 const holder = alias(items, "holder");
 const rival = alias(itemAliases, "rival");
 
-interface AliasedItem extends Link {
+export interface AliasedItem extends Link {
+  readonly id: number;
   readonly address: string;
+}
+
+export interface ShortLinkAlias {
+  readonly shortLink: string;
+  readonly stale: Readonly<AliasedItem> | undefined;
 }
 
 export async function aliasedItem(
@@ -19,6 +37,7 @@ export async function aliasedItem(
 ): Promise<AliasedItem | undefined> {
   const [found] = await db
     .select({
+      id: items.id,
       normalizedUrl: items.normalizedUrl,
       kind: items.kind,
       source: items.source,
@@ -31,7 +50,44 @@ export async function aliasedItem(
   return found;
 }
 
-export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }: Readonly<Link>) {
+export function answersFromAlias({ address }: Readonly<Pick<AliasedItem, "address">>): boolean {
+  return !isRedditShareLink(address);
+}
+
+export function itemAddress({ address, normalizedUrl }: Readonly<AliasedItem>): string {
+  return parseLink(address).normalizedUrl === normalizedUrl ? address : normalizedUrl;
+}
+
+function isObserved(
+  { address, itemId }: Readonly<Record<"address" | "itemId", Readonly<SQLWrapper>>>,
+  stale: Readonly<AliasedItem> | undefined,
+) {
+  return stale === undefined
+    ? sql`0`
+    : sql`(${address} = ${stale.address} and ${itemId} = ${stale.id})`;
+}
+
+export function holdsAlias(db: Database, shortLink: string, known: Readonly<AliasedItem>) {
+  return exists(
+    db
+      .select({ one: sql`1` })
+      .from(itemAliases)
+      .innerJoin(items, eq(items.id, itemAliases.itemId))
+      .where(
+        and(
+          eq(itemAliases.normalizedUrl, shortLink),
+          isObserved(itemAliases, known),
+          eq(items.normalizedUrl, known.normalizedUrl),
+        ),
+      ),
+  );
+}
+
+export function holdsNoRival(
+  db: Database,
+  { shortLink, stale }: Readonly<ShortLinkAlias>,
+  { normalizedUrl }: Readonly<Link>,
+) {
   const holds = db
     .select({ one: sql`1` })
     .from(holder)
@@ -41,41 +97,63 @@ export function holdsNoRival(db: Database, shortLink: string, { normalizedUrl }:
     db
       .select({ one: sql`1` })
       .from(rival)
-      .where(and(eq(rival.normalizedUrl, shortLink), notExists(holds))),
+      .where(
+        and(eq(rival.normalizedUrl, shortLink), not(isObserved(rival, stale)), notExists(holds)),
+      ),
   );
 }
 
-function failedResolutionAt(shortLink: string) {
-  return sql`${eq(items.normalizedUrl, shortLink)} and ${isNotNull(items.fetch)} and ${ne(items.fetch, "ok")} and ${isNull(items.fetchedAt)}`;
+function failedResolutionAt({ shortLink, stale }: Readonly<ShortLinkAlias>) {
+  const heldAt =
+    stale === undefined
+      ? eq(items.normalizedUrl, shortLink)
+      : sql`${eq(items.id, stale.id)} and ${eq(items.normalizedUrl, parseLink(stale.address).normalizedUrl)}`;
+
+  return sql`(${heldAt}) and ${isNotNull(items.fetch)} and ${ne(items.fetch, "ok")} and ${isNull(items.fetchedAt)}`;
 }
 
-export function holdsNoFailedItem(db: Database, shortLink: string) {
-  return holdsNoRow(db, items, failedResolutionAt(shortLink));
+export function holdsNoFailedItem(db: Database, short: Readonly<ShortLinkAlias>) {
+  return holdsNoRow(db, items, failedResolutionAt(short));
 }
 
-export function promotableFailedItem(db: Database, shortLink: string, normalizedUrl: string) {
+export function promotableFailedItem(
+  db: Database,
+  short: Readonly<ShortLinkAlias>,
+  normalizedUrl: string,
+) {
   const taken = db
     .select({ one: sql`1` })
     .from(holder)
     .where(eq(holder.normalizedUrl, normalizedUrl));
 
-  return sql`${failedResolutionAt(shortLink)} and ${notExists(taken)}`;
+  return sql`${failedResolutionAt(short)} and ${notExists(taken)}`;
 }
 
 export function promoteFailedItem(
   db: Database,
-  shortLink: string,
+  short: Readonly<ShortLinkAlias>,
   { normalizedUrl, kind, source }: Readonly<Link>,
 ) {
   return db
     .update(items)
     .set({ normalizedUrl, kind, source })
-    .where(promotableFailedItem(db, shortLink, normalizedUrl));
+    .where(promotableFailedItem(db, short, normalizedUrl));
+}
+
+export function promotionClosingJobs(
+  db: Database,
+  short: Readonly<ShortLinkAlias>,
+  link: Readonly<Link>,
+) {
+  const promotable = promotableFailedItem(db, short, link.normalizedUrl);
+  const promotableId = sql`(select ${items.id} from ${items} where ${promotable})`;
+
+  return [...closeItemJobs(db, promotableId), promoteFailedItem(db, short, link)] as const;
 }
 
 export function recordAlias(
   db: Database,
-  shortLink: string,
+  { shortLink, stale }: Readonly<ShortLinkAlias>,
   address: string,
   { normalizedUrl }: Readonly<Link>,
 ) {
@@ -91,5 +169,9 @@ export function recordAlias(
         .from(items)
         .where(eq(items.normalizedUrl, normalizedUrl)),
     )
-    .onConflictDoNothing();
+    .onConflictDoUpdate({
+      target: itemAliases.normalizedUrl,
+      set: { address: sql`excluded.address`, itemId: sql`excluded.item_id` },
+      setWhere: isObserved(itemAliases, stale),
+    });
 }

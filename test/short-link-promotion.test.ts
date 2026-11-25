@@ -1,21 +1,19 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
-import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
 import type { Existing } from "../src/features/item/core/item-rows.ts";
-import { saveResolved, saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
-import { count, exec, rows } from "./related-fixtures.ts";
+import { count, exec } from "./related-fixtures.ts";
+import {
+  FAILED,
+  aliasesAt,
+  failedUnder,
+  firstResolved,
+  pasteVia,
+  repasted,
+} from "./short-link-fixtures.ts";
 import { xLink } from "./token-budget-fixtures.ts";
-
-const AliasSchema = z.object({
-  normalized_url: z.string(),
-  address: z.string(),
-  item_id: z.number(),
-});
 
 describe("a short link is kept as an alias of the Item it made or reached, and a failed Item under the short link becomes the Item the link resolves to", () => {
   let instance: Instance;
@@ -27,16 +25,8 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
 
   after(() => instance.close());
 
-  const unresolvedSave = (short: string) =>
-    saveUnresolved(instance.core, {
-      paste: { address: short, addedByToken: null },
-      link: parseLink(short),
-      fetched: { status: "unresolved" },
-      existing: "refresh",
-    });
-
   const failedAt = async (short: string) => {
-    const saved = await unresolvedSave(short);
+    const saved = await failedUnder(instance, short);
 
     assert.ok(saved !== null && saved.created);
 
@@ -48,27 +38,9 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     target: string,
     address = target,
     existing: Existing = "refresh",
-  ) =>
-    saveResolved(instance.core, {
-      shortLink: parseLink(short).normalizedUrl,
-      paste: { originalUrl: short, address, digest: undefined, addedByToken: null },
-      link: parseLink(target),
-      existing,
-    });
+  ) => firstResolved(instance, short, target, address, existing);
 
-  const aliasesOf = (short: string) =>
-    rows(
-      instance,
-      AliasSchema,
-      "select normalized_url, address, item_id from item_aliases where normalized_url = ?",
-      parseLink(short).normalizedUrl,
-    );
-
-  const pasteVia = async (short: string) => {
-    const answer = await instance.send("POST", "/api/items", { url: short });
-
-    return { status: answer.status, saved: SavedItemResponseSchema.parse(JSON.parse(answer.body)) };
-  };
+  const aliasesOf = (short: string) => aliasesAt(instance, short);
 
   it("gives the failed Item the identity, kind and Source of the address the short link resolved to, writes the alias, and makes no second Item", async () => {
     const short = "https://t.co/promoteme";
@@ -91,7 +63,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     ]);
   });
 
-  it("reaches the aliased Item, resolving nothing, when the short link is pasted again", async () => {
+  it("reaches the aliased Item when the short link is pasted again", async () => {
     const short = "https://t.co/pastedagain";
     const aliased = await resolved(short, xLink(907));
 
@@ -103,7 +75,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
 
     const total = await instance.itemTotal();
 
-    const { status, saved } = await pasteVia(short);
+    const { status, saved } = await pasteVia(instance, short);
 
     assert.equal(status, 200);
     assert.equal(saved.item.id, aliased.item.id);
@@ -132,7 +104,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
   it("leaves the failed Item for the owner to delete when another Item already holds the resolved identity, and records the alias on that Item", async () => {
     const short = "https://t.co/rivalheld";
     const target = xLink(902);
-    const holder = (await pasteVia(target)).saved.item.id;
+    const holder = (await pasteVia(instance, target)).saved.item.id;
     const failed = await failedAt(short);
     const total = await instance.itemTotal();
 
@@ -198,6 +170,18 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
   it("refuses a second resolution of an aliased short link to another identity when the Paste keeps an existing Item", () =>
     refusedRival("https://t.co/rivalkeep", xLink(911), xLink(912), "keep"));
 
+  it("saves a failed Item under the short link when the resolution fails and no alias exists", async () => {
+    const short = "https://t.co/neverresolved";
+    const saved = await repasted(instance, short, FAILED);
+
+    assert.ok(saved !== null && saved.created);
+    assert.equal(
+      (await instance.detail(saved.item.id)).normalizedUrl,
+      parseLink(short).normalizedUrl,
+    );
+    assert.deepEqual(aliasesOf(short), []);
+  });
+
   it("makes no failed Item for a short link that already has an alias", async () => {
     const short = "https://t.co/aliasedfirst";
 
@@ -205,7 +189,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
 
     const total = await instance.itemTotal();
 
-    const saved = await unresolvedSave(short);
+    const saved = await failedUnder(instance, short);
 
     assert.equal(saved, null);
     assert.equal(await instance.itemTotal(), total);
