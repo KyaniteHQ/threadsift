@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
-import { focusUnmoved } from "./focus-unmoved.ts";
+import { watchFocus } from "./focus-watch.ts";
 import { markIds, markSelector } from "./highlight-ids.ts";
 import { type Panel, PanelContext, type RemovePanel, useHighlights } from "./highlights-context.ts";
 import { placePopover, placementOf } from "./place-popover.ts";
@@ -97,17 +97,17 @@ function RemoveButton({
 
   const removeIt = useCallback((): void => {
     const title = button.current === null ? null : readerTitleOf(button.current);
-    const unmoved = focusUnmoved();
+    const focus = watchFocus();
 
     const refocus = (removed: boolean): void => {
-      if (!unmoved()) return;
+      if (!focus.unmoved()) return;
 
       const left = removed ? panel.ids.filter((each) => each !== id) : panel.ids;
 
       (markAfterRemove(panel, left) ?? title)?.focus({ preventScroll: true });
     };
 
-    void remove(id).then(refocus);
+    void remove(id).then(refocus).finally(focus.stop);
   }, [remove, panel, id]);
 
   return (

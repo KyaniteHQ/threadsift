@@ -13,30 +13,70 @@ import {
   openSettings,
 } from "./screen-checks.ts";
 
-async function removeAfterFocusMoved(page: Page, mark: Locator, address: string): Promise<void> {
-  const route = `**${address}`;
-  const { promise: held, resolve: release } = Promise.withResolvers<null>();
+const highlightAddress = (item: number, highlight: string): string =>
+  `/api/items/${String(item)}/highlights/${highlight}`;
 
-  await page.route(route, async (request) => {
-    await held;
-    await request.continue();
+async function whileDeleteHeld(
+  page: Page,
+  address: string,
+  act: () => Promise<void>,
+): Promise<void> {
+  const pattern = `**${address}`;
+  const { promise: held, resolve: release } = Promise.withResolvers<void>();
+
+  await page.route(pattern, async (route) => {
+    if (route.request().method() === "DELETE") await held;
+    await route.continue();
   });
 
   const removed = page.waitForResponse(
     (response) => response.url().endsWith(address) && response.request().method() === "DELETE",
   );
 
-  await mark.click();
-  await page.getByRole("button", { name: REMOVE_GROUP, exact: true }).click();
+  await act();
+  release();
+  await removed;
+  await page.unroute(pattern);
+}
 
+async function entryId(entry: Locator): Promise<string> {
+  const id = await entry.getAttribute("data-highlight");
+
+  if (id === null) throw new Error("A Highlights list entry has no data-highlight");
+
+  return id;
+}
+
+async function removeKeepingMovedFocus(page: Page, item: number, mark: Locator, highlight: number) {
   const note = page.getByRole("textbox", { name: NOTE_TITLE, exact: true });
 
-  await note.focus();
-  release(null);
-  await removed;
+  await whileDeleteHeld(page, highlightAddress(item, String(highlight)), async () => {
+    await mark.click();
+    await page.getByRole("button", { name: REMOVE_GROUP, exact: true }).click();
+    await note.focus();
+  });
   await expect(mark).toHaveCount(0);
   await expect(note).toBeFocused();
-  await page.unroute(route);
+
+  const listed = page.locator(".reader .hl-entry");
+  const entryOf = (id: string) => page.locator(`.reader .hl-entry[data-highlight="${id}"]`);
+  const focusedInRow = await entryId(listed.first());
+
+  await whileDeleteHeld(page, highlightAddress(item, focusedInRow), async () => {
+    await entryOf(focusedInRow).locator("button.btn").click();
+    await entryOf(focusedInRow).locator("button.hl-quote").focus();
+  });
+  await expect(entryOf(focusedInRow)).toHaveCount(0);
+  await expect.poll(() => page.evaluate(() => document.activeElement === document.body)).toBe(true);
+
+  const unmoved = await entryId(listed.first());
+  const neighbour = await entryId(listed.nth(1));
+
+  await whileDeleteHeld(page, highlightAddress(item, unmoved), () =>
+    entryOf(unmoved).locator("button.btn").click(),
+  );
+  await expect(entryOf(unmoved)).toHaveCount(0);
+  await expect(entryOf(neighbour).locator("button.btn")).toBeFocused();
 }
 
 export async function highlightsFlow(page: Page): Promise<void> {
@@ -80,11 +120,7 @@ export async function highlightsFlow(page: Page): Promise<void> {
 
   await page.goto(`/items/${String(item)}`);
   await expect(mark).toBeInViewport();
-  await removeAfterFocusMoved(
-    page,
-    mark,
-    `/api/items/${String(item)}/highlights/${String(oldestHighlight)}`,
-  );
+  await removeKeepingMovedFocus(page, item, mark, oldestHighlight);
   await page.getByRole("button", { name: DELETE_LABEL, exact: true }).click();
   await page.getByRole("button", { name: DELETE_CONFIRM }).click();
   await expect(page).not.toHaveURL(new RegExp(`/items/${String(item)}`, "u"));

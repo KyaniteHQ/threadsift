@@ -1,6 +1,6 @@
 import { type RefObject, useCallback, useEffect, useRef } from "react";
 
-import { focusUnmoved } from "./focus-unmoved.ts";
+import { type FocusWatch, watchFocus } from "./focus-watch.ts";
 import type { More } from "./list-paging.ts";
 
 export interface LoadedRows {
@@ -10,7 +10,7 @@ export interface LoadedRows {
 
 interface Waiting {
   readonly from: number;
-  readonly unmoved: () => boolean;
+  readonly focus: FocusWatch;
 }
 
 export function useFocusNewRows(
@@ -26,19 +26,26 @@ export function useFocusNewRows(
     if (wait === null) return;
 
     if (count <= wait.from) {
-      if (more !== "loading") waiting.current = null;
+      if (more !== "loading") {
+        wait.focus.stop();
+        waiting.current = null;
+      }
 
       return;
     }
 
     waiting.current = null;
+    wait.focus.stop();
 
-    if (wait.unmoved()) {
+    if (wait.focus.unmoved()) {
       list.current?.children[wait.from]?.querySelector<HTMLElement>(link)?.focus();
     }
   }, [count, link, list, more]);
 
+  useEffect(() => () => waiting.current?.focus.stop(), []);
+
   return useCallback((from) => {
-    waiting.current = from === null ? null : { from, unmoved: focusUnmoved() };
+    waiting.current?.focus.stop();
+    waiting.current = from === null ? null : { from, focus: watchFocus() };
   }, []);
 }
