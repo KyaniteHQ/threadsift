@@ -1,3 +1,4 @@
+import { splitLines } from "../../core/contract/format.ts";
 import type { SignIn } from "./cli-process.ts";
 
 const LINES: ReadonlyMap<string, SignIn> = new Map([
@@ -6,7 +7,7 @@ const LINES: ReadonlyMap<string, SignIn> = new Map([
 ]);
 
 export function signInOf(output: string): SignIn {
-  const [first = ""] = output.split(/\r\n|\n/u);
+  const [first = ""] = splitLines(output);
 
   return LINES.get(first.trim()) ?? "unknown";
 }
