@@ -48,15 +48,15 @@ The batches that publish a Digest, create a Topic, store an overview, store pick
 
 ## Deadlines, attempts and retries
 
-Each job runs under a deadline below the 15 minutes of wall time a Queues consumer gets ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)).
+Each job kind has a deadline below the 15 minutes of wall time a Queues consumer gets ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)). The deadline sets the length of the claim. Only the calls a kind bounds with a signal stop at it.
 
-| Job | Deadline | Constant |
-|---|---|---|
-| AI call | 10 minutes | `AI_DEADLINE_MS` |
-| Fetch | 2 minutes | `FETCH_DEADLINE_MS` |
-| Fetch of an X link through the grok CLI | up to 3 minutes for a CLI slot, then up to 3 minutes of run | `X_SLOT_WAIT_MS`, `X_RUN_DEADLINE_MS` |
-| Digest job | 12 minutes (the AI call plus the fetch hop, each under its own signal) | `DIGEST_DEADLINE_MS` |
-| Export slice, Restore unit | 10 minutes | `EXPORT_SLICE_DEADLINE_MS`, `RESTORE_UNIT_DEADLINE_MS` |
+| Job | Deadline | Constant | Stops at the deadline |
+|---|---|---|---|
+| AI call | 10 minutes | `AI_DEADLINE_MS` | yes, by its signal |
+| Fetch | 2 minutes | `FETCH_DEADLINE_MS` | yes, by its signal |
+| Fetch of an X link through the grok CLI | up to 3 minutes for a CLI slot, then up to 3 minutes of run | `X_SLOT_WAIT_MS`, `X_RUN_DEADLINE_MS` | yes, by its signals |
+| Digest job | 12 minutes (the AI call plus the fetch hop, each under its own signal) | `DIGEST_DEADLINE_MS` | each call, by its signal |
+| Export slice, Restore unit | 10 minutes | `EXPORT_SLICE_DEADLINE_MS`, `RESTORE_UNIT_DEADLINE_MS` | no: once the claim expires another runner may take over the job, and the first attempt keeps running |
 
 - Claim length. A claim lasts the deadline of the claimed kind plus 2 minutes (`CLAIM_MARGIN_MS`), so a Digest claim lasts 14 minutes, under the 15 minutes a Queues consumer gets. The fetch kind's claim covers the grok CLI route as well.
 - Digest deadline. The 12 minutes are the sum of the two network and model phases, and one model call for each run keeps the job below the Queues limit.
