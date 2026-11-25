@@ -15,9 +15,13 @@ function useReader(changed: Changed, ticket: Ticket) {
   return useCallback(async (): Promise<void> => {
     const signal = ticket.take();
 
-    const view = await fetchExportStatus();
+    try {
+      const view = await fetchExportStatus(signal);
 
-    if (!signal.aborted) changed(view);
+      if (!signal.aborted) changed(view);
+    } catch (cause) {
+      if (!signal.aborted) throw cause;
+    }
   }, [changed, ticket]);
 }
 

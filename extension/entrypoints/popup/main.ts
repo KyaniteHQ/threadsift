@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 
 import { logFailure } from "../../lib/log.ts";
+import { newestRequest } from "../../lib/newest-request.ts";
 import { applyLook, button, element, replaceControls, say } from "../../lib/page-look.ts";
 import { SAVE_PORT } from "../../lib/ports.ts";
 import {
@@ -19,6 +20,8 @@ import { TEXT } from "../../lib/text.ts";
 const SAVE_DEADLINE_MS = 240_000;
 
 let reddit: RedditView | null = null;
+
+const beginReddit = newestRequest();
 
 const root = document.querySelector("#root");
 
@@ -85,14 +88,18 @@ function moveReddit(next: RedditView): void {
 async function reconnect(): Promise<void> {
   if (reddit?.kind === "working") return;
 
+  beginReddit();
   moveReddit({ kind: "working", access: false });
   moveReddit((await reconnectFromPopup()) ?? { kind: "expired", access: false });
 }
 
 async function offerReconnect(): Promise<void> {
+  if (reddit?.kind === "working") return;
+
+  const isNewest = beginReddit();
   const view = await loadReddit();
 
-  if (view.kind === "expired") moveReddit(view);
+  if (isNewest() && view.kind === "expired") moveReddit(view);
 }
 
 async function save(): Promise<SaveState> {

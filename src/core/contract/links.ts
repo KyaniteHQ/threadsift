@@ -63,15 +63,6 @@ function isTrackingParam(pair: string, host: string): boolean {
   );
 }
 
-function keptQuery(search: string, host: string): string {
-  const kept = search
-    .slice(1)
-    .split("&")
-    .filter((pair) => pair !== "" && !isTrackingParam(pair, host));
-
-  return kept.length > 0 ? `?${kept.join("&")}` : "";
-}
-
 const WWW_MIN_REST_LABELS = 2;
 
 function startsAfterArtifact(labels: readonly string[], first: number): number {
@@ -92,6 +83,16 @@ function canonicalHost(rawHost: string): string {
   }
 
   return labels.slice(first).join(".");
+}
+
+export function untrackedQuery({ search, hostname }: Readonly<Pick<URL, "search" | "hostname">>) {
+  const host = canonicalHost(hostname);
+  const kept = search
+    .slice(1)
+    .split("&")
+    .filter((pair) => pair !== "" && !isTrackingParam(pair, host));
+
+  return kept.length > 0 ? `?${kept.join("&")}` : "";
 }
 
 export function withoutGitSuffix(name: string): string {
@@ -211,7 +212,7 @@ export function parsedLinkOf(absoluteUrl: string): ParsedLink {
   url.username = "";
   url.password = "";
   url.hash = "";
-  url.search = keptQuery(url.search, host);
+  url.search = untrackedQuery(url);
   const segments = segmentsOf(url.pathname);
   const reddit = redditRef(host, segments);
 

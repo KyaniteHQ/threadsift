@@ -104,6 +104,7 @@ export function useGithubForm(view: GithubSettingsView, changed: Changed) {
   const removeNow = useAction({
     run,
     action: "remove",
+    unavailable: unavailable.remove,
     task: useRemove(token, changed),
   });
 
