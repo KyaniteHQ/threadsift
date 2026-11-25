@@ -111,6 +111,7 @@ describe("the GitHub token is sealed on the Instance, never returned, and cannot
 
     const refused = await save(withoutKey, TOKEN);
 
+    assert.equal(refused.status, 200);
     assert.deepEqual(GithubSaveResponseSchema.parse(JSON.parse(refused.body)), {
       kind: "refused",
       reason: "secret-missing",
