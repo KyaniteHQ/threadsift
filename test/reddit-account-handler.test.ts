@@ -65,13 +65,15 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
 
     await executeClaimed(instance.core, holder);
 
+    const observedAt = Date.now();
+
     assert.equal(account(instance)[0]?.busy_job, null);
     assert.deepEqual(
-      jobs(instance).map(({ id, next_attempt_at }) => [id, next_attempt_at < LATER]),
+      jobs(instance).map(({ id, next_attempt_at: due }) => [id, due <= observedAt ? "due" : due]),
       [
-        [1, false],
-        [2, true],
-        [3, false],
+        [1, LATER],
+        [2, "due"],
+        [3, LATER],
       ],
     );
   });

@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import { type LogEntry, LogPageSchema } from "../src/core/contract/log-contract.ts";
 import type { Instance } from "./instance.ts";
-import { paste } from "./library-fixtures.ts";
 
 export function readLog(instance: Instance, query = "") {
   return instance.read("GET", `/api/log${query}`, LogPageSchema);
@@ -66,8 +65,6 @@ export function seedLogEntries(
     topic.id,
   );
 }
-
-export { paste };
 
 export function entryCount(instance: Instance, action: string): number {
   return instance.database.count("select count(*) as n from log_entries where action = ?", action);

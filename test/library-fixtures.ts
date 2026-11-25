@@ -9,6 +9,8 @@ export const SETTLE_DEADLINE_MS = 20_000;
 
 const POLL_MS = 25;
 
+const EXPIRED = Symbol("expired");
+
 const REFUSED_ADDRESS = "http://127.0.0.1:9/v1";
 
 const SENTENCE =
@@ -96,23 +98,40 @@ export async function until<Value>(
   read: () => Value | Promise<Value>,
   isDone: (value: Value) => boolean,
 ): Promise<Value> {
-  const deadline = Date.now() + SETTLE_DEADLINE_MS;
-  let value = await read();
+  let over = false;
+  let last: { readonly value: Value } | null = null;
 
-  while (!isDone(value)) {
-    if (Date.now() >= deadline) {
-      assert.fail(
-        `${what} did not happen before the deadline; the last state was ${inspect(value, LAST_STATE)}`,
-      );
+  const unmet = () =>
+    `${what} did not happen before the deadline; the last state was ${last === null ? "never read" : inspect(last.value, LAST_STATE)}`;
+
+  let timer: NodeJS.Timeout | undefined;
+
+  const expired = new Promise<typeof EXPIRED>((resolve) => {
+    timer = setTimeout(() => {
+      over = true;
+      resolve(EXPIRED);
+    }, SETTLE_DEADLINE_MS);
+  });
+
+  try {
+    for (;;) {
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.
+      const value = await Promise.race([read(), expired]);
+
+      if (value === EXPIRED) assert.fail(unmet());
+
+      last = { value };
+
+      if (isDone(value)) return value;
+
+      if (over) assert.fail(unmet());
+
+      // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.
+      await delay(POLL_MS);
     }
-
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.
-    await delay(POLL_MS);
-    // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.
-    value = await read();
+  } finally {
+    clearTimeout(timer);
   }
-
-  return value;
 }
 
 export function inOrder<Item>(

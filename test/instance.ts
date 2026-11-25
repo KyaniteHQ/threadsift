@@ -226,7 +226,7 @@ export class Instance {
     const answer = await this.send(method, path, body);
 
     if (answer.status < 200 || answer.status > 299) {
-      throw new Error(`${method} ${path} answered ${String(answer.status)}`);
+      throw new Error(`${method} ${path} answered ${String(answer.status)}: ${answer.body}`);
     }
 
     return schema.parse(JSON.parse(answer.body));

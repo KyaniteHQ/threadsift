@@ -30,3 +30,6 @@ export function itemTextAt(instance: Instance, id: number, key: string): void {
 
 export const exportKeys = (instance: Instance, id: number): Promise<readonly string[]> =>
   listedKeys(instance.core.files, exportFilesPrefix(id));
+
+export const strayExportObject = (instance: Instance, id: number): Promise<void> =>
+  instance.core.files.put(`${exportFilesPrefix(id)}part-9-9`, new Uint8Array(1));

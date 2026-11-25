@@ -10,7 +10,7 @@ import {
   readyExport,
   savedLibrary,
 } from "./export-restore-fixtures.ts";
-import { bytesOfKey, exportKeys, postTextKey } from "./file-store-fixtures.ts";
+import { bytesOfKey, exportKeys, postTextKey, strayExportObject } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { loggedAttempts, untilRetried } from "./restore-fixtures.ts";
 import { nextSweep, sweptWith } from "./weekly-claim-fixtures.ts";
@@ -141,10 +141,9 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
   it("removes at the next sweep an object a stalled slice wrote after the Export expired", async () => {
     const ready = await readyExport(instance);
-    const prefix = `exports/${String(ready.id)}/`;
 
     await instance.send("DELETE", "/api/export");
-    await instance.core.files.put(`${prefix}part-9-9`, new Uint8Array(1));
+    await strayExportObject(instance, ready.id);
     await nextSweep(instance);
     assert.deepEqual(await exportKeys(instance, ready.id), []);
   });
