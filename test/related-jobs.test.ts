@@ -129,12 +129,17 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
     await paste(instance, "source", { title: "Quasar lattice decoder", tags: ["quasar"] });
     assert.equal(digestOpen(), 0);
     await runJob(instance.core, job.id);
-    const [earlier, later] = await until(tasks, (ids) => ids.length === 2);
+    const [earlier, later] = await until(
+      "two Related pick tasks exist",
+      tasks,
+      (ids) => ids.length === 2,
+    );
     assert.deepEqual(
       pickJobs(instance, id).map(({ id: pickId }) => pickId),
       [job.id],
     );
     await until(
+      `job ${String(job.id)} has spent one more attempt`,
       () => jobRow(instance, job.id),
       (row) => row.attempts === held.attempts + 1,
     );
@@ -166,10 +171,12 @@ describe("an Item with no term or no candidate gets an empty set and makes no AI
 
   it("clears the seeded earlier set, closes the job and writes no related entry for the empty set", async () => {
     await until(
+      "neither Item has Related Items",
       () => [pairsOf(instance, noTerm).length, pairsOf(instance, noCandidate).length],
       (counts) => counts.every((each) => each === 0),
     );
     await until(
+      "neither Item has an open Related pick",
       () => [openPicks(instance, noTerm), openPicks(instance, noCandidate)],
       (counts) => counts.every((each) => each === 0),
     );

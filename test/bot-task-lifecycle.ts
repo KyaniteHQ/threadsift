@@ -21,6 +21,7 @@ export async function startedTask(
   await selectGrokBot(instance);
 
   const prepared = await until(
+    "the Related pick has a question to ask",
     () => relatedKind.prepare(instance.core, job),
     ({ kind }) => kind === "ask",
   );

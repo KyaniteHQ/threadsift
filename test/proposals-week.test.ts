@@ -162,6 +162,7 @@ describe("deleting the Item that owns the weekly job", () => {
     );
 
     const tasks = await until(
+      "the owner Item has a proposals and a topic_proposals task",
       () =>
         rows(
           instance,
@@ -250,6 +251,7 @@ describe("the run sends no pair that already has a row, whichever way round the 
     await instance.tick();
 
     const [task] = await until(
+      "a proposals task exists",
       () =>
         rows(
           instance,

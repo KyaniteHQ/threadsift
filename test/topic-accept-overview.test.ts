@@ -79,6 +79,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
 
       assert.deepEqual(overviewJobs(instance), [owner]);
       await until(
+        "a topic_overview job has spent an attempt",
         () => count(instance, "select max(attempts) as n from jobs where kind = 'topic_overview'"),
         (attempts) => attempts > 0,
       );

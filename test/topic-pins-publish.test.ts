@@ -103,6 +103,7 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
     );
     await nextSweep(instance);
     await until(
+      `Item ${String(id)} is stored`,
       () => stored(instance, id),
       (row) => row !== undefined,
     );

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { setTimeout as delay } from "node:timers/promises";
+import { inspect } from "node:util";
 
 import { z } from "zod";
 
@@ -84,15 +85,20 @@ export async function saveProvider(instance: Instance): Promise<void> {
   assert.equal(saved.status, 200);
 }
 
+const LAST_STATE = { depth: 3, maxArrayLength: 10, maxStringLength: 200, breakLength: Infinity };
+
 export function until<Value, Done extends Value>(
+  what: string,
   read: () => Value | Promise<Value>,
   isDone: (value: Value) => value is Done,
 ): Promise<Done>;
 export function until<Value>(
+  what: string,
   read: () => Value | Promise<Value>,
   isDone: (value: Value) => boolean,
 ): Promise<Value>;
 export async function until<Value>(
+  what: string,
   read: () => Value | Promise<Value>,
   isDone: (value: Value) => boolean,
 ): Promise<Value> {
@@ -101,7 +107,9 @@ export async function until<Value>(
 
   while (!isDone(value)) {
     if (Date.now() >= deadline) {
-      assert.fail(`the state did not settle before its deadline: ${JSON.stringify(value)}`);
+      assert.fail(
+        `${what} did not happen before the deadline; the last state was ${inspect(value, LAST_STATE)}`,
+      );
     }
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- Each read waits for the previous poll to end.
@@ -137,10 +145,13 @@ export async function paste(instance: Instance, slug: string, fixture: Fixture):
   const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, request);
 
   await instance.settledItem(item.id);
-  await until(
-    () => instance.detail(item.id),
-    (detail) => fixture.noDigest === true || detail.digest !== null,
-  );
+  if (fixture.noDigest !== true) {
+    await until(
+      `Item ${String(item.id)} has a Digest`,
+      async () => (await instance.detail(item.id)).digest,
+      (stored) => stored !== null,
+    );
+  }
 
   return item.id;
 }

@@ -35,6 +35,7 @@ describe("the Topic job's input and its owner Item", () => {
     await instance.tick();
 
     const [task] = await until(
+      "a topic_proposals task exists",
       () =>
         rows(
           instance,

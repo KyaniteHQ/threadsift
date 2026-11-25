@@ -39,6 +39,7 @@ describe("Disconnect removes the Reddit account and makes due at once only the j
     assert.deepEqual(account(instance), []);
 
     const settled = await until(
+      "no job waits for the Reddit limit",
       () => jobs(instance),
       (all) => all.every((job) => job.wait_reason !== "reddit-limit"),
     );

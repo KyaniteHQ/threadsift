@@ -40,6 +40,7 @@ describe("the linked-page hop of a Digest runs when Grok Bot is the Provider", (
       assert.equal((await chooseGrokBot(instance)).status, 200);
 
       return until(
+        "the hop has a result",
         () => hopResults(seen),
         (results) => results.length > 0,
       );

@@ -172,6 +172,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     });
 
     const [task] = await until(
+      `Item ${String(item.id)} has a Digest task`,
       () =>
         rows(
           instance,

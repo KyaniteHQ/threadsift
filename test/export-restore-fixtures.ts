@@ -136,6 +136,7 @@ export async function readyExport(instance: Instance) {
   const started = await instance.read("POST", "/api/export", StartedExportSchema);
 
   const status = await until(
+    "the Export has stopped running",
     () => instance.read("GET", "/api/export", ExportStatusSchema),
     ({ state }) => state !== "running",
   );

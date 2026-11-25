@@ -54,6 +54,7 @@ export async function storedForVerification(
 
   await enqueueItemJobs(instance.core, itemId);
   await until(
+    `every x_verify job of Item ${String(itemId)} is done`,
     () => verifyJobStates(instance, itemId),
     (found) => found.length > 0 && found.every(({ state }) => state === "done"),
   );

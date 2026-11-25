@@ -60,6 +60,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
     assert.equal((await intakeTo(instance, task, UNREADABLE)).status, 400);
 
     const claimed = await until(
+      `job ${String(task.job.id)} has spent one attempt`,
       () => jobRow(instance, task.job.id),
       ({ attempts }) => attempts === 1,
     );
@@ -116,6 +117,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
     await intakeTo(instance, task, UNREADABLE);
     const moved = taskRow(instance, task.id).deadline;
     const retry = await until(
+      `job ${String(task.job.id)} has spent one attempt`,
       () => jobRow(instance, task.job.id),
       (job) => job.attempts === 1,
     );
@@ -162,6 +164,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
     assert.equal(jobRow(instance, task.job.id).next_attempt_at, deadline);
     assert.equal((await intakeTo(instance, renewed, UNREADABLE)).status, 400);
     await until(
+      `job ${String(task.job.id)} has spent one attempt`,
       () => jobRow(instance, task.job.id),
       (job) => job.attempts === 1,
     );
@@ -276,6 +279,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
           400,
         );
         await until(
+          `job ${String(task.job.id)} has spent one attempt`,
           () => jobRow(instance, task.job.id),
           (job) => job.attempts === 1,
         );

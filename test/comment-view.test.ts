@@ -189,6 +189,7 @@ describe("the Reader shows the comments that pass the script's first step until 
     const id = itemIdOf("1000000000000000001");
 
     await until(
+      `Item ${String(id)} shows its comments`,
       () => view(id),
       (current) => current?.filter !== "absent",
     );
@@ -214,6 +215,7 @@ it("shows the older Digest cause when a restored thread has newer comments than 
     digest: DIGEST,
   });
   await until(
+    `Item ${String(id)} has a Digest`,
     () => source.detail(id),
     (detail) => detail.digest !== null,
   );

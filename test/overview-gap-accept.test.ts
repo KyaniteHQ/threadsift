@@ -61,6 +61,7 @@ describe("Accept of an overview-gap row", () => {
     assert.equal((await accept(instance, id)).status, 404);
 
     const [task] = await until(
+      "a topic_overview task has settled",
       () =>
         rows(
           instance,

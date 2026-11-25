@@ -126,6 +126,7 @@ describe("the related pick sends the best-ranked candidates", () => {
 
   it("records the source's Digest task id as the input revision", async () => {
     const [task] = await until(
+      `Item ${String(source)} has a Related pick task`,
       () => pickTasks(instance, source),
       (tasks) => tasks.length > 0,
     );

@@ -30,6 +30,7 @@ describe("a refusal that lands while the job's send is still being recorded or a
     await applied(instance, task.job, outcome);
 
     const claimed = await until(
+      `job ${String(task.job.id)} has spent one attempt`,
       () => jobRow(instance, task.job.id),
       ({ attempts }) => attempts === 1,
     );
@@ -73,6 +74,7 @@ describe("a refusal that lands while the job's send is still being recorded or a
     await intakeTo(instance, task, UNREADABLE);
     await intakeTo(instance, task, UNREADABLE);
     const retry = await until(
+      `job ${String(task.job.id)} has spent one attempt`,
       () => jobRow(instance, task.job.id),
       (job) => job.attempts === 1,
     );

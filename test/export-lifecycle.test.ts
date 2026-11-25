@@ -39,6 +39,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
   const failed = () =>
     until(
+      "the Export has failed",
       () => {
         retryNow(instance, "export");
 

@@ -25,6 +25,7 @@ export function pickTasks(instance: Instance, itemId: number) {
 
 export async function firstPickTask(instance: Instance, itemId: number) {
   const [task] = await until(
+    `the Related pick task of Item ${String(itemId)} has settled`,
     () => pickTasks(instance, itemId),
     (tasks) => tasks.some(({ state }) => state !== "running"),
   );

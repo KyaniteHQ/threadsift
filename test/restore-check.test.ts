@@ -52,6 +52,7 @@ describe("the check refuses a zip it cannot trust before it writes a record", ()
       cancelFailed: false,
     });
     await until(
+      `the parts of Restore ${String(id)} are deleted`,
       () => listedKeys(target.core.files, `restores/${String(id)}/`),
       (keys) => keys.length === 0,
     );

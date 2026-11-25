@@ -37,6 +37,7 @@ describe("the Reader names why a Digest has not filtered the comments", () => {
     assert.equal(
       causeOf(
         await until(
+          `Item ${String(id)} shows its comments unfiltered`,
           () => view(id),
           (current) => current?.filter === "unfiltered",
         ),
@@ -47,6 +48,7 @@ describe("the Reader names why a Digest has not filtered the comments", () => {
     let offset = 0;
 
     const failed = await until(
+      `the Digest of Item ${String(id)} has failed`,
       async () => {
         offset += RETRY_STEP_MS;
         await tickLater(instance, offset);

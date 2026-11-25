@@ -98,7 +98,11 @@ export function settledRestore<State extends Settled>(
   instance: Instance,
   states: readonly State[],
 ) {
-  return until(() => restoreStatus(instance), isSettled(states));
+  return until(
+    `the Restore is ${states.join(" or ")}`,
+    () => restoreStatus(instance),
+    isSettled(states),
+  );
 }
 
 export async function restoredDone(instance: Instance) {
@@ -118,11 +122,15 @@ export function settledAfterRetries<State extends Settled>(
   instance: Instance,
   states: readonly State[],
 ) {
-  return until(() => {
-    retryNow(instance, "restore");
+  return until(
+    `the Restore is ${states.join(" or ")} after retries`,
+    () => {
+      retryNow(instance, "restore");
 
-    return restoreStatus(instance);
-  }, isSettled(states));
+      return restoreStatus(instance);
+    },
+    isSettled(states),
+  );
 }
 
 function itemFilesPath(instance: Instance): string {

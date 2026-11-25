@@ -41,6 +41,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
     });
 
     const detail = await until(
+      `Item ${String(itemId)} has a Digest title`,
       () => instance.detail(itemId),
       ({ digestTitle }) => digestTitle !== null,
     );

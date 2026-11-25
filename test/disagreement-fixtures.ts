@@ -138,6 +138,7 @@ export async function runWeek(instance: Instance): Promise<void> {
   exec(instance, "delete from scheduled_runs where task in ('sweep', 'disagreement_proposals')");
   await instance.tick();
   await until(
+    "the disagreement run has a new task or no open job",
     () => ({
       tasks: tasksOf(instance).length,
       open: jobsOf(instance, "disagreement_proposals").filter(({ state }) => state !== "done")
@@ -196,6 +197,7 @@ export async function replaceDigest(
     url: stored.original_url,
   });
   await until(
+    `Item ${String(itemId)} has a new Digest`,
     () => tokenOf(instance, itemId),
     (token) => token !== before,
   );

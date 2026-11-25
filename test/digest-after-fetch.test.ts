@@ -42,6 +42,7 @@ describe("a saved Reddit thread that has a Digest source gets a Digest job when 
         const id = await saved(instance);
 
         await until(
+          `the fetch of Item ${String(id)} is ok`,
           () => rows(instance, FetchResult, "select fetch_result from items where id = ?", id),
           ([stored]) => stored?.fetch_result === "ok",
         );

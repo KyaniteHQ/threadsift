@@ -28,15 +28,20 @@ const SAVED_NOTE = "A Note that reaches the vault.";
 const noteOf = (id: number) => `Threadsift/items/${String(id)}/note-${String(id)}.md`;
 
 const swept = <Value>(
+  what: string,
   instance: Instance,
   read: () => Value | Promise<Value>,
   isDone: (value: Value) => boolean,
 ) =>
-  until(async () => {
-    await nextSweep(instance);
+  until(
+    what,
+    async () => {
+      await nextSweep(instance);
 
-    return read();
-  }, isDone);
+      return read();
+    },
+    isDone,
+  );
 
 const none = (left: readonly unknown[]) => left.length === 0;
 
@@ -155,7 +160,12 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
 
     const absent = (paths: readonly string[]) => paths.filter((path) => !existsSync(at(path)));
 
-    await swept(instance, () => absent([noteOf(mirrored), "Threadsift/Index.md"]), none);
+    await swept(
+      "the Item note and the Index are gone",
+      instance,
+      () => absent([noteOf(mirrored), "Threadsift/Index.md"]),
+      none,
+    );
 
     const note = text(noteOf(mirrored));
     const topicPage = /\[\[(Threadsift\/topics\/topic-\d+)\|Reading\]\]/u.exec(note)?.[1];
@@ -164,7 +174,12 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
 
     const month = new Date().toISOString().slice(0, "2026-11".length);
 
-    await swept(instance, () => absent([`${topicPage}.md`, `Threadsift/log/${month}.md`]), none);
+    await swept(
+      "the Topic page and the month Log are gone",
+      instance,
+      () => absent([`${topicPage}.md`, `Threadsift/log/${month}.md`]),
+      none,
+    );
 
     for (const line of [
       `id: ${String(mirrored)}`,
@@ -179,7 +194,12 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.ok(existsSync(at(`${topicPage}.md`)));
     assert.ok(text("Threadsift/Index.md").includes(`[[${topicPage}|Reading]]`));
 
-    await swept(instance, view, (seen) => seen.mode === "folder" && seen.conflicts.length > 0);
+    await swept(
+      "the mirror reports a Folder mode conflict",
+      instance,
+      view,
+      (seen) => seen.mode === "folder" && seen.conflicts.length > 0,
+    );
 
     assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
     assert.equal(text(noteOf(conflicted)), OWNER_NOTE);
@@ -225,6 +245,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.equal(noteSaved.status, 200);
 
     await swept(
+      "the Item note holds the saved Note",
       instance,
       () => text(noteOf(mirrored)),
       (written) => written.includes(SAVED_NOTE),
@@ -235,6 +256,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.equal((await instance.send("DELETE", `/api/items/${String(mirrored)}`)).status, 204);
 
     await swept(
+      "the note of the deleted Item is gone",
       instance,
       () => existsSync(at(noteOf(mirrored))),
       (exists) => !exists,
