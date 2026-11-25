@@ -143,15 +143,18 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     assert.equal(account(instance)[0]?.queue_head, 2);
   });
 
-  it("lets the next job through once the job at the head of the queue is done or gone", async () => {
-    const now = Date.now();
-
+  it("lets the next job through once the job at the head of the queue is done", async () => {
+    assert.equal(account(instance)[0]?.queue_head, 2);
     instance.database.exec("update jobs set state = 'done' where id = 2");
-    assert.notEqual(await take(3, now), null);
 
-    instance.database.exec("update reddit_account set busy_until = null, busy_job = null");
-    instance.database.exec("delete from jobs where id = 3");
-    assert.notEqual(await take(1, now), null);
+    assert.notEqual(await take(3, Date.now()), null);
+  });
+
+  it("lets the next job through once the job at the head of the queue is gone", async () => {
+    assert.equal(account(instance)[0]?.queue_head, 2);
+    instance.database.exec("delete from jobs where id = 2");
+
+    assert.notEqual(await take(3, Date.now()), null);
   });
 
   it("points the head at the next waiting job when the oldest takes the turn", async () => {
