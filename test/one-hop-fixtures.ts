@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import { MINUTE_MS } from "../src/core/contract/time-units.ts";
 import { Instance, type Json } from "./instance.ts";
 import { redditAddressOf, listing, postListing } from "./reader-thread-fixtures.ts";
 
@@ -12,7 +13,7 @@ export const DIGEST = {
   keyPoints: ["The post links to a page"],
 };
 
-const COOLDOWN_MS = 30 * 60 * 1000;
+const COOLDOWN_MS = 30 * MINUTE_MS;
 
 export const LINKED = "https://github.com/threadsift-test/linked-repository";
 
