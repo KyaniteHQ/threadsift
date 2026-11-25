@@ -8,7 +8,10 @@ import { type Listening, listening } from "./loopback-server.ts";
 
 const PAGE_TEXT = "error code: 1016";
 
-const QUOTING_BODY = `${PAGE_TEXT} was reported by the upstream service`;
+const QUOTING_BODIES = {
+  "/own-530": `${PAGE_TEXT} was reported by the upstream service`,
+  "/padded-530": `${PAGE_TEXT.padEnd(64, " ")}and the origin's own page after it`,
+} as const;
 
 const TEXT = new TextEncoder();
 
@@ -92,7 +95,9 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
       });
     }
 
-    app.get("/own-530", () => new Response(QUOTING_BODY, { status: 530 }));
+    for (const [path, body] of Object.entries(QUOTING_BODIES)) {
+      app.get(path, () => new Response(body, { status: 530 }));
+    }
     app.get("/unavailable", (context) => context.text(PAGE_TEXT, 503));
     app.get("/ok-with-page-text", (context) => context.text(PAGE_TEXT, 200));
     app.get("/moved", (context) => context.redirect("/ok-with-page-text", 302));
@@ -121,11 +126,14 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
     );
   });
 
-  it("returns a 530 whose body only quotes an error code, with its status and its whole body", async () => {
-    const answer = await workerFetch(`${server.url}/own-530`);
+  it("returns a 530 whose body only quotes an error code, or continues past one in its first 64 bytes, with its status and its whole body", async () => {
+    await Promise.all(
+      Object.entries(QUOTING_BODIES).map(async ([path, body]) => {
+        const answer = await workerFetch(`${server.url}${path}`);
 
-    assert.equal(answer.status, 530);
-    assert.equal(await answer.text(), QUOTING_BODY);
+        assert.deepEqual([answer.status, await answer.text()], [530, body]);
+      }),
+    );
   });
 
   it(
