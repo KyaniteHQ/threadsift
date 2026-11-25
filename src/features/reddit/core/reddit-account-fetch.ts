@@ -33,7 +33,7 @@ import {
 } from "./reddit-account-states.ts";
 import { checkSession } from "./reddit-account.ts";
 import { parseRedditThread } from "./reddit-json.ts";
-import { answerOf } from "./reddit-session.ts";
+import { answerOf, redditSessionGet } from "./reddit-session.ts";
 
 type RedditRef = import("../../../core/contract/links.ts").RedditRef;
 
@@ -42,7 +42,7 @@ type AccountThread =
   | { readonly kind: "waiting"; readonly until: number; readonly limited: boolean }
   | { readonly kind: "fallback" };
 
-type FillPorts = Pick<Ports, "db" | "secrets" | "jobs" | "redditSession">;
+type FillPorts = Pick<Ports, "db" | "secrets" | "jobs">;
 
 export interface HeldAccount {
   readonly run: TurnRun;
@@ -167,7 +167,7 @@ async function refusedAtFirst(
   const result = await sessionAnswered(
     run,
     first,
-    await checkSession(run.ports, run.held.session, run.deadline),
+    await checkSession(run.held.session, run.deadline),
   );
 
   logged(run, result, { requests: 2, status: first.status, left: first.remaining });
@@ -254,7 +254,7 @@ export async function accountThread(
   const answerFor = async (path: string, deadlineMs: number): Promise<RedditAnswer> => {
     try {
       return await answerOf(
-        await ports.redditSession.get(
+        await redditSessionGet(
           path,
           held.session,
           AbortSignal.any([deadline, AbortSignal.timeout(deadlineMs)]),

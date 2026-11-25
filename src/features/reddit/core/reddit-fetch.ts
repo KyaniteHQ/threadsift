@@ -9,10 +9,7 @@ import { fetchedOfOembed } from "./oembed-details.ts";
 import { accountThread } from "./reddit-account-fetch.ts";
 import { accountTurn } from "./reddit-account-turn.ts";
 
-type RedditPorts = Pick<
-  Ports,
-  "db" | "secrets" | "network" | "pages" | "jobs" | "redditSession" | "fetchers"
->;
+type RedditPorts = Pick<Ports, "db" | "secrets" | "network" | "pages" | "jobs" | "fetchers">;
 
 type RedditRoute = Extract<LinkRoute, { readonly kind: "reddit" }>;
 

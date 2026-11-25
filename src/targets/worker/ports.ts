@@ -8,7 +8,6 @@ import { type AiBinding, bindingRunner } from "./ai-binding.ts";
 import { type FilesBucket, r2FileStore } from "./file-store.ts";
 import { workerNetwork, workerFetch } from "./network.ts";
 import { workerPageReader } from "./page-reader.ts";
-import { workerRedditSession } from "./reddit-session.ts";
 
 const MAX_QUEUE_DELAY_SECONDS = 86_400;
 
@@ -34,7 +33,6 @@ export function workerAdapters(env: Env): TargetAdapters {
     files: r2FileStore(env.FILES),
     network: workerNetwork,
     vaultFolder: null,
-    redditSession: workerRedditSession,
     pages: workerPageReader,
     jobs: {
       wake: NOTHING,

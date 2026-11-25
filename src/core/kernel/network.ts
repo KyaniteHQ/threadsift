@@ -72,10 +72,6 @@ export interface Network {
   ) => Promise<NetworkResponse>;
 }
 
-export interface RedditSession {
-  readonly get: (path: string, cookie: string, signal: AbortSignal) => Promise<NetworkResponse>;
-}
-
 export type NetworkFailureReason = Extract<GuardFailure, "refused" | "timeout">;
 
 export class NetworkFailure extends Error {

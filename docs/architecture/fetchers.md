@@ -78,11 +78,10 @@ The account is the first source for a post or comment with no saved thread, befo
 
 ### Transport
 
-`Ports.redditSession` is one `get(path, cookie, signal)` to `www.reddit.com`. The shared adapter fixes the host, follows no redirect with the session, sends the app's `Threadsift/1` User-Agent, refuses a path without a leading `/` and a path or cookie with a line break, and cuts the body at `THREAD_CONTENT_BYTES`.
+`redditSessionGet` sends one GET with the session to `www.reddit.com` through the platform `fetch`, the same on both targets, so it is a function of the Reddit feature and not a port. It fixes the host, follows no redirect with the session, sends the app's `Threadsift/1` User-Agent, refuses a path without a leading `/`, and cuts the body at `THREAD_CONTENT_BYTES`.
 
 - A request that throws and an answer whose body cannot be read or passes `THREAD_CONTENT_BYTES` both count as status 0 in the `reddit-fill` line. Each also writes its own line first: `reddit-request-failed`, or `reddit-answer-unread` with the status of the answer, and the error class in both (`RangeError` for a body over `THREAD_CONTENT_BYTES`). No line holds the cookie, the path or the body.
-- The container uses the platform `fetch`.
-- The Worker writes HTTP/1.1 by hand over `connect()` from `cloudflare:sockets`, because Reddit answers the Workers `fetch` client with 403 even with the cookie, while a raw socket from the same Worker got 200 ([Decisions and evidence](decisions-and-evidence.md), Reddit). It opens one connection for each request (`Connection: close`, because a socket cannot outlive its invocation), asks for `Accept-Encoding: identity` and refuses an encoded body. No maintained HTTP client over `connect()` exists, so the reader is the app's own.
+- Reddit answers the Workers `fetch` with 200 when the session is valid ([Decisions and evidence](decisions-and-evidence.md), Reddit).
 
 ### Request limit and session health
 

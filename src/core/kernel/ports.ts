@@ -5,7 +5,7 @@ import type { Database } from "./database.ts";
 import type { LoadedFetcher } from "./fetcher.ts";
 import type { FileStore } from "./file-store.ts";
 import type { JobQueue } from "./job-queue.ts";
-import type { Network, RedditSession } from "./network.ts";
+import type { Network } from "./network.ts";
 import type { PageReader } from "./page-reader.ts";
 import type { Sealer } from "./sealed-secret.ts";
 import type { VaultFolder } from "./vault-target.ts";
@@ -16,7 +16,6 @@ export interface Ports {
   readonly files: FileStore;
   readonly network: Network;
   readonly vaultFolder: VaultFolder | null;
-  readonly redditSession: RedditSession;
   readonly pages: PageReader;
   readonly jobs: JobQueue;
   readonly crypto: Crypto;

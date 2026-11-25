@@ -23,7 +23,7 @@ The app is one core with ports, and each install target supplies an adapter for 
    ports:   db           files      jobs       tick       ai                   fetchers         network
              |           |           |          |          |                   |               |
 container:  node:sqlite  folder     loop       timer      HTTP, CLI, Grok Bot  plug-in modules  platform fetch
-Cloudflare: D1           R2         Queues     Cron       HTTP, Workers AI, Grok Bot  none        cloudflare:sockets
+Cloudflare: D1           R2         Queues     Cron       HTTP, Workers AI, Grok Bot  none        Workers fetch
 ```
 
 ## The ports
@@ -34,7 +34,7 @@ The `ports:` row names fields of `Ports`, except `tick`, which the target's time
 |---|---|
 | `db` | `Database` |
 | `files` | `FileStore` |
-| `network`, `redditSession` | `Network`, `RedditSession` |
+| `network` | `Network` |
 | `pages` | `PageReader` |
 | `jobs` | `JobQueue` |
 | `secrets` | `Sealer` |
@@ -48,13 +48,11 @@ An importer takes a type from the module that defines it, so no module that `Por
 
 ## Rules for adapters
 
-- Core rules stay in the core. A port's contract rules live in the core, in `contract`, `kernel` or `compose`, or in the core half of the feature that owns the port. An adapter supplies only what its runtime alone can do. `networkOver`, `redditSessionOver`, `checkedFileStore` and `pageReaderOver` each take the adapter's transport and return the port. The two network ones build the `NetworkResponse` from the status, header reader and body that the transport returns.
+- Core rules stay in the core. A port's contract rules live in the core, in `contract`, `kernel` or `compose`, or in the core half of the feature that owns the port. An adapter supplies only what its runtime alone can do. `networkOver`, `checkedFileStore` and `pageReaderOver` each take the adapter's transport and return the port. `networkOver` builds the `NetworkResponse` from the status, header reader and body that the transport returns.
 - What stays different between targets. These are named fields of the transport: the request headers of a GET (`Transport.getHeaders`, while a POST has one header set for both targets, `POST_HEADERS`), the connect-time DNS check (`Transport.lookup`: `globalAddressesOnly` on the container, `null` on the Worker because Cloudflare resolves the name, and the type checker refuses a transport that leaves the field out), and the `maxHtmlBytes` of the page reader.
 - The core imports no runtime module (`node:*`, `cloudflare:*`). Only the two target entries and their adapters do, so a core change runs on both targets by construction.
 - Ports reach routes through `createApp(ports)`, never through `c.env`, because `c.env` holds Worker bindings on Cloudflare and Node's request and response on Node.
 - Code that only one target has (CLI Providers, the grok X fetcher, fetcher plug-ins, Workers AI) is an adapter that the other target does not register. The settings screens list only registered adapters ([the v1 spec](../spec.md), AI providers).
-
-`Ports.redditSession` has two production adapters that cannot be one function. `nodeRedditSession` uses the platform `fetch` with a manual redirect. `workerRedditSession` uses a raw TLS socket from `cloudflare:sockets` with HTTP/1.1 written by hand. Reddit answers the Workers `fetch` client with 403 even with the owner's session cookie, while a socket from the same Worker got 200 ([Fetchers](fetchers.md), Reddit).
 
 ## Accepted exceptions to the two-adapter rule
 
@@ -71,7 +69,7 @@ A port exists only when two production adapters need it. Four fields of `Ports` 
 
 The Worker builds its ports for each API request, each valid queue message and each Cron run, and its app for each API request. A static page and an invalid queue message build nothing.
 
-It keeps no value derived from `env` in module scope. Cloudflare may reuse an isolate when only a binding, a variable or a secret changes, and such a value can outlive that change ([Workers bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/#making-changes-to-bindings): "The correct approach would be to create a new client instance for each request."). The ports hold the bindings, the secret key, the setup code, the reset code and the public origin, so the Worker reads each of them from the `env` of the call that uses it. `workerNetwork`, `workerPageReader` and `workerRedditSession` stay in module scope because they derive nothing from `env`.
+It keeps no value derived from `env` in module scope. Cloudflare may reuse an isolate when only a binding, a variable or a secret changes, and such a value can outlive that change ([Workers bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/#making-changes-to-bindings): "The correct approach would be to create a new client instance for each request."). The ports hold the bindings, the secret key, the setup code, the reset code and the public origin, so the Worker reads each of them from the `env` of the call that uses it. `workerNetwork` and `workerPageReader` stay in module scope because they derive nothing from `env`.
 
 A failed `settingsOf` fails that request or job and leaves the next one to build again. A real input does that: `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO=yes` makes `settingsOf` throw a `ZodError`.
 

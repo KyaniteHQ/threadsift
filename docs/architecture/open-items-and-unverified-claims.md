@@ -312,7 +312,7 @@ Each entry names the doc that makes the claim and how to check it.
   - First check: build two images from a one-line Containerfile with `--label io.threadsift.smoke=true`, give the second a second tag with `podman tag`, remove the first one's tag with `podman untag`, run `podman image prune --force --filter label=io.threadsift.smoke=true`, and compare `podman images -a` before and after. The untagged image goes and the image with two tags stays.
   - Second check: start a container from the old image, rebuild the same tag, run the prune of `container:build` and look for the untagged image in `podman images -a`.
 - [CI, releases and rollback](ci-releases-and-rollback.md): Nix retries a throttled download 5 times before the job fails, and a retry wrapper on the same address would only hide the throttle. Run the gate cold on a pull request with the cache deleted, with and without a retry wrapper, and compare the 429 counts, or read the `download-attempts` default in `nix.conf`.
-- [Fetchers](fetchers.md): every primary limit GitHub documents is per hour, which is why `MAX_COOLDOWN_MS` is one hour (list each primary limit's period in the REST API rate limits docs). A socket cannot outlive the invocation on the Worker, which is why it opens one connection for each request with `Connection: close` (under `wrangler dev`, keep a module-level `connect()` socket across two requests and see whether the second request still works).
+- [Fetchers](fetchers.md): every primary limit GitHub documents is per hour, which is why `MAX_COOLDOWN_MS` is one hour (list each primary limit's period in the REST API rate limits docs).
 
 ## Product
 

@@ -5,7 +5,7 @@ import { settingsOf } from "../shared/settings.ts";
 import type { NodeEnvironment } from "./environment.ts";
 import { dataFileStore } from "./file-store.ts";
 import { JobLoop } from "./job-loop.ts";
-import { nodeNetwork, nodeRedditSession } from "./network.ts";
+import { nodeNetwork } from "./network.ts";
 import { startOperatorCode } from "./operator-code.ts";
 import { threadPageReader } from "./page-reader.ts";
 import { setupCodeOf } from "./setup-code.ts";
@@ -33,7 +33,6 @@ export async function startNode(
       files,
       network: nodeNetwork,
       vaultFolder,
-      redditSession: nodeRedditSession,
       pages,
       jobs: loop.queue,
       fetchers: operator.fetchers,

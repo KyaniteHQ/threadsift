@@ -4,36 +4,21 @@ import { OK, type RedditAnswer } from "../../../core/contract/reddit-http.ts";
 import { readCapped } from "../../../core/kernel/capped.ts";
 import { reportFailure } from "../../../core/kernel/failure-log.ts";
 import {
-  NO_COMPRESSION,
   type NetworkResponse,
   REQUEST_HEADERS,
-  type RedditSession,
   type RequestHeaders,
-  type WireResponse,
   networkResponseOf,
+  wireResponseOf,
 } from "../../../core/kernel/network.ts";
 
 const REDDIT_HOST = "www.reddit.com";
-
-const HEADER_BREAK = /[\r\n]/u;
-
-interface RedditRequest {
-  readonly host: string;
-  readonly path: string;
-  readonly headers: RequestHeaders;
-}
 
 function redditSessionHeaders(cookie: string): RequestHeaders {
   return {
     ...REQUEST_HEADERS,
     accept: "application/json",
-    ...NO_COMPRESSION,
     cookie: `${REDDIT_SESSION_COOKIE}=${cookie}`,
   };
-}
-
-function refusedRequestLine(path: string, cookie: string): boolean {
-  return !path.startsWith("/") || HEADER_BREAK.test(path) || HEADER_BREAK.test(cookie);
 }
 
 async function* boundedBody(body: Readonly<AsyncIterable<Uint8Array>>): AsyncGenerator<Uint8Array> {
@@ -48,21 +33,22 @@ async function* boundedBody(body: Readonly<AsyncIterable<Uint8Array>>): AsyncGen
   }
 }
 
-export function redditSessionOver(
-  send: (request: Readonly<RedditRequest>, signal: AbortSignal) => Promise<WireResponse>,
-): RedditSession {
-  return {
-    get: async (path, cookie, signal) => {
-      if (refusedRequestLine(path, cookie)) throw new TypeError("the request line is not allowed");
+export async function redditSessionGet(
+  path: string,
+  cookie: string,
+  signal: AbortSignal,
+): Promise<NetworkResponse> {
+  if (!path.startsWith("/")) throw new TypeError("the path does not start with /");
 
-      const wire = await send(
-        { host: REDDIT_HOST, path, headers: redditSessionHeaders(cookie) },
-        signal,
-      );
+  const wire = wireResponseOf(
+    await fetch(`https://${REDDIT_HOST}${path}`, {
+      headers: redditSessionHeaders(cookie),
+      redirect: "manual",
+      signal,
+    }),
+  );
 
-      return networkResponseOf({ ...wire, body: boundedBody(wire.body) });
-    },
-  };
+  return networkResponseOf({ ...wire, body: boundedBody(wire.body) });
 }
 
 export async function answerOf(response: NetworkResponse): Promise<RedditAnswer> {

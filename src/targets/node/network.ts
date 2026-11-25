@@ -10,14 +10,11 @@ import {
   type Network,
   NetworkFailure,
   REQUEST_HEADERS,
-  type RedditSession,
   type RequestHeaders,
   type WireResponse,
-  wireResponseOf,
   withCallerHeaders,
 } from "../../core/kernel/network.ts";
 import { publicAddressesOf } from "../../core/kernel/public-host.ts";
-import { redditSessionOver } from "../../features/reddit/core/reddit-session.ts";
 
 const ACCEPT_ENCODING = "gzip, deflate, br";
 const IDENTITY = "identity";
@@ -128,8 +125,3 @@ export const nodeNetwork: Network = networkOver({
   lookup: globalAddressesOnly,
   send: exchange,
 });
-
-export const nodeRedditSession: RedditSession = redditSessionOver(
-  async ({ host, path, headers }, signal) =>
-    wireResponseOf(await fetch(`https://${host}${path}`, { headers, redirect: "manual", signal })),
-);
