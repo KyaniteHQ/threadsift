@@ -83,7 +83,7 @@ export function guardedOpenings(
     after?: readonly BatchItem<"sqlite">[];
   }>,
 ): Promise<readonly Readonly<{ id: number }>[] | null> {
-  return unlessRefused(db, condition, async () => {
+  return unlessRefused(async () => {
     const results = await db.batch(
       guardedWrites(db, condition, [...before, ...openings, ...after]),
     );

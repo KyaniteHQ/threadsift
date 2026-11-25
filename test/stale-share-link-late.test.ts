@@ -1,20 +1,21 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { z } from "zod";
+
 import { parseLink } from "../src/core/contract/links.ts";
 import { whileOpen } from "../src/core/kernel/restore-hold.ts";
-import type { ShortLinkResolution } from "../src/features/fetch/core/fetch-link.ts";
 import { Instance } from "./instance.ts";
 import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 import {
   EXISTING,
   FAILED,
+  TIMED_OUT,
   aliasOf,
   aliasRow,
   aliasesAt,
   beforeSecondBatch,
   firstResolved,
-  holdingBeforeSecondBatch,
   itemsAt,
   pasteVia,
   redditPost,
@@ -169,12 +170,11 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     const short = "https://t.co/restoreraces";
     const stale = await stagedStaleAlias(instance, short);
 
-    const answer = await holdingBeforeSecondBatch(instance, () =>
-      whileOpen(instance.core.db, () =>
-        repasted(instance, short, resolvedTo(redditPost("restoreraces")), "keep"),
-      ),
+    const { answer, batches } = await beforeSecondBatch(instance, { hold: true }, () =>
+      whileOpen(() => repasted(instance, short, resolvedTo(redditPost("restoreraces")), "keep")),
     );
 
+    assert.equal(batches, 2);
     assert.deepEqual(answer, { kind: "restoring" });
     await stillAtShareLink(instance, stale.id, stale.share);
     assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, stale.share, stale.id)]);
@@ -188,22 +188,24 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
 
     assert.ok(other !== null);
 
-    const answer = await holdingBeforeSecondBatch(
+    const { answer, batches } = await beforeSecondBatch(
       instance,
-      () =>
-        whileOpen(instance.core.db, () =>
-          repasted(instance, short, resolvedTo(redditPost("restorerival")), "keep"),
-        ),
-      () => {
-        instance.database.exec(
-          "update item_aliases set item_id = ?, address = ? where normalized_url = ?",
-          other.item.id,
-          otherPost,
-          parseLink(short).normalizedUrl,
-        );
+      {
+        hold: true,
+        staged: () => {
+          instance.database.exec(
+            "update item_aliases set item_id = ?, address = ? where normalized_url = ?",
+            other.item.id,
+            otherPost,
+            parseLink(short).normalizedUrl,
+          );
+        },
       },
+      () =>
+        whileOpen(() => repasted(instance, short, resolvedTo(redditPost("restorerival")), "keep")),
     );
 
+    assert.equal(batches, 2);
     assert.deepEqual(answer, { kind: "restoring" });
     await stillAtShareLink(instance, stale.id, stale.share);
   });
@@ -222,7 +224,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
       holdLibrary(instance, "running", null);
 
       try {
-        const answer = await whileOpen(instance.core.db, () =>
+        const answer = await whileOpen(() =>
           repastedFrom(instance, short, FAILED, snapshot, "keep"),
         );
 
@@ -235,44 +237,62 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     });
   });
 
-  const TIMED_OUT: ShortLinkResolution = { kind: "failed", fetched: { status: "timeout" } };
+  const deleteItem = async (id: number) => {
+    const deleted = await instance.send("DELETE", `/api/items/${String(id)}`);
+
+    assert.equal(deleted.status, 204);
+  };
+
+  const PendingSchema = z.object({ pending_digest: z.string().nullable() });
+
+  const pendingDigestOf = (id: number) =>
+    instance.database.rows(PendingSchema, "select pending_digest from items where id = ?", id);
 
   it("answers restoring and leaves the failed Item as it was when a Restore starts before a refreshing Paste of its short link writes", async () => {
     const short = "https://t.co/failedrestore";
     const first = await repasted(instance, short, TIMED_OUT);
 
     assert.ok(first !== null && first.created);
+    instance.database.exec(
+      "update items set pending_digest = ? where id = ?",
+      JSON.stringify({ title: "A Digest the failed Item kept" }),
+      first.item.id,
+    );
 
     const stored = await instance.detail(first.item.id);
+    const pending = pendingDigestOf(first.item.id);
 
-    const answer = await holdingBeforeSecondBatch(instance, () =>
-      whileOpen(instance.core.db, () => repasted(instance, short, FAILED)),
+    assert.notDeepEqual(pending, [{ pending_digest: null }]);
+
+    const { answer, batches } = await beforeSecondBatch(instance, { hold: true }, () =>
+      whileOpen(() => repasted(instance, short, FAILED)),
     );
 
+    assert.equal(batches, 2);
     assert.deepEqual(answer, { kind: "restoring" });
     assert.deepEqual(await instance.detail(first.item.id), stored);
+    assert.deepEqual(pendingDigestOf(first.item.id), pending);
   });
 
-  it("answers a lost race, and a Paste after it saves a new Item, when the owner deletes the failed Item before a refreshing Paste of its short link writes", async () => {
+  it("saves a new failed Item in the same Paste when the owner deletes the failed Item before a refreshing Paste of its short link writes", async () => {
     const short = "https://t.co/faileddeleted";
-    const first = await repasted(instance, short, FAILED);
+    const first = await pasteVia(instance, short);
 
-    assert.ok(first !== null && first.created);
+    assert.equal(first.status, 201);
 
-    const answer = await beforeSecondBatch(
+    const { answer: again, batches } = await beforeSecondBatch(
       instance,
-      async () => {
-        const deleted = await instance.send("DELETE", `/api/items/${String(first.item.id)}`);
-
-        assert.equal(deleted.status, 204);
-      },
-      () => repasted(instance, short, FAILED),
+      { staged: () => deleteItem(first.saved.item.id) },
+      () => pasteVia(instance, short),
     );
 
-    assert.equal(answer, null);
-
-    const again = await repasted(instance, short, FAILED);
-
-    assert.ok(again !== null && again.created && again.item.id !== first.item.id);
+    assert.ok(batches >= 3);
+    assert.equal(again.status, 201);
+    assert.notEqual(again.saved.item.id, first.saved.item.id);
+    assert.equal(itemsAt(instance, short), 1);
+    assert.equal(
+      (await instance.detail(again.saved.item.id)).normalizedUrl,
+      parseLink(short).normalizedUrl,
+    );
   });
 });

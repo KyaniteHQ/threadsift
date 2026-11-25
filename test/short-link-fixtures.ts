@@ -1,10 +1,13 @@
 import assert from "node:assert/strict";
 
+import { is } from "drizzle-orm";
+import { SQLiteInsertBase } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
 import type { Database } from "../src/core/kernel/database.ts";
+import { restoreGuard } from "../src/core/kernel/restore-hold.ts";
 import type { ShortLinkResolution } from "../src/features/fetch/core/fetch-link.ts";
 import type { Existing } from "../src/features/item/core/item-rows.ts";
 import {
@@ -30,6 +33,8 @@ export const withEachExisting = <Case extends object>(cases: readonly Case[]) =>
   cases.flatMap((row) => EXISTING.map((existing) => Object.assign({}, row, { existing })));
 
 export const FAILED: ShortLinkResolution = { kind: "failed", fetched: { status: "unresolved" } };
+
+export const TIMED_OUT: ShortLinkResolution = { kind: "failed", fetched: { status: "timeout" } };
 
 export const redditPost = (code: string) =>
   `https://www.reddit.com/r/library/comments/${code}/a_post/`;
@@ -137,52 +142,45 @@ export async function repasted(
   return repastedFrom(instance, short, resolution, await aliasOf(instance, short), existing);
 }
 
+interface SecondBatch {
+  readonly staged?: () => Promise<void> | void;
+  readonly hold?: boolean;
+}
+
 export async function beforeSecondBatch<Result>(
   instance: Instance,
-  staged: () => Promise<void> | void,
+  { staged, hold = false }: Readonly<SecondBatch>,
   run: () => Promise<Result>,
-): Promise<Result> {
+): Promise<{ readonly answer: Result; readonly batches: number }> {
   const { db } = instance.core;
   const real = db.batch.bind(db);
+  const pasteGuard = restoreGuard(db).toSQL().sql;
   let batches = 0;
 
   Object.defineProperty(db, "batch", {
     configurable: true,
     value: async (queries: Parameters<Database["batch"]>[0]) => {
-      batches += 1;
+      if (
+        queries.some((query) => is(query, SQLiteInsertBase) && query.toSQL().sql === pasteGuard)
+      ) {
+        batches += 1;
 
-      if (batches === 2) await staged();
+        if (batches === 2) {
+          if (hold) holdLibrary(instance, "running", null);
+
+          await staged?.();
+        }
+      }
 
       return real(queries);
     },
   });
 
   try {
-    const result = await run();
-
-    assert.ok(batches >= 2, "the Paste reached the write the change is staged before");
-
-    return result;
+    return { answer: await run(), batches };
   } finally {
     Reflect.deleteProperty(db, "batch");
-  }
-}
 
-export async function holdingBeforeSecondBatch<Result>(
-  instance: Instance,
-  run: () => Promise<Result>,
-  alongside?: () => void,
-): Promise<Result> {
-  try {
-    return await beforeSecondBatch(
-      instance,
-      () => {
-        holdLibrary(instance, "running", null);
-        alongside?.();
-      },
-      run,
-    );
-  } finally {
-    releaseLibrary(instance);
+    if (hold) releaseLibrary(instance);
   }
 }

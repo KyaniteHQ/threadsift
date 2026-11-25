@@ -1,9 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 
 import { type Link, parseLink, redditRefOf } from "../../../core/contract/links.ts";
-import { guardHolds, guards, insertGuard } from "../../../core/kernel/guards.ts";
+import { guardHolds, guards, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { restoreGuard, unlessRestoreRefused } from "../../../core/kernel/restore-hold.ts";
+import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import type { ShortLinkResolution } from "../../fetch/core/fetch-link.ts";
@@ -12,9 +12,7 @@ import {
   type Paste,
   type Saved,
   holdsNoItem,
-  queuedRows,
   writeQueued,
-  writtenFrom,
 } from "../../item/core/item-rows.ts";
 import { itemRead } from "../../item/core/item-selection.ts";
 import {
@@ -60,7 +58,7 @@ async function promotedAndKept(ports: Ports, resolved: Readonly<Resolved>): Prom
   const { db } = ports;
   const noRival = holdsNoRival(db, resolved, link);
 
-  const promoted = await unlessRestoreRefused(db, noRival, () => {
+  const promoted = await unlessRefused(() => {
     const promotable = promotableFailedItem(db, resolved, link.normalizedUrl);
     const changed = sql`(${items.source}, ${items.kind}) is not (${link.source}, ${link.kind})`;
 
@@ -83,21 +81,11 @@ async function promotedAndKept(ports: Ports, resolved: Readonly<Resolved>): Prom
 function promotedOnRefresh(ports: Ports, resolved: Readonly<Resolved>): Promise<Saved | null> {
   const { paste, link } = resolved;
   const { db } = ports;
-  const noRival = holdsNoRival(db, resolved, link);
-  const { heldGuard, insert, rest } = queuedRows(db, paste, link);
 
-  return writtenFrom(ports, link, noRival, async () => {
-    const [, , , , , , ...results] = await db.batch([
-      insertGuard(db, noRival),
-      ...promotionClosingJobs(db, resolved, link),
-      heldGuard,
-      insert,
-      ...rest,
-      recordAlias(db, resolved, paste.address, link),
-      db.delete(guards),
-    ]);
-
-    return results;
+  return writeQueued(ports, paste, link, {
+    guard: holdsNoRival(db, resolved, link),
+    before: promotionClosingJobs(db, resolved, link),
+    after: [recordAlias(db, resolved, paste.address, link)],
   });
 }
 
@@ -132,7 +120,7 @@ async function saveKept(
     return writeQueued(ports, paste, stale, { guard: holds, after: [] });
   }
 
-  const kept = await unlessRestoreRefused(db, holds, () =>
+  const kept = await unlessRefused(() =>
     db.batch([
       restoreGuard(db),
       insertGuard(db, holds),

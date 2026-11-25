@@ -22,11 +22,13 @@ async function saveShortLink(ports: Ports, paste: Readonly<ShortLinkPaste>): Pro
   const known = await aliasedItem(ports.db, parseLink(pasted).normalizedUrl);
 
   if (known !== undefined && aliasAnswers(known.address)) {
-    return saveLinked(
-      ports,
-      { originalUrl: pasted, address: known.address, digest, addedByToken },
-      known,
-      existing,
+    return (
+      (await saveLinked(
+        ports,
+        { originalUrl: pasted, address: known.address, digest, addedByToken },
+        known,
+        existing,
+      )) ?? saveShortLink(ports, paste)
     );
   }
 
@@ -39,7 +41,7 @@ async function saveShortLink(ports: Ports, paste: Readonly<ShortLinkPaste>): Pro
   return (await saveResolution(ports, paste, resolution, known)) ?? saveShortLink(ports, paste);
 }
 
-export function saveItem(
+export async function saveItem(
   ports: Ports,
   absoluteUrl: string,
   digest: Digest | undefined,
@@ -48,16 +50,20 @@ export function saveItem(
 ): Promise<SaveResult> {
   const refused = refusedHost(absoluteUrl);
 
-  if (refused !== null) return Promise.resolve(refused);
+  if (refused !== null) return refused;
 
   const addedByToken = tokenIdOf(caller);
 
-  return needsResolving(absoluteUrl)
-    ? saveShortLink(ports, { pasted: absoluteUrl, digest, existing, addedByToken })
-    : saveLinked(
-        ports,
-        { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
-        parseLink(absoluteUrl),
-        existing,
-      );
+  if (needsResolving(absoluteUrl)) {
+    return saveShortLink(ports, { pasted: absoluteUrl, digest, existing, addedByToken });
+  }
+
+  return (
+    (await saveLinked(
+      ports,
+      { originalUrl: absoluteUrl, address: absoluteUrl, digest, addedByToken },
+      parseLink(absoluteUrl),
+      existing,
+    )) ?? saveItem(ports, absoluteUrl, digest, existing, caller)
+  );
 }

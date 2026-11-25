@@ -8,10 +8,12 @@ import {
   GithubSettingsViewSchema,
   GithubVerifyResultSchema,
 } from "../src/core/contract/github-contract.ts";
+import { MINUTE_MS } from "../src/core/contract/time-units.ts";
 import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { lockedWriter } from "./locked-writer.ts";
 import { seedGithubCooldown } from "./one-hop-fixtures.ts";
+import { afterRefusedBatch } from "./refused-batch.ts";
 
 const SETTINGS = "/api/settings/github";
 
@@ -22,6 +24,13 @@ const NEXT_TOKEN = "github_pat_second_token_of_the_owner";
 const SealedSchema = z.object({ sealed_token: z.string() });
 
 const cooldowns = (instance: Instance) => instance.database.rowCount("github_cooldown");
+
+const CooldownSchema = z.object({ until: z.number() });
+
+const cooldownEnds = (instance: Instance) =>
+  instance.database
+    .rows(CooldownSchema, "select until from github_cooldown")
+    .map(({ until }) => until);
 
 const sealedTokens = (instance: Instance) =>
   instance.database
@@ -231,14 +240,38 @@ describe("a stored GitHub cooldown answers Verify with rate-limited, and a chang
     await save(instance, TOKEN);
     assert.equal(cooldowns(instance), 0);
 
+    const until = Date.now() + 30 * MINUTE_MS;
+
     const writer = await lockedWriter(instance, [
       "delete from github_settings",
-      `insert into github_cooldown (id, until) values (1, ${String(Date.now() + 1_800_000)})`,
+      `insert into github_cooldown (id, until) values (1, ${String(until)})`,
     ]);
 
-    await instance.send("DELETE", SETTINGS);
+    assert.deepEqual(await removed(instance), { token: "none", secretReady: true });
     await writer.committed;
 
-    assert.equal(cooldowns(instance), 1);
+    assert.deepEqual(cooldownEnds(instance), [until]);
+  });
+
+  it("answers the view and changes nothing when a token is saved right after a removal found none to remove", async () => {
+    await instance.send("DELETE", SETTINGS);
+    instance.database.exec("delete from github_cooldown");
+    seedGithubCooldown(instance);
+
+    const kept = cooldownEnds(instance);
+
+    const view = await afterRefusedBatch(
+      instance,
+      () => {
+        instance.database.exec(
+          "insert into github_settings (id, sealed_token) values (1, 'sealed-by-another-request')",
+        );
+      },
+      () => removed(instance),
+    );
+
+    assert.deepEqual(view, { token: "none", secretReady: true });
+    assert.deepEqual(sealedTokens(instance), ["sealed-by-another-request"]);
+    assert.deepEqual(cooldownEnds(instance), kept);
   });
 });

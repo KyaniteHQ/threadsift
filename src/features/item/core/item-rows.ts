@@ -4,14 +4,17 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { Digest } from "../../../core/contract/digest-schema.ts";
 import type { Link } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedWrite, guards, holdsNoRow, insertGuard } from "../../../core/kernel/guards.ts";
+import {
+  guardedWrites,
+  guards,
+  holdsNoRow,
+  insertGuard,
+  unlessRefused,
+} from "../../../core/kernel/guards.ts";
+import { closeItemJobs } from "../../../core/kernel/job-close.ts";
 import { enqueueRows, openingJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import {
-  orRestoreHolds,
-  restoreGuard,
-  unlessRestoreRefused,
-} from "../../../core/kernel/restore-hold.ts";
+import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
@@ -72,11 +75,24 @@ export function guardedItemWrite<Insert extends BatchItem<"sqlite">>(
   { heldGuard, insert }: Readonly<{ heldGuard: BatchItem<"sqlite">; insert: Insert }>,
   rest: readonly BatchItem<"sqlite">[],
 ) {
-  return guardedWrite(db, orRestoreHolds(db, condition), insert, [heldGuard, ...rest]);
+  return unlessRefused(async () => {
+    const [, , inserted] = await db.batch([
+      heldGuard,
+      ...guardedWrites(db, condition, [insert, ...rest] as const),
+    ] as const);
+
+    return inserted;
+  });
 }
 
 export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
   return foundItem(await itemWhere(db, eq(items.normalizedUrl, normalizedUrl)), normalizedUrl);
+}
+
+export async function knownItem(db: Database, normalizedUrl: string): Promise<Saved | null> {
+  const item = await itemWhere(db, eq(items.normalizedUrl, normalizedUrl));
+
+  return item === undefined ? null : { kind: "saved", item, created: false };
 }
 
 export function holdsNoItem(db: Database, normalizedUrl: string) {
@@ -106,8 +122,15 @@ export function queuedRows(
 
 type Statements = readonly BatchItem<"sqlite">[];
 
+type AsBatchItems<Tuple extends readonly unknown[]> = {
+  readonly [Index in keyof Tuple]: BatchItem<"sqlite">;
+};
+
+type Promotion = readonly [...AsBatchItems<ReturnType<typeof closeItemJobs>>, BatchItem<"sqlite">];
+
 export interface Around {
   readonly guard: Readonly<SQLWrapper>;
+  readonly before?: readonly [] | Promotion;
   readonly after: Statements;
 }
 
@@ -119,10 +142,9 @@ type RowResults = readonly [
   ...unknown[],
 ];
 
-export function writtenFrom(
+function writtenFrom(
   ports: Ports,
   link: Readonly<Link>,
-  guard: Readonly<SQLWrapper> | undefined,
   batch: () => Promise<RowResults>,
 ): Promise<Saved | null> {
   const write = async (): Promise<Saved> => {
@@ -137,7 +159,7 @@ export function writtenFrom(
     };
   };
 
-  return guard === undefined ? write() : unlessRestoreRefused(ports.db, guard, write);
+  return unlessRefused(write);
 }
 
 export function writeQueued(
@@ -150,19 +172,36 @@ export function writeQueued(
   const { heldGuard, insert, rest } = queuedRows(db, paste, link);
 
   if (around === undefined) {
-    return writtenFrom(ports, link, undefined, async () => {
+    return writtenFrom(ports, link, async () => {
       const [, ...results] = await db.batch([heldGuard, insert, ...rest, db.delete(guards)]);
 
       return results;
     });
   }
 
-  const { guard, after } = around;
+  const { guard, before = [], after } = around;
+  const checked = insertGuard(db, guard);
 
-  return writtenFrom(ports, link, guard, async () => {
-    const [, , ...results] = await db.batch([
-      insertGuard(db, guard),
+  if (before.length === 0) {
+    return writtenFrom(ports, link, async () => {
+      const [, , ...results] = await db.batch([
+        heldGuard,
+        checked,
+        insert,
+        ...rest,
+        ...after,
+        db.delete(guards),
+      ]);
+
+      return results;
+    });
+  }
+
+  return writtenFrom(ports, link, async () => {
+    const [, , , , , , ...results] = await db.batch([
       heldGuard,
+      checked,
+      ...before,
       insert,
       ...rest,
       ...after,

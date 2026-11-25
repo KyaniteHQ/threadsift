@@ -173,7 +173,7 @@ describe("an Item is refused through every door while a Restore holds the librar
 
     const stored = await instance.itemTotal();
 
-    await assert.rejects(unresolved(), /^Error: CHECK constraint failed: guards_hold$/u);
+    await assert.rejects(unresolved(), /^Error: CHECK constraint failed: guards_restore$/u);
     assert.equal(await instance.itemTotal(), stored);
 
     holdLibrary(instance, "failed", "no-manifest");

@@ -2,10 +2,10 @@ import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
 
 import type { Link } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guards, holdsNoRow, insertGuard } from "../../../core/kernel/guards.ts";
+import { guards, holdsNoRow, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
 import { hasOpenJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { restoreGuard, unlessRestoreRefused } from "../../../core/kernel/restore-hold.ts";
+import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
 import { itemAliases, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import {
@@ -14,8 +14,8 @@ import {
   type Saved,
   foundItem,
   holdsNoItem,
-  itemAt,
   itemInsert,
+  knownItem,
 } from "../../item/core/item-rows.ts";
 import { itemRead, itemWhere } from "../../item/core/item-selection.ts";
 import { settle } from "../../item/core/settle.ts";
@@ -38,7 +38,9 @@ interface Failure {
   readonly addedByToken: Paste["addedByToken"];
 }
 
-const ITEM_READ = 4;
+const INSERTED_ITEM = 4;
+
+const REFRESHED_ITEM = 4;
 
 async function insertedFailure(
   db: Database,
@@ -57,11 +59,11 @@ async function insertedFailure(
     fetched: settle(fetched, null, now),
   });
 
-  const inserted = await unlessRestoreRefused(db, missing, () =>
+  const inserted = await unlessRefused(() =>
     db.batch([
+      heldGuard,
       insertGuard(db, noAlias),
       insertGuard(db, missing),
-      heldGuard,
       insert,
       itemRead(db, itemKey),
       ...STALE.itemChanged(db, itemKey),
@@ -73,7 +75,7 @@ async function insertedFailure(
     ? null
     : {
         kind: "saved",
-        item: foundItem(inserted[ITEM_READ][0], normalizedUrl),
+        item: foundItem(inserted[INSERTED_ITEM][0], normalizedUrl),
         created: true,
       };
 }
@@ -102,7 +104,7 @@ async function refreshedFailure(
     db.delete(guards),
   ]);
 
-  const [item] = refreshed[ITEM_READ];
+  const [item] = refreshed[REFRESHED_ITEM];
 
   return item === undefined ? null : { kind: "saved", item, created: false };
 }
@@ -115,13 +117,11 @@ export function saveUnresolved(
   const noAlias = holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, link.normalizedUrl));
   const failure = { address, link, fetched, now: Date.now(), addedByToken };
 
-  return unlessRestoreRefused(
-    db,
-    noAlias,
+  return unlessRefused(
     async () =>
       (await insertedFailure(db, noAlias, failure)) ??
       (existing === "keep"
-        ? { kind: "saved", item: await itemAt(db, link.normalizedUrl), created: false }
+        ? knownItem(db, link.normalizedUrl)
         : refreshedFailure(db, noAlias, failure)),
   );
 }

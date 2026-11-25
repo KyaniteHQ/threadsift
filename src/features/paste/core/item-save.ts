@@ -12,6 +12,7 @@ import {
   guardedItemWrite,
   holdsNoItem,
   itemAt,
+  knownItem,
   queuedRows,
   writeQueued,
 } from "../../item/core/item-rows.ts";
@@ -38,15 +39,13 @@ export async function saveLinked(
   paste: Readonly<Paste>,
   link: Readonly<Link>,
   existing: Existing,
-): Promise<Saved> {
+): Promise<Saved | null> {
   const { db } = ports;
 
   const around: Around | undefined =
     existing === "keep" ? { guard: holdsNoItem(db, link.normalizedUrl), after: [] } : undefined;
 
-  const saved = await writeQueued(ports, paste, link, around);
-
-  return saved ?? { kind: "saved", item: await itemAt(db, link.normalizedUrl), created: false };
+  return (await writeQueued(ports, paste, link, around)) ?? knownItem(db, link.normalizedUrl);
 }
 
 export async function savePaged(
