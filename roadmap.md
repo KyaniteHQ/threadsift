@@ -70,7 +70,7 @@ These run beside the list. Each is the owner's, and most have a long wait.
 - [x] 1.3 Update the Impeccable skill from 4.8.0 to the latest release (4.11.0 on 2026-11-25), with the release and commit lines of the skill's upstream note moved forward, because the design work below uses it, and close #463 as not planned (the owner's decision): its comment of 2026-11-17 says the saved session is already invalid and that hosted reviews no longer run. The closing comment says so, and the design review section of the decisions doc no longer promises a renewal. **Check:** `impeccable context --target web` prints no `UPDATE_AVAILABLE`; `gh issue view 463 --json state,stateReason` prints `CLOSED` and `NOT_PLANNED`.
 - [x] 1.4 Find and fix the gate failure when two gates run at once on one machine (#782), because every item below runs the gate, often beside another. **Check:** two `devenv tasks run ci:gate` runs started together both pass, and #782 holds the runs.
   The failure did not happen in 6 pairs of gates, so no cause was found and nothing changed; #782 is closed as not reproducible and names the evidence to collect if it comes back.
-- [ ] 1.5 The docs-only mode of the gate also covers this file, so a tick does not run the whole gate in CI. **Check:** the classify command of the docs skip script exits 0 for a change that touches only `roadmap.md`, and the CI run of such a push runs in docs mode.
+- [x] 1.5 The docs-only mode of the gate also covers this file, so a tick does not run the whole gate in CI. **Check:** the classify command of the docs skip script exits 0 for a change that touches only `roadmap.md`, and the CI run of such a push runs in docs mode.
 
 ## Part 2. The brand first, then the Styles and the Settings menu
 
