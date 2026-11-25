@@ -35,14 +35,9 @@ released_tag() {
   tag_known "$tag" && echo "$tag"
 }
 
-rewritten() {
-  local file="$1" expression="$2"
-  sed -E -i "$expression" "$file"
-}
-
 pin() {
   local tag="$1" hash="$2"
-  rewritten "$skill" "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/"
+  sed -E -i "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/" "$skill"
 }
 
 case "$mode" in
@@ -59,7 +54,7 @@ case "$mode" in
     echo "$version" > "$bot/VERSION"
     computed_sums > "$sums"
     pin "bot-v$version" "$(sums_hash)"
-    rewritten "$bot/CHANGELOG.md" "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/"
+    sed -E -i "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/" "$bot/CHANGELOG.md"
     echo "bot-v$version"
     ;;
   check)
