@@ -128,7 +128,13 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.deepEqual(readdirSync(vault), []);
   });
 
-  it("saves the folder, reads it back, and mirrors every Item note, the Topic page, the Index and the Log under Threadsift", async () => {
+  const retryAt = () =>
+    count(instance, "select retry_at as n from mirror_notes where conflict_path is not null");
+
+  const conflictLines = async () =>
+    (await lines(instance)).filter((line) => line.startsWith("vault-file-conflict"));
+
+  it("mirrors every Item note, the Topic page, the Index and the Log into the saved folder, parks the path of a note the owner holds until its file is gone, follows library changes, and keeps its files on disconnect", async () => {
     mkdirSync(at(`Threadsift/items/${String(conflicted)}`), { recursive: true });
     writeFileSync(at(noteOf(conflicted)), OWNER_NOTE);
     writeFileSync(at("Owner.md"), "Outside the mirror folder.");
@@ -172,23 +178,13 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
 
     assert.ok(existsSync(at(`${topicPage}.md`)));
     assert.ok(text("Threadsift/Index.md").includes(`[[${topicPage}|Reading]]`));
-  });
 
-  it("names the path of a note the owner already holds, and keeps writing the other Items", async () => {
     await swept(instance, view, (seen) => seen.mode === "folder" && seen.conflicts.length > 0);
 
     assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
     assert.equal(text(noteOf(conflicted)), OWNER_NOTE);
     assert.ok(existsSync(at(noteOf(mirrored))));
-  });
 
-  const retryAt = () =>
-    count(instance, "select retry_at as n from mirror_notes where conflict_path is not null");
-
-  const conflictLines = async () =>
-    (await lines(instance)).filter((line) => line.startsWith("vault-file-conflict"));
-
-  it("does not try the path again at a clock before the park ends", async () => {
     const parkedUntil = retryAt();
 
     await nextSweepAt(instance, parkedUntil - 1);
@@ -196,9 +192,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.equal(retryAt(), parkedUntil);
     assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
     assert.deepEqual(await conflictLines(), [`vault-file-conflict | ${noteOf(conflicted)}`]);
-  });
 
-  it("tries the path again at the instant the park ends, and still holds one Log line and the owner's file", async () => {
     const first = retryAt();
 
     await nextSweepAt(instance, first);
@@ -207,9 +201,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.deepEqual(await conflicts(), [noteOf(conflicted)]);
     assert.equal(text(noteOf(conflicted)), OWNER_NOTE);
     assert.deepEqual(await conflictLines(), [`vault-file-conflict | ${noteOf(conflicted)}`]);
-  });
 
-  it("writes the note once the owner's file is gone, clears the conflict and keeps the Log line", async () => {
     const path = at(noteOf(conflicted));
     const aside = at("owner-note.md");
 
@@ -224,26 +216,22 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     } finally {
       renameSync(aside, path);
     }
-  });
 
-  it("rewrites the notes a library change touches", async () => {
-    const saved = await instance.send("PUT", `/api/items/${String(mirrored)}/note`, {
+    const noteSaved = await instance.send("PUT", `/api/items/${String(mirrored)}/note`, {
       body: SAVED_NOTE,
       revision: 0,
     });
 
-    assert.equal(saved.status, 200);
+    assert.equal(noteSaved.status, 200);
 
     await swept(
       instance,
       () => text(noteOf(mirrored)),
-      (note) => note.includes(SAVED_NOTE),
+      (written) => written.includes(SAVED_NOTE),
     );
 
     assert.ok(text(noteOf(mirrored)).includes(SAVED_NOTE));
-  });
 
-  it("removes the files of a deleted Item and leaves every file it did not write", async () => {
     assert.equal((await instance.send("DELETE", `/api/items/${String(mirrored)}`)).status, 204);
 
     await swept(
@@ -257,9 +245,7 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
     assert.equal(text(noteOf(conflicted)), OWNER_NOTE);
     assert.equal(text("Owner.md"), "Outside the mirror folder.");
     assert.equal(text("Threadsift/mine.md"), "Inside it, and not the mirror's.");
-  });
 
-  it("disconnects without deleting the files it wrote", async () => {
     const removed = await instance.read("DELETE", SETTINGS, VaultViewSchema);
 
     assert.equal(removed.mode, "github");
