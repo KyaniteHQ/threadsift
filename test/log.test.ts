@@ -3,7 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { Instance } from "./instance.ts";
-import { lines, paste, readLog, seedEntries } from "./log-fixtures.ts";
+import { paste } from "./library-fixtures.ts";
+import { lines, readLog, seedEntries } from "./log-fixtures.ts";
 
 describe("the Log records a first Digest, a second Item and a Digest sent again", () => {
   let instance: Instance;
