@@ -5,6 +5,7 @@ import { executeClaimed, runJob } from "../src/core/compose/jobs.ts";
 import { MAX_ATTEMPTS } from "../src/core/contract/job-contract.ts";
 import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
 import { takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
+import { dueNow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
 import {
   LATER,
@@ -43,10 +44,6 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
 
   const waiting = (id: number) => {
     fetchJob(instance, id, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
-  };
-
-  const dueNow = (id: number) => {
-    instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", id);
   };
 
   const spent = (id: number, address: string) => {
@@ -97,7 +94,7 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
     waiting(2);
     spent(4, OTHER_LINK);
     await holdingTheTurn(1);
-    dueNow(4);
+    dueNow(instance, 4);
     await runJob(instance.core, 4);
 
     assert.deepEqual(

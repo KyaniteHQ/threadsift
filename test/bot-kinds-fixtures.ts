@@ -12,7 +12,7 @@ import {
   selectGrokBot,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
+import { jobRow, taskRow, taskRows, requeued } from "./bot-task-rows.ts";
 import type { Instance, Json } from "./instance.ts";
 
 export { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
@@ -45,11 +45,7 @@ export async function sentTask(
   const lastAttempt = isLastAttempt(job.attempts);
 
   await selectGrokBot(instance);
-  instance.database.exec(
-    "update jobs set state = 'queued', attempts = ?, next_attempt_at = 0, claim_expires = null where id = ?",
-    lastAttempt ? 0 : job.attempts,
-    job.id,
-  );
+  requeued(instance, job.id, lastAttempt ? 0 : job.attempts);
   await executeClaimed(instance.core, await claimedBotJob(instance, job.id));
 
   const task = taskRows(instance, "job_id = ?", job.id).at(-1);

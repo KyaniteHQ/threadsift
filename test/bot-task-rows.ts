@@ -59,6 +59,18 @@ export function jobRow(instance: Instance, id: number) {
   return row;
 }
 
+export function dueNow(instance: Instance, id: number): void {
+  instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", id);
+}
+
+export function requeued(instance: Instance, id: number, attempts?: number): void {
+  instance.database.exec(
+    "update jobs set state = 'queued', attempts = coalesce(?, attempts), next_attempt_at = 0, claim_expires = null where id = ?",
+    attempts ?? null,
+    id,
+  );
+}
+
 export const jobAfterAttempts = (instance: Instance, id: number, attempts: number) =>
   until(
     `job ${String(id)} has spent ${String(attempts)} attempts`,

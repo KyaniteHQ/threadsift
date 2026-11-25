@@ -5,6 +5,7 @@ import { z } from "zod";
 
 import { executeClaimed, runJob } from "../src/core/compose/jobs.ts";
 import { saveBot } from "./bot-task-fixtures.ts";
+import { dueNow } from "./bot-task-rows.ts";
 import { atClock } from "./clock-fixtures.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { xAddressOf, claimedFetchJob, insertedXItem } from "./x-intake-fixtures.ts";
@@ -98,7 +99,7 @@ describe("an X link goes to the saved Grok Bot first, and a send that fails is r
     assert.deepEqual(tasks(instance), [{ state: "failed", refusal: "unreachable" }]);
     assert.equal((await instance.detail(id)).status, "processing");
 
-    instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", first.id);
+    dueNow(instance, first.id);
     const secondAttempt = Date.now();
     await atClock(
       () => secondAttempt,
@@ -110,7 +111,7 @@ describe("an X link goes to the saved Grok Bot first, and a send that fails is r
     assert.equal(second.attempts, 2);
     assert.equal(second.next_attempt_at - secondAttempt, 120_000);
 
-    instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", first.id);
+    dueNow(instance, first.id);
     await runJob(instance.core, first.id);
 
     const detail = await instance.detail(id);

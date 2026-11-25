@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { runJob } from "../src/core/compose/jobs.ts";
-import { jobAfterAttempts, jobRow } from "./bot-task-rows.ts";
+import { jobAfterAttempts, jobRow, dueNow } from "./bot-task-rows.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { paste, saveProvider, until } from "./library-fixtures.ts";
 import { entryCount } from "./log-fixtures.ts";
@@ -106,7 +106,7 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
       );
 
     assert.equal((await instance.send("POST", `/api/items/${String(id)}/digest`)).status, 200);
-    instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", job.id);
+    dueNow(instance, job.id);
     await runJob(instance.core, job.id);
 
     assert.equal(digestOpen(), 1);

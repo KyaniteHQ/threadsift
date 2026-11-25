@@ -4,7 +4,14 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { runJob } from "../src/core/compose/jobs.ts";
 import { acceptedByBot, botInstance } from "./bot-task-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
-import { insertedTask, jobAfterAttempts, jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
+import {
+  insertedTask,
+  jobAfterAttempts,
+  jobRow,
+  taskRow,
+  taskRows,
+  dueNow,
+} from "./bot-task-rows.ts";
 import { answerOf, contentOf, digestOf } from "./x-intake-bodies.ts";
 import {
   advancedContent,
@@ -68,7 +75,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
     );
     assert.equal(stored(instance, PUBLISHED_TABLES), published);
 
-    instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", task.job.id);
+    dueNow(instance, task.job.id);
     await runJob(instance.core, task.job.id);
 
     assert.equal(taskRows(instance, "job_id = ?", task.job.id).length, 2);
