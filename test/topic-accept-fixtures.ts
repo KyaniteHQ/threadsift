@@ -27,7 +27,7 @@ export function proposeTopics(
   return seedProposal(
     instance,
     "topic-merge",
-    { from_topic_id: topicId(instance, from), into_topic_id: topicId(instance, into) },
+    { fromTopicId: topicId(instance, from), intoTopicId: topicId(instance, into) },
     { reason, state },
   );
 }

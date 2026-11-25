@@ -29,7 +29,7 @@ export function propose(
   return seedProposal(
     instance,
     "tag-merge",
-    { from_tag_id: tagId(instance, from), into_tag_id: tagId(instance, into) },
+    { fromTagId: tagId(instance, from), intoTagId: tagId(instance, into) },
     { reason: "Same thing.", state },
   );
 }

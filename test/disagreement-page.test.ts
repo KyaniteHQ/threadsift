@@ -43,8 +43,8 @@ describe("disagreement rows beside the other kinds", () => {
       instance,
       "topic-merge",
       {
-        from_topic_id: topicId(instance, "Reading"),
-        into_topic_id: topicId(instance, "Other"),
+        fromTopicId: topicId(instance, "Reading"),
+        intoTopicId: topicId(instance, "Other"),
       },
       { reason: "Same subject." },
     );

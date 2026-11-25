@@ -241,7 +241,7 @@ describe("the run sends no pair that already has a row, whichever way round the 
       seedProposal(
         instance,
         "tag-merge",
-        { from_tag_id: tagId(from), into_tag_id: tagId(into) },
+        { fromTagId: tagId(from), intoTagId: tagId(into) },
         { reason, state },
       );
 

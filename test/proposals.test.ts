@@ -27,7 +27,7 @@ function seedMerge(
   state: string,
   reason: string | null,
 ): void {
-  seedProposal(instance, "tag-merge", { from_tag_id: from, into_tag_id: into }, { reason, state });
+  seedProposal(instance, "tag-merge", { fromTagId: from, intoTagId: into }, { reason, state });
 }
 
 const states = (instance: Instance) =>

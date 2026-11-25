@@ -25,8 +25,8 @@ describe("Accept on a Tag with more Items than one unit holds", () => {
     linkVolume(instance, { tag: "bigger", items: 40, from: 191 });
     linkVolume(instance, { tag: "other", items: 5, from: 1 });
     exec(instance, "update digests set digest = 'not a digest' where item_id = 100005");
-    seedProposal(instance, "tag-merge", { from_tag_id: 1, into_tag_id: 2 }, { reason: "Same." });
-    seedProposal(instance, "tag-merge", { from_tag_id: 1, into_tag_id: 3 }, { reason: "Other." });
+    seedProposal(instance, "tag-merge", { fromTagId: 1, intoTagId: 2 }, { reason: "Same." });
+    seedProposal(instance, "tag-merge", { fromTagId: 1, intoTagId: 3 }, { reason: "Other." });
   });
 
   after(() => instance.close());
@@ -87,7 +87,7 @@ describe("the sweep finishes a merge that a request left open", () => {
     seedProposal(
       instance,
       "tag-merge",
-      { from_tag_id: 1, into_tag_id: 2 },
+      { fromTagId: 1, intoTagId: 2 },
       {
         id: 7,
         reason: "Same.",
@@ -132,12 +132,7 @@ describe("an Accept that ends on the last unit of a request answers 200", () => 
     );
     seedVolume(instance, { tags: ["big"], items: ITEMS, from: 1 });
     linkVolume(instance, { tag: "big", items: ITEMS, from: 1 });
-    seedProposal(
-      instance,
-      "tag-merge",
-      { from_tag_id: 1, into_tag_id: 2 },
-      { id: 1, reason: "Same." },
-    );
+    seedProposal(instance, "tag-merge", { fromTagId: 1, intoTagId: 2 }, { id: 1, reason: "Same." });
   });
 
   after(() => instance.close());

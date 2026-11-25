@@ -34,7 +34,7 @@ export function proposeGap(instance: Instance, topic: string, state = "open"): n
   return seedProposal(
     instance,
     "overview-gap",
-    { topic_id: topicId(instance, topic) },
+    { topicId: topicId(instance, topic) },
     { reason: "plain-check", state },
   );
 }

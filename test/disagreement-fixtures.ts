@@ -76,10 +76,10 @@ export function proposeDisagreement(
     instance,
     "items-disagree",
     {
-      from_item_id: first,
-      into_item_id: second,
-      from_digest: tokenOf(instance, first),
-      into_digest: tokenOf(instance, second),
+      fromItemId: first,
+      intoItemId: second,
+      fromDigest: tokenOf(instance, first),
+      intoDigest: tokenOf(instance, second),
     },
     { reason: "They give opposite advice.", state },
   );
