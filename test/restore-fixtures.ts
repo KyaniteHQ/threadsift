@@ -5,6 +5,7 @@ import type { TestContext } from "node:test";
 
 import { z } from "zod";
 
+import type { UnownedJobKind } from "../src/core/contract/job-contract.ts";
 import {
   RestoreStatusSchema,
   type RestoreStatus,
@@ -108,8 +109,8 @@ export async function restoredDone(instance: Instance) {
   return status;
 }
 
-export function retryNow(instance: Instance): void {
-  exec(instance, "update jobs set next_attempt_at = 0 where state = 'queued'");
+export function retryNow(instance: Instance, kind: UnownedJobKind): void {
+  exec(instance, "update jobs set next_attempt_at = 0 where state = 'queued' and kind = ?", kind);
   instance.core.jobs.wake();
 }
 
@@ -118,7 +119,7 @@ export function settledAfterRetries<State extends Settled>(
   states: readonly State[],
 ) {
   return until(() => {
-    retryNow(instance);
+    retryNow(instance, "restore");
 
     return restoreStatus(instance);
   }, isSettled(states));
