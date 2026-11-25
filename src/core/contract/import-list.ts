@@ -3,7 +3,7 @@ import type { z } from "zod";
 import { webUrlOf } from "./addresses.ts";
 import type { BatchRequestSchema } from "./batch-wire.ts";
 import { hex, utf8Length } from "./encoding.ts";
-import { lineBreaksOf } from "./format.ts";
+import { splitLines } from "./format.ts";
 import { BODY_LIMIT_BYTES } from "./limits.ts";
 import { linkIn } from "./shared-link.ts";
 
@@ -122,7 +122,7 @@ function* csvRecords(text: string): Generator<CsvRecord> {
 
     cells.push(groups["quoted"]?.replaceAll('""', '"') ?? groups["bare"] ?? "");
     position = CSV_FIELD.lastIndex;
-    line += lineBreaksOf(found[0]).length - 1;
+    line += splitLines(found[0]).length - 1;
 
     if (groups["end"] !== ",") {
       yield { line: startLine, cells };
@@ -153,7 +153,7 @@ function permalinkAddress(field: string): URL | null {
 }
 
 function* lineEntries(text: string): Generator<Entry> {
-  for (const [index, line] of lineBreaksOf(text).entries()) {
+  for (const [index, line] of splitLines(text).entries()) {
     if (line.trim() !== "") {
       yield { row: index + 1, text: line.trim(), address: addressOf(line) };
     }

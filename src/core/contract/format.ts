@@ -21,7 +21,7 @@ export function collapsed(text: string): string {
   return text.replaceAll(/\s+/gu, " ").trim();
 }
 
-export function lineBreaksOf(text: string): string[] {
+export function splitLines(text: string): string[] {
   return text.split(/\r\n|\r|\n/u);
 }
 

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { lineBreaksOf } from "./format.ts";
+import { splitLines } from "./format.ts";
 import { isReadableText } from "./plain-text.ts";
 
 export const SHORT_TEXT_MAX = 240;
@@ -18,10 +18,10 @@ const Summary = z
   .trim()
   .min(1)
   .max(1200)
-  .refine((text) => lineBreaksOf(text).length <= 2, { error: "must have at most two lines" });
+  .refine((text) => splitLines(text).length <= 2, { error: "must have at most two lines" });
 
 const ReadableSummary = Summary.refine(
-  (text) => lineBreaksOf(text).every((line) => isReadableText(line)),
+  (text) => splitLines(text).every((line) => isReadableText(line)),
   UNREADABLE,
 );
 

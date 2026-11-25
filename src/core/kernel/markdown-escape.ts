@@ -1,4 +1,4 @@
-import { escapedJson, lineBreaksOf } from "../contract/format.ts";
+import { escapedJson, splitLines } from "../contract/format.ts";
 
 const INLINE_SPECIALS = /[\\`*_[\]<>&~|]/gu;
 
@@ -11,7 +11,7 @@ export function yamlScalar(value: string | null): string {
 }
 
 export function plainMarkdown(text: string): string {
-  return lineBreaksOf(text)
+  return splitLines(text)
     .map((line) =>
       line
         .replaceAll(INLINE_SPECIALS, "\\$&")

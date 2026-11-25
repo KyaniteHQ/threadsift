@@ -6,7 +6,7 @@ import {
   itemFilesPrefix,
   keyOfFileRoute,
 } from "../../../core/contract/file-keys.ts";
-import { collapsed, lineBreaksOf } from "../../../core/contract/format.ts";
+import { collapsed, splitLines } from "../../../core/contract/format.ts";
 import type { Kind, ReadState, Source } from "../../../core/contract/item-contract.ts";
 import {
   COMMENTS_TITLE,
@@ -98,7 +98,7 @@ function frontMatter(input: Readonly<ItemNoteInput>): string {
 }
 
 function quotedLines(text: string): string[] {
-  return lineBreaksOf(text).map((line) => (line === "" ? ">" : `> ${line}`));
+  return splitLines(text).map((line) => (line === "" ? ">" : `> ${line}`));
 }
 
 function highlightLines({ exact, found }: Readonly<NoteHighlight>): string[] {
@@ -106,9 +106,7 @@ function highlightLines({ exact, found }: Readonly<NoteHighlight>): string[] {
 }
 
 function keyPointLines(point: string): string[] {
-  return lineBreaksOf(plainMarkdown(point)).map((line, at) =>
-    at === 0 ? `- ${line}` : `  ${line}`,
-  );
+  return splitLines(plainMarkdown(point)).map((line, at) => (at === 0 ? `- ${line}` : `  ${line}`));
 }
 
 function section(heading: string, blocks: readonly (readonly string[])[]): string[] {
@@ -138,9 +136,7 @@ function commentLines(node: Readonly<CommentNode>, source: Source): string[] {
 
   return [
     ...(handle === "" ? [] : [`${prefix}**${plainMarkdown(handle)}**`, markers(node.depth + 1)]),
-    ...lineBreaksOf(node.body).map((line) =>
-      line === "" ? markers(node.depth + 1) : prefix + line,
-    ),
+    ...splitLines(node.body).map((line) => (line === "" ? markers(node.depth + 1) : prefix + line)),
   ];
 }
 
