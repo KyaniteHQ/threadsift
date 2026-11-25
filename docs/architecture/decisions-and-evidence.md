@@ -19,7 +19,7 @@ Contents: [Product decisions](#product-decisions), [Design review](#design-revie
 
 ## Design review
 
-Impeccable Reviews is a GitHub App in closed beta, and its hosted pull request reviews do not run without per-PR previews. The building agent checks screenshots in every theme before landing ([Reviewing code](../agents/reviewing-code.md)).
+Impeccable Reviews is a GitHub App in closed beta, and its hosted pull request reviews do not run without per-PR previews. Impeccable holds no working session for the live Worker: recreating the live Worker's database deleted every stored session, and a sign-in to the Impeccable reviews app on 2026-11-19 answered "Paused for maintenance". No session is renewed, because only a hosted review would use one. In this repository Impeccable runs local-only. Its project config turns telemetry off, which `impeccable telemetry status` reports, so it uploads no scan, critique or design file and the roll API records nothing. The Claude Code and Codex settings turn off the three account features that telemetry leaves on: the block it writes into each agent's user rule file, the Pro engine and the fetch of the account's design preferences. The building agent checks screenshots in every theme before landing ([Reviewing code](../agents/reviewing-code.md)).
 
 ## Reddit
 

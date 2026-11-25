@@ -15,6 +15,9 @@ devenv.local.nix
 !.impeccable/live/config.json
 .impeccable/critique/*
 !.impeccable/critique/ignore.md
+.impeccable/mocks/
+.impeccable/questions/
+.impeccable/review/
 dist/
 .wrangler/
 .data/

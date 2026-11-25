@@ -1,4 +1,5 @@
 {
+  "telemetry": false,
   "hook": {
     "enabled": true,
     "limits": {
