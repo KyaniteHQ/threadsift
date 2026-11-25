@@ -176,7 +176,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     assert.equal(await instance.itemTotal(), total);
   });
 
-  it("deletes the aliases of an Item in the same batch that deletes the Item", async () => {
+  it("removes the aliases of an Item when the Item is deleted", async () => {
     const short = "https://t.co/deleteme";
     const saved = await firstResolved(instance, short, xLink(906));
 
