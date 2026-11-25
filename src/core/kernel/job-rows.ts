@@ -227,7 +227,7 @@ export async function enqueueQuietly(
 }
 
 export function enqueueRows(
-  ports: JobPorts,
+  ports: Readonly<Pick<JobPorts, "jobs">>,
   rows: readonly Readonly<{ id: number }>[],
 ): Promise<void> {
   return enqueueQuietly(
