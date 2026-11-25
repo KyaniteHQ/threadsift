@@ -5,6 +5,7 @@ import {
   ItemDetailResponseSchema,
   ItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
+import type { Item } from "../src/core/contract/item-wire.ts";
 import type { SaveItemInput } from "../src/core/contract/save-wire.ts";
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/contract/topic-path.ts";
@@ -60,10 +61,14 @@ export async function relatedOf(
   return ItemDetailResponseSchema.parse(await answer.json()).item.related.map((entry) => entry.id);
 }
 
-export async function itemIdle(request: APIRequestContext, id: number): Promise<boolean> {
+async function itemStatus(request: APIRequestContext, id: number): Promise<Item> {
   const status = await request.get(`/api/items/${String(id)}/status`);
 
-  return ItemResponseSchema.parse(await status.json()).item.status !== "processing";
+  return ItemResponseSchema.parse(await status.json()).item;
+}
+
+export async function itemIdle(request: APIRequestContext, id: number): Promise<boolean> {
+  return (await itemStatus(request, id)).status !== "processing";
 }
 
 export async function pasteAndSettle(
@@ -71,22 +76,20 @@ export async function pasteAndSettle(
   input: Readonly<SaveItemInput>,
 ): Promise<number> {
   const id = await savedItem(request, input);
+  let settled: Item | undefined;
 
   await expect
     .poll(
       async () => {
-        const status = await request.get(`/api/items/${String(id)}/status`);
+        settled = await itemStatus(request, id);
 
-        return ItemResponseSchema.parse(await status.json()).item.status;
+        return settled.status;
       },
       { message: `${input.url} leaves processing`, timeout: 60_000 },
     )
     .not.toBe("processing");
 
-  const settled = await request.get(`/api/items/${String(id)}/status`);
-  const { fetch: result, status } = ItemResponseSchema.parse(await settled.json()).item;
-
-  expect({ status, fetch: result }, `${input.url} is read`).toEqual({
+  expect({ status: settled?.status, fetch: settled?.fetch }, `${input.url} is read`).toEqual({
     status: "ready",
     fetch: "ok",
   });
