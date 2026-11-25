@@ -198,7 +198,7 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
 });
 
 describe("the sign-in line of grok models is a hint matched against the three recorded sentences", () => {
-  it("reads signed in, signed out and anything else as unknown", () => {
+  it("reads signed in, signed out and anything else as unknown, and ends the line at a line feed, not at a lone carriage return", () => {
     assert.deepEqual(
       [
         signInOf("You are logged in with grok.com.\n\nDefault model: grok-4.7\n"),
@@ -206,8 +206,10 @@ describe("the sign-in line of grok models is a hint matched against the three re
         signInOf("You are using XAI_API_KEY.\n"),
         signInOf("Something new.\n"),
         signInOf(""),
+        signInOf("You are logged in with grok.com.\rDefault model: grok-4.7\n"),
+        signInOf("You are logged in with grok.com.\r\nDefault model: grok-4.7\r\n"),
       ],
-      ["signed-in", "signed-out", "unknown", "unknown", "unknown"],
+      ["signed-in", "signed-out", "unknown", "unknown", "unknown", "unknown", "signed-in"],
     );
   });
 });

@@ -1,6 +1,5 @@
 import { writeFile } from "node:fs/promises";
 
-import { splitLines } from "../../core/contract/format.ts";
 import { type ProcessEnd, runProcess } from "./cli-process.ts";
 import { type SignIn, signInFrom } from "./cli-sign-in.ts";
 import { type RunFolders, sweepGrokTemp, toolListOf } from "./grok-folders.ts";
@@ -61,7 +60,7 @@ async function versionWith(
   signal: AbortSignal,
 ): Promise<Versioned> {
   const end = await spawn(folders, ["--version"], signal, LINE_CAP);
-  const [line = ""] = splitLines(end.kind === "exited" ? end.stdout : "");
+  const [line = ""] = (end.kind === "exited" ? end.stdout : "").split("\n");
 
   return { end, version: line.trim() === "" ? null : line.trim() };
 }
