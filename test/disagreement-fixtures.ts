@@ -3,7 +3,7 @@ import { z } from "zod";
 import type { Instance } from "./instance.ts";
 import { paste, pasteInOrder, until } from "./library-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { jobsOf, nextSweep, releaseClaim } from "./weekly-claim-fixtures.ts";
+import { claims, jobsOf, nextSweep, releaseClaim } from "./weekly-claim-fixtures.ts";
 
 export interface Seeded {
   readonly id: number;
@@ -17,14 +17,14 @@ export interface Seeded {
 const quoted = (text: string): string => text.replaceAll("'", "''");
 
 export function seedTopics(instance: Instance, names: Readonly<Record<number, string>>): void {
-  instance.database.script(
-    Object.entries(names)
-      .map(
-        ([id, name]) =>
-          `insert into topics (id, key, name) values (${id}, '${name.toLowerCase()}', '${name}');`,
-      )
-      .join("\n"),
-  );
+  for (const [id, name] of Object.entries(names)) {
+    instance.database.exec(
+      "insert into topics (id, key, name) values (?, ?, ?)",
+      Number(id),
+      name.toLowerCase(),
+      name,
+    );
+  }
 }
 
 export function seedDigested(instance: Instance, seeds: readonly Readonly<Seeded>[]): void {
@@ -131,13 +131,14 @@ export async function runWeek(instance: Instance): Promise<void> {
   releaseClaim(instance, "disagreement_proposals");
   await nextSweep(instance);
   await until(
-    "the disagreement run has a new task or no open job",
+    "the weekly disagreement stage claimed its run and its job sent a task or finished",
     () => ({
+      claimed: claims(instance, "disagreement_proposals").length,
       tasks: tasksOf(instance).length,
       open: jobsOf(instance, "disagreement_proposals").filter(({ state }) => state !== "done")
         .length,
     }),
-    ({ tasks, open }) => tasks > before || open === 0,
+    ({ claimed, tasks, open }) => claimed === 1 && (tasks > before || open === 0),
   );
 }
 
