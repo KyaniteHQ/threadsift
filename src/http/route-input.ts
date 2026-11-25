@@ -38,6 +38,10 @@ const FILTER_FIELDS = {
 
 export const ItemQuerySchema = z.object({
   ...FILTER_FIELDS,
+  q: FILTER_FIELDS.q.meta({
+    description:
+      "Matches Items that hold every word it contains, as the start of a word, in the title, the Digest's title, post text, Kept comments, Summary, Tags, a GitHub repository's description and topics, Highlights or Note.",
+  }),
   read: z.enum(READ_STATES).optional(),
   url: HttpUrlSchema.optional(),
   cursor: cursorParam(parseItemCursor),
