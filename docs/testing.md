@@ -30,12 +30,13 @@ The X Settings tests run in Node. They build the app with the Worker's public-on
 
 Each file states the requirement it proves. Files in a shard share one process, so each file closes its resources, restores process globals and keeps its own mutable fixtures.
 
-A core test reaches no host on the internet, with two exceptions:
+A core test reaches no host on the internet, with three exceptions:
 
 - A test that stores an X thread through an intake answer lets the `x_verify` job ask X's public oEmbed endpoint (`publish.x.com`) for the post.
 - The fetcher plug-in test looks up `www.reddit.com`.
+- The release test "passes on the files of the repository" runs `tools/bot-release.sh check` on the real clone. When the clone does not hold the tag that `SKILL.md` pins, the script asks `origin` (GitHub) with `git ls-remote` whether the tag exists, and fetches it, to compare the published `SHA256SUMS` with the pinned hash. It asks nothing when the clone holds the tag, and it fails when the lookup fails.
 
-Every other host a core test requests is reserved (`.test`, `.invalid`), the machine's own, or a refused local port (a test that saves a Provider points it at `http://127.0.0.1:9`). Test data can name `t.co`, `x.com`, `www.reddit.com` and `example.com` in a link it saves or resolves, and no test needs an answer from them, because the save route takes the page from the caller. The Grok Bot script tests use `python3` and `curl` against the real app on loopback, and the zip listing test runs `python3`. Each bot script test setup also serves a closed Instance so the failure cases receive a real server error. The bot release check also needs Bash, Git and `sha256sum` to verify the tagged release and its checksums. No core test reaches a working Provider. The suite passes with only the loopback interface up (`unshare -rn`).
+Every other host a core test requests is reserved (`.test`, `.invalid`), the machine's own, or a refused local port (a test that saves a Provider points it at `http://127.0.0.1:9`). Test data can name `t.co`, `x.com`, `www.reddit.com` and `example.com` in a link it saves or resolves, and no test needs an answer from them, because the save route takes the page from the caller. The Grok Bot script tests use `python3` and `curl` against the real app on loopback, and the zip listing test runs `python3`. Each bot script test setup also serves a closed Instance so the failure cases receive a real server error. The bot release check also needs Bash, Git and `sha256sum` to verify the tagged release and its checksums. No core test reaches a working Provider. The suite passes with only the loopback interface up (`unshare -rn`) while the clone holds the tag that `SKILL.md` pins.
 
 **The machine's own host name.** Two tests, through `ownPrivateHostName`, need the machine's own host name to resolve only to private addresses, as it does on a GitHub runner and on a host whose `/etc/hosts` maps the name to a loopback address. Where the name resolves to a public address they fail, and so do `pnpm test`, the pre-push hook and the `check` job, until an `/etc/hosts` line maps the name to `127.0.0.1`.
 
