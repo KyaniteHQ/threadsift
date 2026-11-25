@@ -192,17 +192,22 @@ export async function sliceEntries(
   const lengths = await Promise.all(
     parts.map(async (key) => (await bytesOfKey(instance, key)).length),
   );
-  const ends = lengths.map((_, at) =>
-    lengths.slice(0, at + 1).reduce((sum, length) => sum + length, 0),
-  );
+  let start = 0;
+  const bounds = lengths.map((length) => {
+    const bound = { start, end: start + length };
+
+    start = bound.end;
+
+    return bound;
+  });
   const { entries } = await directoryOf(zip);
 
-  return ends.map((end, at) =>
+  return bounds.map((bound) =>
     entries
       .filter(
         ({ headerOffset, name }) =>
-          headerOffset >= (ends[at - 1] ?? 0) &&
-          headerOffset < end &&
+          headerOffset >= bound.start &&
+          headerOffset < bound.end &&
           !name.endsWith("/threadsift.json"),
       )
       .map(({ name, size }) => ({ name, size })),
