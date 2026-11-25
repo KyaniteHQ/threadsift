@@ -13,6 +13,7 @@ const STOP_DEADLINE_MS = 10_000;
 const KILL_DEADLINE_MS = 2000;
 const STOP_POLL_MS = 100;
 export const ProcessIdSchema = z.number().int().positive();
+export const WORKER_HOST = "127.0.0.1";
 export const ROOT = resolve(import.meta.dirname, "..");
 
 export function running(target: number): boolean {
@@ -77,7 +78,7 @@ export async function startWorker(
       state,
       String(port),
       "--ip",
-      "127.0.0.1",
+      WORKER_HOST,
       "--inspector-port",
       "0",
       "--env-file",

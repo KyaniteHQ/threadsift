@@ -7,7 +7,7 @@ import { withCleanup } from "../src/core/kernel/failure-log.ts";
 import { attemptEvery } from "./attempt-every.ts";
 import { exitAfterSignal } from "./exit-after-signal.ts";
 import { lockRuns, type RunLock } from "./worker-build-cost-lock.ts";
-import { ROOT, startWorker, stopGroups } from "./worker-build-cost-processes.ts";
+import { ROOT, startWorker, stopGroups, WORKER_HOST } from "./worker-build-cost-processes.ts";
 import { ownerToken, START_DEADLINE_MS, waitUntilServing } from "./worker-build-cost-serving.ts";
 
 const WORKER_FOLDER = join(ROOT, "src", "targets", "worker");
@@ -107,7 +107,9 @@ const forBoth = <Value>(make: (name: Name, slot: Slot) => Value): readonly [Valu
   make(NAMES[1], 1),
 ];
 
-const originOf = (slot: Slot): string => `http://127.0.0.1:${FIRST_PORT + slot}`;
+const portOf = (slot: Slot): number => FIRST_PORT + slot;
+
+const originOf = (slot: Slot): string => `http://${WORKER_HOST}:${portOf(slot)}`;
 
 async function serving(
   prepared: Readonly<Prepared>,
@@ -134,7 +136,7 @@ interface Starting {
 function startWorkers(lock: Readonly<RunLock>, state: string, envFile: string): Starting {
   const pending = Promise.allSettled(
     forBoth((name, slot) =>
-      startWorker(lock.record, FIRST_PORT + slot, join(state, name), envFile, [
+      startWorker(lock.record, portOf(slot), join(state, name), envFile, [
         "--config",
         configFile(name),
       ]),
@@ -161,7 +163,7 @@ export async function withHarness<Result>(
   folderName: string,
   body: (variants: Variants) => Promise<Result>,
 ): Promise<Result> {
-  const lock = await lockRuns();
+  const lock = await lockRuns(forBoth((_, slot) => portOf(slot)));
   const state = join(ROOT, ".wrangler", folderName);
   let spawned: Promise<readonly number[]> = Promise.resolve([]);
   let finished: Promise<void> | undefined;
