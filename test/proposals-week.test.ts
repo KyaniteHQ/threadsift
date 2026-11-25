@@ -14,6 +14,7 @@ import {
   sweptWithClaim,
   nextSweep,
   releaseClaim,
+  holdClaim,
 } from "./weekly-claim-fixtures.ts";
 
 async function seedLibrary(instance: Instance): Promise<number> {
@@ -96,11 +97,7 @@ describe("each weekly model check has its own claim", () => {
       assert.deepEqual(otherClaims(), untouched);
 
       close();
-      library.database.exec(
-        "update scheduled_runs set last_run_at = ? where task = ?",
-        Date.now() + WEEK_MS + 60_000,
-        task,
-      );
+      holdClaim(library, task, Date.now() + WEEK_MS + 60_000);
       await nextSweep(library);
       assert.deepEqual(otherJobs(), priorJobs);
       assert.equal(jobsOf(library, task).length, 3);

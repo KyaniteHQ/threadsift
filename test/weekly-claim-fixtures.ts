@@ -60,11 +60,7 @@ export async function sweptWithClaim(
   claimOffsetMs: number,
 ): Promise<number> {
   await sweptWith(instance, (now) => {
-    instance.database.exec(
-      "update scheduled_runs set last_run_at = ? where task = ?",
-      now + claimOffsetMs,
-      task,
-    );
+    holdClaim(instance, task, now + claimOffsetMs);
   });
 
   return jobsOf(instance, task).length;
