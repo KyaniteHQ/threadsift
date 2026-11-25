@@ -109,6 +109,14 @@ describe("the Worker's HTTP/1.1 reader", () => {
     ["a status line that is not HTTP/1", "SPDY 200 OK\r\n\r\n"],
     ["a head that ends before its blank line", "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"],
     ["a head longer than 16 KiB", `HTTP/1.1 200 OK\r\nX-Long: ${"a".repeat(17_000)}\r\n\r\n`],
+    [
+      "a head whose status line, line breaks and short headers pass 16 KiB together",
+      `HTTP/1.1 200 ${"x".repeat(12_000)}\r\n${"a:\r\n".repeat(2000)}\r\n`,
+    ],
+    [
+      "interim answers that pass 16 KiB before the final answer",
+      `${"HTTP/1.1 103 Early Hints\r\nLink: </a>\r\n\r\n".repeat(500)}HTTP/1.1 200 OK\r\n\r\n`,
+    ],
     ["a Content-Length that is not a number", "HTTP/1.1 200 OK\r\nContent-Length: two\r\n\r\nxx"],
   ] as const;
 

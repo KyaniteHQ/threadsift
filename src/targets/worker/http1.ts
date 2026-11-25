@@ -25,42 +25,44 @@ export function requestBytes(host: string, path: string, headers: RequestHeaders
 
 type HeaderMap = ReadonlyMap<string, string>;
 
-function headLines(reader: Readonly<ByteReader>): Promise<readonly string[]> {
-  const lines: string[] = [];
+const LINE_BREAK_BYTES = 2;
 
-  const next = async (bytes: number): Promise<readonly string[]> => {
-    const line = await reader.line(HEAD_LIMIT_BYTES);
-
-    if (line === null) throw new MalformedResponse("the head ended early");
-
-    if (line === "") return lines;
-
-    if (bytes + line.length > HEAD_LIMIT_BYTES) {
-      throw new MalformedResponse("the head is too long");
-    }
-
-    lines.push(line);
-
-    return next(bytes + line.length);
-  };
-
-  return next(0);
+interface HeadLine {
+  readonly line: string;
+  readonly left: number;
 }
 
-async function headersOf(reader: Readonly<ByteReader>): Promise<HeaderMap> {
-  const headers = new Map<string, string>();
+async function headLine(reader: Readonly<ByteReader>, left: number): Promise<HeadLine> {
+  const line = await reader.line(left - LINE_BREAK_BYTES);
 
-  for (const line of await headLines(reader)) {
-    const colon = line.indexOf(":");
+  if (line === null) throw new MalformedResponse("the head ended early");
 
-    if (colon < 1) throw new MalformedResponse("a header has no name");
+  return { line, left: left - LINE_BREAK_BYTES - line.length };
+}
 
-    const name = line.slice(0, colon).toLowerCase();
+interface HeadFields {
+  readonly headers: HeaderMap;
+  readonly left: number;
+}
 
-    if (!headers.has(name)) headers.set(name, line.slice(colon + 1).trim());
-  }
+async function headersOf(
+  reader: Readonly<ByteReader>,
+  left: number,
+  headers = new Map<string, string>(),
+): Promise<HeadFields> {
+  const read = await headLine(reader, left);
 
-  return headers;
+  if (read.line === "") return { headers, left: read.left };
+
+  const colon = read.line.indexOf(":");
+
+  if (colon < 1) throw new MalformedResponse("a header has no name");
+
+  const name = read.line.slice(0, colon).toLowerCase();
+
+  if (!headers.has(name)) headers.set(name, read.line.slice(colon + 1).trim());
+
+  return headersOf(reader, read.left, headers);
 }
 
 async function* untilClose(reader: Readonly<ByteReader>): AsyncGenerator<Uint8Array> {
@@ -149,15 +151,16 @@ interface Head {
   readonly headers: HeaderMap;
 }
 
-async function finalHead(reader: Readonly<ByteReader>): Promise<Head> {
-  const status = Number(STATUS_LINE.exec((await reader.line(HEAD_LIMIT_BYTES)) ?? "")?.[1]);
+async function finalHead(reader: Readonly<ByteReader>, left: number): Promise<Head> {
+  const read = await headLine(reader, left);
+  const status = Number(STATUS_LINE.exec(read.line)?.[1]);
 
   if (!Number.isInteger(status)) throw new MalformedResponse("the status line is not readable");
 
-  const headers = await headersOf(reader);
+  const { headers, left: rest } = await headersOf(reader, read.left);
 
   return status >= 100 && status < 200 && status !== SWITCHING_PROTOCOLS
-    ? finalHead(reader)
+    ? finalHead(reader, rest)
     : { status, headers };
 }
 
@@ -165,7 +168,7 @@ export async function readResponse(
   source: Readonly<AsyncIterable<Uint8Array>>,
 ): Promise<WireResponse> {
   const reader = byteReader(source);
-  const { status, headers } = await finalHead(reader);
+  const { status, headers } = await finalHead(reader, HEAD_LIMIT_BYTES);
 
   return {
     status,
