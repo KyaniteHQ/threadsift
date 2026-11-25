@@ -13,9 +13,6 @@
   flex-direction: column;
   gap: var(--s3);
 }
-.imp-status:empty {
-  margin-block-start: calc(var(--s3) * -1);
-}
 .imp-status p {
   margin: 0;
 }
