@@ -15,7 +15,7 @@ The oxlint configuration and the oxfmt configuration hold the rules. This page h
 
 ## Reasons the configuration does not show
 
-- oxfmt does not check Markdown, so `pnpm exec oxfmt --check <doc>` passes without reading it. oxfmt pads every table column to its widest cell, so a one-cell change in a doc would rewrite the whole table.
+- The formatter skips Markdown (`**/*.md` in `ignorePatterns`), because oxfmt pads every table column to its widest cell, so a one-cell change would rewrite the whole table. So `pnpm exec oxfmt --check <doc>` checks no file and exits 2 when the doc is the only target, and skips the doc when other files are listed.
 - Type check. `oxlint-tsgolint` reports TypeScript errors with the lint, so there is no separate `tsc` step. It needs TypeScript 7.
 - `reportUnusedDisableDirectives` is `error`, so a disable directive that suppresses nothing fails the lint. Delete the directive when the configuration starts to cover its line.
 - Plugin folders. `anti-slop` is vendored from dmmulroy/anti-slop, and the lint, the formatter and the root TypeScript configuration leave it out, so the repository's strict options do not apply to upstream code. The `threadsift` folder is exempt from `typescript/prefer-readonly-parameter-types`, because ESTree nodes are mutable by construction and no `allow` entry exempts the node types.
