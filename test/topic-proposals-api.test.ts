@@ -1,36 +1,15 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
+import { propose } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
-import { seedProposal } from "./proposal-seed.ts";
-import { paste, exec, rows } from "./related-fixtures.ts";
+import { paste, exec } from "./related-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
-
-const IdSchema = z.object({ id: z.number() });
-
-const idOf = (instance: Instance, table: "tags" | "topics", name: string): number => {
-  const [found] = rows(instance, IdSchema, `select id from ${table} where name = ?`, name);
-
-  assert.ok(found !== undefined, name);
-
-  return found.id;
-};
 
 describe("the Proposals routes with Tag and Topic rows together", () => {
   let instance: Instance;
-
-  const seedTag = (from: string, into: string, state: string, reason: string | null) => {
-    seedProposal(
-      instance,
-      "tag-merge",
-      { from_tag_id: idOf(instance, "tags", from), into_tag_id: idOf(instance, "tags", into) },
-      { reason, state },
-    );
-  };
 
   before(async () => {
     instance = await Instance.start();
@@ -40,7 +19,7 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
     await paste(instance, "three", { title: "Three", topic: "Machine learning", tags: ["llm"] });
     await paste(instance, "four", { title: "Four", topic: "Games" });
     await paste(instance, "five", { title: "Five", topic: "Game" });
-    seedTag("llms", "llm", "open", "Plural of the same word.");
+    propose(instance, ["llms", "llm"]);
     proposeTopics(instance, ["ML", "Machine learning"], "open", "Short form of the name.");
     proposeTopics(instance, ["Game", "Games"], "rejected", "Decided.");
   });
