@@ -12,7 +12,7 @@ import {
   savedLibrary,
 } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste, count } from "./related-fixtures.ts";
+import { paste, rowCount } from "./related-fixtures.ts";
 import { restoreStatus, restoredDone, settledRestore, startedRestore } from "./restore-fixtures.ts";
 import {
   type Entries,
@@ -25,11 +25,11 @@ import {
 
 const AnswerSchema = restoreAnswerSchema("finished", "not-resumable");
 
-const listed = (instance: Instance, query = "") => instance.send("GET", `/api/items${query}`);
+const listed = (instance: Instance) => instance.send("GET", "/api/items");
 
 const idsFound = async (instance: Instance, query: string) =>
-  ItemListResponseSchema.parse(JSON.parse((await listed(instance, query)).body))
-    .items.map(({ id }) => id)
+  (await instance.read("GET", `/api/items${query}`, ItemListResponseSchema)).items
+    .map(({ id }) => id)
     .toSorted((left, right) => left - right);
 
 describe("a Restore of an Export that took several slices brings the library back under its own ids", () => {
@@ -77,7 +77,7 @@ describe("a Restore of an Export that took several slices brings the library bac
       await startedRestore(target, damaged);
 
       assert.equal((await settledRestore(target, ["failed"])).failure, "crc");
-      assert.equal(count(target, "select count(*) as n from items"), 0);
+      assert.equal(rowCount(target, "items"), 0);
     });
   });
 
@@ -148,7 +148,7 @@ describe("a Restore of an Export that took several slices brings the library bac
     });
 
     it("starts with no work in flight and continues ids after the highest the source ever used", async () => {
-      assert.equal(count(target, "select count(*) as n from jobs where kind <> 'restore'"), 0);
+      assert.equal(rowCount(target, "jobs", "kind <> 'restore'"), 0);
 
       const [fromSource, fromTarget] = await Promise.all([
         paste(source, "after-restore", { title: "After the Restore" }),

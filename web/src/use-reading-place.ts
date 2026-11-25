@@ -11,7 +11,9 @@ type Phase =
   | { readonly kind: "watching"; readonly watching: AbortController }
   | { readonly kind: "closed" };
 
-function watchPlace(slot: HTMLElement, itemId: number, signal: AbortSignal): void {
+function startWatching(slot: HTMLElement, itemId: number): AbortController {
+  const watching = new AbortController();
+  const { signal } = watching;
   let timer = 0;
 
   const save = (): void => {
@@ -27,12 +29,6 @@ function watchPlace(slot: HTMLElement, itemId: number, signal: AbortSignal): voi
   slot.addEventListener("scroll", onScroll, { passive: true, signal });
   window.addEventListener("pagehide", save, { signal });
   signal.addEventListener("abort", save, { once: true });
-}
-
-function startWatching(slot: HTMLElement, itemId: number): AbortController {
-  const watching = new AbortController();
-
-  watchPlace(slot, itemId, watching.signal);
 
   return watching;
 }

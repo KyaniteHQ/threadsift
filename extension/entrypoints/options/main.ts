@@ -1,5 +1,6 @@
 import { browser } from "wxt/browser";
 
+import { onPermissionsChanged } from "../../lib/access.ts";
 import { instanceOrigin } from "../../lib/config.ts";
 import { type FillState, loadFill, turnFill } from "../../lib/fill-setting.ts";
 import { deferWhileWorking, newestRequest } from "../../lib/newest-request.ts";
@@ -15,7 +16,7 @@ import {
 import type { ConfigView } from "../../lib/state.ts";
 import { FILL_KEY } from "../../lib/stored-keys.ts";
 import { TEXT } from "../../lib/text.ts";
-import { followRedditPermissions, redditSection, refreshReddit } from "./reddit-section.ts";
+import { redditSection, refreshReddit, refreshRedditUnlessPressing } from "./reddit-section.ts";
 
 const REFUSAL_TEXT: Readonly<Record<Refusal, string>> = {
   address: TEXT.addressInvalid,
@@ -243,11 +244,10 @@ async function followFill(): Promise<void> {
   if (isNewest()) moveFill(next);
 }
 
-followRedditPermissions();
-
-browser.permissions.onAdded.addListener(() => void followFill());
-
-browser.permissions.onRemoved.addListener(() => void followFill());
+onPermissionsChanged(() => {
+  refreshRedditUnlessPressing();
+  void followFill();
+});
 
 browser.storage.onChanged.addListener((changes, area) => {
   if (area === "local" && FILL_KEY in changes) void followFill();

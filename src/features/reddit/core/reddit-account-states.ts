@@ -9,19 +9,14 @@ import {
 } from "../../../core/contract/reddit-http.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import {
-  enqueueWoken,
-  waitingFetches,
-  wakeWaitingFetches,
-  wokenJobs,
-} from "../../../core/kernel/job-waiting.ts";
+import { enqueueWoken, wakeWaitingFetches, wokenJobs } from "../../../core/kernel/job-waiting.ts";
 import {
   ACCOUNT_ROW,
   type AccountRow,
   redditAccount,
 } from "../../../core/kernel/reddit-account-tables.ts";
 import { retryAfterMs } from "../../../core/kernel/retry-after.ts";
-import { WAIT_CHECK_MS, accountIdle } from "./reddit-account-queue.ts";
+import { WAITING, WAIT_CHECK_MS, accountIdle } from "./reddit-account-queue.ts";
 
 const REFUSALS_TO_EXPIRE = 3;
 
@@ -236,14 +231,14 @@ export async function countRefusal(
         ),
       )
       .returning({ state: redditAccount.state }),
-    wokenJobs(ports.db, now, waitingFetches(REDDIT_WAIT), expiredSession(ports.db, session)),
+    wokenJobs(ports.db, now, WAITING, expiredSession(ports.db, session)),
   ]);
 
   if (counted === undefined) return "ignored";
 
   if (counted.state !== "expired") return "counted";
 
-  await enqueueWoken(ports, now, waitingFetches(REDDIT_WAIT), "all");
+  await enqueueWoken(ports, now, WAITING, "all");
 
   return "expired";
 }

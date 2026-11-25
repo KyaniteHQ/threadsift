@@ -155,7 +155,6 @@ function useExtensionButton(
   const reconnectNow = useAction({
     run,
     action: "reconnect",
-    unavailable: null,
     task: useReconnect(changed),
   });
 
@@ -205,7 +204,6 @@ export function useRedditAccountForm(view: RedditAccountView, changed: Changed) 
   const disconnectNow = useAction({
     run,
     action: "remove",
-    unavailable: null,
     task: useDisconnect(session, changed),
   });
 

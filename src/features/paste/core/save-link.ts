@@ -1,5 +1,5 @@
 import type { Digest } from "../../../core/contract/digest-schema.ts";
-import { isRedditShareLink, isShortLink, parseLink } from "../../../core/contract/links.ts";
+import { aliasAnswers, needsResolving, parseLink } from "../../../core/contract/links.ts";
 import { FETCH_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import type { Refused } from "../../../core/kernel/paste-outcome.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
@@ -13,7 +13,7 @@ import {
   saveLinked,
   saveResolution,
 } from "./item-save.ts";
-import { aliasedItem, answersFromAlias } from "./short-link-aliases.ts";
+import { aliasedItem } from "./short-link-aliases.ts";
 
 export type SaveResult = Saved | Refused;
 
@@ -21,7 +21,7 @@ async function saveShortLink(ports: Ports, paste: Readonly<ShortLinkPaste>): Pro
   const { pasted, digest, existing, addedByToken } = paste;
   const known = await aliasedItem(ports.db, parseLink(pasted).normalizedUrl);
 
-  if (known !== undefined && answersFromAlias(known)) {
+  if (known !== undefined && aliasAnswers(known.address)) {
     return saveLinked(
       ports,
       { originalUrl: pasted, address: known.address, digest, addedByToken },
@@ -52,7 +52,7 @@ export function saveItem(
 
   const addedByToken = tokenIdOf(caller);
 
-  return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)
+  return needsResolving(absoluteUrl)
     ? saveShortLink(ports, { pasted: absoluteUrl, digest, existing, addedByToken })
     : saveLinked(
         ports,

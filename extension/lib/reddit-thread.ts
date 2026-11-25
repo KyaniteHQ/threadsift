@@ -137,10 +137,15 @@ async function answerFor(
   }
 }
 
-function threadAddress({ url }: Readonly<ThreadTab>): string {
-  const { origin, pathname } = new URL(url);
+export function withoutTrailingSlash({
+  origin,
+  pathname,
+}: Readonly<Pick<URL, "origin" | "pathname">>): string {
+  return `${origin}${pathname.replace(/\/+$/u, "")}`;
+}
 
-  return `${origin}${pathname.replace(/\/+$/u, "")}/.json?${THREAD_QUERY}`;
+function threadAddress({ url }: Readonly<ThreadTab>): string {
+  return `${withoutTrailingSlash(new URL(url))}/.json?${THREAD_QUERY}`;
 }
 
 interface ThreadRead {

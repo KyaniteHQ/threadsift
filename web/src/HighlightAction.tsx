@@ -10,7 +10,7 @@ import {
 } from "react";
 
 import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
-import { highlightIds } from "./highlight-ids.ts";
+import { markIds, markSelector } from "./highlight-ids.ts";
 import { type Panel, PanelContext, type RemovePanel, useHighlights } from "./highlights-context.ts";
 import { placePopover, placementOf } from "./place-popover.ts";
 import { QuoteText } from "./QuoteText.tsx";
@@ -67,7 +67,7 @@ function placedWhileShown(element: HTMLElement, panel: Readonly<Panel>): () => v
 }
 
 function carries(mark: HTMLElement, left: readonly number[]): boolean {
-  return highlightIds(mark.dataset["highlights"] ?? "").some((id) => left.includes(id));
+  return markIds(mark).some((id) => left.includes(id));
 }
 
 function markAfterRemove(
@@ -78,9 +78,7 @@ function markAfterRemove(
 
   return left.length === 0
     ? null
-    : document.querySelector<HTMLElement>(
-        left.map((id) => `mark[data-highlights~="${id}"]`).join(),
-      );
+    : document.querySelector<HTMLElement>(left.map((id) => markSelector(id)).join());
 }
 
 function refuseRepeat(event: KeyboardEvent): void {

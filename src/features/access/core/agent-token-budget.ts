@@ -5,7 +5,7 @@ import {
   type BudgetSpent,
   type TokenBudget,
 } from "../../../core/contract/agent-token-contract.ts";
-import { isRedditShareLink, isRefusedLink, parseLink } from "../../../core/contract/links.ts";
+import { aliasAnswers, isRefusedLink, parseLink } from "../../../core/contract/links.ts";
 import { DAY_MS } from "../../../core/contract/time-units.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
@@ -78,8 +78,8 @@ async function possiblyNew(db: Database, urls: readonly string[]): Promise<numbe
   const known = new Set(heldItems.map(({ key }) => key));
 
   for (const { key, address } of aliases) {
-    if (isRedditShareLink(address)) known.delete(key);
-    else known.add(key);
+    if (aliasAnswers(address)) known.add(key);
+    else known.delete(key);
   }
 
   return links.size - known.size;

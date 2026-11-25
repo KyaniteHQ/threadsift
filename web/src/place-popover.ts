@@ -1,4 +1,5 @@
 import { pixelsOf } from "./css-length.ts";
+import { scrolls } from "./reveal.ts";
 
 interface Box {
   readonly left: number;
@@ -27,10 +28,6 @@ interface Placement {
   readonly below: boolean;
   readonly gapAbove: number;
   readonly gapBelow: number;
-}
-
-function scrolls(overflow: string): boolean {
-  return overflow === "auto" || overflow === "scroll";
 }
 
 function clipsOf(element: Element): Element[] {

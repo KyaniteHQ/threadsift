@@ -114,25 +114,27 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
   });
 
   it("filters by Source, Topic and Tag, alone and together", async () => {
-    const answers = await Promise.all(
+    const cases: readonly (readonly [string, readonly string[]])[] = [
       [
         "?source=reddit",
-        "?topic=Cooking",
+        [`note:${String(thread)}:gamma pickles`, `highlight:${String(nothing)}:Nothing to see`],
+      ],
+      ["?topic=Cooking", [`highlight:${String(bilby)}:bilby passage`]],
+      [
         "?tag=alpha",
+        [`note:${String(alpha)}:alpha chickpeas`, `highlight:${String(quokka)}:quokka passage`],
+      ],
+      [
         "?source=article&tag=shared&topic=Reading",
-        "?source=github",
-      ].map((query) => pageOf(instance, query)),
-    );
+        [`note:${String(alpha)}:alpha chickpeas`, `highlight:${String(quokka)}:quokka passage`],
+      ],
+      ["?source=github", []],
+    ];
+    const answers = await Promise.all(cases.map(([query]) => pageOf(instance, query)));
 
     assert.deepEqual(
       answers.map((answer) => entryLines(answer)),
-      [
-        [`note:${String(thread)}:gamma pickles`, `highlight:${String(nothing)}:Nothing to see`],
-        [`highlight:${String(bilby)}:bilby passage`],
-        [`note:${String(alpha)}:alpha chickpeas`, `highlight:${String(quokka)}:quokka passage`],
-        [`note:${String(alpha)}:alpha chickpeas`, `highlight:${String(quokka)}:quokka passage`],
-        [],
-      ],
+      cases.map(([, expected]) => expected),
     );
   });
 
@@ -157,27 +159,19 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
   });
 
   it("matches a search only against the entry's own quote or Note text, with every word in the same entry", async () => {
-    const answers = await Promise.all(
-      [
-        "?q=chickpeas",
-        "?q=recipe",
-        "?q=shared",
-        "?q=bilby%20passage",
-        "?q=bilby%20chickpeas",
-        "?q=alpha",
-      ].map((query) => pageOf(instance, query)),
-    );
+    const cases: readonly (readonly [string, readonly string[]])[] = [
+      ["?q=chickpeas", [`note:${String(alpha)}:alpha chickpeas`]],
+      ["?q=recipe", []],
+      ["?q=shared", []],
+      ["?q=bilby%20passage", [`highlight:${String(bilby)}:bilby passage`]],
+      ["?q=bilby%20chickpeas", []],
+      ["?q=alpha", [`note:${String(alpha)}:alpha chickpeas`]],
+    ];
+    const answers = await Promise.all(cases.map(([query]) => pageOf(instance, query)));
 
     assert.deepEqual(
       answers.map((answer) => entryLines(answer)),
-      [
-        [`note:${String(alpha)}:alpha chickpeas`],
-        [],
-        [],
-        [`highlight:${String(bilby)}:bilby passage`],
-        [],
-        [`note:${String(alpha)}:alpha chickpeas`],
-      ],
+      cases.map(([, expected]) => expected),
     );
   });
 

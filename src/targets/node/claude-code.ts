@@ -118,7 +118,7 @@ class ClaudeCode extends SlottedCli {
       signal,
     );
 
-    const result = await this.outcome(end, signal, (exited) => this.answerOf(task.schema, exited));
+    const result = this.outcome(end, (exited) => this.answerOf(task.schema, exited));
 
     return { result, code: exitCode(end) };
   }

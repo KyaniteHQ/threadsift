@@ -5,8 +5,8 @@ import { INDEX_PAGE } from "../web/src/index-text.ts";
 import { FILTERS_BUTTON, FILTER_GROUPS } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { visitSignedOut } from "./document-checks.ts";
-import { savedItem } from "./saved-item.ts";
-import { atPhoneWidth, expectTarget } from "./screen-checks.ts";
+import { savedTopicItem } from "./saved-item.ts";
+import { atPhoneWidth, expectTarget, openSettings } from "./screen-checks.ts";
 
 export interface TopicCase {
   readonly link: string;
@@ -22,20 +22,12 @@ export async function openIndex(
   topic: TopicCase,
   markdown: string,
 ): Promise<void> {
-  await savedItem(page, {
-    url: topic.link,
-    page: { markdown, title: topic.itemTitle },
-    digest: {
-      title: topic.itemTitle,
-      topic: topic.name,
-      tags: ["index"],
-      summary: topic.summary,
-      keyPoints: ["The Index reads stored rows"],
-    },
+  await savedTopicItem(page, topic, markdown, {
+    tag: "index",
+    keyPoint: "The Index reads stored rows",
   });
   await atPhoneWidth(page, async () => {
-    await page.goto("/");
-    await page.getByRole("button", { name: "Settings", exact: true }).click();
+    await openSettings(page);
     await Promise.all(
       [IMPORT.settingsLink, INDEX_PAGE.masthead].map((name) =>
         expectTarget(page.getByRole("link", { name, exact: true })),
@@ -62,16 +54,9 @@ export async function openIndex(
 }
 
 export async function openTopicPage(page: Page, topic: TopicCase, markdown: string): Promise<void> {
-  await savedItem(page, {
-    url: topic.link,
-    page: { markdown, title: topic.itemTitle },
-    digest: {
-      title: topic.itemTitle,
-      topic: topic.name,
-      tags: ["streams"],
-      summary: topic.summary,
-      keyPoints: ["Pipe streams instead of buffering them"],
-    },
+  await savedTopicItem(page, topic, markdown, {
+    tag: "streams",
+    keyPoint: "Pipe streams instead of buffering them",
   });
   await page.goto("/");
   await page

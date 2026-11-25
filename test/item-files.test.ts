@@ -16,22 +16,7 @@ const PNG = new Uint8Array(
   ),
 );
 
-const JPEG = Uint8Array.of(
-  0xff,
-  0xd8,
-  0xff,
-  0xe0,
-  0,
-  0x10,
-  0x4a,
-  0x46,
-  0x49,
-  0x46,
-  0,
-  1,
-  0xff,
-  0xd9,
-);
+const JPEG = Buffer.from("ffd8ffe000104a4649460001ffd9", "hex");
 
 const GIF = new TextEncoder().encode("GIF89a\u0001\u0000\u0001\u0000\u0000\u0000\u0000;");
 
@@ -39,18 +24,12 @@ const WEBP = new TextEncoder().encode(
   "RIFF\u0000\u0000\u0000\u0000WEBPVP8 \u0000\u0000\u0000\u0000",
 );
 
-const AVIF = Uint8Array.of(
-  0,
-  0,
-  0,
-  0x18,
-  ...new TextEncoder().encode("ftypavif"),
-  0,
-  0,
-  0,
-  0,
-  ...new TextEncoder().encode("avifmif1"),
-);
+const AVIF = Buffer.concat([
+  Buffer.from([0, 0, 0, 0x18]),
+  Buffer.from("ftypavif"),
+  Buffer.alloc(4),
+  Buffer.from("avifmif1"),
+]);
 
 const HTML = new TextEncoder().encode("<html><script>alert(1)</script></html>");
 
@@ -129,9 +108,6 @@ const MediaRowSchema = z.object({
   content_type: z.string(),
 });
 
-const servedAs = (instance: Instance, key: string) =>
-  instance.fetch(`/api/files/${key}`, { headers: { cookie: instance.ownerCookie } });
-
 describe("an Article's inline images are stored when the declared type and the bytes agree, and every other one stays out of the file route", () => {
   let instance: Instance;
   let itemId: number;
@@ -177,7 +153,7 @@ describe("an Article's inline images are stored when the declared type and the b
   });
 
   it("serves a stored image with its own bytes, a generated filename and nosniff", async () => {
-    const response = await servedAs(instance, storedPng().file_key);
+    const response = await instance.request(`/api/files/${storedPng().file_key}`);
 
     assert.equal(response.status, 200);
     assert.equal(response.headers.get("content-type"), "image/png");
@@ -192,7 +168,7 @@ describe("an Article's inline images are stored when the declared type and the b
   it("serves every stored type with its own content type", async () => {
     const served = await Promise.all(
       stored.map(async ({ file_key: key }) => {
-        const response = await servedAs(instance, key);
+        const response = await instance.request(`/api/files/${key}`);
 
         await response.arrayBuffer();
 
@@ -200,14 +176,10 @@ describe("an Article's inline images are stored when the declared type and the b
       }),
     );
 
-    assert.deepEqual(served, [
-      [200, "image/png"],
-      [200, "image/jpeg"],
-      [200, "image/jpeg"],
-      [200, "image/gif"],
-      [200, "image/webp"],
-      [200, "image/avif"],
-    ]);
+    assert.deepEqual(
+      served,
+      CASES.flatMap(({ expected }) => (expected === null ? [] : [[200, expected]])),
+    );
   });
 
   it("leaves each image it did not store as its alt text, with no data address in the post text", async () => {
@@ -235,7 +207,7 @@ describe("an Article's inline images are stored when the declared type and the b
       assert.deepEqual(held, [PNG, PNG]);
 
       const answers = await Promise.all(
-        [...orphans, unknown].map((key) => servedAs(instance, key)),
+        [...orphans, unknown].map((key) => instance.request(`/api/files/${key}`)),
       );
       const bodies = await Promise.all(answers.map((answer) => answer.text()));
 
@@ -250,7 +222,7 @@ describe("an Article's inline images are stored when the declared type and the b
       assert.ok(
         answers.every((answer) => answer.headers.get("x-content-type-options") === "nosniff"),
       );
-      const control = await servedAs(instance, pngKey);
+      const control = await instance.request(`/api/files/${pngKey}`);
 
       await control.arrayBuffer();
       assert.equal(control.status, 200);

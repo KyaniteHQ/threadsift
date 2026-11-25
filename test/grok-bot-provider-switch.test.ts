@@ -14,10 +14,10 @@ import {
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { startedTask } from "./bot-task-lifecycle.ts";
-import { insertedTask, jobRow, rowCount, taskRow, taskRows, waitsLong } from "./bot-task-rows.ts";
+import { insertedTask, jobRow, taskRow, taskRows, waitsLong } from "./bot-task-rows.ts";
 import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { pairsOf, saveProvider, exec } from "./related-fixtures.ts";
+import { pairsOf, saveProvider, exec, rowCount } from "./related-fixtures.ts";
 import { waitingIntake } from "./x-intake-fixtures.ts";
 
 describe("a Related pick on Grok Bot follows the lifecycle through the production runner, and a change of Provider abandons what is open", () => {

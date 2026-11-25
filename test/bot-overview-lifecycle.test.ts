@@ -5,9 +5,9 @@ import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { retireTasks, selectGrokBot } from "./bot-task-fixtures.ts";
-import { insertedTask, jobRow, rowCount, taskRow } from "./bot-task-rows.ts";
+import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { exec, rowCount } from "./related-fixtures.ts";
 
 const FILL = 10;
 

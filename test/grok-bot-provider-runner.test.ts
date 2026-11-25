@@ -5,11 +5,11 @@ import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { KIND_CASES, type KindCase, caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf, selectGrokBot } from "./bot-kinds-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { jobRow, rowCount, taskRow, taskRows, topicFailures } from "./bot-task-rows.ts";
+import { jobRow, taskRow, taskRows, topicFailures } from "./bot-task-rows.ts";
 import { generationOf, unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
 import { claimedAgain, retryAfterTimeout, unansweredClaim } from "./grok-bot-provider-walk.ts";
 import type { Instance } from "./instance.ts";
-import { saveProvider } from "./related-fixtures.ts";
+import { rowCount, saveProvider } from "./related-fixtures.ts";
 
 const FIRST_RETRY_MS = 30_000;
 

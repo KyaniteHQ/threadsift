@@ -5,7 +5,7 @@ import { parseLink } from "../src/core/contract/links.ts";
 import { whileOpen } from "../src/core/kernel/restore-hold.ts";
 import { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
-import { holdLibrary } from "./restore-fixtures.ts";
+import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 import {
   FAILED,
   aliasOf,
@@ -227,7 +227,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
 
         assert.deepEqual(answer, { kind: "restoring" });
       } finally {
-        exec(instance, "delete from restores where id = 1");
+        releaseLibrary(instance);
       }
 
       assert.equal(itemsAt(instance, stale.share), moves ? 0 : 1);

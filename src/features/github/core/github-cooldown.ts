@@ -1,10 +1,10 @@
-import { type SQL, and, eq, gt, notExists, sql } from "drizzle-orm";
+import { type SQL, and, eq, gt, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
 import { GITHUB_WAIT } from "../../../core/contract/job-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { githubCooldown } from "../../../core/kernel/github-tables.ts";
-import { guardedBatch } from "../../../core/kernel/guards.ts";
+import { guardedBatch, holdsNoRow } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { waitingFor, wakeWaitingFetches, wokenJob } from "../../../core/kernel/job-waiting.ts";
 import type { JobRow } from "../../../core/kernel/schema.ts";
@@ -13,8 +13,8 @@ import { MAX_COOLDOWN_MS } from "./github-rate-limit.ts";
 
 const COOLDOWN_ROW = 1;
 
-function cooldownActive(now: number): SQL | undefined {
-  return and(eq(githubCooldown.id, COOLDOWN_ROW), gt(githubCooldown.until, now));
+function cooldownActive(now: number): SQL {
+  return and(eq(githubCooldown.id, COOLDOWN_ROW), gt(githubCooldown.until, now)) ?? sql`0`;
 }
 
 export async function cooldownUntil(db: Database, now: number): Promise<number | null> {
@@ -57,15 +57,7 @@ export function githubClosing(
     db,
     job.id,
     now,
-    and(
-      waitingFor(GITHUB_WAIT),
-      notExists(
-        db
-          .select({ one: sql`1` })
-          .from(githubCooldown)
-          .where(cooldownActive(now)),
-      ),
-    ),
+    and(waitingFor(GITHUB_WAIT), holdsNoRow(db, githubCooldown, cooldownActive(now))),
   );
 }
 

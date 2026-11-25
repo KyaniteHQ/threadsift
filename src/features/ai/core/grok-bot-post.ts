@@ -31,11 +31,13 @@ function resultOfStatus(status: number): GrokBotResult {
 
 function resultOfFailure(
   reason: NetworkFailureReason | null,
-  deadline: AbortSignal,
+  { deadline, signal }: Readonly<{ deadline: AbortSignal; signal: AbortSignal | undefined }>,
 ): GrokBotResult {
   if (deadline.aborted) return "timeout";
 
-  return reason ?? "unreachable";
+  if (reason !== null) return reason;
+
+  return signal?.aborted === true ? "timeout" : "unreachable";
 }
 
 async function discarded(body: AsyncIterable<Uint8Array>): Promise<void> {
@@ -67,7 +69,10 @@ export async function postToGrokBot(
     return { result: resultOfStatus(response.status), status: response.status };
   } catch (error) {
     return {
-      result: resultOfFailure(error instanceof NetworkFailure ? error.reason : null, deadline),
+      result: resultOfFailure(error instanceof NetworkFailure ? error.reason : null, {
+        deadline,
+        signal,
+      }),
       status: null,
     };
   }

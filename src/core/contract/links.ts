@@ -262,6 +262,14 @@ export function isRedditShareLink(absoluteUrl: string): boolean {
   );
 }
 
+export function needsResolving(absoluteUrl: string): boolean {
+  return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl);
+}
+
+export function aliasAnswers(address: string): boolean {
+  return !isRedditShareLink(address);
+}
+
 export function isGitHubLink(absoluteUrl: string): boolean {
   return hostOf(absoluteUrl) === GITHUB_HOST;
 }

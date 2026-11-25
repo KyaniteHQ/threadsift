@@ -46,8 +46,10 @@ export function promptOf({ instructions, input }: Readonly<AiTaskRequest<unknown
 
 const UNANSWERED_COUNTS_AS_SIGNED_IN = true;
 
+const SIGN_IN_UNKNOWN = { kind: "sign-in-unknown" } as const;
+
 export interface Attempt<Result> {
-  readonly result: AiExecution<Result>;
+  readonly result: AiExecution<Result> | typeof SIGN_IN_UNKNOWN;
   readonly code: number | null;
 }
 
@@ -105,19 +107,18 @@ export abstract class SlottedCli implements CliRunner {
     signal: AbortSignal,
   ): Promise<Attempt<Result>>;
 
-  protected async outcome<Result>(
+  protected outcome<Result>(
     end: Readonly<ProcessEnd>,
-    stop: AbortSignal,
     read: (
       exited: Readonly<Extract<ProcessEnd, { readonly kind: "exited" }>>,
     ) => AiExecution<Result> | null,
-  ): Promise<AiExecution<Result>> {
+  ): Attempt<Result>["result"] {
     if (end.kind !== "exited") return endRefusal(end);
 
-    const answer = read(end);
+    return read(end) ?? SIGN_IN_UNKNOWN;
+  }
 
-    if (answer !== null) return answer;
-
+  private async signInRefusal(stop: AbortSignal) {
     const signedIn = await answerWithin(
       stop,
       (signal) => this.probe(signal),
@@ -142,16 +143,17 @@ export abstract class SlottedCli implements CliRunner {
   ): Promise<AiExecution<Result>> => {
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 
-    const done = await inSlot(this.slots, stop, async () => {
-      const { result, code } = await this.attempt(task, stop);
+    const done = await inSlot(this.slots, stop, () => this.attempt(task, stop));
 
-      if (result.kind === "refused") {
-        report("cli-refused", { provider: this.provider, reason: result.reason, exit: code });
-      }
+    if (done === null) return refusedAi("timeout");
 
-      return result;
-    });
+    const result =
+      done.result.kind === SIGN_IN_UNKNOWN.kind ? await this.signInRefusal(stop) : done.result;
 
-    return done ?? refusedAi("timeout");
+    if (result.kind === "refused") {
+      report("cli-refused", { provider: this.provider, reason: result.reason, exit: done.code });
+    }
+
+    return result;
   };
 }

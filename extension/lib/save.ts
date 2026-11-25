@@ -5,7 +5,12 @@ import { parseLink } from "../../src/core/contract/links.ts";
 import { SuppliedPageSchema } from "../../src/core/contract/supplied-page.ts";
 import { holdsInstanceAccess } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
-import { type ThreadTab, fetchThread, pageCompleteness } from "./reddit-thread.ts";
+import {
+  type ThreadTab,
+  fetchThread,
+  pageCompleteness,
+  withoutTrailingSlash,
+} from "./reddit-thread.ts";
 import { type Saving, send } from "./save-request.ts";
 import type { SaveState } from "./state.ts";
 import { resultInTab } from "./tab-result.ts";
@@ -32,9 +37,9 @@ function capturedPage(tabId: number): Promise<Captured | null> {
 }
 
 function pageKey(address: string): string {
-  const { origin, pathname, search } = new URL(parseLink(address).normalizedUrl);
+  const url = new URL(parseLink(address).normalizedUrl);
 
-  return `${origin}${pathname.replace(/\/+$/u, "")}${search}`;
+  return `${withoutTrailingSlash(url)}${url.search}`;
 }
 
 function isSamePage(started: string, captured: string): boolean {

@@ -3,9 +3,8 @@ import { type Page, expect } from "@playwright/test";
 import { codePointCount } from "../src/core/contract/code-points.ts";
 import { selectorAt } from "../src/core/contract/highlight-anchor.ts";
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
-import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { projectText } from "../src/core/contract/text-projection.ts";
-import { savedItem } from "./saved-item.ts";
+import { itemDetail, savedItem } from "./saved-item.ts";
 
 export const TITLE = "A page with fifty highlights and a note";
 
@@ -20,12 +19,6 @@ const MARKDOWN = Array.from({ length: HIGHLIGHTS }, (_unused, index) => sentence
   "\n\n",
 );
 
-async function detailOf(page: Page, id: number) {
-  const read = await page.request.get(`/api/items/${String(id)}`);
-
-  return ItemDetailResponseSchema.parse(await read.json()).item;
-}
-
 export async function keepHighlightsAndNote(page: Page): Promise<{ item: number; first: number }> {
   const item = await savedItem(page, {
     url: "https://example.com/guides/highlights",
@@ -39,9 +32,9 @@ export async function keepHighlightsAndNote(page: Page): Promise<{ item: number;
     },
   });
 
-  await expect.poll(async () => (await detailOf(page, item)).postText).not.toBeNull();
+  await expect.poll(async () => (await itemDetail(page.request, item)).postText).not.toBeNull();
 
-  const detail = await detailOf(page, item);
+  const detail = await itemDetail(page.request, item);
 
   if (detail.postText === null) throw new Error("the Item holds no post text");
 

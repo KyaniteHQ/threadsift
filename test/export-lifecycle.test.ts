@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, afterEach, before, describe, it } from "node:test";
 
 import { ExportStatusSchema, StartedExportSchema } from "../src/core/contract/export-contract.ts";
+import { DAY_MS, MINUTE_MS } from "../src/core/contract/time-units.ts";
 import {
   type SavedLibrary,
   downloadedZip,
@@ -11,7 +12,7 @@ import {
 } from "./export-restore-fixtures.ts";
 import { bytesOfKey, exportKeys, postTextKey } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { until, count, exec, nextSweep, sweptWith } from "./related-fixtures.ts";
+import { until, rowCount, exec, nextSweep, sweptWith } from "./related-fixtures.ts";
 import { loggedAttempts, retryNow } from "./restore-fixtures.ts";
 import { entriesOf, manifestOf } from "./zip-fixtures.ts";
 
@@ -103,15 +104,12 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
     assert.ok((await exportKeys(instance, id)).length > 0);
 
-    await sweptAfter("updated_at", id, 720_000);
+    await sweptAfter("updated_at", id, 12 * MINUTE_MS);
     assert.ok((await exportKeys(instance, id)).length > 0, "12 minutes old");
 
-    await sweptAfter("updated_at", id, 720_001);
+    await sweptAfter("updated_at", id, 12 * MINUTE_MS + 1);
     assert.deepEqual(await exportKeys(instance, id), []);
-    assert.equal(
-      count(instance, "select count(*) as n from exports where id = ? and state = 'expired'", id),
-      1,
-    );
+    assert.equal(rowCount(instance, "exports", "id = ? and state = 'expired'", id), 1);
   });
 
   it("replaces a ready Export on a new start, deleting the old objects", async () => {
@@ -161,11 +159,11 @@ describe("one Export exists at a time and a stopped slice is retried, then given
   it("keeps a ready Export 24 hours after it finished and removes it at the next sweep after that", async () => {
     const ready = await readyExport(instance);
 
-    await sweptAfter("finished_at", ready.id, 86_400_000);
+    await sweptAfter("finished_at", ready.id, DAY_MS);
     assert.equal((await status()).state, "ready");
     assert.ok((await exportKeys(instance, ready.id)).length > 0);
 
-    await sweptAfter("finished_at", ready.id, 86_400_001);
+    await sweptAfter("finished_at", ready.id, DAY_MS + 1);
     assert.deepEqual(await status(), { state: "none" });
     assert.deepEqual(await exportKeys(instance, ready.id), []);
   });

@@ -1,6 +1,7 @@
 import { KnownDisagreements } from "./KnownDisagreements.tsx";
-import { EmptyState, RetryNotice, Skeleton } from "./ListBody.tsx";
+import { EmptyState, Skeleton } from "./ListBody.tsx";
 import { PageBar } from "./PageBar.tsx";
+import { RetryNotice } from "./RetryRegions.tsx";
 import type { Route } from "./routing.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 import { TopicItemsSection } from "./TopicItemsSection.tsx";

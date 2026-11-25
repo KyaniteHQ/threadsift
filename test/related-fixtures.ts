@@ -221,6 +221,13 @@ export function count(instance: Instance, query: string, ...params: readonly Par
   return row.n;
 }
 
+export const rowCount = (
+  instance: Instance,
+  table: string,
+  where = "1 = 1",
+  ...params: readonly Param[]
+): number => count(instance, `select count(*) as n from ${table} where ${where}`, ...params);
+
 export const catalogVersion = (instance: Instance): number =>
   count(instance, "select version as n from catalog_version where id = 1");
 

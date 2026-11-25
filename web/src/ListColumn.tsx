@@ -1,8 +1,9 @@
 import { hasRows } from "./list-state.ts";
-import { ListBody, RetryNotice } from "./ListBody.tsx";
+import { ListBody } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
 import { Masthead } from "./Masthead.tsx";
 import { HINT_LIST } from "./reader-text.ts";
+import { RetryNotice } from "./RetryRegions.tsx";
 import { SkipButton } from "./SkipButton.tsx";
 import { LOAD_FAILED } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";

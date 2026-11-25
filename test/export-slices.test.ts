@@ -207,6 +207,7 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
   let note: RegExp;
   let post: RegExp;
   let postKey: string;
+  let fit: number;
 
   const BASE_TEXT_BYTES = 1_000_000;
 
@@ -240,12 +241,13 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
     postKey = postTextKey(longId);
     note = new RegExp(`/items/${String(longId)}/note-[^/]+\\.md$`, "u");
     post = new RegExp(`/${postKey}$`, "u");
+    fit = await exactFit();
   });
 
   after(() => instance.close());
 
   it("takes an entry that fills the slice exactly, and starts the next entry in the next slice", async () => {
-    const { first, second } = firstTwo((await exported(await exactFit())).slices);
+    const { first, second } = firstTwo((await exported(fit)).slices);
 
     assert.equal(sizeSum(first), SLICE_BYTES);
     assert.ok(isEntry(first.at(-1), note));
@@ -253,7 +255,7 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
   });
 
   it("starts an entry that passes the cap by 1 byte in the next slice, with the post text file whole in the zip", async () => {
-    const textBytes = (await exactFit()) + 1;
+    const textBytes = fit + 1;
     const { zip, slices } = await exported(textBytes);
     const { first, second } = firstTwo(slices);
     const entries = await entriesOf(zip);

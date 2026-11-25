@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { Instance } from "./instance.ts";
-import { count, exec, rows } from "./related-fixtures.ts";
+import { exec, rows } from "./related-fixtures.ts";
 
 const TaskRowSchema = z.object({
   id: z.number(),
@@ -99,10 +99,6 @@ export function insertedTask(
 
 export function digestOfToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
-}
-
-export function rowCount(instance: Instance, table: string, where = "1 = 1"): number {
-  return count(instance, `select count(*) as n from ${table} where ${where}`);
 }
 
 export function topicFailures(instance: Instance) {

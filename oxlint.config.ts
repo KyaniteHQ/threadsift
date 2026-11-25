@@ -14,7 +14,7 @@ const CANNOT_THROW = {
   "src/core/kernel/guards.ts": ["guardHeldOrUnread"],
 };
 
-export const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];
+const SERVER_MODULES = ["^(drizzle-orm|hono)(/|$)", "^@hono/", "^node:", "^cloudflare:"];
 
 const HONO_PATTERN = {
   regex: "^(hono(/|$)|@hono/)",

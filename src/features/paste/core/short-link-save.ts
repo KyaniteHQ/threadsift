@@ -18,7 +18,6 @@ import {
 import { itemRead } from "../../item/core/item-selection.ts";
 import {
   type AliasedItem,
-  type ShortLinkAlias,
   holdsAlias,
   holdsNoFailedItem,
   holdsNoRival,
@@ -55,24 +54,21 @@ const PROMOTED_ITEM = 8;
 
 const KEPT_ITEM = 2;
 
-async function promotedAndKept(
-  ports: Ports,
-  alias: Readonly<ShortLinkAlias>,
-  { paste, link }: Readonly<Resolved>,
-): Promise<Saved | null> {
+async function promotedAndKept(ports: Ports, resolved: Readonly<Resolved>): Promise<Saved | null> {
+  const { paste, link } = resolved;
   const { db } = ports;
-  const noRival = holdsNoRival(db, alias, link);
+  const noRival = holdsNoRival(db, resolved, link);
 
   const promoted = await unlessRefused(db, orRestoreHolds(db, noRival), () => {
-    const promotable = promotableFailedItem(db, alias, link.normalizedUrl);
+    const promotable = promotableFailedItem(db, resolved, link.normalizedUrl);
     const changed = sql`(${items.source}, ${items.kind}) is not (${link.source}, ${link.kind})`;
 
     return db.batch([
       restoreGuard(db),
       insertGuard(db, noRival),
       ...STALE.itemChanged(db, sql`${promotable} and ${changed}`),
-      ...promotionClosingJobs(db, alias, link),
-      recordAlias(db, alias, paste.address, link),
+      ...promotionClosingJobs(db, resolved, link),
+      recordAlias(db, resolved, paste.address, link),
       itemRead(db, eq(items.normalizedUrl, link.normalizedUrl)),
       db.delete(guards),
     ]);
@@ -88,16 +84,15 @@ export async function saveResolved(
   resolved: Readonly<Resolved>,
 ): Promise<Saved | null> {
   const { db } = ports;
-  const { shortLink, paste, link, existing, stale } = resolved;
-  const alias = { shortLink, stale };
-  const noRival = holdsNoRival(db, alias, link);
-  const after = [recordAlias(db, alias, paste.address, link)];
+  const { paste, link, existing } = resolved;
+  const noRival = holdsNoRival(db, resolved, link);
+  const after = [recordAlias(db, resolved, paste.address, link)];
 
   const around: Around =
     existing === "refresh"
-      ? { guard: noRival, before: promotionClosingJobs(db, alias, link), after }
+      ? { guard: noRival, before: promotionClosingJobs(db, resolved, link), after }
       : {
-          guard: sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, alias)}`,
+          guard: sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, resolved)}`,
           before: [],
           after,
         };
@@ -106,7 +101,7 @@ export async function saveResolved(
 
   if (added !== null || existing === "refresh" || !(await guardHolds(db, noRival))) return added;
 
-  return promotedAndKept(ports, alias, resolved);
+  return promotedAndKept(ports, resolved);
 }
 
 async function saveKept(

@@ -3,15 +3,14 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import {
   ItemReadResponseSchema,
   SavedItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
-import { selectorIn } from "./highlight-selector.ts";
 import { Instance, type Json, SETTLE_DEADLINE_MS } from "./instance.ts";
+import { keepPassage } from "./lost-highlight-fixtures.ts";
 
 interface Supplied {
   readonly page?: Json;
@@ -180,19 +179,8 @@ describe("a self-hoster's fetcher plug-in reads the links it claims, and only th
 
   it("keeps the body, the Highlight and the Note of an Item when a plug-in fails on a refresh", async () => {
     const first = await pasted("https://flaky.test/doc");
-    const text = first.postText ?? "";
-    const quote = "returned its text";
 
-    await instance.read(
-      "POST",
-      `/api/items/${String(first.id)}/highlights`,
-      HighlightResponseSchema,
-      {
-        target: { kind: "post" },
-        revision: first.highlights.revisions.post,
-        selector: selectorIn(text, quote),
-      },
-    );
+    await keepPassage(instance, first.id, "returned its text");
     await instance.read("PUT", `/api/items/${String(first.id)}/note`, NoteResponseSchema, {
       body: "Kept across a failed refresh",
       revision: first.note.revision,

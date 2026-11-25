@@ -14,7 +14,11 @@ export const MINUTE = 60;
 export const HOUR = 60 * MINUTE;
 export const DAY = 24 * HOUR;
 
-export const CUTOFF_MARGIN = MINUTE / 2;
+const CUTOFF_MARGIN = MINUTE / 2;
+
+export const justPast = (period: number) => period + CUTOFF_MARGIN;
+
+export const justBefore = (period: number) => period - CUTOFF_MARGIN;
 
 export const ageBy = (file: string, seconds: number) => {
   const then = Date.now() / 1000 - seconds;

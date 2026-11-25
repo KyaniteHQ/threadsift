@@ -100,9 +100,9 @@ export function useActionFlow<Action extends string>(failedText: string) {
 export function useAction<Action extends string>({
   run,
   action,
-  unavailable,
+  unavailable = null,
   task,
-}: Readonly<{ run: RunAction<Action>; action: Action; unavailable: Unavailable; task: Task }>) {
+}: Readonly<{ run: RunAction<Action>; action: Action; unavailable?: Unavailable; task: Task }>) {
   return useCallback(() => {
     void run(action, task, unavailable);
   }, [action, unavailable, run, task]);

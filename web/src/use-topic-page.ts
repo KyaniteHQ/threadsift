@@ -5,7 +5,7 @@ import type {
   TopicItem,
   TopicPage,
 } from "../../src/core/contract/topic-overview-contract.ts";
-import { fetchTopicPage, retryTopicOverview } from "./api.ts";
+import { type TopicRead, fetchTopicPage, retryTopicOverview } from "./api.ts";
 import { type More, reaches } from "./list-paging.ts";
 import { readThrough } from "./read-through.ts";
 import type { Route } from "./routing.ts";
@@ -40,8 +40,6 @@ const MISSING: TopicState = { status: "missing" };
 function readyFrom(page: Readonly<TopicPage>): TopicReady {
   return { status: "ready", ...page, more: "idle" };
 }
-
-type TopicRead = Awaited<ReturnType<typeof fetchTopicPage>>;
 
 function attempt(key: string, cursor: string | null, signal: AbortSignal) {
   return fetchTopicPage(key, cursor, signal).catch(() => null);

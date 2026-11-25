@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+
+import { Notice } from "./ListBody.tsx";
 import { RETRY_LABEL } from "./text.ts";
 
 interface RegionProps {
@@ -17,6 +20,17 @@ function RetryButton({
   );
 }
 
+function Alert({
+  className,
+  children,
+}: Readonly<{ className?: string | undefined; children: ReactNode }>) {
+  return (
+    <div className={className} role="alert">
+      {children}
+    </div>
+  );
+}
+
 export function AlertRegion({
   className,
   buttonClass,
@@ -24,14 +38,24 @@ export function AlertRegion({
   retry,
 }: Readonly<RegionProps & { retry: (() => void) | null }>) {
   return (
-    <div className={className} role="alert">
+    <Alert className={className}>
       {text === null ? null : (
         <>
           <p className="rd-note">{text}</p>
           <RetryButton buttonClass={buttonClass} retry={retry} />
         </>
       )}
-    </div>
+    </Alert>
+  );
+}
+
+export function RetryNotice({
+  failed,
+  text,
+  action,
+}: Readonly<{ failed: boolean; text: string; action: () => void }>) {
+  return (
+    <Alert>{failed ? <Notice text={text} action={action} label={RETRY_LABEL} /> : null}</Alert>
   );
 }
 

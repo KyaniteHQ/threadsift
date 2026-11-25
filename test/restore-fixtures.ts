@@ -130,7 +130,7 @@ function itemFilesPath(instance: Instance): string {
 
 const heldItemFilesPath = (instance: Instance): string => `${itemFilesPath(instance)}.held`;
 
-export function blockItemFiles(instance: Instance): void {
+function blockItemFiles(instance: Instance): void {
   const path = itemFilesPath(instance);
 
   mkdirSync(dirname(path), { recursive: true });
@@ -191,6 +191,10 @@ export function holdLibrary(
     phase,
     failure,
   );
+}
+
+export function releaseLibrary(instance: Instance): void {
+  exec(instance, "delete from restores where id = 1");
 }
 
 export async function restoreLibrary({

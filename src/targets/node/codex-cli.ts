@@ -100,7 +100,7 @@ class CodexCli extends SlottedCli {
         },
       );
 
-      const result = await this.outcome(end, signal, ({ stdout, code }) =>
+      const result = this.outcome(end, ({ stdout, code }) =>
         readOutcome(task.schema, stdout, code),
       );
 

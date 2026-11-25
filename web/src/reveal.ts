@@ -1,13 +1,14 @@
 import { pixelsOf } from "./css-length.ts";
 
+export function scrolls(overflow: string): boolean {
+  return overflow === "auto" || overflow === "scroll";
+}
+
 function scrollingPane(element: HTMLElement): HTMLElement | null {
   for (let parent: HTMLElement | null = element; parent !== null; parent = parent.parentElement) {
     const { overflowY } = getComputedStyle(parent);
 
-    if (
-      (overflowY === "auto" || overflowY === "scroll") &&
-      parent.scrollHeight > parent.clientHeight
-    ) {
+    if (scrolls(overflowY) && parent.scrollHeight > parent.clientHeight) {
       return parent;
     }
   }

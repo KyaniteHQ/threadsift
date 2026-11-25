@@ -14,8 +14,8 @@ import {
 } from "../src/features/paste/core/item-save.ts";
 import { type AliasedItem, aliasedItem } from "../src/features/paste/core/short-link-aliases.ts";
 import type { Instance } from "./instance.ts";
-import { count, exec, rows } from "./related-fixtures.ts";
-import { holdLibrary } from "./restore-fixtures.ts";
+import { exec, rowCount, rows } from "./related-fixtures.ts";
+import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 
 const AliasSchema = z.object({
   normalized_url: z.string(),
@@ -25,7 +25,7 @@ const AliasSchema = z.object({
 
 const JobSchema = z.object({ address: z.string(), state: z.string() });
 
-export const EXISTING: readonly Existing[] = ["refresh", "keep"];
+const EXISTING: readonly Existing[] = ["refresh", "keep"];
 
 export const withEachExisting = <Case extends object>(cases: readonly Case[]) =>
   cases.flatMap((row) => EXISTING.map((existing) => Object.assign({}, row, { existing })));
@@ -46,11 +46,7 @@ export const aliasRow = (short: string, address: string, itemId: number) => ({
 });
 
 export const itemsAt = (instance: Instance, address: string) =>
-  count(
-    instance,
-    "select count(*) as n from items where normalized_url = ?",
-    parseLink(address).normalizedUrl,
-  );
+  rowCount(instance, "items", "normalized_url = ?", parseLink(address).normalizedUrl);
 
 export const aliasesAt = (instance: Instance, short: string) =>
   rows(
@@ -175,6 +171,6 @@ export async function holdingBeforeSecondBatch<Result>(
     return result;
   } finally {
     Reflect.deleteProperty(db, "batch");
-    exec(instance, "delete from restores where id = 1");
+    releaseLibrary(instance);
   }
 }

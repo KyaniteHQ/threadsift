@@ -7,14 +7,7 @@ import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { More } from "./list-paging.ts";
 import type { ListState } from "./list-state.ts";
 import { LoadMore } from "./LoadMore.tsx";
-import {
-  CLEAR_ALL,
-  EMPTY_LIST,
-  LOADING_LABEL,
-  LOAD_FAILED,
-  NO_RESULTS,
-  RETRY_LABEL,
-} from "./text.ts";
+import { CLEAR_ALL, EMPTY_LIST, LOADING_LABEL, LOAD_FAILED, NO_RESULTS } from "./text.ts";
 import { useNearEnd } from "./use-near-end.ts";
 
 const SKELETON_ROWS = [0, 1, 2] as const;
@@ -58,18 +51,6 @@ export function Notice({
       <button type="button" className="btn" onClick={action}>
         {label}
       </button>
-    </div>
-  );
-}
-
-export function RetryNotice({
-  failed,
-  text,
-  action,
-}: Readonly<{ failed: boolean; text: string; action: () => void }>) {
-  return (
-    <div role="alert">
-      {failed ? <Notice text={text} action={action} label={RETRY_LABEL} /> : null}
     </div>
   );
 }

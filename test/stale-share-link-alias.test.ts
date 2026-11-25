@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { parseLink } from "../src/core/contract/links.ts";
-import { answersFromAlias } from "../src/features/paste/core/short-link-aliases.ts";
+import { aliasAnswers, parseLink } from "../src/core/contract/links.ts";
+import { DAY_MS } from "../src/core/contract/time-units.ts";
 import { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 import {
@@ -52,7 +52,7 @@ describe("a short link whose alias ends at a Reddit share link is resolved again
       exec(
         instance,
         "update jobs set state = 'queued', next_attempt_at = ? where item_id = ?",
-        Date.now() + 86_400_000,
+        Date.now() + DAY_MS,
         stale.id,
       );
 
@@ -226,7 +226,7 @@ describe("a short link whose alias ends at a Reddit share link is resolved again
     const [known, ending] = [await aliasOf(instance, short), await aliasOf(instance, stale)];
 
     assert.ok(known !== undefined && ending !== undefined);
-    assert.equal(answersFromAlias(known), true);
-    assert.equal(answersFromAlias(ending), false);
+    assert.equal(aliasAnswers(known.address), true);
+    assert.equal(aliasAnswers(ending.address), false);
   });
 });

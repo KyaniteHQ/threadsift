@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { dueIds, claimNextDue } from "../src/core/compose/jobs.ts";
+import { DAY_MS } from "../src/core/contract/time-units.ts";
 import {
   type BotLibrary,
   SECRET_KEY,
@@ -165,13 +166,13 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
         .status,
       204,
     );
-    await sweptAfterDeadline([answeredTask.id, owned.id], 86_400_000);
+    await sweptAfterDeadline([answeredTask.id, owned.id], DAY_MS);
     assert.deepEqual(
       [answeredTask.id, owned.id].map((id) => state(id)),
       ["running", "running"],
     );
 
-    await sweptAfterDeadline([answeredTask.id, owned.id], 86_400_001);
+    await sweptAfterDeadline([answeredTask.id, owned.id], DAY_MS + 1);
     assert.deepEqual(
       [answeredTask.id, owned.id].map((id) => state(id)),
       ["failed", "failed"],

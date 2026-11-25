@@ -97,7 +97,7 @@ export function fetchHighlightsPage(
   );
 }
 
-type TopicRead =
+export type TopicRead =
   | { readonly outcome: "found"; readonly page: TopicPage }
   | { readonly outcome: "missing" };
 

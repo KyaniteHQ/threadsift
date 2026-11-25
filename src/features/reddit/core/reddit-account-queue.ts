@@ -16,7 +16,7 @@ import { type JobRow, jobs } from "../../../core/kernel/schema.ts";
 
 export const WAIT_CHECK_MS = 300_000;
 
-const WAITING = waitingFetches(REDDIT_WAIT);
+export const WAITING = waitingFetches(REDDIT_WAIT);
 
 const OLDEST_WAITING = sql`(select min(${jobs.id}) from ${jobs} where ${WAITING})`;
 

@@ -3,6 +3,7 @@ import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { selectorIn } from "./highlight-selector.ts";
 import type { Instance, Json } from "./instance.ts";
+import { keepPassage } from "./lost-highlight-fixtures.ts";
 
 export const KEPT_ARTICLE = "https://example.com/guides/kept-highlight";
 
@@ -136,13 +137,7 @@ export async function seedLibrary(instance: Instance): Promise<Library> {
 
   const kept = await instance.detail(keptId);
 
-  await highlight(
-    instance,
-    keptId,
-    { kind: "post" },
-    kept.highlights.revisions.post,
-    selectorIn(kept.postText ?? "", QUOTE),
-  );
+  await keepPassage(instance, keptId, QUOTE);
   await instance.read("PUT", `/api/items/${String(keptId)}/note`, NoteResponseSchema, {
     body: NOTE_BODY,
     revision: kept.note.revision,
@@ -153,15 +148,7 @@ export async function seedLibrary(instance: Instance): Promise<Library> {
     digest: DIGEST,
   });
 
-  const lost = await instance.detail(lostId);
-
-  await highlight(
-    instance,
-    lostId,
-    { kind: "post" },
-    lost.highlights.revisions.post,
-    selectorIn(lost.postText ?? "", QUOTE),
-  );
+  await keepPassage(instance, lostId, QUOTE);
   await paste(instance, LOST_ARTICLE, {
     page: {
       markdown: "A rewritten text with none of the quoted words.\n\n".repeat(30),

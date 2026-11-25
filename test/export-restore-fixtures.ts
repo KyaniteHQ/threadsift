@@ -16,7 +16,7 @@ const LONG_LINE = "A long line of post text that fills the file stored beside th
 
 export const NOTE_BODY = "A note to bring back";
 
-export interface LibraryCounts {
+interface LibraryCounts {
   readonly inlineText: number;
   readonly linkOnly?: number;
   readonly fileText: number;
@@ -37,7 +37,7 @@ export interface SavedLibrary {
 
 const xLink = (at: number): string => `https://x.com/someone/status/${String(3_700_000_000 + at)}`;
 
-export function longPostText(slug: string): string {
+function longPostText(slug: string): string {
   const lines = Math.ceil((INLINE_TEXT_BYTES + 100_000) / LONG_LINE.length);
 
   return `${textHolding(MARKED_PASSAGE)}\n\n${slug}\n\n${LONG_LINE.repeat(lines)}`;

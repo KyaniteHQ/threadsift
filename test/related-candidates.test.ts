@@ -3,10 +3,9 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
-import { selectorIn } from "./highlight-selector.ts";
 import { Instance } from "./instance.ts";
+import { keepPassage } from "./lost-highlight-fixtures.ts";
 import {
   REDDIT_THREAD,
   SECRET_KEY,
@@ -202,19 +201,7 @@ describe("the related pick matches only the Digest parts of an Item that has a D
       revision: reader.note.revision,
     });
 
-    const text = (await instance.detail(highlighted)).postText ?? "";
-    const quote = "quasar sentence";
-
-    await instance.read(
-      "POST",
-      `/api/items/${String(highlighted)}/highlights`,
-      HighlightResponseSchema,
-      {
-        target: { kind: "post" },
-        revision: (await instance.detail(highlighted)).highlights.revisions.post,
-        selector: selectorIn(text, quote),
-      },
-    );
+    await keepPassage(instance, highlighted, "quasar sentence");
 
     await saveProvider(instance);
 

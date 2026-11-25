@@ -5,7 +5,7 @@ import { SavedItemResponseSchema } from "../../src/core/contract/item-route-wire
 import { type SaveItemInput, SaveRefusalSchema } from "../../src/core/contract/save-wire.ts";
 import { UNSUPPORTED_PAGE_LINK } from "../../src/core/contract/supplied-page.ts";
 import { type Config, instanceAnswer, instanceRequest } from "./config.ts";
-import { logFailureClass } from "./log.ts";
+import { logFailure } from "./log.ts";
 import type { Completeness, Fetched } from "./reddit-thread.ts";
 import type { SaveState } from "./state.ts";
 import type { ThreadBody } from "./thread-body.ts";
@@ -54,7 +54,7 @@ async function stateOf(
       const itemUrl = URL.parse(saved.url, origin)?.href;
 
       if (itemUrl === undefined) {
-        logFailureClass("save-request-failed", new TypeError("the saved address does not parse"));
+        logFailure("save-request-failed", new Error("the saved address does not parse"));
 
         return { kind: "failed" };
       }

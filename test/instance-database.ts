@@ -16,7 +16,7 @@ export function instanceDatabase(template?: Readonly<Uint8Array>) {
 
   if (template !== undefined) writeFileSync(file, template);
 
-  const database = openDatabase(file, MIGRATIONS);
+  const database = openMigrated(file);
   cleanup.defer(() => {
     database.close();
   });

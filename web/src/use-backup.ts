@@ -48,14 +48,12 @@ export function useBackup(view: ExportStatus, changed: Changed) {
   const start = useAction({
     run,
     action: "start",
-    unavailable: null,
     task: useMemo(() => settled(startExport, ticket, refresh), [ticket, refresh]),
   });
 
   const remove = useAction({
     run,
     action: "remove",
-    unavailable: null,
     task: useMemo(() => settled(deleteExport, ticket, refresh), [ticket, refresh]),
   });
 

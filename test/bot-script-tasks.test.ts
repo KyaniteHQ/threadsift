@@ -5,7 +5,7 @@ import { join } from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
-import { CUTOFF_MARGIN, DAY, HOUR, ScriptWorld, ageBy } from "./bot-script-world.ts";
+import { DAY, HOUR, ScriptWorld, ageBy, justBefore, justPast } from "./bot-script-world.ts";
 import { pastDeadline, picksFor } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
@@ -104,10 +104,10 @@ describe("the script opens, answers and reports a task and prints one word for e
     assert.equal(world.folder.fileOf(task.id, "task.json"), opened);
     assert.equal(world.folder.fileOf(task.id, "token"), task.token);
 
-    ageBy(join(world.folder.taskFolder(task.id), "task.json"), HOUR - CUTOFF_MARGIN);
+    ageBy(join(world.folder.taskFolder(task.id), "task.json"), justBefore(HOUR));
     assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "already-open");
 
-    ageBy(join(world.folder.taskFolder(task.id), "task.json"), HOUR + CUTOFF_MARGIN);
+    ageBy(join(world.folder.taskFolder(task.id), "task.json"), justPast(HOUR));
     assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "unauthorized");
     assert.equal(world.folder.fileOf(task.id, "task.json"), opened);
     assert.equal(world.folder.fileOf(task.id, "token"), task.token);
@@ -125,15 +125,15 @@ describe("the script opens, answers and reports a task and prints one word for e
       mkdirSync(folder, { recursive: true });
     }
 
-    aged(finished, "done", 7 * DAY + CUTOFF_MARGIN);
-    aged(abandoned, "token", DAY + CUTOFF_MARGIN);
-    aged(abandoned, "task.json", DAY + CUTOFF_MARGIN, "{}");
-    aged(recent, "done", 7 * DAY - CUTOFF_MARGIN);
+    aged(finished, "done", justPast(7 * DAY));
+    aged(abandoned, "token", justPast(DAY));
+    aged(abandoned, "task.json", justPast(DAY), "{}");
+    aged(recent, "done", justBefore(7 * DAY));
     aged(kept, "done", 0);
-    aged(kept, "task.json", DAY + CUTOFF_MARGIN, "{}");
-    aged(kept, "token", DAY + CUTOFF_MARGIN);
-    aged(fresh, "token", DAY - CUTOFF_MARGIN);
-    aged(fresh, "task.json", DAY - CUTOFF_MARGIN, "{}");
+    aged(kept, "task.json", justPast(DAY), "{}");
+    aged(kept, "token", justPast(DAY));
+    aged(fresh, "token", justBefore(DAY));
+    aged(fresh, "task.json", justBefore(DAY), "{}");
 
     assert.equal(await run(["check"]), "ok");
     assert.equal(existsSync(finished), false);

@@ -1,6 +1,9 @@
-import { type Page, expect } from "@playwright/test";
+import { type APIRequestContext, type Page, expect } from "@playwright/test";
 
-import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import {
+  ItemDetailResponseSchema,
+  SavedItemResponseSchema,
+} from "../src/core/contract/item-route-wire.ts";
 
 interface SavedDigest {
   readonly title: string;
@@ -25,3 +28,27 @@ export async function savedItem(
 
   return SavedItemResponseSchema.parse(await saved.json()).item.id;
 }
+
+export async function itemDetail(request: APIRequestContext, id: number) {
+  const read = await request.get(`/api/items/${String(id)}`);
+
+  return ItemDetailResponseSchema.parse(await read.json()).item;
+}
+
+export const savedTopicItem = (
+  page: Page,
+  topic: Readonly<{ link: string; name: string; itemTitle: string; summary: string }>,
+  markdown: string,
+  { tag, keyPoint }: Readonly<{ tag: string; keyPoint: string }>,
+): Promise<number> =>
+  savedItem(page, {
+    url: topic.link,
+    page: { markdown, title: topic.itemTitle },
+    digest: {
+      title: topic.itemTitle,
+      topic: topic.name,
+      tags: [tag],
+      summary: topic.summary,
+      keyPoints: [keyPoint],
+    },
+  });

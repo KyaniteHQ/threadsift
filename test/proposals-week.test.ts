@@ -61,6 +61,14 @@ describe("each weekly model check has its own claim", () => {
 
   after(() => library.close());
 
+  const close = () => {
+    exec(
+      library,
+      "update jobs set state = 'done', claim_expires = null where kind in (?, ?, ?)",
+      ...MODEL_TASKS,
+    );
+  };
+
   MODEL_TASKS.forEach((task) => {
     it(`claims ${task} only with a saved Provider and a Digest, once per week`, async () => {
       const claimed = claims(library, task);
@@ -76,13 +84,6 @@ describe("each weekly model check has its own claim", () => {
 
       const otherJobs = () => others.map((kind) => jobsOf(library, kind).length);
       const priorJobs = otherJobs();
-      const close = () => {
-        exec(
-          library,
-          "update jobs set state = 'done', claim_expires = null where kind in (?, ?, ?)",
-          ...MODEL_TASKS,
-        );
-      };
 
       close();
       await nextSweep(library);
@@ -126,23 +127,16 @@ describe("each weekly model check has its own claim", () => {
 
   MODEL_TASKS.forEach((task) => {
     it(`claims ${task} again exactly one week after its last claim, and not 1 ms before, and when the claim lies exactly one week ahead only 1 ms further`, async () => {
-      const close = () => {
-        exec(
-          library,
-          "update jobs set state = 'done', claim_expires = null where kind in (?, ?, ?)",
-          ...MODEL_TASKS,
-        );
-      };
       const held = jobsOf(library, task).length;
 
       close();
-      assert.equal(await sweptWithClaim(library, task, 1 - 604_800_000), held);
+      assert.equal(await sweptWithClaim(library, task, 1 - WEEK_MS), held);
       close();
-      assert.equal(await sweptWithClaim(library, task, -604_800_000), held + 1);
+      assert.equal(await sweptWithClaim(library, task, -WEEK_MS), held + 1);
       close();
-      assert.equal(await sweptWithClaim(library, task, 604_800_000), held + 1);
+      assert.equal(await sweptWithClaim(library, task, WEEK_MS), held + 1);
       close();
-      assert.equal(await sweptWithClaim(library, task, 604_800_001), held + 2);
+      assert.equal(await sweptWithClaim(library, task, WEEK_MS + 1), held + 2);
     });
   });
 });

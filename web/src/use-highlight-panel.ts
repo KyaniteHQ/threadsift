@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { HighlightsView } from "../../src/core/contract/highlight-contract.ts";
-import { highlightIds } from "./highlight-ids.ts";
+import { markIds } from "./highlight-ids.ts";
 import { BODY_SELECTOR, keyOf } from "./highlight-target.ts";
 import type { Panel, RemovePanel } from "./highlights-context.ts";
+import { hasModifier } from "./routing.ts";
 import { useSelectionDraft } from "./use-selection-draft.ts";
 
 function markOf(event: MouseEvent | KeyboardEvent): HTMLElement | null {
@@ -17,7 +18,7 @@ function removePanelOf(
   viaKeyboard: boolean,
 ): RemovePanel | null {
   const mark = markOf(event);
-  const ids = highlightIds(mark?.dataset["highlights"] ?? "");
+  const ids = mark === null ? [] : markIds(mark);
   const key = mark?.closest<HTMLElement>(BODY_SELECTOR)?.dataset["target"];
 
   return mark === null || key === undefined || !ids.every((id) => Number.isInteger(id))
@@ -26,8 +27,7 @@ function removePanelOf(
 }
 
 function followsLink(event: MouseEvent, mark: Element): boolean {
-  const modified =
-    event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
+  const modified = event.button !== 0 || hasModifier(event);
 
   return modified && mark.closest("a") !== null;
 }
@@ -49,9 +49,10 @@ export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
     };
 
     const onKeyDown = (event: KeyboardEvent): void => {
-      const modified = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
       const next =
-        event.key === "Enter" && !modified && !event.repeat ? removePanelOf(event, true) : null;
+        event.key === "Enter" && !hasModifier(event) && !event.repeat
+          ? removePanelOf(event, true)
+          : null;
 
       if (next !== null && event.target === next.mark) {
         event.preventDefault();

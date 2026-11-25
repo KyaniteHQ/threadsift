@@ -155,12 +155,19 @@ export function usePath() {
   return { path, navigate, replace, leave, closeItem };
 }
 
+export function hasModifier({
+  metaKey,
+  ctrlKey,
+  shiftKey,
+  altKey,
+}: Readonly<Pick<KeyboardEvent, "metaKey" | "ctrlKey" | "shiftKey" | "altKey">>): boolean {
+  return metaKey || ctrlKey || shiftKey || altKey;
+}
+
 export function useInternalLink(open: () => void) {
   return useCallback(
     (event: MouseEvent<HTMLAnchorElement>) => {
-      const modified = event.metaKey || event.ctrlKey || event.shiftKey || event.altKey;
-
-      if (event.button !== 0 || modified) {
+      if (event.button !== 0 || hasModifier(event)) {
         return;
       }
 

@@ -12,7 +12,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
-import { type Link, isRedditShareLink, parseLink } from "../../../core/contract/links.ts";
+import { type Link, parseLink } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { holdsNoRow } from "../../../core/kernel/guards.ts";
 import { closeItemJobs } from "../../../core/kernel/job-close.ts";
@@ -48,10 +48,6 @@ export async function aliasedItem(
     .where(eq(itemAliases.normalizedUrl, shortLink));
 
   return found;
-}
-
-export function answersFromAlias({ address }: Readonly<Pick<AliasedItem, "address">>): boolean {
-  return !isRedditShareLink(address);
 }
 
 export function itemAddress({ address, normalizedUrl }: Readonly<AliasedItem>): string {

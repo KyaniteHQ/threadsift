@@ -5,10 +5,11 @@ import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { parseStoredDigest } from "../src/core/contract/digest-schema.ts";
 import { DIGEST_ANSWER, KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
-import { jobRow, libraryDump, rowCount, taskRow, topicPage } from "./bot-task-rows.ts";
+import { jobRow, libraryDump, taskRow, topicPage } from "./bot-task-rows.ts";
 import { seedDigested } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { lockedWriter } from "./locked-writer.ts";
+import { rowCount } from "./related-fixtures.ts";
 
 describe("an answered bot task of each kind applies once, and a run of the finished job writes nothing", () => {
   for (const kindCase of KIND_CASES) {

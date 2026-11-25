@@ -5,13 +5,17 @@ import { HIGHLIGHTS_PAGE } from "../web/src/highlights-page-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE } from "../web/src/text.ts";
 import { HIGHLIGHTS, NOTE, TITLE, keepHighlightsAndNote, sentence } from "./highlights-seed.ts";
-import { atPhoneWidth, expectNoSidewaysScroll, expectScrollEnded } from "./screen-checks.ts";
+import {
+  atPhoneWidth,
+  expectNoSidewaysScroll,
+  expectScrollEnded,
+  openSettings,
+} from "./screen-checks.ts";
 
 export async function highlightsFlow(page: Page): Promise<void> {
   const { item, first } = await keepHighlightsAndNote(page);
 
-  await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("link", { name: HIGHLIGHTS_PAGE.masthead, exact: true }).click();
   await expect(page).toHaveURL(/\/highlights$/u);
   await expect(page).toHaveTitle("Highlights, Threadsift");

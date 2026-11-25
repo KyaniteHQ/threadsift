@@ -5,7 +5,7 @@ import { highlightsHeadText } from "./head-label.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { HighlightsBody } from "./HighlightsBody.tsx";
 import { HighlightsTools } from "./HighlightsTools.tsx";
-import { RetryNotice } from "./ListBody.tsx";
+import { RetryNotice } from "./RetryRegions.tsx";
 import { SettledAnnouncement } from "./SettledAnnouncement.tsx";
 import { useEntryKeys } from "./use-highlights-focus.ts";
 import { useHighlightsPage } from "./use-highlights-page.ts";

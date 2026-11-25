@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { parseLink } from "../src/core/contract/links.ts";
 import type { Existing } from "../src/features/item/core/item-rows.ts";
 import { Instance } from "./instance.ts";
-import { count, exec } from "./related-fixtures.ts";
+import { exec, rowCount } from "./related-fixtures.ts";
 import {
   FAILED,
   aliasesAt,
@@ -148,11 +148,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     assert.equal(saved, null);
     assert.equal(await instance.itemTotal(), total);
     assert.equal(
-      count(
-        instance,
-        "select count(*) as n from items where normalized_url = ?",
-        parseLink(second).normalizedUrl,
-      ),
+      rowCount(instance, "items", "normalized_url = ?", parseLink(second).normalizedUrl),
       0,
     );
     assert.equal(

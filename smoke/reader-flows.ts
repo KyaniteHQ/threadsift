@@ -1,8 +1,7 @@
 import { type Page, expect } from "@playwright/test";
 
-import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
-import { savedItem } from "./saved-item.ts";
+import { itemDetail, savedItem, savedTopicItem } from "./saved-item.ts";
 
 const THREAD_ID = "3000000000000000001";
 
@@ -51,16 +50,9 @@ export async function readerWithoutProvider(
   page: Page,
   { topic, markdown, sentence }: Readonly<PastedCase>,
 ): Promise<void> {
-  const item = await savedItem(page, {
-    url: topic.link,
-    page: { markdown, title: topic.itemTitle },
-    digest: {
-      title: topic.itemTitle,
-      topic: topic.name,
-      tags: ["backups"],
-      summary: topic.summary,
-      keyPoints: ["No Provider is saved"],
-    },
+  const item = await savedTopicItem(page, topic, markdown, {
+    tag: "backups",
+    keyPoint: "No Provider is saved",
   });
 
   await page.goto("/");
@@ -73,9 +65,7 @@ export async function readerWithoutProvider(
   await expect(page.locator(".reader")).toContainText(sentence);
   await expect(page.getByRole("heading", { name: RELATED.title })).toHaveCount(0);
 
-  const detail = await page.request.get(`/api/items/${String(item)}`);
-
-  expect(ItemDetailResponseSchema.parse(await detail.json()).item.related).toEqual([]);
+  expect((await itemDetail(page.request, item)).related).toEqual([]);
 }
 
 export async function readXThread(page: Page): Promise<void> {

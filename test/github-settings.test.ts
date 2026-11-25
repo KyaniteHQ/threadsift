@@ -11,7 +11,7 @@ import {
 import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
 import { Instance } from "./instance.ts";
 import { seedGithubCooldown } from "./one-hop-fixtures.ts";
-import { SECRET_KEY, count, exec, rows } from "./related-fixtures.ts";
+import { SECRET_KEY, rowCount, exec, rows } from "./related-fixtures.ts";
 
 const SETTINGS = "/api/settings/github";
 
@@ -21,8 +21,7 @@ const NEXT_TOKEN = "github_pat_second_token_of_the_owner";
 
 const SealedSchema = z.object({ sealed_token: z.string() });
 
-const cooldowns = (instance: Instance) =>
-  count(instance, "select count(*) as n from github_cooldown");
+const cooldowns = (instance: Instance) => rowCount(instance, "github_cooldown");
 
 const sealedTokens = (instance: Instance) =>
   rows(instance, SealedSchema, "select sealed_token from github_settings").map(
@@ -30,6 +29,10 @@ const sealedTokens = (instance: Instance) =>
   );
 
 const settingsOf = (instance: Instance) => instance.read("GET", SETTINGS, GithubSettingsViewSchema);
+
+const save = (instance: Instance, token: string) => instance.send("PUT", SETTINGS, { token });
+
+const removed = (instance: Instance) => instance.read("DELETE", SETTINGS, GithubSettingsViewSchema);
 
 const verify = (instance: Instance) =>
   instance.read("POST", `${SETTINGS}/verify`, GithubVerifyResultSchema);
@@ -65,7 +68,7 @@ describe("the GitHub token is sealed on the Instance, never returned, and cannot
   });
 
   it("saves a token sealed, answers that one is saved, and returns it in no answer", async () => {
-    const saved = await instance.send("PUT", SETTINGS, { token: TOKEN });
+    const saved = await save(instance, TOKEN);
 
     assert.deepEqual(GithubSaveResponseSchema.parse(JSON.parse(saved.body)), {
       token: "saved",
@@ -83,8 +86,8 @@ describe("the GitHub token is sealed on the Instance, never returned, and cannot
   });
 
   it("replaces the saved token in the same row, and removes it, and removing again still succeeds", async () => {
-    await instance.send("PUT", SETTINGS, { token: TOKEN });
-    await instance.send("PUT", SETTINGS, { token: NEXT_TOKEN });
+    await save(instance, TOKEN);
+    await save(instance, NEXT_TOKEN);
 
     const [replaced, ...others] = sealedTokens(instance);
 
@@ -92,12 +95,12 @@ describe("the GitHub token is sealed on the Instance, never returned, and cannot
     assert.ok(replaced !== undefined);
     assert.equal(await sealer.open(replaced), NEXT_TOKEN);
 
-    assert.deepEqual(await instance.read("DELETE", SETTINGS, GithubSettingsViewSchema), {
+    assert.deepEqual(await removed(instance), {
       token: "none",
       secretReady: true,
     });
     assert.deepEqual(sealedTokens(instance), []);
-    assert.deepEqual(await instance.read("DELETE", SETTINGS, GithubSettingsViewSchema), {
+    assert.deepEqual(await removed(instance), {
       token: "none",
       secretReady: true,
     });
@@ -106,7 +109,7 @@ describe("the GitHub token is sealed on the Instance, never returned, and cannot
   it("refuses to save a token on an Instance with no sealing key, and keeps nothing", async () => {
     assert.deepEqual(await settingsOf(withoutKey), { token: "none", secretReady: false });
 
-    const refused = await withoutKey.send("PUT", SETTINGS, { token: TOKEN });
+    const refused = await save(withoutKey, TOKEN);
 
     assert.deepEqual(GithubSaveResponseSchema.parse(JSON.parse(refused.body)), {
       kind: "refused",
@@ -159,7 +162,7 @@ describe("a GitHub token the Instance cannot open is reported, does not block a 
   it("replaces it with a new token", async () => {
     seedForeign();
 
-    await instance.send("PUT", SETTINGS, { token: NEXT_TOKEN });
+    await save(instance, NEXT_TOKEN);
 
     assert.deepEqual(await settingsOf(instance), { token: "saved", secretReady: true });
   });
@@ -167,7 +170,7 @@ describe("a GitHub token the Instance cannot open is reported, does not block a 
   it("removes it", async () => {
     seedForeign();
 
-    assert.deepEqual(await instance.read("DELETE", SETTINGS, GithubSettingsViewSchema), {
+    assert.deepEqual(await removed(instance), {
       token: "none",
       secretReady: true,
     });
@@ -185,7 +188,7 @@ describe("a stored GitHub cooldown answers Verify with rate-limited, and a chang
   after(() => instance.close());
 
   it("refuses Verify with rate-limited and no status while the cooldown holds", async () => {
-    await instance.send("PUT", SETTINGS, { token: TOKEN });
+    await save(instance, TOKEN);
     seedGithubCooldown(instance);
 
     assert.deepEqual(await verify(instance), {
@@ -197,16 +200,16 @@ describe("a stored GitHub cooldown answers Verify with rate-limited, and a chang
   });
 
   it("deletes the cooldown when the token is replaced", async () => {
-    await instance.send("PUT", SETTINGS, { token: TOKEN });
+    await save(instance, TOKEN);
     seedGithubCooldown(instance);
     assert.equal(cooldowns(instance), 1);
-    await instance.send("PUT", SETTINGS, { token: NEXT_TOKEN });
+    await save(instance, NEXT_TOKEN);
 
     assert.equal(cooldowns(instance), 0);
   });
 
   it("deletes the cooldown when the token is removed", async () => {
-    await instance.send("PUT", SETTINGS, { token: TOKEN });
+    await save(instance, TOKEN);
     seedGithubCooldown(instance);
     assert.equal(cooldowns(instance), 1);
 
