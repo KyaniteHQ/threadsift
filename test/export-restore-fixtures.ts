@@ -7,8 +7,8 @@ import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { placePostText } from "../src/features/thread/core/post-text-files.ts";
 import { bytesOfKey, exportKeys, itemTextAt, postTextKey } from "./file-store-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { pasteInOrder, until, inOrder } from "./library-fixtures.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
-import { pasteInOrder, until, inOrder } from "./related-fixtures.ts";
 import { directoryOf } from "./zip-fixtures.ts";
 
 export const MARKED_PASSAGE = "quartz seam";

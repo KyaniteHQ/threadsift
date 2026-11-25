@@ -12,7 +12,7 @@ import {
   savedLibrary,
 } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste, rowCount } from "./related-fixtures.ts";
+import { paste } from "./library-fixtures.ts";
 import { restoreStatus, restoredDone, settledRestore, startedRestore } from "./restore-fixtures.ts";
 import {
   type Entries,
@@ -77,7 +77,7 @@ describe("a Restore of an Export that took several slices brings the library bac
       await startedRestore(target, damaged);
 
       assert.equal((await settledRestore(target, ["failed"])).failure, "crc");
-      assert.equal(rowCount(target, "items"), 0);
+      assert.equal(target.database.rowCount("items"), 0);
     });
   });
 
@@ -148,7 +148,7 @@ describe("a Restore of an Export that took several slices brings the library bac
     });
 
     it("starts with no work in flight and continues ids after the highest the source ever used", async () => {
-      assert.equal(rowCount(target, "jobs", "kind <> 'restore'"), 0);
+      assert.equal(target.database.rowCount("jobs", "kind <> 'restore'"), 0);
 
       const [fromSource, fromTarget] = await Promise.all([
         paste(source, "after-restore", { title: "After the Restore" }),

@@ -5,7 +5,7 @@ import { SentTopicsSchema } from "../src/features/wiki/core/disagreement-task.ts
 import { SentPairsSchema } from "../src/features/wiki/core/proposal-sent.ts";
 import { seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance, Json } from "./instance.ts";
-import { REDDIT_THREAD, paste, count, exec } from "./related-fixtures.ts";
+import { REDDIT_THREAD, paste } from "./library-fixtures.ts";
 
 export type BotKindName = Exclude<OwnedJobKind, IntakeJobKind | "related_pick">;
 
@@ -95,13 +95,12 @@ export const KIND_CASES: readonly KindCase[] = [
     },
     empty: null,
     wrote: (instance, owner) =>
-      count(instance, "select count(*) as n from digests where item_id = ?", owner) === 1,
+      instance.database.count("select count(*) as n from digests where item_id = ?", owner) === 1,
     moves: [
       {
         name: "a new content generation",
         move: (instance, context) => {
-          exec(
-            instance,
+          instance.database.exec(
             "update items set generation = generation + 1 where id = ?",
             DigestContext.parse(JSON.parse(context)).itemId,
           );
@@ -125,25 +124,23 @@ export const KIND_CASES: readonly KindCase[] = [
     },
     empty: null,
     wrote: (instance) =>
-      count(
-        instance,
+      instance.database.count(
         "select count(*) as n from topic_pages where topic_id = 1 and revision = 1",
       ) === 1,
     moves: [
       {
         name: "a new Digest of a sent Item",
         move: (instance) => {
-          exec(
-            instance,
+          instance.database.exec(
             "insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state, item_id) values (7000, 'digest', '{}', 0, 'caller', 1, 0, 'done', 102)",
           );
-          exec(instance, "update digests set task_id = 7000 where item_id = 102");
+          instance.database.exec("update digests set task_id = 7000 where item_id = 102");
         },
       },
       {
         name: "a deleted sent Item",
         move: (instance) => {
-          exec(instance, "delete from items where id = 102");
+          instance.database.exec("delete from items where id = 102");
         },
       },
     ],
@@ -155,15 +152,15 @@ export const KIND_CASES: readonly KindCase[] = [
     breaks: { result: mergesBreakingRules, reason: /merges/u },
     empty: () => ({ merges: [] }),
     wrote: (instance) =>
-      count(instance, "select count(*) as n from proposals where kind = 'tag-merge'") > 0,
+      instance.database.count("select count(*) as n from proposals where kind = 'tag-merge'") > 0,
     moves: [
       {
         name: "a deleted sent Tag",
         move: (instance, context) => {
           const { from } = firstPair(context);
 
-          exec(instance, "delete from item_tags where tag_id = ?", from);
-          exec(instance, "delete from tags where id = ?", from);
+          instance.database.exec("delete from item_tags where tag_id = ?", from);
+          instance.database.exec("delete from tags where id = ?", from);
         },
       },
     ],
@@ -175,17 +172,17 @@ export const KIND_CASES: readonly KindCase[] = [
     breaks: { result: mergesBreakingRules, reason: /merges/u },
     empty: () => ({ merges: [] }),
     wrote: (instance) =>
-      count(instance, "select count(*) as n from proposals where kind = 'topic-merge'") > 0,
+      instance.database.count("select count(*) as n from proposals where kind = 'topic-merge'") > 0,
     moves: [
       {
         name: "a deleted sent Topic",
         move: (instance, context) => {
           const { from } = firstPair(context);
 
-          exec(instance, "update items set topic_id = null where topic_id = ?", from);
-          exec(instance, "delete from log_entries where topic_id = ?", from);
-          exec(instance, "delete from topic_pages where topic_id = ?", from);
-          exec(instance, "delete from topics where id = ?", from);
+          instance.database.exec("update items set topic_id = null where topic_id = ?", from);
+          instance.database.exec("delete from log_entries where topic_id = ?", from);
+          instance.database.exec("delete from topic_pages where topic_id = ?", from);
+          instance.database.exec("delete from topics where id = ?", from);
         },
       },
     ],
@@ -204,14 +201,19 @@ export const KIND_CASES: readonly KindCase[] = [
     },
     empty: () => ({ disagreements: [] }),
     wrote: (instance) =>
-      count(instance, "select count(*) as n from proposals where kind = 'items-disagree'") === 1,
+      instance.database.count(
+        "select count(*) as n from proposals where kind = 'items-disagree'",
+      ) === 1,
     moves: [
       {
         name: "a changed membership text",
         move: (instance, context) => {
           const [topic] = SentTopicsSchema.parse(JSON.parse(context));
 
-          exec(instance, "update items set topic_id = null where id = ?", topic?.items[1]?.id ?? 0);
+          instance.database.exec(
+            "update items set topic_id = null where id = ?",
+            topic?.items[1]?.id ?? 0,
+          );
         },
       },
     ],

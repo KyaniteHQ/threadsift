@@ -6,7 +6,7 @@ import { botInstance, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { PATH } from "./grok-bot-fixtures.ts";
 import { usedAsProvider } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { saveProvider } from "./related-fixtures.ts";
+import { saveProvider } from "./library-fixtures.ts";
 
 describe("removing the Grok Bot settings is refused while Grok Bot is the Provider", () => {
   let instance: Instance;

@@ -13,7 +13,6 @@ import {
   verified,
   view,
 } from "./reddit-account-fixtures.ts";
-import { exec } from "./related-fixtures.ts";
 
 describe("the Reddit account settings are reached only by the signed-in owner", () => {
   let instance: Instance;
@@ -165,8 +164,7 @@ describe("an Instance with no sealing key, and a row sealed under another key", 
     const foreign = await Instance.start({ secretKey: "cd".repeat(32) });
     try {
       await foreign.setUp();
-      exec(
-        foreign,
+      foreign.database.exec(
         "insert into reddit_account (id, sealed_session, state, state_at, connected_at) values (1, ?, 'connected', 1, 1)",
         row.sealed_session,
       );

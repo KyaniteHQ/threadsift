@@ -2,8 +2,8 @@ import { HighlightsPageResponseSchema } from "../src/core/contract/highlights-pa
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { inOrder } from "./library-fixtures.ts";
 import { keepPassage } from "./lost-highlight-fixtures.ts";
-import { inOrder } from "./related-fixtures.ts";
 
 export const keepNote = (
   instance: Instance,

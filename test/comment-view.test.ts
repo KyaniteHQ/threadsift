@@ -3,9 +3,9 @@ import { after, before, describe, it } from "node:test";
 
 import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import { selectorIn } from "./highlight-selector.ts";
-import { Instance, type Json } from "./instance.ts";
+import { Instance, type Json, SECRET_KEY } from "./instance.ts";
+import { until } from "./library-fixtures.ts";
 import { FACT, causeOf, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
-import { SECRET_KEY, until } from "./related-fixtures.ts";
 import { restoreLibrary } from "./restore-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";

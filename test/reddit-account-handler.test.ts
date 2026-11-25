@@ -16,7 +16,6 @@ import {
   fetchJob,
   jobs,
 } from "./reddit-account-fixtures.ts";
-import { exec } from "./related-fixtures.ts";
 
 const REDDIT_LINK = "https://www.reddit.com/comments/q1/";
 
@@ -28,7 +27,7 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
   beforeEach(async () => {
     instance = await accountInstance();
     await connect(instance, SESSION);
-    exec(instance, "update reddit_account set queue_head = 2");
+    instance.database.exec("update reddit_account set queue_head = 2");
   });
 
   afterEach(() => instance.close());
@@ -47,7 +46,7 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
   };
 
   const dueNow = (id: number) => {
-    exec(instance, "update jobs set next_attempt_at = 0 where id = ?", id);
+    instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", id);
   };
 
   const spent = (id: number, address: string) => {
@@ -84,7 +83,7 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
     fetchJob(instance, 1, { state: "queued", waitReason: null, dueAt: LATER });
     fetchJob(instance, 3, { state: "queued", waitReason: null, dueAt: 0, address: REDDIT_LINK });
     await holdingTheTurn(1);
-    exec(instance, "update reddit_account set queue_head = null");
+    instance.database.exec("update reddit_account set queue_head = null");
     await runJob(instance.core, 3);
 
     const [, job] = jobs(instance);

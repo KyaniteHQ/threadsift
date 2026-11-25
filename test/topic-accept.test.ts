@@ -5,9 +5,9 @@ import { z } from "zod";
 
 import { accept, propose } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
 import { dump } from "./pin-fixtures.ts";
-import { paste, catalogVersion, count, exec, rows } from "./related-fixtures.ts";
 import {
   answerOf,
   itemsOf,
@@ -79,17 +79,15 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
     ];
     loser = topicId(instance, "ML");
     survivor = topicId(instance, "Machine learning");
-    exec(instance, "update digests set digest = 'not json' where item_id = ?", ids[1]);
+    instance.database.exec("update digests set digest = 'not json' where item_id = ?", ids[1]);
     proposeTopics(instance, ["ML", "Games"], "open", "Other.");
     proposeTopics(instance, ["Machine learning", "Games"], "open", "Kept.");
-    exec(
-      instance,
+    instance.database.exec(
       "insert into topic_pages (topic_id, overview, revision, built_from, updated_at) values (?, 'About ML.', 1, '[]', 1)",
       loser,
     );
-    versionBefore = catalogVersion(instance);
-    linkedLogCount = count(
-      instance,
+    versionBefore = instance.database.catalogVersion();
+    linkedLogCount = instance.database.count(
       "select count(*) as n from log_entries where topic_id in (?, ?)",
       loser,
       survivor,
@@ -115,59 +113,63 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
 
   it("writes the survivor's name into digests.topic and the Digest JSON read from digests, and keeps the text of one that is not JSON", () => {
     assert.deepEqual(
-      rows(
-        instance,
-        DigestSchema,
-        "select topic, digest as json from digests where item_id in (?, ?) order by item_id",
-        ids[0],
-        ids[1],
-      ).map(({ topic, json }) => [
-        topic,
-        json.startsWith("{") ? JsonTopicSchema.parse(JSON.parse(json)).topic : json,
-      ]),
+      instance.database
+        .rows(
+          DigestSchema,
+          "select topic, digest as json from digests where item_id in (?, ?) order by item_id",
+          ids[0],
+          ids[1],
+        )
+        .map(({ topic, json }) => [
+          topic,
+          json.startsWith("{") ? JsonTopicSchema.parse(JSON.parse(json)).topic : json,
+        ]),
       [
         ["Machine learning", "Machine learning"],
         ["Machine learning", "not json"],
       ],
     );
-    assert.equal(count(instance, "select count(*) as n from digests where topic = 'ML'"), 0);
+    assert.equal(
+      instance.database.count("select count(*) as n from digests where topic = 'ML'"),
+      0,
+    );
   });
 
   it("moves the Log lines that named the merged-away Topic and removes the Topic and its page", () => {
     assert.equal(
-      count(
-        instance,
+      instance.database.count(
         "select count(*) as n from log_entries where topic = 'ML' and topic_id is null",
       ),
       0,
     );
     assert.equal(
-      count(instance, "select count(*) as n from log_entries where topic_id = ?", survivor),
+      instance.database.count("select count(*) as n from log_entries where topic_id = ?", survivor),
       linkedLogCount,
     );
-    assert.equal(count(instance, "select count(*) as n from topics where id = ?", loser), 0);
     assert.equal(
-      count(instance, "select count(*) as n from topic_pages where topic_id = ?", loser),
+      instance.database.count("select count(*) as n from topics where id = ?", loser),
+      0,
+    );
+    assert.equal(
+      instance.database.count("select count(*) as n from topic_pages where topic_id = ?", loser),
       0,
     );
   });
 
   it("records the Pin, moves catalog_version by one and writes one merge-topic Log entry with the count", async () => {
     assert.deepEqual(
-      rows(instance, PinSchema, "select from_key, from_name, into_topic_id from pins"),
+      instance.database.rows(PinSchema, "select from_key, from_name, into_topic_id from pins"),
       [{ from_key: "ml", from_name: "ML", into_topic_id: survivor }],
     );
-    assert.equal(catalogVersion(instance), versionBefore + 1);
+    assert.equal(instance.database.catalogVersion(), versionBefore + 1);
     assert.deepEqual(await topicMergeLines(instance), ["ML into Machine learning | 2 Items"]);
   });
 
   it("removes every other row that named the merged-away Topic and keeps the rest", () => {
     assert.deepEqual(
-      rows(
-        instance,
-        z.object({ reason: z.string() }),
-        "select reason from proposals order by id",
-      ).map(({ reason }) => reason),
+      instance.database
+        .rows(z.object({ reason: z.string() }), "select reason from proposals order by id")
+        .map(({ reason }) => reason),
       ["Kept."],
     );
   });
@@ -204,17 +206,21 @@ describe("the Topic Pin an Accept records keeps a merged Topic merged and follow
 
   it("links a caller-sent Digest that names the merged-away Topic in another spelling to the survivor and creates no Topic", () => {
     assert.equal(
-      count(instance, "select count(*) as n from items where id = ? and topic_id = ?", later, beta),
+      instance.database.count(
+        "select count(*) as n from items where id = ? and topic_id = ?",
+        later,
+        beta,
+      ),
       1,
     );
-    assert.equal(count(instance, "select count(*) as n from topics where key = 'alpha'"), 0);
+    assert.equal(
+      instance.database.count("select count(*) as n from topics where key = 'alpha'"),
+      0,
+    );
     assert.deepEqual(
-      rows(
-        instance,
-        DigestSchema,
-        "select topic, digest as json from digests where item_id = ?",
-        later,
-      ).map(({ topic, json }) => [topic, JsonTopicSchema.parse(JSON.parse(json)).topic]),
+      instance.database
+        .rows(DigestSchema, "select topic, digest as json from digests where item_id = ?", later)
+        .map(({ topic, json }) => [topic, JsonTopicSchema.parse(JSON.parse(json)).topic]),
       [["Beta", "Beta"]],
     );
   });
@@ -233,15 +239,14 @@ describe("the Topic Pin an Accept records keeps a merged Topic merged and follow
         ]),
       );
       assert.equal(
-        count(
-          instance,
+        instance.database.count(
           "select count(*) as n from pins where into_topic_id not in (select id from topics)",
         ),
         0,
       );
       assert.equal(itemsOf(instance, gamma), 4);
       assert.equal(
-        count(instance, "select count(*) as n from topics where id in (?, ?)", alpha, beta),
+        instance.database.count("select count(*) as n from topics where id in (?, ?)", alpha, beta),
         0,
       );
     });
@@ -250,7 +255,11 @@ describe("the Topic Pin an Accept records keeps a merged Topic merged and follow
       const id = await paste(instance, "again", { title: "Again", topic: "alpha" });
 
       assert.equal(
-        count(instance, "select count(*) as n from items where id = ? and topic_id = ?", id, gamma),
+        instance.database.count(
+          "select count(*) as n from items where id = ? and topic_id = ?",
+          id,
+          gamma,
+        ),
         1,
       );
     });
@@ -258,8 +267,7 @@ describe("the Topic Pin an Accept records keeps a merged Topic merged and follow
     it("keeps every Topic Pin when an Item is deleted", async () => {
       assert.ok(original !== undefined);
       assert.deepEqual(
-        rows(
-          instance,
+        instance.database.rows(
           PinSchema,
           "select from_key, from_name, into_topic_id from pins order by id",
         ),

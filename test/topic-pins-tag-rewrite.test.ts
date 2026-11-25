@@ -9,20 +9,16 @@ import { topicLinked, topicMoves } from "../src/features/wiki/core/topic-moves.t
 import { openMigrated } from "./instance-database.ts";
 import { Instance } from "./instance.ts";
 import { dump, item } from "./pin-fixtures.ts";
-import { script } from "./related-fixtures.ts";
 
 describe("a Tag rewrite that read a Digest before a Topic rewrite changed it", () => {
   let instance: Instance;
 
   before(async () => {
     instance = await Instance.start();
-    script(
-      instance,
-      `
+    instance.database.script(`
       insert into tags (id, key, name) values (1, 'machine learning', 'machine learning'), (2, 'ml', 'ml');
       insert into topics (id, key, name) values (1, 'reading', 'Reading'), (2, 'old', 'Old');
-      ${item(1, [2], ["ml"], { topic: "Old", topicId: 2 })}`,
-    );
+      ${item(1, [2], ["ml"], { topic: "Old", topicId: 2 })}`);
   });
 
   after(() => instance.close());
@@ -62,13 +58,10 @@ describe("a Topic rewrite that read its Items before a publication linked one of
 
   before(async () => {
     instance = await Instance.start();
-    script(
-      instance,
-      `
+    instance.database.script(`
       insert into topics (id, key, name) values (1, 'reading', 'Reading'), (2, 'old', 'Old'), (3, 'third', 'Third');
       ${item(1, [], [], { topic: "Old", topicId: 2 })}
-      ${item(2, [], [], { topic: "Old", topicId: 2 })}`,
-    );
+      ${item(2, [], [], { topic: "Old", topicId: 2 })}`);
   });
 
   after(() => instance.close());
@@ -79,12 +72,9 @@ describe("a Topic rewrite that read its Items before a publication linked one of
     try {
       const moves = await topicLinked(database.db, 2);
 
-      script(
-        instance,
-        `
+      instance.database.script(`
         update items set topic_id = 3 where id = 2;
-        update digests set topic = 'Third', digest = json_set(digest, '$.topic', 'Third') where item_id = 2;`,
-      );
+        update digests set topic = 'Third', digest = json_set(digest, '$.topic', 'Third') where item_id = 2;`);
 
       await guardedBatch(database.db, sql`1`, topicMoves(database.db, 2, 1, moves));
     } finally {

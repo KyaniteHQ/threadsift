@@ -1,17 +1,46 @@
 import { z } from "zod";
 
 import { WEEK_MS } from "../src/core/contract/time-units.ts";
+import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows, sweptWith } from "./related-fixtures.ts";
+
+export function releaseClaim(instance: Instance, task: string): void {
+  instance.database.exec("delete from scheduled_runs where task = ?", task);
+}
+
+export function holdClaim(instance: Instance, task: string, at = Date.now()): void {
+  instance.database.exec(
+    "insert or replace into scheduled_runs (task, last_run_at) values (?, ?)",
+    task,
+    at,
+  );
+}
+
+export async function nextSweep(instance: Instance): Promise<void> {
+  releaseClaim(instance, "sweep");
+  await instance.tick();
+}
+
+export const nextSweepAt = (instance: Instance, now: number): Promise<void> =>
+  atClock(
+    () => now,
+    () => nextSweep(instance),
+  );
+
+export async function sweptWith(instance: Instance, write: (now: number) => void): Promise<void> {
+  const now = Date.now();
+
+  write(now);
+  await nextSweepAt(instance, now);
+}
 
 const RunSchema = z.object({ last_run_at: z.number() });
 
 export const claims = (instance: Instance, task: string) =>
-  rows(instance, RunSchema, "select last_run_at from scheduled_runs where task = ?", task);
+  instance.database.rows(RunSchema, "select last_run_at from scheduled_runs where task = ?", task);
 
 export function moveClaimBack(instance: Instance, task: string): void {
-  exec(
-    instance,
+  instance.database.exec(
     "update scheduled_runs set last_run_at = last_run_at - ? where task = ?",
     WEEK_MS,
     task,
@@ -19,8 +48,7 @@ export function moveClaimBack(instance: Instance, task: string): void {
 }
 
 export const jobsOf = (instance: Instance, kind: string) =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({ id: z.number(), item_id: z.number(), state: z.string() }),
     "select id, item_id, state from jobs where kind = ? order by id",
     kind,
@@ -32,8 +60,7 @@ export async function sweptWithClaim(
   claimOffsetMs: number,
 ): Promise<number> {
   await sweptWith(instance, (now) => {
-    exec(
-      instance,
+    instance.database.exec(
       "update scheduled_runs set last_run_at = ? where task = ?",
       now + claimOffsetMs,
       task,

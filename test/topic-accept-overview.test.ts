@@ -8,27 +8,27 @@ import {
   TopicPageSchema,
 } from "../src/core/contract/topic-overview-contract.ts";
 import { accept } from "./accept-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider, until } from "./library-fixtures.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, saveProvider, until, count, exec, rows } from "./related-fixtures.ts";
 import { proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 
 const queue = (instance: Instance, itemId: number): void => {
-  exec(
-    instance,
+  instance.database.exec(
     "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at) select 'topic_overview', id, original_url, 'queued', 0, 0, 9999999999999 from items where id = ?",
     itemId,
   );
 };
 
 const overviewJobs = (instance: Instance): readonly number[] =>
-  rows(
-    instance,
-    z.object({ item_id: z.number() }),
-    "select item_id from jobs where kind = 'topic_overview' order by item_id",
-  ).map(({ item_id }) => item_id);
+  instance.database
+    .rows(
+      z.object({ item_id: z.number() }),
+      "select item_id from jobs where kind = 'topic_overview' order by item_id",
+    )
+    .map(({ item_id }) => item_id);
 
 interface Library {
   readonly instance: Instance;
@@ -80,7 +80,10 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
       assert.deepEqual(overviewJobs(instance), [owner]);
       await until(
         "a topic_overview job has spent an attempt",
-        () => count(instance, "select max(attempts) as n from jobs where kind = 'topic_overview'"),
+        () =>
+          instance.database.count(
+            "select max(attempts) as n from jobs where kind = 'topic_overview'",
+          ),
         (attempts) => attempts > 0,
       );
     }));
@@ -143,8 +146,7 @@ describe("the overview a merge leaves behind", () => {
     withLibrary({ provider: false }, async ({ instance }) => {
       const survivor = topicId(instance, "Survivor");
 
-      exec(
-        instance,
+      instance.database.exec(
         "insert into topic_pages (topic_id, overview, revision, built_from, updated_at) values (?, 'About it.', 1, '[]', 1)",
         survivor,
       );
@@ -156,7 +158,10 @@ describe("the overview a merge leaves behind", () => {
       const page = await instance.read("GET", "/api/topics/survivor", TopicPageSchema);
 
       assert.deepEqual([page.overview.text, page.overview.builtFrom], ["About it.", 0]);
-      assert.equal(rows(instance, IdSchema, "select topic_id as id from topic_pages").length, 1);
+      assert.equal(
+        instance.database.rows(IdSchema, "select topic_id as id from topic_pages").length,
+        1,
+      );
     }));
 });
 
@@ -235,15 +240,14 @@ describe("the address of a merged-away Topic opens the Topic it was merged into"
         true,
       );
       assert.equal(
-        rows(
-          instance,
+        instance.database.rows(
           OwnerSchema,
           "select jobs.item_id from jobs join items on items.id = jobs.item_id where jobs.kind = 'topic_overview' and items.topic_id = ?",
           gamma,
         ).length > 0,
         true,
       );
-      assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
+      assert.equal(instance.database.count("select count(*) as n from topics where key = 'ml'"), 0);
     });
   });
 });

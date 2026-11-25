@@ -9,7 +9,7 @@ import {
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { until } from "./related-fixtures.ts";
+import { until } from "./library-fixtures.ts";
 import { VARIANTS } from "./restore-check-variants.ts";
 import {
   restoredDone,

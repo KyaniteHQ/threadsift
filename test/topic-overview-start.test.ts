@@ -6,7 +6,6 @@ import { caseOf } from "./bot-kinds-cases.ts";
 import { botInstance, jobRow, openJobOf, selectGrokBot, sentTask } from "./bot-kinds-fixtures.ts";
 import { digestOfToken, taskRows } from "./bot-task-rows.ts";
 import { lockedWriter } from "./locked-writer.ts";
-import { count } from "./related-fixtures.ts";
 
 describe("a second overview job for a Topic that has a task at the bot", () => {
   it("waits for the Topic without starting a task when the first job's task is at the bot", async () => {
@@ -22,7 +21,7 @@ describe("a second overview job for a Topic that has a task at the bot", () => {
       await executeClaimed(instance.core, second);
 
       assert.equal(
-        count(instance, "select count(*) as n from ai_tasks where kind = 'topic_overview'"),
+        instance.database.count("select count(*) as n from ai_tasks where kind = 'topic_overview'"),
         1,
       );
       assert.equal(jobRow(instance, second.id).wait_reason, "topic-busy");
@@ -47,7 +46,7 @@ describe("a second overview job for a Topic that has a task at the bot", () => {
       await writer.committed;
 
       assert.equal(
-        count(instance, "select count(*) as n from ai_tasks where kind = 'topic_overview'"),
+        instance.database.count("select count(*) as n from ai_tasks where kind = 'topic_overview'"),
         1,
       );
       assert.equal(taskRows(instance, "job_id = ?", second.id).length, 0);

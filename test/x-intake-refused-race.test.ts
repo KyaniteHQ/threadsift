@@ -7,7 +7,7 @@ import { applied } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow } from "./bot-task-rows.ts";
 import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { until, exec } from "./related-fixtures.ts";
+import { until } from "./library-fixtures.ts";
 import { intakeTo, sentIntake, stepOf, waitingIntake } from "./x-intake-fixtures.ts";
 
 const UNREADABLE = { content: "this is not a thread" };
@@ -43,7 +43,7 @@ describe("a refusal that lands while the job's send is still being recorded or a
     const outcome = await stepOf(instance, task.job);
 
     const deadline = Date.now() + 5 * SECOND_MS;
-    exec(instance, "update ai_tasks set deadline = ? where id = ?", deadline, task.id);
+    instance.database.exec("update ai_tasks set deadline = ? where id = ?", deadline, task.id);
     await applied(instance, task.job, outcome);
 
     const row = jobRow(instance, task.job.id);
@@ -90,8 +90,7 @@ describe("a refusal that lands while the job's send is still being recorded or a
   it("answers the refusal with its 400 when counting it fails", async () => {
     const task = await sentIntake(instance);
 
-    exec(
-      instance,
+    instance.database.exec(
       "create trigger no_count before update of answer_refusals on ai_tasks begin select raise(abort, 'count refused'); end",
     );
 
@@ -105,8 +104,7 @@ describe("a refusal that lands while the job's send is still being recorded or a
     const task = await sentIntake(instance);
     const { deadline } = taskRow(instance, task.id);
 
-    exec(
-      instance,
+    instance.database.exec(
       "create trigger no_settle before update on items begin select raise(abort, 'no'); end",
     );
 

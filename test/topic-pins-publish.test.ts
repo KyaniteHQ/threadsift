@@ -4,25 +4,24 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { Instance } from "./instance.ts";
+import { paste, until } from "./library-fixtures.ts";
 import { lines } from "./log-fixtures.ts";
-import { paste, until, count, exec, nextSweep, rows } from "./related-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
+import { nextSweep } from "./weekly-claim-fixtures.ts";
 
 const TARGET = "Machine Learning";
 
 const StoredSchema = z.object({ topic: z.string(), json_topic: z.string().nullable() });
 
 const stored = (instance: Instance, itemId: number) =>
-  rows(
-    instance,
+  instance.database.rows(
     StoredSchema,
     "select topic, json_extract(digest, '$.topic') as json_topic from digests where item_id = ?",
     itemId,
   )[0];
 
 const linkedTopic = (instance: Instance, itemId: number): string | undefined =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({ name: z.string() }),
     "select topics.name as name from items join topics on topics.id = items.topic_id where items.id = ?",
     itemId,
@@ -30,8 +29,7 @@ const linkedTopic = (instance: Instance, itemId: number): string | undefined =>
 
 const seedPin = (instance: Instance): number => {
   const target = topicId(instance, TARGET);
-  exec(
-    instance,
+  instance.database.exec(
     "insert into pins (kind, from_key, from_name, into_topic_id, created_at) values ('topic-merge', 'ml', 'ML', ?, 1)",
     target,
   );
@@ -57,12 +55,11 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
 
     assert.equal(linkedTopic(instance, id), TARGET);
     assert.deepEqual(stored(instance, id), { topic: TARGET, json_topic: TARGET });
-    assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
-    assert.equal(count(instance, "select count(*) as n from topics"), 1);
+    assert.equal(instance.database.count("select count(*) as n from topics where key = 'ml'"), 0);
+    assert.equal(instance.database.count("select count(*) as n from topics"), 1);
     assert.ok((await lines(instance)).includes(`ingest | Caller | topic: ${TARGET} | tags: ai`));
     assert.equal(
-      count(
-        instance,
+      instance.database.count(
         "select count(*) as n from log_entries where topic_id = ? and action = 'ingest' and item_id = ?",
         target,
         id,
@@ -72,8 +69,7 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
   });
 
   it("keeps the Topic the caller sent in the AI task result", () => {
-    const [{ topic } = { topic: "" }] = rows(
-      instance,
+    const [{ topic } = { topic: "" }] = instance.database.rows(
       z.object({ topic: z.string() }),
       "select json_extract(result, '$.topic') as topic from ai_tasks where kind = 'digest' and json_extract(result, '$.title') = 'Caller'",
     );
@@ -84,8 +80,7 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
   it("links the Digest that items.pending_digest holds to the target", async () => {
     const id = await paste(instance, "pending", { title: "Pending", noDigest: true });
 
-    exec(
-      instance,
+    instance.database.exec(
       "update items set pending_digest = ? where id = ?",
       JSON.stringify({
         title: "Pending",
@@ -96,8 +91,7 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
       }),
       id,
     );
-    exec(
-      instance,
+    instance.database.exec(
       "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at) select 'digest', id, original_url, 'queued', 0, 0, 0 from items where id = ?",
       id,
     );
@@ -110,6 +104,6 @@ describe("a Topic Pin steers every path that turns a Digest's names into links",
 
     assert.equal(linkedTopic(instance, id), TARGET);
     assert.deepEqual(stored(instance, id), { topic: TARGET, json_topic: TARGET });
-    assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
+    assert.equal(instance.database.count("select count(*) as n from topics where key = 'ml'"), 0);
   });
 });

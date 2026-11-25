@@ -3,7 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste, saveProvider } from "./library-fixtures.ts";
 import {
   highlightStatus,
   keepLostHighlight,
@@ -11,16 +12,7 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import {
-  SECRET_KEY,
-  paste,
-  saveProvider,
-  count,
-  exec,
-  rows,
-  nextSweep,
-} from "./related-fixtures.ts";
-import { claims, moveClaimBack } from "./weekly-claim-fixtures.ts";
+import { claims, holdClaim, moveClaimBack, nextSweep } from "./weekly-claim-fixtures.ts";
 
 const LostSchema = z.object({
   id: z.number(),
@@ -32,8 +24,7 @@ const LostSchema = z.object({
 const TASK = "highlight_proposals";
 
 const lostRows = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     LostSchema,
     "select id, highlight_id, state, reason from proposals join highlight_lost_proposals on proposal_id = id order by id",
   );
@@ -78,19 +69,18 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     await repaste(instance, "found", textHolding("the passage of found"));
     assert.equal(highlightStatus(instance, attached), "attached");
     await saveProvider(instance);
-    exec(
-      instance,
-      "insert or replace into scheduled_runs (task, last_run_at) values ('disagreement_proposals', ?)",
-      Date.now(),
-    );
+    holdClaim(instance, "disagreement_proposals");
   });
 
   after(() => instance.close());
 
   it("stores one open row for each Highlight that is gone or ambiguous and none for an attached one, with no model call", async () => {
-    const highlightsBefore = rows(instance, z.unknown(), "select * from highlights order by id");
+    const highlightsBefore = instance.database.rows(
+      z.unknown(),
+      "select * from highlights order by id",
+    );
 
-    const tasks = rows(instance, z.unknown(), "select * from ai_tasks order by id");
+    const tasks = instance.database.rows(z.unknown(), "select * from ai_tasks order by id");
 
     await nextSweep(instance);
 
@@ -104,12 +94,15 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     );
     assert.equal(claims(instance, TASK).length, 1);
     assert.deepEqual(
-      rows(instance, z.unknown(), "select * from highlights order by id"),
+      instance.database.rows(z.unknown(), "select * from highlights order by id"),
       highlightsBefore,
     );
-    assert.deepEqual(rows(instance, z.unknown(), "select * from ai_tasks order by id"), tasks);
+    assert.deepEqual(
+      instance.database.rows(z.unknown(), "select * from ai_tasks order by id"),
+      tasks,
+    );
     assert.equal(
-      count(instance, "select count(*) as n from ai_tasks where inputs like '%passage%'"),
+      instance.database.count("select count(*) as n from ai_tasks where inputs like '%passage%'"),
       0,
     );
   });
@@ -186,12 +179,10 @@ describe("the weekly lost-Highlight check with more than 20 lost Highlights", ()
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
     await paste(instance, "many", { title: "Many" });
-    exec(
-      instance,
-      `with recursive n(i) as (select 1 union all select i + 1 from n where i < 25)
+    instance.database
+      .exec(`with recursive n(i) as (select 1 union all select i + 1 from n where i < 25)
        insert into highlights (item_id, exact, prefix, suffix, hint, created_at, status, start)
-       select (select max(id) from items), 'quote ' || i, '', '', 0, i, case when i % 2 = 0 then 'gone' else 'ambiguous' end, null from n`,
-    );
+       select (select max(id) from items), 'quote ' || i, '', '', 0, i, case when i % 2 = 0 then 'gone' else 'ambiguous' end, null from n`);
     await saveProvider(instance);
   });
 

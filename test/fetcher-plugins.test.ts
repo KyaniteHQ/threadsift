@@ -9,7 +9,8 @@ import {
 } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
-import { Instance, type Json, SETTLE_DEADLINE_MS } from "./instance.ts";
+import { Instance, type Json } from "./instance.ts";
+import { SETTLE_DEADLINE_MS } from "./library-fixtures.ts";
 import { keepPassage } from "./lost-highlight-fixtures.ts";
 
 interface Supplied {

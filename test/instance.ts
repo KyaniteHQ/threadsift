@@ -1,5 +1,3 @@
-import { setTimeout as delay } from "node:timers/promises";
-
 import type { z } from "zod";
 
 import { tick } from "../src/core/compose/tick.ts";
@@ -13,7 +11,8 @@ import { prepareSession, sessionWrites } from "../src/features/access/core/sessi
 import { createApp } from "../src/http/app.ts";
 import { nodeEnvironment } from "../src/targets/node/environment.ts";
 import { startNode } from "../src/targets/node/ports.ts";
-import { instanceDatabase, snapshotDatabase } from "./instance-database.ts";
+import { databaseOf, instanceDatabase, snapshotDatabase } from "./instance-database.ts";
+import { until } from "./library-fixtures.ts";
 
 export const SETUP_CODE = "a-setup-code-of-sixteen-or-more";
 
@@ -40,11 +39,9 @@ function templateDatabase(): Promise<Uint8Array> {
   return ownerTemplate;
 }
 
-const POLL_MS = 25;
-
-export const SETTLE_DEADLINE_MS = 20_000;
-
 export const ORIGIN = "http://localhost";
+
+export const SECRET_KEY = "0".repeat(64);
 
 const SESSION_COOKIE = "__Host-threadsift_session";
 
@@ -59,22 +56,6 @@ export type Json =
 export interface Answer {
   readonly status: number;
   readonly body: string;
-}
-
-async function settled<Value>(
-  read: () => Promise<Value>,
-  isDone: (value: Value) => boolean,
-  deadline: number,
-): Promise<Value> {
-  const value = await read();
-
-  if (isDone(value)) return value;
-
-  if (Date.now() >= deadline) throw new Error("the state did not settle before its deadline");
-
-  await delay(POLL_MS);
-
-  return settled(read, isDone, deadline);
 }
 
 function sessionPair(response: Readonly<Response>): string | null | undefined {
@@ -179,6 +160,10 @@ export class Instance {
     return this.ports;
   }
 
+  get database() {
+    return databaseOf(this.databaseFile);
+  }
+
   tick(): Promise<void> {
     return tick(this.ports);
   }
@@ -264,10 +249,10 @@ export class Instance {
   }
 
   async settledItem(id: number) {
-    const { item } = await settled(
+    const { item } = await until(
+      `Item ${String(id)} has finished processing`,
       () => this.read("GET", `/api/items/${String(id)}/status`, ItemResponseSchema),
       ({ item: current }) => current.status !== "processing",
-      Date.now() + SETTLE_DEADLINE_MS,
     );
 
     return item;

@@ -6,10 +6,10 @@ import {
   ItemReadResponseSchema,
   SavedItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
-import { type Answer, Instance, type Json } from "./instance.ts";
+import { type Answer, Instance, type Json, SECRET_KEY } from "./instance.ts";
+import { paste, saveProvider } from "./library-fixtures.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
-import { SECRET_KEY, paste, saveProvider, exec } from "./related-fixtures.ts";
 
 type Send = (method: string, path: string, body?: Json) => Promise<Answer>;
 
@@ -192,7 +192,7 @@ describe("a token whose stored scopes are unreadable", () => {
   let instance: Instance;
 
   const store = (id: number, scopes: string): void => {
-    exec(instance, "update agent_tokens set scopes = ? where id = ?", scopes, id);
+    instance.database.exec("update agent_tokens set scopes = ? where id = ?", scopes, id);
   };
 
   before(async () => {
@@ -246,8 +246,7 @@ describe("a token row stored without scopes", () => {
 
   it("is refused by the database, which holds no default scopes for a token", () => {
     assert.throws(() => {
-      exec(
-        instance,
+      instance.database.exec(
         "insert into agent_tokens (name, digest, created_at) values ('no scopes', 'digest', 0)",
       );
     }, /NOT NULL constraint failed: agent_tokens\.scopes/u);

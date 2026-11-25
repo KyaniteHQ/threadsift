@@ -5,8 +5,8 @@ import { MINUTE_MS } from "../src/core/contract/time-units.ts";
 import { atClock } from "./clock-fixtures.ts";
 import { keepEach, keepNote, pageOf } from "./highlights-page-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
-import { paste } from "./related-fixtures.ts";
 
 const tokens = (length: number) =>
   Array.from({ length }, (_, at) => `token${String(at).padStart(2, "0")}`);

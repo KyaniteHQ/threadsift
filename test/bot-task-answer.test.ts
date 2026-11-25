@@ -12,12 +12,13 @@ import {
   retireTasks,
   saveBot,
   unblock,
+  pickedFor,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { applied, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { pairsOf, exec, sweptWith } from "./related-fixtures.ts";
+import { sweptWith } from "./weekly-claim-fixtures.ts";
 
 describe("an answer reaches its job whichever happens first, the answer or the sender's deferral", () => {
   let instance: Instance;
@@ -88,10 +89,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
 
     await applied(instance, claimed, await step(instance, claimed));
 
-    assert.deepEqual(
-      pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [library.candidates[0]],
-    );
+    assert.deepEqual(pickedFor(instance, library), [library.candidates[0]]);
     assert.equal(jobRow(instance, task.job.id).state, "done");
   });
 });
@@ -104,8 +102,7 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
 
   const sweptAfterDeadline = (ids: readonly number[], ageMs: number) =>
     sweptWith(instance, (now) => {
-      exec(
-        instance,
+      instance.database.exec(
         `update ai_tasks set deadline = ? where id in (${ids.map(() => "?").join(", ")})`,
         now - ageMs,
         ...ids,
@@ -139,7 +136,7 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
       token: "tst_plain",
     });
 
-    exec(instance, "update ai_tasks set job_id = null where id = ?", plain);
+    instance.database.exec("update ai_tasks set job_id = null where id = ?", plain);
 
     const states = () => [answeredTask.id, owned.id, plain].map((id) => state(id));
 

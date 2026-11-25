@@ -7,7 +7,7 @@ import { pluginPage } from "../src/features/fetch/core/plugin-fetch.ts";
 import { loadFetchers } from "../src/targets/node/fetcher-modules.ts";
 import { fetcherFile, recordOf } from "./fetcher-record.ts";
 import { activity } from "./fetchers/deadline.mts";
-import { SETTLE_DEADLINE_MS } from "./instance.ts";
+import { SETTLE_DEADLINE_MS } from "./library-fixtures.ts";
 
 const MODULE = fetcherFile("deadline.mts");
 

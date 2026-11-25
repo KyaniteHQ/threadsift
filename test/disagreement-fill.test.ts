@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { runWeek, seedDigested, seedTopics, sentOf, tasksOf } from "./disagreement-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { SECRET_KEY, saveProvider } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 
 const CAP = 14_000;
 

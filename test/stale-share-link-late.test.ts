@@ -5,7 +5,6 @@ import { parseLink } from "../src/core/contract/links.ts";
 import { whileOpen } from "../src/core/kernel/restore-hold.ts";
 import type { ShortLinkResolution } from "../src/features/fetch/core/fetch-link.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 import {
   EXISTING,
@@ -196,8 +195,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
           repasted(instance, short, resolvedTo(redditPost("restorerival")), "keep"),
         ),
       () => {
-        exec(
-          instance,
+        instance.database.exec(
           "update item_aliases set item_id = ?, address = ? where normalized_url = ?",
           other.item.id,
           otherPost,

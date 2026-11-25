@@ -3,8 +3,8 @@ import { describe, it } from "node:test";
 
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { botInstance, saveBot, selectGrokBot } from "./bot-task-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { SECRET_KEY, saveProvider } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 
 describe("the Proposals page reports the Provider selected in settings", () => {
   it("reports a model Provider with and without Grok Bot settings", async () => {

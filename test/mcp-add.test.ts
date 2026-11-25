@@ -15,7 +15,6 @@ import {
   sameAsRest,
 } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
-import { exec } from "./related-fixtures.ts";
 import { holdLibrary } from "./restore-fixtures.ts";
 
 const RESTORING =
@@ -161,7 +160,7 @@ describe("a failure inside a tool reaches the agent as a fixed Internal error wi
 
     await instance.settledItem(item.id);
 
-    exec(instance, "alter table notes rename to notes_hidden");
+    instance.database.exec("alter table notes rename to notes_hidden");
 
     const answer = await client.callTool({ name: "read", arguments: { id: item.id } });
 
@@ -176,7 +175,7 @@ describe("a failure inside a tool reaches the agent as a fixed Internal error wi
 
     await instance.settledItem(item.id);
 
-    exec(instance, "update items set normalized_url = 'not a url' where id = ?", item.id);
+    instance.database.exec("update items set normalized_url = 'not a url' where id = ?", item.id);
 
     const answer = await client.callTool({ name: "read", arguments: { id: item.id } });
 

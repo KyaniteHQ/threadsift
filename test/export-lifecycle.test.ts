@@ -12,8 +12,8 @@ import {
 } from "./export-restore-fixtures.ts";
 import { bytesOfKey, exportKeys, postTextKey } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { until, rowCount, exec, nextSweep, sweptWith } from "./related-fixtures.ts";
-import { loggedAttempts, retryNow } from "./restore-fixtures.ts";
+import { loggedAttempts, untilRetried } from "./restore-fixtures.ts";
+import { nextSweep, sweptWith } from "./weekly-claim-fixtures.ts";
 import { entriesOf, manifestOf } from "./zip-fixtures.ts";
 
 describe("one Export exists at a time and a stopped slice is retried, then given up", () => {
@@ -27,7 +27,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
   const sweptAfter = (column: "updated_at" | "finished_at", id: number, ageMs: number) =>
     sweptWith(instance, (now) => {
-      exec(instance, `update exports set ${column} = ? where id = ?`, now - ageMs, id);
+      instance.database.exec(`update exports set ${column} = ? where id = ?`, now - ageMs, id);
     });
 
   const startedWithoutText = async () => {
@@ -38,13 +38,11 @@ describe("one Export exists at a time and a stopped slice is retried, then given
   };
 
   const failed = () =>
-    until(
+    untilRetried(
+      instance,
+      "export",
       "the Export has failed",
-      () => {
-        retryNow(instance, "export");
-
-        return status();
-      },
+      status,
       ({ state }) => state === "failed",
     );
 
@@ -110,7 +108,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
     await sweptAfter("updated_at", id, 12 * MINUTE_MS + 1);
     assert.deepEqual(await exportKeys(instance, id), []);
-    assert.equal(rowCount(instance, "exports", "id = ? and state = 'expired'", id), 1);
+    assert.equal(instance.database.rowCount("exports", "id = ? and state = 'expired'", id), 1);
   });
 
   it("replaces a ready Export on a new start, deleting the old objects, and answers 404 to the old download and 200 to the new one", async () => {

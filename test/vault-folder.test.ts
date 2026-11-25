@@ -16,8 +16,9 @@ import { after, before, describe, it } from "node:test";
 
 import { VaultResultSchema, VaultViewSchema } from "../src/core/contract/vault-contract.ts";
 import { Instance } from "./instance.ts";
+import { paste, until } from "./library-fixtures.ts";
 import { lines } from "./log-fixtures.ts";
-import { count, paste, until, nextSweep, nextSweepAt } from "./related-fixtures.ts";
+import { nextSweep, nextSweepAt } from "./weekly-claim-fixtures.ts";
 
 const SETTINGS = "/api/settings/obsidian";
 
@@ -134,7 +135,9 @@ describe("the Folder Vault mirror writes the library under Threadsift in a mount
   });
 
   const retryAt = () =>
-    count(instance, "select retry_at as n from mirror_notes where conflict_path is not null");
+    instance.database.count(
+      "select retry_at as n from mirror_notes where conflict_path is not null",
+    );
 
   const conflictLines = async () =>
     (await lines(instance)).filter((line) => line.startsWith("vault-file-conflict"));

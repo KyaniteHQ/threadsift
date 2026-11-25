@@ -5,7 +5,6 @@ import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts"
 import { botInstance } from "./bot-task-fixtures.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 import {
   answerOf,
   contentOf,
@@ -96,7 +95,11 @@ describe("an X link answer with the task's credential is stored once and only fo
     const picked = String(BigInt(task.statusId) + 99n);
     const supplied = JSON.stringify({ ...digestOf(), keptComments: [`t1_${picked}`] });
 
-    exec(instance, "update items set pending_digest = ? where id = ?", supplied, task.itemId);
+    instance.database.exec(
+      "update items set pending_digest = ? where id = ?",
+      supplied,
+      task.itemId,
+    );
 
     const answer = await intakeTo(instance, task, {
       content: JSON.stringify(largeThreadOf(task.statusId)),

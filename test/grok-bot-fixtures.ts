@@ -2,7 +2,6 @@ import { z } from "zod";
 
 import { GrokBotTestSchema, GrokBotViewSchema } from "../src/core/contract/grok-bot-contract.ts";
 import type { Instance } from "./instance.ts";
-import { rows } from "./related-fixtures.ts";
 
 export const SECRET_KEY = "ab".repeat(32);
 
@@ -24,7 +23,10 @@ const RowSchema = z.object({
 });
 
 export const saved = (instance: Instance) =>
-  rows(instance, RowSchema, "select webhook_url, sealed_key, updated_at from grok_bot_settings");
+  instance.database.rows(
+    RowSchema,
+    "select webhook_url, sealed_key, updated_at from grok_bot_settings",
+  );
 
 export const view = (instance: Instance) => instance.read("GET", PATH, GrokBotViewSchema);
 

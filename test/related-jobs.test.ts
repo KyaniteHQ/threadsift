@@ -5,19 +5,10 @@ import { z } from "zod";
 
 import { runJob } from "../src/core/compose/jobs.ts";
 import { jobRow } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste, saveProvider, until } from "./library-fixtures.ts";
 import { entryCount } from "./log-fixtures.ts";
-import {
-  SECRET_KEY,
-  pairsOf,
-  paste,
-  saveProvider,
-  seedPair,
-  until,
-  count,
-  exec,
-  rows,
-} from "./related-fixtures.ts";
+import { pairsOf, seedPair } from "./related-fixtures.ts";
 import { firstPickTask, pickJobs, pickTasks } from "./related-pick-fixtures.ts";
 
 function openPicks(instance: Instance, itemId: number): number {
@@ -47,8 +38,7 @@ describe("the pick job opens only when a Provider is saved, once for each Item, 
 
     const id = await paste(instance, "with", { title: "Quasar lattice" });
 
-    const jobs = rows(
-      instance,
+    const jobs = instance.database.rows(
       z.object({ id: z.number(), kind: z.string(), state: z.string() }),
       "select id, kind, state from jobs where item_id = ? order by id",
       id,
@@ -110,14 +100,13 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
     const [job] = pickJobs(instance, id);
     assert.ok(job);
     const digestOpen = () =>
-      count(
-        instance,
+      instance.database.count(
         "select count(*) as n from jobs where kind = 'digest' and item_id = ? and state <> 'done'",
         id,
       );
 
     assert.equal((await instance.send("POST", `/api/items/${String(id)}/digest`)).status, 200);
-    exec(instance, "update jobs set next_attempt_at = 0 where id = ?", job.id);
+    instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", job.id);
     await runJob(instance.core, job.id);
 
     assert.equal(digestOpen(), 1);

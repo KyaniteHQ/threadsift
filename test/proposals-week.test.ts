@@ -4,18 +4,17 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { WEEK_MS } from "../src/core/contract/time-units.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste, saveProvider, until } from "./library-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
 import {
-  SECRET_KEY,
-  paste,
-  saveProvider,
-  until,
-  exec,
-  rows,
+  jobsOf,
+  claims,
+  moveClaimBack,
+  sweptWithClaim,
   nextSweep,
-} from "./related-fixtures.ts";
-import { jobsOf, claims, moveClaimBack, sweptWithClaim } from "./weekly-claim-fixtures.ts";
+  releaseClaim,
+} from "./weekly-claim-fixtures.ts";
 
 async function seedLibrary(instance: Instance): Promise<number> {
   await paste(instance, "a", { title: "A", topic: "Game", tags: ["machine learning", "ml"] });
@@ -62,8 +61,7 @@ describe("each weekly model check has its own claim", () => {
   after(() => library.close());
 
   const close = () => {
-    exec(
-      library,
+    library.database.exec(
       "update jobs set state = 'done', claim_expires = null where kind in (?, ?, ?)",
       ...MODEL_TASKS,
     );
@@ -98,8 +96,7 @@ describe("each weekly model check has its own claim", () => {
       assert.deepEqual(otherClaims(), untouched);
 
       close();
-      exec(
-        library,
+      library.database.exec(
         "update scheduled_runs set last_run_at = ? where task = ?",
         Date.now() + WEEK_MS + 60_000,
         task,
@@ -110,7 +107,7 @@ describe("each weekly model check has its own claim", () => {
       assert.ok((claims(library, task)[0]?.last_run_at ?? Infinity) <= Date.now());
 
       close();
-      exec(library, "delete from scheduled_runs where task = ?", task);
+      releaseClaim(library, task);
       await nextSweep(library);
       assert.equal(jobsOf(library, task).length, 4);
       assert.deepEqual(otherClaims(), untouched);
@@ -164,8 +161,7 @@ describe("deleting the Item that owns the weekly job", () => {
     const tasks = await until(
       "the owner Item has a proposals and a topic_proposals task",
       () =>
-        rows(
-          instance,
+        instance.database.rows(
           z.object({ id: z.number(), kind: z.string() }),
           "select id, kind from ai_tasks where item_id = ? and kind in ('proposals', 'topic_proposals') order by kind",
           owner,
@@ -182,8 +178,7 @@ describe("deleting the Item that owns the weekly job", () => {
     assert.deepEqual(jobsOf(instance, "topic_proposals"), []);
     for (const task of tasks) {
       assert.deepEqual(
-        rows(
-          instance,
+        instance.database.rows(
           z.object({ id: z.number() }),
           "select id from ai_tasks where id = ?",
           task.id,
@@ -192,8 +187,7 @@ describe("deleting the Item that owns the weekly job", () => {
       );
     }
     assert.deepEqual(
-      rows(
-        instance,
+      instance.database.rows(
         z.object({ id: z.number() }),
         "select id from ai_tasks where item_id = ?",
         owner,
@@ -201,11 +195,7 @@ describe("deleting the Item that owns the weekly job", () => {
       [],
     );
 
-    exec(
-      instance,
-      "update scheduled_runs set last_run_at = last_run_at - ? where task = 'proposals'",
-      WEEK_MS,
-    );
+    moveClaimBack(instance, "proposals");
     await nextSweep(instance);
     assert.equal(jobsOf(instance, "proposals").length, 1);
     assert.notEqual(jobsOf(instance, "proposals")[0]?.item_id, owner);
@@ -226,8 +216,7 @@ describe("the run sends no pair that already has a row, whichever way round the 
 
   it("leaves a rejected and a declined pair out of the task input and sends the pair that has none", async () => {
     const tagId = (name: string): number => {
-      const [found] = rows(
-        instance,
+      const [found] = instance.database.rows(
         z.object({ id: z.number() }),
         "select id from tags where name = ?",
         name,
@@ -253,8 +242,7 @@ describe("the run sends no pair that already has a row, whichever way round the 
     const [task] = await until(
       "a proposals task exists",
       () =>
-        rows(
-          instance,
+        instance.database.rows(
           z.object({ inputs: z.string() }),
           "select inputs from ai_tasks where kind = 'proposals'",
         ),

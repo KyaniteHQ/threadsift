@@ -17,7 +17,7 @@ import {
   usedAsProvider,
 } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { saveProvider, exec } from "./related-fixtures.ts";
+import { saveProvider } from "./library-fixtures.ts";
 
 const REFUSAL = z.object({ error: z.string(), code: z.string() });
 
@@ -57,7 +57,7 @@ describe("Grok Bot is selected as the Provider only when the Grok Bot settings c
   });
 
   it("sets the flag and counts a revision once the settings are usable, leaves the stored Provider row alone and lists the Provider", async () => {
-    exec(instance, "delete from grok_bot_settings");
+    instance.database.exec("delete from grok_bot_settings");
     await saveBot(instance);
 
     const stored = storedSettings(instance);
@@ -92,7 +92,7 @@ describe("Grok Bot is selected as the Provider only when the Grok Bot settings c
   });
 
   it("clears the flag and lists the saved Provider when it replaces Grok Bot", async () => {
-    exec(instance, "delete from grok_bot_settings");
+    instance.database.exec("delete from grok_bot_settings");
     await saveBot(instance);
     assert.equal((await chooseGrokBot(instance)).status, 200);
 

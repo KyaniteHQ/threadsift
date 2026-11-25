@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import {
   addTopics,
@@ -14,8 +15,7 @@ import {
   queueOverview,
   storePage,
 } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, saveProvider, count, exec, nextSweep } from "./related-fixtures.ts";
-import { claims, moveClaimBack } from "./weekly-claim-fixtures.ts";
+import { claims, moveClaimBack, nextSweep } from "./weekly-claim-fixtures.ts";
 
 const TASK = "overview_proposals";
 
@@ -42,7 +42,7 @@ describe("the weekly overview check with no Provider saved", () => {
 
     assert.equal(claims(instance, TASK).length, 1);
     assert.deepEqual(overviewJobs(instance), []);
-    assert.equal(count(instance, OVERVIEW_TASKS), 0);
+    assert.equal(instance.database.count(OVERVIEW_TASKS), 0);
     assert.deepEqual(gapTopics(instance), ["Single", "Behind"]);
     assert.deepEqual(
       gapRows(instance).map(({ state, reason }) => [state, reason]),
@@ -88,8 +88,7 @@ describe("the weekly overview check picks only Topics that have a gap", () => {
     queueOverview(instance, queued);
     queueOverview(instance, running, "running");
     storePage(instance, "Removed", { builtFrom: "all" });
-    exec(
-      instance,
+    instance.database.exec(
       "update topic_pages set built_from = json_insert(built_from, '$[#]', json_object('item', 9999, 'digest', 9999)) where topic_id = (select id from topics where name = 'Removed')",
     );
     proposeGap(instance, "Rejected", "rejected");
@@ -201,8 +200,7 @@ describe("the weekly overview check deletes an open row whose gap closed", () =>
   });
 
   it("proposes a Topic again when it falls behind again, because its row is gone", async () => {
-    exec(
-      instance,
+    instance.database.exec(
       "update topic_pages set built_from = '[]' where topic_id = (select id from topics where name = 'Closing')",
     );
     moveClaimBack(instance, TASK);

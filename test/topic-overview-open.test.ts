@@ -3,10 +3,10 @@ import { after, before, describe, it } from "node:test";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste, saveProvider } from "./library-fixtures.ts";
 import { lines } from "./log-fixtures.ts";
 import { failureOf, overviewJobs, queueOverview, storePage } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, paste, saveProvider } from "./related-fixtures.ts";
 
 describe("a published Digest opens the Topic overview run when a Provider is saved", () => {
   let instance: Instance;

@@ -4,7 +4,6 @@ import { after, before, describe, it } from "node:test";
 import { pasteItems, tokenOf } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
-import { script } from "./related-fixtures.ts";
 
 describe("the Proposals list filters disagreement rows before the page limit", () => {
   let instance: Instance;
@@ -21,8 +20,7 @@ describe("the Proposals list filters disagreement rows before the page limit", (
       Array.from({ length: 12 - low - 1 }, (_, at) => [low + 1, low + at + 2] as const),
     ).flat();
 
-    script(
-      instance,
+    instance.database.script(
       pairs
         .map(
           ([low, high], at) =>

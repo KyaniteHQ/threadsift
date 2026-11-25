@@ -6,8 +6,8 @@ import { z } from "zod";
 import { NOT_FOUND } from "../src/http/refusals.ts";
 import { storedBytes } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { paste, rows } from "./related-fixtures.ts";
 
 const PNG = new Uint8Array(
   Buffer.from(
@@ -135,8 +135,7 @@ describe("an Article's inline images are stored when the declared type and the b
     });
     otherId = await paste(instance, "without-images", { title: "Without images", noDigest: true });
 
-    stored = rows(
-      instance,
+    stored = instance.database.rows(
       MediaRowSchema,
       "select position, file_key, content_type from media where item_id = ? and outcome = 'stored' order by position",
       itemId,

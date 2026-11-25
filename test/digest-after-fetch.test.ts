@@ -6,9 +6,9 @@ import { z } from "zod";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { botProviderInstance } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { until } from "./library-fixtures.ts";
 import { hopThreadOf, toolsOf } from "./one-hop-fixtures.ts";
 import { redditAddressOf } from "./reader-thread-fixtures.ts";
-import { until, rows } from "./related-fixtures.ts";
 
 const ADDRESS = redditAddressOf("q1");
 
@@ -43,12 +43,12 @@ describe("a saved Reddit thread that has a Digest source gets a Digest job when 
 
         await until(
           `the fetch of Item ${String(id)} is ok`,
-          () => rows(instance, FetchResult, "select fetch_result from items where id = ?", id),
+          () =>
+            instance.database.rows(FetchResult, "select fetch_result from items where id = ?", id),
           ([stored]) => stored?.fetch_result === "ok",
         );
 
-        const opened = rows(
-          instance,
+        const opened = instance.database.rows(
           StoredJob,
           "select state from jobs where kind = 'digest' and item_id = ?",
           id,

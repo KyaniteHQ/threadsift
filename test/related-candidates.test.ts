@@ -4,19 +4,10 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { REDDIT_THREAD, paste, pasteInOrder, saveProvider, until } from "./library-fixtures.ts";
 import { keepPassage } from "./lost-highlight-fixtures.ts";
-import {
-  REDDIT_THREAD,
-  SECRET_KEY,
-  pairsOf,
-  paste,
-  pasteInOrder,
-  saveProvider,
-  until,
-  exec,
-  rows,
-} from "./related-fixtures.ts";
+import { pairsOf } from "./related-fixtures.ts";
 import { firstPickTask, pickTasks, sentInput } from "./related-pick-fixtures.ts";
 import { restoreLibrary } from "./restore-fixtures.ts";
 
@@ -41,9 +32,8 @@ describe("the related pick sends the best-ranked candidates", () => {
     const from = await Instance.start();
     try {
       await from.setUp();
-      exec(from, "delete from sqlite_sequence where name = 'ai_tasks'");
-      exec(
-        from,
+      from.database.exec("delete from sqlite_sequence where name = 'ai_tasks'");
+      from.database.exec(
         "insert into sqlite_sequence (name, seq) values ('ai_tasks', ?)",
         FIRST_TASK_ID_FLOOR,
       );
@@ -56,15 +46,13 @@ describe("the related pick sends the best-ranked candidates", () => {
         tags: ["quasar"],
       });
 
-      exec(
-        from,
+      from.database.exec(
         "insert into item_tags (item_id, tag_id) select ?, id from tags where key = 'quasar'",
         undigested,
       );
       await restoreLibrary({ from, into: instance });
       assert.deepEqual(
-        rows(
-          instance,
+        instance.database.rows(
           z.object({ body: z.string() }),
           "select body from search_parts where item_id = ? and kind = 'tags' and not exists (select 1 from digests where item_id = ?)",
           undigested,
@@ -92,8 +80,7 @@ describe("the related pick sends the best-ranked candidates", () => {
       tags: ["quasar", "nebula"],
     });
 
-    const [digest] = rows(
-      instance,
+    const [digest] = instance.database.rows(
       TaskIdSchema,
       "select task_id from digests where item_id = ?",
       source,
@@ -131,8 +118,7 @@ describe("the related pick sends the best-ranked candidates", () => {
       (tasks) => tasks.length > 0,
     );
 
-    const [digest] = rows(
-      instance,
+    const [digest] = instance.database.rows(
       TaskIdSchema,
       "select task_id from digests where item_id = ?",
       source,

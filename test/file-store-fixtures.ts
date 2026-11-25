@@ -3,7 +3,6 @@ import assert from "node:assert/strict";
 import { exportFilesPrefix } from "../src/core/contract/file-keys.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 export const postTextKey = (id: number): string => `items/${String(id)}/post-1-1.md`;
 
@@ -22,7 +21,11 @@ export async function bytesOfKey(instance: Instance, key: string): Promise<Uint8
 }
 
 export function itemTextAt(instance: Instance, id: number, key: string): void {
-  exec(instance, "update items set post_text = null, post_text_key = ? where id = ?", key, id);
+  instance.database.exec(
+    "update items set post_text = null, post_text_key = ? where id = ?",
+    key,
+    id,
+  );
 }
 
 export const exportKeys = (instance: Instance, id: number): Promise<readonly string[]> =>

@@ -5,7 +5,6 @@ import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/r
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 import { putPart, restoreStatus, settledRestore } from "./restore-fixtures.ts";
 
 const codeOf = (body: string) => RestoreErrorSchema.parse(JSON.parse(body)).code;
@@ -137,7 +136,7 @@ describe("a part that arrives after its Restore left the upload is not kept", ()
       "put",
       async (...args: Parameters<typeof stored>) => {
         await stored(...args);
-        exec(target, "update restores set state = 'cancelled' where id = ?", id);
+        target.database.exec("update restores set state = 'cancelled' where id = ?", id);
       },
     );
 

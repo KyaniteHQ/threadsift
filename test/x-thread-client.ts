@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
-import { count, rows } from "./related-fixtures.ts";
 
 const ErrorSchema = z.object({ error: z.string() });
 
@@ -17,7 +16,8 @@ export const DIGEST = {
 };
 
 export function xClient(instance: Instance) {
-  const tableCount = (table: string) => count(instance, `select count(*) as n from ${table}`);
+  const tableCount = (table: string) =>
+    instance.database.count(`select count(*) as n from ${table}`);
 
   const saved = async (body: Json) => {
     const answer = await instance.send("POST", "/api/items", body);
@@ -45,8 +45,7 @@ export function xClient(instance: Instance) {
   };
 
   const itemIdOf = (statusId: string): number => {
-    const [found] = rows(
-      instance,
+    const [found] = instance.database.rows(
       z.object({ id: z.number() }),
       "select id from items where normalized_url = ?",
       `https://x.com/i/status/${statusId}`,
@@ -58,8 +57,7 @@ export function xClient(instance: Instance) {
   };
 
   const generationOf = (itemId: number): number | undefined =>
-    rows(
-      instance,
+    instance.database.rows(
       z.object({ generation: z.number() }),
       "select generation from items where id = ?",
       itemId,

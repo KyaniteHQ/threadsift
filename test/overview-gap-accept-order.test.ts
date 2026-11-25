@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { accept } from "./accept-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import { lockedWriter } from "./locked-writer.ts";
 import {
   body,
@@ -18,7 +19,6 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { SECRET_KEY, saveProvider, exec } from "./related-fixtures.ts";
 
 describe("Accept of an overview-gap row chooses the run's owner from the Topic as it is when the call is made", () => {
   let instance: Instance;
@@ -41,8 +41,7 @@ describe("Accept of an overview-gap row chooses the run's owner from the Topic a
   after(() => instance.close());
 
   const moveTo = (itemId: number, topic: string) => {
-    exec(
-      instance,
+    instance.database.exec(
       "update items set topic_id = (select id from topics where name = ?) where id = ?",
       topic,
       itemId,
@@ -70,8 +69,7 @@ describe("Accept of an overview-gap row chooses the run's owner from the Topic a
 
     assert.ok(arriving !== undefined);
     queueOverview(instance, arriving);
-    exec(
-      instance,
+    instance.database.exec(
       "update items set topic_id = (select id from topics where name = 'Arrival'), saved_at = 9999999999999 where id = ?",
       arriving,
     );

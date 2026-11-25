@@ -4,7 +4,6 @@ import { after, before, describe, it } from "node:test";
 import { parseLink } from "../src/core/contract/links.ts";
 import type { Existing } from "../src/features/item/core/item-rows.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 import {
   FAILED,
   aliasRow,
@@ -78,7 +77,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     const target = xLink(908);
     const failed = await failedAt(short);
 
-    exec(instance, "update items set fetched_at = ? where id = ?", Date.now(), failed);
+    instance.database.exec("update items set fetched_at = ? where id = ?", Date.now(), failed);
 
     const total = await instance.itemTotal();
     const saved = await firstResolved(instance, short, target);

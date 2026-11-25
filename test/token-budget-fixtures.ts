@@ -5,7 +5,6 @@ import {
   TokenListResponseSchema,
 } from "../src/core/contract/access-wire.ts";
 import type { Instance, Json } from "./instance.ts";
-import { rows } from "./related-fixtures.ts";
 
 const FIRST_STATUS = 5_000_000_000;
 
@@ -69,10 +68,11 @@ export function itemsSavedByDay(
   instance: Instance,
   tokenId: number,
 ): readonly (readonly [string, number])[] {
-  return rows(
-    instance,
-    z.object({ day: z.string(), saved: z.number() }),
-    "select date(saved_at / 1000, 'unixepoch') as day, count(*) as saved from items where added_by_token = ? group by day order by day",
-    tokenId,
-  ).map(({ day, saved }) => [day, saved] as const);
+  return instance.database
+    .rows(
+      z.object({ day: z.string(), saved: z.number() }),
+      "select date(saved_at / 1000, 'unixepoch') as day, count(*) as saved from items where added_by_token = ? group by day order by day",
+      tokenId,
+    )
+    .map(({ day, saved }) => [day, saved] as const);
 }

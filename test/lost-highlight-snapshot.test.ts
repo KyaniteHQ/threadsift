@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import {
   keepLostHighlight,
   proposeLost,
@@ -9,7 +10,6 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, paste, exec } from "./related-fixtures.ts";
 
 describe("the Proposals page lists a row only while its subject still holds", () => {
   let instance: Instance;
@@ -45,18 +45,14 @@ describe("the Proposals list filters before the page limit", () => {
     instance = await Instance.start();
     await instance.setUp();
     await paste(instance, "many", { title: "Many" });
-    exec(
-      instance,
-      `with recursive n(i) as (select 1 union all select i + 1 from n where i < 62)
+    instance.database
+      .exec(`with recursive n(i) as (select 1 union all select i + 1 from n where i < 62)
        insert into highlights (item_id, exact, prefix, suffix, hint, created_at, status, start)
-       select (select max(id) from items), 'quote ' || i, '', '', 0, i, case when i > 51 then 'attached' else 'gone' end, case when i > 51 then 1 else null end from n`,
-    );
-    exec(
-      instance,
+       select (select max(id) from items), 'quote ' || i, '', '', 0, i, case when i > 51 then 'attached' else 'gone' end, case when i > 51 then 1 else null end from n`);
+    instance.database.exec(
       "insert into proposals (id, kind, reason, state, created_at) select id, 'highlight-lost', 'plain-check', 'open', 1 from highlights order by id",
     );
-    exec(
-      instance,
+    instance.database.exec(
       "insert into highlight_lost_proposals (proposal_id, kind, highlight_id) select id, 'highlight-lost', id from highlights",
     );
   });

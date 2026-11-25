@@ -1,7 +1,6 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { count, rows } from "./related-fixtures.ts";
 
 const ALL_TABLES = ["items", "jobs", "ai_tasks", "reddit_comments", "digests"] as const;
 
@@ -9,7 +8,9 @@ export const PUBLISHED_TABLES = ["items", "reddit_comments", "digests", "x_verif
 
 export function stored(instance: Instance, tables: readonly string[] = ALL_TABLES): string {
   return JSON.stringify(
-    tables.map((table) => rows(instance, z.looseObject({}), `select * from ${table} order by 1`)),
+    tables.map((table) =>
+      instance.database.rows(z.looseObject({}), `select * from ${table} order by 1`),
+    ),
   );
 }
 
@@ -21,8 +22,7 @@ const ItemRowSchema = z.object({
 });
 
 export function itemRow(instance: Instance, id: number) {
-  const [row] = rows(
-    instance,
+  const [row] = instance.database.rows(
     ItemRowSchema,
     "select reason, fetch_result, pending_digest, generation from items where id = ?",
     id,
@@ -46,8 +46,7 @@ const VerificationRowSchema = z.object({
 });
 
 export function verificationRow(instance: Instance, itemId: number) {
-  const [row] = rows(
-    instance,
+  const [row] = instance.database.rows(
     VerificationRowSchema,
     "select revision, thread, digest, judged from x_verifications where item_id = ?",
     itemId,
@@ -57,8 +56,7 @@ export function verificationRow(instance: Instance, itemId: number) {
 }
 
 export function verifyJobStates(instance: Instance, itemId: number) {
-  return rows(
-    instance,
+  return instance.database.rows(
     z.object({ id: z.number(), state: z.string() }),
     "select id, state from jobs where item_id = ? and kind = 'x_verify'",
     itemId,
@@ -66,7 +64,10 @@ export function verifyJobStates(instance: Instance, itemId: number) {
 }
 
 export function commentCount(instance: Instance, itemId: number): number {
-  return count(instance, "select count(*) as n from reddit_comments where item_id = ?", itemId);
+  return instance.database.count(
+    "select count(*) as n from reddit_comments where item_id = ?",
+    itemId,
+  );
 }
 
 const LoggedSchema = z.looseObject({

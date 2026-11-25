@@ -17,7 +17,7 @@ import {
   view,
 } from "./grok-bot-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { exec, inOrder } from "./related-fixtures.ts";
+import { inOrder } from "./library-fixtures.ts";
 
 describe("an Instance with no sealing key, and a row sealed under another key", () => {
   let bare: Instance;
@@ -54,8 +54,7 @@ describe("an Instance with no sealing key, and a row sealed under another key", 
     const foreign = await Instance.start({ secretKey: "cd".repeat(32) });
 
     await foreign.setUp();
-    exec(
-      foreign,
+    foreign.database.exec(
       "insert into grok_bot_settings (id, webhook_url, sealed_key, updated_at) values (1, ?, ?, 1)",
       ADDRESS,
       row.sealed_key,
@@ -110,7 +109,7 @@ describe("Test sends nothing when there is nothing to send to", () => {
         "https://user:pass@example.com/hook",
       ],
       async (address) => {
-        exec(instance, "update grok_bot_settings set webhook_url = ?", address);
+        instance.database.exec("update grok_bot_settings set webhook_url = ?", address);
 
         const answer = await instance.send("POST", `${PATH}/test`);
 

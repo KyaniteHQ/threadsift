@@ -11,13 +11,14 @@ import {
   relatedLibrary,
   GROK_BOT_IN_FLIGHT,
   selectGrokBot,
+  pickedFor,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { startedTask } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { pairsOf, saveProvider, exec, rowCount } from "./related-fixtures.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import { waitingIntake } from "./x-intake-fixtures.ts";
 
 const HALF_HOUR_MS = 30 * 60 * 1000;
@@ -38,7 +39,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     const job = await openJob(instance, library.source, 2);
     const task = await startedTask(instance, job);
 
-    exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
+    instance.database.exec("update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
       204,
@@ -49,22 +50,19 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     const done = jobRow(instance, job.id);
 
     assert.deepEqual([done.state, done.attempts], ["done", 2]);
-    assert.equal(rowCount(instance, "related_items"), 1);
-    assert.deepEqual(
-      pairsOf(instance, library.source).map(({ related_id }) => related_id),
-      [library.candidates[0]],
-    );
+    assert.equal(instance.database.rowCount("related_items"), 1);
+    assert.deepEqual(pickedFor(instance, library), [library.candidates[0]]);
   });
 
   it("fails every open Provider task as abandoned and makes its job due at once, leaves the X link task alone, and runs the other Provider at the next claim", async () => {
-    exec(instance, "delete from related_items");
+    instance.database.exec("delete from related_items");
 
     const job = await openJob(instance, library.source, 0);
     const task = await startedTask(instance, job);
     const verifying = await sentVerifyTask(instance);
     const intake = await waitingIntake(instance);
 
-    exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
+    instance.database.exec("update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     await executeClaimed(instance.core, job);
     assert.equal(jobRow(instance, job.id).next_attempt_at, taskRow(instance, task.id).deadline);
 
@@ -91,7 +89,9 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     );
     assert.ok(jobRow(instance, job.id).next_attempt_at <= Date.now());
 
-    exec(instance, "update jobs set state = 'done', claim_expires = null where kind = 'digest'");
+    instance.database.exec(
+      "update jobs set state = 'done', claim_expires = null where kind = 'digest'",
+    );
 
     const known = taskRows(instance).length;
     const claimed = await claimNextDue(instance.core.db);
@@ -108,15 +108,14 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
 
     assert.equal(late.status, 409);
     assert.equal(taskRow(instance, task.id).answered_at, null);
-    assert.equal(rowCount(instance, "related_items"), 0);
+    assert.equal(instance.database.rowCount("related_items"), 0);
   });
 
   it("frees the places the abandoned tasks held", async () => {
     await selectGrokBot(instance);
 
     for (const slot of Array.from({ length: GROK_BOT_IN_FLIGHT }, (_, at) => at)) {
-      exec(
-        instance,
+      instance.database.exec(
         "update ai_tasks set sent_at = 1 where id = ?",
         insertedTask(instance, {
           kind: "digest",

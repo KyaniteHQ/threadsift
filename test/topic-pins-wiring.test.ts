@@ -11,7 +11,6 @@ import {
 import { openMigrated } from "./instance-database.ts";
 import { Instance } from "./instance.ts";
 import { item, topicNameOf, topicPin } from "./pin-fixtures.ts";
-import { script } from "./related-fixtures.ts";
 
 const published = { title: "T", topic: "ML", tags: [], summary: "S", keyPoints: ["K"] };
 
@@ -24,7 +23,7 @@ describe("each publication path refuses its batch when a Topic Pin appeared afte
   let database: ReturnType<typeof openMigrated>;
 
   const sqlite = (statement: string) => {
-    script(instance, statement);
+    instance.database.script(statement);
   };
 
   const publication = async (itemId: number, taskId: number) => {

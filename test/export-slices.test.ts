@@ -17,7 +17,6 @@ import {
 } from "./export-restore-fixtures.ts";
 import { bytesOfKey, postTextKey } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { latestMigration } from "./related-fixtures.ts";
 import {
   assertSameBytes,
   entriesOf,
@@ -125,7 +124,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     const entries = await entriesOf(zip);
     const manifest = manifestOf(entries);
     assert.equal(manifest.format, 1);
-    assert.equal(manifest.migration, latestMigration(instance));
+    assert.equal(manifest.migration, instance.database.latestMigration());
     assert.equal(manifest.openItems, 0);
     assert.deepEqual(
       Object.keys(manifest.tables).toSorted(),

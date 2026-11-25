@@ -3,14 +3,13 @@ import { z } from "zod";
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import type { Instance } from "./instance.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 
 const NameSchema = z.object({ name: z.string() });
 
 export function tagId(instance: Instance, name: string): number {
-  const [row] = rows(instance, IdSchema, "select id from tags where name = ?", name);
+  const [row] = instance.database.rows(IdSchema, "select id from tags where name = ?", name);
 
   if (row === undefined) throw new Error(`no Tag named ${name}`);
 
@@ -18,7 +17,9 @@ export function tagId(instance: Instance, name: string): number {
 }
 
 export function tagNames(instance: Instance): readonly string[] {
-  return rows(instance, NameSchema, "select name from tags order by id").map(({ name }) => name);
+  return instance.database
+    .rows(NameSchema, "select name from tags order by id")
+    .map(({ name }) => name);
 }
 
 export function propose(
@@ -40,20 +41,15 @@ export function seedVolume(
 ): void {
   const names = JSON.stringify(tags);
 
-  exec(
-    instance,
-    `with recursive n(i) as (select ${String(from)} union all select i + 1 from n where i < ${String(from + items - 1)})
+  instance.database
+    .exec(`with recursive n(i) as (select ${String(from)} union all select i + 1 from n where i < ${String(from + items - 1)})
      insert into items (id, source, kind, normalized_url, original_url, saved_at)
-     select 100000 + i, 'other', 'link', 'https://example.com/volume/' || i, 'https://example.com/volume/' || i, i from n`,
-  );
-  exec(
-    instance,
-    `with recursive n(i) as (select ${String(from)} union all select i + 1 from n where i < ${String(from + items - 1)})
+     select 100000 + i, 'other', 'link', 'https://example.com/volume/' || i, 'https://example.com/volume/' || i, i from n`);
+  instance.database
+    .exec(`with recursive n(i) as (select ${String(from)} union all select i + 1 from n where i < ${String(from + items - 1)})
      insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state, item_id)
-     select 100000 + i, 'digest', '{}', 0, 'caller', 1, 0, 'done', 100000 + i from n`,
-  );
-  exec(
-    instance,
+     select 100000 + i, 'digest', '{}', 0, 'caller', 1, 0, 'done', 100000 + i from n`);
+  instance.database.exec(
     `with recursive n(i) as (select ${String(from)} union all select i + 1 from n where i < ${String(from + items - 1)})
      insert into digests (item_id, digest, title, topic, task_id, generation, created_at)
      select 100000 + i, json_object('title', 'Volume ' || i, 'topic', 'Volume', 'tags', json(?), 'summary', 'Short.', 'keyPoints', json_array('One point')), 'Volume ' || i, 'Volume', 100000 + i, 0, 1 from n`,
@@ -65,8 +61,7 @@ export function linkVolume(
   instance: Instance,
   { tag, items, from }: Readonly<{ tag: string; items: number; from: number }>,
 ): void {
-  exec(
-    instance,
+  instance.database.exec(
     `with recursive n(i) as (select ${String(from)} union all select i + 1 from n where i < ${String(from + items - 1)})
      insert into item_tags (item_id, tag_id) select 100000 + i, ? from n`,
     tagId(instance, tag),
@@ -79,8 +74,7 @@ export const accept = (instance: Instance, id: number) =>
   instance.send("POST", `/api/proposals/${String(id)}/accept`);
 
 export const tagsOfDigest = (instance: Instance, itemId: number): string =>
-  rows(
-    instance,
+  instance.database.rows(
     DigestTagsSchema,
     "select json_extract(digest, '$.tags') as tags from digests where item_id = ?",
     itemId,

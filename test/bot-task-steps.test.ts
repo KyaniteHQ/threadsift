@@ -13,6 +13,7 @@ import {
   retireTasks,
   saveBot,
   selectGrokBot,
+  pickedFor,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import {
@@ -24,7 +25,7 @@ import {
 } from "./bot-task-lifecycle.ts";
 import { jobRow, reclaimed, taskRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { pairsOf, paste, exec } from "./related-fixtures.ts";
+import { paste } from "./library-fixtures.ts";
 
 const SEND_FAILED = /send failed: unreachable/u;
 
@@ -77,8 +78,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
     for (const [reason, answeredAt] of failures) {
       // oxlint-disable-next-line eslint/no-await-in-loop -- Each step reads the task the one before it left.
       await assert.rejects(step(instance, job), SEND_FAILED);
-      exec(
-        instance,
+      instance.database.exec(
         "update ai_tasks set refusal = ?, answered_at = ? where id = (select max(id) from ai_tasks where job_id = ?)",
         reason,
         answeredAt,
@@ -152,7 +152,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
     const task = await sentRelatedTask(instance, library.source);
     const third = { ...task.job, attempts: 2 };
 
-    exec(instance, "update jobs set attempts = 2 where id = ?", task.job.id);
+    instance.database.exec("update jobs set attempts = 2 where id = ?", task.job.id);
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
       204,
@@ -160,10 +160,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
 
     await applied(instance, third, await step(instance, third));
 
-    assert.deepEqual(
-      pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [library.candidates[0]],
-    );
+    assert.deepEqual(pickedFor(instance, library), [library.candidates[0]]);
     assert.deepEqual(
       [taskRow(instance, task.id).state, jobRow(instance, task.job.id).state],
       ["done", "done"],
@@ -197,7 +194,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
     const task = await sentRelatedTask(instance, library.source);
     const job = { ...task.job, attempts: 1 };
 
-    exec(instance, "update jobs set attempts = 1 where id = ?", job.id);
+    instance.database.exec("update jobs set attempts = 1 where id = ?", job.id);
 
     assert.equal((await answered(instance, task, answerOf(picksFor(candidate)))).status, 204);
 
@@ -222,7 +219,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
 
     const row = jobRow(instance, job.id);
 
-    assert.deepEqual(pairsOf(instance, library.source), []);
+    assert.deepEqual(pickedFor(instance, library), []);
     assert.deepEqual(
       [taskRow(instance, task.id).state, taskRow(instance, task.id).refusal],
       ["failed", "stale"],
@@ -254,7 +251,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
     const candidate = library.candidates[1];
     const { task, job } = await answeredTask(candidate);
 
-    exec(instance, "update ai_tasks set result = '\"x\"' where id = ?", task.id);
+    instance.database.exec("update ai_tasks set result = '\"x\"' where id = ?", task.id);
     await assert.rejects(step(instance, job), /no longer fits/u);
     assert.deepEqual(
       [taskRow(instance, task.id).state, taskRow(instance, task.id).refusal],

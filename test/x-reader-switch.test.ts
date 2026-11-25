@@ -7,7 +7,6 @@ import { runJob } from "../src/core/compose/jobs.ts";
 import { botInstance, pastDeadline } from "./bot-task-fixtures.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
 import { answerOf } from "./x-intake-bodies.ts";
 import { intakeTo, sentIntake } from "./x-intake-fixtures.ts";
 import { itemRow } from "./x-intake-rows.ts";
@@ -19,23 +18,21 @@ const JobStateSchema = z.object({
 });
 
 const jobState = (instance: Instance, id: number) =>
-  rows(
-    instance,
+  instance.database.rows(
     JobStateSchema,
     "select state, wait_reason, attempts from jobs where id = ?",
     id,
   )[0];
 
 const released = (instance: Instance, id: number) => {
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set state = 'queued', next_attempt_at = 0, claim_expires = null where id = ?",
     id,
   );
 };
 
 const dueAgain = (instance: Instance, id: number) => {
-  exec(instance, "update jobs set next_attempt_at = 0 where id = ?", id);
+  instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", id);
 };
 
 describe("a fetch with an open Grok Bot task stays on the bot whatever the reader setting says, and the task ends in a final state", () => {

@@ -3,8 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { Instance } from "./instance.ts";
-import { SECRET_KEY, paste, saveProvider, until, exec, rows } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste, saveProvider, until } from "./library-fixtures.ts";
 import { proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
 describe("the Topic job's input and its owner Item", () => {
@@ -28,7 +28,7 @@ describe("the Topic job's input and its owner Item", () => {
   after(() => instance.close());
 
   it("sends the undecided pairs, most used first, and leaves out a Topic with no Item and both decided pairs", async () => {
-    exec(instance, "insert into topics (key, name) values ('game', 'Game')");
+    instance.database.exec("insert into topics (key, name) values ('game', 'Game')");
 
     proposeTopics(instance, ["ML", "Machine learning"], "rejected", "The same subject.");
     proposeTopics(instance, ["machine-learning", "Machine learning"], "declined", null);
@@ -37,8 +37,7 @@ describe("the Topic job's input and its owner Item", () => {
     const [task] = await until(
       "a topic_proposals task exists",
       () =>
-        rows(
-          instance,
+        instance.database.rows(
           z.object({ inputs: z.string(), item_id: z.number() }),
           "select inputs, item_id from ai_tasks where kind = 'topic_proposals'",
         ),

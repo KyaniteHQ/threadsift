@@ -6,7 +6,7 @@ import { DAY_MS } from "../src/core/contract/time-units.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { exportedZip, firstLongText, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste, rowCount, exec, nextSweepAt } from "./related-fixtures.ts";
+import { paste } from "./library-fixtures.ts";
 import {
   gaveUpInFiles,
   movedToPhase,
@@ -19,6 +19,7 @@ import {
   unblockItemFiles,
   uploadedRestore,
 } from "./restore-fixtures.ts";
+import { nextSweepAt } from "./weekly-claim-fixtures.ts";
 
 const NOT_A_ZIP = new TextEncoder().encode("this is not a zip");
 
@@ -84,7 +85,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
 
     assert.equal((await send("DELETE", refused)).status, 204);
     assert.equal((await target.detail(saved)).id, saved);
-    assert.equal(rowCount(target, "items"), 1);
+    assert.equal(target.database.rowCount("items"), 1);
   });
 
   it("answers 409 superseded to a Cancel and a Resume of an older Restore, and leaves the newer upload open", async () => {
@@ -114,7 +115,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     const held = await settledRestore(target, ["failed"]);
 
     assert.equal(held.libraryEmpty, false);
-    assert.equal(rowCount(target, "items"), 2);
+    assert.equal(target.database.rowCount("items"), 2);
   });
 
   it("keeps the parts of a Restore that gave up", async (t) => {
@@ -156,14 +157,14 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     const id = await gaveUpInFiles(t, target, zip);
 
     unblockItemFiles(target);
-    exec(target, "insert into d1_migrations (name) values ('9999_newer.sql')");
+    target.database.exec("insert into d1_migrations (name) values ('9999_newer.sql')");
     assert.equal((await send("POST", id, "/resume")).status, 202);
 
     const failed = await settledRestore(target, ["failed"]);
 
     assert.equal(failed.failure, "other-release");
     assert.deepEqual(await listedKeys(target.core.files, "items/"), []);
-    assert.equal(rowCount(target, "items"), 2);
+    assert.equal(target.database.rowCount("items"), 2);
   });
 
   const refusedInPhase = async (t: TestContext, phase: "tables" | "finish") => {
@@ -171,7 +172,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
 
     unblockItemFiles(target);
     movedToPhase(target, id, phase);
-    exec(target, "insert into d1_migrations (name) values ('9999_newer.sql')");
+    target.database.exec("insert into d1_migrations (name) values ('9999_newer.sql')");
 
     const held = restoreProgress(target, id);
 
@@ -182,7 +183,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     assert.equal(failed.failure, "other-release");
     assert.deepEqual(restoreProgress(target, id), { ...held, state: "failed" });
     assert.deepEqual(await listedKeys(target.core.files, "items/"), []);
-    assert.equal(rowCount(target, "items"), 2);
+    assert.equal(target.database.rowCount("items"), 2);
   };
 
   it("checks the release again in the tables phase, so a newer migration ends a resumed Restore with other-release and writes nothing further", (t) =>
@@ -214,11 +215,11 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     await undone(t);
 
     for (const table of ["items", "topics", "tags", "digests", "log_entries", "ai_tasks"]) {
-      assert.equal(rowCount(target, table), 0, table);
+      assert.equal(target.database.rowCount(table), 0, table);
     }
 
-    assert.equal(rowCount(target, "log_start"), 1);
-    assert.equal(rowCount(target, "catalog_version"), 1);
+    assert.equal(target.database.rowCount("log_start"), 1);
+    assert.equal(target.database.rowCount("catalog_version"), 1);
   });
 
   it("undoes a Restore that gave up by deleting every file under items/ and its parts", async (t) => {
@@ -254,7 +255,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     unblockItemFiles(target);
     assert.equal((await send("DELETE", id)).status, 202);
     assert.equal((await settledRestore(target, ["cancelled", "failed"])).state, "cancelled");
-    assert.equal(rowCount(target, "items"), 0);
+    assert.equal(target.database.rowCount("items"), 0);
   });
 
   it("deletes the parts of a Restore that gave up 24 hours after its last update, and then refuses to resume it", async (t) => {
@@ -264,7 +265,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     const now = Date.now();
 
     const sweptAt = async (updatedAt: number) => {
-      exec(target, "update restores set updated_at = ? where id = ?", updatedAt, id);
+      target.database.exec("update restores set updated_at = ? where id = ?", updatedAt, id);
       await nextSweepAt(target, now);
 
       return listedKeys(target.core.files, keys);

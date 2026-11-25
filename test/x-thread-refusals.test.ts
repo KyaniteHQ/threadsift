@@ -3,8 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
-import { Instance, type Json } from "./instance.ts";
-import { SECRET_KEY } from "./related-fixtures.ts";
+import { Instance, type Json, SECRET_KEY } from "./instance.ts";
 import { xAddressOf } from "./x-intake-fixtures.ts";
 import { commentCount } from "./x-intake-rows.ts";
 import { xClient } from "./x-thread-client.ts";

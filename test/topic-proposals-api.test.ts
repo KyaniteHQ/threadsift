@@ -4,9 +4,10 @@ import { after, before, describe, it } from "node:test";
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { propose } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
-import { paste, exec } from "./related-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
+import { holdClaim, releaseClaim } from "./weekly-claim-fixtures.ts";
 
 describe("the Proposals routes with Tag and Topic rows together", () => {
   let instance: Instance;
@@ -50,15 +51,6 @@ describe("checkedAt is the most recent start of either weekly run", () => {
   const checkedAt = async () =>
     (await instance.read("GET", "/api/proposals", ProposalPageSchema)).checkedAt;
 
-  const claim = (task: string, at: number) => {
-    exec(
-      instance,
-      "insert or replace into scheduled_runs (task, last_run_at) values (?, ?)",
-      task,
-      at,
-    );
-  };
-
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
@@ -69,16 +61,16 @@ describe("checkedAt is the most recent start of either weekly run", () => {
   it("is null with neither claim, the Topic claim's time with only that claim, and the larger time with both", async () => {
     assert.equal(await checkedAt(), null);
 
-    claim("topic_proposals", 5000);
+    holdClaim(instance, "topic_proposals", 5000);
     assert.equal(await checkedAt(), 5000);
 
-    claim("proposals", 3000);
+    holdClaim(instance, "proposals", 3000);
     assert.equal(await checkedAt(), 5000);
 
-    claim("proposals", 9000);
+    holdClaim(instance, "proposals", 9000);
     assert.equal(await checkedAt(), 9000);
 
-    exec(instance, "delete from scheduled_runs where task = 'topic_proposals'");
+    releaseClaim(instance, "topic_proposals");
     assert.equal(await checkedAt(), 9000);
   });
 });

@@ -14,7 +14,7 @@ import {
 } from "../src/core/contract/restore-contract.ts";
 import { exportedZip } from "./export-restore-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { until, exec, rows } from "./related-fixtures.ts";
+import { until } from "./library-fixtures.ts";
 
 const AttemptLineSchema = z.object({
   event: z.literal("job-attempt-failed"),
@@ -32,8 +32,7 @@ const ProgressSchema = z.object({
 });
 
 export function restoreProgress(instance: Instance, id: number) {
-  const [row] = rows(
-    instance,
+  const [row] = instance.database.rows(
     ProgressSchema,
     "select state, phase, cursor, restored, dropped, finished_at from restores where id = ?",
     id,
@@ -45,8 +44,7 @@ export function restoreProgress(instance: Instance, id: number) {
 }
 
 export function movedToPhase(instance: Instance, id: number, phase: "tables" | "finish"): void {
-  exec(
-    instance,
+  instance.database.exec(
     "update restores set phase = ?, cursor = ? where id = ?",
     phase,
     entering(phase).cursor,
@@ -114,24 +112,56 @@ export async function restoredDone(instance: Instance) {
 }
 
 export function retryNow(instance: Instance, kind: UnownedJobKind): void {
-  exec(instance, "update jobs set next_attempt_at = 0 where state = 'queued' and kind = ?", kind);
+  instance.database.exec(
+    "update jobs set next_attempt_at = 0 where state = 'queued' and kind = ?",
+    kind,
+  );
   instance.core.jobs.wake();
 }
 
-export function settledAfterRetries<State extends Settled>(
+export function untilRetried<Value, Done extends Value>(
   instance: Instance,
-  states: readonly State[],
-) {
+  kind: UnownedJobKind,
+  what: string,
+  read: () => Promise<Value>,
+  isDone: (value: Value) => value is Done,
+): Promise<Done>;
+export function untilRetried<Value>(
+  instance: Instance,
+  kind: UnownedJobKind,
+  what: string,
+  read: () => Promise<Value>,
+  isDone: (value: Value) => boolean,
+): Promise<Value>;
+export function untilRetried<Value>(
+  instance: Instance,
+  kind: UnownedJobKind,
+  what: string,
+  read: () => Promise<Value>,
+  isDone: (value: Value) => boolean,
+): Promise<Value> {
   return until(
-    `the Restore is ${states.join(" or ")} after retries`,
+    `${what} after retries`,
     () => {
-      retryNow(instance, "restore");
+      retryNow(instance, kind);
 
-      return restoreStatus(instance);
+      return read();
     },
-    isSettled(states),
+    isDone,
   );
 }
+
+export const settledAfterRetries = <State extends Settled>(
+  instance: Instance,
+  states: readonly State[],
+) =>
+  untilRetried(
+    instance,
+    "restore",
+    `the Restore is ${states.join(" or ")}`,
+    () => restoreStatus(instance),
+    isSettled(states),
+  );
 
 function itemFilesPath(instance: Instance): string {
   return join(dirname(instance.databaseFile), "data", "files", "items");
@@ -193,8 +223,7 @@ export function holdLibrary(
   failure: "gave-up" | "no-manifest" | null,
   phase: "check" | "tables" = "tables",
 ): void {
-  exec(
-    instance,
+  instance.database.exec(
     "insert into restores (id, state, phase, failure, bytes, parts, part_bytes, created_at, updated_at) values (1, ?, ?, ?, 1, 1, 1, 1, 1) on conflict (id) do update set state = excluded.state, phase = excluded.phase, failure = excluded.failure",
     state,
     phase,
@@ -203,7 +232,7 @@ export function holdLibrary(
 }
 
 export function releaseLibrary(instance: Instance): void {
-  exec(instance, "delete from restores where id = 1");
+  instance.database.exec("delete from restores where id = 1");
 }
 
 export async function restoreLibrary({

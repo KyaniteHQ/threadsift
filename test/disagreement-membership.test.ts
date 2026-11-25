@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { runWeek, seedDigested, seedTopics, sentOf, tasksOf } from "./disagreement-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { SECRET_KEY, saveProvider, exec } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import { jobsOf, claims } from "./weekly-claim-fixtures.ts";
 
 const span = (from: number, count: number): readonly number[] =>
@@ -19,8 +19,7 @@ describe("a Topic is read again only when the exact list of its newest 12 Items 
     sentOf(instance).flatMap(({ topics }) => topics.map(({ name }) => name));
 
   const store = (topic: number, ids: readonly number[]): void => {
-    exec(
-      instance,
+    instance.database.exec(
       "insert or replace into topic_checks (topic_id, members, checked_at) values (?, ?, 1)",
       topic,
       textOf(ids),
@@ -38,15 +37,13 @@ describe("a Topic is read again only when the exact list of its newest 12 Items 
       { id: 60, topic: 4, token: 10 },
       { id: 61, topic: 4, token: 40 },
     ]);
-    exec(
-      instance,
+    instance.database.exec(
       "insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state) values (20, 'digest', '{}', 0, 'caller', 1, 0, 'done'), (30, 'digest', '{}', 0, 'caller', 1, 0, 'done')",
     );
     store(1, span(100, 2));
     store(2, span(110, 12));
     store(3, span(131, 12));
-    exec(
-      instance,
+    instance.database.exec(
       "insert into topic_checks (topic_id, members, checked_at) values (4, '60:10,61:40', 1)",
     );
     await saveProvider(instance);
@@ -66,11 +63,10 @@ describe("a Topic is read again only when the exact list of its newest 12 Items 
   });
 
   it("is not touched by a new Digest of an Item outside the newest 12, and is touched by one of a compared Item", async () => {
-    exec(
-      instance,
+    instance.database.exec(
       "insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state) values (900, 'digest', '{}', 0, 'caller', 1, 0, 'done'), (901, 'digest', '{}', 0, 'caller', 1, 0, 'done')",
     );
-    exec(instance, "update digests set task_id = 900 where item_id = 130");
+    instance.database.exec("update digests set task_id = 900 where item_id = 130");
     const task = "disagreement_proposals";
     const previous = claims(instance, task)[0]?.last_run_at ?? 0;
     const previousStates = jobsOf(instance, task).map(({ state }) => state);
@@ -82,19 +78,19 @@ describe("a Topic is read again only when the exact list of its newest 12 Items 
     );
     assert.deepEqual(tasksOf(instance), []);
 
-    exec(instance, "update digests set task_id = 901 where item_id = 142");
+    instance.database.exec("update digests set task_id = 901 where item_id = 142");
     await runWeek(instance);
     assert.deepEqual(sentTopics(), ["Thirteen"]);
   });
 
   it("is read again when its Items were deleted and others moved in by a merge keep the count and the sum of the Digests", async () => {
-    exec(instance, "delete from digests where item_id in (60, 61)");
-    exec(instance, "delete from items where id in (60, 61)");
+    instance.database.exec("delete from digests where item_id in (60, 61)");
+    instance.database.exec("delete from items where id in (60, 61)");
     seedDigested(instance, [
       { id: 62, topic: 5, token: 20 },
       { id: 63, topic: 5, token: 30 },
     ]);
-    exec(instance, "update items set topic_id = 4 where id in (62, 63)");
+    instance.database.exec("update items set topic_id = 4 where id in (62, 63)");
     await runWeek(instance);
 
     assert.deepEqual(

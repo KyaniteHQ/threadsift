@@ -4,8 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { SECOND_MS } from "../src/core/contract/time-units.ts";
 import { keepAt, keepNote, countsOf, pageOf, entryLines } from "./highlights-page-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { paste, REDDIT_THREAD } from "./library-fixtures.ts";
 import { textHolding } from "./lost-highlight-fixtures.ts";
-import { paste, REDDIT_THREAD } from "./related-fixtures.ts";
 
 describe("the Highlights page lists every Highlight and every Item Note newest first, with search and filters that read the entry's own text", () => {
   let instance: Instance;

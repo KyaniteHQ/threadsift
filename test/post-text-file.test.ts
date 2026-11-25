@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { placePostText } from "../src/features/thread/core/post-text-files.ts";
 import { itemTextAt, storedBytes } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste } from "./related-fixtures.ts";
+import { paste } from "./library-fixtures.ts";
 
 describe("a post text over 1,000,000 UTF-8 bytes is stored as a file, and a shorter one stays in the Item row", () => {
   let instance: Instance;

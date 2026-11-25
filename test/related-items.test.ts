@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
-import { Instance } from "./instance.ts";
-import { SECRET_KEY, pairsOf, paste, count, seedPair } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
+import { pairsOf, seedPair } from "./related-fixtures.ts";
 
 function refused(instance: Instance, query: string, ...params: readonly (string | number)[]): void {
   using database = new DatabaseSync(instance.databaseFile);
@@ -78,7 +79,7 @@ describe("an Item's Related Items are read through the API and leave with either
       [0, 1, 4],
     );
     assert.equal((await instance.send("DELETE", `/api/items/${String(source)}`)).status, 204);
-    assert.equal(count(instance, "select count(*) as n from related_items"), 0);
+    assert.equal(instance.database.count("select count(*) as n from related_items"), 0);
   });
 });
 

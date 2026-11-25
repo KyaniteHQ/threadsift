@@ -8,8 +8,8 @@ import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts"
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { accept, mergeLines, propose, tagId, tagNames, tagsOfDigest } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { paste, catalogVersion, count, rows } from "./related-fixtures.ts";
 
 const PinSchema = z.object({
   from_key: z.string(),
@@ -60,7 +60,7 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
     assert.deepEqual([agent.status, signedOut.status], [403, 401]);
     assert.equal((await accept(instance, 9999)).status, 404);
     assert.equal((await instance.send("POST", "/api/proposals/abc/accept")).status, 400);
-    assert.equal(count(instance, "select count(*) as n from pins"), 0);
+    assert.equal(instance.database.count("select count(*) as n from pins"), 0);
     removeProposals(instance);
   });
 
@@ -87,7 +87,7 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
 
   it("moves every link, rewrites the stored Digests, drops the Tag, keeps a Pin and writes one merge line", async () => {
     const id = propose(instance, ["ml", "machine learning"]);
-    const earlier = catalogVersion(instance);
+    const earlier = instance.database.catalogVersion();
 
     const answer = await accept(instance, id);
 
@@ -96,19 +96,18 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
     assert.equal(tagsOfDigest(instance, one), JSON.stringify(["machine learning"]));
     assert.equal(tagsOfDigest(instance, two), JSON.stringify(["machine learning", "ai"]));
     assert.equal(
-      count(
-        instance,
+      instance.database.count(
         "select count(*) as n from item_tags where tag_id = ?",
         tagId(instance, "machine learning"),
       ),
       3,
     );
-    assert.equal(catalogVersion(instance), earlier + 1);
+    assert.equal(instance.database.catalogVersion(), earlier + 1);
     assert.deepEqual(await mergeLines(instance), ["ml into machine learning | 2 Items"]);
-    assert.equal(count(instance, "select count(*) as n from proposals"), 0);
+    assert.equal(instance.database.count("select count(*) as n from proposals"), 0);
 
     assert.deepEqual(
-      rows(instance, PinSchema, "select from_key, from_name, into_tag_id from pins"),
+      instance.database.rows(PinSchema, "select from_key, from_name, into_tag_id from pins"),
       [{ from_key: "ml", from_name: "ml", into_tag_id: tagId(instance, "machine learning") }],
     );
   });
@@ -128,8 +127,7 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
     assert.deepEqual(tagNames(instance), ["machine learning", "ai"]);
     assert.equal(tagsOfDigest(instance, later), JSON.stringify(["machine learning", "ai"]));
     assert.equal(
-      count(
-        instance,
+      instance.database.count(
         "select count(*) as n from item_tags where item_id = ? and tag_id = ?",
         later,
         tagId(instance, "machine learning"),
@@ -139,12 +137,12 @@ describe("Accept merges a Tag into another and a Pin keeps it merged", () => {
   });
 
   it("changes no Pin when Items are deleted", async () => {
-    const earlier = count(instance, "select count(*) as n from pins");
+    const earlier = instance.database.count("select count(*) as n from pins");
 
     assert.equal((await instance.send("DELETE", `/api/items/${String(one)}`)).status, 204);
-    assert.equal(count(instance, "select count(*) as n from pins"), earlier);
+    assert.equal(instance.database.count("select count(*) as n from pins"), earlier);
     assert.equal(
-      count(instance, "select count(*) as n from log_entries where action = 'merge'"),
+      instance.database.count("select count(*) as n from log_entries where action = 'merge'"),
       1,
     );
   });
@@ -168,7 +166,10 @@ describe("two Accepts in a row chain without a dangling Pin", () => {
     assert.deepEqual([first.status, second.status], [200, 200]);
     assert.deepEqual(tagNames(instance), ["ai"]);
     assert.deepEqual(
-      rows(instance, PinSchema, "select from_key, from_name, into_tag_id from pins order by id"),
+      instance.database.rows(
+        PinSchema,
+        "select from_key, from_name, into_tag_id from pins order by id",
+      ),
       [
         { from_key: "ml", from_name: "ml", into_tag_id: tagId(instance, "ai") },
         {

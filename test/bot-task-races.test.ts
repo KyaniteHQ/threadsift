@@ -16,12 +16,12 @@ import {
   relatedLibrary,
   retireTasks,
   saveBot,
+  pickedFor,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { sendFor, settle, sentRelatedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { pairsOf } from "./related-fixtures.ts";
 
 describe("an accepted answer survives a lost claim, a failing send, a timeout check and a resend", () => {
   let instance: Instance;
@@ -72,10 +72,7 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
 
     await settle(instance, task.job);
 
-    assert.deepEqual(
-      pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [library.candidates[0]],
-    );
+    assert.deepEqual(pickedFor(instance, library), [library.candidates[0]]);
     assert.equal(taskRow(instance, task.id).state, "done");
     assert.equal(jobRow(instance, task.job.id).attempts, 0);
   });
@@ -117,10 +114,7 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
     await settle(instance, task.job);
 
     assert.equal(taskRow(instance, task.id).state, "done");
-    assert.deepEqual(
-      pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [library.candidates[0]],
-    );
+    assert.deepEqual(pickedFor(instance, library), [library.candidates[0]]);
   });
 
   it("does not time out a task that got an answer, and leaves a lost claim alone", async () => {

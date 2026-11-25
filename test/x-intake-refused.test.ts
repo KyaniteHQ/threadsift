@@ -5,7 +5,7 @@ import { runJob } from "../src/core/compose/jobs.ts";
 import { acceptedByBot, botInstance } from "./bot-task-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
-import { until, exec } from "./related-fixtures.ts";
+import { until } from "./library-fixtures.ts";
 import { answerOf, contentOf, digestOf } from "./x-intake-bodies.ts";
 import {
   advancedContent,
@@ -73,7 +73,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
     );
     assert.equal(stored(instance, PUBLISHED_TABLES), published);
 
-    exec(instance, "update jobs set next_attempt_at = 0 where id = ?", task.job.id);
+    instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", task.job.id);
     await runJob(instance.core, task.job.id);
 
     assert.equal(taskRows(instance, "job_id = ?", task.job.id).length, 2);
@@ -99,7 +99,11 @@ describe("refusing an X link answer records its reason and wakes the job after t
     await refusesWithoutRescheduling(task);
 
     const late = await waitingIntake(instance);
-    exec(instance, "update ai_tasks set deadline = ? where id = ?", Date.now() - 1000, late.id);
+    instance.database.exec(
+      "update ai_tasks set deadline = ? where id = ?",
+      Date.now() - 1000,
+      late.id,
+    );
     await refusesWithoutRescheduling(late);
 
     const closed = await waitingIntake(instance);
@@ -137,8 +141,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
       token: credential.token,
     });
 
-    exec(
-      instance,
+    instance.database.exec(
       "update ai_tasks set job_id = ?, item_id = ? where id = ?",
       task.job.id,
       task.itemId,
@@ -154,7 +157,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
   it("waits for two fresh refusals before waking the job after a renewed send", async () => {
     const task = await sentIntake(instance);
     await intakeTo(instance, task, UNREADABLE);
-    exec(instance, "update ai_tasks set sent_at = null where id = ?", task.id);
+    instance.database.exec("update ai_tasks set sent_at = null where id = ?", task.id);
     await assert.rejects(stepOf(instance, task.job), /send failed/u);
 
     const renewed = acceptedByBot(instance, task.id);

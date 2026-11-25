@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { rows, until } from "./related-fixtures.ts";
+import { until } from "./library-fixtures.ts";
 
 const TaskSchema = z.object({
   id: z.number(),
@@ -15,8 +15,7 @@ const TaskSchema = z.object({
 });
 
 export function pickTasks(instance: Instance, itemId: number) {
-  return rows(
-    instance,
+  return instance.database.rows(
     TaskSchema,
     "select id, inputs, input_revision, state, refusal, item_id from ai_tasks where kind = 'related_pick' and item_id = ? order by id",
     itemId,
@@ -60,8 +59,7 @@ const JobSchema = z.object({
 });
 
 export function pickJobs(instance: Instance, itemId: number) {
-  return rows(
-    instance,
+  return instance.database.rows(
     JobSchema,
     "select id, kind, state, attempts from jobs where kind = 'related_pick' and item_id = ? order by id",
     itemId,

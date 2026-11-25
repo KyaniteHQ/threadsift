@@ -20,7 +20,6 @@ import {
 import { step } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRows } from "./bot-task-rows.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 const START = { inputs: "{}", inputRevision: 1, context: "{}" } as const;
 
@@ -98,20 +97,17 @@ describe("one cap bounds outstanding Grok Bot tasks, however the starts overlap"
 
     const [done, failed, expired, answered] = running().map(({ id }) => id);
 
-    exec(instance, "update ai_tasks set state = 'done' where id = ?", done ?? 0);
-    exec(
-      instance,
+    instance.database.exec("update ai_tasks set state = 'done' where id = ?", done ?? 0);
+    instance.database.exec(
       "update ai_tasks set state = 'failed', refusal = 'timeout' where id = ?",
       failed ?? 0,
     );
-    exec(
-      instance,
+    instance.database.exec(
       "update ai_tasks set deadline = ? where id = ?",
       Date.now() - 1000,
       expired ?? 0,
     );
-    exec(
-      instance,
+    instance.database.exec(
       "update ai_tasks set answered_at = ? where id = ?",
       Date.now() - 2000,
       answered ?? 0,

@@ -4,6 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
+import { until } from "./library-fixtures.ts";
 import {
   LATER,
   PATH,
@@ -14,7 +15,6 @@ import {
   fetchJob,
   jobs,
 } from "./reddit-account-fixtures.ts";
-import { until } from "./related-fixtures.ts";
 
 describe("Disconnect removes the Reddit account and makes due at once only the jobs that wait for Reddit", () => {
   let instance: Instance;

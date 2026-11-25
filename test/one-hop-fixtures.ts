@@ -3,7 +3,6 @@ import { z } from "zod";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance, type Json } from "./instance.ts";
 import { redditAddressOf, listing, postListing } from "./reader-thread-fixtures.ts";
-import { exec, rows } from "./related-fixtures.ts";
 
 export const DIGEST = {
   title: "A linked page",
@@ -63,8 +62,7 @@ export function toolsOf(instance: Instance) {
   };
 
   const candidates = (itemId: number) =>
-    rows(
-      instance,
+    instance.database.rows(
       z.object({ generation: z.number(), linked_url: z.string().nullable() }),
       "select generation, linked_url from reddit_threads where item_id = ? order by generation",
       itemId,
@@ -77,24 +75,21 @@ export function toolsOf(instance: Instance) {
   };
 
   const digestJobs = (itemId: number) =>
-    rows(
-      instance,
+    instance.database.rows(
       z.object({ state: z.string(), attempts: z.number() }),
       "select state, attempts from jobs where item_id = ? and kind = 'digest'",
       itemId,
     );
 
   const aiTasks = (itemId: number) =>
-    rows(
-      instance,
+    instance.database.rows(
       z.object({ executor: z.string() }),
       "select executor from ai_tasks where item_id = ?",
       itemId,
     );
 
   const pendingDigests = (itemId: number) =>
-    rows(
-      instance,
+    instance.database.rows(
       z.object({ pending: z.number() }),
       "select pending_digest is not null as pending from items where id = ?",
       itemId,
@@ -130,7 +125,10 @@ export const hopLines = (warnings: readonly string[]) =>
   warnings.filter((line) => line.includes('"digest-hop"'));
 
 export function seedGithubCooldown(instance: Instance): void {
-  exec(instance, "insert into github_cooldown (id, until) values (1, ?)", Date.now() + COOLDOWN_MS);
+  instance.database.exec(
+    "insert into github_cooldown (id, until) values (1, ?)",
+    Date.now() + COOLDOWN_MS,
+  );
 }
 
 export const hopResults = (warnings: readonly string[]) =>

@@ -9,7 +9,6 @@ import { jobRow, libraryDump, taskRow, topicPage } from "./bot-task-rows.ts";
 import { seedDigested } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { lockedWriter } from "./locked-writer.ts";
-import { rowCount } from "./related-fixtures.ts";
 
 describe("an answered bot task of each kind applies once, and a run of the finished job writes nothing", () => {
   for (const kindCase of KIND_CASES) {
@@ -88,7 +87,7 @@ describe("an empty answer to a weekly run applies and completes the task", () =>
           [
             taskRow(instance, sent.id).state,
             jobRow(instance, job.id).state,
-            rowCount(instance, "proposals", "state = 'open'"),
+            instance.database.rowCount("proposals", "state = 'open'"),
           ],
           ["done", "done", 0],
         );

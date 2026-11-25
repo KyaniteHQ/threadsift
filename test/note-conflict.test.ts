@@ -4,8 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { NoteConflictSchema, NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { paste } from "./related-fixtures.ts";
 
 describe("a Note is saved against the revision the owner loaded, and a save of a stale revision is refused with the current Note", () => {
   let instance: Instance;

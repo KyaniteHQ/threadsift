@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
 
 const TaskRowSchema = z.object({
   id: z.number(),
@@ -24,8 +23,7 @@ const TaskRowSchema = z.object({
 });
 
 export function taskRows(instance: Instance, where = "1 = 1", ...params: readonly number[]) {
-  return rows(
-    instance,
+  return instance.database.rows(
     TaskRowSchema,
     `select id, state, refusal, status, result, callback_hash, job_id, context, sent_at, answered_at, deadline, attempts, executor, kind from ai_tasks where ${where} order by id`,
     ...params,
@@ -49,8 +47,7 @@ const JobRowSchema = z.object({
 });
 
 export function jobRow(instance: Instance, id: number) {
-  const [row] = rows(
-    instance,
+  const [row] = instance.database.rows(
     JobRowSchema,
     "select state, attempts, next_attempt_at, wait_reason, stale_requeues from jobs where id = ?",
     id,
@@ -62,8 +59,7 @@ export function jobRow(instance: Instance, id: number) {
 }
 
 export function reclaimed(instance: Instance, job: Readonly<{ id: number }>): void {
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set state = 'running', claim_expires = ? where id = ?",
     Date.now() + HOUR_MS,
     job.id,
@@ -74,8 +70,7 @@ export function insertedTask(
   instance: Instance,
   { kind, executor, token }: Readonly<{ kind: string; executor: string; token: string }>,
 ): number {
-  exec(
-    instance,
+  instance.database.exec(
     "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state, callback_hash) values (?, '{}', 0, ?, 1, ?, 'running', ?)",
     kind,
     executor,
@@ -83,8 +78,7 @@ export function insertedTask(
     digestOfToken(token),
   );
 
-  const [row] = rows(
-    instance,
+  const [row] = instance.database.rows(
     z.object({ id: z.number() }),
     "select id from ai_tasks where callback_hash = ?",
     digestOfToken(token),
@@ -100,8 +94,7 @@ export function digestOfToken(token: string): string {
 }
 
 export function topicFailures(instance: Instance) {
-  return rows(
-    instance,
+  return instance.database.rows(
     z.object({ topic_id: z.number(), failure: z.string().nullable() }),
     "select topic_id, failure from topic_pages order by topic_id",
   );
@@ -118,9 +111,13 @@ const LIBRARY_TABLES = [
 export function libraryDump(instance: Instance, jobId: number): string {
   return JSON.stringify([
     ...LIBRARY_TABLES.map((table) =>
-      rows(instance, z.looseObject({}), `select * from ${table} order by 1`),
+      instance.database.rows(z.looseObject({}), `select * from ${table} order by 1`),
     ),
-    rows(instance, z.looseObject({}), "select * from ai_tasks where job_id = ? order by 1", jobId),
+    instance.database.rows(
+      z.looseObject({}),
+      "select * from ai_tasks where job_id = ? order by 1",
+      jobId,
+    ),
   ]);
 }
 
@@ -131,8 +128,7 @@ const PageSchema = z.object({
 });
 
 export function topicPage(instance: Instance, topicId: number) {
-  const [page] = rows(
-    instance,
+  const [page] = instance.database.rows(
     z.object({ overview: z.string(), revision: z.number(), built_from: z.string() }),
     "select overview, revision, built_from from topic_pages where topic_id = ?",
     topicId,

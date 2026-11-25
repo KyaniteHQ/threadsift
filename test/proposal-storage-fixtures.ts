@@ -5,8 +5,8 @@ import { z } from "zod";
 import type { PinKind, ProposalKind } from "../src/core/contract/proposal-contract.ts";
 import { bestEffort } from "../src/core/kernel/failure-log.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { subjectTable } from "./proposal-seed.ts";
-import { paste } from "./related-fixtures.ts";
 
 export const COLUMNS = {
   "tag-merge": ["from_tag_id", "into_tag_id"],

@@ -9,10 +9,9 @@ import {
   GithubVerifyResultSchema,
 } from "../src/core/contract/github-contract.ts";
 import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { lockedWriter } from "./locked-writer.ts";
 import { seedGithubCooldown } from "./one-hop-fixtures.ts";
-import { SECRET_KEY, rowCount, exec, rows } from "./related-fixtures.ts";
 
 const SETTINGS = "/api/settings/github";
 
@@ -22,12 +21,12 @@ const NEXT_TOKEN = "github_pat_second_token_of_the_owner";
 
 const SealedSchema = z.object({ sealed_token: z.string() });
 
-const cooldowns = (instance: Instance) => rowCount(instance, "github_cooldown");
+const cooldowns = (instance: Instance) => instance.database.rowCount("github_cooldown");
 
 const sealedTokens = (instance: Instance) =>
-  rows(instance, SealedSchema, "select sealed_token from github_settings").map(
-    ({ sealed_token: sealed }) => sealed,
-  );
+  instance.database
+    .rows(SealedSchema, "select sealed_token from github_settings")
+    .map(({ sealed_token: sealed }) => sealed);
 
 const settingsOf = (instance: Instance) => instance.read("GET", SETTINGS, GithubSettingsViewSchema);
 
@@ -143,8 +142,7 @@ describe("a GitHub token the Instance cannot open is reported, does not block a 
   after(() => instance.close());
 
   const seedForeign = () => {
-    exec(
-      instance,
+    instance.database.exec(
       "insert or replace into github_settings (id, sealed_token) values (1, ?)",
       foreignSeal,
     );

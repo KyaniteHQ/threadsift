@@ -4,9 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { SessionStateSchema } from "../src/core/contract/access-wire.ts";
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ConnectStartResponseSchema } from "../src/core/contract/openrouter-contract.ts";
-import { Instance, PASSWORD, SETUP_CODE } from "./instance.ts";
+import { Instance, PASSWORD, SETUP_CODE, SECRET_KEY } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { SECRET_KEY, rowCount } from "./related-fixtures.ts";
 
 const WRONG_SETUP_CODE = "a-wrong-setup-code-of-sixteen";
 
@@ -207,7 +206,7 @@ describe("a HEAD on the OpenRouter callback", () => {
   const CALLBACK = "/api/settings/ai/openrouter/callback";
   let instance: Instance;
 
-  const attempts = () => rowCount(instance, "openrouter_connect_transactions");
+  const attempts = () => instance.database.rowCount("openrouter_connect_transactions");
 
   before(async () => {
     instance = await Instance.start({ publicOrigin: "http://localhost", secretKey: SECRET_KEY });

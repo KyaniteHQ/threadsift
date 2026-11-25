@@ -13,10 +13,9 @@ import {
   pinRows,
   replaceDigestToken,
 } from "./disagreement-pin-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { lockedWriter } from "./locked-writer.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, exec } from "./related-fixtures.ts";
 
 describe("Accept of a disagreement keeps the pair as a Pin", () => {
   let instance: Instance;
@@ -83,10 +82,10 @@ describe("Accept of a disagreement keeps the pair as a Pin", () => {
   it("answers 409 not-current when the two Items sit under two Topics, and keeps the row with no Pin", async () => {
     const id = proposeDisagreement(instance, [7, 8]);
 
-    exec(instance, "update items set topic_id = 2 where id = 8");
+    instance.database.exec("update items set topic_id = 2 where id = 8");
     assert.deepEqual(await acceptStatus(instance, id), [409, { error: "not-current" }]);
     assert.equal(pinRows(instance).length, 1);
-    exec(instance, "update items set topic_id = 1 where id = 8");
+    instance.database.exec("update items set topic_id = 1 where id = 8");
     assert.deepEqual(await acceptStatus(instance, id), [200, { state: "done" }]);
     assert.deepEqual(
       pinRows(instance).map((pin) => pin.from_key),
@@ -115,7 +114,7 @@ describe("an open row for a pair that already has a current Pin", () => {
       200,
       { state: "done" },
     ]);
-    exec(instance, "update pins set from_name = 'The first reason.'");
+    instance.database.exec("update pins set from_name = 'The first reason.'");
 
     const [earlier] = pinRows(instance);
     const again = proposeDisagreement(instance, [1, 2]);

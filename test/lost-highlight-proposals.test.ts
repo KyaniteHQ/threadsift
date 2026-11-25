@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { propose } from "./accept-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import {
   ColumnsSchema,
   listedIds,
@@ -12,11 +13,10 @@ import {
   readPage,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, paste, rows } from "./related-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 const highlightColumns = (instance: Instance) =>
-  rows(instance, ColumnsSchema, "select * from highlights order by id");
+  instance.database.rows(ColumnsSchema, "select * from highlights order by id");
 
 describe("lost-Highlight Proposals beside Tag and Topic rows", () => {
   let instance: Instance;

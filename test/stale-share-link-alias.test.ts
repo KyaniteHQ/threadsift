@@ -4,7 +4,6 @@ import { after, before, describe, it } from "node:test";
 import { aliasAnswers, parseLink } from "../src/core/contract/links.ts";
 import { DAY_MS } from "../src/core/contract/time-units.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 import {
   FAILED,
   aliasOf,
@@ -49,8 +48,7 @@ describe("a short link whose alias ends at a Reddit share link is resolved again
       const short = `https://t.co/moves${existing}`;
       const stale = await stagedStaleAlias(instance, short);
 
-      exec(
-        instance,
+      instance.database.exec(
         "update jobs set state = 'queued', next_attempt_at = ? where item_id = ?",
         Date.now() + DAY_MS,
         stale.id,

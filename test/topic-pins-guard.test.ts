@@ -6,25 +6,22 @@ import { pinnedDigest } from "../src/features/wiki/core/pins.ts";
 import { openMigrated } from "./instance-database.ts";
 import { Instance } from "./instance.ts";
 import { topicPin } from "./pin-fixtures.ts";
-import { script } from "./related-fixtures.ts";
 
 describe("the Pin resolution condition fails when the Topic or Tag Pins it read have changed", () => {
   let instance: Instance;
   let database: ReturnType<typeof openMigrated>;
 
   const sqlite = (statement: string) => {
-    script(instance, statement);
+    instance.database.script(statement);
   };
 
   const digest = { tags: ["ai"], topic: "ML" } as const;
 
   before(async () => {
     instance = await Instance.start();
-    script(
-      instance,
-      `insert into topics (id, key, name) values (1, 'machine learning', 'Machine Learning'), (2, 'deep learning', 'Deep Learning');
-       insert into tags (id, key, name) values (1, 'artificial intelligence', 'AI');`,
-    );
+    instance.database
+      .script(`insert into topics (id, key, name) values (1, 'machine learning', 'Machine Learning'), (2, 'deep learning', 'Deep Learning');
+       insert into tags (id, key, name) values (1, 'artificial intelligence', 'AI');`);
     database = openMigrated(instance.databaseFile);
   });
 

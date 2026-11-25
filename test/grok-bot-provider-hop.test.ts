@@ -3,6 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { saveBot, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { until } from "./library-fixtures.ts";
 import {
   LINKED,
   SECRET_KEY,
@@ -13,7 +14,6 @@ import {
   withoutComments,
 } from "./one-hop-fixtures.ts";
 import { redditAddressOf } from "./reader-thread-fixtures.ts";
-import { until } from "./related-fixtures.ts";
 
 describe("the linked-page hop of a Digest runs when Grok Bot is the Provider", () => {
   let instance: Instance;

@@ -7,8 +7,7 @@ import {
   RedditVerifySchema,
 } from "../src/core/contract/reddit-account-contract.ts";
 import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
-import { Instance } from "./instance.ts";
-import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 export const PATH = "/api/settings/reddit-account";
 
@@ -52,15 +51,13 @@ export const verified = async (instance: Instance) =>
   (await instance.read("POST", `${PATH}/verify`, RedditVerifySchema)).result;
 
 export const account = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     AccountRowSchema,
     "select sealed_session, state, busy_until, busy_job, queue_head, last_request_at, refused_count, limited_until, window_remaining, window_resets_at from reddit_account",
   );
 
 export const jobs = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     JobRowSchema,
     "select id, state, wait_reason, next_attempt_at, attempts from jobs order by id",
   );
@@ -82,15 +79,13 @@ export function fetchJob(
     attempts?: number;
   }>,
 ): void {
-  exec(
-    instance,
+  instance.database.exec(
     "insert into items (id, source, kind, normalized_url, original_url, saved_at) values (?, 'article', 'article', ?, ?, 1)",
     id,
     `http://127.0.0.1:9/${String(id)}`,
     `http://127.0.0.1:9/${String(id)}`,
   );
-  exec(
-    instance,
+  instance.database.exec(
     "insert into jobs (id, kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires, wait_reason) values (?, 'fetch', ?, ?, ?, ?, 0, ?, ?, ?)",
     id,
     id,
@@ -108,13 +103,16 @@ export const LATER = FAR;
 export async function claimedJob(instance: Instance, id: number): Promise<ClaimedRow> {
   const dueAt = jobs(instance).find((row) => row.id === id)?.next_attempt_at;
 
-  exec(instance, "update jobs set next_attempt_at = 0 where id = ? and state = 'queued'", id);
+  instance.database.exec(
+    "update jobs set next_attempt_at = 0 where id = ? and state = 'queued'",
+    id,
+  );
 
   const job = await claimNextDue(instance.core.db);
 
   if (job?.id !== id || dueAt === undefined) throw new Error(`job ${String(id)} was not claimed`);
 
-  exec(instance, "update jobs set next_attempt_at = ? where id = ?", dueAt, id);
+  instance.database.exec("update jobs set next_attempt_at = ? where id = ?", dueAt, id);
 
   return job;
 }

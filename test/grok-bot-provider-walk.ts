@@ -7,19 +7,16 @@ import { pastDeadline } from "./bot-task-fixtures.ts";
 import { jobRow } from "./bot-task-rows.ts";
 import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 export async function claimedAgain(
   instance: Instance,
   job: Readonly<ClaimedJob>,
 ): Promise<Readonly<ClaimedJob>> {
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set state = 'done', claim_expires = null where id <> ? and state <> 'done'",
     job.id,
   );
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set next_attempt_at = ?, claim_expires = null where id = ?",
     Date.now(),
     job.id,

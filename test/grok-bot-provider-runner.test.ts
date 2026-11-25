@@ -9,7 +9,7 @@ import { jobRow, taskRow, taskRows, topicFailures } from "./bot-task-rows.ts";
 import { generationOf, unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
 import { claimedAgain, retryAfterTimeout, unansweredClaim } from "./grok-bot-provider-walk.ts";
 import type { Instance } from "./instance.ts";
-import { rowCount, saveProvider } from "./related-fixtures.ts";
+import { saveProvider } from "./library-fixtures.ts";
 
 const FIRST_RETRY_MS = 30_000;
 
@@ -18,14 +18,15 @@ const SECOND_RETRY_MS = 120_000;
 const FAILURE_SHOWN = {
   digest: (instance: Instance, owner: number) =>
     Promise.resolve(
-      rowCount(instance, "items", `id = ${String(owner)} and digest_failed = 1`) === 1,
+      instance.database.rowCount("items", `id = ${String(owner)} and digest_failed = 1`) === 1,
     ),
   topic_overview: (instance: Instance) =>
     Promise.resolve(topicFailures(instance).some(({ failure }) => failure === "gave-up")),
-  proposals: (instance: Instance) => Promise.resolve(rowCount(instance, "proposals") === 0),
-  topic_proposals: (instance: Instance) => Promise.resolve(rowCount(instance, "proposals") === 0),
+  proposals: (instance: Instance) => Promise.resolve(instance.database.rowCount("proposals") === 0),
+  topic_proposals: (instance: Instance) =>
+    Promise.resolve(instance.database.rowCount("proposals") === 0),
   disagreement_proposals: (instance: Instance) =>
-    Promise.resolve(rowCount(instance, "proposals") === 0),
+    Promise.resolve(instance.database.rowCount("proposals") === 0),
 } as const satisfies Readonly<
   Record<KindCase["kind"], (instance: Instance, owner: number) => Promise<boolean>>
 >;

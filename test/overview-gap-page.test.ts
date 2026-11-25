@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import {
   addTopics,
@@ -13,7 +13,6 @@ import {
   queueOverview,
   storePage,
 } from "./overview-gap-fixtures.ts";
-import { SECRET_KEY, exec } from "./related-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 describe("overview-gap rows beside the other kinds", () => {
@@ -82,7 +81,7 @@ describe("overview-gap rows beside the other kinds", () => {
     assert.ok(first !== undefined);
     queueOverview(instance, first);
     assert.deepEqual(gapsOf(await readPage(instance)), []);
-    exec(instance, "update jobs set state = 'done' where kind = 'topic_overview'");
+    instance.database.exec("update jobs set state = 'done' where kind = 'topic_overview'");
     assert.equal(gapsOf(await readPage(instance)).length, 1);
   });
 });
@@ -102,16 +101,13 @@ describe("the Proposals list filters overview-gap rows before the page limit", (
         from: at + 1,
       })),
     );
-    exec(
-      instance,
+    instance.database.exec(
       "insert into proposals (id, kind, reason, state, created_at) select id, 'overview-gap', 'plain-check', 'open', 1 from topics order by id",
     );
-    exec(
-      instance,
+    instance.database.exec(
       "insert into overview_gap_proposals (proposal_id, kind, topic_id) select id, 'overview-gap', id from topics",
     );
-    exec(
-      instance,
+    instance.database.exec(
       "insert into topic_pages (topic_id, overview, revision, built_from, failure, updated_at) select topics.id, 'O', 1, json_array(json_object('item', topics.id, 'digest', topics.id)), null, 1 from topics where topics.id > 51",
     );
   });

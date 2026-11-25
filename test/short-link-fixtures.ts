@@ -14,7 +14,6 @@ import {
 } from "../src/features/paste/core/item-save.ts";
 import { type AliasedItem, aliasedItem } from "../src/features/paste/core/short-link-aliases.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rowCount, rows } from "./related-fixtures.ts";
 import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 
 const AliasSchema = z.object({
@@ -46,19 +45,17 @@ export const aliasRow = (short: string, address: string, itemId: number) => ({
 });
 
 export const itemsAt = (instance: Instance, address: string) =>
-  rowCount(instance, "items", "normalized_url = ?", parseLink(address).normalizedUrl);
+  instance.database.rowCount("items", "normalized_url = ?", parseLink(address).normalizedUrl);
 
 export const aliasesAt = (instance: Instance, short: string) =>
-  rows(
-    instance,
+  instance.database.rows(
     AliasSchema,
     "select normalized_url, address, item_id from item_aliases where normalized_url = ?",
     parseLink(short).normalizedUrl,
   );
 
 export const fetchJobsOf = (instance: Instance, itemId: number) =>
-  rows(
-    instance,
+  instance.database.rows(
     JobSchema,
     "select address, state from jobs where item_id = ? and kind = 'fetch' order by id",
     itemId,
@@ -99,7 +96,7 @@ export async function stagedStaleAlias(instance: Instance, short: string) {
 
   assert.ok(saved !== null && saved.created, "the share link saves an Item");
   await instance.settledItem(saved.item.id);
-  exec(instance, "update items set read_state = 'read' where id = ?", saved.item.id);
+  instance.database.exec("update items set read_state = 'read' where id = ?", saved.item.id);
 
   return { share, id: saved.item.id };
 }
