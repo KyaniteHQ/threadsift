@@ -28,30 +28,12 @@ export function hex(bytes: Uint8Array): string {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-const BASE64_CHUNK_BYTES = 32_768;
-
-export function toBase64(bytes: Uint8Array): string {
-  let text = "";
-  for (let at = 0; at < bytes.length; at += BASE64_CHUNK_BYTES)
-    text += String.fromCodePoint(...bytes.subarray(at, at + BASE64_CHUNK_BYTES));
-  return btoa(text);
-}
-
 export function base64url(bytes: Uint8Array): string {
-  return toBase64(bytes).replaceAll("+", "-").replaceAll("/", "_").replaceAll("=", "");
+  return bytes.toBase64({ alphabet: "base64url", omitPadding: true });
 }
 
 export function fromBase64url(text: string): Uint8Array {
-  const padded = text
-    .replaceAll("-", "+")
-    .replaceAll("_", "/")
-    .padEnd(Math.ceil(text.length / 4) * 4, "=");
-
-  return fromBase64(padded);
-}
-
-export function fromBase64(text: string): Uint8Array {
-  return Uint8Array.from(atob(text), (character) => character.codePointAt(0) ?? 0);
+  return Uint8Array.fromBase64(text, { alphabet: "base64url" });
 }
 
 export function digestOf(crypto: Crypto, value: string): string {

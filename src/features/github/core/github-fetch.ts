@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { fromBase64 } from "../../../core/contract/encoding.ts";
 import type { FetchFailure } from "../../../core/contract/fetch-results.ts";
 import { GITHUB_WAIT } from "../../../core/contract/job-contract.ts";
 import { type RepositoryRef, repositoryRef } from "../../../core/contract/repository-ref.ts";
@@ -74,7 +73,7 @@ const UNREADABLE_README: Readme = { kind: "failed", status: "unreadable" };
 
 function decodedBase64(content: string): string | null {
   try {
-    return new TextDecoder().decode(fromBase64(content));
+    return new TextDecoder().decode(Uint8Array.fromBase64(content));
   } catch {
     return null;
   }

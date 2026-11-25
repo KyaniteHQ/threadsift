@@ -1,6 +1,5 @@
 import { z } from "zod";
 
-import { toBase64 } from "../../../core/contract/encoding.ts";
 import type { GithubVaultInput } from "../../../core/contract/vault-contract.ts";
 import type { Network } from "../../../core/kernel/network.ts";
 import type { VaultChange, VaultTarget } from "../../../core/kernel/vault-target.ts";
@@ -28,7 +27,7 @@ function commitBody(
         message: { headline: "Update Threadsift vault notes" },
         fileChanges: {
           additions: files.flatMap((file) =>
-            file.kind === "put" ? [{ path: file.path, contents: toBase64(file.bytes) }] : [],
+            file.kind === "put" ? [{ path: file.path, contents: file.bytes.toBase64() }] : [],
           ),
           deletions: files.flatMap((file) => (file.kind === "delete" ? [{ path: file.path }] : [])),
         },
