@@ -55,7 +55,9 @@ export function RetryNotice({
   action,
 }: Readonly<{ failed: boolean; text: string; action: () => void }>) {
   return (
-    <Alert>{failed ? <Notice text={text} action={action} label={RETRY_LABEL} /> : null}</Alert>
+    <Alert className="notice-slot">
+      {failed ? <Notice text={text} action={action} label={RETRY_LABEL} /> : null}
+    </Alert>
   );
 }
 

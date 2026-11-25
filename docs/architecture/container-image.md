@@ -19,7 +19,7 @@ The `packageManager` field carries the version and the SHA-512 hash of the pnpm 
 
 The hash covers the pnpm wrapper tarball only. The pnpm 12 tarball holds a launcher, and the native binary comes from the `@pnpm/exe.<platform>` package that npm installs next to it. npm checks that package against the integrity in the registry's metadata, and the hash in `packageManager` does not pin it.
 
-Renovate keeps the hash current. When it bumps pnpm, `updateArtifacts` of its npm manager writes the new `+sha512.<hex>` from the registry's integrity for the new version ([Dependency updates](dependency-updates.md)).
+Renovate keeps the hash current ([Dependency updates](dependency-updates.md)).
 
 ## The data volume
 

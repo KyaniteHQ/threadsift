@@ -55,7 +55,7 @@
 .fld-help { margin: 0; color: var(--muted); font-size: var(--t-meta); }
 .fld-help code { color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); white-space: nowrap; }
 .fld-err { margin: 0; color: var(--warn); font-size: var(--t-meta); font-weight: 500; }
-[role="alert"]:empty, output.rd-note:empty, output.rd-orig:empty, output.nt-msg:empty { position: absolute; }
+[role="alert"]:empty, output:empty { position: absolute; }
 .field input.mono { font-family: var(--f-mono); font-size: var(--t-code); }
 .cmd { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); overflow-wrap: anywhere; white-space: pre-wrap; }
 .cmd code { font: inherit; }
@@ -331,7 +331,7 @@ a.btn { text-decoration: none; }
 [data-layout="grid"] .paste { grid-area: paste; }
 [data-layout="grid"] .list-head { grid-area: lhead; }
 [data-layout="grid"] .list { grid-area: list; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); align-items: start; gap: var(--s5); }
-[data-layout="grid"] .empty, [data-layout="grid"] .noresults, [data-layout="grid"] [role="alert"]:has(> .noresults) { grid-column: 1 / -1; justify-self: center; }
+[data-layout="grid"] .empty, [data-layout="grid"] .noresults, [data-layout="grid"] .notice-slot { grid-column: 1 / -1; justify-self: center; }
 [data-layout="grid"][data-bp~="medium"] .lib { grid-template-columns: minmax(0, 1fr) minmax(var(--paste-min), var(--paste-w)); grid-template-areas: "brand paste" "search search" "filters filters" "lhead lhead" "list list"; }
 [data-layout="grid"][data-bp~="medium"] .lib.is-empty { grid-template-areas: "brand paste" "list list"; }
 [data-layout="grid"][data-bp~="narrow"] .lib { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brand" "paste" "search" "filters" "lhead" "list"; gap: var(--s3); padding: var(--s4) var(--s4) var(--s6); }
