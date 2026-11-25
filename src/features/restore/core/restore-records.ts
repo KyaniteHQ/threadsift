@@ -12,7 +12,6 @@ import {
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
 import { type ZipSource, bytesAt, entrySpan } from "../../export/core/zip-read.ts";
-import { verifiedRelease } from "./restore-check-unit.ts";
 import { type Lines, completeLines } from "./restore-lines.ts";
 import { RESTORE_ORDER } from "./restore-registry.ts";
 import { insertRows, knownTable } from "./restore-rows.ts";
@@ -93,35 +92,14 @@ async function windowLines(
   return windowLines(source, { entry, offset }, Math.min(length * 2, entry.size - offset));
 }
 
-type Opening =
-  | { readonly kind: "opened"; readonly at: Opened | null }
-  | { readonly kind: "refused"; readonly outcome: JobOutcome };
-
-async function openingOf(
-  ports: JobPorts,
-  run: Readonly<RestoreRow>,
-  source: Readonly<ZipSource>,
-): Promise<Opening> {
-  const checked = await verifiedRelease(ports, run, source);
-
-  if (checked.kind === "refused") return checked;
-
-  const cursor = CursorSchema.parse(JSON.parse(run.cursor));
-
-  return { kind: "opened", at: await opened(source, cursor, checked.release) };
-}
-
 export async function tablesUnit(
   ports: JobPorts,
   run: Readonly<RestoreRow>,
   source: Readonly<ZipSource>,
+  release: Readonly<Release>,
 ): Promise<JobOutcome> {
   const { db } = ports;
-  const opening = await openingOf(ports, run, source);
-
-  if (opening.kind === "refused") return opening.outcome;
-
-  const { at } = opening;
+  const at = await opened(source, CursorSchema.parse(JSON.parse(run.cursor)), release);
 
   if (at === null) {
     return steppedUnit(db, run, entering("files"));

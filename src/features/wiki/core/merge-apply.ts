@@ -2,9 +2,9 @@ import { type SQL, eq, notExists, sql } from "drizzle-orm";
 
 import { catalogKey } from "../../../core/contract/catalog-key.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedResults } from "../../../core/kernel/guards.ts";
+import { guardedOpenings } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { OpenedJobsSchema, enqueueRows } from "../../../core/kernel/job-rows.ts";
+import { enqueueRows } from "../../../core/kernel/job-rows.ts";
 import { loggedMerge } from "../../../core/kernel/log-writes.ts";
 import { proposals } from "../../../core/kernel/schema.ts";
 import { retired } from "./catalog.ts";
@@ -66,17 +66,15 @@ export async function applyUnit(
     }),
   ];
 
-  const writes = [...head, ...plan.wakes, ...retired(db, spec.table, from.id, gone)];
-  const results = await guardedResults(db, unitGuard(id, row), writes);
+  const opened = await guardedOpenings(db, unitGuard(id, row), {
+    before: head,
+    opening: plan.wakes,
+    after: retired(db, spec.table, from.id, gone),
+  });
 
-  if (results === null) return "lost";
+  if (opened === null) return "lost";
 
-  await enqueueRows(
-    ports,
-    results
-      .slice(head.length, head.length + plan.wakes.length)
-      .flatMap((opened) => OpenedJobsSchema.parse(opened)),
-  );
+  await enqueueRows(ports, opened);
 
   return "ran";
 }

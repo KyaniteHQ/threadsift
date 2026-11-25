@@ -1,6 +1,5 @@
 import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
-import { z } from "zod";
 
 import {
   IMAGE_STEM,
@@ -48,8 +47,6 @@ const openJobs = alias(jobs, "open_jobs");
 export function jobIsOpen(id: number | SQLWrapper): SQL {
   return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${id} and ${jobOpen()})`;
 }
-
-export const OpenedJobsSchema = z.array(z.object({ id: z.number().int() }));
 
 export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${items.id}`) {
   const kinds = kind === undefined ? ITEM_JOB_KINDS : [kind];
@@ -227,7 +224,7 @@ export async function enqueueQuietly(
 }
 
 export function enqueueRows(
-  ports: JobPorts,
+  ports: Readonly<Pick<JobPorts, "jobs">>,
   rows: readonly Readonly<{ id: number }>[],
 ): Promise<void> {
   return enqueueQuietly(

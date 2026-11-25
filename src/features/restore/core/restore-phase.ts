@@ -37,7 +37,7 @@ export function phaseUnit(
     case "check":
       return checkUnit(ports, run, source);
     case "tables":
-      return tablesUnit(ports, run, source);
+      return afterRelease(ports, run, source, (release) => tablesUnit(ports, run, source, release));
     case "files":
       return afterRelease(ports, run, source, (release) => filesUnit(ports, run, source, release));
     case "search":

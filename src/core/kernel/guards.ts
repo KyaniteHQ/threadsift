@@ -1,6 +1,7 @@
 import { type SQLWrapper, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { type SQLiteTable, check, integer, sqliteTable } from "drizzle-orm/sqlite-core";
+import { z } from "zod";
 
 import type { Database } from "./database.ts";
 import { readOrAssume } from "./failure-log.ts";
@@ -69,18 +70,27 @@ export function refusedByGuard(cause: unknown): boolean {
   return refusedBy(cause, GUARD_REFUSED);
 }
 
-export async function unlessRefused<Result>(
+export async function answerUnlessRefused<Result, Refused>(
   db: Database,
   condition: Readonly<SQLWrapper>,
   run: () => Promise<Result>,
-): Promise<Result | null> {
+  refused: Refused,
+): Promise<Result | Refused> {
   try {
     return await run();
   } catch (error) {
     if (!refusedByGuard(error) || (await guardHeldOrUnread(db, condition))) throw error;
 
-    return null;
+    return refused;
   }
+}
+
+export function unlessRefused<Result>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  run: () => Promise<Result>,
+): Promise<Result | null> {
+  return answerUnlessRefused(db, condition, run, null);
 }
 
 function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(
@@ -91,17 +101,32 @@ function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(
   return [insertGuard(db, condition), ...writes, db.delete(guards)] as const;
 }
 
-export function guardedResults(
+export type OpeningWrite = BatchItem<"sqlite"> & {
+  readonly _: { readonly result: readonly Readonly<{ id: number }>[] };
+};
+
+const OpenedSchema = z.array(z.object({ id: z.number().int() }));
+
+export function guardedOpenings(
   db: Database,
   condition: Readonly<SQLWrapper>,
-  writes: readonly BatchItem<"sqlite">[],
-): Promise<readonly unknown[] | null> {
+  {
+    before,
+    opening,
+    after = [],
+  }: Readonly<{
+    before: readonly BatchItem<"sqlite">[];
+    opening: readonly OpeningWrite[];
+    after?: readonly BatchItem<"sqlite">[];
+  }>,
+): Promise<readonly Readonly<{ id: number }>[] | null> {
   return unlessRefused(db, condition, async () => {
-    const [, ...results] = await db.batch(guardedWrites(db, condition, writes));
+    const results = await db.batch(guardedWrites(db, condition, [...before, ...opening, ...after]));
+    const first = 1 + before.length;
 
-    const written: readonly unknown[] = results.slice(0, writes.length);
-
-    return written;
+    return results
+      .slice(first, first + opening.length)
+      .flatMap((opened) => OpenedSchema.parse(opened));
   });
 }
 
@@ -110,7 +135,7 @@ export async function guardedBatch(
   condition: Readonly<SQLWrapper>,
   writes: readonly BatchItem<"sqlite">[],
 ): Promise<boolean> {
-  return (await guardedResults(db, condition, writes)) !== null;
+  return (await guardedOpenings(db, condition, { before: writes, opening: [] })) !== null;
 }
 
 export function guardedWrite<Write extends BatchItem<"sqlite">>(

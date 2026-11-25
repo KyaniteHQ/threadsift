@@ -1,7 +1,7 @@
 import { and, desc, eq, exists, inArray, ne, not, notExists, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedResults } from "../../../core/kernel/guards.ts";
+import { guardedBatch } from "../../../core/kernel/guards.ts";
 import { itemTitle } from "../../../core/kernel/item-title.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import {
@@ -87,13 +87,13 @@ async function acceptLostHighlight(db: Database, id: number): Promise<LostHighli
 
   if (row.lost === 0) return "not-current";
 
-  const removed = await guardedResults(
+  const removed = await guardedBatch(
     db,
     stillLost(db, id),
     removalWrites(db, row.itemId, row.highlightId),
   );
 
-  return removed === null ? "not-current" : "done";
+  return removed ? "done" : "not-current";
 }
 
 function lostPage(db: Database, cursor: number | null) {

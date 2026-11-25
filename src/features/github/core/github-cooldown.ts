@@ -40,9 +40,11 @@ export async function cooldownUntil(db: Database, now: number): Promise<number |
 export function writeEndingCooldown(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
   write: BatchItem<"sqlite">,
+  held?: SQL,
 ): Promise<void> {
   return wakeWaitingFetches(ports, GITHUB_WAIT, {
     writes: [write, ports.db.delete(githubCooldown).where(eq(githubCooldown.id, COOLDOWN_ROW))],
+    held,
     now: Date.now(),
   });
 }
