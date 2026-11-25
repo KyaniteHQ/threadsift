@@ -96,7 +96,9 @@ export async function subjectStorage() {
         .all(`quote ${String(saved)}`),
     );
 
-    return found?.id ?? 0;
+    if (found === undefined) throw new Error("The highlight insert returned no id");
+
+    return found.id;
   };
 
   const SUBJECTS = {

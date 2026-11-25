@@ -120,7 +120,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
   it("replaces the thread and advances the generation on a Paste with new content, and keeps it on a Paste of the link alone", async () => {
     const { saved, itemIdOf, generationOf } = xClient(instance);
     const id = itemIdOf(STORED);
-    const first = generationOf(id) ?? 0;
+    const first = generationOf(id);
 
     await saved({
       url: STORED_LINK,

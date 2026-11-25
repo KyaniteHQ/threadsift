@@ -50,13 +50,7 @@ export function revisionOf(instance: Instance): number {
 }
 
 export function generationOf(instance: Instance, itemId: number): number {
-  const [item] = instance.database.rows(
-    z.object({ generation: z.number() }),
-    "select generation from items where id = ?",
-    itemId,
-  );
-
-  return item?.generation ?? 0;
+  return instance.database.count("select generation as n from items where id = ?", itemId);
 }
 
 const VerifyTask = z.object({ id: z.number() });
@@ -64,10 +58,7 @@ const VerifyTask = z.object({ id: z.number() });
 export async function sentVerifyTask(instance: Instance) {
   await selectGrokBot(instance);
 
-  const [previous] = instance.database.rows(
-    VerifyTask,
-    "select coalesce(max(id), 0) as id from ai_tasks",
-  );
+  const previous = instance.database.count("select coalesce(max(id), 0) as n from ai_tasks");
   const verified = await instance.send("POST", VERIFY_PATH);
 
   assert.equal(verified.status, 200, verified.body);
@@ -75,7 +66,7 @@ export async function sentVerifyTask(instance: Instance) {
   const [started, ...others] = instance.database.rows(
     VerifyTask,
     "select id from ai_tasks where id > ? and kind = 'digest' and executor = 'grok-bot' and job_id is null",
-    previous?.id ?? 0,
+    previous,
   );
 
   assert.ok(

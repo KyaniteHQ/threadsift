@@ -70,7 +70,7 @@ export function seedProposal<Kind extends ProposalKind>(
 }
 
 export function removeProposals(instance: Instance): void {
-  using database = new DatabaseSync(instance.databaseFile);
-
-  for (const kind of PROPOSAL_KINDS) database.prepare(`delete from ${subjectTable(kind)}`).run();
+  instance.database.script(
+    PROPOSAL_KINDS.map((kind) => `delete from ${subjectTable(kind)};`).join("\n"),
+  );
 }

@@ -51,12 +51,8 @@ export function xClient(instance: Instance) {
     return found.id;
   };
 
-  const generationOf = (itemId: number): number | undefined =>
-    instance.database.rows(
-      z.object({ generation: z.number() }),
-      "select generation from items where id = ?",
-      itemId,
-    )[0]?.generation;
+  const generationOf = (itemId: number): number =>
+    instance.database.count("select generation as n from items where id = ?", itemId);
 
   return { saved, refused, itemIdOf, generationOf };
 }
