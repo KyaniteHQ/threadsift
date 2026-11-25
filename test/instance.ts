@@ -85,6 +85,7 @@ export class Instance {
   private readonly shutdown: () => Promise<void>;
 
   readonly databaseFile: string;
+  readonly database: ReturnType<typeof databaseOf>;
   private readonly ports: Ports;
 
   private constructor(
@@ -97,6 +98,7 @@ export class Instance {
     this.app = app;
     this.ports = ports;
     this.databaseFile = file;
+    this.database = databaseOf(file);
     this.needsOwnerSession = needsOwnerSession;
     this.shutdown = shutdown;
   }
@@ -158,10 +160,6 @@ export class Instance {
 
   get core(): Ports {
     return this.ports;
-  }
-
-  get database() {
-    return databaseOf(this.databaseFile);
   }
 
   tick(): Promise<void> {
