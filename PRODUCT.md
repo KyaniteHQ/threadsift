@@ -40,6 +40,17 @@ Karakeep, the closest open-source tool, has no comment-thread model, so it would
 - The name is Threadsift. The masthead wordmark reads Threadsift; the Style named Library keeps its name.
 - Interface text has no hand-picked voice: `tools/copy/write-copy.sh` writes every text a user reads in the product, as `docs/agents/changing-code.md` (Interface text) describes.
 
+## Brand Brief
+
+This section describes the brand the app moves to, not the app as built. The rest of this file and of [DESIGN.md](DESIGN.md) describe the app as built until the owner chooses a direction and it is built. DESIGN.md, Brand Brief, holds the visual part: the shape language, the colour world, the faces, the motion, the tokens a Style may set, the three candidate directions, and the line that names the chosen direction.
+
+- **The idea.** Threadsift shows its sifting: every Item says what was kept out of what was saved, and the library files itself into an index as it grows.
+- **The signature element.** The kept strip: one line of monospaced text that opens every List row, Grid card, card cover and Reader header. It names where the Item came from and what the agent kept of it, such as `r/selfhosted · 9/184 kept` for a Reddit thread with 9 Kept comments out of 184 saved comments. An Item without comments shows a fact the app already stores in that place, such as a repository's language or an article's domain. An engagement count never leads it. The card covers that give every Item a picture are part of the signature too.
+- **The brand is what never changes:** the wordmark and the icon, the kept strip and the covers, the anatomy of every component, the layouts, the motion and the voice. A screenshot in any Style, Theme, Accent or Font is still Threadsift.
+- **A Style is a material.** It changes the token values DESIGN.md, Brand Brief, lists and nothing else: never where things are or what a component is made of. Choosing a Style writes its Font and Accent into the settings, and the owner can change either afterwards. No control is disabled.
+- **Three Styles.** Library is the brand's default and is built from the chosen direction. Beside it sit a print Style (working name Broadsheet: sharp corners, hairline rules, no shadows, a serif reading face) and a technical Style (working name Workbench: a mono-forward face for a library of repositories and code). Dark is a Theme, so no Style is the dark one.
+- **The voice.** Plain, exact and quiet, like a catalogue note: a text names a count, a state or the next action in the glossary's words, and never cheers, hurries or claims. The rule set the copy script follows is written from this line. Until the copy script carries those rules, the Brand Commitments line above holds, and the script writes without a hand-picked voice.
+
 ## Evidence on Hand
 
 - The owner's real saves exist only on the owner's machine and stay out of the repository.
