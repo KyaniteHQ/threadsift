@@ -11,8 +11,6 @@ import { emptyInput } from "./digest-prepare.ts";
 import { readForPublishing } from "./digest-publish.ts";
 
 async function attemptDigest(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<JobOutcome> {
-  if (job.attemptPending === null) return digestKind.attempt(ports, job);
-
   const { item, anchors } = await readForPublishing(ports.db, job.itemId);
 
   if (item === undefined) return { writes: keptNotUpdated(ports.db, job.itemId) };

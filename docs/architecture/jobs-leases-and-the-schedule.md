@@ -144,7 +144,7 @@ Every claim of a Digest job stores the Item's generation in `jobs.attempt_genera
 
 ### A caller-sent Digest that arrives mid-attempt
 
-Every claim of a Digest job also stores the Item's caller-sent Digest in `jobs.attempt_pending`. The closing batch opens a new Digest job while the Item holds a caller-sent Digest that differs from `attempt_pending`. A Paste can send a Digest after the attempt read the Item without changing the generation, and only a Paste can send it again. The new job takes the caller path (`attemptCaller`). It calls no Provider and publishes the Digest that the Paste's schema already accepted.
+Every claim of a Digest job also stores the Item's caller-sent Digest in `jobs.attempt_pending`. The closing batch opens a new Digest job while the Item holds a caller-sent Digest that differs from `attempt_pending`. A Paste can send a Digest after the attempt read the Item without changing the generation, and only a Paste can send it again. The new job takes the caller path (`attemptCaller`). It calls no Provider and publishes the Digest that the Paste's schema already accepted. An attempt that was claimed before the Paste routes on the Item's pending Digest as it reads it, so it takes the caller path too.
 
 The exhaust batch stores the marker exactly when the closing batch opens no Digest job for a held Digest (`markAttemptsSpent`). That happens when the Item:
 
