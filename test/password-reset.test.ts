@@ -35,24 +35,38 @@ const withResetInstance = async (run: (instance: Instance) => Promise<void>) => 
   }
 };
 
+const signIn = async (instance: Instance, password: string) =>
+  (await instance.send("POST", "/api/login", { password })).status;
+
+const withResetDone = (
+  run: (
+    instance: Instance,
+    done: Readonly<{ token: { readonly value: string }; ownerCookie: string }>,
+  ) => Promise<void>,
+) =>
+  withResetInstance(async (instance) => {
+    const token = await createAgentToken(instance, "survives the reset", ["read"]);
+    const { ownerCookie } = instance;
+
+    assert.equal((await reset(instance, RESET_CODE)).status, 204);
+    await run(instance, { token, ownerCookie });
+  });
+
 describe("a lost password is reset with the one-use code the server holds, and the reset ends every session and keeps the agent tokens", () => {
-  it("refuses a wrong reset code with 403 wrong-reset-code and leaves the password and the session as they were", () =>
+  it("refuses a wrong reset code with 403 wrong-reset-code, leaves the password and the session as they were, and keeps the real code usable", () =>
     withResetInstance(async (instance) => {
       const refused = await reset(instance, `${RESET_CODE}-wrong`);
 
       assert.equal(refused.status, 403);
       assert.equal(refusalCode(await refused.text()), "wrong-reset-code");
       assert.equal((await instance.send("GET", "/api/items")).status, 200);
-      assert.equal(
-        (await instance.send("POST", "/api/login", { password: NEW_PASSWORD })).status,
-        403,
-      );
+      assert.equal(await signIn(instance, NEW_PASSWORD), 403);
+      assert.equal((await reset(instance, RESET_CODE)).status, 204);
+      assert.equal(await signIn(instance, NEW_PASSWORD), 204);
     }));
 
-  it("clears the sign-in lock the wrong tries had built and starts no session, ends the owner's session, keeps the agent token, signs in with the new password only, and refuses the same code a second time with 409 reset-used", () =>
+  it("clears the sign-in lock the wrong tries had built, so the new password signs in at once, and starts no session", () =>
     withResetInstance(async (instance) => {
-      const token = await createAgentToken(instance, "survives the reset", ["read"]);
-      const { ownerCookie } = instance;
       const wrong = await Promise.all(
         Array.from({ length: LOCK_AFTER }, () =>
           instance.send("POST", "/api/login", { password: WRONG_PASSWORD }),
@@ -70,7 +84,11 @@ describe("a lost password is reset with the one-use code the server holds, and t
 
       assert.equal(reply.status, 204);
       assert.deepEqual(reply.headers.getSetCookie(), []);
+      assert.equal(await signIn(instance, NEW_PASSWORD), 204);
+    }));
 
+  it("ends the owner's session and keeps the agent token", () =>
+    withResetDone(async (instance, { token, ownerCookie }) => {
       const withOldSession = await instance.fetch("/api/items", {
         headers: { cookie: ownerCookie },
       });
@@ -78,25 +96,25 @@ describe("a lost password is reset with the one-use code the server holds, and t
 
       assert.equal(withOldSession.status, 401);
       assert.equal(withToken.status, 200);
+    }));
 
+  it("signs in with the new password only", () =>
+    withResetDone(async (instance) => {
       const old = await instance.send("POST", "/api/login", { password: PASSWORD });
 
       assert.equal(old.status, 403);
       assert.equal(refusalCode(old.body), "wrong-password");
-      assert.equal(
-        (await instance.send("POST", "/api/login", { password: NEW_PASSWORD })).status,
-        204,
-      );
+      assert.equal(await signIn(instance, NEW_PASSWORD), 204);
       assert.equal((await instance.send("GET", "/api/items")).status, 200);
+    }));
 
+  it("refuses the same code a second time with 409 reset-used and keeps the password it set", () =>
+    withResetDone(async (instance) => {
       const again = await reset(instance, RESET_CODE, PASSWORD);
 
       assert.equal(again.status, 409);
       assert.equal(refusalCode(await again.text()), "reset-used");
-      assert.equal(
-        (await instance.send("POST", "/api/login", { password: NEW_PASSWORD })).status,
-        204,
-      );
+      assert.equal(await signIn(instance, NEW_PASSWORD), 204);
     }));
 });
 
