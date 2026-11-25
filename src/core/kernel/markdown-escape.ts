@@ -10,13 +10,14 @@ export function yamlScalar(value: string | null): string {
   return escapedJson(value ?? "");
 }
 
+export function escapeInline(text: string): string {
+  return text.replaceAll(INLINE_SPECIALS, "\\$&");
+}
+
 export function plainMarkdown(text: string): string {
   return lineBreaksOf(text)
     .map((line) =>
-      line
-        .replaceAll(INLINE_SPECIALS, "\\$&")
-        .replace(BLOCK_MARKER, "$1\\$2")
-        .replace(LIST_NUMBER, "$1\\$2"),
+      escapeInline(line).replace(BLOCK_MARKER, "$1\\$2").replace(LIST_NUMBER, "$1\\$2"),
     )
     .join("\n");
 }
