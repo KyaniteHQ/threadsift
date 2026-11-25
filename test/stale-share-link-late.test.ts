@@ -8,6 +8,7 @@ import { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 import {
+  EXISTING,
   FAILED,
   aliasOf,
   aliasRow,
@@ -94,7 +95,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     });
   });
 
-  withEachExisting([{}]).forEach(({ existing }) => {
+  EXISTING.forEach((existing) => {
     it(`makes no Item and promotes nothing when a late resolution to another post read its alias before the alias moved to another Item, for a ${existing} Paste`, async () => {
       const short = `https://t.co/laterival${existing}`;
       const heldPost = redditPost(`laterivalheld${existing}`);
@@ -119,7 +120,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     });
   });
 
-  withEachExisting([{}]).forEach(({ existing }) => {
+  EXISTING.forEach((existing) => {
     it(`reaches the Item that another Paste moved the alias to and leaves the alias as that Paste wrote it, when the late resolution is the post that Item holds, for a ${existing} Paste`, async () => {
       const short = `https://t.co/samepost${existing}`;
       const post = redditPost(`samepost${existing}`);
@@ -146,7 +147,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     });
   });
 
-  withEachExisting([{}]).forEach(({ existing }) => {
+  EXISTING.forEach((existing) => {
     it(`saves a new Item at the post and records the alias when the owner deleted the Item of a stale alias while the resolution ran, for a ${existing} Paste`, async () => {
       const short = `https://t.co/latedeleted${existing}`;
       const post = redditPost(`latedeleted${existing}`);

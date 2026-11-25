@@ -25,7 +25,7 @@ const AliasSchema = z.object({
 
 const JobSchema = z.object({ address: z.string(), state: z.string() });
 
-const EXISTING: readonly Existing[] = ["refresh", "keep"];
+export const EXISTING: readonly Existing[] = ["refresh", "keep"];
 
 export const withEachExisting = <Case extends object>(cases: readonly Case[]) =>
   cases.flatMap((row) => EXISTING.map((existing) => Object.assign({}, row, { existing })));
