@@ -3,14 +3,15 @@ import { type Page, expect } from "@playwright/test";
 import { codePointCount } from "../src/core/contract/code-points.ts";
 import { selectorAt } from "../src/core/contract/highlight-anchor.ts";
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
+import { PAGE_SIZE } from "../src/core/contract/paging.ts";
 import { projectText } from "../src/core/contract/text-projection.ts";
 import { itemDetail, savedItem } from "./saved-item.ts";
 
-export const TITLE = "A page with fifty highlights and a note";
+export const TITLE = "A page with a full page of highlights and a note";
 
 export const NOTE = "Check that the copy opens before the old file goes.";
 
-export const HIGHLIGHTS = 50;
+export const HIGHLIGHTS = PAGE_SIZE;
 
 export const sentence = (number: number): string =>
   `Highlight ${String(number).padStart(2, "0")} keeps its own place in the text.`;
@@ -19,8 +20,10 @@ const MARKDOWN = Array.from({ length: HIGHLIGHTS }, (_unused, index) => sentence
   "\n\n",
 );
 
-export async function keepHighlightsAndNote(page: Page): Promise<{ item: number; first: number }> {
-  const item = await savedItem(page, {
+export async function keepHighlightsAndNote(
+  page: Page,
+): Promise<{ item: number; oldestHighlight: number }> {
+  const item = await savedItem(page.request, {
     url: "https://example.com/guides/highlights",
     page: { markdown: MARKDOWN, title: TITLE },
     digest: {
@@ -63,7 +66,7 @@ export async function keepHighlightsAndNote(page: Page): Promise<{ item: number;
     return HighlightResponseSchema.parse(await kept.json()).highlight.id;
   };
 
-  const first = await keep(HIGHLIGHTS);
+  const oldestHighlight = await keep(HIGHLIGHTS);
 
   for (let number = HIGHLIGHTS - 1; number >= 1; number -= 1) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- The page lists Highlights in the order they were kept.
@@ -76,5 +79,5 @@ export async function keepHighlightsAndNote(page: Page): Promise<{ item: number;
 
   expect(note.status()).toBe(200);
 
-  return { item, first };
+  return { item, oldestHighlight };
 }

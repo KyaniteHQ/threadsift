@@ -2,8 +2,6 @@ import { type Locator, type Page, expect } from "@playwright/test";
 
 const PHONE = { width: 390, height: 844 };
 
-const DESKTOP = { width: 1280, height: 800 };
-
 const TARGET_PX = 44;
 
 export async function expectTarget(target: Locator): Promise<void> {
@@ -14,12 +12,16 @@ export async function expectTarget(target: Locator): Promise<void> {
 }
 
 export async function atPhoneWidth(page: Page, steps: () => Promise<void>): Promise<void> {
+  const entry = page.viewportSize();
+
+  if (entry === null) throw new Error("the smoke runs with a fixed viewport");
+
   await page.setViewportSize(PHONE);
 
   try {
     await steps();
   } finally {
-    await page.setViewportSize(DESKTOP);
+    await page.setViewportSize(entry);
   }
 }
 

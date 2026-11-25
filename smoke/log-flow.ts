@@ -1,6 +1,7 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
+import { PAGE_SIZE } from "../src/core/contract/paging.ts";
 import { LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";
@@ -35,7 +36,7 @@ const save = (
   link: string,
   digest: Readonly<{ title: string; topic: string; tags: readonly string[] }>,
 ): Promise<number> =>
-  savedItem(page, {
+  savedItem(page.request, {
     url: link,
     page: { markdown: MARKDOWN, title: digest.title },
     digest: { ...digest, summary: "A short summary.", keyPoints: ["One point"] },
@@ -146,14 +147,14 @@ export async function failedLoadMore(page: Page): Promise<void> {
     .not.toBeNull();
 
   await page.goto("/log");
-  await expect(rows(page)).toHaveCount(50);
+  await expect(rows(page)).toHaveCount(PAGE_SIZE);
   await page.context().setOffline(true);
   await page.getByRole("button", { name: LOAD_MORE }).click();
   await expect(page.getByText(LOG_PAGE.loadMoreFailed)).toBeVisible();
-  await expect(rows(page)).toHaveCount(50);
+  await expect(rows(page)).toHaveCount(PAGE_SIZE);
   await page.context().setOffline(false);
   await page.getByRole("button", { name: RETRY_LABEL }).focus();
   await page.keyboard.press("Enter");
-  await expect(rows(page).nth(50)).toBeVisible();
-  await expect(rows(page).nth(50).getByRole("link").first()).toBeFocused();
+  await expect(rows(page).nth(PAGE_SIZE)).toBeVisible();
+  await expect(rows(page).nth(PAGE_SIZE).getByRole("link").first()).toBeFocused();
 }

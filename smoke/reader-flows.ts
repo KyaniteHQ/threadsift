@@ -50,7 +50,7 @@ export async function readerWithoutProvider(
   page: Page,
   { topic, markdown, sentence }: Readonly<PastedCase>,
 ): Promise<void> {
-  const item = await savedTopicItem(page, topic, markdown, {
+  const item = await savedTopicItem(page.request, topic, markdown, {
     tag: "backups",
     keyPoint: "No Provider is saved",
   });
@@ -69,7 +69,7 @@ export async function readerWithoutProvider(
 }
 
 export async function readXThread(page: Page): Promise<void> {
-  await savedItem(page, {
+  await savedItem(page.request, {
     url: THREAD_LINK,
     content: JSON.stringify(THREAD),
     digest: {

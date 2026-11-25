@@ -23,6 +23,21 @@ import { compatibleSource } from "./provider-comparison-source.ts";
 
 class ComparisonError extends Error {}
 
+type ProviderState = PreparedProvider | { readonly kind: "failed"; readonly errorClass: string };
+
+function availabilityOf(provider: Readonly<ProviderState>): string {
+  switch (provider.kind) {
+    case "ready":
+      return "ready";
+    case "unavailable":
+      return provider.reason;
+    case "failed":
+      return "provider-initialization-failed";
+    default:
+      return provider satisfies never;
+  }
+}
+
 function hash(text: string): string {
   return createHash("sha256").update(text).digest("hex");
 }
@@ -81,11 +96,11 @@ process.once("SIGTERM", () => {
   shutdown.abort();
 });
 
-async function outcome(item: Readonly<ComparisonItem>, provider: PreparedProvider) {
+async function outcome(item: Readonly<ComparisonItem>, provider: ProviderState) {
   if (shutdown.signal.aborted) return { kind: "unavailable", reason: "interrupted" } as const;
   if (item.kind === "unavailable") return { kind: "unavailable", reason: item.reason } as const;
-  if (provider.kind === "unavailable") {
-    return { kind: "unavailable", reason: provider.reason } as const;
+  if (provider.kind !== "ready") {
+    return { kind: "unavailable", reason: availabilityOf(provider) } as const;
   }
 
   try {
@@ -116,7 +131,7 @@ async function recordItem(
   records: Readonly<FileHandle>,
   item: Readonly<ComparisonItem>,
   spec: Readonly<ProviderSpec>,
-  provider: PreparedProvider,
+  provider: ProviderState,
   index: number,
 ): Promise<void> {
   const start = performance.now();
@@ -130,8 +145,8 @@ async function recordItem(
       provider: spec.id,
       model: spec.model,
       effort: "effort" in spec ? spec.effort : undefined,
-      availability: provider.kind === "unavailable" ? provider.reason : "ready",
-      availabilityError: provider.kind === "unavailable" ? provider.error : undefined,
+      availability: availabilityOf(provider),
+      availabilityError: provider.kind === "failed" ? provider.errorClass : undefined,
       elapsedMs,
       result,
     }) + "\n",
@@ -146,18 +161,14 @@ async function recordProvider(
   spec: Readonly<ProviderSpec>,
   folder: string,
 ): Promise<void> {
-  let provider: PreparedProvider;
+  let provider: ProviderState;
 
   try {
     provider = shutdown.signal.aborted
       ? { kind: "unavailable", reason: "interrupted" }
       : await checkedProvider(spec, folder);
   } catch (error) {
-    provider = {
-      kind: "unavailable",
-      reason: "provider-initialization-failed",
-      error: errorClassOf(error),
-    };
+    provider = { kind: "failed", errorClass: errorClassOf(error) };
   }
 
   await withCleanup(

@@ -13,7 +13,7 @@ import {
 } from "./screen-checks.ts";
 
 export async function highlightsFlow(page: Page): Promise<void> {
-  const { item, first } = await keepHighlightsAndNote(page);
+  const { item, oldestHighlight } = await keepHighlightsAndNote(page);
 
   await openSettings(page);
   await page.getByRole("link", { name: HIGHLIGHTS_PAGE.masthead, exact: true }).click();
@@ -35,10 +35,10 @@ export async function highlightsFlow(page: Page): Promise<void> {
 
   await entries.last().getByRole("link", { name: TITLE }).click();
   await expect(page).toHaveURL(
-    new RegExp(`/items/${String(item)}\\?highlight=${String(first)}$`, "u"),
+    new RegExp(`/items/${String(item)}\\?highlight=${String(oldestHighlight)}$`, "u"),
   );
 
-  const mark = page.locator(`.reader mark[data-highlights~="${String(first)}"]`);
+  const mark = page.locator(`.reader mark[data-highlights~="${String(oldestHighlight)}"]`);
 
   await expect(mark).toContainText(sentence(HIGHLIGHTS));
   await expect(mark).toBeFocused();

@@ -72,7 +72,7 @@ async function pasteXLink(page: Page): Promise<void> {
 }
 
 async function readSavedPage(page: Page): Promise<void> {
-  await savedItem(page, {
+  await savedItem(page.request, {
     url: ARTICLE_LINK,
     page: { markdown: ARTICLE_TEXT, title: ARTICLE_TITLE, author: "Ada Example" },
   });

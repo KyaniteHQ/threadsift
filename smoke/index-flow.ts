@@ -22,7 +22,7 @@ export async function openIndex(
   topic: TopicCase,
   markdown: string,
 ): Promise<void> {
-  await savedTopicItem(page, topic, markdown, {
+  await savedTopicItem(page.request, topic, markdown, {
     tag: "index",
     keyPoint: "The Index reads stored rows",
   });
@@ -54,7 +54,7 @@ export async function openIndex(
 }
 
 export async function openTopicPage(page: Page, topic: TopicCase, markdown: string): Promise<void> {
-  await savedTopicItem(page, topic, markdown, {
+  await savedTopicItem(page.request, topic, markdown, {
     tag: "streams",
     keyPoint: "Pipe streams instead of buffering them",
   });

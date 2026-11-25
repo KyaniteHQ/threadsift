@@ -53,7 +53,7 @@ export type ProviderSpec = z.infer<typeof ProvidersSchema>[number];
 type Adapters = Partial<Pick<AiRuntime, "cli" | "binding">>;
 
 export type PreparedProvider =
-  | { readonly kind: "unavailable"; readonly reason: string; readonly error?: string }
+  | { readonly kind: "unavailable"; readonly reason: string }
   | {
       readonly kind: "ready";
       readonly config: AiConnection;

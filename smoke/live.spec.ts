@@ -7,14 +7,18 @@ import {
 } from "../src/core/contract/ai-settings-contract.ts";
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
 import { DigestSchema } from "../src/core/contract/digest-schema.ts";
-import {
-  ItemDetailResponseSchema,
-  ItemResponseSchema,
-  SavedItemResponseSchema,
-} from "../src/core/contract/item-route-wire.ts";
+import { ItemDetailResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/contract/topic-path.ts";
-import { digestStates, digestedTopic, itemIdle, overviewText, relatedOf } from "./live-reads.ts";
+import {
+  digestStates,
+  digestedTopic,
+  itemIdle,
+  overviewText,
+  pasteAndSettle,
+  pasteStep,
+  relatedOf,
+} from "./live-reads.ts";
 import { savedXThreadThroughIntake } from "./x-live-flow.ts";
 
 const PASSWORD = "a live check password of fifteen or more";
@@ -65,36 +69,6 @@ const REPOSITORY = {
   digest: REPOSITORY_DIGEST,
 };
 
-async function pasteAndSettle(
-  request: APIRequestContext,
-  url: string,
-  digest?: Digest,
-): Promise<number> {
-  const saved = await request.post("/api/items", { data: { url, digest } });
-
-  expect(saved.status(), `Paste of ${url}`).toBe(201);
-
-  const { item } = SavedItemResponseSchema.parse(await saved.json());
-
-  await expect
-    .poll(
-      async () => {
-        const status = await request.get(`/api/items/${String(item.id)}/status`);
-
-        return ItemResponseSchema.parse(await status.json()).item.status;
-      },
-      { message: `${url} leaves processing`, timeout: 60_000 },
-    )
-    .not.toBe("processing");
-
-  const settled = await request.get(`/api/items/${String(item.id)}/status`);
-  const { fetch: result, status } = ItemResponseSchema.parse(await settled.json()).item;
-
-  expect({ status, fetch: result }, `${url} is read`).toEqual({ status: "ready", fetch: "ok" });
-
-  return item.id;
-}
-
 async function setUpOwner(request: APIRequestContext): Promise<void> {
   await test.step("set up the owner", async () => {
     const created = await request.post("/api/setup", {
@@ -111,14 +85,6 @@ async function setUpOwner(request: APIRequestContext): Promise<void> {
 
     expect(await saved.json()).toEqual({ token: "saved", secretReady: true });
   });
-}
-
-function pasteStep(
-  request: APIRequestContext,
-  { label, link }: { readonly label: string; readonly link: string },
-  digest?: Digest,
-): Promise<number> {
-  return test.step(`Paste ${label} and read it`, () => pasteAndSettle(request, link, digest));
 }
 
 async function expectCallerDigest(
@@ -195,7 +161,7 @@ async function waitForWikiWork(
 
   const second =
     await test.step("Paste a second article on the same subject and wait for its Digest", async () => {
-      const id = await pasteAndSettle(request, SECOND_ARTICLE_LINK);
+      const id = await pasteAndSettle(request, { url: SECOND_ARTICLE_LINK });
 
       await expect
         .poll(() => digestStates(request, [id]), {
@@ -239,7 +205,7 @@ if (TARGET === "worker") {
 
     await Promise.all(
       [ARTICLE, REPOSITORY].map(async (paste) => {
-        const id = await pasteStep(request, paste, paste.digest);
+        const id = await pasteStep(request, paste.label, { url: paste.link, digest: paste.digest });
 
         await expectCallerDigest(request, id, paste.digest);
       }),
@@ -251,7 +217,10 @@ if (TARGET === "worker") {
   }) => {
     await setUpOwner(request);
 
-    const ids = await Promise.all([pasteStep(request, ARTICLE), pasteStep(request, REPOSITORY)]);
+    const ids = await Promise.all([
+      pasteStep(request, ARTICLE.label, { url: ARTICLE.link }),
+      pasteStep(request, REPOSITORY.label, { url: REPOSITORY.link }),
+    ]);
 
     await saveAndVerifyClaudeCode(request);
     await waitForWikiWork(request, ids);
