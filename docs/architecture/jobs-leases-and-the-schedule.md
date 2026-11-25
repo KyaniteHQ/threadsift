@@ -53,12 +53,13 @@ Each job kind has a deadline below the 15 minutes of wall time a Queues consumer
 | Job | Deadline | Constant | Stops at the deadline |
 |---|---|---|---|
 | AI call | 10 minutes | `AI_DEADLINE_MS` | yes, by its signal |
-| Fetch | 2 minutes | `FETCH_DEADLINE_MS` | yes, by its signal |
-| Fetch of an X link through the grok CLI | up to 3 minutes for a CLI slot, then up to 3 minutes of run | `X_SLOT_WAIT_MS`, `X_RUN_DEADLINE_MS` | yes, by its signals |
+| Fetch job | 6 minutes (`X_RUN_DEADLINE_MS` plus `X_SLOT_WAIT_MS`, the grok CLI read) | `X_FETCH_DEADLINE_MS` | each read, by its signal |
+| Fetch read of a supplied page or a link | 2 minutes | `FETCH_DEADLINE_MS` | yes, by its signal |
+| Fetch read of an X link through the grok CLI | 6 minutes: up to 3 minutes for a CLI slot, then up to 3 minutes of run | `X_FETCH_DEADLINE_MS`, `X_SLOT_WAIT_MS`, `X_RUN_DEADLINE_MS` | yes, by its signals |
 | Digest job | 12 minutes (the AI call plus the fetch hop, each under its own signal) | `DIGEST_DEADLINE_MS` | each call, by its signal |
 | Export slice, Restore unit | 10 minutes | `EXPORT_SLICE_DEADLINE_MS`, `RESTORE_UNIT_DEADLINE_MS` | no: once the claim expires another runner may take over the job, and the first attempt keeps running |
 
-- Claim length. A claim lasts the deadline of the claimed kind plus 2 minutes (`CLAIM_MARGIN_MS`), so a Digest claim lasts 14 minutes, under the 15 minutes a Queues consumer gets. The fetch kind's claim covers the grok CLI route as well.
+- Claim length. A claim lasts the deadline of the claimed kind plus 2 minutes (`CLAIM_MARGIN_MS`), so a Digest claim lasts 14 minutes, under the 15 minutes a Queues consumer gets. A fetch claim lasts 8 minutes, so it covers the grok CLI read as well as a 2-minute read.
 - Digest deadline. The 12 minutes are the sum of the two network and model phases, and one model call for each run keeps the job below the Queues limit.
 - A fetch past its deadline is not retried. The fetch's signal aborts, and the guard turns an aborted signal into the `timeout` result. An Item with no title yet ends `failed` with `timeout`. An Item that already has a title is not marked failed. It keeps the fetch result `timeout`, and its status follows its other open jobs (`settle`).
 - The engine does not abort an attempt at its deadline: `deadlineMs` only sets the length of the claim. A job kind bounds its own network and model calls with a signal, and a row retries an attempt that throws. An export slice, a Restore unit and a Digest attempt that only publishes a stored Digest (the caller path, database work only) have no signal. An `x_verify` attempt has no signal of its own either: its oEmbed slice and the media storage of its settling step each get a 90 s signal, and the claim, the deadline plus `CLAIM_MARGIN_MS`, covers both ([Fetchers](fetchers.md)).
