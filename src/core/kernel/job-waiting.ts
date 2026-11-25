@@ -3,6 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import { INTAKE_JOB_KINDS, type WaitReason } from "../contract/job-contract.ts";
 import type { Database } from "./database.ts";
+import { guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { jobIs, jobOpen } from "./job-tables.ts";
@@ -68,16 +69,20 @@ export async function wakeWaitingFetches(
   {
     writes,
     when,
+    held,
     now,
   }: Readonly<{
     writes: readonly [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
     when?: SQL | undefined;
+    held?: SQL | undefined;
     now: number;
   }>,
 ): Promise<void> {
   const waiting = waitingFetches(reason);
+  const batch = [...writes, wokenJobs(ports.db, now, waiting, when)] as const;
 
-  await ports.db.batch([...writes, wokenJobs(ports.db, now, waiting, when)]);
+  if (held === undefined) await ports.db.batch(batch);
+  else if (!(await guardedBatch(ports.db, held, batch))) return;
 
   await enqueueWoken(ports, now, waiting, "all");
 }

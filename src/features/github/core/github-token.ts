@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, exists } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -79,17 +79,13 @@ export async function saveGithubToken(
 }
 
 export async function removeGithubToken(ports: Readonly<ChangePorts>): Promise<GithubSettingsView> {
-  const [saved] = await ports.db
-    .select({ id: githubSettings.id })
-    .from(githubSettings)
-    .where(eq(githubSettings.id, 1));
+  const saved = eq(githubSettings.id, 1);
 
-  if (saved !== undefined) {
-    await writeEndingCooldown(
-      ports,
-      ports.db.delete(githubSettings).where(eq(githubSettings.id, 1)),
-    );
-  }
+  await writeEndingCooldown(
+    ports,
+    ports.db.delete(githubSettings).where(saved),
+    exists(ports.db.select({ id: githubSettings.id }).from(githubSettings).where(saved)),
+  );
 
   return viewOf("anonymous", ports);
 }

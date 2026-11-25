@@ -10,6 +10,7 @@ import {
 } from "../src/core/contract/github-contract.ts";
 import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
 import { Instance } from "./instance.ts";
+import { lockedWriter } from "./locked-writer.ts";
 import { seedGithubCooldown } from "./one-hop-fixtures.ts";
 import { SECRET_KEY, rowCount, exec, rows } from "./related-fixtures.ts";
 
@@ -223,6 +224,21 @@ describe("a stored GitHub cooldown answers Verify with rate-limited, and a chang
     seedGithubCooldown(instance);
 
     await instance.send("DELETE", SETTINGS);
+
+    assert.equal(cooldowns(instance), 1);
+  });
+
+  it("keeps the cooldown an anonymous request recorded after another removal took the token while this removal waited to write", async () => {
+    await save(instance, TOKEN);
+    assert.equal(cooldowns(instance), 0);
+
+    const writer = await lockedWriter(instance, [
+      "delete from github_settings",
+      `insert into github_cooldown (id, until) values (1, ${String(Date.now() + 1_800_000)})`,
+    ]);
+
+    await instance.send("DELETE", SETTINGS);
+    await writer.committed;
 
     assert.equal(cooldowns(instance), 1);
   });
