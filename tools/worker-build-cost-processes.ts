@@ -1,22 +1,21 @@
 import { spawn } from "node:child_process";
 import { once } from "node:events";
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { dirname, join, resolve } from "node:path";
+import { resolve } from "node:path";
 
 import { z } from "zod";
 
 import { pause } from "../src/core/contract/pause.ts";
 import { errnoCodeOf } from "../src/core/kernel/failure-log.ts";
 import { signalGroup } from "../src/targets/node/cli-process.ts";
+import { throwFirstFailure } from "./attempt-every.ts";
 
 const STOP_DEADLINE_MS = 10_000;
 const KILL_DEADLINE_MS = 2000;
 const STOP_POLL_MS = 100;
-const ProcessIdSchema = z.number().int().positive();
+export const ProcessIdSchema = z.number().int().positive();
 export const ROOT = resolve(import.meta.dirname, "..");
-const RUN_LOCK = join(ROOT, ".wrangler", "worker-build-cost.lock");
 
-function running(target: number): boolean {
+export function running(target: number): boolean {
   try {
     process.kill(target, 0);
 
@@ -29,31 +28,16 @@ function running(target: number): boolean {
   }
 }
 
-export function lockRuns(): () => void {
-  mkdirSync(dirname(RUN_LOCK), { recursive: true });
-  try {
-    writeFileSync(RUN_LOCK, String(process.pid), { flag: "wx" });
-  } catch (error) {
-    if (errnoCodeOf(error) !== "EEXIST") throw error;
+function signalGroups(groups: readonly number[], signal: "SIGTERM" | "SIGKILL"): unknown[] {
+  return groups.flatMap((group) => {
+    try {
+      signalGroup(group, signal);
 
-    const holder = ProcessIdSchema.parse(Number(readFileSync(RUN_LOCK, "utf8")));
-
-    if (running(holder)) {
-      throw new Error(`another Worker build cost run, process ${holder}, holds ${RUN_LOCK}`, {
-        cause: error,
-      });
+      return [];
+    } catch (error) {
+      return [error];
     }
-    rmSync(RUN_LOCK);
-    writeFileSync(RUN_LOCK, String(process.pid), { flag: "wx" });
-  }
-
-  return () => {
-    rmSync(RUN_LOCK, { force: true });
-  };
-}
-
-function signalGroups(groups: readonly number[], signal: "SIGTERM" | "SIGKILL"): void {
-  for (const group of groups) signalGroup(group, signal);
+  });
 }
 
 async function survivors(groups: readonly number[], deadline: number): Promise<number[]> {
@@ -66,20 +50,22 @@ async function survivors(groups: readonly number[], deadline: number): Promise<n
 }
 
 export async function stopGroups(groups: readonly number[]): Promise<void> {
-  signalGroups(groups, "SIGTERM");
-
+  const failures = signalGroups(groups, "SIGTERM");
   const lasting = await survivors(groups, Date.now() + STOP_DEADLINE_MS);
 
-  signalGroups(lasting, "SIGKILL");
+  failures.push(...signalGroups(lasting, "SIGKILL"));
 
   const stuck = await survivors(lasting, Date.now() + KILL_DEADLINE_MS);
 
   if (stuck.length > 0) {
-    throw new Error(`process groups ${stuck.join(", ")} still run, so their files stay`);
+    failures.push(new Error(`process groups ${stuck.join(", ")} still run, so their files stay`));
   }
+
+  throwFirstFailure(failures);
 }
 
 export async function startWorker(
+  record: (group: number) => void,
   port: number,
   state: string,
   envFile: string,
@@ -100,6 +86,7 @@ export async function startWorker(
     ],
     { cwd: ROOT, detached: true, stdio: "ignore" },
   );
+  if (worker.pid !== undefined) record(worker.pid);
   await once(worker, "spawn");
   return ProcessIdSchema.parse(worker.pid);
 }
