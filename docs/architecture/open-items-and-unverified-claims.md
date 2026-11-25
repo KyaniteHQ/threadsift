@@ -61,7 +61,7 @@ Open: the name check is missing on the local Worker under `wrangler dev`. A name
 
 ### Cloudflare's origin error on the Worker
 
-Not verified: a deployed Worker that fetches a host that does not resolve. `originFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test sends that status and body from a local server, in one chunk, in two chunks and with a trailing newline, and covers the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
+On 2026-11-25 a throwaway deployed Worker that fetched a host that does not resolve got Cloudflare's `530` with the body `error code: 1016`, 6 of 6 runs over two host names, with `global_fetch_strictly_public` off and on. Not verified: a Paste on a deployed Instance that gets this answer through `originFetch`. `originFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test sends that status and body from a local server, in one chunk, in two chunks and with a trailing newline, and covers the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
 
 ### Article images, long post texts and Defuddle
 
@@ -135,7 +135,7 @@ Not verified ([Fetchers](fetchers.md), The check against X):
 
 - That the stop at the first 429 holds against X's real 429. No committed test reaches it, because the core tests send no request to X.
 - That an intake answer queues one `x_verify` job and that a slice that made progress leaves no wait reason.
-- The CPU time of one slice on the Workers Free plan (10 ms), whether D1 and Queue calls count against its 50 subrequests, and a run of the verification job on the Cloudflare edge.
+- A run of the verification job on the Cloudflare edge.
 - A thread of the size `MAX_ROW_BYTES` allows on D1, the cut rule for a real post with two or more links before the cut, and the mark of X's cut for a character that counts more than one (emoji, CJK).
 - Whether X's terms allow the oEmbed check, a limit of X's endpoint above the 150 sequential requests probed, a cut long post whose cut leaves no marker, the tail of a cut post (stored unverified), the part of a link address that X's display does not show, and whether a reply belongs to the thread beyond its id order.
 
@@ -310,7 +310,7 @@ Each entry names the doc that makes the claim and how to check it.
 - [Testing](testing.md): the image prune removes labelled images that no tag points to and no container uses, and never an image that carries a tag, even when two tags share an image ID. An image a container still used at a build stays untagged until a later build runs the same prune.
   - First check: build two images from a one-line Containerfile with `--label io.threadsift.smoke=true`, give the second a second tag with `podman tag`, remove the first one's tag with `podman untag`, run `podman image prune --force --filter label=io.threadsift.smoke=true`, and compare `podman images -a` before and after. The untagged image goes and the image with two tags stays.
   - Second check: start a container from the old image, rebuild the same tag, run the prune of `container:build` and look for the untagged image in `podman images -a`.
-- [CI, releases and rollback](ci-releases-and-rollback.md): Nix retries a throttled download 5 times before the job fails, and a retry wrapper on the same address would only hide the throttle. Run the gate cold on a pull request with the cache deleted, with and without a retry wrapper, and compare the 429 counts, or read the `download-attempts` default in `nix.conf`.
+- [CI, releases and rollback](ci-releases-and-rollback.md): Nix makes 5 attempts at a throttled download by default before the job fails ([`filetransfer-retry-attempts`](https://nix.dev/manual/nix/2.36/command-ref/conf-file.html#conf-filetransfer-retry-attempts), Nix 2.36.0 manual; the pinned `install-nix-action` installs 2.36.0), and a retry wrapper on the same address would only hide the throttle. Run the gate cold on a pull request with the cache deleted, with and without a retry wrapper, and compare the 429 counts.
 - [Fetchers](fetchers.md): every primary limit GitHub documents is per hour, which is why `MAX_COOLDOWN_MS` is one hour (list each primary limit's period in the REST API rate limits docs).
 
 ## Product

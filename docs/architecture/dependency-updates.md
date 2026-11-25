@@ -13,7 +13,7 @@ GitHub's Dependabot alerts and the OSV database feed Renovate's security PRs, wh
 
 ## Update `devenv.lock` by hand
 
-Renovate has no Nix manager or devenv rule, so it leaves `devenv.lock` alone.
+Renovate's `nix` manager reads only `flake.nix` and `flake.lock` by default, and it has no devenv manager, so it leaves `devenv.lock` alone.
 
 1. Run `devenv update`.
 2. Set `@playwright/test` to the version of the new `playwright-driver`.
