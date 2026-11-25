@@ -121,7 +121,7 @@ A route module goes in `src/http/` in these cases, because only an http half's o
 
 The Item view and the Item read modules stay in `src/http/`, because the Item routes, the paste routes and the MCP endpoint read them. The web headers and document path modules and the app stay there, because targets, tools or tests import them.
 
-Each route states its own access gate with `access(...)`, or `unrouted()` for the unmatched `/api/` paths. A route group is one module that declares its routes and registers their handlers. The access group is the exception: its declarations serve both its own route module and the password route module. The route list `registerRoutes` names the top-level register functions in the order that decides route matching and the order of `/api/openapi.json`.
+Each route states its own access gate with `access(...)`, or `unrouted(app)` for the unmatched `/api/` paths. A route group is one module that declares its routes and registers their handlers. The access group is the exception: its declarations serve both its own route module and the password route module. The route list `registerRoutes` names the top-level register functions in the order that decides route matching and the order of `/api/openapi.json`.
 
 `layer-imports` refuses a route module that the route module of another feature imports. `check:core-layout` fails a `src/http` module that only one feature's http half imports, and its message names the folder to move it to.
 
