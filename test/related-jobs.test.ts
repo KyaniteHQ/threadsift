@@ -59,6 +59,14 @@ describe("the pick job opens only when a Provider is saved, once for each Item, 
     assert.equal(openPicks(instance, id), 1);
 
     await paste(instance, "again", { title: "Again lattice, revised" });
+    await until(
+      "the revised Digest is stored",
+      () =>
+        instance.database
+          .rows(z.object({ title: z.string() }), "select title from digests where item_id = ?", id)
+          .map(({ title }) => title),
+      (titles) => titles.length === 1 && titles[0] === "Again lattice, revised",
+    );
     assert.equal(openPicks(instance, id), 1);
     assert.equal(pickJobs(instance, id).length, 1);
   });
@@ -86,10 +94,9 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
 
     assert.equal(task.state, "failed");
     assert.equal(task.refusal, "unreachable");
-    assert.deepEqual(
-      pairsOf(instance, id).map(({ related_id: related }) => related),
-      [other],
-    );
+    assert.deepEqual(pairsOf(instance, id), [
+      { item_id: id, related_id: other, position: 0, reason: "An earlier reason" },
+    ]);
     assert.equal((await instance.settledItem(id)).status, "ready");
     assert.equal(openPicks(instance, id), 1);
     assert.equal(entryCount(instance, "related"), 0);
