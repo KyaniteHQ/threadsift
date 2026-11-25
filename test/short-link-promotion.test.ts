@@ -4,12 +4,14 @@ import { after, before, describe, it } from "node:test";
 import { parseLink } from "../src/core/contract/links.ts";
 import type { Existing } from "../src/features/item/core/item-rows.ts";
 import { Instance } from "./instance.ts";
-import { exec, rowCount } from "./related-fixtures.ts";
+import { exec } from "./related-fixtures.ts";
 import {
   FAILED,
+  aliasRow,
   aliasesAt,
   failedUnder,
   firstResolved,
+  itemsAt,
   pasteVia,
   repasted,
 } from "./short-link-fixtures.ts";
@@ -33,22 +35,13 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     return saved.item.id;
   };
 
-  const resolved = (
-    short: string,
-    target: string,
-    address = target,
-    existing: Existing = "refresh",
-  ) => firstResolved(instance, short, target, address, existing);
-
-  const aliasesOf = (short: string) => aliasesAt(instance, short);
-
   it("gives the failed Item the identity, kind and Source of the address the short link resolved to, writes the alias, and makes no second Item", async () => {
     const short = "https://t.co/promoteme";
     const target = xLink(901);
     const failed = await failedAt(short);
     const total = await instance.itemTotal();
 
-    const saved = await resolved(short, target);
+    const saved = await firstResolved(instance, short, target);
 
     assert.ok(saved !== null && saved.item.id === failed && !saved.created);
     assert.equal(await instance.itemTotal(), total);
@@ -58,18 +51,16 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     assert.equal(item.normalizedUrl, parseLink(target).normalizedUrl);
     assert.equal(item.source, "x");
     assert.equal(item.kind, parseLink(target).kind);
-    assert.deepEqual(aliasesOf(short), [
-      { normalized_url: parseLink(short).normalizedUrl, address: target, item_id: failed },
-    ]);
+    assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, target, failed)]);
   });
 
   it("reaches the aliased Item when the short link is pasted again", async () => {
     const short = "https://t.co/pastedagain";
-    const aliased = await resolved(short, xLink(907));
+    const aliased = await firstResolved(instance, short, xLink(907));
 
     assert.ok(aliased !== null);
     assert.deepEqual(
-      aliasesOf(short).map(({ item_id: id }) => id),
+      aliasesAt(instance, short).map(({ item_id: id }) => id),
       [aliased.item.id],
     );
 
@@ -90,13 +81,13 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     exec(instance, "update items set fetched_at = ? where id = ?", Date.now(), failed);
 
     const total = await instance.itemTotal();
-    const saved = await resolved(short, target);
+    const saved = await firstResolved(instance, short, target);
 
     assert.ok(saved !== null && saved.created && saved.item.id !== failed);
     assert.equal(await instance.itemTotal(), total + 1);
     assert.equal((await instance.detail(failed)).normalizedUrl, parseLink(short).normalizedUrl);
     assert.deepEqual(
-      aliasesOf(short).map(({ item_id: id }) => id),
+      aliasesAt(instance, short).map(({ item_id: id }) => id),
       [saved.item.id],
     );
   });
@@ -108,56 +99,51 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     const failed = await failedAt(short);
     const total = await instance.itemTotal();
 
-    const saved = await resolved(short, target);
+    const saved = await firstResolved(instance, short, target);
 
     assert.ok(saved !== null && saved.item.id === holder);
     assert.equal(await instance.itemTotal(), total);
     assert.equal((await instance.detail(failed)).normalizedUrl, parseLink(short).normalizedUrl);
     assert.deepEqual(
-      aliasesOf(short).map(({ item_id: id }) => id),
+      aliasesAt(instance, short).map(({ item_id: id }) => id),
       [holder],
     );
   });
 
   it("gives a second short link to the same target its own alias on the same Item, and keeps the first address of an alias", async () => {
     const target = xLink(903);
-    const first = await resolved("https://t.co/firstway", target);
-    const second = await resolved("https://t.co/secondway", target);
-    const again = await resolved("https://t.co/firstway", target, `${target}?s=20`);
+    const first = await firstResolved(instance, "https://t.co/firstway", target);
+    const second = await firstResolved(instance, "https://t.co/secondway", target);
+    const again = await firstResolved(instance, "https://t.co/firstway", target, `${target}?s=20`);
 
     assert.ok(first !== null && second !== null && again !== null);
     assert.deepEqual([second.item.id, again.item.id], [first.item.id, first.item.id]);
     assert.deepEqual(
-      aliasesOf("https://t.co/firstway").map(({ address }) => address),
+      aliasesAt(instance, "https://t.co/firstway").map(({ address }) => address),
       [target],
     );
     assert.deepEqual(
-      aliasesOf("https://t.co/secondway").map(({ item_id: id }) => id),
+      aliasesAt(instance, "https://t.co/secondway").map(({ item_id: id }) => id),
       [first.item.id],
     );
   });
 
   const refusedRival = async (short: string, first: string, second: string, existing: Existing) => {
-    const aliased = await resolved(short, first);
+    const aliased = await firstResolved(instance, short, first);
 
     assert.ok(aliased !== null, "the first resolution saves an Item");
 
     const total = await instance.itemTotal();
-    const saved = await resolved(short, second, second, existing);
+    const saved = await firstResolved(instance, short, second, second, existing);
 
     assert.equal(saved, null);
     assert.equal(await instance.itemTotal(), total);
-    assert.equal(
-      rowCount(instance, "items", "normalized_url = ?", parseLink(second).normalizedUrl),
-      0,
-    );
+    assert.equal(itemsAt(instance, second), 0);
     assert.equal(
       (await instance.detail(aliased.item.id)).normalizedUrl,
       parseLink(first).normalizedUrl,
     );
-    assert.deepEqual(aliasesOf(short), [
-      { normalized_url: parseLink(short).normalizedUrl, address: first, item_id: aliased.item.id },
-    ]);
+    assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, first, aliased.item.id)]);
   };
 
   it("refuses a second resolution of an aliased short link to another identity, and leaves the alias and the Items as they were", () =>
@@ -175,13 +161,13 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
       (await instance.detail(saved.item.id)).normalizedUrl,
       parseLink(short).normalizedUrl,
     );
-    assert.deepEqual(aliasesOf(short), []);
+    assert.deepEqual(aliasesAt(instance, short), []);
   });
 
   it("makes no failed Item for a short link that already has an alias", async () => {
     const short = "https://t.co/aliasedfirst";
 
-    await resolved(short, xLink(904));
+    await firstResolved(instance, short, xLink(904));
 
     const total = await instance.itemTotal();
 
@@ -193,16 +179,16 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
 
   it("deletes the aliases of an Item in the same batch that deletes the Item", async () => {
     const short = "https://t.co/deleteme";
-    const saved = await resolved(short, xLink(906));
+    const saved = await firstResolved(instance, short, xLink(906));
 
     assert.ok(saved !== null, "the short link saves an Item");
 
     await instance.settledItem(saved.item.id);
-    assert.equal(aliasesOf(short).length, 1);
+    assert.equal(aliasesAt(instance, short).length, 1);
     assert.equal(
       (await instance.send("DELETE", `/api/items/${String(saved.item.id)}`)).status,
       204,
     );
-    assert.deepEqual(aliasesOf(short), []);
+    assert.deepEqual(aliasesAt(instance, short), []);
   });
 });

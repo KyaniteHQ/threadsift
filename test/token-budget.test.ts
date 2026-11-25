@@ -5,7 +5,7 @@ import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
 import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { failedUnder, firstResolved } from "./short-link-fixtures.ts";
+import { aliasRow, aliasesAt, failedUnder, firstResolved, itemsAt } from "./short-link-fixtures.ts";
 import {
   addBatch,
   addLink,
@@ -217,11 +217,17 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
       const short = `https://t.co/${link}`;
       const share = `https://www.reddit.com/r/library/s/${link}`;
 
-      await firstResolved(instance, `https://t.co/${link}holder`, share);
+      const holder = await firstResolved(instance, `https://t.co/${link}holder`, share);
 
-      if (failed) assert.ok((await failedUnder(instance, short)) !== null);
+      assert.ok(holder !== null);
+
+      const underShort = failed ? await failedUnder(instance, short) : null;
 
       await firstResolved(instance, short, share);
+
+      assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, share, holder.item.id)]);
+      assert.equal(itemsAt(instance, short), failed ? 1 : 0);
+      assert.ok(!failed || (underShort !== null && underShort.item.id !== holder.item.id));
 
       const now = Date.now();
 

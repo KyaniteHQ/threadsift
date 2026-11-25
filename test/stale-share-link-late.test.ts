@@ -3,14 +3,17 @@ import { after, before, describe, it } from "node:test";
 
 import { parseLink } from "../src/core/contract/links.ts";
 import { whileOpen } from "../src/core/kernel/restore-hold.ts";
+import type { ShortLinkResolution } from "../src/features/fetch/core/fetch-link.ts";
 import { Instance } from "./instance.ts";
 import { exec } from "./related-fixtures.ts";
 import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 import {
+  EXISTING,
   FAILED,
   aliasOf,
   aliasRow,
   aliasesAt,
+  beforeSecondBatch,
   firstResolved,
   holdingBeforeSecondBatch,
   itemsAt,
@@ -92,7 +95,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     });
   });
 
-  withEachExisting([{}]).forEach(({ existing }) => {
+  EXISTING.forEach((existing) => {
     it(`makes no Item and promotes nothing when a late resolution to another post read its alias before the alias moved to another Item, for a ${existing} Paste`, async () => {
       const short = `https://t.co/laterival${existing}`;
       const heldPost = redditPost(`laterivalheld${existing}`);
@@ -117,7 +120,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     });
   });
 
-  withEachExisting([{}]).forEach(({ existing }) => {
+  EXISTING.forEach((existing) => {
     it(`reaches the Item that another Paste moved the alias to and leaves the alias as that Paste wrote it, when the late resolution is the post that Item holds, for a ${existing} Paste`, async () => {
       const short = `https://t.co/samepost${existing}`;
       const post = redditPost(`samepost${existing}`);
@@ -144,7 +147,7 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
     });
   });
 
-  withEachExisting([{}]).forEach(({ existing }) => {
+  EXISTING.forEach((existing) => {
     it(`saves a new Item at the post and records the alias when the owner deleted the Item of a stale alias while the resolution ran, for a ${existing} Paste`, async () => {
       const short = `https://t.co/latedeleted${existing}`;
       const post = redditPost(`latedeleted${existing}`);
@@ -232,5 +235,46 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
 
       assert.equal(itemsAt(instance, stale.share), moves ? 0 : 1);
     });
+  });
+
+  const TIMED_OUT: ShortLinkResolution = { kind: "failed", fetched: { status: "timeout" } };
+
+  it("answers restoring and leaves the failed Item as it was when a Restore starts before a refreshing Paste of its short link writes", async () => {
+    const short = "https://t.co/failedrestore";
+    const first = await repasted(instance, short, TIMED_OUT);
+
+    assert.ok(first !== null && first.created);
+
+    const stored = await instance.detail(first.item.id);
+
+    const answer = await holdingBeforeSecondBatch(instance, () =>
+      whileOpen(instance.core.db, () => repasted(instance, short, FAILED)),
+    );
+
+    assert.deepEqual(answer, { kind: "restoring" });
+    assert.deepEqual(await instance.detail(first.item.id), stored);
+  });
+
+  it("answers a lost race, and a Paste after it saves a new Item, when the owner deletes the failed Item before a refreshing Paste of its short link writes", async () => {
+    const short = "https://t.co/faileddeleted";
+    const first = await repasted(instance, short, FAILED);
+
+    assert.ok(first !== null && first.created);
+
+    const answer = await beforeSecondBatch(
+      instance,
+      async () => {
+        const deleted = await instance.send("DELETE", `/api/items/${String(first.item.id)}`);
+
+        assert.equal(deleted.status, 204);
+      },
+      () => repasted(instance, short, FAILED),
+    );
+
+    assert.equal(answer, null);
+
+    const again = await repasted(instance, short, FAILED);
+
+    assert.ok(again !== null && again.created && again.item.id !== first.item.id);
   });
 });

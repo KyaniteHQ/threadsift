@@ -12,6 +12,7 @@ import {
 } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 
+import { spellingOf } from "../../../core/contract/link-place.ts";
 import { type Link, parseLink } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { holdsNoRow } from "../../../core/kernel/guards.ts";
@@ -51,7 +52,7 @@ export async function aliasedItem(
 }
 
 export function itemAddress({ address, normalizedUrl }: Readonly<AliasedItem>): string {
-  return parseLink(address).normalizedUrl === normalizedUrl ? address : normalizedUrl;
+  return spellingOf({ normalizedUrl, originalUrl: address });
 }
 
 function isObserved(

@@ -8,12 +8,13 @@ import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import type { ShortLinkResolution } from "../../fetch/core/fetch-link.ts";
 import {
-  type Around,
   type Existing,
   type Paste,
   type Saved,
   holdsNoItem,
+  queuedRows,
   writeQueued,
+  writtenFrom,
 } from "../../item/core/item-rows.ts";
 import { itemRead } from "../../item/core/item-selection.ts";
 import {
@@ -79,27 +80,43 @@ async function promotedAndKept(ports: Ports, resolved: Readonly<Resolved>): Prom
   return item === undefined ? null : { kind: "saved", item, created: false };
 }
 
+function promotedOnRefresh(ports: Ports, resolved: Readonly<Resolved>): Promise<Saved | null> {
+  const { paste, link } = resolved;
+  const { db } = ports;
+  const noRival = holdsNoRival(db, resolved, link);
+  const { heldGuard, insert, rest } = queuedRows(db, paste, link);
+
+  return writtenFrom(ports, link, noRival, async () => {
+    const [, , , , , , ...results] = await db.batch([
+      insertGuard(db, noRival),
+      ...promotionClosingJobs(db, resolved, link),
+      heldGuard,
+      insert,
+      ...rest,
+      recordAlias(db, resolved, paste.address, link),
+      db.delete(guards),
+    ]);
+
+    return results;
+  });
+}
+
 export async function saveResolved(
   ports: Ports,
   resolved: Readonly<Resolved>,
 ): Promise<Saved | null> {
+  if (resolved.existing === "refresh") return promotedOnRefresh(ports, resolved);
+
   const { db } = ports;
-  const { paste, link, existing } = resolved;
+  const { paste, link } = resolved;
   const noRival = holdsNoRival(db, resolved, link);
-  const after = [recordAlias(db, resolved, paste.address, link)];
 
-  const around: Around =
-    existing === "refresh"
-      ? { guard: noRival, before: promotionClosingJobs(db, resolved, link), after }
-      : {
-          guard: sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, resolved)}`,
-          before: [],
-          after,
-        };
+  const added = await writeQueued(ports, paste, link, {
+    guard: sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, resolved)}`,
+    after: [recordAlias(db, resolved, paste.address, link)],
+  });
 
-  const added = await writeQueued(ports, paste, link, around);
-
-  if (added !== null || existing === "refresh" || !(await guardHolds(db, noRival))) return added;
+  if (added !== null || !(await guardHolds(db, noRival))) return added;
 
   return promotedAndKept(ports, resolved);
 }
@@ -112,7 +129,7 @@ async function saveKept(
   const holds = holdsAlias(db, shortLink, stale);
 
   if (existing === "refresh") {
-    return writeQueued(ports, paste, stale, { guard: holds, before: [], after: [] });
+    return writeQueued(ports, paste, stale, { guard: holds, after: [] });
   }
 
   const kept = await unlessRefused(db, orRestoreHolds(db, holds), () =>

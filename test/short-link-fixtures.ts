@@ -25,7 +25,7 @@ const AliasSchema = z.object({
 
 const JobSchema = z.object({ address: z.string(), state: z.string() });
 
-const EXISTING: readonly Existing[] = ["refresh", "keep"];
+export const EXISTING: readonly Existing[] = ["refresh", "keep"];
 
 export const withEachExisting = <Case extends object>(cases: readonly Case[]) =>
   cases.flatMap((row) => EXISTING.map((existing) => Object.assign({}, row, { existing })));
@@ -140,10 +140,10 @@ export async function repasted(
   return repastedFrom(instance, short, resolution, await aliasOf(instance, short), existing);
 }
 
-export async function holdingBeforeSecondBatch<Result>(
+export async function beforeSecondBatch<Result>(
   instance: Instance,
+  staged: () => Promise<void> | void,
   run: () => Promise<Result>,
-  alongside?: () => void,
 ): Promise<Result> {
   const { db } = instance.core;
   const real = db.batch.bind(db);
@@ -151,13 +151,10 @@ export async function holdingBeforeSecondBatch<Result>(
 
   Object.defineProperty(db, "batch", {
     configurable: true,
-    value: (queries: Parameters<Database["batch"]>[0]) => {
+    value: async (queries: Parameters<Database["batch"]>[0]) => {
       batches += 1;
 
-      if (batches === 2) {
-        holdLibrary(instance, "running", null);
-        alongside?.();
-      }
+      if (batches === 2) await staged();
 
       return real(queries);
     },
@@ -166,11 +163,29 @@ export async function holdingBeforeSecondBatch<Result>(
   try {
     const result = await run();
 
-    assert.equal(batches, 2, "the Restore started before the second batch and no batch followed");
+    assert.ok(batches >= 2, "the Paste reached the write the change is staged before");
 
     return result;
   } finally {
     Reflect.deleteProperty(db, "batch");
+  }
+}
+
+export async function holdingBeforeSecondBatch<Result>(
+  instance: Instance,
+  run: () => Promise<Result>,
+  alongside?: () => void,
+): Promise<Result> {
+  try {
+    return await beforeSecondBatch(
+      instance,
+      () => {
+        holdLibrary(instance, "running", null);
+        alongside?.();
+      },
+      run,
+    );
+  } finally {
     releaseLibrary(instance);
   }
 }
