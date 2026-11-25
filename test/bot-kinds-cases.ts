@@ -42,6 +42,15 @@ function firstPair(context: string) {
   return { from: pair.low.id, into: pair.high.id, reason: PROPOSAL_REASON };
 }
 
+function secondItemSent(context: string): number {
+  const [topic] = SentTopicsSchema.parse(JSON.parse(context));
+  const second = topic?.items[1];
+
+  if (second === undefined) throw new Error("fewer than two Items were sent");
+
+  return second.id;
+}
+
 function mergesBreakingRules(context: string): Json {
   const { from, into } = firstPair(context);
 
@@ -208,11 +217,9 @@ export const KIND_CASES: readonly KindCase[] = [
       {
         name: "a changed membership text",
         move: (instance, context) => {
-          const [topic] = SentTopicsSchema.parse(JSON.parse(context));
-
           instance.database.exec(
             "update items set topic_id = null where id = ?",
-            topic?.items[1]?.id ?? 0,
+            secondItemSent(context),
           );
         },
       },
