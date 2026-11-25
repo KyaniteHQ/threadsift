@@ -92,7 +92,7 @@ describe("the sweep finishes a merge that a request left open", () => {
         id: 7,
         reason: "Same.",
         state: "accepting",
-        run: { cursor: 100, moved: 100, unitRevision: 1 },
+        run: { cursor: 100100, moved: 100, unitRevision: 1 },
       },
     );
     instance.database.exec(
@@ -108,7 +108,7 @@ describe("the sweep finishes a merge that a request left open", () => {
 
   after(() => instance.close());
 
-  it("finishes the merge from the stored cursor, counts only the links that moved after an Item was deleted, and writes the Log line once", async () => {
+  it("finishes a merge whose first 100 links moved, counts only the links that moved after an Item was deleted, and writes the Log line once", async () => {
     assert.equal((await instance.send("DELETE", "/api/items/100150")).status, 204);
     await nextSweep(instance);
 
