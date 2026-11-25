@@ -17,8 +17,6 @@ devenv.local.nix
 !.impeccable/critique/ignore.md
 dist/
 .wrangler/
-src/targets/worker/worker-build-cost-*.tmp.ts
-wrangler.worker-build-cost-*.tmp.jsonc
 .data/
 test-results/
 .dev.vars*
