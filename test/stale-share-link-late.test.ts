@@ -129,7 +129,13 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
       await repasted(instance, short, resolvedTo(post));
 
       const total = await instance.itemTotal();
-      const saved = await repastedFrom(instance, short, resolvedTo(post), snapshot, existing);
+      const saved = await repastedFrom(
+        instance,
+        short,
+        resolvedTo(`${post}?context=3`),
+        snapshot,
+        existing,
+      );
 
       assert.ok(saved !== null && saved.item.id === held.item.id && !saved.created);
       assert.equal(await instance.itemTotal(), total);
