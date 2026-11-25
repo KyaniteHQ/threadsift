@@ -7,12 +7,13 @@ import { z } from "zod";
 
 import { pause } from "../src/core/contract/pause.ts";
 import { errnoCodeOf } from "../src/core/kernel/failure-log.ts";
+import { signalGroup } from "../src/targets/node/cli-process.ts";
 
 const STOP_DEADLINE_MS = 10_000;
 const KILL_DEADLINE_MS = 2000;
 const STOP_POLL_MS = 100;
 const ProcessIdSchema = z.number().int().positive();
-const ROOT = resolve(import.meta.dirname, "..");
+export const ROOT = resolve(import.meta.dirname, "..");
 const RUN_LOCK = join(ROOT, ".wrangler", "worker-build-cost.lock");
 
 function running(target: number): boolean {
@@ -51,14 +52,8 @@ export function lockRuns(): () => void {
   };
 }
 
-function signalGroups(groups: readonly number[], signal: NodeJS.Signals): void {
-  for (const group of groups) {
-    try {
-      process.kill(-group, signal);
-    } catch (error) {
-      if (errnoCodeOf(error) !== "ESRCH") throw error;
-    }
-  }
+function signalGroups(groups: readonly number[], signal: "SIGTERM" | "SIGKILL"): void {
+  for (const group of groups) signalGroup(group, signal);
 }
 
 async function survivors(groups: readonly number[], deadline: number): Promise<number[]> {

@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
 import { z } from "zod";
 
@@ -9,9 +9,8 @@ import { pause } from "../src/core/contract/pause.ts";
 import { withCleanup } from "../src/core/kernel/failure-log.ts";
 import { attemptEvery } from "./attempt-every.ts";
 import { exitAfterSignal } from "./exit-after-signal.ts";
-import { lockRuns, startWorker, stopGroups } from "./worker-build-cost-processes.ts";
+import { lockRuns, ROOT, startWorker, stopGroups } from "./worker-build-cost-processes.ts";
 
-const ROOT = resolve(import.meta.dirname, "..");
 const WORKER_FOLDER = join(ROOT, "src", "targets", "worker");
 const CANDIDATE_ENTRY = "src/targets/worker/index.ts";
 const FIRST_PORT = 8841;
@@ -29,8 +28,12 @@ export const ROUTES = [
 
 export type Route = (typeof ROUTES)[number];
 
+const NAMES = ["baseline", "candidate"] as const;
+
+type Name = (typeof NAMES)[number];
+
 export interface Variant {
-  readonly name: "baseline" | "candidate";
+  readonly name: Name;
   readonly origin: string;
   readonly token: string;
   readonly processGroup: number;
@@ -94,8 +97,6 @@ interface Prepared {
   readonly envFile: string;
 }
 
-const NAMES = ["baseline", "candidate"] as const;
-
 const entryFile = (name: string): string => `worker-build-cost-${name}.tmp.ts`;
 
 const configFile = (name: string): string => `wrangler.worker-build-cost-${name}.tmp.jsonc`;
@@ -141,30 +142,30 @@ async function tearDown(state: string, groups: readonly number[]): Promise<void>
   attemptEvery(removals(state));
 }
 
+type Slot = 0 | 1;
+
+const forBoth = <Value>(make: (name: Name, slot: Slot) => Value): readonly [Value, Value] => [
+  make(NAMES[0], 0),
+  make(NAMES[1], 1),
+];
+
+const originOf = (slot: Slot): string => `http://127.0.0.1:${FIRST_PORT + slot}`;
+
 async function serving(
   prepared: Readonly<Prepared>,
   groups: readonly [number, number],
 ): Promise<Variants> {
-  const origins = [FIRST_PORT, FIRST_PORT + 1].map((port) => `http://127.0.0.1:${port}`);
   const deadline = Date.now() + START_DEADLINE_MS;
-  await Promise.all(origins.map((origin) => waitUntilServing(origin, deadline)));
-  const [baselineToken, candidateToken] = await Promise.all(
-    origins.map((origin) => ownerToken(origin, prepared.setupCode)),
+  await Promise.all(forBoth((_, slot) => waitUntilServing(originOf(slot), deadline)));
+  const tokens = await Promise.all(
+    forBoth((_, slot) => ownerToken(originOf(slot), prepared.setupCode)),
   );
-  return [
-    {
-      name: "baseline",
-      origin: `http://127.0.0.1:${FIRST_PORT}`,
-      token: baselineToken ?? "",
-      processGroup: groups[0],
-    },
-    {
-      name: "candidate",
-      origin: `http://127.0.0.1:${FIRST_PORT + 1}`,
-      token: candidateToken ?? "",
-      processGroup: groups[1],
-    },
-  ];
+  return forBoth((name, slot) => ({
+    name,
+    origin: originOf(slot),
+    token: tokens[slot],
+    processGroup: groups[slot],
+  }));
 }
 
 interface Starting {
@@ -173,13 +174,11 @@ interface Starting {
 }
 
 function startWorkers(state: string, envFile: string): Starting {
-  const pending = Promise.allSettled([
-    startWorker(FIRST_PORT, join(state, "baseline"), envFile, ["--config", configFile("baseline")]),
-    startWorker(FIRST_PORT + 1, join(state, "candidate"), envFile, [
-      "--config",
-      configFile("candidate"),
-    ]),
-  ]);
+  const pending = Promise.allSettled(
+    forBoth((name, slot) =>
+      startWorker(FIRST_PORT + slot, join(state, name), envFile, ["--config", configFile(name)]),
+    ),
+  );
 
   return {
     spawned: pending.then((workers) =>

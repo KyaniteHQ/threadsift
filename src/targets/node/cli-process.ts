@@ -39,7 +39,7 @@ export type ProcessEnd =
 
 export type UnfinishedEnd = Exclude<ProcessEnd, { readonly kind: "exited" }>;
 
-function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
+export function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
   try {
     process.kill(-pid, signal);
   } catch (error) {
