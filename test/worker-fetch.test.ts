@@ -38,14 +38,10 @@ function chunkedBody(
       for (const [index, chunk] of chunks.entries()) {
         setTimeout(() => {
           controller.enqueue(TEXT.encode(chunk));
+
+          if (index === chunks.length - 1) whenSent(controller);
         }, index * CHUNK_GAP_MS);
       }
-      setTimeout(
-        () => {
-          whenSent(controller);
-        },
-        (chunks.length - 1) * CHUNK_GAP_MS,
-      );
     },
   });
 }
