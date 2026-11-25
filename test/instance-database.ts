@@ -42,7 +42,7 @@ export async function snapshotDatabase(file: string): Promise<Uint8Array> {
   return readFileSync(snapshot);
 }
 
-export type Param = string | number | null;
+type Param = string | number | null;
 
 const CountSchema = z.object({ n: z.number() });
 

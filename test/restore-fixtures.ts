@@ -111,7 +111,7 @@ export async function restoredDone(instance: Instance) {
   return status;
 }
 
-export function retryNow(instance: Instance, kind: UnownedJobKind): void {
+function retryNow(instance: Instance, kind: UnownedJobKind): void {
   instance.database.exec(
     "update jobs set next_attempt_at = 0 where state = 'queued' and kind = ?",
     kind,

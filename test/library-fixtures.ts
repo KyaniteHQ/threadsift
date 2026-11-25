@@ -55,7 +55,7 @@ export const REDDIT_THREAD = [
   },
 ];
 
-export interface Fixture {
+interface Fixture {
   readonly title: string;
   readonly topic?: string;
   readonly tags?: readonly string[];
