@@ -1,7 +1,7 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { parseLink } from "../../src/core/contract/links.ts";
+import { untrackedQuery } from "../../src/core/contract/links.ts";
 import { SuppliedPageSchema } from "../../src/core/contract/supplied-page.ts";
 import { holdsInstanceAccess } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
@@ -37,9 +37,9 @@ function capturedPage(tabId: number): Promise<Captured | null> {
 }
 
 function pageKey(address: string): string {
-  const url = new URL(parseLink(address).normalizedUrl);
+  const url = new URL(address);
 
-  return `${withoutTrailingSlash(url)}${url.search}`;
+  return `${withoutTrailingSlash(url)}${untrackedQuery(url)}`;
 }
 
 function isSamePage(started: string, captured: string): boolean {
