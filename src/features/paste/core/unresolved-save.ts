@@ -2,10 +2,10 @@ import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
 
 import type { Link } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guards, holdsNoRow, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
+import { guards, holdsNoRow, insertGuard } from "../../../core/kernel/guards.ts";
 import { hasOpenJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { orRestoreHolds, restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import { restoreGuard, unlessRestoreRefused } from "../../../core/kernel/restore-hold.ts";
 import { itemAliases, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import {
@@ -57,7 +57,7 @@ async function insertedFailure(
     fetched: settle(fetched, null, now),
   });
 
-  const inserted = await unlessRefused(db, orRestoreHolds(db, missing), () =>
+  const inserted = await unlessRestoreRefused(db, missing, () =>
     db.batch([
       insertGuard(db, noAlias),
       insertGuard(db, missing),
@@ -115,9 +115,9 @@ export function saveUnresolved(
   const noAlias = holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, link.normalizedUrl));
   const failure = { address, link, fetched, now: Date.now(), addedByToken };
 
-  return unlessRefused(
+  return unlessRestoreRefused(
     db,
-    orRestoreHolds(db, noAlias),
+    noAlias,
     async () =>
       (await insertedFailure(db, noAlias, failure)) ??
       (existing === "keep"

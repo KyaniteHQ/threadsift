@@ -70,12 +70,23 @@ export function refusedByGuard(cause: unknown): boolean {
   return refusedBy(cause, GUARD_REFUSED);
 }
 
-export async function answerUnlessRefused<Result, Refused>(
+export function unlessRefused<Result>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  run: () => Promise<Result>,
+): Promise<Result | null>;
+export function unlessRefused<Result, Refused>(
   db: Database,
   condition: Readonly<SQLWrapper>,
   run: () => Promise<Result>,
   refused: Refused,
-): Promise<Result | Refused> {
+): Promise<Result | Refused>;
+export async function unlessRefused<Result, Refused>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  run: () => Promise<Result>,
+  refused: Refused | null = null,
+): Promise<Result | Refused | null> {
   try {
     return await run();
   } catch (error) {
@@ -83,14 +94,6 @@ export async function answerUnlessRefused<Result, Refused>(
 
     return refused;
   }
-}
-
-export function unlessRefused<Result>(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  run: () => Promise<Result>,
-): Promise<Result | null> {
-  return answerUnlessRefused(db, condition, run, null);
 }
 
 function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(

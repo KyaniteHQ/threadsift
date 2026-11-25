@@ -4,16 +4,14 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { Digest } from "../../../core/contract/digest-schema.ts";
 import type { Link } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import {
-  guardedWrite,
-  guards,
-  holdsNoRow,
-  insertGuard,
-  unlessRefused,
-} from "../../../core/kernel/guards.ts";
+import { guardedWrite, guards, holdsNoRow, insertGuard } from "../../../core/kernel/guards.ts";
 import { enqueueRows, openingJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { orRestoreHolds, restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import {
+  orRestoreHolds,
+  restoreGuard,
+  unlessRestoreRefused,
+} from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
@@ -139,9 +137,7 @@ export function writtenFrom(
     };
   };
 
-  return guard === undefined
-    ? write()
-    : unlessRefused(ports.db, orRestoreHolds(ports.db, guard), write);
+  return guard === undefined ? write() : unlessRestoreRefused(ports.db, guard, write);
 }
 
 export function writeQueued(

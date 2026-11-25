@@ -1,9 +1,9 @@
 import { eq, sql } from "drizzle-orm";
 
 import { type Link, parseLink, redditRefOf } from "../../../core/contract/links.ts";
-import { guardHolds, guards, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
+import { guardHolds, guards, insertGuard } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { orRestoreHolds, restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import { restoreGuard, unlessRestoreRefused } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import type { ShortLinkResolution } from "../../fetch/core/fetch-link.ts";
@@ -60,7 +60,7 @@ async function promotedAndKept(ports: Ports, resolved: Readonly<Resolved>): Prom
   const { db } = ports;
   const noRival = holdsNoRival(db, resolved, link);
 
-  const promoted = await unlessRefused(db, orRestoreHolds(db, noRival), () => {
+  const promoted = await unlessRestoreRefused(db, noRival, () => {
     const promotable = promotableFailedItem(db, resolved, link.normalizedUrl);
     const changed = sql`(${items.source}, ${items.kind}) is not (${link.source}, ${link.kind})`;
 
@@ -132,7 +132,7 @@ async function saveKept(
     return writeQueued(ports, paste, stale, { guard: holds, after: [] });
   }
 
-  const kept = await unlessRefused(db, orRestoreHolds(db, holds), () =>
+  const kept = await unlessRestoreRefused(db, holds, () =>
     db.batch([
       restoreGuard(db),
       insertGuard(db, holds),
