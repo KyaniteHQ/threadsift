@@ -28,7 +28,7 @@ function isMissing(cause: unknown): boolean {
   return MISSING_CODES.has(errnoCodeOf(cause));
 }
 
-async function exists(path: string, wanted: Kind): Promise<boolean> {
+async function presentAs(path: string, wanted: Kind): Promise<boolean> {
   try {
     const stats = await lstat(path);
 
@@ -42,16 +42,12 @@ async function exists(path: string, wanted: Kind): Promise<boolean> {
   throw new FileRefused(`${path} is not a regular ${wanted}`);
 }
 
-async function refuseOtherKind(path: string, wanted: Kind): Promise<void> {
-  await exists(path, wanted);
-}
-
 async function allPresent(folders: readonly string[]): Promise<boolean> {
   const [first, ...rest] = folders;
 
   if (first === undefined) return true;
 
-  return (await exists(first, "directory")) && allPresent(rest);
+  return (await presentAs(first, "directory")) && allPresent(rest);
 }
 
 async function ensureAll(folders: readonly string[]): Promise<void> {
@@ -59,9 +55,9 @@ async function ensureAll(folders: readonly string[]): Promise<void> {
 
   if (first === undefined) return;
 
-  if (!(await exists(first, "directory"))) {
+  if (!(await presentAs(first, "directory"))) {
     await mkdir(first, { recursive: true });
-    await refuseOtherKind(first, "directory");
+    await presentAs(first, "directory");
   }
 
   await ensureAll(rest);
@@ -109,7 +105,7 @@ class FileFolder {
 
   async locate({ root, ownerId, name }: Readonly<StoreKey>): Promise<Located> {
     const leaf = this.path(root, ownerId, name);
-    const present = (await this.hasFolders(root, ownerId)) && (await exists(leaf, "file"));
+    const present = (await this.hasFolders(root, ownerId)) && (await presentAs(leaf, "file"));
 
     return { leaf, present };
   }
@@ -249,7 +245,7 @@ export function dataFileStore(dataDir: string): FileStore {
 
       const leaf = folder.path(parsed.root, parsed.ownerId, parsed.name);
 
-      await refuseOtherKind(leaf, "file");
+      await presentAs(leaf, "file");
 
       const temporary = folder.path(parsed.root, parsed.ownerId, temporaryName(parsed.name));
 
