@@ -93,13 +93,28 @@ async function reconnect(): Promise<void> {
   moveReddit((await reconnectFromPopup()) ?? { kind: "expired", access: false });
 }
 
+function hideReddit(): void {
+  reddit = null;
+  redditBlock.hidden = true;
+}
+
+function withdrawReddit(): void {
+  if (reddit?.kind === "working") return;
+
+  beginReddit();
+  hideReddit();
+}
+
 async function offerReconnect(): Promise<void> {
   if (reddit?.kind === "working") return;
 
   const isNewest = beginReddit();
   const view = await loadReddit();
 
-  if (isNewest() && view.kind === "expired") moveReddit(view);
+  if (!isNewest()) return;
+
+  if (view.kind === "expired") moveReddit(view);
+  else hideReddit();
 }
 
 async function save(): Promise<SaveState> {
@@ -123,6 +138,8 @@ async function save(): Promise<SaveState> {
 }
 
 async function saveAndOffer(): Promise<void> {
+  withdrawReddit();
+
   if (leavesRedditUnknown(await save())) await offerReconnect();
 }
 

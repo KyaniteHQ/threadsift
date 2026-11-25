@@ -137,7 +137,7 @@ async function answerFor(
   }
 }
 
-export function withoutTrailingSlash({
+function withoutTrailingSlash({
   origin,
   pathname,
 }: Readonly<Pick<URL, "origin" | "pathname">>): string {

@@ -1,7 +1,9 @@
 import { type APIRequestContext, expect } from "@playwright/test";
+import type { ZodType } from "zod";
 
 import {
   ItemDetailResponseSchema,
+  ItemResponseSchema,
   SavedItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
 import type { SaveItemInput } from "../src/core/contract/save-wire.ts";
@@ -17,10 +19,22 @@ export async function savedItem(
   return SavedItemResponseSchema.parse(await saved.json()).item.id;
 }
 
-export async function itemDetail(request: APIRequestContext, id: number) {
-  const read = await request.get(`/api/items/${String(id)}`);
+async function readItem<Read>(
+  request: APIRequestContext,
+  path: string,
+  schema: ZodType<{ item: Read }>,
+): Promise<Read> {
+  const read = await request.get(path);
 
-  return ItemDetailResponseSchema.parse(await read.json()).item;
+  return schema.parse(await read.json()).item;
+}
+
+export function itemDetail(request: APIRequestContext, id: number) {
+  return readItem(request, `/api/items/${String(id)}`, ItemDetailResponseSchema);
+}
+
+export function itemStatus(request: APIRequestContext, id: number) {
+  return readItem(request, `/api/items/${String(id)}/status`, ItemResponseSchema);
 }
 
 export const savedTopicItem = (
