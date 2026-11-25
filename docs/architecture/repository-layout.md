@@ -30,8 +30,8 @@ The deploy button builds from the repository root, because a monorepo subdirecto
 | `migrations/` | the database migrations |
 | `tools/` | the build and check scripts, `tools/oxlint/` for the lint rule plugins, and `tools/copy/` for the script that writes every text a user reads in the product |
 | `docs/` | the docs |
-| `.claude/` | the agents, their skills and the lint hook ([Changing code](../agents/changing-code.md)) |
-| `.codex/` | the Codex hooks: the Impeccable check after an edit and its design pass when a turn ends |
+| `.claude/` | the agents, their skills, the lint hook ([Changing code](../agents/changing-code.md)) and the settings that keep Impeccable's account features off |
+| `.codex/` | the Codex hooks: the Impeccable check after an edit and its design pass when a turn ends; the Codex config that keeps Impeccable's account features off |
 | `.impeccable/` | the settings of the Impeccable check, and the sidecar of the design system doc that its documenter writes |
 | `.vscode/` | the editor settings that run oxlint and oxfmt on save, and the recommended oxc extension |
 | `.agents/skills/` | the skills the Antigravity CLI loads, and the link to the Impeccable skill that the Codex hooks run |
