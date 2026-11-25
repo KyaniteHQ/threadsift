@@ -4,10 +4,10 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { executeClaimed, runJob } from "../src/core/compose/jobs.ts";
-import { SECRET_KEY, saveBot } from "./bot-task-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
-import { atClock } from "./token-budget-fixtures.ts";
+import { saveBot } from "./bot-task-fixtures.ts";
+import { atClock } from "./clock-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { dueNow } from "./job-fixtures.ts";
 import { xAddressOf, claimedFetchJob, insertedXItem } from "./x-intake-fixtures.ts";
 import { X_LINK } from "./x-thread-fixtures.ts";
 
@@ -24,15 +24,13 @@ const savedId = (body: string): number =>
   z.object({ item: z.object({ id: z.number() }) }).parse(JSON.parse(body)).item.id;
 
 const tasks = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     TaskSchema,
     "select state, refusal from ai_tasks where kind = 'x_intake' order by id",
   );
 
 const fetchJob = (instance: Instance) => {
-  const [job] = rows(
-    instance,
+  const [job] = instance.database.rows(
     JobSchema,
     "select id, state, attempts, next_attempt_at from jobs where kind = 'fetch'",
   );
@@ -101,7 +99,7 @@ describe("an X link goes to the saved Grok Bot first, and a send that fails is r
     assert.deepEqual(tasks(instance), [{ state: "failed", refusal: "unreachable" }]);
     assert.equal((await instance.detail(id)).status, "processing");
 
-    exec(instance, "update jobs set next_attempt_at = 0 where id = ?", first.id);
+    dueNow(instance, first.id);
     const secondAttempt = Date.now();
     await atClock(
       () => secondAttempt,
@@ -113,7 +111,7 @@ describe("an X link goes to the saved Grok Bot first, and a send that fails is r
     assert.equal(second.attempts, 2);
     assert.equal(second.next_attempt_at - secondAttempt, 120_000);
 
-    exec(instance, "update jobs set next_attempt_at = 0 where id = ?", first.id);
+    dueNow(instance, first.id);
     await runJob(instance.core, first.id);
 
     const detail = await instance.detail(id);

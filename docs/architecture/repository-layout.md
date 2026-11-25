@@ -31,7 +31,10 @@ The deploy button builds from the repository root, because a monorepo subdirecto
 | `tools/` | the build and check scripts, `tools/oxlint/` for the lint rule plugins, and `tools/copy/` for the script that writes every text a user reads in the product |
 | `docs/` | the docs |
 | `.claude/` | the agents, their skills and the lint hook ([Changing code](../agents/changing-code.md)) |
-| `.agents/skills/` | the skills the Antigravity CLI loads |
+| `.codex/` | the Codex hooks: the Impeccable check after an edit and its design pass when a turn ends |
+| `.impeccable/` | the settings of the Impeccable check, and the sidecar of the design system doc that its documenter writes |
+| `.vscode/` | the editor settings that run oxlint and oxfmt on save, and the recommended oxc extension |
+| `.agents/skills/` | the skills the Antigravity CLI loads, and the link to the Impeccable skill that the Codex hooks run |
 | `.github/workflows/` | the gate, the live deploy and check, the release, the contributor licence agreement and the update workflow of Cloudflare copies |
 
 The docs call the two halves of a feature the core half and the http half. None of `src/core/`, `src/features/` and `src/http/` imports `node:*`, `cloudflare:*` or `src/targets/` ([One codebase, two install targets](one-codebase-two-install-targets.md)).
@@ -71,7 +74,7 @@ A basename is unique within the core side (`src/core/` and the core halves) and 
 Take the first answer that fits.
 
 1. `contract`, when `web/` or the Extension imports the module, or a `kernel` module does and the module imports only `zod` and other `contract` modules. A `contract` module holds constants, Zod schemas, types and pure parsers, and imports no `src/core` module outside `contract`. The request and answer shapes of the HTTP routes sit here in the `*-wire` modules, because `web/` reads them.
-2. `kernel`, when the module is a table or the schema, a port or its interface module or a helper of a port, a guard, a part of the job queue, or a reader or writer of a stored record that two or more features import. A module that a `kernel` module imports, and that is not `contract`, also sits here, because `kernel` imports only `contract` and `kernel`. A reader or writer of a stored record that one feature imports stays in that feature.
+2. `kernel`, when the module is a table or the schema, a port or its interface module or a helper of a port, a guard, a part of the job queue, a reader or writer of a stored record that two or more features import, or a helper that two or more features import and no feature owns, such as the Markdown escapes. A module that a `kernel` module imports, and that is not `contract`, also sits here, because `kernel` imports only `contract` and `kernel`. A reader or writer of a stored record that one feature imports stays in that feature.
 3. The feature that owns the module's term, when one feature does, in `src/features/<feature>/core/`. The table below names the terms of each feature, taken from the [glossary](../../GLOSSARY.md). The stale-Vault-notes declaration is in `kernel`, because writers in many features declare their stale notes in it and the features before `vault` in `order` could not import it from `vault`.
 4. `compose`, when the module joins several features and no feature owns it: the job engine and its handlers, the sweep, the tick and the Item delete. No core half imports `compose`. `src/http/`, the http halves, `src/targets/` and the tests do.
 
@@ -118,7 +121,7 @@ A route module goes in `src/http/` in these cases, because only an http half's o
 
 The Item view and the Item read modules stay in `src/http/`, because the Item routes, the paste routes and the MCP endpoint read them. The web headers and document path modules and the app stay there, because targets, tools or tests import them.
 
-Each route states its own access gate with `access(...)`, or `unrouted()` for the unmatched `/api/` paths. A route group is one module that declares its routes and registers their handlers. The access group is the exception: its declarations serve both its own route module and the password route module. The route list `registerRoutes` names the top-level register functions in the order that decides route matching and the order of `/api/openapi.json`.
+Each route states its own access gate with `access(...)`, or `unrouted(app)` for the unmatched `/api/` paths. A route group is one module that declares its routes and registers their handlers. The access group is the exception: its declarations serve both its own route module and the password route module. The route list `registerRoutes` names the top-level register functions in the order that decides route matching and the order of `/api/openapi.json`.
 
 `layer-imports` refuses a route module that the route module of another feature imports. `check:core-layout` fails a `src/http` module that only one feature's http half imports, and its message names the folder to move it to.
 

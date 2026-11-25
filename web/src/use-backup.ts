@@ -13,11 +13,15 @@ type Changed = (view: ExportStatus) => void;
 
 function useReader(changed: Changed, ticket: Ticket) {
   return useCallback(async (): Promise<void> => {
-    const mine = ticket.take();
+    const signal = ticket.take();
 
-    const view = await fetchExportStatus();
+    try {
+      const view = await fetchExportStatus(signal);
 
-    if (ticket.matches(mine)) changed(view);
+      if (!signal.aborted) changed(view);
+    } catch (cause) {
+      if (!signal.aborted) throw cause;
+    }
   }, [changed, ticket]);
 }
 
@@ -25,9 +29,14 @@ function settled(call: () => Promise<void>, ticket: Ticket, refresh: () => Promi
   return async () => {
     ticket.take();
     await call();
-    await refresh();
 
-    return null;
+    try {
+      await refresh();
+
+      return null;
+    } catch {
+      return { kind: "error", text: EXPORT_TEXT.loadFailed };
+    }
   };
 }
 
@@ -43,14 +52,12 @@ export function useBackup(view: ExportStatus, changed: Changed) {
   const start = useAction({
     run,
     action: "start",
-    unavailable: null,
     task: useMemo(() => settled(startExport, ticket, refresh), [ticket, refresh]),
   });
 
   const remove = useAction({
     run,
     action: "remove",
-    unavailable: null,
     task: useMemo(() => settled(deleteExport, ticket, refresh), [ticket, refresh]),
   });
 

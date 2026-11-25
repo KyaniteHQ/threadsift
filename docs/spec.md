@@ -62,7 +62,8 @@ Threadsift has two aims:
 
 - A browser extension for desktop Chrome and Firefox saves the page in the owner's own tab in one click. Firefox for Android is not supported.
 - Any http or https page works except a page on x.com, twitter.com or github.com, a page on a link shortener's own address (`bit.ly`, `t.co` and the other short-link hosts) and a Reddit page that is not a post or comment. The server refuses those, and the Extension says it cannot save them.
-- On a Reddit thread it sends the thread's `.json` and falls back to Defuddle's Reddit extractor when that request fails.
+- On a Reddit thread it sends the thread's `.json` with the answers for the replies behind its `more` stubs, and falls back to Defuddle's Reddit extractor when that request fails or its answers cannot be assembled into one thread.
+- A page capture is sent only when the tab still holds the page the Save started on, with a hash, a tracking parameter or a trailing slash the page adds itself ignored. When the tab moved to another page meanwhile, nothing is sent and the Extension says it could not save.
 - With "Fill saved Reddit Items" on, opening a Link-only Reddit Item's thread fills that Item.
 - In the self-hosted builds, the Extension's Connect Reddit button connects the owner's Reddit account ([Connect a Reddit account](guides/reddit-account.md)).
 - The owner enters the Instance's address and an agent token on the Extension's settings page, and the browser asks permission for that one host when the address is saved.
@@ -77,6 +78,7 @@ Threadsift has two aims:
 - **Style.** One more look setting: Library (default) plus 10 styles ([Styles](design/styles.md)). While a Style other than Library is on, its fonts and accent replace Font and Accent. Those controls are disabled and say "Set by the style". Their stored values stay, and choosing Library restores them, including after a reload.
 - **Themes.** Light, Dark, Sepia and Match system. Match system follows the device; with no setting stored, the app draws Light.
 - **Storage.** All twelve look and view settings (Layout, Open items as, Theme and the nine Look settings) are stored together in the browser. Each Item's reading place is kept for the browser tab. The AI, GitHub token and Grok Bot settings are stored on the server, and the keys and tokens in them are sealed under the Instance's secret key ([Access](architecture/access-owner-login-agent-tokens-mcp.md)).
+- **Unavailable actions.** While nothing is saved, Verify and Test in the AI, GitHub token, Grok Bot and Reddit account settings, and Remove or Disconnect in the GitHub token, Grok Bot, Reddit account and Obsidian settings, are unavailable. The section shows the reason under its buttons before any press, and a screen reader reads it with the button.
 - **Share from phone.** The app is an installable web app with a Web Share Target, so the Android Share menu sends a link into the same Paste as the paste box.
 - While the owner is signed in, a share from the installed app saves the link at once and opens the library with that Item's paste card. A known link opens its Item in the Reader.
 - A share the app cannot trust writes nothing. That means a link or form on another site, a request that lacks the browser's origin metadata, or any share while signed out. The library opens with the link in the paste box, and the owner presses Add. A signed-out share keeps its link through sign-in, a wrong password included.
@@ -90,7 +92,7 @@ Every screen the app draws takes its look from the design system, and a screen a
 - **Settings:** the settings table (`SETTINGS`) is the one table of settings, and every other list of settings is built from it.
 - **Behaviour:** the clickable prototype shows how each screen behaves.
 - **Styles:** the 10 Style blocks live in the token stylesheet, with a palette for each Theme. Their fonts load from the Instance.
-- **Accessibility:** every text and background pair is at least 4.5:1 and every mark a person needs to see a control or its state at least 3:1, in every theme with every accent and Style. Text is never under 12px. Under 480px every target is at least 44px. The open row is marked by a bar as well as by colour. Motion has a reduced-motion form.
+- **Accessibility:** every text and background pair is at least 4.5:1 and every mark a person needs to see a control or its state at least 3:1, in every theme with every accent and Style. Text is never under 12px. Under 480px every target is at least 44px, except the width of a link or a Highlight mark in the text of a post or comment, a code block included, which keeps the width of its text. The open row is marked by a bar as well as by colour. Motion has a reduced-motion form.
 - **Keyboard:** the first Tab stop in the Library is a button that moves focus to the first Item; j and k move through Items, Enter opens, m marks read or unread, / focuses search, the left and right arrows step to the previous or next Item while one is open in Grid, and Escape closes the open Item.
 - **Review:** the building agent checks screenshots in every theme before a screen lands ([Reviewing code](agents/reviewing-code.md)).
 
@@ -145,7 +147,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 ### Reddit post or comment
 
 - A pasted Reddit link becomes a Link-only Item with its title, author and subreddit from Reddit's oEmbed endpoint.
-- On Save, the Extension makes one signed-in request for the thread's `.json` from the owner's tab and posts it, then fetches the replies behind each `more` stub. A reply that still fails becomes a Context stub that says it was not saved ([Fetchers](architecture/fetchers.md), Reddit). When the `.json` request fails, the Extension falls back to the Reddit extractor of Defuddle on the rendered page.
+- On Save, the Extension reads the thread's `.json` with one signed-in request from the owner's tab, fetches the replies behind each `more` stub, and sends the thread's answer and the reply answers together in one request. A reply that still fails becomes a Context stub that says it was not saved ([Fetchers](architecture/fetchers.md), Reddit). When the `.json` request fails, or its answers cannot be assembled into one thread, the Extension falls back to the Reddit extractor of Defuddle on the rendered page.
 - With "Fill saved Reddit Items" turned on in the Extension's settings, opening a Link-only Reddit Item's thread in the browser saves it the same way, and never overwrites a saved thread. While such an Item is not processing, the Reader says its thread is not saved yet and how to fill it ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md)).
 - Without the Extension, the owner can send the text of the post's `.json` page from their own browser as `content` of `POST /api/items`. The paste box has no field for it.
 
@@ -166,7 +168,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 ### Share links
 
 - `redd.it/<id>` becomes `/r/all/comments/<id>/` without a request.
-- A `reddit.com/r/<community>/s/<code>` link needs one redirect, which Reddit answers without a login. The Item is the post or comment it leads to, with the share link kept as an alias. A redirect that does not end on a post or comment leaves a Link-only Item under the share link, and the Extension saves the thread at its canonical URL.
+- A `reddit.com/r/<community>/s/<code>` link needs one redirect, which Reddit answers without a login. The Item is the post or comment it leads to, with the share link kept as an alias. A redirect that does not end on a post or comment leaves a Link-only Item under the share link, and the Extension saves the thread at its canonical URL. A short link that redirects to a share link is followed through it the same way, and a Link-only Item then stays under the short link.
 
 ### Fetcher plug-ins (container only)
 
@@ -200,7 +202,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 - Each Item has one identity, its normalized URL, and pasting a known URL again refreshes that Item.
 - A link loses its fragment, credentials, `www.` and tracking parameters, and keeps its scheme and the case of its path, so `http` and `https` make two Items.
 - Three Sources have their own rule. An X post is its status id, so x.com and twitter.com, any handle and a media suffix give one Item, while a reply or a quote is another Item. A GitHub repository-root link ignores case and a `.git` suffix, and a deep link is its own Item. A Reddit post or comment id is lower-cased, and a comment is not its post.
-- A short link and a Reddit share link are no identity. The Paste follows the redirects, the Item is the page it leads to, and the short link is kept as an alias. Pasting it again or pressing Try again refreshes that Item at its saved address even if the short link now points elsewhere or has died.
+- A short link and a Reddit share link are no identity. The Paste follows the redirects, the Item is the page it leads to, and the short link is kept as an alias. Pasting it again or pressing Try again refreshes that Item at its saved address even if the short link now points elsewhere or has died. An alias that ends at a share link names no post or comment, so the Paste resolves the short link again. The Item moves to the post or comment it leads to. When another Item already holds that post or comment, the alias moves to that Item. When the Item is no longer a failed Item under the share link, the Paste saves a new Item.
 - A short link that cannot be resolved is saved under the short link with the failure as its fetch result. A timeout or network error on a new Item ends `failed`, and any other failure leaves a `ready` Link-only Item. The next Paste resolves it again ([Fetchers](architecture/fetchers.md), URLs and short links).
 
 ## Comment filter
@@ -260,10 +262,10 @@ Rules for the Digest:
 - A Context stub marks a dropped parent or a parent missing from an X thread or a Reddit archive fill, and a stub that says "Further replies were not saved." marks replies behind a `more` stub.
 - The Comments button jumps to the section and shortens to "N of M" and then to the count as the bar narrows.
 - **Highlights.** The owner selects one passage inside the post text or inside one comment the Reader shows, and a popover offers Keep. A selection across two bodies, or one that touches a control or a Context stub, offers nothing. When a selection does not match the stored text of that version, the Reader keeps the Item as it is and asks the owner to select the passage again or a smaller part.
-- A kept passage is marked in place, in List, Grid Page, Grid Sheet and on a phone. Pressing a mark offers Remove, and Escape closes the popover without closing the Reader.
-- The Highlights list at the end of the Reader holds every Highlight of the Item, and choosing one scrolls to its mark and opens the fold around it. A Highlight whose passage is gone shows its quote with the note "Passage no longer found because the item’s text changed."
+- A kept passage is marked in place, in List, Grid Page, Grid Sheet and on a phone. Pressing a mark, or Enter on a focused mark (choosing a quote in the Highlights list focuses its mark), opens a popover with Remove. Where several Highlights overlap, the popover lists each Highlight under the pressed mark, in the order of the Highlights list. A row shows the quote underlined between the last 16 code points of the text stored before it and the text stored after it, up to 3 lines, with its own Remove; a quote over 40 code points shows its first 20 and last 20. The list scrolls when the rows do not fit the room the popover has. A Remove takes away that Highlight only and closes the popover. When the removal ends, focus moves to a mark that still carries one of the pressed mark's Highlights, or to the Reader title when none is left, unless the owner moved focus to another control while the removal ran. A popover opened by Enter puts focus on its first Remove. Escape closes the popover without closing the Reader and returns focus to the mark.
+- The Highlights list at the end of the Reader holds every Highlight of the Item, and choosing one scrolls to its mark and opens the fold around it. A Highlight whose passage is gone shows its quote with the note "Passage no longer found because the item’s text changed." Each entry has its own Remove. When that removal ends, focus moves to the Remove of the next entry, or of the previous one when it was the last, or to the Reader title when none is left, unless the owner moved focus to another control while the removal ran; a failed removal leaves focus where it is.
 - **Note.** The Note box follows the Highlights list (Highlights, Notes and the Highlights page).
-- **Reading place.** Each browser tab remembers where the owner stopped in each Item and returns there on reopen, as long as the text at that place is still in the Item.
+- **Reading place.** Each browser tab remembers where the owner stopped in each Item, for the last 100 Items it saved a place in, and returns there on reopen, as long as the text at that place is still in the Item.
 - **Delete.** Delete asks "Delete this item?" with Cancel and Delete item. While the request runs both buttons and Escape do nothing, and after 20 seconds without an answer the dialog reports the failure and offers both again.
 
 ## Highlights, Notes and the Highlights page
@@ -274,7 +276,7 @@ Rules for the Digest:
 - A Note is plain text of up to 10,000 code points, saved with the Save button or Ctrl or Cmd with Enter.
 - When the Note changed elsewhere since the owner loaded it, the save is refused and the Reader shows the newer Note beside the owner's text, with a choice to keep the owner's text or take the newer one. Text the owner typed and did not save stays in that browser for the Item.
 - A second page lists every Highlight and every Item Note, newest first, each with its Item's Source, title and date and a link back to that place in the Reader. Search and the Source, Topic and Tag filters work there too.
-- The page opens from the Highlights link in the settings panel, beside Instance settings, and at `/highlights`. It shows 50 entries at a time with Load more.
+- The page opens from the Highlights link, the first of the page links in the settings panel, and at `/highlights`. It shows 50 entries at a time with Load more. Load more pressed with the keyboard moves focus to the first new entry once it arrives, unless the owner moved focus to another control while it loaded; the Index, the Log and the Proposals page do the same.
 - A Highlight is dated when it was kept and a Note when it was last saved. A Note the owner cleared has no entry.
 - Search there matches only the entry's own quote or Note text, not the Item's title, Summary or Tags.
 
@@ -297,6 +299,7 @@ The agent builds the synthesis once, when an Item arrives, and keeps it current,
 - The page is reached from the Topic in the Reader and in the filters pane. Its address holds the Topic's catalog key, so `İstanbul` and `istanbul` are one page.
 - The address of a Topic that an accepted merge removed shows the Topic it was merged into, and Try again acts on the survivor.
 - A failed overview shows on the page with Try again and the list of Items still shows. With no Provider saved and no stored overview, the page shows a note and the Items.
+- An Item whose stored Digest is not valid JSON, or holds no Summary text, still appears in the list of its Topic page, with an empty Summary line.
 - Deleting an Item removes it from the list at once, and the overview runs drop it from the overview.
 - Below the overview the page lists the pairs of its Items whose disagreement the owner accepted, under "Known disagreements", each with the agent's reason and a link to each Item, newest first, at most 20, and only while both Items carry the Digests the pair was accepted on.
 
@@ -308,7 +311,7 @@ The agent builds the synthesis once, when an Item arrives, and keeps it current,
 
 ### Index and Log
 
-- The Index lists every Topic with its Item count and its overview line. It is reached from a link in the settings panel beside Highlights and lives at `/topics`.
+- The Index lists every Topic with its Item count and its overview line. It is reached from the Index link in the settings panel, between the Import link and the Log link, and lives at `/topics`.
 - A row appears once for each Topic, ascending by its catalog key, 50 to a page with Load more, and opens the Topic page. A Topic whose Items were all deleted stays in the list with 0. The overview line is the first line of the stored overview.
 - The Log lists committed library changes and files the Vault mirror skipped, newest first, and lives at `/log`, reached from a link in the settings panel beside the Index. It is 50 lines to a page with Load more.
 - It records the actions listed under Log entry in [GLOSSARY](../GLOSSARY.md). A result that is discarded, stale or rolled back adds nothing.

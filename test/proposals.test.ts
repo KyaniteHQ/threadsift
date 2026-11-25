@@ -6,9 +6,9 @@ import { z } from "zod";
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 const TagSchema = z.object({ id: z.number(), name: z.string() });
@@ -17,7 +17,9 @@ const StateSchema = z.object({ state: z.string() });
 
 function tagIds(instance: Instance): ReadonlyMap<string, number> {
   return new Map(
-    rows(instance, TagSchema, "select id, name from tags").map(({ id, name }) => [name, id]),
+    instance.database
+      .rows(TagSchema, "select id, name from tags")
+      .map(({ id, name }) => [name, id]),
   );
 }
 
@@ -27,11 +29,13 @@ function seedMerge(
   state: string,
   reason: string | null,
 ): void {
-  seedProposal(instance, "tag-merge", { from_tag_id: from, into_tag_id: into }, { reason, state });
+  seedProposal(instance, "tag-merge", { fromTagId: from, intoTagId: into }, { reason, state });
 }
 
 const states = (instance: Instance) =>
-  rows(instance, StateSchema, "select state from proposals order by id").map(({ state }) => state);
+  instance.database
+    .rows(StateSchema, "select state from proposals order by id")
+    .map(({ state }) => state);
 
 describe("the Proposals routes", () => {
   let instance: Instance;
@@ -186,8 +190,7 @@ describe("the Proposals routes", () => {
 
     assert.ok(only !== undefined);
 
-    const items = rows(
-      instance,
+    const items = instance.database.rows(
       z.object({ id: z.number() }),
       "select item_id as id from item_tags where tag_id = ? order by item_id",
       only.into.id,
@@ -211,16 +214,13 @@ describe("the Proposals list is paged at 50 rows", () => {
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    exec(
-      instance,
+    instance.database.exec(
       "with recursive n(i) as (select 1 union all select i + 1 from n where i < 102) insert into tags (key, name) select 'p' || i, 'P' || i from n",
     );
-    exec(
-      instance,
+    instance.database.exec(
       "insert into proposals (id, kind, reason, state, created_at) select (id + 1) / 2, 'tag-merge', 'The same concept.', 'open', id from tags where id % 2 = 1",
     );
-    exec(
-      instance,
+    instance.database.exec(
       "insert into tag_merge_proposals (proposal_id, kind, from_tag_id, into_tag_id) select (id + 1) / 2, 'tag-merge', id, id + 1 from tags where id % 2 = 1",
     );
   });
@@ -232,11 +232,13 @@ describe("the Proposals list is paged at 50 rows", () => {
     const last = first.proposals.at(-1);
 
     assert.equal(first.proposals.length, 50);
-    assert.equal(first.next, String(last?.id));
+    const cursor = String(last?.id);
+
+    assert.equal(first.next, cursor);
 
     const second = await instance.read(
       "GET",
-      `/api/proposals?cursor=${first.next ?? ""}`,
+      `/api/proposals?cursor=${cursor}`,
       ProposalPageSchema,
     );
 

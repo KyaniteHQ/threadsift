@@ -92,3 +92,7 @@ export async function refreshReddit(): Promise<void> {
 
   if (isNewest()) move(next);
 }
+
+export function refreshRedditUnlessPressing(): void {
+  if (current.kind !== "working") void refreshReddit();
+}

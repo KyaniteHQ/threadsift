@@ -45,8 +45,9 @@ export function SettingsActions<Action extends string>({
   running: Action | null;
   buttons: readonly ActionButton<Action>[];
 }>) {
-  const hintId = `${useId()}-hint`;
-  const hinted = buttons.find(({ hint }) => hint !== undefined)?.hint;
+  const baseId = useId();
+  const reasons = [...new Set(buttons.flatMap(({ hint }) => (hint === undefined ? [] : [hint])))];
+  const reasonId = (reason: string) => `${baseId}-hint-${String(reasons.indexOf(reason))}`;
 
   return (
     <>
@@ -61,15 +62,15 @@ export function SettingsActions<Action extends string>({
             type={onClick === undefined ? "submit" : "button"}
             onClick={hint === undefined ? onClick : undefined}
             secondary={secondary}
-            describedBy={hint === undefined ? undefined : hintId}
+            describedBy={hint === undefined ? undefined : reasonId(hint)}
           />
         ))}
       </div>
-      {hinted === undefined ? null : (
-        <p id={hintId} className="fld-help">
-          {hinted}
+      {reasons.map((reason) => (
+        <p key={reason} id={reasonId(reason)} className="fld-help">
+          {reason}
         </p>
-      )}
+      ))}
     </>
   );
 }

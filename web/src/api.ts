@@ -70,35 +70,48 @@ export async function putReadState(id: number, readState: ReadState): Promise<It
   ).item;
 }
 
-export function fetchItems(filters: Readonly<Filters>): Promise<ItemList> {
-  return parsedFrom("GET", `/api/items${queryOf(filters)}`, ItemListResponseSchema);
+export function fetchItems(filters: Readonly<Filters>, signal: AbortSignal): Promise<ItemList> {
+  return parsedFrom("GET", `/api/items${queryOf(filters)}`, ItemListResponseSchema, { signal });
 }
 
-export function fetchItemsAfter(filters: Readonly<Filters>, cursor: string): Promise<ItemPage> {
-  return parsedFrom("GET", `/api/items${queryOf(filters, cursor)}`, ItemPageResponseSchema);
+export function fetchItemsAfter(
+  filters: Readonly<Filters>,
+  cursor: string,
+  signal: AbortSignal,
+): Promise<ItemPage> {
+  return parsedFrom("GET", `/api/items${queryOf(filters, cursor)}`, ItemPageResponseSchema, {
+    signal,
+  });
 }
 
 export function fetchHighlightsPage(
   filters: Readonly<Filters>,
   cursor: string | null,
+  signal: AbortSignal,
 ): Promise<HighlightsPage> {
   return parsedFrom(
     "GET",
     `/api/highlights${queryOf(filters, cursor)}`,
     HighlightsPageResponseSchema,
+    { signal },
   );
 }
 
-type TopicRead =
+export type TopicRead =
   | { readonly outcome: "found"; readonly page: TopicPage }
   | { readonly outcome: "missing" };
 
-export async function fetchTopicPage(key: string, cursor: string | null): Promise<TopicRead> {
+export async function fetchTopicPage(
+  key: string,
+  cursor: string | null,
+  signal: AbortSignal,
+): Promise<TopicRead> {
   const page = await parsedOrNull(
     "GET",
     withCursor(topicApiPath(key), cursor),
     TopicPageSchema,
     404,
+    { signal },
   );
 
   return page === null ? { outcome: "missing" } : { outcome: "found", page };

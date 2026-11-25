@@ -1,47 +1,16 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { z } from "zod";
-
 import { ProposalPageSchema } from "../src/core/contract/proposal-contract.ts";
+import { propose } from "./accept-fixtures.ts";
 import { Instance } from "./instance.ts";
+import { paste } from "./library-fixtures.ts";
 import { mergesOf } from "./lost-highlight-fixtures.ts";
-import { seedProposal } from "./proposal-seed.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
-
-const IdSchema = z.object({ id: z.number() });
-
-const idOf = (instance: Instance, table: "tags" | "topics", name: string): number => {
-  const [found] = rows(instance, IdSchema, `select id from ${table} where name = ?`, name);
-
-  assert.ok(found !== undefined, name);
-
-  return found.id;
-};
+import { proposeTopics } from "./topic-accept-fixtures.ts";
+import { holdClaim, releaseClaim } from "./weekly-claim-fixtures.ts";
 
 describe("the Proposals routes with Tag and Topic rows together", () => {
   let instance: Instance;
-
-  const seedTopic = (from: string, into: string, state: string, reason: string | null) => {
-    seedProposal(
-      instance,
-      "topic-merge",
-      {
-        from_topic_id: idOf(instance, "topics", from),
-        into_topic_id: idOf(instance, "topics", into),
-      },
-      { reason, state },
-    );
-  };
-
-  const seedTag = (from: string, into: string, state: string, reason: string | null) => {
-    seedProposal(
-      instance,
-      "tag-merge",
-      { from_tag_id: idOf(instance, "tags", from), into_tag_id: idOf(instance, "tags", into) },
-      { reason, state },
-    );
-  };
 
   before(async () => {
     instance = await Instance.start();
@@ -51,9 +20,9 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
     await paste(instance, "three", { title: "Three", topic: "Machine learning", tags: ["llm"] });
     await paste(instance, "four", { title: "Four", topic: "Games" });
     await paste(instance, "five", { title: "Five", topic: "Game" });
-    seedTag("llms", "llm", "open", "Plural of the same word.");
-    seedTopic("ML", "Machine learning", "open", "Short form of the name.");
-    seedTopic("Game", "Games", "rejected", "Decided.");
+    propose(instance, ["llms", "llm"]);
+    proposeTopics(instance, ["ML", "Machine learning"], "open", "Short form of the name.");
+    proposeTopics(instance, ["Game", "Games"], "rejected", "Decided.");
   });
 
   after(() => instance.close());
@@ -76,20 +45,11 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
   });
 });
 
-describe("checkedAt is the most recent start of either weekly run", () => {
+describe("checkedAt is the most recent start of any weekly run", () => {
   let instance: Instance;
 
   const checkedAt = async () =>
     (await instance.read("GET", "/api/proposals", ProposalPageSchema)).checkedAt;
-
-  const claim = (task: string, at: number) => {
-    exec(
-      instance,
-      "insert or replace into scheduled_runs (task, last_run_at) values (?, ?)",
-      task,
-      at,
-    );
-  };
 
   before(async () => {
     instance = await Instance.start();
@@ -98,19 +58,24 @@ describe("checkedAt is the most recent start of either weekly run", () => {
 
   after(() => instance.close());
 
-  it("is null with neither claim, the Topic claim's time with only that claim, and the larger time with both", async () => {
+  it("is null with no claim, then the largest time among the weekly tasks, and ignores the sweep", async () => {
     assert.equal(await checkedAt(), null);
 
-    claim("topic_proposals", 5000);
+    holdClaim(instance, "topic_proposals", 5000);
     assert.equal(await checkedAt(), 5000);
 
-    claim("proposals", 3000);
+    holdClaim(instance, "proposals", 3000);
+    holdClaim(instance, "highlight_proposals", 2000);
+    holdClaim(instance, "overview_proposals", 4000);
     assert.equal(await checkedAt(), 5000);
 
-    claim("proposals", 9000);
+    holdClaim(instance, "disagreement_proposals", 9000);
     assert.equal(await checkedAt(), 9000);
 
-    exec(instance, "delete from scheduled_runs where task = 'topic_proposals'");
+    holdClaim(instance, "sweep", 20_000);
+    assert.equal(await checkedAt(), 9000);
+
+    releaseClaim(instance, "topic_proposals");
     assert.equal(await checkedAt(), 9000);
   });
 });

@@ -1,7 +1,7 @@
 import { type Page, expect } from "@playwright/test";
 
 import { PROPOSALS_PAGE, proposalsEmptyLine } from "../web/src/proposals-text.ts";
-import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { atPhoneWidth, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 export async function proposalsFlow(page: Page): Promise<void> {
   await page.goto("/");
@@ -17,9 +17,9 @@ export async function proposalsFlow(page: Page): Promise<void> {
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: PROPOSALS_PAGE.title })).toBeVisible();
 
-  await page.setViewportSize(PHONE);
-  await page.goto("/proposals/");
-  await expect(page.getByRole("heading", { name: PROPOSALS_PAGE.emptyHeading })).toBeVisible();
-  await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await atPhoneWidth(page, async () => {
+    await page.goto("/proposals/");
+    await expect(page.getByRole("heading", { name: PROPOSALS_PAGE.emptyHeading })).toBeVisible();
+    await expectNoSidewaysScroll(page);
+  });
 }

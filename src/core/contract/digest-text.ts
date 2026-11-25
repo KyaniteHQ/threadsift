@@ -1,12 +1,11 @@
 import { z } from "zod";
 
+import { splitLines } from "./format.ts";
 import { isReadableText } from "./plain-text.ts";
 
 export const SHORT_TEXT_MAX = 240;
 
 export const DIGEST_TAGS_MAX = 3;
-
-const LINE_BREAK = /\r\n|\r|\n/u;
 
 const ShortText = z.string().trim().min(1).max(SHORT_TEXT_MAX);
 
@@ -19,10 +18,10 @@ const Summary = z
   .trim()
   .min(1)
   .max(1200)
-  .refine((text) => text.split(LINE_BREAK).length <= 2, { error: "must have at most two lines" });
+  .refine((text) => splitLines(text).length <= 2, { error: "must have at most two lines" });
 
 const ReadableSummary = Summary.refine(
-  (text) => text.split(LINE_BREAK).every((line) => isReadableText(line)),
+  (text) => splitLines(text).every((line) => isReadableText(line)),
   UNREADABLE,
 );
 

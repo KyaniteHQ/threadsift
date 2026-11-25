@@ -8,16 +8,10 @@ import { guardedBatch } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { DATABASE_NOW } from "../../../core/kernel/sql-expressions.ts";
 import { sessionIsLive } from "../../access/core/sessions.ts";
-import {
-  type PreparedSave,
-  holdsSettings,
-  prepareAiSettings,
-  providerWrites,
-  saveWithDigests,
-  storedSettings,
-} from "./ai-settings.ts";
+import { type PreparedSave, prepareAiSettings, providerWrites } from "./ai-settings.ts";
 import type { Claimed } from "./openrouter-claim.ts";
 import { awaitOpenRouterActivation } from "./openrouter-exchange.ts";
+import { holdsSettings, reopenedWhileStored } from "./openrouter-stored.ts";
 
 type Prepared = Awaited<ReturnType<typeof prepareAiSettings>>;
 
@@ -59,19 +53,6 @@ async function committed(
   }
 }
 
-async function openConnectedDigests(
-  ports: Ports,
-  row: Readonly<PreparedSave["row"]>,
-): Promise<boolean> {
-  try {
-    return await saveWithDigests(ports, storedSettings(row), []);
-  } catch (error) {
-    logFailure("openrouter-connect-digests-failed", {}, error);
-
-    return holdsSettings(ports.db, row);
-  }
-}
-
 async function afterActivation(
   ports: Ports,
   { row }: Readonly<PreparedSave>,
@@ -80,7 +61,7 @@ async function afterActivation(
   const active = await awaitOpenRouterActivation(ports.ai, key);
 
   const stored = active
-    ? await openConnectedDigests(ports, row)
+    ? await reopenedWhileStored(ports, row)
     : await holdsSettings(ports.db, row);
 
   if (!stored) return SETTINGS_CHANGED;

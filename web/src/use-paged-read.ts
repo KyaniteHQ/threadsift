@@ -8,12 +8,9 @@ import {
 } from "react";
 
 import type { More } from "./list-paging.ts";
+import { type PagedPage, readThrough } from "./read-through.ts";
 import { useLatest } from "./use-latest.ts";
 import { type Ticket, useTicket } from "./use-ticket.ts";
-
-export interface PagedPage {
-  readonly next: string | null;
-}
 
 export type PagedReady<Page extends PagedPage> = Page & {
   readonly status: "ready";
@@ -33,12 +30,15 @@ function readyFrom<Page extends PagedPage>(page: Readonly<Page>): PagedReady<Pag
   return { ...page, status: "ready", more: "idle" };
 }
 
+type Read<Page> = (cursor: string | null, signal: AbortSignal) => Promise<Page>;
+
 async function attempt<Page>(
-  read: (cursor: string | null) => Promise<Page>,
+  read: Read<Page>,
   cursor: string | null,
+  signal: AbortSignal,
 ): Promise<Page | null> {
   try {
-    return await read(cursor);
+    return await read(cursor, signal);
   } catch {
     return null;
   }
@@ -54,42 +54,35 @@ function appended<Page extends PagedPage>(
   return page === null ? { ...now, more: "failed" } : readyFrom(joined(now, page));
 }
 
-async function readThrough<Page extends PagedPage>(
-  read: (cursor: string | null) => Promise<Page>,
-  joined: (shown: Readonly<Page>, added: Readonly<Page>) => Page,
-  covers: (shown: Readonly<Page>) => boolean,
-  shown: Readonly<Page>,
-): Promise<Page | null> {
-  if (shown.next === null || covers(shown)) return shown;
-
-  const added = await attempt(read, shown.next);
-
-  return added === null ? null : readThrough(read, joined, covers, joined(shown, added));
-}
-
 async function reloaded<Page extends PagedPage>(
-  read: (cursor: string | null) => Promise<Page>,
+  read: Read<Page>,
   joined: (shown: Readonly<Page>, added: Readonly<Page>) => Page,
-  covers: (shown: Readonly<Page>) => boolean,
+  { covers, signal }: Readonly<{ covers: (shown: Readonly<Page>) => boolean; signal: AbortSignal }>,
 ): Promise<Page | null> {
-  const first = await attempt(read, null);
+  const first = await attempt(read, null, signal);
 
-  return first === null ? null : readThrough(read, joined, covers, first);
+  return first === null
+    ? null
+    : readThrough(first, {
+        read: (cursor) => attempt(read, cursor, signal),
+        joined,
+        covers,
+      });
 }
 
 async function firstRead<Page extends PagedPage>(
-  read: (cursor: string | null) => Promise<Page>,
+  read: Read<Page>,
   ticket: Ticket,
   setState: Dispatch<SetStateAction<Paged<Page>>>,
 ): Promise<void> {
-  const mine = ticket.take();
-  const page = await attempt(read, null);
+  const signal = ticket.take();
+  const page = await attempt(read, null, signal);
 
-  if (ticket.matches(mine)) setState(page === null ? FAILED : readyFrom(page));
+  if (!signal.aborted) setState(page === null ? FAILED : readyFrom(page));
 }
 
 function useFirstRead<Page extends PagedPage>(
-  read: (cursor: string | null) => Promise<Page>,
+  read: Read<Page>,
   ticket: Ticket,
   setState: Dispatch<SetStateAction<Paged<Page>>>,
 ) {
@@ -114,7 +107,7 @@ function useFirstRead<Page extends PagedPage>(
 }
 
 export function usePagedRead<Page extends PagedPage>(
-  read: (cursor: string | null) => Promise<Page>,
+  read: Read<Page>,
   joined: (shown: Readonly<Page>, added: Readonly<Page>) => Page,
 ) {
   const [state, setState] = useState<Paged<Page>>(LOADING);
@@ -129,10 +122,13 @@ export function usePagedRead<Page extends PagedPage>(
 
       if (loaded.status !== "ready" || loaded.more === "loading" || reloading.current > 0) return;
 
-      const mine = ticket.now();
-      const page = await reloaded(read, joined, (shown) => covers(shown, loaded));
+      const signal = ticket.current();
+      const page = await reloaded(read, joined, {
+        covers: (shown) => covers(shown, loaded),
+        signal,
+      });
 
-      if (page === null || !ticket.matches(mine)) return;
+      if (page === null || signal.aborted) return;
 
       setState((now) => (now.status === "ready" ? { ...readyFrom(page), more: now.more } : now));
     },
@@ -146,11 +142,11 @@ export function usePagedRead<Page extends PagedPage>(
       return false;
     }
 
-    const mine = ticket.take();
+    const signal = ticket.take();
     setState({ ...current, more: "loading" });
 
-    void attempt(read, current.next).then((page) => {
-      if (ticket.matches(mine)) setState((now) => appended(now, page, joined));
+    void attempt(read, current.next, signal).then((page) => {
+      if (!signal.aborted) setState((now) => appended(now, page, joined));
 
       return page;
     });

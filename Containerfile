@@ -4,7 +4,12 @@ FROM node AS base
 WORKDIR /app
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 COPY extension/package.json extension/package.json
-RUN npm install --global "$(node -p 'require("./package.json").packageManager')"
+RUN spec="$(node -e 'const field = require("./package.json").packageManager; const pinned = typeof field === "string" ? /^pnpm@(\d+\.\d+\.\d+)\+sha512\.([0-9a-f]{128})$/.exec(field) : null; if (pinned === null) throw new Error("packageManager is not pnpm@<version>+sha512.<128 hex>"); console.log(pinned[1], pinned[2]);')" \
+    && version="${spec% *}" && hash="${spec#* }" \
+    && npm pack "pnpm@$version" --loglevel=error --pack-destination /tmp \
+    && echo "$hash  /tmp/pnpm-$version.tgz" | sha512sum --check --strict \
+    && npm install --global "/tmp/pnpm-$version.tgz" \
+    && rm "/tmp/pnpm-$version.tgz"
 
 FROM base AS prod-deps
 RUN pnpm install --frozen-lockfile --prod --filter threadsift

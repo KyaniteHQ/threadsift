@@ -1,10 +1,9 @@
-import { setTimeout as delay } from "node:timers/promises";
-
 import type { z } from "zod";
 
 import { tick } from "../src/core/compose/tick.ts";
 import {
   ItemDetailResponseSchema,
+  ItemListResponseSchema,
   ItemResponseSchema,
 } from "../src/core/contract/item-route-wire.ts";
 import { hasOwner } from "../src/features/access/core/owner.ts";
@@ -12,7 +11,8 @@ import { prepareSession, sessionWrites } from "../src/features/access/core/sessi
 import { createApp } from "../src/http/app.ts";
 import { nodeEnvironment } from "../src/targets/node/environment.ts";
 import { startNode } from "../src/targets/node/ports.ts";
-import { instanceDatabase, snapshotDatabase } from "./instance-database.ts";
+import { databaseOf, instanceDatabase, snapshotDatabase } from "./instance-database.ts";
+import { until } from "./library-fixtures.ts";
 
 export const SETUP_CODE = "a-setup-code-of-sixteen-or-more";
 
@@ -25,6 +25,7 @@ interface StartOptions {
   readonly publicOrigin?: string | undefined;
   readonly fetchers?: string | undefined;
   readonly secretKey?: string | undefined;
+  readonly resetCode?: string | undefined;
 }
 
 let ownerTemplate: Promise<Uint8Array> | undefined;
@@ -38,11 +39,9 @@ function templateDatabase(): Promise<Uint8Array> {
   return ownerTemplate;
 }
 
-const POLL_MS = 25;
+export const ORIGIN = "http://localhost";
 
-export const SETTLE_DEADLINE_MS = 20_000;
-
-const ORIGIN = "http://localhost";
+export const SECRET_KEY = "0".repeat(64);
 
 const SESSION_COOKIE = "__Host-threadsift_session";
 
@@ -57,22 +56,6 @@ export type Json =
 export interface Answer {
   readonly status: number;
   readonly body: string;
-}
-
-async function settled<Value>(
-  read: () => Promise<Value>,
-  isDone: (value: Value) => boolean,
-  deadline: number,
-): Promise<Value> {
-  const value = await read();
-
-  if (isDone(value)) return value;
-
-  if (Date.now() >= deadline) throw new Error("the state did not settle before its deadline");
-
-  await delay(POLL_MS);
-
-  return settled(read, isDone, deadline);
 }
 
 function sessionPair(response: Readonly<Response>): string | null | undefined {
@@ -102,6 +85,7 @@ export class Instance {
   private readonly shutdown: () => Promise<void>;
 
   readonly databaseFile: string;
+  readonly database: ReturnType<typeof databaseOf>;
   private readonly ports: Ports;
 
   private constructor(
@@ -114,6 +98,7 @@ export class Instance {
     this.app = app;
     this.ports = ports;
     this.databaseFile = file;
+    this.database = databaseOf(file);
     this.needsOwnerSession = needsOwnerSession;
     this.shutdown = shutdown;
   }
@@ -123,6 +108,7 @@ export class Instance {
     publicOrigin,
     fetchers,
     secretKey,
+    resetCode,
   }: StartOptions = {}): Promise<Instance> {
     const template = fresh ? undefined : await templateDatabase();
     await using cleanup = new AsyncDisposableStack();
@@ -131,6 +117,7 @@ export class Instance {
     const environment = nodeEnvironment({
       DATA_DIR: database.dataDir,
       SETUP_CODE,
+      PASSWORD_RESET_CODE: resetCode,
       THREADSIFT_SECRET_KEY: secretKey,
       THREADSIFT_PUBLIC_ORIGIN: publicOrigin,
       THREADSIFT_FETCHERS: fetchers,
@@ -147,8 +134,24 @@ export class Instance {
     return Promise.resolve(this.app.request(input, init));
   }
 
-  get sessionCookie(): string | null {
+  get ownerCookie(): string {
+    if (this.cookie === null) throw new Error("The Instance holds no session");
+
     return this.cookie;
+  }
+
+  private ownerHeaders(extra: HeadersInit = {}): Headers {
+    const headers = new Headers({ origin: ORIGIN });
+
+    for (const [name, value] of new Headers(extra)) headers.set(name, value);
+
+    if (this.cookie !== null) headers.set("cookie", this.cookie);
+
+    return headers;
+  }
+
+  request(path: string, init: RequestInit = {}): Promise<Response> {
+    return this.fetch(path, { ...init, headers: this.ownerHeaders(init.headers) });
   }
 
   get routes() {
@@ -173,11 +176,10 @@ export class Instance {
     body: Json = null,
     extraHeaders: Readonly<Record<string, string>> = {},
   ): Promise<Answer> {
-    const headers = new Headers({ origin: ORIGIN, ...extraHeaders });
-
-    if (this.cookie !== null) headers.set("cookie", this.cookie);
-
-    const response = await this.app.request(path, requestOf(method, headers, body));
+    const response = await this.app.request(
+      path,
+      requestOf(method, this.ownerHeaders(extraHeaders), body),
+    );
 
     const session = sessionPair(response);
 
@@ -191,15 +193,13 @@ export class Instance {
     path: string,
     body: Json = null,
   ): Promise<Answer> {
-    const headers = new Headers({ origin: ORIGIN, cookie: this.cookie ?? "" });
-
     const worker = createApp({
       ...this.ports,
       ai: { ...this.ports.ai, publicOnly: true },
       xFetcher: null,
     });
 
-    const response = await worker.request(path, requestOf(method, headers, body));
+    const response = await worker.request(path, requestOf(method, this.ownerHeaders(), body));
 
     return { status: response.status, body: await response.text() };
   }
@@ -225,6 +225,10 @@ export class Instance {
   ): Promise<z.infer<Schema>> {
     const answer = await this.send(method, path, body);
 
+    if (answer.status < 200 || answer.status > 299) {
+      throw new Error(`${method} ${path} answered ${String(answer.status)}: ${answer.body}`);
+    }
+
     return schema.parse(JSON.parse(answer.body));
   }
 
@@ -243,13 +247,17 @@ export class Instance {
   }
 
   async settledItem(id: number) {
-    const { item } = await settled(
+    const { item } = await until(
+      `Item ${String(id)} has finished processing`,
       () => this.read("GET", `/api/items/${String(id)}/status`, ItemResponseSchema),
       ({ item: current }) => current.status !== "processing",
-      Date.now() + SETTLE_DEADLINE_MS,
     );
 
     return item;
+  }
+
+  async itemTotal(): Promise<number> {
+    return (await this.read("GET", "/api/items", ItemListResponseSchema)).counts.total;
   }
 
   async detail(id: number) {

@@ -4,7 +4,7 @@ These pages say what Threadsift is built with, where each part runs and why. [Th
 
 ## Status
 
-A live run proved part of each behaviour below, and other checks remain open. [Open items and unverified claims](architecture/open-items-and-unverified-claims.md) lists every open check.
+A live run proved part of each behaviour below, and other checks remain open. [Open items and unverified claims](architecture/open-items-and-unverified-claims.md) lists every open check, and the cases recorded as not run by the gate.
 
 | Part | Status |
 |---|---|
@@ -41,4 +41,4 @@ A live run proved part of each behaviour below, and other checks remain open. [O
 | [Testing](architecture/testing.md) | How the suites are built |
 | [Decisions and evidence](architecture/decisions-and-evidence.md) | Reasons and measurements behind product decisions |
 | [HTTP interfaces](architecture/http-interfaces.md) | The rules around the routes |
-| [Open items and unverified claims](architecture/open-items-and-unverified-claims.md) | What is not built or not proven |
+| [Open items and unverified claims](architecture/open-items-and-unverified-claims.md) | What is not built, not proven, or not run by the gate |

@@ -1,24 +1,33 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useState } from "react";
 
 export interface Ticket {
-  readonly take: () => number;
-  readonly now: () => number;
-  readonly matches: (mine: number) => boolean;
+  readonly take: () => AbortSignal;
+  readonly current: () => AbortSignal;
+}
+
+function newTicket(): Ticket {
+  let controller = new AbortController();
+
+  return {
+    take: () => {
+      controller.abort();
+      controller = new AbortController();
+
+      return controller.signal;
+    },
+    current: () => controller.signal,
+  };
 }
 
 export function useTicket(): Ticket {
-  const count = useRef(0);
+  const [ticket] = useState(newTicket);
 
-  return useMemo(
-    () => ({
-      take: () => {
-        count.current += 1;
-
-        return count.current;
-      },
-      now: () => count.current,
-      matches: (mine) => count.current === mine,
-    }),
-    [],
+  useEffect(
+    () => () => {
+      ticket.take();
+    },
+    [ticket],
   );
+
+  return ticket;
 }

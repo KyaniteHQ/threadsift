@@ -1,3 +1,4 @@
+import { joinedBytes } from "../../../core/contract/encoding.ts";
 import {
   EXPORT_ENTRY_BYTES,
   EXPORT_PAGE_ROWS,
@@ -20,7 +21,7 @@ import {
   openItemCount,
   tablePage,
 } from "./export-records.ts";
-import { type ZipFile, joined } from "./zip.ts";
+import type { ZipFile } from "./zip.ts";
 
 const TEXT = new TextEncoder();
 
@@ -60,7 +61,7 @@ function entriesOf(lines: readonly Uint8Array[]): readonly Uint8Array[] {
 
   for (const line of lines) {
     if (bytes > 0 && bytes + line.length > EXPORT_ENTRY_BYTES) {
-      entries.push(joined(current));
+      entries.push(joinedBytes(current));
       current = [];
       bytes = 0;
     }
@@ -69,7 +70,7 @@ function entriesOf(lines: readonly Uint8Array[]): readonly Uint8Array[] {
     bytes += line.length;
   }
 
-  return bytes === 0 ? entries : [...entries, joined(current)];
+  return bytes === 0 ? entries : [...entries, joinedBytes(current)];
 }
 
 function recordFiles(

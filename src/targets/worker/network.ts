@@ -1,3 +1,5 @@
+import { readPrefix } from "../../core/kernel/capped.ts";
+import { bestEffort } from "../../core/kernel/failure-log.ts";
 import { networkOver } from "../../core/kernel/network-transport.ts";
 import {
   type Network,
@@ -10,16 +12,17 @@ const CLOUDFLARE_ORIGIN_ERROR_STATUS = 530;
 const CLOUDFLARE_ERROR_PAGE = /^error code: 1[0-9]{3}\s*$/u;
 const ERROR_PAGE_BYTES = 64;
 
-async function firstChunk(body: ReadableStream<Uint8Array> | null): Promise<string> {
+const PEEK_NOT_CANCELLED = { event: "origin-error-peek-not-cancelled", fields: {} } as const;
+
+async function wholeShortBody(body: ReadableStream<Uint8Array> | null): Promise<string | null> {
   if (body === null) {
     return "";
   }
 
-  const reader = body.getReader();
-  const { value } = await reader.read();
-  await reader.cancel();
+  const prefix = await readPrefix(body.values({ preventCancel: true }), ERROR_PAGE_BYTES);
+  void bestEffort(PEEK_NOT_CANCELLED, () => body.cancel());
 
-  return new TextDecoder().decode(value?.subarray(0, ERROR_PAGE_BYTES));
+  return prefix.length < ERROR_PAGE_BYTES ? new TextDecoder().decode(prefix) : null;
 }
 
 async function refuseUnreachableOrigin(url: string, response: Response): Promise<void> {
@@ -27,9 +30,11 @@ async function refuseUnreachableOrigin(url: string, response: Response): Promise
     return;
   }
 
-  const page = await firstChunk(response.body);
+  const page = await wholeShortBody(response.clone().body);
 
-  if (CLOUDFLARE_ERROR_PAGE.test(page)) {
+  if (page !== null && CLOUDFLARE_ERROR_PAGE.test(page)) {
+    await response.body?.cancel();
+
     throw new Error(`Cloudflare could not reach ${url}: ${page.trim()}`);
   }
 }

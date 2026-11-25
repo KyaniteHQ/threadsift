@@ -6,15 +6,8 @@ import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { More } from "./list-paging.ts";
 import type { ListState } from "./list-state.ts";
-import {
-  CLEAR_ALL,
-  EMPTY_LIST,
-  LOADING_LABEL,
-  LOAD_FAILED,
-  LOAD_MORE,
-  NO_RESULTS,
-  RETRY_LABEL,
-} from "./text.ts";
+import { LoadMore } from "./LoadMore.tsx";
+import { CLEAR_ALL, EMPTY_LIST, LOADING_LABEL, LOAD_FAILED, NO_RESULTS } from "./text.ts";
 import { useNearEnd } from "./use-near-end.ts";
 
 const SKELETON_ROWS = [0, 1, 2] as const;
@@ -51,10 +44,9 @@ export function Notice({
   text,
   action,
   label,
-  alert,
-}: Readonly<{ text: string; action: () => void; label: string; alert: boolean }>) {
+}: Readonly<{ text: string; action: () => void; label: string }>) {
   return (
-    <div className="noresults" role={alert ? "alert" : undefined}>
+    <div className="noresults">
       <p>{text}</p>
       <button type="button" className="btn" onClick={action}>
         {label}
@@ -118,18 +110,16 @@ function ItemList({
 }
 
 function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) {
-  if (state === "failed") {
-    return <Notice text={LOAD_FAILED} action={more} label={RETRY_LABEL} alert />;
-  }
-
   return (
     <>
       {state === "loading" ? <Loading /> : null}
-      <div className="noresults">
-        <button type="button" className="btn" aria-disabled={state === "loading"} onClick={more}>
-          {LOAD_MORE}
-        </button>
-      </div>
+      <LoadMore
+        variant="column"
+        more={state}
+        failedText={LOAD_FAILED}
+        disabled={state === "loading"}
+        loadMore={more}
+      />
     </>
   );
 }
@@ -146,7 +136,6 @@ export function EmptyState({ heading, line }: Readonly<{ heading: string; line: 
 
 interface ListBodyProps extends RowProps {
   readonly list: ListState;
-  readonly retry: () => void;
   readonly clearAll: () => void;
   readonly more: () => void;
 }
@@ -183,23 +172,18 @@ function LoadedList({
 
 export const ListBody = memo(function ListBody({
   list,
-  retry,
   clearAll,
   more,
   ...shared
 }: Readonly<ListBodyProps>) {
-  if (list.status === "loading") {
-    return <Loading />;
-  }
+  if (list.status === "failed") return null;
 
-  if (list.status === "failed") {
-    return <Notice text={LOAD_FAILED} action={retry} label={RETRY_LABEL} alert />;
-  }
+  if (list.status === "loading") return <Loading />;
 
   const exhausted = isEmptyResult(list.items.length, list.next);
 
   if (exhausted && list.counts.total > 0) {
-    return <Notice text={NO_RESULTS} action={clearAll} label={CLEAR_ALL} alert={false} />;
+    return <Notice text={NO_RESULTS} action={clearAll} label={CLEAR_ALL} />;
   }
 
   if (exhausted) {

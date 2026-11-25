@@ -6,14 +6,18 @@ import { readExactly } from "../../../core/kernel/capped.ts";
 import type { FileStore } from "../../../core/kernel/file-store.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { items } from "../../../core/kernel/schema.ts";
-import { type ItemFilePlan, type StoredFile, itemFilePlan } from "../../item/core/item-files.ts";
+import type { ItemFilePlan, StoredFile } from "../../item/core/item-files.ts";
 import { itemNote, noteFileName } from "../../item/core/item-note.ts";
-import { readPlanSource } from "../../item/core/plan-source.ts";
+import { readAgainOnce, readPlannedItem } from "../../item/core/plan-source.ts";
 import type { ZipFile } from "./zip.ts";
 
 const TEXT = new TextEncoder();
 
 class ExportFileMissing extends Error {}
+
+function missingFile(key: string, itemId: number): ExportFileMissing {
+  return new ExportFileMissing(`The file ${key} is missing for Item ${String(itemId)}`);
+}
 
 type ItemPorts = Pick<Ports, "db" | "files">;
 
@@ -59,18 +63,26 @@ function headOf({ note, postText }: Readonly<ItemFilePlan>): readonly ZipFile[] 
   ];
 }
 
+function fitting(sizes: readonly number[], skip: number, used: number): number {
+  let total = used;
+
+  const refused = sizes.findIndex((size, at) => {
+    if (at < skip) return false;
+
+    if (total !== 0 && total + size > EXPORT_SLICE_BYTES) return true;
+
+    total += size;
+
+    return false;
+  });
+
+  return refused === -1 ? Math.max(skip, sizes.length) : refused;
+}
+
 function choose(plan: Readonly<ItemFilePlan>, { skip, used }: Readonly<Place>): Chosen {
   const head = headOf(plan);
   const sizes = [...head.map(({ bytes }) => bytes.length), ...plan.stored.map(({ size }) => size)];
-
-  let total = used;
-  let at = skip;
-
-  while (at < sizes.length && (total === 0 || total + (sizes[at] ?? 0) <= EXPORT_SLICE_BYTES)) {
-    total += sizes[at] ?? 0;
-    at += 1;
-  }
-
+  const at = fitting(sizes, skip, used);
   const headCount = head.length;
 
   return {
@@ -94,15 +106,13 @@ async function gather(
   itemId: number,
   place: Readonly<Place>,
 ): Promise<Gathered> {
-  const read = await readPlanSource(ports, itemId);
+  const read = await readPlannedItem(ports, itemId);
 
-  if (read === undefined) return { kind: "gone" };
+  if (read === null) return { kind: "gone" };
 
-  const planned = itemFilePlan(read);
+  if (read.planned.kind === "missing") return read.planned;
 
-  if (planned.kind === "missing") return planned;
-
-  const chosen = choose(planned.plan, place);
+  const chosen = choose(read.planned.plan, place);
   const images = await readEach(ports.files, chosen.stored, []);
 
   return images.kind === "missing"
@@ -115,12 +125,12 @@ async function itemEntries(
   itemId: number,
   place: Readonly<Place>,
 ): Promise<Exclude<Gathered, { kind: "missing" }>> {
-  const first = await gather(ports, itemId, place);
-  const settled = first.kind === "missing" ? await gather(ports, itemId, place) : first;
+  const settled = await readAgainOnce(
+    () => gather(ports, itemId, place),
+    ({ kind }) => kind === "missing",
+  );
 
-  if (settled.kind === "missing") {
-    throw new ExportFileMissing(`The file ${settled.key} is missing for Item ${String(itemId)}`);
-  }
+  if (settled.kind === "missing") throw missingFile(settled.key, itemId);
 
   return settled;
 }

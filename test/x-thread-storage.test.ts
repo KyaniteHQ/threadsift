@@ -6,8 +6,8 @@ import { z } from "zod";
 import { utf8Length } from "../src/core/contract/encoding.ts";
 import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { INLINE_TEXT_BYTES } from "../src/core/contract/limits.ts";
-import { Instance, type Json } from "./instance.ts";
-import { SECRET_KEY, count, exec, rows, saveProvider, until } from "./related-fixtures.ts";
+import { Instance, type Json, SECRET_KEY } from "./instance.ts";
+import { saveProvider, until } from "./library-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import {
   CUT_CASES,
@@ -55,8 +55,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
 
     assert.equal((await instance.settledItem(item.id)).status, "ready");
 
-    const stored = rows(
-      instance,
+    const stored = instance.database.rows(
       z.object({ id: z.string(), parent_id: z.string().nullable(), depth: z.number() }),
       "select id, parent_id, depth from reddit_comments where item_id = ? order by position",
       item.id,
@@ -85,12 +84,9 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     const id = xClient(instance).itemIdOf(STORED);
 
     const sources = (table: "reddit_threads" | "reddit_comments") =>
-      rows(
-        instance,
-        z.object({ source: z.string() }),
-        `select source from ${table} where item_id = ?`,
-        id,
-      ).map(({ source }) => source);
+      instance.database
+        .rows(z.object({ source: z.string() }), `select source from ${table} where item_id = ?`, id)
+        .map(({ source }) => source);
     assert.deepEqual(sources("reddit_threads"), ["x"]);
     assert.deepEqual(
       sources("reddit_comments"),
@@ -124,7 +120,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
   it("replaces the thread and advances the generation on a Paste with new content, and keeps it on a Paste of the link alone", async () => {
     const { saved, itemIdOf, generationOf } = xClient(instance);
     const id = itemIdOf(STORED);
-    const first = generationOf(id) ?? 0;
+    const first = generationOf(id);
 
     await saved({
       url: STORED_LINK,
@@ -153,8 +149,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
 
     assert.equal((await instance.send("DELETE", `/api/items/${String(id)}`)).status, 204);
     assert.equal(
-      count(
-        instance,
+      instance.database.count(
         "select (select count(*) from reddit_comments where item_id = ?) + (select count(*) from reddit_threads where item_id = ?) as n",
         id,
         id,
@@ -172,9 +167,9 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     });
 
     const [task] = await until(
+      `Item ${String(item.id)} has a Digest task`,
       () =>
-        rows(
-          instance,
+        instance.database.rows(
           z.object({ inputs: z.string() }),
           "select inputs from ai_tasks where kind = 'digest' and item_id = ?",
           item.id,
@@ -192,7 +187,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     assert.equal(/t1_1000000000000000(?:013|014|015)|Remember the rules/u.test(sent), false, sent);
     assert.equal(/bob|carol|dave|erin|AutoModerator/iu.test(sent), false, sent);
 
-    exec(instance, "delete from ai_tasks where item_id = ?", item.id);
+    instance.database.exec("delete from ai_tasks where item_id = ?", item.id);
   });
 
   it("keeps only the replies a caller-sent Digest names that are eligible", async () => {
@@ -205,12 +200,13 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     await instance.settledItem(item.id);
 
     assert.deepEqual(
-      rows(
-        instance,
-        z.object({ id: z.string() }),
-        "select id from reddit_comments where item_id = ? and kept = 1 order by position",
-        item.id,
-      ).map(({ id }) => id),
+      instance.database
+        .rows(
+          z.object({ id: z.string() }),
+          "select id from reddit_comments where item_id = ? and kept = 1 order by position",
+          item.id,
+        )
+        .map(({ id }) => id),
       [PARENT],
     );
   });

@@ -6,6 +6,7 @@ import { HOP_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import { SECRET_INPUT_MAX } from "../../../core/contract/secret-input.ts";
 import type { AiRuntime } from "../../../core/kernel/ai-runtime.ts";
 import { readCapped } from "../../../core/kernel/capped.ts";
+import { logFailure } from "../../../core/kernel/failure-log.ts";
 import { aiTransport } from "./ai-transport.ts";
 
 const EXCHANGE_URL = "https://openrouter.ai/api/v1/auth/keys";
@@ -37,7 +38,9 @@ async function activated(send: typeof fetch, key: string, deadline: number): Pro
     if (response.status === 200) return true;
 
     if (response.status !== 401 || Date.now() + ACTIVATION_POLL_MS >= deadline) return false;
-  } catch {
+  } catch (error) {
+    logFailure("openrouter-activation-check-failed", {}, error);
+
     return false;
   }
 
@@ -79,7 +82,9 @@ export async function exchangeOpenRouterCode(
     await response.body?.cancel();
 
     return REFUSING_STATUSES.has(response.status) ? { kind: "refused" } : { kind: "uncertain" };
-  } catch {
+  } catch (error) {
+    logFailure("openrouter-exchange-failed", {}, error);
+
     return { kind: "uncertain" };
   }
 }

@@ -1,19 +1,13 @@
-import { type Browser, type Page, expect, test } from "@playwright/test";
+import { type Page, expect, test } from "@playwright/test";
 
 import { IMPORT, countLabel } from "../web/src/import-text.ts";
-import { INDEX_PAGE } from "../web/src/index-text.ts";
-import {
-  ADD_LABEL,
-  BACK_TO_LIBRARY,
-  FILTERS_BUTTON,
-  FILTER_GROUPS,
-  PASTE_LABEL,
-} from "../web/src/text.ts";
-import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
+import { ADD_LABEL, BACK_TO_LIBRARY, PASTE_LABEL } from "../web/src/text.ts";
 import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
-import { expectDocumentHeaders, visitSignedOut, watchContext } from "./document-checks.ts";
+import { expectDocumentHeaders, watchContext } from "./document-checks.ts";
+import { type TopicCase, openIndex, openTopicPage, phoneRailTarget } from "./index-flow.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
+import { savedItem } from "./saved-item.ts";
 import { settingsSteps } from "./settings-steps.ts";
 
 const X_LINK = "https://x.com/someone/status/1234567890";
@@ -32,14 +26,6 @@ const SENTENCE =
   "Copying the database file while the writer is busy can tear a page, so take the copy with the online backup command instead.";
 
 const ARTICLE_TEXT = Array.from({ length: 8 }, () => SENTENCE).join("\n\n");
-
-interface TopicCase {
-  readonly link: string;
-  readonly name: string;
-  readonly itemTitle: string;
-  readonly summary: string;
-  readonly address: RegExp;
-}
 
 const DOTTED_TOPIC: TopicCase = {
   link: "https://example.com/guides/node-streams",
@@ -75,10 +61,6 @@ const INDEXED_TOPIC: TopicCase = {
 
 const SMOKE_TIMEOUT_MS = 240_000;
 
-const PHONE = { width: 390, height: 844 };
-
-const TARGET_PX = 44;
-
 async function pasteXLink(page: Page): Promise<void> {
   const row = page.locator("article.it.it-link-only");
 
@@ -90,14 +72,10 @@ async function pasteXLink(page: Page): Promise<void> {
 }
 
 async function readSavedPage(page: Page): Promise<void> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: ARTICLE_LINK,
-      page: { markdown: ARTICLE_TEXT, title: ARTICLE_TITLE, author: "Ada Example" },
-    },
+  await savedItem(page.request, {
+    url: ARTICLE_LINK,
+    page: { markdown: ARTICLE_TEXT, title: ARTICLE_TITLE, author: "Ada Example" },
   });
-
-  expect(saved.status()).toBe(201);
   await page.reload();
   await page
     .locator("article.it")
@@ -136,103 +114,6 @@ async function importListAgain(page: Page): Promise<void> {
   await expect(page.getByText(IMPORT.resumeComplete)).toBeVisible();
 }
 
-async function openTopicPage(page: Page, topic: TopicCase): Promise<void> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: topic.link,
-      page: { markdown: ARTICLE_TEXT, title: topic.itemTitle },
-      digest: {
-        title: topic.itemTitle,
-        topic: topic.name,
-        tags: ["streams"],
-        summary: topic.summary,
-        keyPoints: ["Pipe streams instead of buffering them"],
-      },
-    },
-  });
-
-  expect(saved.status()).toBe(201);
-  await page.goto("/");
-  await page
-    .locator("article.it")
-    .filter({ hasText: topic.itemTitle })
-    .getByRole("link")
-    .first()
-    .click();
-  await page.getByRole("link", { name: topicLinkLabel(topic.name) }).click();
-  await expect(page).toHaveURL(topic.address);
-  await page.reload();
-  await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
-  await expect(page.locator(".rl-row")).toContainText(topic.itemTitle);
-  await expect(page.locator(".rl-sum")).toContainText(topic.summary.split("\n").at(-1) ?? "");
-  await expect(page.getByText(TOPIC_PAGE.noProvider)).toBeVisible();
-}
-
-async function openIndex(page: Page, browser: Browser, topic: TopicCase): Promise<void> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: topic.link,
-      page: { markdown: ARTICLE_TEXT, title: topic.itemTitle },
-      digest: {
-        title: topic.itemTitle,
-        topic: topic.name,
-        tags: ["index"],
-        summary: topic.summary,
-        keyPoints: ["The Index reads stored rows"],
-      },
-    },
-  });
-
-  expect(saved.status()).toBe(201);
-  await page.setViewportSize(PHONE);
-  await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
-
-  const boxes = await Promise.all(
-    [IMPORT.settingsLink, INDEX_PAGE.masthead].map((name) =>
-      page.getByRole("link", { name, exact: true }).boundingBox(),
-    ),
-  );
-
-  for (const box of boxes) {
-    expect(box?.width).toBeGreaterThanOrEqual(TARGET_PX);
-    expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
-  }
-
-  await page.getByRole("link", { name: INDEX_PAGE.masthead, exact: true }).click();
-  await expect(page).toHaveURL(/\/topics$/u);
-  await expect(page).toHaveTitle("Index, Threadsift");
-
-  const row = page.locator(".ix-it").filter({ hasText: topic.name });
-
-  await expect(row).toContainText(itemsLabel(1));
-  await page.reload();
-  await expect(page.getByRole("heading", { level: 1, name: INDEX_PAGE.title })).toBeVisible();
-  await expect(row).toContainText(itemsLabel(1));
-  expect((await row.boundingBox())?.height).toBeGreaterThanOrEqual(TARGET_PX);
-  await row.getByRole("link", { name: topicLinkLabel(topic.name) }).click();
-  await expect(page).toHaveURL(topic.address);
-  await expect(page.getByRole("heading", { level: 1, name: topic.name })).toBeVisible();
-
-  await visitSignedOut(browser, "/topics");
-}
-
-async function phoneRailTarget(page: Page, topic: TopicCase): Promise<void> {
-  await page.setViewportSize(PHONE);
-  await page.goto("/");
-  await page.getByRole("button", { name: FILTERS_BUTTON, exact: true }).click();
-  await page
-    .getByRole("group", { name: FILTER_GROUPS.topic })
-    .getByRole("button", { name: topic.name })
-    .click();
-
-  const box = await page
-    .getByRole("link", { name: TOPIC_PAGE.openPage, exact: true })
-    .boundingBox();
-
-  expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
-}
-
 test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, lists the Digests it published on the Log, and shows no Related Items without a Provider", async ({
   page,
   browser,
@@ -254,11 +135,11 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
   await test.step("paste the same list after a reload and be told it was fully imported", () =>
     importListAgain(page));
   await test.step("open the Topic page from the Reader and reload it on its address", () =>
-    openTopicPage(page, DOTTED_TOPIC));
+    openTopicPage(page, DOTTED_TOPIC, ARTICLE_TEXT));
   await test.step("open a Topic made only of dots, which needs the tilde address", () =>
-    openTopicPage(page, DOTS_ONLY_TOPIC));
+    openTopicPage(page, DOTS_ONLY_TOPIC, ARTICLE_TEXT));
   await test.step("follow the settings panel's Index link, see a Topic with its count, open its page from the row, and visit the Index signed out", () =>
-    openIndex(page, browser, INDEXED_TOPIC));
+    openIndex(page, browser, INDEXED_TOPIC, ARTICLE_TEXT));
   await test.step("follow the settings panel's Log link, see ingest above topic, open the Item and the Topic page, reload, see a phone-width line wrap with two links at least 44px across and tall, open the Log and Item at their trailing-slash addresses, and delete the Item", () =>
     logFlow(page));
   await test.step("a failed Load more on the Log keeps its rows and Try again reads the next page", () =>

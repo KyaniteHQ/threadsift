@@ -5,6 +5,7 @@ import { PROVIDERS } from "../../core/contract/provider-families.ts";
 import type { RunnerTask } from "../../core/kernel/ai-runtime.ts";
 import { report } from "../../core/kernel/failure-log.ts";
 import { findBinary } from "./cli-process.ts";
+import { type SignIn, signInFrom } from "./cli-sign-in.ts";
 import type { Slots } from "./cli-slots.ts";
 import { codexHomeOf, reserveCodexHome } from "./codex-home.ts";
 import {
@@ -16,7 +17,7 @@ import {
   surfaceArguments,
   taskArguments,
 } from "./codex-process.ts";
-import { type ToollessCatalog, readOutcome, surfaceOf } from "./codex-protocol.ts";
+import { type ToollessCatalog, loginStatusOf, readOutcome, surfaceOf } from "./codex-protocol.ts";
 import {
   type Attempt,
   STDOUT_CAP,
@@ -57,7 +58,7 @@ class CodexCli extends SlottedCli {
         : undefined;
   }
 
-  protected async probe(signal: AbortSignal): Promise<boolean> {
+  protected async probe(signal: AbortSignal): Promise<SignIn> {
     const end = await inRunFolders((folders) =>
       spawnCodex(this.installation, folders, ["login", "status"], "", signal, {
         cap: STDOUT_CAP,
@@ -65,7 +66,7 @@ class CodexCli extends SlottedCli {
       }),
     );
 
-    return end.kind === "exited" && end.code === 0;
+    return signInFrom(end, loginStatusOf);
   }
 
   protected modelChoice(model: string) {
@@ -100,7 +101,7 @@ class CodexCli extends SlottedCli {
         },
       );
 
-      const result = await this.outcome(end, ({ stdout, code }) =>
+      const result = this.outcome(end, ({ stdout, code }) =>
         readOutcome(task.schema, stdout, code),
       );
 

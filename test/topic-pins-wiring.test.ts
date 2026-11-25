@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { join } from "node:path";
 import { after, before, describe, it } from "node:test";
 
 import { sql } from "drizzle-orm";
@@ -9,14 +8,9 @@ import {
   publishedByCaller,
   readForPublishing,
 } from "../src/features/digest/core/digest-publish.ts";
-import { openDatabase } from "../src/targets/node/database.ts";
+import { openMigrated } from "./instance-database.ts";
 import { Instance } from "./instance.ts";
-import { item, script, topicNameOf } from "./pin-fixtures.ts";
-
-const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
-
-const topicPin = (id: number, into: number) =>
-  `insert into pins (id, kind, from_key, from_name, into_topic_id, created_at) values (${String(id)}, 'topic-merge', 'ml', 'ML', ${String(into)}, 1);`;
+import { item, topicNameOf, topicPin } from "./pin-fixtures.ts";
 
 const published = { title: "T", topic: "ML", tags: [], summary: "S", keyPoints: ["K"] };
 
@@ -26,10 +20,10 @@ const runningTask = (id: number, itemId: number) =>
 
 describe("each publication path refuses its batch when a Topic Pin appeared after it read the Pins", () => {
   let instance: Instance;
-  let database: ReturnType<typeof openDatabase>;
+  let database: ReturnType<typeof openMigrated>;
 
   const sqlite = (statement: string) => {
-    script(instance, statement);
+    instance.database.script(statement);
   };
 
   const publication = async (itemId: number, taskId: number) => {
@@ -53,7 +47,7 @@ describe("each publication path refuses its batch when a Topic Pin appeared afte
       update items set topic_id = null where id in (1, 2);
       ${runningTask(101, 1)}
       ${runningTask(102, 2)}`);
-    database = openDatabase(instance.databaseFile, MIGRATIONS);
+    database = openMigrated(instance.databaseFile);
   });
 
   after(async () => {

@@ -10,9 +10,9 @@ import {
   sentOf,
 } from "./disagreement-fixtures.ts";
 import { acceptStatus, pinRows, replaceDigestToken } from "./disagreement-pin-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
-import { SECRET_KEY, saveProvider } from "./related-fixtures.ts";
 
 describe("the weekly disagreement check treats a pair with a current Pin as decided", () => {
   let instance: Instance;

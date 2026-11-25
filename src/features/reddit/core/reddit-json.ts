@@ -12,7 +12,6 @@ import type { WirePost } from "../../../core/contract/reddit-wire.ts";
 import type { ThreadAnswers } from "../../../core/contract/thread-answers.ts";
 import { checkedMetadata, checkedText, refuse } from "../../../core/contract/thread-refusal.ts";
 import { millisecondsFrom } from "../../../core/contract/time-units.ts";
-import { chooseCandidateLink, shownLinkOf } from "../../media/core/candidate-link.ts";
 import { isRemovedBody } from "../../thread/core/comment-filter.ts";
 import {
   type NodeEntry,
@@ -22,6 +21,7 @@ import {
   threadNodesOf,
 } from "../../thread/core/thread-parse.ts";
 import type { ThreadNode } from "../../thread/core/thread-rows.ts";
+import { chooseCandidateLink, shownLinkOf } from "./candidate-link.ts";
 
 function entryOf(
   entry: Readonly<Walked>,

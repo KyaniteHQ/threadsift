@@ -2,10 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { saveBot, chooseGrokBot } from "./bot-task-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { until } from "./library-fixtures.ts";
 import {
   LINKED,
-  SECRET_KEY,
   hopResults,
   seedGithubCooldown,
   toolsOf,
@@ -13,7 +13,6 @@ import {
   withoutComments,
 } from "./one-hop-fixtures.ts";
 import { redditAddressOf } from "./reader-thread-fixtures.ts";
-import { until } from "./related-fixtures.ts";
 
 describe("the linked-page hop of a Digest runs when Grok Bot is the Provider", () => {
   let instance: Instance;
@@ -40,6 +39,7 @@ describe("the linked-page hop of a Digest runs when Grok Bot is the Provider", (
       assert.equal((await chooseGrokBot(instance)).status, 200);
 
       return until(
+        "the hop has a result",
         () => hopResults(seen),
         (results) => results.length > 0,
       );

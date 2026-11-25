@@ -39,7 +39,7 @@ The screenshots show the same Topic page in three Styles: Library, Monocle, and 
 - Save a Reddit thread or a web page from your own browser tab with the Extension. For a Reddit thread, it reads the post and its comments through your signed-in tab.
 - Send links from a script with the HTTP API and an agent token you create in Settings. `/api/openapi.json` on your Instance describes the REST routes.
 - Let an agent search, read and add Items over MCP at `/mcp`, with its own agent token.
-- Hand X links to Grok Bot, which reads the post, its replies, the posts it quotes and its photos, and saves them back. [bot/README.md](bot/README.md) says how to install the bot.
+- Hand X links to Grok Bot, which reads the post, its replies, the posts it quotes and its photos, and saves them back. The [Threadsift bot guide](bot/README.md) says how to install the bot.
 
 ## Bring your own AI
 
@@ -101,14 +101,14 @@ The [architecture status table](docs/architecture.md) lists the parts still in d
 
 ## Find your way around
 
-- [docs/spec.md](docs/spec.md): what v1 does today.
-- [docs/architecture.md](docs/architecture.md): what it is built with and where each part runs.
-- [GLOSSARY.md](GLOSSARY.md): the words the project uses, such as Item, Digest and Provider.
-- [docs/guides/](docs/guides/): the guides for running and setting up an Instance.
-- [design/](design/) and [docs/design/](docs/design/): the prototype, the design system, the design prompts and the Style list.
+- [The v1 spec](docs/spec.md): what v1 does today.
+- [The architecture](docs/architecture.md): what it is built with and where each part runs.
+- [The glossary](GLOSSARY.md): the words the project uses, such as Item, Digest and Provider.
+- [The guides](docs/guides/): the guides for running and setting up an Instance.
+- [The design folder](design/) and [the design docs](docs/design/): the prototype, the design system, the design prompts and the Style list.
 
 ## License
 
 Copyright (C) 2026 Kyanite Labs.
 
-Threadsift is licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). See [LICENSE](LICENSE). Outside contributors sign the [Threadsift contributor licence agreement](CLA.md) using the instructions in their pull request.
+Threadsift is licensed under the GNU Affero General Public License, version 3 only (AGPL-3.0-only). See the [license text](LICENSE). Outside contributors sign the [Threadsift contributor licence agreement](CLA.md) using the instructions in their pull request.

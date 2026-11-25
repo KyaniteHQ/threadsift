@@ -30,6 +30,14 @@ const MAX_HTML_BYTES = 5 * 1024 * 1024;
 
 const STOPPED = "the page reader stopped";
 
+const POST_FAILED = "the page reader could not take the request";
+
+const REPLY_FAILED = "the page reader reply failed";
+
+function asError(cause: unknown, fallback: string): Error {
+  return cause instanceof Error ? cause : new Error(fallback);
+}
+
 class PageThread implements PageSource {
   private state: State = { kind: "idle" };
   private nextId = 0;
@@ -82,15 +90,27 @@ class PageThread implements PageSource {
   }
 
   private expire(id: number): void {
-    const entry = this.pending.get(id);
+    if (!this.reject(id, new PageReadTimeout())) return;
 
-    if (entry === undefined) return;
-
-    this.pending.delete(id);
-    entry.fail(new PageReadTimeout());
     this.terminate();
 
     for (const [otherId, other] of this.pending) this.post(otherId, other.request);
+  }
+
+  private taken(id: number): Pending | undefined {
+    const entry = this.pending.get(id);
+
+    this.pending.delete(id);
+
+    return entry;
+  }
+
+  private reject(id: number, error: Readonly<Error>): boolean {
+    const entry = this.taken(id);
+
+    entry?.fail(error);
+
+    return entry !== undefined;
   }
 
   private terminate(): void {
@@ -103,8 +123,12 @@ class PageThread implements PageSource {
   }
 
   private post(id: number, request: PageRequest): void {
-    // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
-    this.workerThread().postMessage({ id, ...request });
+    try {
+      // oxlint-disable-next-line unicorn/require-post-message-target-origin -- worker_threads ports have no target origin
+      this.workerThread().postMessage({ id, ...request });
+    } catch (cause) {
+      this.reject(id, asError(cause, POST_FAILED));
+    }
   }
 
   private workerThread(): Worker {
@@ -124,9 +148,7 @@ class PageThread implements PageSource {
       try {
         this.conclude(answer);
       } catch (cause) {
-        const error = cause instanceof Error ? cause : new Error("the page reader reply failed");
-
-        this.failAll(error);
+        this.failAll(asError(cause, REPLY_FAILED));
       }
     });
 
@@ -142,11 +164,9 @@ class PageThread implements PageSource {
   }
 
   private conclude(answer: Readonly<Reply>): void {
-    const entry = this.pending.get(answer.id);
+    const entry = this.taken(answer.id);
 
     if (entry === undefined) return;
-
-    this.pending.delete(answer.id);
 
     if (answer.ok) entry.succeed(answer.value);
     else entry.fail(new Error(answer.message));

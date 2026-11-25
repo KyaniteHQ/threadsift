@@ -48,20 +48,21 @@ The batches that publish a Digest, create a Topic, store an overview, store pick
 
 ## Deadlines, attempts and retries
 
-Each job runs under a deadline below the 15 minutes of wall time a Queues consumer gets ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)).
+Each job kind has a deadline below the 15 minutes of wall time a Queues consumer gets ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)). The deadline sets the length of the claim. Only the calls a kind bounds with a signal stop at it.
 
-| Job | Deadline | Constant |
-|---|---|---|
-| AI call | 10 minutes | `AI_DEADLINE_MS` |
-| Fetch | 2 minutes | `FETCH_DEADLINE_MS` |
-| Fetch of an X link through the grok CLI | up to 3 minutes for a CLI slot, then up to 3 minutes of run | `X_SLOT_WAIT_MS`, `X_RUN_DEADLINE_MS` |
-| Digest job | 12 minutes (the AI call plus the fetch hop, each under its own signal) | `DIGEST_DEADLINE_MS` |
-| Export slice, Restore unit | 10 minutes | `EXPORT_SLICE_DEADLINE_MS`, `RESTORE_UNIT_DEADLINE_MS` |
+| Job | Deadline | Constant | Stops at the deadline |
+|---|---|---|---|
+| AI call | 10 minutes | `AI_DEADLINE_MS` | yes, by its signal |
+| Fetch job | 6 minutes (`X_RUN_DEADLINE_MS` plus `X_SLOT_WAIT_MS`, the grok CLI read) | `X_FETCH_DEADLINE_MS` | each read, by its signal |
+| Fetch read of a supplied page or a link | 2 minutes | `FETCH_DEADLINE_MS` | yes, by its signal |
+| Fetch read of an X link through the grok CLI | 6 minutes: up to 3 minutes for a CLI slot, then up to 3 minutes of run | `X_FETCH_DEADLINE_MS`, `X_SLOT_WAIT_MS`, `X_RUN_DEADLINE_MS` | yes, by its signals |
+| Digest job | 12 minutes (the AI call plus the fetch hop, each under its own signal) | `DIGEST_DEADLINE_MS` | each call, by its signal |
+| Export slice, Restore unit | 10 minutes | `EXPORT_SLICE_DEADLINE_MS`, `RESTORE_UNIT_DEADLINE_MS` | no: once the claim expires another runner may take over the job, and the first attempt keeps running |
 
-- Claim length. A claim lasts the deadline of the claimed kind plus 2 minutes (`CLAIM_MARGIN_MS`), so a Digest claim lasts 14 minutes, under the 15 minutes a Queues consumer gets. The fetch kind's claim covers the grok CLI route as well.
+- Claim length. A claim lasts the deadline of the claimed kind plus 2 minutes (`CLAIM_MARGIN_MS`), so a Digest claim lasts 14 minutes, under the 15 minutes a Queues consumer gets. A fetch claim lasts 8 minutes, so it covers the grok CLI read as well as a 2-minute read.
 - Digest deadline. The 12 minutes are the sum of the two network and model phases, and one model call for each run keeps the job below the Queues limit.
 - A fetch past its deadline is not retried. The fetch's signal aborts, and the guard turns an aborted signal into the `timeout` result. An Item with no title yet ends `failed` with `timeout`. An Item that already has a title is not marked failed. It keeps the fetch result `timeout`, and its status follows its other open jobs (`settle`).
-- Every other job kind fails its attempt at the deadline and its row retries it, except `export`. An export slice has no abort signal, so its deadline only sets the length of its claim.
+- The engine does not abort an attempt at its deadline: `deadlineMs` only sets the length of the claim. A job kind bounds its own network and model calls with a signal, and a row retries an attempt that throws. An export slice, a Restore unit and a Digest attempt that only publishes a stored Digest (the caller path, database work only) have no signal. An `x_verify` attempt has no signal of its own either: its oEmbed slice and the media storage of its settling step each get a 90 s signal, and the claim, the deadline plus `CLAIM_MARGIN_MS`, covers both ([Fetchers](fetchers.md)).
 - CPU. The Worker sets `limits.cpu_ms` to 300,000, the Workers Paid maximum, because a Queues consumer gets 30 seconds of CPU by default ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)).
 - Attempts. A job gets 3 attempts (`MAX_ATTEMPTS`). A failed attempt retries after 30 seconds, and a second one after 2 minutes (`RETRY_DELAYS_MS`). After the third, the Item is `failed` with `gave-up`. On Cloudflare the retry is a Queues message with `delaySeconds`.
 - Declarations. A job kind is one `defineJob` or `defineUnownedJob` declaration listed in `HANDLERS`, so a new kind adds a declaration and one entry and no branch.
@@ -74,7 +75,7 @@ A handler that must wait returns a deferred outcome (`DeferredOutcome`): an abso
 - `queueLater` sets the job `queued` with `next_attempt_at` at that time and stores `jobs.wait_reason`, in the guarded batch that checks the claim. The due time and the Item-facing reason therefore commit together or not at all.
 - A deferred outcome can also carry `writes`, extra statements that commit in the same guarded batch.
 - The queue message is only a wake-up. `claim` takes a queued row only when `next_attempt_at <= now`, so an early or duplicate delivery claims nothing, and a restart keeps the stored time.
-- `waitingFor` is the one definition of a waiting job (`queued` with a wait reason). The Item's wait view, the Reddit turn queue and the switch away from the Grok Bot Provider build on it, and `wokenJobs` makes the matching jobs due.
+- `waitingFor` is the one definition of a waiting job (`queued` with a wait reason). The Item's wait view, the Reddit turn queue and the switch away from the Grok Bot Provider build on it, and `wokenJobs` makes the matching jobs due. `wakeWaitingFetches` runs the writes that end a wait together with that wake in one batch and then queues every due `fetch` job that waits for that reason.
 - The Worker clamps the message delay to 86,400 seconds, the Queues maximum ([JavaScript APIs](https://developers.cloudflare.com/queues/configuration/javascript-apis/): "Must be an integer between 0 and 86400"). The sweep delivers a row that is due later than that.
 - A job that waits for the Grok Bot's answer defers the same way, with the reason `grok-bot`, until the task's deadline. The result route makes it due at once when the answer arrives ([AI tasks and Providers](ai-tasks-and-providers.md), Grok Bot). The fetch job of an X link is such a job, and a full in-flight cap defers it 60 seconds with the same reason.
 
@@ -143,7 +144,7 @@ Every claim of a Digest job stores the Item's generation in `jobs.attempt_genera
 
 ### A caller-sent Digest that arrives mid-attempt
 
-Every claim of a Digest job also stores the Item's caller-sent Digest in `jobs.attempt_pending`. The closing batch opens a new Digest job while the Item holds a caller-sent Digest that differs from `attempt_pending`. A Paste can send a Digest after the attempt read the Item without changing the generation, and only a Paste can send it again. The new job takes the caller path (`attemptCaller`). It calls no Provider and publishes the Digest that the Paste's schema already accepted.
+Every claim of a Digest job also stores the Item's caller-sent Digest in `jobs.attempt_pending`. The closing batch opens a new Digest job while the Item holds a caller-sent Digest that differs from `attempt_pending`. A Paste can send a Digest after the attempt read the Item without changing the generation, and only a Paste can send it again. The new job takes the caller path (`attemptCaller`). It calls no Provider and publishes the Digest that the Paste's schema already accepted. An attempt that was claimed before the Paste routes on the Item's pending Digest as it reads it, so it takes the caller path too.
 
 The exhaust batch stores the marker exactly when the closing batch opens no Digest job for a held Digest (`markAttemptsSpent`). That happens when the Item:
 
@@ -215,7 +216,7 @@ The container runs 4 jobs at once, and two fills side by side would double the r
 - Losing the claim. A run that loses its claim releases the turn only when `busy_job` and `busy_attempt` are still its own, so the older run of a taken-over job leaves the takeover run's turn alone. Closing or deleting the job of a fill that is running does not free the turn.
 - During the fill. The fill asks before each request, the first one and the `me.json` check included, whether its run still holds the turn (`holdsTurn`). It stops at the first request it may not send, and writes no window to the account row once it lost the turn, so a second fill never starts while the first still sends.
 - Restart and crash. A restart expires the claim of every running job (`abandonRunning`), and the fill that was running takes its turn back through `busy_job`. A crash leaves `busy_until` to run out after at most the fill deadline plus the claim margin.
-- Account changes. An `expired` account and Disconnect make every waiting job due in one batch, and those jobs run on the archive path.
+- Account changes. An `expired` account and Disconnect make every waiting job due in one batch, and those jobs run on the archive path. Connect stores a session with no window and no limit, and makes every waiting job due in the same batch unless a run still holds the turn (`busy_until` in the future), because that run's close wakes the oldest waiting job. The woken jobs take the turn in order.
 
 ## The weekly claims
 
@@ -237,9 +238,9 @@ The two weekly checks that call no model (lost Highlights, Topics whose overview
 One tick claims each due task in `scheduled_runs` and enqueues jobs. Cloudflare calls the tick from a Cron Trigger every minute, and the container calls it from a timer every 60 seconds. The tick calls no model, because a Cron Trigger under an hourly interval gets 30 seconds of CPU ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)).
 
 - Spacing. The tick sweeps at most once in 30 seconds (`TICK_SPACING_MS`), claimed in `scheduled_runs` so two ticks do not both sweep. A stored time more than one spacing ahead of the clock counts as old, because the clock moved back, so a step back of an hour on the container's host does not stop the sweeps for that hour.
-- Vault. After the sweep, the tick runs the Vault mirror.
+- Vault. After the sweep, the tick runs the Vault mirror, also when the sweep failed. A failure inside the mirror is logged as `vault-mirror-failed`, and one that escapes it as `vault-tick-failed`. Neither fails the tick.
 - Limit. The sweep enqueues at most 100 due rows (`SWEEP_LIMIT`) in one `sendBatch` call, which takes up to 100 messages and one `delaySeconds` for the batch ([Queues docs, JavaScript APIs](https://developers.cloudflare.com/queues/configuration/javascript-apis/)).
-- Failures. A stage that throws is logged as `sweep-stage-failed` with its name, and the later stages still run. The sweep then throws the first error, so the tick reports it (the local scheduled endpoint answers 500).
+- Failures. A stage that throws is logged as `sweep-stage-failed` with its name, and the later stages still run. The sweep then throws the first error. The tick rethrows it after the Vault mirror ran, so the Worker's scheduled handler rejects and the container's job loop logs `job-loop-failed`.
 
 The sweep runs its stages one after another. The re-queue of due jobs comes first, so a later stage can fail without costing a lost Queue message or an expired claim its recovery.
 

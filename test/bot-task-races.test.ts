@@ -9,31 +9,22 @@ import {
 import { acceptBotAnswer } from "../src/features/bot/core/bot-answer.ts";
 import {
   type BotLibrary,
-  SECRET_KEY,
   answerOf,
   pastDeadline,
   picksFor,
   relatedLibrary,
   retireTasks,
   saveBot,
+  pickedFor,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { sendFor, settle, sentRelatedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
-import { pairsOf } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 describe("an accepted answer survives a lost claim, a failing send, a timeout check and a resend", () => {
   let instance: Instance;
   let library: BotLibrary;
-
-  const firstCandidate = () => {
-    const [candidate] = library.candidates;
-
-    assert.ok(candidate !== undefined);
-
-    return candidate;
-  };
 
   const tasksOf = (jobId: number) => taskRows(instance, "job_id = ?", jobId);
 
@@ -66,7 +57,7 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
 
     assert.ok(sent !== null);
     assert.equal(
-      (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
 
@@ -80,10 +71,7 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
 
     await settle(instance, task.job);
 
-    assert.deepEqual(
-      pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [firstCandidate()],
-    );
+    assert.deepEqual(pickedFor(instance, library), [library.candidates[0]]);
     assert.equal(taskRow(instance, task.id).state, "done");
     assert.equal(jobRow(instance, task.job.id).attempts, 0);
   });
@@ -111,7 +99,7 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
     const task = await sentRelatedTask(instance, library.source);
 
     assert.equal(
-      (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
 
@@ -125,17 +113,14 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
     await settle(instance, task.job);
 
     assert.equal(taskRow(instance, task.id).state, "done");
-    assert.deepEqual(
-      pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [firstCandidate()],
-    );
+    assert.deepEqual(pickedFor(instance, library), [library.candidates[0]]);
   });
 
   it("does not time out a task that got an answer, and leaves a lost claim alone", async () => {
     const task = await sentRelatedTask(instance, library.source);
 
     assert.equal(
-      (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
     pastDeadline(instance, task.id);
@@ -166,7 +151,7 @@ describe("an accepted answer survives a lost claim, a failing send, a timeout ch
 
     const outcome = await acceptBotAnswer(instance.core, snapshot, {
       kind: "result",
-      body: { result: picksFor(firstCandidate()) },
+      body: { result: picksFor(library.candidates[0]) },
     });
 
     assert.equal(outcome.kind, "closed");

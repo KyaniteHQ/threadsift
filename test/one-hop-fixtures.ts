@@ -1,8 +1,7 @@
-import { DatabaseSync } from "node:sqlite";
-
 import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
+import { MINUTE_MS } from "../src/core/contract/time-units.ts";
 import { Instance, type Json } from "./instance.ts";
 import { redditAddressOf, listing, postListing } from "./reader-thread-fixtures.ts";
 
@@ -14,9 +13,7 @@ export const DIGEST = {
   keyPoints: ["The post links to a page"],
 };
 
-export const SECRET_KEY = "ab".repeat(32);
-
-const COOLDOWN_MS = 30 * 60 * 1000;
+const COOLDOWN_MS = 30 * MINUTE_MS;
 
 export const LINKED = "https://github.com/threadsift-test/linked-repository";
 
@@ -63,25 +60,8 @@ export function toolsOf(instance: Instance) {
     return instance.read("POST", "/api/items", SavedItemResponseSchema, body);
   };
 
-  const query = <Schema extends z.ZodType>(
-    schema: Schema,
-    statement: string,
-    ...params: (string | number)[]
-  ): z.infer<Schema>[] => {
-    const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
-
-    try {
-      return database
-        .prepare(statement)
-        .all(...params)
-        .map((row) => schema.parse({ ...row }));
-    } finally {
-      database.close();
-    }
-  };
-
   const candidates = (itemId: number) =>
-    query(
+    instance.database.rows(
       z.object({ generation: z.number(), linked_url: z.string().nullable() }),
       "select generation, linked_url from reddit_threads where item_id = ? order by generation",
       itemId,
@@ -94,21 +74,21 @@ export function toolsOf(instance: Instance) {
   };
 
   const digestJobs = (itemId: number) =>
-    query(
+    instance.database.rows(
       z.object({ state: z.string(), attempts: z.number() }),
       "select state, attempts from jobs where item_id = ? and kind = 'digest'",
       itemId,
     );
 
   const aiTasks = (itemId: number) =>
-    query(
+    instance.database.rows(
       z.object({ executor: z.string() }),
       "select executor from ai_tasks where item_id = ?",
       itemId,
     );
 
   const pendingDigests = (itemId: number) =>
-    query(
+    instance.database.rows(
       z.object({ pending: z.number() }),
       "select pending_digest is not null as pending from items where id = ?",
       itemId,
@@ -144,15 +124,10 @@ export const hopLines = (warnings: readonly string[]) =>
   warnings.filter((line) => line.includes('"digest-hop"'));
 
 export function seedGithubCooldown(instance: Instance): void {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    database
-      .prepare("insert into github_cooldown (id, until) values (1, ?)")
-      .run(Date.now() + COOLDOWN_MS);
-  } finally {
-    database.close();
-  }
+  instance.database.exec(
+    "insert into github_cooldown (id, until) values (1, ?)",
+    Date.now() + COOLDOWN_MS,
+  );
 }
 
 export const hopResults = (warnings: readonly string[]) =>

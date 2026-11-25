@@ -1,3 +1,4 @@
+import { joinedBytes } from "../../../core/contract/encoding.ts";
 import { crc32 } from "./crc32.ts";
 
 export const ZIP_COUNT_LIMIT = 0xff_ff;
@@ -133,18 +134,6 @@ function centralRecord(
   return record;
 }
 
-export function joined(parts: readonly Uint8Array[]): Uint8Array {
-  const joinedBytes = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
-
-  parts.reduce((at, part) => {
-    joinedBytes.set(part, at);
-
-    return at + part.length;
-  }, 0);
-
-  return joinedBytes;
-}
-
 export function packFiles(
   files: readonly ZipFile[],
   { offset, dos }: Readonly<{ offset: number; dos: DosTime }>,
@@ -163,7 +152,7 @@ export function packFiles(
     position += header.length + bytes.length;
   }
 
-  return { data: joined(data), directory: joined(directory) };
+  return { data: joinedBytes(data), directory: joinedBytes(directory) };
 }
 
 interface ArchiveEnd {

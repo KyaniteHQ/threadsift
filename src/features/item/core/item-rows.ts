@@ -5,15 +5,16 @@ import type { Digest } from "../../../core/contract/digest-schema.ts";
 import type { Link } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import {
-  guardedWrite,
+  guardedWrites,
   guards,
   holdsNoRow,
   insertGuard,
   unlessRefused,
 } from "../../../core/kernel/guards.ts";
+import { closeItemJobs } from "../../../core/kernel/job-close.ts";
 import { enqueueRows, openingJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { orRestoreHolds, restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
@@ -74,11 +75,24 @@ export function guardedItemWrite<Insert extends BatchItem<"sqlite">>(
   { heldGuard, insert }: Readonly<{ heldGuard: BatchItem<"sqlite">; insert: Insert }>,
   rest: readonly BatchItem<"sqlite">[],
 ) {
-  return guardedWrite(db, orRestoreHolds(db, condition), insert, [heldGuard, ...rest]);
+  return unlessRefused(async () => {
+    const [, , inserted] = await db.batch([
+      heldGuard,
+      ...guardedWrites(db, condition, [insert, ...rest] as const),
+    ] as const);
+
+    return inserted;
+  });
 }
 
 export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
   return foundItem(await itemWhere(db, eq(items.normalizedUrl, normalizedUrl)), normalizedUrl);
+}
+
+export async function knownItem(db: Database, normalizedUrl: string): Promise<Saved | null> {
+  const item = await itemWhere(db, eq(items.normalizedUrl, normalizedUrl));
+
+  return item === undefined ? null : { kind: "saved", item, created: false };
 }
 
 export function holdsNoItem(db: Database, normalizedUrl: string) {
@@ -108,9 +122,15 @@ export function queuedRows(
 
 type Statements = readonly BatchItem<"sqlite">[];
 
+type AsBatchItems<Tuple extends readonly unknown[]> = {
+  readonly [Index in keyof Tuple]: BatchItem<"sqlite">;
+};
+
+type Promotion = readonly [...AsBatchItems<ReturnType<typeof closeItemJobs>>, BatchItem<"sqlite">];
+
 export interface Around {
   readonly guard: Readonly<SQLWrapper>;
-  readonly before: readonly [] | readonly [BatchItem<"sqlite">];
+  readonly before?: readonly [] | Promotion;
   readonly after: Statements;
 }
 
@@ -122,52 +142,24 @@ type RowResults = readonly [
   ...unknown[],
 ];
 
-function settled([inserted, , opened, [item]]: RowResults) {
-  return { created: inserted.length > 0, opened, item };
-}
-
-async function written(
-  db: Database,
-  paste: Readonly<Paste>,
+function writtenFrom(
+  ports: Ports,
   link: Readonly<Link>,
-  around: Readonly<Around> | undefined,
-) {
-  const { heldGuard, insert, rest } = queuedRows(db, paste, link);
+  batch: () => Promise<RowResults>,
+): Promise<Saved | null> {
+  const write = async (): Promise<Saved> => {
+    const [inserted, , opened, [item]] = await batch();
 
-  if (around === undefined) {
-    const [, ...results] = await db.batch([heldGuard, insert, ...rest, db.delete(guards)]);
+    await enqueueRows(ports, opened);
 
-    return settled(results);
-  }
+    return {
+      kind: "saved",
+      item: foundItem(item, link.normalizedUrl),
+      created: inserted.length > 0,
+    };
+  };
 
-  const { guard, before, after } = around;
-  const checked = insertGuard(db, guard);
-
-  if (before.length === 0) {
-    const [, , ...results] = await db.batch([
-      checked,
-      heldGuard,
-      insert,
-      ...rest,
-      ...after,
-      db.delete(guards),
-    ]);
-
-    return settled(results);
-  }
-
-  const [promote] = before;
-  const [, , , ...results] = await db.batch([
-    checked,
-    promote,
-    heldGuard,
-    insert,
-    ...rest,
-    ...after,
-    db.delete(guards),
-  ]);
-
-  return settled(results);
+  return unlessRefused(write);
 }
 
 export function writeQueued(
@@ -177,16 +169,45 @@ export function writeQueued(
   around?: Readonly<Around>,
 ): Promise<Saved | null> {
   const { db } = ports;
+  const { heldGuard, insert, rest } = queuedRows(db, paste, link);
 
-  const write = async (): Promise<Saved> => {
-    const { created, opened, item } = await written(db, paste, link, around);
+  if (around === undefined) {
+    return writtenFrom(ports, link, async () => {
+      const [, ...results] = await db.batch([heldGuard, insert, ...rest, db.delete(guards)]);
 
-    await enqueueRows(ports, opened);
+      return results;
+    });
+  }
 
-    return { kind: "saved", item: foundItem(item, link.normalizedUrl), created };
-  };
+  const { guard, before = [], after } = around;
+  const checked = insertGuard(db, guard);
 
-  return around === undefined
-    ? write()
-    : unlessRefused(db, orRestoreHolds(db, around.guard), write);
+  if (before.length === 0) {
+    return writtenFrom(ports, link, async () => {
+      const [, , ...results] = await db.batch([
+        heldGuard,
+        checked,
+        insert,
+        ...rest,
+        ...after,
+        db.delete(guards),
+      ]);
+
+      return results;
+    });
+  }
+
+  return writtenFrom(ports, link, async () => {
+    const [, , , , , , ...results] = await db.batch([
+      heldGuard,
+      checked,
+      ...before,
+      insert,
+      ...rest,
+      ...after,
+      db.delete(guards),
+    ]);
+
+    return results;
+  });
 }

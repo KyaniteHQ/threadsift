@@ -12,7 +12,6 @@ import { xIntakeKind } from "../src/features/x/core/x-intake.ts";
 import { acceptedByBot, claimedNew } from "./bot-task-fixtures.ts";
 import type { Credential } from "./bot-task-http.ts";
 import type { Instance, Json } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
 
 export interface IntakeTask {
   readonly itemId: number;
@@ -35,15 +34,13 @@ export function claimedFetchJob(
 }
 
 export function insertedXItem(instance: Instance, statusId: string): number {
-  exec(
-    instance,
+  instance.database.exec(
     "insert into items (source, kind, normalized_url, original_url, saved_at) values ('x', 'x-post', ?, ?, 1)",
     `https://x.com/i/status/${statusId}`,
     xAddressOf(statusId),
   );
 
-  const [row] = rows(
-    instance,
+  const [row] = instance.database.rows(
     z.object({ id: z.number() }),
     "select id from items where normalized_url = ?",
     `https://x.com/i/status/${statusId}`,
@@ -111,20 +108,24 @@ export function intakeTo(
 }
 
 export function advancedContent(instance: Instance, itemId: number): void {
-  exec(instance, "update items set generation = generation + 1 where id = ?", itemId);
+  instance.database.exec("update items set generation = generation + 1 where id = ?", itemId);
 }
 
 export function closedJob(instance: Instance, jobId: number): void {
-  exec(instance, "update jobs set state = 'done', claim_expires = null where id = ?", jobId);
+  instance.database.exec(
+    "update jobs set state = 'done', claim_expires = null where id = ?",
+    jobId,
+  );
 }
 
 export function openJobIds(instance: Instance, itemId: number): readonly number[] {
-  return rows(
-    instance,
-    z.object({ id: z.number() }),
-    "select id from jobs where item_id = ? and state <> 'done'",
-    itemId,
-  ).map(({ id }) => id);
+  return instance.database
+    .rows(
+      z.object({ id: z.number() }),
+      "select id from jobs where item_id = ? and state <> 'done'",
+      itemId,
+    )
+    .map(({ id }) => id);
 }
 
 export function stepOf(instance: Instance, job: Readonly<ClaimedJob>) {
@@ -134,8 +135,7 @@ export function stepOf(instance: Instance, job: Readonly<ClaimedJob>) {
 export async function waitingIntake(instance: Instance): Promise<IntakeTask> {
   const task = await sentIntake(instance);
 
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set state = 'queued', next_attempt_at = (select deadline from ai_tasks where id = ?), claim_expires = null, wait_reason = 'grok-bot' where id = ?",
     task.id,
     task.job.id,

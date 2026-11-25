@@ -12,8 +12,8 @@ import {
   sentOf,
   tasksOf,
 } from "./disagreement-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 describe("the Topics the weekly disagreement check reads", () => {
@@ -30,12 +30,11 @@ describe("the Topics the weekly disagreement check reads", () => {
       ...Array.from({ length: 2 }, () => ({ topic: "Unreadable" })),
       ...Array.from({ length: 14 }, () => ({ topic: "Long" })),
     ]);
-    exec(instance, "update digests set digest = 'not json' where item_id = 10");
-    exec(instance, "update digests set created_at = 5 where item_id in (1, 2)");
-    exec(instance, "update digests set created_at = 90 where item_id in (3, 4, 5)");
-    exec(instance, "update digests set created_at = 999 where item_id between 11 and 24");
-    exec(
-      instance,
+    instance.database.exec("update digests set digest = 'not json' where item_id = 10");
+    instance.database.exec("update digests set created_at = 5 where item_id in (1, 2)");
+    instance.database.exec("update digests set created_at = 90 where item_id in (3, 4, 5)");
+    instance.database.exec("update digests set created_at = 999 where item_id between 11 and 24");
+    instance.database.exec(
       "insert into topic_checks (topic_id, members, checked_at) values (?, ?, 1)",
       topicId(instance, "Checked"),
       membersText(instance, [7, 8]),

@@ -29,7 +29,7 @@ import {
 } from "../../media/core/details.ts";
 import { fetchedOfOembed } from "../../reddit/core/oembed-details.ts";
 
-type ShortLinkResolution =
+export type ShortLinkResolution =
   | { readonly kind: "resolved"; readonly address: string }
   | { readonly kind: "failed"; readonly fetched: Exclude<Concluded, { status: "ok" }> };
 
@@ -124,7 +124,7 @@ export function fetchLink(
   });
 }
 
-export async function resolveShortLink(
+async function resolvedHop(
   network: Network,
   address: string,
   deadline: AbortSignal,
@@ -145,4 +145,16 @@ export async function resolveShortLink(
   return shareLink && redditRefOf(outcome.url) === null
     ? NOT_A_POST_OR_COMMENT
     : { kind: "resolved", address: outcome.url };
+}
+
+export async function resolveShortLink(
+  network: Network,
+  address: string,
+  deadline: AbortSignal,
+): Promise<ShortLinkResolution> {
+  const resolved = await resolvedHop(network, address, deadline);
+
+  return resolved.kind === "resolved" && isRedditShareLink(resolved.address)
+    ? resolvedHop(network, resolved.address, deadline)
+    : resolved;
 }

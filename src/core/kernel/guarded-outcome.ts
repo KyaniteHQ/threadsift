@@ -54,7 +54,7 @@ export function guardedOutcome(
 ): GuardedOutcome {
   return {
     currency: currency(db, current, taskId, cleanup),
-    writes: [insertGuard(db, current), ...writes, ...cleanup],
+    writes: [insertGuard(db, current, "outcome"), ...writes, ...cleanup],
   };
 }
 
@@ -66,7 +66,7 @@ export function lostOutcome(
 }
 
 export function lostClaim(db: Database): JobOutcome {
-  return { writes: [insertGuard(db, sql`0`)] };
+  return { writes: [insertGuard(db, sql`0`, "outcome")] };
 }
 
 export async function refusalOutcome(

@@ -20,37 +20,42 @@ sums_hash() {
   sha256sum "$sums" | cut -d' ' -f1
 }
 
-tag_known() {
-  git -C "$root" rev-parse -q --verify "refs/tags/$1" > /dev/null 2>&1 ||
-    git -C "$root" fetch --quiet --depth=1 origin "refs/tags/$1:refs/tags/$1" > /dev/null 2>&1
-}
-
 sums_at() {
   git -C "$root" show "$1:bot/SHA256SUMS"
 }
 
 released_tag() {
-  local tag
+  local tag status=0
   tag="$(pinned TAG)"
-  tag_known "$tag" && echo "$tag"
-}
-
-rewritten() {
-  local file="$1" expression="$2" temp
-  temp="$(mktemp)"
-  sed -E "$expression" "$file" > "$temp"
-  cat "$temp" > "$file"
-  rm -f "${temp:?}"
+  if git -C "$root" rev-parse -q --verify "refs/tags/$tag" > /dev/null 2>&1; then
+    echo "$tag"
+    return 0
+  fi
+  git -C "$root" ls-remote --exit-code --tags origin "refs/tags/$tag" > /dev/null 2>&1 || status=$?
+  case "$status" in
+    0)
+      git -C "$root" fetch --quiet --depth=1 origin "refs/tags/$tag:refs/tags/$tag" > /dev/null 2>&1 || status=$?
+      ;;
+    2)
+      return 0
+      ;;
+  esac
+  if [[ "$status" != 0 ]]; then
+    echo "could not look up the tag $tag on origin (git exit $status), so the release state is unknown" >&2
+    return 1
+  fi
+  echo "$tag"
 }
 
 pin() {
   local tag="$1" hash="$2"
-  rewritten "$skill" "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/"
+  sed -E -i "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/" "$skill"
 }
 
 case "$mode" in
   refresh)
-    if tag="$(released_tag)" && [[ "$(computed_sums)" != "$(sums_at "$tag")" ]]; then
+    tag="$(released_tag)"
+    if [[ -n "$tag" && "$(computed_sums)" != "$(sums_at "$tag")" ]]; then
       echo "a hashed file changed after $tag; run tools/bot-release.sh release" >&2
       exit 1
     fi
@@ -62,7 +67,7 @@ case "$mode" in
     echo "$version" > "$bot/VERSION"
     computed_sums > "$sums"
     pin "bot-v$version" "$(sums_hash)"
-    rewritten "$bot/CHANGELOG.md" "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/"
+    sed -E -i "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/" "$bot/CHANGELOG.md"
     echo "bot-v$version"
     ;;
   check)
@@ -71,7 +76,8 @@ case "$mode" in
     [[ "$tag" == "bot-v$version" ]] || { echo "SKILL.md pins tag $tag but bot/VERSION is $version" >&2; exit 1; }
     [[ "$(computed_sums)" == "$(< "$sums")" ]] || { echo "bot/SHA256SUMS does not match setup.md, update.md and scripts/threadsift.sh; run tools/bot-release.sh" >&2; exit 1; }
     [[ "$(pinned SUMS_SHA256)" == "$(sums_hash)" ]] || { echo "SKILL.md pins another SHA256SUMS hash; run tools/bot-release.sh" >&2; exit 1; }
-    if tag="$(released_tag)"; then
+    tag="$(released_tag)"
+    if [[ -n "$tag" ]]; then
       [[ "$(sums_at "$tag" | sha256sum | cut -d' ' -f1)" == "$(pinned SUMS_SHA256)" ]] || { echo "a hashed file changed after $tag, so the bootstrap line cannot install it; run tools/bot-release.sh release" >&2; exit 1; }
     fi
     ;;

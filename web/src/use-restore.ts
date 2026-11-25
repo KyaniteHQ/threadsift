@@ -14,40 +14,31 @@ function useStatus() {
   const [loadFailed, setLoadFailed] = useState(false);
   const ticket = useTicket();
 
-  const refresh = useCallback(
-    async (signal?: AbortSignal): Promise<RestoreStatus | null> => {
-      const mine = ticket.take();
+  const refresh = useCallback(async (): Promise<RestoreStatus | null> => {
+    const signal = ticket.take();
 
-      try {
-        const next = await fetchRestoreStatus(signal);
+    try {
+      const next = await fetchRestoreStatus(signal);
 
-        if (!ticket.matches(mine)) return null;
+      if (signal.aborted) return null;
 
-        setView(next);
-        setLoadFailed(false);
+      setView(next);
+      setLoadFailed(false);
 
-        return next;
-      } catch {
-        if (ticket.matches(mine)) setLoadFailed(true);
+      return next;
+    } catch {
+      if (!signal.aborted) setLoadFailed(true);
 
-        return null;
-      }
-    },
-    [ticket],
-  );
+      return null;
+    }
+  }, [ticket]);
 
   useEffect(() => {
-    const controller = new AbortController();
-
     const load = async (): Promise<void> => {
-      await refresh(controller.signal);
+      await refresh();
     };
 
     void load();
-
-    return () => {
-      controller.abort();
-    };
   }, [refresh]);
 
   usePolling(view?.state === "running" || view?.state === "cancelling", async () => {

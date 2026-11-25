@@ -7,9 +7,8 @@ import {
   type VaultTarget,
   vaultFileSize,
 } from "../../../core/kernel/vault-target.ts";
-import { itemFilePlan } from "../../item/core/item-files.ts";
 import { itemNote } from "../../item/core/item-note.ts";
-import { readPlanSource } from "../../item/core/plan-source.ts";
+import { readAgainOnce, readPlannedItem } from "../../item/core/plan-source.ts";
 import { itemWikiSections } from "./vault-markdown.ts";
 import { vaultFilePath, vaultNotePath } from "./vault-paths.ts";
 import { vaultWikiContent } from "./vault-wiki.ts";
@@ -36,10 +35,14 @@ function withoutOversized(files: readonly VaultFile[]) {
 
 async function itemFiles(reader: Reader, subjectId: number): Promise<SubjectFiles> {
   reader.signal.throwIfAborted();
-  const read = await readPlanSource(reader.ports, subjectId);
+  const source = await readAgainOnce(
+    () => readPlannedItem(reader.ports, subjectId),
+    (read) => read?.planned.kind === "missing",
+    reader.signal,
+  );
   reader.signal.throwIfAborted();
-  if (read === undefined) return { files: [], oversized: [] };
-  const planned = itemFilePlan(read);
+  if (source === null) return { files: [], oversized: [] };
+  const { read, planned } = source;
   if (planned.kind === "missing") throw new VaultNoteFailure("file-missing");
   const { postText, stored, note } = planned.plan;
   const assets = withoutOversized([

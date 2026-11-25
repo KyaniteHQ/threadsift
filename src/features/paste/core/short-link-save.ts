@@ -1,87 +1,73 @@
-import { type SQLWrapper, and, eq, notExists, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
-import type { Link } from "../../../core/contract/links.ts";
-import type { Database } from "../../../core/kernel/database.ts";
-import {
-  guardHolds,
-  guards,
-  holdsNoRow,
-  insertGuard,
-  unlessRefused,
-} from "../../../core/kernel/guards.ts";
-import { hasOpenJob } from "../../../core/kernel/job-rows.ts";
+import { type Link, parseLink, redditRefOf } from "../../../core/contract/links.ts";
+import { guardHolds, guards, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { orRestoreHolds } from "../../../core/kernel/restore-hold.ts";
-import { itemAliases, items } from "../../../core/kernel/schema.ts";
+import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
+import type { ShortLinkResolution } from "../../fetch/core/fetch-link.ts";
 import {
-  type Around,
   type Existing,
   type Paste,
   type Saved,
   holdsNoItem,
-  foundItem,
-  itemAt,
-  itemInsert,
   writeQueued,
 } from "../../item/core/item-rows.ts";
 import { itemRead } from "../../item/core/item-selection.ts";
-import { settle } from "../../item/core/settle.ts";
-import type { Concluded } from "../../media/core/details.ts";
 import {
+  type AliasedItem,
+  holdsAlias,
   holdsNoFailedItem,
   holdsNoRival,
-  promoteFailedItem,
+  itemAddress,
   promotableFailedItem,
+  promotionClosingJobs,
   recordAlias,
 } from "./short-link-aliases.ts";
-
-type FailedFetch = Exclude<Concluded, { status: "ok" }>;
+import { saveUnresolved } from "./unresolved-save.ts";
 
 export interface Resolved {
   readonly shortLink: string;
   readonly paste: Readonly<Paste>;
   readonly link: Readonly<Link>;
   readonly existing: Existing;
+  readonly stale: Readonly<AliasedItem> | undefined;
 }
 
-interface Unresolved {
-  readonly paste: Readonly<Pick<Paste, "address" | "addedByToken">>;
-  readonly link: Readonly<Link>;
-  readonly fetched: Readonly<FailedFetch>;
+interface Kept {
+  readonly shortLink: string;
+  readonly paste: Readonly<Paste>;
   readonly existing: Existing;
+  readonly stale: Readonly<AliasedItem>;
 }
 
-interface Failure {
-  readonly address: string;
-  readonly link: Readonly<Link>;
-  readonly fetched: Readonly<FailedFetch>;
-  readonly now: number;
+export interface ShortLinkPaste {
+  readonly pasted: string;
+  readonly digest: Paste["digest"];
+  readonly existing: Existing;
   readonly addedByToken: Paste["addedByToken"];
 }
 
-const PROMOTED_ITEM = 4;
+const PROMOTED_ITEM = 8;
 
-const FAILED_ITEM = 3;
+const KEPT_ITEM = 2;
 
-const INSERTED_FAILURE_ITEM = 4;
-
-async function promotedAndKept(
-  ports: Ports,
-  { shortLink, paste, link }: Readonly<Resolved>,
-): Promise<Saved | null> {
+async function promotedAndKept(ports: Ports, resolved: Readonly<Resolved>): Promise<Saved | null> {
+  const { paste, link } = resolved;
   const { db } = ports;
-  const noRival = holdsNoRival(db, shortLink, link);
+  const noRival = holdsNoRival(db, resolved, link);
 
-  const promoted = await unlessRefused(db, noRival, () => {
-    const promotable = promotableFailedItem(db, shortLink, link.normalizedUrl);
+  const promoted = await unlessRefused(() => {
+    const promotable = promotableFailedItem(db, resolved, link.normalizedUrl);
     const changed = sql`(${items.source}, ${items.kind}) is not (${link.source}, ${link.kind})`;
 
     return db.batch([
+      restoreGuard(db),
       insertGuard(db, noRival),
       ...STALE.itemChanged(db, sql`${promotable} and ${changed}`),
-      promoteFailedItem(db, shortLink, link),
-      recordAlias(db, shortLink, paste.address, link),
+      ...promotionClosingJobs(db, resolved, link),
+      recordAlias(db, resolved, paste.address, link),
       itemRead(db, eq(items.normalizedUrl, link.normalizedUrl)),
       db.delete(guards),
     ]);
@@ -92,112 +78,94 @@ async function promotedAndKept(
   return item === undefined ? null : { kind: "saved", item, created: false };
 }
 
+function promotedOnRefresh(ports: Ports, resolved: Readonly<Resolved>): Promise<Saved | null> {
+  const { paste, link } = resolved;
+  const { db } = ports;
+
+  return writeQueued(ports, paste, link, {
+    guard: holdsNoRival(db, resolved, link),
+    before: promotionClosingJobs(db, resolved, link),
+    after: [recordAlias(db, resolved, paste.address, link)],
+  });
+}
+
 export async function saveResolved(
   ports: Ports,
   resolved: Readonly<Resolved>,
 ): Promise<Saved | null> {
+  if (resolved.existing === "refresh") return promotedOnRefresh(ports, resolved);
+
   const { db } = ports;
-  const { shortLink, paste, link, existing } = resolved;
-  const noRival = holdsNoRival(db, shortLink, link);
-  const after = [recordAlias(db, shortLink, paste.address, link)];
+  const { paste, link } = resolved;
+  const noRival = holdsNoRival(db, resolved, link);
 
-  const around: Around =
-    existing === "refresh"
-      ? { guard: noRival, before: [promoteFailedItem(db, shortLink, link)], after }
-      : {
-          guard: sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, shortLink)}`,
-          before: [],
-          after,
-        };
+  const added = await writeQueued(ports, paste, link, {
+    guard: sql`${noRival} and ${holdsNoItem(db, link.normalizedUrl)} and ${holdsNoFailedItem(db, resolved)}`,
+    after: [recordAlias(db, resolved, paste.address, link)],
+  });
 
-  const added = await writeQueued(ports, paste, link, around);
-
-  if (added !== null || existing === "refresh" || !(await guardHolds(db, noRival))) return added;
+  if (added !== null || !(await guardHolds(db, noRival))) return added;
 
   return promotedAndKept(ports, resolved);
 }
 
-async function insertedFailure(
-  db: Database,
-  noAlias: Readonly<SQLWrapper>,
-  { address, link, fetched, now, addedByToken }: Readonly<Failure>,
+async function saveKept(
+  ports: Ports,
+  { shortLink, paste, existing, stale }: Readonly<Kept>,
 ): Promise<Saved | null> {
-  const { normalizedUrl } = link;
-  const missing = holdsNoItem(db, normalizedUrl);
-  const itemKey = eq(items.normalizedUrl, normalizedUrl);
+  const { db } = ports;
+  const holds = holdsAlias(db, shortLink, stale);
 
-  const { heldGuard, insert } = itemInsert(db, {
-    link,
-    originalUrl: address,
-    savedAt: now,
-    addedByToken,
-    fetched: settle(fetched, null, now),
-  });
+  if (existing === "refresh") {
+    return writeQueued(ports, paste, stale, { guard: holds, after: [] });
+  }
 
-  const inserted = await unlessRefused(db, orRestoreHolds(db, missing), () =>
+  const kept = await unlessRefused(() =>
     db.batch([
-      insertGuard(db, noAlias),
-      insertGuard(db, missing),
-      heldGuard,
-      insert,
-      itemRead(db, itemKey),
-      ...STALE.itemChanged(db, itemKey),
+      restoreGuard(db),
+      insertGuard(db, holds),
+      itemRead(db, eq(items.id, stale.id)),
       db.delete(guards),
     ]),
   );
 
-  return inserted === null
-    ? null
-    : {
-        kind: "saved",
-        item: foundItem(inserted[INSERTED_FAILURE_ITEM][0], normalizedUrl),
-        created: true,
-      };
+  const item = kept?.[KEPT_ITEM][0];
+
+  return item === undefined ? null : { kind: "saved", item, created: false };
 }
 
-async function refreshedFailure(
-  db: Database,
-  noAlias: Readonly<SQLWrapper>,
-  { link: { normalizedUrl }, fetched, now }: Readonly<Failure>,
-): Promise<Saved> {
-  const known = await itemAt(db, normalizedUrl);
-
-  const refreshed = await db.batch([
-    insertGuard(db, noAlias),
-    db
-      .update(items)
-      .set({ pendingDigest: null })
-      .where(and(eq(items.id, known.id), notExists(hasOpenJob("digest")))),
-    db
-      .update(items)
-      .set(settle(fetched, known.title, now))
-      .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
-    itemRead(db, eq(items.id, known.id)),
-    db.delete(guards),
-  ]);
-
-  return {
-    kind: "saved",
-    item: foundItem(refreshed[FAILED_ITEM][0], normalizedUrl),
-    created: false,
-  };
-}
-
-export function saveUnresolved(
+export function saveResolution(
   ports: Ports,
-  { paste: { address, addedByToken }, link, fetched, existing }: Readonly<Unresolved>,
+  { pasted, digest, existing, addedByToken }: Readonly<ShortLinkPaste>,
+  resolution: Readonly<ShortLinkResolution>,
+  stale: Readonly<AliasedItem> | undefined,
 ): Promise<Saved | null> {
-  const { db } = ports;
-  const noAlias = holdsNoRow(db, itemAliases, eq(itemAliases.normalizedUrl, link.normalizedUrl));
-  const failure = { address, link, fetched, now: Date.now(), addedByToken };
+  const shortLink = parseLink(pasted);
 
-  return unlessRefused(
-    db,
-    noAlias,
-    async () =>
-      (await insertedFailure(db, noAlias, failure)) ??
-      (existing === "keep"
-        ? { kind: "saved", item: await itemAt(db, link.normalizedUrl), created: false }
-        : refreshedFailure(db, noAlias, failure)),
-  );
+  if (
+    stale !== undefined &&
+    (resolution.kind === "failed" || redditRefOf(resolution.address) === null)
+  ) {
+    return saveKept(ports, {
+      shortLink: shortLink.normalizedUrl,
+      paste: { originalUrl: pasted, address: itemAddress(stale), digest, addedByToken },
+      existing,
+      stale,
+    });
+  }
+
+  return resolution.kind === "failed"
+    ? saveUnresolved(ports, {
+        paste: { address: pasted, addedByToken },
+        link: shortLink,
+        fetched: resolution.fetched,
+        existing,
+      })
+    : saveResolved(ports, {
+        shortLink: shortLink.normalizedUrl,
+        paste: { originalUrl: pasted, address: resolution.address, digest, addedByToken },
+        link: parseLink(resolution.address),
+        existing,
+        stale,
+      });
 }

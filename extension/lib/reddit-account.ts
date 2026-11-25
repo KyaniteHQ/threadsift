@@ -50,11 +50,12 @@ async function call(
     body?: z.input<typeof RedditSessionInputSchema>;
   }>,
 ): Promise<RedditConnectState> {
-  try {
-    return await stateOf(await instanceRequest(config, "/api/reddit-account", request));
-  } catch {
-    return "unreachable";
-  }
+  const response = await instanceRequest(config, "/api/reddit-account", {
+    ...request,
+    event: "reddit-account-request-failed",
+  });
+
+  return response === null ? "unreachable" : stateOf(response);
 }
 
 type Cookie = { readonly value: string } | { readonly state: "signed-out" | "failed" };

@@ -4,7 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { accept } from "./accept-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider, until } from "./library-fixtures.ts";
 import { proposalRows, readPage } from "./lost-highlight-fixtures.ts";
 import {
   body,
@@ -19,8 +20,7 @@ import {
   storePage,
 } from "./overview-gap-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
-import { moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
+import { moveClaimBack, nextSweep } from "./weekly-claim-fixtures.ts";
 
 const reject = (instance: Instance, id: number) =>
   instance.send("POST", `/api/proposals/${String(id)}/reject`);
@@ -61,9 +61,9 @@ describe("Accept of an overview-gap row", () => {
     assert.equal((await accept(instance, id)).status, 404);
 
     const [task] = await until(
+      "a topic_overview task has settled",
       () =>
-        rows(
-          instance,
+        instance.database.rows(
           z.object({ state: z.string(), refusal: z.string().nullable() }),
           "select state, refusal from ai_tasks where kind = 'topic_overview' and state <> 'running'",
         ),
@@ -76,7 +76,7 @@ describe("Accept of an overview-gap row", () => {
 
   it("answers 409 no-provider with no Provider saved, and leaves the row, the marker and the jobs", async () => {
     storePage(instance, "Providerless", { builtFrom: [], failure: "gave-up" });
-    exec(instance, "delete from settings");
+    instance.database.exec("delete from settings");
 
     const id = proposeGap(instance, "Providerless");
     const jobs = overviewJobs(instance);
@@ -161,9 +161,9 @@ describe("Reject of an overview-gap row", () => {
     ]);
     assert.deepEqual((await readPage(instance)).proposals, []);
 
-    await nextTick(instance);
+    await nextSweep(instance);
     moveClaimBack(instance, "overview_proposals");
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.deepEqual(
       proposalRows(instance).filter(({ kind }) => kind === "overview-gap"),

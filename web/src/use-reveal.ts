@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect, useState } from "react";
 
 import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
+import { markSelector } from "./highlight-ids.ts";
 import { keyOf } from "./highlight-target.ts";
 import type { Reveal } from "./highlights-context.ts";
 import { scrollAndFocus } from "./jump-to-comments.ts";
@@ -18,7 +19,7 @@ export function useReveal(items: readonly Highlight[]) {
   useLayoutEffect(() => {
     if (reveal === null) return;
 
-    const mark = document.querySelector<HTMLElement>(`mark[data-highlights~="${reveal.id}"]`);
+    const mark = document.querySelector<HTMLElement>(markSelector(reveal.id));
 
     if (mark !== null) scrollAndFocus(mark, "center");
   }, [reveal]);

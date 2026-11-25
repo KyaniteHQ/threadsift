@@ -4,11 +4,11 @@ import { describe, it } from "node:test";
 import { z } from "zod";
 
 import { botInstance } from "./bot-task-fixtures.ts";
-import { inOrder } from "./grok-bot-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { inOrder } from "./library-fixtures.ts";
 import { hopThreadOf, toolsOf } from "./one-hop-fixtures.ts";
 import { redditAddressOf } from "./reader-thread-fixtures.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { nextSweep } from "./weekly-claim-fixtures.ts";
 
 const STRANDED = 45;
 
@@ -31,16 +31,9 @@ async function strandedItems(instance: Instance, count: number): Promise<readonl
 }
 
 function digestJobItems(instance: Instance): readonly number[] {
-  return rows(
-    instance,
-    ItemId,
-    "select item_id from jobs where kind = 'digest' order by item_id",
-  ).map(({ item_id: id }) => id);
-}
-
-async function nextSweep(instance: Instance): Promise<void> {
-  exec(instance, "delete from scheduled_runs where task = 'sweep'");
-  await instance.tick();
+  return instance.database
+    .rows(ItemId, "select item_id from jobs where kind = 'digest' order by item_id")
+    .map(({ item_id: id }) => id);
 }
 
 describe("the sweep opens Digest jobs for Items that have a Digest source and no Digest, a few at a time, oldest first, while Grok Bot is the Provider", () => {
@@ -52,7 +45,7 @@ describe("the sweep opens Digest jobs for Items that have a Digest source and no
 
       assert.deepEqual(digestJobItems(instance), []);
 
-      exec(instance, "update grok_bot_settings set use_as_provider = 1 where id = 1");
+      instance.database.exec("update grok_bot_settings set use_as_provider = 1 where id = 1");
 
       await nextSweep(instance);
       assert.deepEqual(digestJobItems(instance), ids.slice(0, 20));
@@ -73,8 +66,7 @@ describe("the sweep opens Digest jobs for Items that have a Digest source and no
     try {
       await strandedItems(instance, 1);
 
-      exec(
-        instance,
+      instance.database.exec(
         "insert into settings (id, provider, base_url, model, sealed_key) values (1, 'openrouter', 'https://openrouter.ai/api/v1', 'a-model', 'not-yet-active')",
       );
 

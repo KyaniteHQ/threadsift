@@ -8,32 +8,17 @@ import {
   TopicPageSchema,
 } from "../src/core/contract/topic-overview-contract.ts";
 import { accept } from "./accept-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { pasteTopics } from "./overview-gap-fixtures.ts";
-import { count, SECRET_KEY, exec, rows, saveProvider, until } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider, until } from "./library-fixtures.ts";
+import { jobOwners, pasteTopics, queueOverview, storePage } from "./overview-gap-fixtures.ts";
 import { proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 
-const queue = (instance: Instance, itemId: number): void => {
-  exec(
-    instance,
-    "insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at) select 'topic_overview', id, original_url, 'queued', 0, 0, 9999999999999 from items where id = ?",
-    itemId,
-  );
-};
-
-const overviewJobs = (instance: Instance): readonly number[] =>
-  rows(
-    instance,
-    z.object({ item_id: z.number() }),
-    "select item_id from jobs where kind = 'topic_overview' order by item_id",
-  ).map(({ item_id }) => item_id);
-
 interface Library {
   readonly instance: Instance;
-  readonly loserItems: readonly number[];
-  readonly survivorItems: readonly number[];
+  readonly loserItems: readonly [number, number];
+  readonly survivorItems: readonly [number, number];
 }
 
 const withLibrary = async (
@@ -45,14 +30,23 @@ const withLibrary = async (
   try {
     await instance.setUp();
 
-    const library = await pasteTopics(instance, { Loser: ["l1", "l2"], Survivor: ["s1", "s2"] });
-    const loserItems = library["Loser"];
-    const survivorItems = library["Survivor"];
-    assert.ok(loserItems && survivorItems);
+    const { Loser: [loserOwner, loserOther] = [], Survivor: [survivorOwner, survivorOther] = [] } =
+      await pasteTopics(instance, { Loser: ["l1", "l2"], Survivor: ["s1", "s2"] });
+
+    assert.ok(
+      loserOwner !== undefined &&
+        loserOther !== undefined &&
+        survivorOwner !== undefined &&
+        survivorOther !== undefined,
+    );
 
     if (provider) await saveProvider(instance);
 
-    await run({ instance, loserItems, survivorItems });
+    await run({
+      instance,
+      loserItems: [loserOwner, loserOther],
+      survivorItems: [survivorOwner, survivorOther],
+    });
   } finally {
     await instance.close();
   }
@@ -68,40 +62,44 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
 
       const [owner] = loserItems;
 
-      assert.deepEqual(overviewJobs(instance), [owner]);
+      assert.deepEqual(jobOwners(instance), [owner]);
       await until(
-        () => count(instance, "select max(attempts) as n from jobs where kind = 'topic_overview'"),
+        "a topic_overview job has spent an attempt",
+        () =>
+          instance.database.count(
+            "select max(attempts) as n from jobs where kind = 'topic_overview'",
+          ),
         (attempts) => attempts > 0,
       );
     }));
 
   it("adds none when the survivor's owner Item already has a queued job", () =>
     withLibrary({ provider: true }, async ({ instance, loserItems }) => {
-      const [owner = 0] = loserItems;
+      const [owner] = loserItems;
 
-      queue(instance, owner);
+      queueOverview(instance, owner);
       assert.equal(
         (await accept(instance, proposeTopics(instance, ["Loser", "Survivor"]))).status,
         200,
       );
-      assert.deepEqual(overviewJobs(instance), [owner]);
+      assert.deepEqual(jobOwners(instance), [owner]);
     }));
 
-  it("records the jobs that exist when queued jobs sit on the loser's owner Item and on another Item of each Topic", () =>
+  it("opens the owner Item's job although a non-owner Item of each Topic has a queued job", () =>
     withLibrary({ provider: true }, async ({ instance, loserItems, survivorItems }) => {
-      const queued = [loserItems[1] ?? 0, survivorItems[1] ?? 0];
+      const queued = [loserItems[1], survivorItems[1]];
 
-      for (const id of queued) queue(instance, id);
+      for (const id of queued) queueOverview(instance, id);
 
       assert.equal(
         (await accept(instance, proposeTopics(instance, ["Loser", "Survivor"]))).status,
         200,
       );
 
-      const [owner = 0] = loserItems;
+      const [owner] = loserItems;
 
       assert.deepEqual(
-        overviewJobs(instance),
+        jobOwners(instance).toSorted((a, b) => a - b),
         [owner, ...queued].toSorted((a, b) => a - b),
       );
     }));
@@ -112,7 +110,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
         (await accept(instance, proposeTopics(instance, ["Loser", "Survivor"]))).status,
         200,
       );
-      assert.deepEqual(overviewJobs(instance), []);
+      assert.deepEqual(jobOwners(instance), []);
 
       const page = await instance.read("GET", "/api/topics/loser", TopicPageSchema);
 
@@ -130,14 +128,10 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
 
 describe("the overview a merge leaves behind", () => {
   it("is the survivor's own, with every moved Item uncovered", () =>
-    withLibrary({ provider: false }, async ({ instance }) => {
-      const survivor = topicId(instance, "Survivor");
+    withLibrary({ provider: false }, async ({ instance, survivorItems }) => {
+      const [covered] = survivorItems;
 
-      exec(
-        instance,
-        "insert into topic_pages (topic_id, overview, revision, built_from, updated_at) values (?, 'About it.', 1, '[]', 1)",
-        survivor,
-      );
+      storePage(instance, "Survivor", { builtFrom: [covered], overview: "About it." });
       assert.equal(
         (await accept(instance, proposeTopics(instance, ["Loser", "Survivor"]))).status,
         200,
@@ -145,8 +139,15 @@ describe("the overview a merge leaves behind", () => {
 
       const page = await instance.read("GET", "/api/topics/survivor", TopicPageSchema);
 
-      assert.deepEqual([page.overview.text, page.overview.builtFrom], ["About it.", 0]);
-      assert.equal(rows(instance, IdSchema, "select topic_id as id from topic_pages").length, 1);
+      assert.deepEqual([page.overview.text, page.overview.builtFrom], ["About it.", 1]);
+      assert.deepEqual(
+        page.items.filter(({ inOverview }) => inOverview).map(({ id }) => id),
+        [covered],
+      );
+      assert.equal(
+        instance.database.rows(IdSchema, "select topic_id as id from topic_pages").length,
+        1,
+      );
     }));
 });
 
@@ -225,15 +226,14 @@ describe("the address of a merged-away Topic opens the Topic it was merged into"
         true,
       );
       assert.equal(
-        rows(
-          instance,
+        instance.database.rows(
           OwnerSchema,
           "select jobs.item_id from jobs join items on items.id = jobs.item_id where jobs.kind = 'topic_overview' and items.topic_id = ?",
           gamma,
         ).length > 0,
         true,
       );
-      assert.equal(count(instance, "select count(*) as n from topics where key = 'ml'"), 0);
+      assert.equal(instance.database.count("select count(*) as n from topics where key = 'ml'"), 0);
     });
   });
 });

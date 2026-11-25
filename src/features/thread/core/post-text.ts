@@ -1,11 +1,6 @@
 import { FileRefused, parseFileKey } from "../../../core/contract/file-keys.ts";
+import { report } from "../../../core/kernel/failure-log.ts";
 import type { FileStore } from "../../../core/kernel/file-store.ts";
-
-const UNESCAPED_BY_JSON = /[\u007F-\u009F\u2028\u2029]/gu;
-
-function escaped(character: string): string {
-  return "\\u" + (character.codePointAt(0) ?? 0).toString(16).padStart(4, "0");
-}
 
 type PostTextRead =
   | { readonly kind: "text"; readonly text: string }
@@ -13,9 +8,7 @@ type PostTextRead =
   | { readonly kind: "lost" };
 
 function unavailable(itemId: number, key: string, reason: string): PostTextRead {
-  const line = JSON.stringify({ event: "post-text-unavailable", itemId, reason, key });
-
-  console.warn(line.replaceAll(UNESCAPED_BY_JSON, escaped));
+  report("post-text-unavailable", { itemId, reason, key });
 
   return { kind: "lost" };
 }

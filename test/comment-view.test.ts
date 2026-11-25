@@ -2,10 +2,11 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
-import { Instance, type Json } from "./instance.ts";
+import { selectorIn } from "./highlight-selector.ts";
+import { Instance, type Json, SECRET_KEY } from "./instance.ts";
+import { until } from "./library-fixtures.ts";
 import { FACT, causeOf, comment, readerOf, threadOf } from "./reader-thread-fixtures.ts";
-import { SECRET_KEY, until } from "./related-fixtures.ts";
-import { restoreLibrary } from "./restoring-fixtures.ts";
+import { restoreLibrary } from "./restore-fixtures.ts";
 import { DIGEST, xClient } from "./x-thread-client.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
 
@@ -103,17 +104,11 @@ describe("the Reader shows the comments that pass the script's first step until 
     const id = await paste("mark1", { content: threadOf("mark1") });
     const detail = await instance.detail(id);
     const path = `/api/items/${String(id)}/highlights`;
-    const revision = detail.highlights.revisions.comments ?? -1;
-    const body = `${FACT} First.`;
-    const quote = "sqlite3 app.db";
-    const start = body.indexOf(quote);
+    const revision = detail.highlights.revisions.comments;
 
-    const selector = {
-      exact: quote,
-      prefix: body.slice(Math.max(0, start - 32), start),
-      suffix: body.slice(start + quote.length, start + quote.length + 32),
-      hint: start,
-    };
+    assert.ok(revision !== undefined, "the Reader names the revision of the comments");
+    const body = `${FACT} First.`;
+    const selector = selectorIn(body, "sqlite3 app.db");
 
     const shown = await instance.send("POST", path, {
       target: { kind: "comment", commentId: "t1_c1" },
@@ -194,6 +189,7 @@ describe("the Reader shows the comments that pass the script's first step until 
     const id = itemIdOf("1000000000000000001");
 
     await until(
+      `Item ${String(id)} shows its comments`,
       () => view(id),
       (current) => current?.filter !== "absent",
     );
@@ -219,6 +215,7 @@ it("shows the older Digest cause when a restored thread has newer comments than 
     digest: DIGEST,
   });
   await until(
+    `Item ${String(id)} has a Digest`,
     () => source.detail(id),
     (detail) => detail.digest !== null,
   );

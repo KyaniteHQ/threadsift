@@ -6,8 +6,8 @@ import {
   type XReaderChoice,
   XSettingsViewSchema,
 } from "../src/core/contract/x-settings-contract.ts";
-import { SECRET_KEY, saveBot } from "./bot-task-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { saveBot } from "./bot-task-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 const PATH = "/api/settings/x";
 

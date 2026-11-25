@@ -3,8 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { SECRET_KEY } from "./bot-task-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 const OPEN_CALLS: ReadonlySet<string> = new Set([
   "GET /api/session",

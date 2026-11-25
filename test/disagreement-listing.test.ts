@@ -4,7 +4,6 @@ import { after, before, describe, it } from "node:test";
 import { pasteItems, tokenOf } from "./disagreement-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
-import { script } from "./pin-fixtures.ts";
 
 describe("the Proposals list filters disagreement rows before the page limit", () => {
   let instance: Instance;
@@ -21,8 +20,7 @@ describe("the Proposals list filters disagreement rows before the page limit", (
       Array.from({ length: 12 - low - 1 }, (_, at) => [low + 1, low + at + 2] as const),
     ).flat();
 
-    script(
-      instance,
+    instance.database.script(
       pairs
         .map(
           ([low, high], at) =>
@@ -40,9 +38,11 @@ describe("the Proposals list filters disagreement rows before the page limit", (
 
     assert.equal(first.proposals.length, 50);
     assert.equal(first.proposals[0]?.id, 55);
-    assert.equal(first.next, String(first.proposals.at(-1)?.id));
+    const cursor = String(first.proposals.at(-1)?.id);
 
-    const second = await readPage(instance, `?cursor=${first.next ?? ""}`);
+    assert.equal(first.next, cursor);
+
+    const second = await readPage(instance, `?cursor=${cursor}`);
 
     assert.deepEqual(
       second.proposals.map(({ id }) => id),

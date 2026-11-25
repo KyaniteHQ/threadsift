@@ -22,7 +22,7 @@ export function registerReadTools(server: McpServer, ports: Ports): void {
     "search",
     {
       title: "Search Items",
-      description: `List Items of the library, newest saved first, ${String(PAGE_SIZE)} to a page. Every filter is optional. \`q\` matches words in the title, post text, Summary and Tags. Send \`next\` from the answer as \`cursor\`, with the same filters, to read the following page. \`counts\` is present only without a \`cursor\`. Read an Item in full with \`read\`.`,
+      description: `List Items of the library, newest saved first, ${String(PAGE_SIZE)} to a page. Every filter is optional. Send \`next\` from the answer as \`cursor\`, with the same filters, to read the following page. \`counts\` is present only without a \`cursor\`. Read an Item in full with \`read\`.`,
       inputSchema: ItemQuerySchema,
       outputSchema: ItemReadResponseSchema,
       annotations: { readOnlyHint: true },

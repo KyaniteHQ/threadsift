@@ -9,7 +9,7 @@ import { GROK_BOT_PROVIDER, hasKind } from "../../../core/contract/provider-fami
 import { CURRENT_REVISION } from "../../../core/kernel/ai-settings-revision.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { requeuedDigests } from "../../../core/kernel/digest-opening.ts";
-import { guardHolds, guardedBatch } from "../../../core/kernel/guards.ts";
+import { guardedBatch } from "../../../core/kernel/guards.ts";
 import type { JobWrites } from "../../../core/kernel/job-outcome.ts";
 import type { Ports, SettingsPorts } from "../../../core/kernel/ports.ts";
 import { settings } from "../../../core/kernel/schema.ts";
@@ -64,30 +64,11 @@ type Prepared = Exclude<
 
 export type PreparedSave = Prepared;
 
-type PreparedSettings = Prepared["row"];
-
 export function providerWrites(db: Database, { row, leavesBot }: Readonly<Prepared>): JobWrites {
   return [
     db.insert(settings).values(row).onConflictDoUpdate({ target: settings.id, set: row }),
     ...(leavesBot ? leaveGrokBotWrites(db, Date.now()) : []),
   ];
-}
-
-export function storedSettings(row: Readonly<PreparedSettings>): SQL {
-  if (!("sealedKey" in row)) return sql`0`;
-
-  return sql`exists (select 1 from ${settings} where ${settings.id} = ${row.id} and ${settings.sealedKey} = ${row.sealedKey} and ${settings.provider} = ${row.provider} and ${settings.model} = ${row.model})`;
-}
-
-export async function holdsSettings(
-  db: Database,
-  row: Readonly<PreparedSettings>,
-): Promise<boolean> {
-  try {
-    return await guardHolds(db, storedSettings(row));
-  } catch {
-    return false;
-  }
 }
 
 async function preparedSave(ports: SettingsPorts, input: Readonly<AiSettingsInput>) {

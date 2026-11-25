@@ -1,9 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { Instance, type Json } from "./instance.ts";
+import { Instance, type Json, SECRET_KEY } from "./instance.ts";
 import { TARGET, redditAddressOf, readerOf, threadOf } from "./reader-thread-fixtures.ts";
-import { SECRET_KEY } from "./related-fixtures.ts";
 import { DIGEST } from "./x-thread-client.ts";
 
 describe("the Reader links the address a Reddit link post points at", () => {

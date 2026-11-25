@@ -1,11 +1,11 @@
-export type SignInLine = "signed-in" | "signed-out" | "unknown";
+import type { SignIn } from "./cli-sign-in.ts";
 
-const LINES: ReadonlyMap<string, SignInLine> = new Map([
+const LINES: ReadonlyMap<string, SignIn> = new Map([
   ["You are logged in with grok.com.", "signed-in"],
   ["You are not authenticated.", "signed-out"],
 ]);
 
-export function signInOf(output: string): SignInLine {
+export function signInOf(output: string): SignIn {
   const [first = ""] = output.split(/\r\n|\n/u);
 
   return LINES.get(first.trim()) ?? "unknown";

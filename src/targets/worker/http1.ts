@@ -1,4 +1,5 @@
 import type { RequestHeaders, WireResponse } from "../../core/kernel/network.ts";
+import { type ByteReader, LINE_BREAK_BYTES, MalformedResponse, byteReader } from "./http1-bytes.ts";
 
 const HEAD_LIMIT_BYTES = 16 * 1024;
 
@@ -14,12 +15,6 @@ const SWITCHING_PROTOCOLS = 101;
 
 const encoder = new TextEncoder();
 
-const decoder = new TextDecoder("latin1");
-
-class MalformedResponse extends Error {
-  override readonly name = "MalformedResponse";
-}
-
 export function requestBytes(host: string, path: string, headers: RequestHeaders): Uint8Array {
   const lines = Object.entries(headers).map(([name, value]) => `${name}: ${value}`);
 
@@ -28,90 +23,31 @@ export function requestBytes(host: string, path: string, headers: RequestHeaders
   );
 }
 
-function joined(first: Uint8Array, second: Uint8Array): Uint8Array {
-  const both = new Uint8Array(first.length + second.length);
-
-  both.set(first);
-  both.set(second, first.length);
-
-  return both;
-}
-
-function lineEnd(bytes: Uint8Array): number {
-  return bytes.findIndex((byte, at) => byte === 13 && bytes[at + 1] === 10);
-}
-
-interface ByteReader {
-  readonly line: (limit: number) => Promise<string | null>;
-  readonly take: (max: number) => Promise<Uint8Array | null>;
-}
-
-function byteReader(source: Readonly<AsyncIterable<Uint8Array>>): ByteReader {
-  const chunks = source[Symbol.asyncIterator]();
-  let buffer: Uint8Array = new Uint8Array(0);
-
-  const pull = async (): Promise<boolean> => {
-    const next = await chunks.next();
-
-    if (next.done === true) return false;
-
-    buffer = buffer.length === 0 ? next.value : joined(buffer, next.value);
-
-    return true;
-  };
-
-  const line = async (limit: number): Promise<string | null> => {
-    const end = lineEnd(buffer);
-
-    if (end >= 0) {
-      const text = decoder.decode(buffer.subarray(0, end));
-
-      buffer = buffer.subarray(end + 2);
-
-      return text;
-    }
-
-    if (buffer.length > limit) throw new MalformedResponse("a line is too long");
-
-    return (await pull()) ? line(limit) : null;
-  };
-
-  const take = async (max: number): Promise<Uint8Array | null> => {
-    if (buffer.length === 0 && !(await pull())) return null;
-
-    const part = buffer.subarray(0, max);
-
-    buffer = buffer.subarray(part.length);
-
-    return part;
-  };
-
-  return { line, take };
-}
-
 type HeaderMap = ReadonlyMap<string, string>;
 
-async function headLines(
-  reader: Readonly<ByteReader>,
-  lines: readonly string[] = [],
-): Promise<readonly string[]> {
-  const line = await reader.line(HEAD_LIMIT_BYTES);
+type NextLine = () => Promise<string>;
 
-  if (line === null) throw new MalformedResponse("the head ended early");
+function nextHeadLineOf(reader: Readonly<ByteReader>): NextLine {
+  let left = HEAD_LIMIT_BYTES;
 
-  if (line === "") return lines;
+  return async () => {
+    if (left < LINE_BREAK_BYTES) throw new MalformedResponse("the head is too long");
 
-  if (lines.join("").length + line.length > HEAD_LIMIT_BYTES) {
-    throw new MalformedResponse("the head is too long");
-  }
+    const line = await reader.line(left - LINE_BREAK_BYTES);
 
-  return headLines(reader, [...lines, line]);
+    if (line === null) throw new MalformedResponse("the head ended early");
+
+    left -= line.length + LINE_BREAK_BYTES;
+
+    return line;
+  };
 }
 
-async function headersOf(reader: Readonly<ByteReader>): Promise<HeaderMap> {
+async function headersOf(nextLine: NextLine): Promise<HeaderMap> {
   const headers = new Map<string, string>();
+  let line = await nextLine();
 
-  for (const line of await headLines(reader)) {
+  while (line !== "") {
     const colon = line.indexOf(":");
 
     if (colon < 1) throw new MalformedResponse("a header has no name");
@@ -119,6 +55,9 @@ async function headersOf(reader: Readonly<ByteReader>): Promise<HeaderMap> {
     const name = line.slice(0, colon).toLowerCase();
 
     if (!headers.has(name)) headers.set(name, line.slice(colon + 1).trim());
+
+    // oxlint-disable-next-line eslint/no-await-in-loop -- the head lines are read in order.
+    line = await nextLine();
   }
 
   return headers;
@@ -174,7 +113,8 @@ async function* chunked(reader: Readonly<ByteReader>): AsyncGenerator<Uint8Array
     yield* byLength(reader, size);
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- each chunk ends with its own line break.
-    if ((await reader.line(2)) !== "") throw new MalformedResponse("a chunk has no line break");
+    if ((await reader.line(LINE_BREAK_BYTES)) !== "")
+      throw new MalformedResponse("a chunk has no line break");
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- the chunks are read in order.
     size = await chunkSizeOf(reader);
@@ -210,15 +150,15 @@ interface Head {
   readonly headers: HeaderMap;
 }
 
-async function finalHead(reader: Readonly<ByteReader>): Promise<Head> {
-  const status = Number(STATUS_LINE.exec((await reader.line(HEAD_LIMIT_BYTES)) ?? "")?.[1]);
+async function finalHead(nextLine: NextLine): Promise<Head> {
+  const status = Number(STATUS_LINE.exec(await nextLine())?.[1]);
 
   if (!Number.isInteger(status)) throw new MalformedResponse("the status line is not readable");
 
-  const headers = await headersOf(reader);
+  const headers = await headersOf(nextLine);
 
   return status >= 100 && status < 200 && status !== SWITCHING_PROTOCOLS
-    ? finalHead(reader)
+    ? finalHead(nextLine)
     : { status, headers };
 }
 
@@ -226,7 +166,7 @@ export async function readResponse(
   source: Readonly<AsyncIterable<Uint8Array>>,
 ): Promise<WireResponse> {
   const reader = byteReader(source);
-  const { status, headers } = await finalHead(reader);
+  const { status, headers } = await finalHead(nextHeadLineOf(reader));
 
   return {
     status,

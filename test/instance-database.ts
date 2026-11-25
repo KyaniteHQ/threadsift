@@ -3,9 +3,13 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { backup, DatabaseSync } from "node:sqlite";
 
+import { z } from "zod";
+
 import { openDatabase } from "../src/targets/node/database.ts";
 
 const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
+
+export const openMigrated = (file: string) => openDatabase(file, MIGRATIONS);
 
 export function instanceDatabase(template?: Readonly<Uint8Array>) {
   using cleanup = new DisposableStack();
@@ -14,7 +18,7 @@ export function instanceDatabase(template?: Readonly<Uint8Array>) {
 
   if (template !== undefined) writeFileSync(file, template);
 
-  const database = openDatabase(file, MIGRATIONS);
+  const database = openMigrated(file);
   cleanup.defer(() => {
     database.close();
   });
@@ -36,4 +40,56 @@ export async function snapshotDatabase(file: string): Promise<Uint8Array> {
   await backup(source, snapshot);
 
   return readFileSync(snapshot);
+}
+
+type Param = string | number | null;
+
+const CountSchema = z.object({ n: z.number() });
+
+const MigrationSchema = z.object({ name: z.string() });
+
+export function databaseOf(file: string) {
+  const exec = (query: string, ...params: readonly Param[]): void => {
+    using database = new DatabaseSync(file);
+
+    database.prepare(query).run(...params);
+  };
+
+  const script = (statements: string): void => {
+    using database = new DatabaseSync(file);
+
+    database.exec(statements);
+  };
+
+  const rows = <Schema extends z.ZodType>(
+    schema: Schema,
+    query: string,
+    ...params: readonly Param[]
+  ): z.infer<Schema>[] => {
+    using database = new DatabaseSync(file, { readOnly: true });
+
+    return database
+      .prepare(query)
+      .all(...params)
+      .map((row) => schema.parse(row));
+  };
+
+  const count = (query: string, ...params: readonly Param[]): number => {
+    const [row] = rows(CountSchema, query, ...params);
+    if (row === undefined) throw new Error("The count query returned no row");
+
+    return row.n;
+  };
+
+  return {
+    exec,
+    script,
+    rows,
+    count,
+    rowCount: (table: string, where = "1 = 1", ...params: readonly Param[]): number =>
+      count(`select count(*) as n from ${table} where ${where}`, ...params),
+    catalogVersion: (): number => count("select version as n from catalog_version where id = 1"),
+    latestMigration: (): string | undefined =>
+      rows(MigrationSchema, "select max(name) as name from d1_migrations")[0]?.name,
+  };
 }

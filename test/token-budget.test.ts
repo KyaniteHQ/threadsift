@@ -3,16 +3,13 @@ import { after, before, describe, it } from "node:test";
 
 import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { BudgetRefusalSchema } from "../src/core/contract/error-wire.ts";
-import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
-import { parseLink } from "../src/core/contract/links.ts";
+import { atClock } from "./clock-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { itemTotal } from "./restoring-fixtures.ts";
+import { aliasRow, aliasesAt, failedUnder, firstResolved, itemsAt } from "./short-link-fixtures.ts";
 import {
   addBatch,
   addLink,
-  atClock,
   budgetOf,
-  execute,
   makeToken,
   nextMidnight,
   xLink,
@@ -67,12 +64,12 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
         assert.equal((await addLink(instance, token, 11)).status, 201);
 
-        const itemsBefore = await itemTotal(instance);
+        const itemsBefore = await instance.itemTotal();
         const over = await addLink(instance, token, 12);
 
         assert.equal(over.status, 429);
         assert.equal(BudgetRefusalSchema.parse(JSON.parse(over.body)).code, "budget-spent");
-        assert.equal(await itemTotal(instance), itemsBefore);
+        assert.equal(await instance.itemTotal(), itemsBefore);
 
         const known = await addLink(instance, token, 11);
 
@@ -91,7 +88,7 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
     await addLink(instance, token, 31);
     await addLink(instance, token, 32);
 
-    const itemsBefore = await itemTotal(instance);
+    const itemsBefore = await instance.itemTotal();
 
     const refused = await instance.sendWithToken(token.value, "POST", "/api/items/batch", {
       links: [31, 33, 34].map((number) => ({ url: xLink(number) })),
@@ -100,7 +97,7 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
     assert.equal(refused.status, 429);
     assert.equal(BudgetRefusalSchema.parse(JSON.parse(refused.body)).code, "budget-spent");
-    assert.equal(await itemTotal(instance), itemsBefore);
+    assert.equal(await instance.itemTotal(), itemsBefore);
     assert.equal((await instance.send("GET", "/api/imports/whole")).status, 404);
     assert.equal((await budgetOf(instance, token.id)).kind, "within");
 
@@ -110,10 +107,10 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
 
   it("refuses a first batch of the day that is bigger than the whole budget", async () => {
     const token = await makeToken(instance, 2);
-    const itemsBefore = await itemTotal(instance);
+    const itemsBefore = await instance.itemTotal();
 
     assert.equal((await addBatch(instance, token, [91, 92, 93])).status, 429);
-    assert.equal(await itemTotal(instance), itemsBefore);
+    assert.equal(await instance.itemTotal(), itemsBefore);
     assert.deepEqual(await budgetOf(instance, token.id), {
       kind: "within",
       limit: 2,
@@ -162,16 +159,9 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
       async () => {
         const token = await makeToken(instance, 3);
 
-        const saved = SavedItemResponseSchema.parse(
-          JSON.parse((await instance.send("POST", "/api/items", { url: xLink(81) })).body),
-        );
-
         const short = "https://t.co/knownshort";
 
-        execute(
-          instance,
-          `insert into item_aliases (normalized_url, address, item_id) values ('${parseLink(short).normalizedUrl}', '${xLink(81)}', ${String(saved.item.id)})`,
-        );
+        await firstResolved(instance, short, xLink(81));
 
         await Promise.all([82, 83, 84].map((number) => addLink(instance, token, number)));
 
@@ -214,14 +204,60 @@ describe("an agent token adds up to its daily budget of Items and no more", () =
     );
   });
 
+  [
+    { under: "the share link only", link: "stalealias", spender: 301, failed: false },
+    {
+      under: "the share link and a failed Item under the short link",
+      link: "stalefailed",
+      spender: 302,
+      failed: true,
+    },
+  ].forEach(({ under, link, spender, failed }) => {
+    it(`counts a short link whose alias ends at a Reddit share link as possibly new when an Item holds ${under}, so a spent token is refused`, async () => {
+      const short = `https://t.co/${link}`;
+      const share = `https://www.reddit.com/r/library/s/${link}`;
+
+      const holder = await firstResolved(instance, `https://t.co/${link}holder`, share);
+
+      assert.ok(holder !== null);
+
+      const underShort = failed ? await failedUnder(instance, short) : null;
+
+      await firstResolved(instance, short, share);
+
+      assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, share, holder.item.id)]);
+      assert.equal(itemsAt(instance, short), failed ? 1 : 0);
+      assert.ok(!failed || (underShort !== null && underShort.item.id !== holder.item.id));
+
+      const now = Date.now();
+
+      await atClock(
+        () => now,
+        async () => {
+          const token = await makeToken(instance, 1);
+
+          assert.equal((await addLink(instance, token, spender)).status, 201);
+          assert.equal((await budgetOf(instance, token.id)).kind, "spent");
+
+          const refused = await instance.sendWithToken(token.value, "POST", "/api/items", {
+            url: short,
+          });
+
+          assert.equal(refused.status, 429);
+          assert.equal(BudgetRefusalSchema.parse(JSON.parse(refused.body)).code, "budget-spent");
+        },
+      );
+    });
+  });
+
   it("keeps the Items a token added when the token is revoked", async () => {
     const token = await makeToken(instance, 4);
 
     await addLink(instance, token, 61);
 
-    const items = await itemTotal(instance);
+    const items = await instance.itemTotal();
 
     assert.equal((await instance.send("DELETE", `/api/tokens/${String(token.id)}`)).status, 204);
-    assert.equal(await itemTotal(instance), items);
+    assert.equal(await instance.itemTotal(), items);
   });
 });

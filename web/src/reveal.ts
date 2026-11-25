@@ -1,13 +1,14 @@
 import { pixelsOf } from "./css-length.ts";
 
+export function scrolls(overflow: string): boolean {
+  return overflow === "auto" || overflow === "scroll";
+}
+
 function scrollingPane(element: HTMLElement): HTMLElement | null {
   for (let parent: HTMLElement | null = element; parent !== null; parent = parent.parentElement) {
     const { overflowY } = getComputedStyle(parent);
 
-    if (
-      (overflowY === "auto" || overflowY === "scroll") &&
-      parent.scrollHeight > parent.clientHeight
-    ) {
+    if (scrolls(overflowY) && parent.scrollHeight > parent.clientHeight) {
       return parent;
     }
   }
@@ -31,6 +32,10 @@ export function revealInPane(element: HTMLElement): void {
   } else if (box.bottom > paneBox.bottom) {
     pane.scrollTop += Math.ceil(box.bottom - paneBox.bottom);
   }
+}
+
+export function readerTitleOf(element: Element): HTMLElement | null {
+  return element.closest(".reader")?.querySelector<HTMLElement>(".rd-title") ?? null;
 }
 
 export function scrollToTop(element: HTMLElement): void {

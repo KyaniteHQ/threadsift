@@ -4,9 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { KIND_CASES } from "./bot-kinds-cases.ts";
 import { botInstance, openJobOf, selectGrokBot } from "./bot-kinds-fixtures.ts";
-import { jobRow, rowCount, taskRows } from "./bot-task-rows.ts";
+import { jobRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 describe("what a kind does when there is nothing to ask the bot", () => {
   let instance: Instance;
@@ -18,8 +17,7 @@ describe("what a kind does when there is nothing to ask the bot", () => {
   after(() => instance.close());
 
   it("settles a weekly run with no pairs to compare, closes the job and starts no task", async () => {
-    exec(
-      instance,
+    instance.database.exec(
       "insert into items (id, source, kind, normalized_url, original_url, saved_at) values (1, 'article', 'article', 'https://example.com/1', 'https://example.com/1', 1)",
     );
 
@@ -29,7 +27,7 @@ describe("what a kind does when there is nothing to ask the bot", () => {
     await executeClaimed(instance.core, job);
 
     assert.equal(jobRow(instance, job.id).state, "done");
-    assert.equal(rowCount(instance, "ai_tasks"), 0);
+    assert.equal(instance.database.rowCount("ai_tasks"), 0);
   });
 });
 

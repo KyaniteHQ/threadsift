@@ -1,18 +1,16 @@
-import { type APIRequestContext, expect } from "@playwright/test";
+import { type APIRequestContext, expect, test } from "@playwright/test";
 
 import { catalogKey } from "../src/core/contract/catalog-key.ts";
-import {
-  ItemDetailResponseSchema,
-  ItemResponseSchema,
-} from "../src/core/contract/item-route-wire.ts";
+import type { Item } from "../src/core/contract/item-wire.ts";
+import type { SaveItemInput } from "../src/core/contract/save-wire.ts";
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { topicApiPath } from "../src/core/contract/topic-path.ts";
+import { itemDetail, itemStatus, savedItem } from "./saved-item.ts";
 
 export function digestStates(request: APIRequestContext, ids: readonly number[]) {
   return Promise.all(
     ids.map(async (id) => {
-      const answer = await request.get(`/api/items/${String(id)}`);
-      const { item } = ItemDetailResponseSchema.parse(await answer.json());
+      const item = await itemDetail(request, id);
 
       return item.digest === null ? item.digestOutcome : "digest";
     }),
@@ -24,11 +22,7 @@ export async function digestedTopic(
   ids: readonly number[],
 ): Promise<string> {
   const topics = await Promise.all(
-    ids.map(async (id) => {
-      const answer = await request.get(`/api/items/${String(id)}`);
-
-      return ItemDetailResponseSchema.parse(await answer.json()).item.digestTopic;
-    }),
+    ids.map(async (id) => (await itemDetail(request, id)).digestTopic),
   );
 
   const topic = topics.find((name) => name !== null);
@@ -53,13 +47,43 @@ export async function relatedOf(
   request: APIRequestContext,
   id: number,
 ): Promise<readonly number[]> {
-  const answer = await request.get(`/api/items/${String(id)}`);
-
-  return ItemDetailResponseSchema.parse(await answer.json()).item.related.map((entry) => entry.id);
+  return (await itemDetail(request, id)).related.map((entry) => entry.id);
 }
 
 export async function itemIdle(request: APIRequestContext, id: number): Promise<boolean> {
-  const status = await request.get(`/api/items/${String(id)}/status`);
+  return (await itemStatus(request, id)).status !== "processing";
+}
 
-  return ItemResponseSchema.parse(await status.json()).item.status !== "processing";
+export async function pasteAndSettle(
+  request: APIRequestContext,
+  input: Readonly<SaveItemInput>,
+): Promise<number> {
+  const id = await savedItem(request, input);
+  let settled: Item | undefined;
+
+  await expect
+    .poll(
+      async () => {
+        settled = await itemStatus(request, id);
+
+        return settled.status;
+      },
+      { message: `${input.url} leaves processing`, timeout: 60_000 },
+    )
+    .not.toBe("processing");
+
+  expect({ status: settled?.status, fetch: settled?.fetch }, `${input.url} is read`).toEqual({
+    status: "ready",
+    fetch: "ok",
+  });
+
+  return id;
+}
+
+export function pasteStep(
+  request: APIRequestContext,
+  label: string,
+  input: Readonly<SaveItemInput>,
+): Promise<number> {
+  return test.step(`Paste ${label} and read it`, () => pasteAndSettle(request, input));
 }

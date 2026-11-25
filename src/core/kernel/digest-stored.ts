@@ -26,14 +26,25 @@ export function readStoredDigest(stored: string): StoredDigestRead {
   }
 }
 
-const STORED_IS_JSON = sql`json_valid(${digests.digest})`;
+function isJson(stored: Readonly<SQLWrapper>): SQL {
+  return sql`json_valid(${stored})`;
+}
 
-export function digestField(field: "title" | "summary"): SQL<string | null> {
+const STORED_IS_JSON = isJson(digests.digest);
+
+export function digestField(
+  field: "title" | "summary",
+  stored: Readonly<SQLWrapper>,
+): SQL<string | null> {
   const path = sql.raw(`'$.${field}'`);
 
   return sql<
     string | null
-  >`case when ${STORED_IS_JSON} and json_type(${digests.digest}, ${path}) = 'text' then json_extract(${digests.digest}, ${path}) end`;
+  >`case when ${isJson(stored)} and json_type(${stored}, ${path}) = 'text' then json_extract(${stored}, ${path}) end`;
+}
+
+export function listedSummary(stored: Readonly<SQLWrapper>): SQL<string> {
+  return sql<string>`coalesce(${digestField("summary", stored)}, '')`;
 }
 
 export function storedWithTopic(name: Readonly<SQLWrapper>): SQL {

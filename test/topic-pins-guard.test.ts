@@ -1,36 +1,28 @@
 import assert from "node:assert/strict";
-import { join } from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { guardHolds } from "../src/core/kernel/guards.ts";
 import { pinnedDigest } from "../src/features/wiki/core/pins.ts";
-import { openDatabase } from "../src/targets/node/database.ts";
+import { openMigrated } from "./instance-database.ts";
 import { Instance } from "./instance.ts";
-import { script } from "./pin-fixtures.ts";
-
-const MIGRATIONS = join(import.meta.dirname, "..", "migrations");
-
-const topicPin = (id: number, into: number) =>
-  `insert into pins (id, kind, from_key, from_name, into_topic_id, created_at) values (${String(id)}, 'topic-merge', 'ml', 'ML', ${String(into)}, 1);`;
+import { topicPin } from "./pin-fixtures.ts";
 
 describe("the Pin resolution condition fails when the Topic or Tag Pins it read have changed", () => {
   let instance: Instance;
-  let database: ReturnType<typeof openDatabase>;
+  let database: ReturnType<typeof openMigrated>;
 
   const sqlite = (statement: string) => {
-    script(instance, statement);
+    instance.database.script(statement);
   };
 
   const digest = { tags: ["ai"], topic: "ML" } as const;
 
   before(async () => {
     instance = await Instance.start();
-    script(
-      instance,
-      `insert into topics (id, key, name) values (1, 'machine learning', 'Machine Learning'), (2, 'deep learning', 'Deep Learning');
-       insert into tags (id, key, name) values (1, 'artificial intelligence', 'AI');`,
-    );
-    database = openDatabase(instance.databaseFile, MIGRATIONS);
+    instance.database
+      .script(`insert into topics (id, key, name) values (1, 'machine learning', 'Machine Learning'), (2, 'deep learning', 'Deep Learning');
+       insert into tags (id, key, name) values (1, 'artificial intelligence', 'AI');`);
+    database = openMigrated(instance.databaseFile);
   });
 
   beforeEach(() => {

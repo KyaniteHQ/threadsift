@@ -155,7 +155,6 @@ function useExtensionButton(
   const reconnectNow = useAction({
     run,
     action: "reconnect",
-    unavailable: null,
     task: useReconnect(changed),
   });
 

@@ -1,4 +1,4 @@
-import { type SQL, and, eq, ne, sql } from "drizzle-orm";
+import { type SQL, eq, ne, sql } from "drizzle-orm";
 
 import { GROK_BOT_WAIT } from "../../../core/contract/job-contract.ts";
 import { X_INTAKE_TASK } from "../../../core/contract/x-intake-contract.ts";
@@ -29,7 +29,7 @@ export function leaveGrokBotWrites(db: Database, now: number): JobWrites {
   return [
     db.update(grokBotSettings).set({ useAsProvider: false }).where(eq(grokBotSettings.id, 1)),
     abandonedTasks(db, X_INTAKE_TASK),
-    wokenJobs(db, now, and(waitingFor(GROK_BOT_WAIT), ne(jobs.kind, "fetch"))),
+    wokenJobs(db, now, waitingFor(GROK_BOT_WAIT), ne(jobs.kind, "fetch")),
   ];
 }
 

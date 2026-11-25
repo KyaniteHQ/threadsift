@@ -12,13 +12,15 @@ import {
   guardedItemWrite,
   holdsNoItem,
   itemAt,
+  knownItem,
   queuedRows,
   writeQueued,
 } from "../../item/core/item-rows.ts";
 import { hasNoThread, ownerOf } from "../../thread/core/thread-store.ts";
 
 export type { Existing, Paste, Saved } from "../../item/core/item-rows.ts";
-export { saveResolved, saveUnresolved } from "./short-link-save.ts";
+export { type ShortLinkPaste, saveResolution, saveResolved } from "./short-link-save.ts";
+export { saveUnresolved } from "./unresolved-save.ts";
 
 export async function savedItem(
   ports: Ports,
@@ -37,17 +39,13 @@ export async function saveLinked(
   paste: Readonly<Paste>,
   link: Readonly<Link>,
   existing: Existing,
-): Promise<Saved> {
+): Promise<Saved | null> {
   const { db } = ports;
 
   const around: Around | undefined =
-    existing === "keep"
-      ? { guard: holdsNoItem(db, link.normalizedUrl), before: [], after: [] }
-      : undefined;
+    existing === "keep" ? { guard: holdsNoItem(db, link.normalizedUrl), after: [] } : undefined;
 
-  const saved = await writeQueued(ports, paste, link, around);
-
-  return saved ?? { kind: "saved", item: await itemAt(db, link.normalizedUrl), created: false };
+  return (await writeQueued(ports, paste, link, around)) ?? knownItem(db, link.normalizedUrl);
 }
 
 export async function savePaged(

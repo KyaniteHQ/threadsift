@@ -1,24 +1,11 @@
-import { DatabaseSync } from "node:sqlite";
-
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { rows } from "./related-fixtures.ts";
 
 const AnyRowSchema = z.record(z.string(), z.unknown());
 
-export const script = (instance: Instance, statements: string): void => {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    database.exec(statements);
-  } finally {
-    database.close();
-  }
-};
-
 export const dump = (instance: Instance, query: string): string =>
-  JSON.stringify(rows(instance, AnyRowSchema, query));
+  JSON.stringify(instance.database.rows(AnyRowSchema, query));
 
 export const item = (
   id: number,
@@ -33,6 +20,9 @@ export const item = (
   insert into digests (item_id, digest, title, topic, task_id, generation, created_at)
     values (${String(id)}, '${JSON.stringify({ title: "T", topic, tags: digestTags, summary: "S", keyPoints: ["K"] })}', 'T', '${topic}', ${String(id)}, 0, 1);
   ${tags.map((tag) => `insert into item_tags (item_id, tag_id) values (${String(id)}, ${String(tag)});`).join("\n")}`;
+
+export const topicPin = (id: number, into: number): string =>
+  `insert into pins (id, kind, from_key, from_name, into_topic_id, created_at) values (${String(id)}, 'topic-merge', 'ml', 'ML', ${String(into)}, 1);`;
 
 export const seedTopicItems = (
   instance: Instance,
@@ -53,9 +43,7 @@ export const seedTopicItems = (
     keyPoints: ["K"],
   });
 
-  script(
-    instance,
-    `
+  instance.database.script(`
     ${range}
     insert into items (id, source, kind, normalized_url, original_url, saved_at, topic_id)
     select i, 'other', 'link', 'https://example.com/' || i, 'https://example.com/' || i, i, ${String(topicId)} from n;
@@ -64,13 +52,11 @@ export const seedTopicItems = (
     select i, 'digest', '{}', 0, 'caller', 1, 0, 'done', i from n;
     ${range}
     insert into digests (item_id, digest, title, topic, task_id, generation, created_at)
-    select i, '${json}', 'T', '${name}', i, 0, 1 from n;`,
-  );
+    select i, '${json}', 'T', '${name}', i, 0, 1 from n;`);
 };
 
 export const topicNameOf = (instance: Instance, itemId: number): string | null =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({ name: z.string().nullable() }),
     "select topics.name as name from items left join topics on topics.id = items.topic_id where items.id = ?",
     itemId,

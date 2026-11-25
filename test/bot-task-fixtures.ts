@@ -8,11 +8,10 @@ import { bestEffort } from "../src/core/kernel/failure-log.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/kernel/schema.ts";
 import { newCallbackCredential } from "../src/features/ai/core/callback-credential.ts";
-import { KEY, PATH, SECRET_KEY, inOrder } from "./grok-bot-fixtures.ts";
-import { type Answer, Instance, type Json } from "./instance.ts";
-import { count, exec, paste, rows } from "./related-fixtures.ts";
-
-export { SECRET_KEY };
+import { KEY, PATH } from "./grok-bot-fixtures.ts";
+import { type Answer, Instance, type Json, SECRET_KEY } from "./instance.ts";
+import { paste, inOrder } from "./library-fixtures.ts";
+import { pairsOf } from "./related-fixtures.ts";
 
 export const GROK_BOT_IN_FLIGHT = 10;
 
@@ -20,7 +19,7 @@ const UNREACHABLE_ADDRESS = "https://no-such-host.invalid/automations/webhook/no
 
 export interface BotLibrary {
   readonly source: number;
-  readonly candidates: readonly number[];
+  readonly candidates: readonly [number, number];
 }
 
 export async function saveBot(instance: Instance): Promise<void> {
@@ -55,9 +54,11 @@ export async function relatedLibrary(instance: Instance): Promise<BotLibrary> {
   return { source, candidates: [first, second] };
 }
 
+export const pickedFor = (instance: Instance, library: Readonly<BotLibrary>): readonly number[] =>
+  pairsOf(instance, library.source).map(({ related_id: id }) => id);
+
 export function unblock(instance: Instance, itemId: number): void {
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set state = 'done', claim_expires = null where kind = 'digest' and item_id = ? and state = 'running'",
     itemId,
   );
@@ -79,7 +80,10 @@ export function reclaimedJob(
   instance: Instance,
   job: Readonly<Pick<JobRow, "id">>,
 ): Promise<ClaimedJob> {
-  exec(instance, "update jobs set next_attempt_at = 0, claim_expires = null where id = ?", job.id);
+  instance.database.exec(
+    "update jobs set next_attempt_at = 0, claim_expires = null where id = ?",
+    job.id,
+  );
 
   return claimedBotJob(instance, job.id);
 }
@@ -87,8 +91,7 @@ export function reclaimedJob(
 export function acceptedByBot(instance: Instance, taskId: number) {
   const credential = newCallbackCredential(instance.core.crypto);
 
-  exec(
-    instance,
+  instance.database.exec(
     "update ai_tasks set state = 'running', refusal = null, status = null, sent_at = ?, callback_hash = ? where id = ?",
     Date.now(),
     credential.hash,
@@ -143,16 +146,17 @@ export async function bulkJobs(
   kind: JobKind = "related_pick",
 ): Promise<readonly ClaimedJob[]> {
   const first =
-    (rows(instance, z.object({ id: z.number().nullable() }), "select max(id) as id from items")[0]
-      ?.id ?? 0) + 1;
+    (instance.database.rows(
+      z.object({ id: z.number().nullable() }),
+      "select max(id) as id from items",
+    )[0]?.id ?? 0) + 1;
 
   const claims: ClaimedJob[] = [];
 
   await inOrder(
     Array.from({ length: jobCount }, (_, offset) => first + offset),
     async (id) => {
-      exec(
-        instance,
+      instance.database.exec(
         "insert into items (id, source, kind, normalized_url, original_url, saved_at) values (?, 'article', 'article', ?, ?, 1)",
         id,
         `https://example.com/bulk/${String(id)}`,
@@ -179,8 +183,7 @@ export function openJobOfKind(
 ): Promise<ClaimedJob> {
   const { kind, itemId } = options;
 
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set state = 'done', claim_expires = null where kind = ? and item_id = ?",
     kind,
     itemId,
@@ -194,8 +197,7 @@ export async function openJob(
   itemId: number,
   attempts = 0,
 ): Promise<ClaimedJob> {
-  const held = count(
-    instance,
+  const held = instance.database.count(
     "select count(*) as n from jobs where kind = 'digest' and item_id = ? and state = 'running'",
     itemId,
   );
@@ -223,7 +225,11 @@ export async function botInstance(): Promise<Instance> {
 }
 
 export function pastDeadline(instance: Instance, taskId: number): void {
-  exec(instance, "update ai_tasks set deadline = ? where id = ?", Date.now() - 1000, taskId);
+  instance.database.exec(
+    "update ai_tasks set deadline = ? where id = ?",
+    Date.now() - 1000,
+    taskId,
+  );
 }
 
 export function picksFor(candidate: number, reason = "Both cover the same lattice."): Json {
@@ -235,8 +241,7 @@ export function answerOf(result: Json): Json {
 }
 
 export function retireTasks(instance: Instance): void {
-  exec(
-    instance,
+  instance.database.exec(
     "update ai_tasks set state = 'failed', refusal = 'timeout' where state = 'running' and executor = 'grok-bot'",
   );
 }

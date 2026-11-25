@@ -12,11 +12,10 @@ import {
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
 import { type ZipSource, bytesAt, entrySpan } from "../../export/core/zip-read.ts";
-import { readManifest } from "./restore-check.ts";
 import { type Lines, completeLines } from "./restore-lines.ts";
 import { RESTORE_ORDER } from "./restore-registry.ts";
 import { insertRows, knownTable } from "./restore-rows.ts";
-import { readRestoreDirectory } from "./restore-source.ts";
+import type { Release } from "./restore-source.ts";
 import { steppedUnit, tallied } from "./restore-unit.ts";
 
 interface Opened {
@@ -26,24 +25,20 @@ interface Opened {
   readonly line: number;
 }
 
-export async function recordFiles(source: Readonly<ZipSource>) {
-  const directory = await readRestoreDirectory(source);
-  const manifest = await readManifest(source, directory);
-
-  const files = RESTORE_ORDER.flatMap((table) => {
+function recordFiles({ directory, manifest }: Readonly<Release>) {
+  return RESTORE_ORDER.flatMap((table) => {
     const listed = manifest.tables[table];
 
     return listed === undefined || listed.rows === 0
       ? []
       : listed.files.map((file) => ({ table, name: `${directory.root}/${file}` }));
   });
-
-  return { directory, files, manifest };
 }
 
 async function opened(
   source: Readonly<ZipSource>,
   cursor: Readonly<Cursor>,
+  release: Readonly<Release>,
 ): Promise<Opened | null> {
   const { entry } = cursor;
 
@@ -52,8 +47,8 @@ async function opened(
   }
 
   const file = entry === null ? cursor.file : cursor.file + 1;
-  const { directory, files } = await recordFiles(source);
-  const listed = files[file];
+  const { directory } = release;
+  const listed = recordFiles(release)[file];
 
   if (listed === undefined) return null;
 
@@ -72,7 +67,7 @@ async function opened(
     line: 0,
   };
 
-  return found.size === 0 ? opened(source, next) : next;
+  return found.size === 0 ? opened(source, next, release) : next;
 }
 
 async function windowLines(
@@ -101,10 +96,10 @@ export async function tablesUnit(
   ports: JobPorts,
   run: Readonly<RestoreRow>,
   source: Readonly<ZipSource>,
+  release: Readonly<Release>,
 ): Promise<JobOutcome> {
   const { db } = ports;
-  const cursor = CursorSchema.parse(JSON.parse(run.cursor));
-  const at = await opened(source, cursor);
+  const at = await opened(source, CursorSchema.parse(JSON.parse(run.cursor)), release);
 
   if (at === null) {
     return steppedUnit(db, run, entering("files"));

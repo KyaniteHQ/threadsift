@@ -1,4 +1,5 @@
 import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
@@ -19,6 +20,7 @@ import {
 } from "../contract/job-contract.ts";
 import type { Database } from "./database.ts";
 import { logFailure } from "./failure-log.ts";
+import { guardedWrites, unlessRefused } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { jobIs, jobOpen } from "./job-tables.ts";
 import { literal } from "./schema-checks.ts";
@@ -49,8 +51,6 @@ export function jobIsOpen(id: number | SQLWrapper): SQL {
   return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${id} and ${jobOpen()})`;
 }
 
-export const OpenedJobsSchema = z.array(z.object({ id: z.number().int() }));
-
 export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${items.id}`) {
   const kinds = kind === undefined ? ITEM_JOB_KINDS : [kind];
 
@@ -62,6 +62,37 @@ export function hasOpenJob(kind?: JobKind, itemId: Readonly<SQLWrapper> = sql`${
 
 export function holding(job: Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration">>) {
   return sql`exists (select 1 from ${jobs} where ${jobs.id} = ${job.id} and ${jobIs("running")} and ${jobs.attempts} = ${job.attempts} and ${jobs.attemptGeneration} is ${job.attemptGeneration})`;
+}
+
+export type OpeningWrite = BatchItem<"sqlite"> & {
+  readonly _: { readonly result: readonly Readonly<{ id: number }>[] };
+};
+
+const OpenedSchema = z.array(z.object({ id: z.number().int() }));
+
+export function guardedOpenings(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  {
+    before,
+    opening: openings,
+    after = [],
+  }: Readonly<{
+    before: readonly BatchItem<"sqlite">[];
+    opening: readonly OpeningWrite[];
+    after?: readonly BatchItem<"sqlite">[];
+  }>,
+): Promise<readonly Readonly<{ id: number }>[] | null> {
+  return unlessRefused(async () => {
+    const results = await db.batch(
+      guardedWrites(db, condition, [...before, ...openings, ...after]),
+    );
+    const first = 1 + before.length;
+
+    return results
+      .slice(first, first + openings.length)
+      .flatMap((opened) => OpenedSchema.parse(opened));
+  });
 }
 
 export function openingJob(
@@ -227,7 +258,7 @@ export async function enqueueQuietly(
 }
 
 export function enqueueRows(
-  ports: JobPorts,
+  ports: Readonly<Pick<JobPorts, "jobs">>,
   rows: readonly Readonly<{ id: number }>[],
 ): Promise<void> {
   return enqueueQuietly(

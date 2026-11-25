@@ -1,11 +1,10 @@
 import { type SQL, and, eq, sql } from "drizzle-orm";
-import type { BatchItem } from "drizzle-orm/batch";
 
 import { entering } from "../../../core/contract/restore-contract.ts";
-import { guardedResults } from "../../../core/kernel/guards.ts";
+import { guardedBatch } from "../../../core/kernel/guards.ts";
 import { closeRunJobs } from "../../../core/kernel/job-close.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { OpenedJobsSchema, enqueueRows } from "../../../core/kernel/job-rows.ts";
+import { enqueueRows, guardedOpenings } from "../../../core/kernel/job-rows.ts";
 import {
   NEWEST_RESTORE,
   UNWRITTEN_RESTORE,
@@ -39,19 +38,10 @@ async function cancelledUpload({ db, files }: Pick<JobPorts, "db" | "files">, id
   return ended.length > 0;
 }
 
-function guardedCancel(
-  db: JobPorts["db"],
-  id: number,
-  standing: SQL,
-  writes: (waiting: SQL) => readonly BatchItem<"sqlite">[],
-) {
+function cancelScope(id: number, standing: SQL) {
   const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${standing}`;
 
-  return guardedResults(
-    db,
-    sql`exists (select 1 from ${restoreRuns} where ${waiting})`,
-    writes(waiting),
-  );
+  return { waiting, held: sql`exists (select 1 from ${restoreRuns} where ${waiting})` };
 }
 
 async function cancelledUnwritten(
@@ -60,7 +50,9 @@ async function cancelledUnwritten(
 ): Promise<boolean> {
   const now = Date.now();
 
-  const written = await guardedCancel(db, id, UNWRITTEN_RESTORE, (waiting) => [
+  const { waiting, held } = cancelScope(id, UNWRITTEN_RESTORE);
+
+  const written = await guardedBatch(db, held, [
     db
       .update(restoreRuns)
       .set({ state: "cancelled", failure: null, finishedAt: now, updatedAt: now })
@@ -68,7 +60,7 @@ async function cancelledUnwritten(
     closeRunJobs(db, "restore", id),
   ]);
 
-  if (written === null) return false;
+  if (!written) return false;
 
   await removeParts(files, id);
 
@@ -78,23 +70,27 @@ async function cancelledUnwritten(
 async function undoing(ports: JobPorts, id: number): Promise<boolean> {
   const { db } = ports;
 
-  const written = await guardedCancel(db, id, UNDOABLE_RESTORE, (waiting) => [
-    db
-      .update(restoreRuns)
-      .set({
-        state: "running",
-        ...entering("undoing"),
-        failure: null,
-        updatedAt: Date.now(),
-      })
-      .where(waiting),
-    closeRunJobs(db, "restore", id),
-    openingRestoreJob(db, sql`${restoreRuns.id} = ${id} and ${UNDOING_RESTORE}`),
-  ]);
+  const { waiting, held } = cancelScope(id, UNDOABLE_RESTORE);
 
-  if (written === null) return false;
+  const opened = await guardedOpenings(db, held, {
+    before: [
+      db
+        .update(restoreRuns)
+        .set({
+          state: "running",
+          ...entering("undoing"),
+          failure: null,
+          updatedAt: Date.now(),
+        })
+        .where(waiting),
+      closeRunJobs(db, "restore", id),
+    ],
+    opening: [openingRestoreJob(db, sql`${restoreRuns.id} = ${id} and ${UNDOING_RESTORE}`)],
+  });
 
-  await enqueueRows(ports, OpenedJobsSchema.parse(written[2]));
+  if (opened === null) return false;
+
+  await enqueueRows(ports, opened);
 
   return true;
 }

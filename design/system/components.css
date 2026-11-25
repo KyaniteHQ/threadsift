@@ -55,7 +55,7 @@
 .fld-help { margin: 0; color: var(--muted); font-size: var(--t-meta); }
 .fld-help code { color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); white-space: nowrap; }
 .fld-err { margin: 0; color: var(--warn); font-size: var(--t-meta); font-weight: 500; }
-[role="alert"]:empty { position: absolute; }
+[role="alert"]:empty, output:empty { position: absolute; }
 .field input.mono { font-family: var(--f-mono); font-size: var(--t-code); }
 .cmd { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); overflow-wrap: anywhere; white-space: pre-wrap; }
 .cmd code { font: inherit; }
@@ -331,7 +331,7 @@ a.btn { text-decoration: none; }
 [data-layout="grid"] .paste { grid-area: paste; }
 [data-layout="grid"] .list-head { grid-area: lhead; }
 [data-layout="grid"] .list { grid-area: list; display: grid; grid-template-columns: repeat(var(--cols), minmax(0, 1fr)); align-items: start; gap: var(--s5); }
-[data-layout="grid"] .empty, [data-layout="grid"] .noresults { grid-column: 1 / -1; justify-self: center; }
+[data-layout="grid"] .empty, [data-layout="grid"] .noresults, [data-layout="grid"] .notice-slot { grid-column: 1 / -1; justify-self: center; }
 [data-layout="grid"][data-bp~="medium"] .lib { grid-template-columns: minmax(0, 1fr) minmax(var(--paste-min), var(--paste-w)); grid-template-areas: "brand paste" "search search" "filters filters" "lhead lhead" "list list"; }
 [data-layout="grid"][data-bp~="medium"] .lib.is-empty { grid-template-areas: "brand paste" "list list"; }
 [data-layout="grid"][data-bp~="narrow"] .lib { grid-template-columns: minmax(0, 1fr); grid-template-areas: "brand" "paste" "search" "filters" "lhead" "list"; gap: var(--s3); padding: var(--s4) var(--s4) var(--s6); }
@@ -426,8 +426,14 @@ button.hl-quote:hover { background: var(--surface-2); }
 button.hl-quote:active { background: var(--press); }
 .hl-gone { grid-column: 1; }
 .hl-entry > .btn { grid-column: 2; grid-row: 1 / span 2; }
-.hl-pop { position: fixed; inset: auto; margin: var(--s2) 0; padding: var(--s1); overflow: visible; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); }
+.hl-pop { position: fixed; inset: auto; box-sizing: border-box; width: max-content; max-width: min(var(--pop-w), 100%); max-height: var(--pop-room); margin: var(--s2) 0; padding: var(--s1); overflow: visible; border: 1px solid var(--line-2); border-radius: var(--r2); background: var(--surface); box-shadow: var(--shadow-lg); color: var(--text); }
 @media (pointer: coarse) { .hl-pop { margin-top: var(--target); } }
+.hl-pop:popover-open { display: flex; flex-direction: column; }
+.hl-pop-list { display: flex; flex-direction: column; min-height: 0; margin: 0; padding: 0; overflow-y: auto; list-style: none; }
+.hl-pop-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: var(--s3); padding-block: var(--s1); padding-inline-start: var(--s2); }
+.hl-pop-row + .hl-pop-row { border-top: 1px solid var(--line); }
+.hl-ctx { color: var(--muted); }
+.hl-exact { text-decoration: underline; text-decoration-color: var(--acc-ink); text-underline-offset: 2px; }
 
 .rd-nt { display: flex; flex-direction: column; gap: var(--s3); min-width: 0; }
 .nt-field { box-sizing: border-box; display: block; width: 100%; min-height: calc(var(--field-h) * 3); padding: var(--s3); border: 1px solid var(--ctl-line); border-radius: var(--r2); background: var(--surface); color: var(--text); font-family: var(--f-ui); font-size: var(--t-body); line-height: var(--lh-text); resize: vertical; }
@@ -521,7 +527,7 @@ button.hl-quote:active { background: var(--press); }
 .md th .il-a, .md td .il-a, .md th .il-code, .md td .il-code { overflow-wrap: normal; }
 .md .nw { white-space: nowrap; }
 .md mark[data-highlights] { text-decoration: underline; text-decoration-color: var(--acc-ink); text-underline-offset: 2px; cursor: pointer; }
-.app[data-bp~="phone"] .md mark[data-highlights] { padding-block: var(--link-pad); padding-inline: calc(var(--target) / 2); margin-inline: calc(var(--target) / -2); background-clip: content-box; }
+.app[data-bp~="phone"] .md mark[data-highlights] { padding-block: var(--link-pad); padding-inline: 0; background-clip: content-box; }
 @media (forced-colors: active) {
   .md mark[data-highlights] { background: Mark; color: MarkText; forced-color-adjust: none; text-decoration-color: MarkText; }
 }

@@ -4,12 +4,13 @@ import { RUNNING_RESTORE_PHASES } from "../../../core/contract/restore-contract.
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import type { RestoreRow } from "../../../core/kernel/schema.ts";
 import type { ZipSource } from "../../export/core/zip-read.ts";
-import { checkUnit, refusedRelease } from "./restore-check-unit.ts";
+import { checkUnit, verifiedRelease } from "./restore-check-unit.ts";
 import { filesUnit } from "./restore-files.ts";
 import { finishUnit } from "./restore-finish.ts";
 import { highlightsUnit } from "./restore-highlights.ts";
 import { tablesUnit } from "./restore-records.ts";
 import { searchUnit } from "./restore-search.ts";
+import type { Release } from "./restore-source.ts";
 import { undoUnit } from "./restore-undo.ts";
 
 const RunningPhaseSchema = z.enum(RUNNING_RESTORE_PHASES);
@@ -18,9 +19,11 @@ async function afterRelease(
   ports: JobPorts,
   run: Readonly<RestoreRow>,
   source: Readonly<ZipSource>,
-  unit: () => Promise<JobOutcome>,
+  unit: (release: Readonly<Release>) => JobOutcome | Promise<JobOutcome>,
 ): Promise<JobOutcome> {
-  return (await refusedRelease(ports, run, source)) ?? unit();
+  const checked = await verifiedRelease(ports, run, source);
+
+  return checked.kind === "refused" ? checked.outcome : unit(checked.release);
 }
 
 export function phaseUnit(
@@ -34,15 +37,15 @@ export function phaseUnit(
     case "check":
       return checkUnit(ports, run, source);
     case "tables":
-      return afterRelease(ports, run, source, () => tablesUnit(ports, run, source));
+      return afterRelease(ports, run, source, (release) => tablesUnit(ports, run, source, release));
     case "files":
-      return afterRelease(ports, run, source, () => filesUnit(ports, run, source));
+      return afterRelease(ports, run, source, (release) => filesUnit(ports, run, source, release));
     case "search":
       return searchUnit(ports, run);
     case "highlights":
       return highlightsUnit(ports, run);
     case "finish":
-      return afterRelease(ports, run, source, () => finishUnit(ports, run, source));
+      return afterRelease(ports, run, source, (release) => finishUnit(ports, run, release));
     case "undoing":
       return undoUnit(ports, run);
     default:

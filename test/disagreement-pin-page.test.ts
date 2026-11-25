@@ -11,8 +11,7 @@ import {
   replaceDigestToken,
   topicDisagreements,
 } from "./disagreement-pin-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 describe("the Topic page lists the disagreement Pins that still hold", () => {
   let instance: Instance;
@@ -60,27 +59,26 @@ describe("the Topic page lists the disagreement Pins that still hold", () => {
     assert.deepEqual(await topicDisagreements(instance, "empty"), []);
     assert.deepEqual(await topicDisagreements(instance, "other"), []);
 
-    exec(instance, "update digests set title = 'Renamed' where item_id = 1");
+    instance.database.exec("update digests set title = 'Renamed' where item_id = 1");
     assert.equal((await topicDisagreements(instance, "reading"))[0]?.items[0]?.title, "Renamed");
-    exec(instance, "update digests set title = 'First title' where item_id = 1");
+    instance.database.exec("update digests set title = 'First title' where item_id = 1");
   });
 
   it("hides the entry after either Item gets a new Digest or leaves the Topic, keeps the Pin, and shows it again when the Items are back with the same Digests", async () => {
-    const original = rows(
-      instance,
+    const original = instance.database.rows(
       z.object({ task_id: z.number() }),
       "select task_id from digests where item_id = 2",
     )[0]?.task_id;
 
     replaceDigestToken(instance, 2, 900);
     assert.deepEqual(await topicDisagreements(instance, "reading"), []);
-    exec(instance, "update digests set task_id = ? where item_id = 2", original ?? 0);
+    instance.database.exec("update digests set task_id = ? where item_id = 2", original ?? 0);
     assert.equal((await topicDisagreements(instance, "reading")).length, 1);
 
-    exec(instance, "update items set topic_id = 2 where id = 2");
+    instance.database.exec("update items set topic_id = 2 where id = 2");
     assert.deepEqual(await topicDisagreements(instance, "reading"), []);
     assert.deepEqual(await topicDisagreements(instance, "other"), []);
-    exec(instance, "update items set topic_id = 1 where id = 2");
+    instance.database.exec("update items set topic_id = 1 where id = 2");
     assert.equal((await topicDisagreements(instance, "reading")).length, 1);
     assert.equal(pinRows(instance).length, 1);
   });
@@ -103,8 +101,7 @@ describe("the Topic page shows at most 20 entries, newest first", () => {
 
   it("lists 20 of 23 Pins, the newest first", async () => {
     for (let pair = 0; pair < 23; pair += 1) {
-      exec(
-        instance,
+      instance.database.exec(
         "insert into pins (kind, from_key, from_name, from_item_id, into_item_id, from_digest, into_digest, created_at) values ('items-disagree', ?, 'Reason.', ?, ?, ?, ?, ?)",
         `${String(pair * 2 + 1)}:${String(pair * 2 + 2)}`,
         pair * 2 + 1,

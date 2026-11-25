@@ -6,10 +6,7 @@ import { type APIRequestContext, expect, test } from "@playwright/test";
 import { parseHTML } from "linkedom";
 import { z } from "zod";
 
-import {
-  ItemDetailResponseSchema,
-  SavedItemResponseSchema,
-} from "../src/core/contract/item-route-wire.ts";
+import { itemDetail, savedItem } from "./saved-item.ts";
 
 const RELAY = "https://webhook.site";
 
@@ -125,13 +122,7 @@ async function savedThroughIntake(request: APIRequestContext): Promise<void> {
 
   expect(saved.status(), "the Grok Bot settings save").toBe(200);
 
-  const pasted = await request.post("/api/items", {
-    data: { url: `https://x.com/i/status/${IDS.post}` },
-  });
-
-  expect(pasted.status(), "the Paste of the X link").toBe(201);
-
-  const { item } = SavedItemResponseSchema.parse(await pasted.json());
+  const itemId = await savedItem(request, { url: `https://x.com/i/status/${IDS.post}` });
 
   await expect
     .poll(async () => (await sentWebhook(relay)) !== null, {
@@ -155,8 +146,7 @@ async function savedThroughIntake(request: APIRequestContext): Promise<void> {
   await expect
     .poll(
       async () => {
-        const detail = await request.get(`/api/items/${String(item.id)}`);
-        const { item: read } = ItemDetailResponseSchema.parse(await detail.json());
+        const read = await itemDetail(request, itemId);
 
         return read.status === "ready" && read.comments.received >= 1;
       },

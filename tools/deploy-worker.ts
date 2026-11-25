@@ -5,6 +5,14 @@ import { parseArgs, stripVTControlCharacters } from "node:util";
 import { unstable_readConfig } from "wrangler";
 import { z } from "zod";
 
+import {
+  RESET_CODE_MIN,
+  SETUP_CODE_MIN,
+  checkConfiguredCode,
+} from "../src/core/contract/setup-code.ts";
+import { SECRET_KEY_PATTERN } from "../src/core/kernel/sealed-secret.ts";
+import { PriceFlagSchema, settingVariablesOf } from "../src/targets/shared/settings.ts";
+
 const REQUIRED_SECRETS = ["THREADSIFT_SECRET_KEY", "SETUP_CODE"] as const;
 const WRANGLER = ["exec", "wrangler", "--env", ""];
 const SecretsSchema = z.record(z.string(), z.string());
@@ -26,6 +34,30 @@ const config = z
 
 class DeployError extends Error {}
 
+function unusableSecrets(secrets: Readonly<z.infer<typeof SecretsSchema>>): readonly string[] {
+  const set = settingVariablesOf(secrets);
+  const key = set.THREADSIFT_SECRET_KEY;
+  const flag = set.THREADSIFT_OPENROUTER_MAX_PRICE_ZERO;
+
+  return [
+    ...REQUIRED_SECRETS.flatMap((name) => (secrets[name] === "" ? [`${name} is empty`] : [])),
+    ...(key === undefined || SECRET_KEY_PATTERN.test(key)
+      ? []
+      : ["THREADSIFT_SECRET_KEY must be 64 hex characters"]),
+    ...(checkConfiguredCode(set.SETUP_CODE, SETUP_CODE_MIN).status === "short"
+      ? [`SETUP_CODE must be at least ${SETUP_CODE_MIN} characters`]
+      : []),
+    ...(checkConfiguredCode(set.PASSWORD_RESET_CODE, RESET_CODE_MIN).status === "short"
+      ? [`PASSWORD_RESET_CODE must be at least ${RESET_CODE_MIN} characters`]
+      : []),
+    ...(flag === undefined || PriceFlagSchema.safeParse(flag).success
+      ? []
+      : [
+          `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO must be ${Object.values(PriceFlagSchema.enum).join(" or ")}`,
+        ]),
+  ];
+}
+
 function secretsOf(path: string): z.infer<typeof SecretsSchema> {
   let text: string;
   try {
@@ -38,9 +70,9 @@ function secretsOf(path: string): z.infer<typeof SecretsSchema> {
   try {
     const secrets = SecretsSchema.safeParse(JSON.parse(text));
     if (!secrets.success) throw new DeployError(invalid);
-    const empty = REQUIRED_SECRETS.filter((name) => secrets.data[name] === "");
-    if (empty.length > 0) {
-      throw new DeployError(`Empty required secrets: ${empty.join(", ")}. Set them in ${path}.`);
+    const unusable = unusableSecrets(secrets.data);
+    if (unusable.length > 0) {
+      throw new DeployError(`Unusable secrets in ${path}: ${unusable.join("; ")}.`);
     }
     return secrets.data;
   } catch (error) {

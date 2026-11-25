@@ -6,19 +6,9 @@ import {
   GrokBotTestSchema,
   GrokBotViewSchema,
 } from "../src/core/contract/grok-bot-contract.ts";
-import {
-  ADDRESS,
-  KEY,
-  NEW_KEY,
-  PATH,
-  SECRET_KEY,
-  inOrder,
-  saved,
-  tested,
-  view,
-} from "./grok-bot-fixtures.ts";
-import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { ADDRESS, KEY, NEW_KEY, PATH, saved, tested, view } from "./grok-bot-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { inOrder } from "./library-fixtures.ts";
 
 describe("an Instance with no sealing key, and a row sealed under another key", () => {
   let bare: Instance;
@@ -54,30 +44,32 @@ describe("an Instance with no sealing key, and a row sealed under another key", 
 
     const foreign = await Instance.start({ secretKey: "cd".repeat(32) });
 
-    await foreign.setUp();
-    exec(
-      foreign,
-      "insert into grok_bot_settings (id, webhook_url, sealed_key, updated_at) values (1, ?, ?, 1)",
-      ADDRESS,
-      row.sealed_key,
-    );
+    try {
+      await foreign.setUp();
+      foreign.database.exec(
+        "insert into grok_bot_settings (id, webhook_url, sealed_key, updated_at) values (1, ?, ?, 1)",
+        ADDRESS,
+        row.sealed_key,
+      );
 
-    assert.deepEqual(await view(foreign), {
-      configured: true,
-      webhookUrl: ADDRESS,
-      key: "unreadable",
-    });
-    assert.equal(await tested(foreign), "secret-missing");
-    assert.equal((await foreign.send("PUT", PATH, { webhookUrl: ADDRESS })).status, 400);
-    assert.deepEqual(
-      await foreign.read("PUT", PATH, GrokBotViewSchema, { webhookUrl: ADDRESS, key: NEW_KEY }),
-      {
+      assert.deepEqual(await view(foreign), {
         configured: true,
         webhookUrl: ADDRESS,
-        key: "usable",
-      },
-    );
-    await foreign.close();
+        key: "unreadable",
+      });
+      assert.equal(await tested(foreign), "secret-missing");
+      assert.equal((await foreign.send("PUT", PATH, { webhookUrl: ADDRESS })).status, 400);
+      assert.deepEqual(
+        await foreign.read("PUT", PATH, GrokBotViewSchema, { webhookUrl: ADDRESS, key: NEW_KEY }),
+        {
+          configured: true,
+          webhookUrl: ADDRESS,
+          key: "usable",
+        },
+      );
+    } finally {
+      await foreign.close();
+    }
   });
 });
 
@@ -111,7 +103,7 @@ describe("Test sends nothing when there is nothing to send to", () => {
         "https://user:pass@example.com/hook",
       ],
       async (address) => {
-        exec(instance, "update grok_bot_settings set webhook_url = ?", address);
+        instance.database.exec("update grok_bot_settings set webhook_url = ?", address);
 
         const answer = await instance.send("POST", `${PATH}/test`);
 

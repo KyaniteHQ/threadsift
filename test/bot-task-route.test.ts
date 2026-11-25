@@ -9,7 +9,6 @@ import { answered, answerTo, errorOf, rawAnswerTo } from "./bot-task-http.ts";
 import { taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Json } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 describe("the result route answers each status of its contract and writes nothing on a refusal", () => {
   let instance: ReadWorld["instance"];
@@ -22,9 +21,7 @@ describe("the result route answers each status of its contract and writes nothin
 
   before(async () => {
     ({ instance, library, agentToken } = await readWorld());
-    const [first] = library.candidates;
-    assert.ok(first !== undefined);
-    candidate = first;
+    [candidate] = library.candidates;
   });
 
   beforeEach(() => {
@@ -165,8 +162,7 @@ describe("the result route answers each status of its contract and writes nothin
 
     assert.equal((await answered(instance, answeredTask, valid())).status, 204);
     pastDeadline(instance, late.id);
-    exec(
-      instance,
+    instance.database.exec(
       "update ai_tasks set state = 'failed', refusal = 'timeout' where id = ?",
       failed.id,
     );
@@ -222,8 +218,6 @@ describe("the result route answers each status of its contract and writes nothin
   it("accepts exactly one of two simultaneous answers and keeps the winner's result", async () => {
     const task = await fresh();
     const [first, second] = library.candidates;
-
-    assert.ok(first !== undefined && second !== undefined);
 
     const answers = await Promise.all(
       [first, second].map(async (item) => ({

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { Instance } from "./instance.ts";
-import { until } from "./related-fixtures.ts";
+import { until } from "./library-fixtures.ts";
 import { digestOf } from "./x-intake-bodies.ts";
 import { xAddressOf, insertedXItem, latestFetchJob } from "./x-intake-fixtures.ts";
 import { commentCount, itemRow, verificationRow, verifyJobStates } from "./x-intake-rows.ts";
@@ -41,6 +41,7 @@ describe("a thread waits as stored state until every post of it was judged, and 
     });
 
     const detail = await until(
+      `Item ${String(itemId)} has a Digest title`,
       () => instance.detail(itemId),
       ({ digestTitle }) => digestTitle !== null,
     );

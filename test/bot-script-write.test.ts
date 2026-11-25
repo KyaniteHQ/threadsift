@@ -7,7 +7,6 @@ import {
   readdirSync,
   rmSync,
   symlinkSync,
-  utimesSync,
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
@@ -16,10 +15,12 @@ import { after, before, describe, it } from "node:test";
 
 import { ITEM_REQUEST_BYTES } from "../src/core/contract/limits.ts";
 import { ScriptFolder } from "./bot-script-run.ts";
-import { ScriptWorld } from "./bot-script-world.ts";
+import { DAY, ScriptWorld, ageBy, justBefore, justPast } from "./bot-script-world.ts";
 
 const HEX_WORD = /^TS_[0-9a-f]{32}$/u;
 const HEX = "0123456789abcdef0123456789abcdef";
+
+const MADE_FOLDERS = new Set(["tmp", "tasks", "state"]);
 
 const HOSTILE = [
   "touch pwned $(touch pwned) `touch pwned` ' \" \\ \\n ; | && >",
@@ -55,6 +56,8 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
 
   const stored = (name: string) => join(world.folder.path, "tmp", name);
 
+  const entries = () => world.folder.tree().filter((entry) => !MADE_FOLDERS.has(entry));
+
   const edge = async (text: string) => {
     const name = `edge-${(await run(["mark"])).slice(3)}.txt`;
 
@@ -87,7 +90,7 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
   });
 
   it("answers bad-input and writes nothing for a name without the hex of a mark, a path, a name the script writes itself, and a text over the cap", async () => {
-    const unchanged = world.folder.tree();
+    const unchanged = entries();
 
     const refused = [
       "../x.json",
@@ -117,7 +120,7 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
     );
     assert.equal(await run(["write", `edge-${HEX}.txt`], "a".repeat(ITEM_REQUEST_BYTES)), "ok");
     assert.deepEqual(
-      world.folder.tree().filter((entry) => !unchanged.includes(entry)),
+      entries().filter((entry) => !unchanged.includes(entry)),
       [`tmp/edge-${HEX}.txt`],
     );
   });
@@ -207,9 +210,8 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
     writeFileSync(old, "x");
     writeFileSync(recent, "x");
 
-    const then = Date.now() / 1000 - 2 * 24 * 3600;
-
-    utimesSync(old, then, then);
+    ageBy(old, justPast(DAY));
+    ageBy(recent, justBefore(DAY));
 
     assert.equal(await run(["write", `new-${HEX}.txt`], "text"), "ok");
     assert.equal(existsSync(old), false);

@@ -11,12 +11,13 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 
 const ROOT = join(import.meta.dirname, "..");
 
 describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true to the files of bot/", () => {
   let copy = "";
+  let origin = "";
 
   const outsideAnyRepository = Object.fromEntries(
     Object.entries(process.env).filter(([name]) => !name.startsWith("GIT_")),
@@ -37,8 +38,12 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
 
   const skillPath = () => join(copy, "bot", "skills", "threadsift", "SKILL.md");
 
-  before(() => {
+  beforeEach(() => {
     copy = mkdtempSync(join(tmpdir(), "threadsift-release-"));
+    origin = mkdtempSync(join(tmpdir(), "threadsift-release-origin-"));
+    git("init", "--quiet", "--bare", origin);
+    git("init", "--quiet");
+    git("remote", "add", "origin", origin);
     mkdirSync(join(copy, "tools"));
     cpSync(join(ROOT, "bot"), join(copy, "bot"), { recursive: true });
     cpSync(join(ROOT, "tools", "bot-release.sh"), join(copy, "tools", "bot-release.sh"));
@@ -49,8 +54,9 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
     );
   });
 
-  after(() => {
+  afterEach(() => {
     rmSync(copy, { recursive: true });
+    rmSync(origin, { recursive: true });
   });
 
   it("passes on the files of the repository, so the gate fails when a change leaves them out of date", () => {
@@ -108,9 +114,22 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
     assert.match(release("check").stderr, /pins tag bot-v1 but bot\/VERSION is 99/u);
   });
 
+  it("fails the check and the refresh, and rewrites nothing, when the tag lookup on origin fails", () => {
+    git("remote", "remove", "origin");
+
+    const pinned = readFileSync(skillPath(), "utf8");
+    const checked = release("check");
+    const refreshed = release("refresh");
+
+    assert.equal(checked.status, 1);
+    assert.match(checked.stderr, /could not look up the tag bot-v0 on origin/u);
+    assert.equal(refreshed.status, 1);
+    assert.match(refreshed.stderr, /could not look up the tag bot-v0 on origin/u);
+    assert.equal(readFileSync(skillPath(), "utf8"), pinned);
+  });
+
   it("refuses to refresh after a change to a hashed file once the release is tagged, fails the check when the files are refreshed by hand, and passes again after a new release", () => {
-    writeFileSync(join(copy, "bot", "VERSION"), "1\n");
-    git("init", "--quiet");
+    assert.equal(release("release").stdout.trim(), "bot-v1");
     git("add", ".");
     git("commit", "--quiet", "-m", "release");
     git("tag", "bot-v1");

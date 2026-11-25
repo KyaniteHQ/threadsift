@@ -3,7 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { paste, saveProvider } from "./library-fixtures.ts";
 import {
   highlightStatus,
   keepLostHighlight,
@@ -11,8 +12,7 @@ import {
   repaste,
   textHolding,
 } from "./lost-highlight-fixtures.ts";
-import { count, SECRET_KEY, exec, paste, rows, saveProvider } from "./related-fixtures.ts";
-import { claims, moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
+import { claims, holdClaim, moveClaimBack, nextSweep } from "./weekly-claim-fixtures.ts";
 
 const LostSchema = z.object({
   id: z.number(),
@@ -24,8 +24,7 @@ const LostSchema = z.object({
 const TASK = "highlight_proposals";
 
 const lostRows = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     LostSchema,
     "select id, highlight_id, state, reason from proposals join highlight_lost_proposals on proposal_id = id order by id",
   );
@@ -49,7 +48,7 @@ describe("the weekly lost-Highlight check with no Provider saved", () => {
     assert.deepEqual([claims(instance, TASK), lostRows(instance)], [[], []]);
 
     await saveProvider(instance);
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.equal(claims(instance, TASK).length, 1);
     assert.equal(lostRows(instance).length, 1);
   });
@@ -70,21 +69,20 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     await repaste(instance, "found", textHolding("the passage of found"));
     assert.equal(highlightStatus(instance, attached), "attached");
     await saveProvider(instance);
-    exec(
-      instance,
-      "insert or replace into scheduled_runs (task, last_run_at) values ('disagreement_proposals', ?)",
-      Date.now(),
-    );
+    holdClaim(instance, "disagreement_proposals");
   });
 
   after(() => instance.close());
 
   it("stores one open row for each Highlight that is gone or ambiguous and none for an attached one, with no model call", async () => {
-    const highlightsBefore = rows(instance, z.unknown(), "select * from highlights order by id");
+    const highlightsBefore = instance.database.rows(
+      z.unknown(),
+      "select * from highlights order by id",
+    );
 
-    const tasks = rows(instance, z.unknown(), "select * from ai_tasks order by id");
+    const tasks = instance.database.rows(z.unknown(), "select * from ai_tasks order by id");
 
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.deepEqual(highlightIds(instance), [gone, ambiguous]);
     assert.deepEqual(
@@ -96,12 +94,15 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     );
     assert.equal(claims(instance, TASK).length, 1);
     assert.deepEqual(
-      rows(instance, z.unknown(), "select * from highlights order by id"),
+      instance.database.rows(z.unknown(), "select * from highlights order by id"),
       highlightsBefore,
     );
-    assert.deepEqual(rows(instance, z.unknown(), "select * from ai_tasks order by id"), tasks);
+    assert.deepEqual(
+      instance.database.rows(z.unknown(), "select * from ai_tasks order by id"),
+      tasks,
+    );
     assert.equal(
-      count(instance, "select count(*) as n from ai_tasks where inputs like '%passage%'"),
+      instance.database.count("select count(*) as n from ai_tasks where inputs like '%passage%'"),
       0,
     );
   });
@@ -111,14 +112,14 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     const [claimed] = claims(instance, TASK);
 
     await keepLostHighlight(instance, "second");
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.deepEqual(lostRows(instance), stored);
     assert.deepEqual(claims(instance, TASK), [claimed]);
   });
 
   it("stores a row for a Highlight that has none once the claim is 7 days old", async () => {
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.equal(lostRows(instance).length, 3);
   });
@@ -138,12 +139,12 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     );
     assert.equal(lostRows(instance).length, 3);
 
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.equal(highlightIds(instance).includes(first.highlight_id), true);
     assert.equal(lostRows(instance).length, 3);
 
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.deepEqual(highlightIds(instance).includes(first.highlight_id), false);
     assert.equal(lostRows(instance).length, 2);
   });
@@ -162,7 +163,7 @@ describe("the weekly lost-Highlight check with a Provider saved", () => {
     assert.equal(highlightStatus(instance, first.highlight_id), "gone");
 
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.deepEqual(
       lostRows(instance).filter(({ highlight_id }) => highlight_id === first.highlight_id),
@@ -178,19 +179,17 @@ describe("the weekly lost-Highlight check with more than 20 lost Highlights", ()
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
     await paste(instance, "many", { title: "Many" });
-    exec(
-      instance,
-      `with recursive n(i) as (select 1 union all select i + 1 from n where i < 25)
+    instance.database
+      .exec(`with recursive n(i) as (select 1 union all select i + 1 from n where i < 25)
        insert into highlights (item_id, exact, prefix, suffix, hint, created_at, status, start)
-       select (select max(id) from items), 'quote ' || i, '', '', 0, i, case when i % 2 = 0 then 'gone' else 'ambiguous' end, null from n`,
-    );
+       select (select max(id) from items), 'quote ' || i, '', '', 0, i, case when i % 2 = 0 then 'gone' else 'ambiguous' end, null from n`);
     await saveProvider(instance);
   });
 
   after(() => instance.close());
 
   it("stores 20 rows for the newest Highlights, lists the newest first, and stores the other 5 the next week", async () => {
-    await nextTick(instance);
+    await nextSweep(instance);
 
     const first = highlightIds(instance);
 
@@ -207,7 +206,7 @@ describe("the weekly lost-Highlight check with more than 20 lost Highlights", ()
     );
 
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.deepEqual(
       highlightIds(instance).toSorted((a, b) => a - b),
       Array.from({ length: 25 }, (_, at) => at + 1),

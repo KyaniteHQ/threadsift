@@ -53,7 +53,7 @@ export const REDDIT_PATH_PREFIXES: ReadonlySet<string> = new Set(["r", "user", "
 const REDDIT_ID = /^[a-zA-Z\d]+$/u;
 const REDDIT_SHARE_PATH = /^\/r\/[^/]+\/s\/[a-zA-Z\d]+\/?$/u;
 
-function isTrackingParam(pair: string, host: string): boolean {
+export function isTrackingParam(pair: string, host: string): boolean {
   const key = (new URLSearchParams(pair).keys().next().value ?? "").toLowerCase();
 
   return (
@@ -61,15 +61,6 @@ function isTrackingParam(pair: string, host: string): boolean {
     TRACKING_PARAMS.has(key) ||
     (X_HOSTS.has(host) && X_ONLY_TRACKING_PARAMS.has(key))
   );
-}
-
-function keptQuery(search: string, host: string): string {
-  const kept = search
-    .slice(1)
-    .split("&")
-    .filter((pair) => pair !== "" && !isTrackingParam(pair, host));
-
-  return kept.length > 0 ? `?${kept.join("&")}` : "";
 }
 
 const WWW_MIN_REST_LABELS = 2;
@@ -92,6 +83,16 @@ function canonicalHost(rawHost: string): string {
   }
 
   return labels.slice(first).join(".");
+}
+
+function untrackedQuery(url: Readonly<Pick<URL, "search" | "hostname">>): string {
+  const host = canonicalHost(url.hostname);
+  const kept = url.search
+    .slice(1)
+    .split("&")
+    .filter((pair) => pair !== "" && !isTrackingParam(pair, host));
+
+  return kept.length > 0 ? `?${kept.join("&")}` : "";
 }
 
 export function withoutGitSuffix(name: string): string {
@@ -211,7 +212,7 @@ export function parsedLinkOf(absoluteUrl: string): ParsedLink {
   url.username = "";
   url.password = "";
   url.hash = "";
-  url.search = keptQuery(url.search, host);
+  url.search = untrackedQuery(url);
   const segments = segmentsOf(url.pathname);
   const reddit = redditRef(host, segments);
 
@@ -260,6 +261,14 @@ export function isRedditShareLink(absoluteUrl: string): boolean {
   return (
     hostOf(absoluteUrl) === "reddit.com" && REDDIT_SHARE_PATH.test(new URL(absoluteUrl).pathname)
   );
+}
+
+export function needsResolving(absoluteUrl: string): boolean {
+  return isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl);
+}
+
+export function aliasAnswers(address: string): boolean {
+  return !isRedditShareLink(address);
 }
 
 export function isGitHubLink(absoluteUrl: string): boolean {

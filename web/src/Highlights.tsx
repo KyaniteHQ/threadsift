@@ -1,4 +1,5 @@
 import { type ReactNode, useCallback, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 
 import type { Highlight, HighlightsView } from "../../src/core/contract/highlight-contract.ts";
 import { NOTHING } from "../../src/core/contract/nothing.ts";
@@ -100,7 +101,9 @@ function useRemove(itemId: number, serial: Serial, actions: DetailActions, outco
       );
 
       if (done) {
-        editHighlights((view) => without(view, id));
+        flushSync(() => {
+          editHighlights((view) => without(view, id));
+        });
         fail(null);
         announce(REMOVED_ANNOUNCEMENT);
       } else fail(REMOVE_FAILED);

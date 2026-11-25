@@ -23,28 +23,35 @@ export interface RowControls {
   readonly reject: (proposal: Proposal) => void;
 }
 
-function Note({ children, alert }: Readonly<{ children: string; alert: boolean }>) {
-  return (
-    <p className="rd-note" role={alert ? "alert" : "status"}>
-      {children}
-    </p>
-  );
-}
-
 const BUSY_NOTES = {
   "merge-busy": PROPOSAL_WORDS.mergeBusy,
   "no-provider": PROPOSAL_WORDS.noProvider,
 } as const satisfies Record<Busy, string>;
 
-function ApplyingNotes({ proposal }: Readonly<{ proposal: Proposal }>) {
-  return (
-    <>
-      <Note alert={false}>{PROPOSAL_WORDS.applying}</Note>
-      {isMerge(proposal) && proposal.failedRuns > 0 && (
-        <p className="rd-note">{applyFailedNote(proposal.failedRuns)}</p>
-      )}
-    </>
-  );
+interface NoteTexts {
+  readonly alert: string | null;
+  readonly status: string | null;
+}
+
+const NO_NOTES: NoteTexts = { alert: null, status: null };
+
+function notesOf(row: RowState, applying: boolean): NoteTexts {
+  if (applying) return { alert: null, status: PROPOSAL_WORDS.applying };
+
+  switch (row.kind) {
+    case "failed":
+      return {
+        alert: row.failure === "accept" ? PROPOSAL_WORDS.acceptFailed : PROPOSAL_WORDS.rejectFailed,
+        status: null,
+      };
+    case "busy":
+      return { alert: null, status: BUSY_NOTES[row.busy] };
+    case "pressing":
+    case "idle":
+      return NO_NOTES;
+    default:
+      return row satisfies never;
+  }
 }
 
 function Notes({
@@ -52,23 +59,19 @@ function Notes({
   row,
   applying,
 }: Readonly<{ proposal: Proposal; row: RowState; applying: boolean }>) {
-  if (applying) return <ApplyingNotes proposal={proposal} />;
+  const { alert, status } = notesOf(row, applying);
 
-  switch (row.kind) {
-    case "failed":
-      return (
-        <Note alert>
-          {row.failure === "accept" ? PROPOSAL_WORDS.acceptFailed : PROPOSAL_WORDS.rejectFailed}
-        </Note>
-      );
-    case "busy":
-      return <Note alert={false}>{BUSY_NOTES[row.busy]}</Note>;
-    case "pressing":
-    case "idle":
-      return null;
-    default:
-      return row satisfies never;
-  }
+  return (
+    <>
+      <p className="rd-note" role="alert">
+        {alert}
+      </p>
+      <output className="rd-note">{status}</output>
+      {applying && isMerge(proposal) && proposal.failedRuns > 0 && (
+        <p className="rd-note">{applyFailedNote(proposal.failedRuns)}</p>
+      )}
+    </>
+  );
 }
 
 export function Actions({ proposal, row, accept, reject }: Readonly<RowControls>) {

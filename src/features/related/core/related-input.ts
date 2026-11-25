@@ -1,9 +1,8 @@
 import { type SQL, sql } from "drizzle-orm";
 import { z } from "zod";
 
-import { AI_INPUT_BYTES } from "../../../core/contract/ai-contract.ts";
+import { fitsAiInput } from "../../../core/contract/ai-contract.ts";
 import type { Digest } from "../../../core/contract/digest-schema.ts";
-import { utf8Length } from "../../../core/contract/encoding.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import {
   type StoredDigest,
@@ -148,16 +147,14 @@ export function pickPrompt({
 }: Readonly<Extract<PickRead, { kind: "read" }>>): PickPrompt {
   if (candidates.length === 0) return { kind: "empty" };
 
-  if (utf8Length(promptJson(source, [])) > AI_INPUT_BYTES) {
+  if (!fitsAiInput(promptJson(source, []))) {
     return { kind: "refused", reason: "source-over-cap" };
   }
 
   const sent: PickItem[] = [];
 
   for (const candidate of candidates) {
-    if (utf8Length(promptJson(source, [...sent, candidate])) <= AI_INPUT_BYTES) {
-      sent.push(candidate);
-    }
+    if (fitsAiInput(promptJson(source, [...sent, candidate]))) sent.push(candidate);
   }
 
   return sent.length === 0

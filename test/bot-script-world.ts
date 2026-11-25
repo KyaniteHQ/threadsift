@@ -1,12 +1,30 @@
+import { utimesSync } from "node:fs";
+
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { ScriptFolder } from "./bot-script-run.ts";
-import { type Listening, listening } from "./bot-script-server.ts";
 import { intakeExample } from "./bot-skills-examples.ts";
-import { SECRET_KEY, relatedLibrary, retireTasks, saveBot } from "./bot-task-fixtures.ts";
+import { relatedLibrary, retireTasks, saveBot } from "./bot-task-fixtures.ts";
 import { taskAfterStart } from "./bot-task-lifecycle.ts";
 import { fetcherFile } from "./fetcher-record.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { type Listening, listening } from "./loopback-server.ts";
 import { type IntakeTask, sentIntake } from "./x-intake-fixtures.ts";
+
+export const MINUTE = 60;
+export const HOUR = 60 * MINUTE;
+export const DAY = 24 * HOUR;
+
+const CUTOFF_MARGIN = MINUTE / 2;
+
+export const justPast = (period: number) => period + CUTOFF_MARGIN;
+
+export const justBefore = (period: number) => period - CUTOFF_MARGIN;
+
+export const ageBy = (file: string, seconds: number) => {
+  const then = Date.now() / 1000 - seconds;
+
+  utimesSync(file, then, then);
+};
 
 interface Servers {
   readonly real: Listening;
@@ -61,7 +79,7 @@ export class ScriptWorld {
 
     return new ScriptWorld(
       instance,
-      { agentToken: value, candidate: library.candidates[0] ?? 0, source: library.source },
+      { agentToken: value, candidate: library.candidates[0], source: library.source },
       { real: await listening((request) => instance.fetch(request)), failing: await shutDown() },
     );
   }
@@ -116,8 +134,7 @@ export class ScriptWorld {
   }
 
   async close(): Promise<void> {
-    this.servers.real.stop();
-    this.servers.failing.stop();
+    await Promise.all([this.servers.real.stop(), this.servers.failing.stop()]);
     this.folder.remove();
     await this.instance.close();
   }

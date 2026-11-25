@@ -1,4 +1,5 @@
-import type { LinkRoute, RedditRef } from "../../../core/contract/links.ts";
+import { REDDIT_WAIT } from "../../../core/contract/job-contract.ts";
+import type { LinkRoute } from "../../../core/contract/links.ts";
 import type { ClaimedJob } from "../../../core/kernel/job-outcome.ts";
 import { isLastAttempt } from "../../../core/kernel/job-retry.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
@@ -6,7 +7,7 @@ import type { Concluded, Fetched } from "../../media/core/details.ts";
 import { type ArchivedThread, archivedThread } from "./archive-fill.ts";
 import { fetchedOfOembed } from "./oembed-details.ts";
 import { accountThread } from "./reddit-account-fetch.ts";
-import { type AccountTurn, accountTurn } from "./reddit-account-turn.ts";
+import { accountTurn } from "./reddit-account-turn.ts";
 
 type RedditPorts = Pick<
   Ports,
@@ -14,10 +15,6 @@ type RedditPorts = Pick<
 >;
 
 type RedditRoute = Extract<LinkRoute, { readonly kind: "reddit" }>;
-
-type ServedThread =
-  | ({ readonly kind: "thread" } & ArchivedThread)
-  | Extract<Awaited<ReturnType<typeof accountThread>>, { readonly kind: "waiting" }>;
 
 function threadFilled(
   oembed: Readonly<Concluded>,
@@ -36,31 +33,6 @@ function threadFilled(
   };
 }
 
-async function servedThread(
-  ports: RedditPorts,
-  { attempts, itemId }: Readonly<ClaimedJob>,
-  ref: Readonly<RedditRef>,
-  turn: Readonly<AccountTurn>,
-  deadline: AbortSignal,
-): Promise<ServedThread | null> {
-  if (turn.kind === "held") {
-    const account = await accountThread(ports, turn.held, ref, {
-      lastAttempt: isLastAttempt(attempts),
-      deadline,
-    });
-
-    if (account.kind === "thread") {
-      return { kind: "thread", thread: account.thread, archivedAt: null };
-    }
-
-    if (account.kind === "waiting") return account;
-  }
-
-  const archived = await archivedThread(ports, itemId, ref, deadline);
-
-  return archived === null ? null : { kind: "thread", ...archived };
-}
-
 export async function fetchedWithThread(
   ports: RedditPorts,
   source: Readonly<ClaimedJob>,
@@ -70,22 +42,32 @@ export async function fetchedWithThread(
   const turn = await accountTurn(ports, source);
 
   if (turn.kind === "waiting") {
-    return { status: "waiting", until: turn.until, limited: false, wait: "reddit-limit" };
+    return { status: "waiting", until: turn.until, limited: false, wait: REDDIT_WAIT };
+  }
+
+  const account =
+    turn.kind === "held"
+      ? await accountThread(ports, turn.held, ref, {
+          lastAttempt: isLastAttempt(source.attempts),
+          deadline,
+        })
+      : null;
+
+  if (account?.kind === "waiting") {
+    return {
+      status: "waiting",
+      until: account.until,
+      limited: account.limited,
+      wait: REDDIT_WAIT,
+    };
   }
 
   const [fetched, served] = await Promise.all([
     fetchedOfOembed(ports.network, link.normalizedUrl, deadline),
-    servedThread(ports, source, ref, turn, deadline),
+    account?.kind === "thread"
+      ? { thread: account.thread, archivedAt: null }
+      : archivedThread(ports, source.itemId, ref, deadline),
   ]);
-
-  if (served?.kind === "waiting") {
-    return {
-      status: "waiting",
-      until: served.until,
-      limited: served.limited,
-      wait: "reddit-limit",
-    };
-  }
 
   return served === null ? fetched : threadFilled(fetched, served);
 }

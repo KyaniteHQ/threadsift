@@ -31,7 +31,7 @@ export function createApp(ports: Ports): OpenAPIHono {
 
   const refusing = refusingMethods(app);
 
-  app.all("/api/*", unrouted(), refusing, notFound);
+  app.all("/api/*", unrouted(app), refusing, notFound);
 
   app.all("/*", access("self"), refusing);
 

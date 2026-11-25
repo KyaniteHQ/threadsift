@@ -157,6 +157,8 @@ export function withoutTrailingDot(hostname: string): string {
   return hostname.slice(0, end);
 }
 
+export const LOOPBACK_HOSTNAMES: ReadonlySet<string> = new Set(["localhost", "127.0.0.1", "[::1]"]);
+
 function isLocalhostName(hostname: string): boolean {
   const name = withoutTrailingDot(hostname.toLowerCase());
 

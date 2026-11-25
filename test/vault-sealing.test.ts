@@ -4,7 +4,6 @@ import { after, before, describe, it } from "node:test";
 import { VaultResultSchema } from "../src/core/contract/vault-contract.ts";
 import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
 import { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 const VERIFY = "/api/settings/obsidian/verify";
 const TARGET = { mode: "github", repository: "owner/notes", branch: "main" } as const;
@@ -19,8 +18,7 @@ describe("a GitHub Vault mirror sealed under another key", () => {
 
     foreign = await Instance.start({ secretKey: "cd".repeat(32) });
     await foreign.setUp();
-    exec(
-      foreign,
+    foreign.database.exec(
       "insert into vault_settings (id, mode, repository, branch, sealed_token) values (1, 'github', ?, ?, ?)",
       TARGET.repository,
       TARGET.branch,

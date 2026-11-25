@@ -1,8 +1,8 @@
 import { KnownDisagreements } from "./KnownDisagreements.tsx";
-import { EmptyState, Notice, Skeleton } from "./ListBody.tsx";
+import { EmptyState, Skeleton } from "./ListBody.tsx";
 import { PageBar } from "./PageBar.tsx";
+import { RetryNotice } from "./RetryRegions.tsx";
 import type { Route } from "./routing.ts";
-import { RETRY_LABEL } from "./text.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 import { TopicItemsSection } from "./TopicItemsSection.tsx";
 import { TopicOverview } from "./TopicOverview.tsx";
@@ -15,20 +15,14 @@ function Loading() {
 
 function Body({
   state,
-  retry,
   loadMore,
   write,
-}: Readonly<{
-  state: TopicState;
-  retry: () => void;
-  loadMore: () => void;
-  write: () => void;
-}>) {
+}: Readonly<{ state: TopicState; loadMore: () => void; write: () => void }>) {
   switch (state.status) {
     case "loading":
       return <Loading />;
     case "failed":
-      return <Notice text={TOPIC_PAGE.loadFailed} action={retry} label={RETRY_LABEL} alert />;
+      return null;
     case "missing":
       return <EmptyState heading={TOPIC_PAGE.notFoundHeading} line={TOPIC_PAGE.notFoundLine} />;
     case "ready":
@@ -57,7 +51,12 @@ export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; rout
     <div className="pg">
       <PageBar title={name} ready={state.status !== "loading"} />
       <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
-        <Body state={state} retry={retry} loadMore={loadMore} write={writeOverview} />
+        <RetryNotice
+          failed={state.status === "failed"}
+          text={TOPIC_PAGE.loadFailed}
+          action={retry}
+        />
+        <Body state={state} loadMore={loadMore} write={writeOverview} />
       </main>
     </div>
   );

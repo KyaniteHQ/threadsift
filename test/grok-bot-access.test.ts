@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
-import { PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { PATH } from "./grok-bot-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 describe("the Grok Bot settings are reached only by the signed-in owner", () => {
   let instance: Instance;

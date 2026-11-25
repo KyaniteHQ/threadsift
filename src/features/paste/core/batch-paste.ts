@@ -32,7 +32,7 @@ async function pasteOne(
   { url, digest }: Readonly<BatchLink>,
   caller: Caller,
 ): Promise<BatchEntry | Closed> {
-  const saved = await whileOpen(ports.db, () => saveItem(ports, url, digest, "keep", caller));
+  const saved = await whileOpen(() => saveItem(ports, url, digest, "keep", caller));
 
   if (saved.kind === "restoring") return saved;
 

@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { HighlightsPageResponseSchema } from "../src/core/contract/highlights-page-wire.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import {
   highlightStatus,
   ColumnsSchema,
@@ -17,13 +17,11 @@ import {
   textHolding,
 } from "./lost-highlight-fixtures.ts";
 import { removeProposals } from "./proposal-seed.ts";
-import { SECRET_KEY, exec, rows } from "./related-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
 
 const partsOf = (instance: Instance, highlightId: number) =>
-  rows(
-    instance,
+  instance.database.rows(
     IdSchema,
     "select id from search_parts where kind = 'highlight' and highlight_id = ?",
     highlightId,
@@ -94,7 +92,11 @@ describe("Accept of a lost-Highlight row", () => {
     assert.equal(highlightStatus(instance, lost.highlightId), "attached");
 
     const kept = JSON.stringify(
-      rows(instance, ColumnsSchema, "select * from highlights where id = ?", lost.highlightId),
+      instance.database.rows(
+        ColumnsSchema,
+        "select * from highlights where id = ?",
+        lost.highlightId,
+      ),
     );
 
     const answer = await instance.send("POST", `/api/proposals/${String(id)}/accept`);
@@ -102,7 +104,11 @@ describe("Accept of a lost-Highlight row", () => {
     assert.deepEqual([answer.status, answer.body], [409, JSON.stringify({ error: "not-current" })]);
     assert.equal(
       JSON.stringify(
-        rows(instance, ColumnsSchema, "select * from highlights where id = ?", lost.highlightId),
+        instance.database.rows(
+          ColumnsSchema,
+          "select * from highlights where id = ?",
+          lost.highlightId,
+        ),
       ),
       kept,
     );
@@ -130,7 +136,10 @@ describe("deleting an Item that holds lost-Highlight rows", () => {
     const second = await keepPassage(instance, first.itemId, "A long sentence that comes after");
     const other = await keepLostHighlight(instance, "other", "gone", "the other passage");
 
-    exec(instance, "update highlights set status = 'gone', start = null where id = ?", second);
+    instance.database.exec(
+      "update highlights set status = 'gone', start = null where id = ?",
+      second,
+    );
 
     await proposeLost(instance, first.highlightId);
     await proposeLost(instance, second, "rejected");

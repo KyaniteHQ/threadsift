@@ -3,24 +3,13 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
-import { Instance } from "./instance.ts";
-import {
-  REDDIT_THREAD,
-  SECRET_KEY,
-  exec,
-  firstPickTask,
-  pairsOf,
-  paste,
-  pasteInOrder,
-  pickTasks,
-  rows,
-  saveProvider,
-  sentInput,
-  until,
-} from "./related-fixtures.ts";
-import { restoreLibrary } from "./restoring-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { REDDIT_THREAD, paste, pasteInOrder, saveProvider, until } from "./library-fixtures.ts";
+import { keepPassage } from "./lost-highlight-fixtures.ts";
+import { pairsOf } from "./related-fixtures.ts";
+import { firstPickTask, pickTasks, sentInput } from "./related-pick-fixtures.ts";
+import { restoreLibrary } from "./restore-fixtures.ts";
 
 const TWELVE = "quasar lattice decoder notes alpha beta gamma delta epsilon zeta eta theta";
 
@@ -43,9 +32,8 @@ describe("the related pick sends the best-ranked candidates", () => {
     const from = await Instance.start();
     try {
       await from.setUp();
-      exec(from, "delete from sqlite_sequence where name = 'ai_tasks'");
-      exec(
-        from,
+      from.database.exec("delete from sqlite_sequence where name = 'ai_tasks'");
+      from.database.exec(
         "insert into sqlite_sequence (name, seq) values ('ai_tasks', ?)",
         FIRST_TASK_ID_FLOOR,
       );
@@ -58,15 +46,13 @@ describe("the related pick sends the best-ranked candidates", () => {
         tags: ["quasar"],
       });
 
-      exec(
-        from,
+      from.database.exec(
         "insert into item_tags (item_id, tag_id) select ?, id from tags where key = 'quasar'",
         undigested,
       );
       await restoreLibrary({ from, into: instance });
       assert.deepEqual(
-        rows(
-          instance,
+        instance.database.rows(
           z.object({ body: z.string() }),
           "select body from search_parts where item_id = ? and kind = 'tags' and not exists (select 1 from digests where item_id = ?)",
           undigested,
@@ -94,8 +80,7 @@ describe("the related pick sends the best-ranked candidates", () => {
       tags: ["quasar", "nebula"],
     });
 
-    const [digest] = rows(
-      instance,
+    const [digest] = instance.database.rows(
       TaskIdSchema,
       "select task_id from digests where item_id = ?",
       source,
@@ -128,12 +113,12 @@ describe("the related pick sends the best-ranked candidates", () => {
 
   it("records the source's Digest task id as the input revision", async () => {
     const [task] = await until(
+      `Item ${String(source)} has a Related pick task`,
       () => pickTasks(instance, source),
       (tasks) => tasks.length > 0,
     );
 
-    const [digest] = rows(
-      instance,
+    const [digest] = instance.database.rows(
       TaskIdSchema,
       "select task_id from digests where item_id = ?",
       source,
@@ -203,25 +188,7 @@ describe("the related pick matches only the Digest parts of an Item that has a D
       revision: reader.note.revision,
     });
 
-    const text = (await instance.detail(highlighted)).postText ?? "";
-    const quote = "quasar sentence";
-    const start = text.indexOf(quote);
-
-    await instance.read(
-      "POST",
-      `/api/items/${String(highlighted)}/highlights`,
-      HighlightResponseSchema,
-      {
-        target: { kind: "post" },
-        revision: (await instance.detail(highlighted)).highlights.revisions.post,
-        selector: {
-          exact: quote,
-          prefix: text.slice(Math.max(0, start - 32), start),
-          suffix: text.slice(start + quote.length, start + quote.length + 32),
-          hint: start,
-        },
-      },
-    );
+    await keepPassage(instance, highlighted, "quasar sentence");
 
     await saveProvider(instance);
 

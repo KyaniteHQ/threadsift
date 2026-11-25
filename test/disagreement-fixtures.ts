@@ -1,10 +1,9 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { script } from "./pin-fixtures.ts";
+import { paste, pasteInOrder, until } from "./library-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, paste, rows, until } from "./related-fixtures.ts";
-import { jobsOf } from "./weekly-claim-fixtures.ts";
+import { claims, jobsOf, nextSweep, releaseClaim } from "./weekly-claim-fixtures.ts";
 
 export interface Seeded {
   readonly id: number;
@@ -18,20 +17,18 @@ export interface Seeded {
 const quoted = (text: string): string => text.replaceAll("'", "''");
 
 export function seedTopics(instance: Instance, names: Readonly<Record<number, string>>): void {
-  script(
-    instance,
-    Object.entries(names)
-      .map(
-        ([id, name]) =>
-          `insert into topics (id, key, name) values (${id}, '${name.toLowerCase()}', '${name}');`,
-      )
-      .join("\n"),
-  );
+  for (const [id, name] of Object.entries(names)) {
+    instance.database.exec(
+      "insert into topics (id, key, name) values (?, ?, ?)",
+      Number(id),
+      name.toLowerCase(),
+      name,
+    );
+  }
 }
 
 export function seedDigested(instance: Instance, seeds: readonly Readonly<Seeded>[]): void {
-  script(
-    instance,
+  instance.database.script(
     seeds
       .map(({ id, topic, token = id, savedAt = id, title = `Title ${String(id)}`, summary }) => {
         const stored = JSON.stringify({
@@ -56,8 +53,7 @@ export function seedDigested(instance: Instance, seeds: readonly Readonly<Seeded
 }
 
 export const tokenOf = (instance: Instance, itemId: number): number => {
-  const [row] = rows(
-    instance,
+  const [row] = instance.database.rows(
     z.object({ task_id: z.number() }),
     "select task_id from digests where item_id = ?",
     itemId,
@@ -77,18 +73,17 @@ export function proposeDisagreement(
     instance,
     "items-disagree",
     {
-      from_item_id: first,
-      into_item_id: second,
-      from_digest: tokenOf(instance, first),
-      into_digest: tokenOf(instance, second),
+      fromItemId: first,
+      intoItemId: second,
+      fromDigest: tokenOf(instance, first),
+      intoDigest: tokenOf(instance, second),
     },
     { reason: "They give opposite advice.", state },
   );
 }
 
 export const disagreementRows = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({
       id: z.number(),
       from_item_id: z.number(),
@@ -102,8 +97,7 @@ export const disagreementRows = (instance: Instance) =>
   );
 
 export const checksOf = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({ topic_id: z.number(), members: z.string() }),
     "select topic_id, members from topic_checks order by topic_id",
   );
@@ -120,8 +114,7 @@ const InputSchema = z.object({
 });
 
 export const tasksOf = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({ id: z.number(), inputs: z.string(), item_id: z.number() }),
     "select id, inputs, item_id from ai_tasks where kind = 'disagreement_proposals' order by id",
   );
@@ -132,19 +125,20 @@ export const sentOf = (instance: Instance) =>
 export async function runWeek(instance: Instance): Promise<void> {
   const before = tasksOf(instance).length;
 
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set state = 'done', claim_expires = null where kind = 'disagreement_proposals'",
   );
-  exec(instance, "delete from scheduled_runs where task in ('sweep', 'disagreement_proposals')");
-  await instance.tick();
+  releaseClaim(instance, "disagreement_proposals");
+  await nextSweep(instance);
   await until(
+    "the weekly disagreement stage claimed its run and its job sent a task or finished",
     () => ({
+      claimed: claims(instance, "disagreement_proposals").length,
       tasks: tasksOf(instance).length,
       open: jobsOf(instance, "disagreement_proposals").filter(({ state }) => state !== "done")
         .length,
     }),
-    ({ tasks, open }) => tasks > before || open === 0,
+    ({ claimed, tasks, open }) => claimed === 1 && (tasks > before || open === 0),
   );
 }
 
@@ -159,19 +153,19 @@ export function pasteItems(
   instance: Instance,
   specs: readonly Readonly<Pasted>[],
 ): Promise<readonly number[]> {
-  return specs.reduce<Promise<readonly number[]>>(async (pending, spec, at) => {
-    const ids = await pending;
-
-    const id = await paste(instance, `disagree/${String(at)}`, {
-      title: spec.title ?? `Title ${String(at + 1)}`,
-      topic: spec.topic,
-      summary: spec.summary ?? `Summary ${String(at + 1)}.`,
-      noDigest: spec.noDigest === true,
-      url: `https://example.com/disagree/${String(at)}`,
-    });
-
-    return [...ids, id];
-  }, Promise.resolve([]));
+  return pasteInOrder(
+    instance,
+    specs.map((spec, at) => [
+      `disagree/${String(at)}`,
+      {
+        title: spec.title ?? `Title ${String(at + 1)}`,
+        topic: spec.topic,
+        summary: spec.summary ?? `Summary ${String(at + 1)}.`,
+        noDigest: spec.noDigest === true,
+        url: `https://example.com/disagree/${String(at)}`,
+      },
+    ]),
+  );
 }
 
 export async function replaceDigest(
@@ -181,8 +175,7 @@ export async function replaceDigest(
 ): Promise<void> {
   const before = tokenOf(instance, itemId);
 
-  const [stored] = rows(
-    instance,
+  const [stored] = instance.database.rows(
     z.object({ original_url: z.string() }),
     "select original_url from items where id = ?",
     itemId,
@@ -197,14 +190,18 @@ export async function replaceDigest(
     url: stored.original_url,
   });
   await until(
+    `Item ${String(itemId)} has a new Digest`,
     () => tokenOf(instance, itemId),
     (token) => token !== before,
   );
 }
 
 export const taskState = (instance: Instance, id: number): string | undefined =>
-  rows(instance, z.object({ state: z.string() }), "select state from ai_tasks where id = ?", id)[0]
-    ?.state;
+  instance.database.rows(
+    z.object({ state: z.string() }),
+    "select state from ai_tasks where id = ?",
+    id,
+  )[0]?.state;
 
 export const membersText = (instance: Instance, itemIds: readonly number[]): string =>
   itemIds.map((id) => `${String(id)}:${String(tokenOf(instance, id))}`).join(",");

@@ -24,7 +24,7 @@ import {
   extentWith,
 } from "../../export/core/zip-read.ts";
 import { NAMED_FILES } from "./named-files.ts";
-import { readRestoreDirectory } from "./restore-source.ts";
+import type { Release } from "./restore-source.ts";
 import { steppedUnit, tallied } from "./restore-unit.ts";
 
 const ITEM_FILE_BYTES = {
@@ -111,10 +111,10 @@ export async function filesUnit(
   { db, files }: JobPorts,
   run: Readonly<RestoreRow>,
   source: Readonly<ZipSource>,
+  { directory }: Readonly<Release>,
 ): Promise<JobOutcome> {
   const after = FilesCursorSchema.parse(JSON.parse(run.cursor));
   const rows = await namedAfter(db, after);
-  const directory = await readRestoreDirectory(source);
   const window = windowOf(directory, rows);
 
   if (window === null) {

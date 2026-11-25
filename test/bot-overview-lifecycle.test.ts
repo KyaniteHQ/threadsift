@@ -5,9 +5,8 @@ import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { retireTasks, selectGrokBot } from "./bot-task-fixtures.ts";
-import { insertedTask, jobRow, rowCount, taskRow } from "./bot-task-rows.ts";
+import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 const FILL = 10;
 
@@ -26,7 +25,7 @@ describe("a Topic overview keeps its task and job state across retries", () => {
 
   beforeEach(() => {
     retireTasks(instance);
-    exec(instance, "delete from topic_pages");
+    instance.database.exec("delete from topic_pages");
   });
 
   after(() => instance.close());
@@ -68,7 +67,7 @@ describe("a Topic overview keeps its task and job state across retries", () => {
   it("fails the task and charges an attempt when a resend fails", async () => {
     const { id, job } = await sentTask(instance, await newJob());
 
-    exec(instance, "update ai_tasks set sent_at = null where id = ?", id);
+    instance.database.exec("update ai_tasks set sent_at = null where id = ?", id);
     await executeClaimed(instance.core, job);
 
     const failed = jobRow(instance, job.id);
@@ -83,19 +82,19 @@ describe("a Topic overview keeps its task and job state across retries", () => {
   it("starts no task when the job lost its claim", async () => {
     const job = await newJob();
 
-    exec(instance, "update jobs set attempts = attempts + 1 where id = ?", job.id);
+    instance.database.exec("update jobs set attempts = attempts + 1 where id = ?", job.id);
 
     await executeClaimed(instance.core, job);
 
-    assert.equal(rowCount(instance, "ai_tasks", `job_id = ${String(job.id)}`), 0);
+    assert.equal(instance.database.rowCount("ai_tasks", `job_id = ${String(job.id)}`), 0);
   });
 
   it("fails the task stale, without an error, when the Topic was deleted while the bot worked", async () => {
     const sent = await answeredAs(instance, { kindCase: overview, job: await newJob() });
 
-    exec(instance, "update items set topic_id = null where topic_id = 1");
-    exec(instance, "delete from log_entries where topic_id = 1");
-    exec(instance, "delete from topics where id = 1");
+    instance.database.exec("update items set topic_id = null where topic_id = 1");
+    instance.database.exec("delete from log_entries where topic_id = 1");
+    instance.database.exec("delete from topics where id = 1");
 
     await executeClaimed(instance.core, sent.job);
 

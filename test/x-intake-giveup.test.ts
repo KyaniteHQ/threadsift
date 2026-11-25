@@ -6,7 +6,7 @@ import { MAX_ATTEMPTS } from "../src/core/contract/job-contract.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { requeued } from "./job-fixtures.ts";
 import { sentIntake } from "./x-intake-fixtures.ts";
 
 describe("an X link task that the bot did not answer ends with its fetch job", () => {
@@ -21,12 +21,7 @@ describe("an X link task that the bot did not answer ends with its fetch job", (
   it("fails the running task as a timeout when the fetch job gives up, and ends the Item as gave-up", async () => {
     const task = await sentIntake(instance);
 
-    exec(
-      instance,
-      "update jobs set state = 'queued', attempts = ?, next_attempt_at = 0, claim_expires = null where id = ?",
-      MAX_ATTEMPTS,
-      task.job.id,
-    );
+    requeued(instance, task.job.id, MAX_ATTEMPTS);
     await runJob(instance.core, task.job.id);
 
     const row = taskRow(instance, task.id);

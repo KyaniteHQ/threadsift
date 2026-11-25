@@ -14,7 +14,7 @@ import {
 import { answered } from "./bot-task-http.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance, Json } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
+import { requeued } from "./job-fixtures.ts";
 
 export { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 
@@ -46,12 +46,7 @@ export async function sentTask(
   const lastAttempt = isLastAttempt(job.attempts);
 
   await selectGrokBot(instance);
-  exec(
-    instance,
-    "update jobs set state = 'queued', attempts = ?, next_attempt_at = 0, claim_expires = null where id = ?",
-    lastAttempt ? 0 : job.attempts,
-    job.id,
-  );
+  requeued(instance, job.id, lastAttempt ? 0 : job.attempts);
   await executeClaimed(instance.core, await claimedBotJob(instance, job.id));
 
   const task = taskRows(instance, "job_id = ?", job.id).at(-1);
@@ -61,11 +56,14 @@ export async function sentTask(
   const { token } = acceptedByBot(instance, task.id);
 
   if (lastAttempt) {
-    exec(instance, "update ai_tasks set attempts = ? where id = ?", job.attempts + 1, task.id);
+    instance.database.exec(
+      "update ai_tasks set attempts = ? where id = ?",
+      job.attempts + 1,
+      task.id,
+    );
   }
 
-  exec(
-    instance,
+  instance.database.exec(
     "update jobs set attempts = ?, stale_requeues = ? where id = ?",
     job.attempts,
     counters.staleRequeues ?? job.staleRequeues,

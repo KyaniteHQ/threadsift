@@ -7,7 +7,7 @@ import { runJob } from "../src/core/compose/jobs.ts";
 import { botInstance, pastDeadline } from "./bot-task-fixtures.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
+import { dueNow, requeued } from "./job-fixtures.ts";
 import { answerOf } from "./x-intake-bodies.ts";
 import { intakeTo, sentIntake } from "./x-intake-fixtures.ts";
 import { itemRow } from "./x-intake-rows.ts";
@@ -19,24 +19,11 @@ const JobStateSchema = z.object({
 });
 
 const jobState = (instance: Instance, id: number) =>
-  rows(
-    instance,
+  instance.database.rows(
     JobStateSchema,
     "select state, wait_reason, attempts from jobs where id = ?",
     id,
   )[0];
-
-const released = (instance: Instance, id: number) => {
-  exec(
-    instance,
-    "update jobs set state = 'queued', next_attempt_at = 0, claim_expires = null where id = ?",
-    id,
-  );
-};
-
-const dueAgain = (instance: Instance, id: number) => {
-  exec(instance, "update jobs set next_attempt_at = 0 where id = ?", id);
-};
 
 describe("a fetch with an open Grok Bot task stays on the bot whatever the reader setting says, and the task ends in a final state", () => {
   let instance: Instance;
@@ -51,7 +38,7 @@ describe("a fetch with an open Grok Bot task stays on the bot whatever the reade
   it("keeps waiting for the bot after the owner chooses the grok CLI, and stores the bot's answer", async () => {
     const task = await sentIntake(instance);
 
-    released(instance, task.job.id);
+    requeued(instance, task.job.id);
     await runJob(instance.core, task.job.id);
 
     assert.deepEqual(jobState(instance, task.job.id), {
@@ -72,7 +59,7 @@ describe("a fetch with an open Grok Bot task stays on the bot whatever the reade
     const task = await sentIntake(instance);
 
     pastDeadline(instance, task.id);
-    released(instance, task.job.id);
+    requeued(instance, task.job.id);
     await runJob(instance.core, task.job.id);
 
     assert.deepEqual(
@@ -85,7 +72,7 @@ describe("a fetch with an open Grok Bot task stays on the bot whatever the reade
       attempts: 1,
     });
 
-    dueAgain(instance, task.job.id);
+    dueNow(instance, task.job.id);
     await runJob(instance.core, task.job.id);
 
     assert.equal(jobState(instance, task.job.id)?.state, "done");

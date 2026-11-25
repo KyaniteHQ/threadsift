@@ -6,6 +6,7 @@ import { MAX_ATTEMPTS } from "../src/core/contract/job-contract.ts";
 import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
 import { takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
 import type { Instance } from "./instance.ts";
+import { dueNow } from "./job-fixtures.ts";
 import {
   LATER,
   accountInstance,
@@ -16,7 +17,6 @@ import {
   fetchJob,
   jobs,
 } from "./reddit-account-fixtures.ts";
-import { exec } from "./related-fixtures.ts";
 
 const REDDIT_LINK = "https://www.reddit.com/comments/q1/";
 
@@ -28,7 +28,7 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
   beforeEach(async () => {
     instance = await accountInstance();
     await connect(instance, SESSION);
-    exec(instance, "update reddit_account set queue_head = 2");
+    instance.database.exec("update reddit_account set queue_head = 2");
   });
 
   afterEach(() => instance.close());
@@ -44,10 +44,6 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
 
   const waiting = (id: number) => {
     fetchJob(instance, id, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
-  };
-
-  const dueNow = (id: number) => {
-    exec(instance, "update jobs set next_attempt_at = 0 where id = ?", id);
   };
 
   const spent = (id: number, address: string) => {
@@ -69,13 +65,15 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
 
     await executeClaimed(instance.core, holder);
 
+    const observedAt = Date.now();
+
     assert.equal(account(instance)[0]?.busy_job, null);
     assert.deepEqual(
-      jobs(instance).map(({ id, next_attempt_at }) => [id, next_attempt_at < LATER]),
+      jobs(instance).map(({ id, next_attempt_at: due }) => [id, due <= observedAt ? "due" : due]),
       [
-        [1, false],
-        [2, true],
-        [3, false],
+        [1, LATER],
+        [2, "due"],
+        [3, LATER],
       ],
     );
   });
@@ -84,7 +82,7 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
     fetchJob(instance, 1, { state: "queued", waitReason: null, dueAt: LATER });
     fetchJob(instance, 3, { state: "queued", waitReason: null, dueAt: 0, address: REDDIT_LINK });
     await holdingTheTurn(1);
-    exec(instance, "update reddit_account set queue_head = null");
+    instance.database.exec("update reddit_account set queue_head = null");
     await runJob(instance.core, 3);
 
     const [, job] = jobs(instance);
@@ -98,7 +96,7 @@ describe("a fetch job reaches the Reddit queue through its handler", () => {
     waiting(2);
     spent(4, OTHER_LINK);
     await holdingTheTurn(1);
-    dueNow(4);
+    dueNow(instance, 4);
     await runJob(instance.core, 4);
 
     assert.deepEqual(

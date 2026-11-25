@@ -1,11 +1,12 @@
 import { type MouseEvent, type ReactNode, useCallback, useRef } from "react";
 
-import { EmptyState, Notice, Skeleton } from "./ListBody.tsx";
+import { EmptyState, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { PageBar } from "./PageBar.tsx";
-import { RETRY_LABEL } from "./text.ts";
+import type { PagedPage } from "./read-through.ts";
+import { RetryNotice } from "./RetryRegions.tsx";
 import { useFocusNewRows } from "./use-focus-new-rows.ts";
-import type { Paged, PagedPage, PagedReady } from "./use-paged-read.ts";
+import type { Paged, PagedReady } from "./use-paged-read.ts";
 
 interface ListText {
   readonly title: string;
@@ -77,19 +78,16 @@ function Rows<Page extends PagedPage, Row>({
 }
 
 function Body<Page extends PagedPage, Row>({
-  source: { state, retry, loadMore },
+  state,
+  loadMore,
   listing,
   draw,
-}: Readonly<{ source: Source<Page> } & Shown<Page, Row>>) {
-  const retryLoad = useCallback(() => {
-    void retry();
-  }, [retry]);
-
+}: Readonly<{ state: Paged<Page>; loadMore: () => void } & Shown<Page, Row>>) {
   switch (state.status) {
     case "loading":
       return <Skeleton label={listing.text.loading} row="rl-row" title="rl-title" />;
     case "failed":
-      return <Notice text={listing.text.loadFailed} action={retryLoad} label={RETRY_LABEL} alert />;
+      return null;
     case "ready":
       return listing.rows(state).length === 0 ? (
         <EmptyState heading={listing.text.emptyHeading} line={listing.emptyLine(state)} />
@@ -107,14 +105,24 @@ export function ListPage<Page extends PagedPage, Row>({
   draw,
   notice = null,
 }: Readonly<{ source: Source<Page>; notice?: string | null } & Shown<Page, Row>>) {
-  const loading = source.state.status === "loading";
+  const { state, retry, loadMore } = source;
+  const loading = state.status === "loading";
+
+  const retryLoad = useCallback(() => {
+    void retry();
+  }, [retry]);
 
   return (
     <div className="pg">
       <PageBar title={listing.text.title} ready={!loading} />
       <main className="pg-col rl-col" aria-busy={loading}>
         {notice === null ? null : <p className="rd-note">{notice}</p>}
-        <Body source={source} listing={listing} draw={draw} />
+        <RetryNotice
+          failed={state.status === "failed"}
+          text={listing.text.loadFailed}
+          action={retryLoad}
+        />
+        <Body state={state} loadMore={loadMore} listing={listing} draw={draw} />
       </main>
     </div>
   );

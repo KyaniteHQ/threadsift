@@ -4,11 +4,12 @@ Renovate, the GitHub App, is the one update bot. Its configuration holds the sch
 
 - `oxlint` and `@oxlint/plugins` get their own PR at every update type, because both must stay on one exact version.
 - `@playwright/test` is never updated by Renovate. It must match the version of nixpkgs' `playwright-driver`, whose browsers the devenv shell provides, so it moves with the `devenv.lock` update.
+- When Renovate bumps pnpm, `updateArtifacts` of its npm manager rewrites the `+sha512.<hex>` hash in `packageManager` from the registry's integrity for the new version. The container build checks that hash ([Container image](container-image.md), pnpm).
 - Renovate proposes an npm version only when it is 3 days old. This equals pnpm's `minimumReleaseAge`, so a PR never asks for a version that pnpm refuses to install.
 
 ## Security fixes
 
-GitHub's Dependabot alerts and the OSV database feed Renovate's security PRs, which skip the 3-day wait. A fix younger than 3 days still fails pnpm's install, so that PR also adds the package to `minimumReleaseAgeExclude` in the pnpm workspace settings. Dependabot's own version and security PRs stay off, because both bots would open a PR for the same bump.
+GitHub's Dependabot alerts and the OSV database feed Renovate's security PRs, which skip the 3-day wait. A fix younger than 3 days still fails pnpm's install, so that PR also adds the package to `minimumReleaseAgeExclude` in the pnpm workspace settings. The entry does nothing once its version is 3 days old, so the next PR that touches the package removes it. Dependabot's own version and security PRs stay off, because both bots would open a PR for the same bump.
 
 ## Update `devenv.lock` by hand
 

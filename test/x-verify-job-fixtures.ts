@@ -4,7 +4,7 @@ import { enqueueItemJobs } from "../src/core/kernel/job-rows.ts";
 import { startingJudged } from "../src/features/x/core/x-verify-state.ts";
 import { queuedVerification, savedProgress } from "../src/features/x/core/x-verify-store.ts";
 import type { Instance } from "./instance.ts";
-import { until } from "./related-fixtures.ts";
+import { until } from "./library-fixtures.ts";
 import { xAddressOf } from "./x-intake-fixtures.ts";
 import { verifyJobStates } from "./x-intake-rows.ts";
 import { authored, reply, thread } from "./x-thread-fixtures.ts";
@@ -54,6 +54,7 @@ export async function storedForVerification(
 
   await enqueueItemJobs(instance.core, itemId);
   await until(
+    `every x_verify job of Item ${String(itemId)} is done`,
     () => verifyJobStates(instance, itemId),
     (found) => found.length > 0 && found.every(({ state }) => state === "done"),
   );

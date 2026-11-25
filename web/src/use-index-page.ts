@@ -2,8 +2,8 @@ import { type TopicIndex, TopicIndexSchema } from "../../src/core/contract/topic
 import { parsedFrom, withCursor } from "./calls.ts";
 import { usePagedRead } from "./use-paged-read.ts";
 
-function fetchTopicIndex(cursor: string | null): Promise<TopicIndex> {
-  return parsedFrom("GET", withCursor("/api/topics", cursor), TopicIndexSchema);
+function fetchTopicIndex(cursor: string | null, signal: AbortSignal): Promise<TopicIndex> {
+  return parsedFrom("GET", withCursor("/api/topics", cursor), TopicIndexSchema, { signal });
 }
 
 function withMoreTopics(shown: Readonly<TopicIndex>, added: Readonly<TopicIndex>): TopicIndex {

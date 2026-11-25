@@ -3,8 +3,8 @@ import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { Instance } from "./instance.ts";
-import { lines, paste, readLog, seedEntries } from "./log-fixtures.ts";
-import { catalogVersion } from "./related-fixtures.ts";
+import { paste } from "./library-fixtures.ts";
+import { lines, readLog, seedEntries } from "./log-fixtures.ts";
 
 describe("the Log records a first Digest, a second Item and a Digest sent again", () => {
   let instance: Instance;
@@ -39,7 +39,7 @@ describe("the Log records a first Digest, a second Item and a Digest sent again"
   });
 
   it("writes ingest only for a second Item in that Topic, under another spelling and with no new version", async () => {
-    const versionBefore = catalogVersion(instance);
+    const versionBefore = instance.database.catalogVersion();
 
     await paste(instance, "second", { title: "Bridges", topic: "istanbul", tags: ["ferries"] });
 
@@ -47,7 +47,7 @@ describe("the Log records a first Digest, a second Item and a Digest sent again"
       "ingest | Bridges | topic: İstanbul | tags: ferries",
     ]);
     assert.equal((await lines(instance)).length, 3);
-    assert.equal(catalogVersion(instance), versionBefore);
+    assert.equal(instance.database.catalogVersion(), versionBefore);
   });
 
   it("writes digest when a Digest is sent again for the same Item", async () => {
@@ -82,7 +82,7 @@ describe("the Log records a first Digest, a second Item and a Digest sent again"
   });
 
   it("records one topic entry and one version step for two concurrent Pastes naming the same new Topic", async () => {
-    const versionBefore = catalogVersion(instance);
+    const versionBefore = instance.database.catalogVersion();
 
     await Promise.all(
       ["one", "two"].map((slug) =>
@@ -93,7 +93,7 @@ describe("the Log records a first Digest, a second Item and a Digest sent again"
     const racing = (await lines(instance)).filter((line) => line === "topic | Racing");
 
     assert.equal(racing.length, 1);
-    assert.equal(catalogVersion(instance), versionBefore + 1);
+    assert.equal(instance.database.catalogVersion(), versionBefore + 1);
   });
 });
 

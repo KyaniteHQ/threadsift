@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import { readPage } from "./lost-highlight-fixtures.ts";
 import {
   addTopics,
@@ -14,8 +15,7 @@ import {
   queueOverview,
   storePage,
 } from "./overview-gap-fixtures.ts";
-import { count, SECRET_KEY, exec, saveProvider } from "./related-fixtures.ts";
-import { claims, moveClaimBack, nextTick } from "./weekly-claim-fixtures.ts";
+import { claims, moveClaimBack, nextSweep } from "./weekly-claim-fixtures.ts";
 
 const TASK = "overview_proposals";
 
@@ -38,11 +38,11 @@ describe("the weekly overview check with no Provider saved", () => {
     assert.deepEqual([claims(instance, TASK), gapRows(instance)], [[], []]);
 
     await saveProvider(instance);
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.equal(claims(instance, TASK).length, 1);
     assert.deepEqual(overviewJobs(instance), []);
-    assert.equal(count(instance, OVERVIEW_TASKS), 0);
+    assert.equal(instance.database.count(OVERVIEW_TASKS), 0);
     assert.deepEqual(gapTopics(instance), ["Single", "Behind"]);
     assert.deepEqual(
       gapRows(instance).map(({ state, reason }) => [state, reason]),
@@ -88,8 +88,7 @@ describe("the weekly overview check picks only Topics that have a gap", () => {
     queueOverview(instance, queued);
     queueOverview(instance, running, "running");
     storePage(instance, "Removed", { builtFrom: "all" });
-    exec(
-      instance,
+    instance.database.exec(
       "update topic_pages set built_from = json_insert(built_from, '$[#]', json_object('item', 9999, 'digest', 9999)) where topic_id = (select id from topics where name = 'Removed')",
     );
     proposeGap(instance, "Rejected", "rejected");
@@ -100,7 +99,7 @@ describe("the weekly overview check picks only Topics that have a gap", () => {
   after(() => instance.close());
 
   it("proposes a Topic with a gap and no open run and no row, and skips covered, running, rejected and removed-Item Topics", async () => {
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.deepEqual(gapTopics(instance), ["Rejected", "Partly", "Behind"]);
     assert.deepEqual(
@@ -138,7 +137,7 @@ describe("the weekly overview check is bounded and runs once a week", () => {
   after(() => instance.close());
 
   it("inserts 20 rows, the Topics with the most uncovered Items, and none on a second tick in the week", async () => {
-    await nextTick(instance);
+    await nextSweep(instance);
 
     const first = gapTopics(instance);
 
@@ -147,13 +146,13 @@ describe("the weekly overview check is bounded and runs once a week", () => {
     assert.equal(first.at(-1), "topic25");
     assert.equal(first.includes("topic05"), false);
 
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.equal(gapRows(instance).length, 20);
   });
 
   it("inserts the rest after the claim is moved back 7 days, and never a Topic that has a row", async () => {
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
 
     assert.equal(gapRows(instance).length, 25);
     assert.equal(new Set(gapRows(instance).map(({ topic_id }) => topic_id)).size, 25);
@@ -172,7 +171,7 @@ describe("the weekly overview check deletes an open row whose gap closed", () =>
     closed = proposeGap(instance, "Closing");
     proposeGap(instance, "Staying");
     await saveProvider(instance);
-    await nextTick(instance);
+    await nextSweep(instance);
   });
 
   after(() => instance.close());
@@ -189,24 +188,23 @@ describe("the weekly overview check deletes an open row whose gap closed", () =>
       true,
     );
 
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.equal(
       gapRows(instance).some(({ id }) => id === closed),
       true,
     );
 
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.deepEqual(gapTopics(instance), ["Staying"]);
   });
 
   it("proposes a Topic again when it falls behind again, because its row is gone", async () => {
-    exec(
-      instance,
+    instance.database.exec(
       "update topic_pages set built_from = '[]' where topic_id = (select id from topics where name = 'Closing')",
     );
     moveClaimBack(instance, TASK);
-    await nextTick(instance);
+    await nextSweep(instance);
     assert.deepEqual(gapTopics(instance).toSorted(), ["Closing", "Staying"]);
   });
 });

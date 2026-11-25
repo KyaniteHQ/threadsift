@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import type { Instance, Json } from "./instance.ts";
-import { count, rows } from "./related-fixtures.ts";
 
 const ErrorSchema = z.object({ error: z.string() });
 
@@ -17,7 +16,10 @@ export const DIGEST = {
 };
 
 export function xClient(instance: Instance) {
-  const tableCount = (table: string) => count(instance, `select count(*) as n from ${table}`);
+  const refusedTables = () =>
+    ["items", "reddit_comments", "reddit_threads"].map((table) =>
+      instance.database.rowCount(table),
+    );
 
   const saved = async (body: Json) => {
     const answer = await instance.send("POST", "/api/items", body);
@@ -28,25 +30,17 @@ export function xClient(instance: Instance) {
   };
 
   const refused = async (body: Json): Promise<string> => {
-    const before = [
-      tableCount("items"),
-      tableCount("reddit_comments"),
-      tableCount("reddit_threads"),
-    ];
+    const before = refusedTables();
     const answer = await instance.send("POST", "/api/items", body);
 
     assert.equal(answer.status, 400, answer.body);
-    assert.deepEqual(
-      [tableCount("items"), tableCount("reddit_comments"), tableCount("reddit_threads")],
-      before,
-    );
+    assert.deepEqual(refusedTables(), before);
 
     return ErrorSchema.parse(JSON.parse(answer.body)).error;
   };
 
   const itemIdOf = (statusId: string): number => {
-    const [found] = rows(
-      instance,
+    const [found] = instance.database.rows(
       z.object({ id: z.number() }),
       "select id from items where normalized_url = ?",
       `https://x.com/i/status/${statusId}`,
@@ -57,13 +51,8 @@ export function xClient(instance: Instance) {
     return found.id;
   };
 
-  const generationOf = (itemId: number): number | undefined =>
-    rows(
-      instance,
-      z.object({ generation: z.number() }),
-      "select generation from items where id = ?",
-      itemId,
-    )[0]?.generation;
+  const generationOf = (itemId: number): number =>
+    instance.database.count("select generation as n from items where id = ?", itemId);
 
-  return { count: tableCount, saved, refused, itemIdOf, generationOf };
+  return { saved, refused, itemIdOf, generationOf };
 }

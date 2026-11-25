@@ -2,8 +2,10 @@ import { createHash } from "node:crypto";
 
 import { z } from "zod";
 
+import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { Instance } from "./instance.ts";
-import { count, exec, rows } from "./related-fixtures.ts";
+
+export { jobRow } from "./job-fixtures.ts";
 
 const TaskRowSchema = z.object({
   id: z.number(),
@@ -23,8 +25,7 @@ const TaskRowSchema = z.object({
 });
 
 export function taskRows(instance: Instance, where = "1 = 1", ...params: readonly number[]) {
-  return rows(
-    instance,
+  return instance.database.rows(
     TaskRowSchema,
     `select id, state, refusal, status, result, callback_hash, job_id, context, sent_at, answered_at, deadline, attempts, executor, kind from ai_tasks where ${where} order by id`,
     ...params,
@@ -39,42 +40,27 @@ export function taskRow(instance: Instance, id: number) {
   return row;
 }
 
-const JobRowSchema = z.object({
-  state: z.string(),
-  attempts: z.number(),
-  next_attempt_at: z.number(),
-  wait_reason: z.string().nullable(),
-  stale_requeues: z.number(),
-});
-
-export function jobRow(instance: Instance, id: number) {
-  const [row] = rows(
-    instance,
-    JobRowSchema,
-    "select state, attempts, next_attempt_at, wait_reason, stale_requeues from jobs where id = ?",
-    id,
+export function reclaimed(instance: Instance, job: Readonly<{ id: number }>): void {
+  instance.database.exec(
+    "update jobs set state = 'running', claim_expires = ? where id = ?",
+    Date.now() + HOUR_MS,
+    job.id,
   );
-
-  if (row === undefined) throw new Error(`no job ${String(id)}`);
-
-  return row;
 }
 
 export function insertedTask(
   instance: Instance,
   { kind, executor, token }: Readonly<{ kind: string; executor: string; token: string }>,
 ): number {
-  exec(
-    instance,
+  instance.database.exec(
     "insert into ai_tasks (kind, inputs, input_revision, executor, attempts, deadline, state, callback_hash) values (?, '{}', 0, ?, 1, ?, 'running', ?)",
     kind,
     executor,
-    Date.now() + 3_600_000,
+    Date.now() + HOUR_MS,
     digestOfToken(token),
   );
 
-  const [row] = rows(
-    instance,
+  const [row] = instance.database.rows(
     z.object({ id: z.number() }),
     "select id from ai_tasks where callback_hash = ?",
     digestOfToken(token),
@@ -89,13 +75,8 @@ export function digestOfToken(token: string): string {
   return createHash("sha256").update(token).digest("hex");
 }
 
-export function rowCount(instance: Instance, table: string, where = "1 = 1"): number {
-  return count(instance, `select count(*) as n from ${table} where ${where}`);
-}
-
 export function topicFailures(instance: Instance) {
-  return rows(
-    instance,
+  return instance.database.rows(
     z.object({ topic_id: z.number(), failure: z.string().nullable() }),
     "select topic_id, failure from topic_pages order by topic_id",
   );
@@ -112,9 +93,13 @@ const LIBRARY_TABLES = [
 export function libraryDump(instance: Instance, jobId: number): string {
   return JSON.stringify([
     ...LIBRARY_TABLES.map((table) =>
-      rows(instance, z.looseObject({}), `select * from ${table} order by 1`),
+      instance.database.rows(z.looseObject({}), `select * from ${table} order by 1`),
     ),
-    rows(instance, z.looseObject({}), "select * from ai_tasks where job_id = ? order by 1", jobId),
+    instance.database.rows(
+      z.looseObject({}),
+      "select * from ai_tasks where job_id = ? order by 1",
+      jobId,
+    ),
   ]);
 }
 
@@ -125,8 +110,7 @@ const PageSchema = z.object({
 });
 
 export function topicPage(instance: Instance, topicId: number) {
-  const [page] = rows(
-    instance,
+  const [page] = instance.database.rows(
     z.object({ overview: z.string(), revision: z.number(), built_from: z.string() }),
     "select overview, revision, built_from from topic_pages where topic_id = ?",
     topicId,

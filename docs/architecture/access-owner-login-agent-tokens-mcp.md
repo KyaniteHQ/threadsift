@@ -62,7 +62,7 @@ Both end every session and keep the agent tokens, which the signed-in owner revo
 - The code is an operator credential on the owner's own server, like `SETUP_CODE`, so it has no expiry. That departs on purpose from the Forgot Password Cheat Sheet's expiry advice. Its single use, the 32-character minimum (`RESET_CODE_MIN`) and its removal after use make up for it.
 - The code is compared by SHA-256 digests with `crypto.equal`, under the `reset` throttle kind.
 - One guarded batch holds only while the stored hash is unchanged and the code is unspent. It inserts the code's digest into `spent_reset_codes`, sets the hash, deletes every session and clears the `login` throttle row, because that lock protected the old password.
-- A spent digest stays refused after later codes are used.
+- A spent digest stays refused after later codes are used, and the same code a second time answers 409 `reset-used`.
 - When the batch fails, the reset answers `reset-used` if the code is spent and `password-changed` otherwise, so a reset never overwrites a change that committed after it read the hash.
 - The reset starts no session and sets no cookie.
 - A missing or short reset code answers 503, which reveals only whether a code exists, as the setup 503 does.
@@ -113,15 +113,15 @@ A check that needs the parsed body reads who calls from `principal`. A `digest` 
 
 ### Unrouted paths
 
-A call to `/api/*` that matches no route for its method goes through `unrouted()`. [HTTP interfaces](http-interfaces.md) links here for these answers.
+A call to `/api/*` that matches no route for its method goes through `unrouted(app)`. [HTTP interfaces](http-interfaces.md) links here for these answers.
 
 - The owner's session and any agent token, whatever its scopes, get 404 when no route has the path, and 405 with an `Allow` header when the path has routes for other methods (RFC 9110 9.1 and 15.5.6). That includes `/api/ai-tasks/{id}/result` and `/intake`.
 - A call with no credentials gets 401 for both, because a caller who has signed in nothing must not learn which paths exist.
 - The gate asks for a session or a token and no scope (`"any"` in `Plan.credentials`), and runs no `csrf` check, because no answer depends on either.
-- `refusingMethods` builds the 405 with Hono's `methodNotAllowed` middleware, which lists the methods of `app.routes` for the path and adds `HEAD` wherever `GET` is, so no list of paths or methods is kept by hand. The same middleware sits on `app.all("/*", ...)` for the paths that `createApp` registers outside `/api`, so `PUT /share` answers 405 with `Allow: GET, HEAD, POST` to every caller.
+- `refusingMethods` builds the 405 with Hono's `methodNotAllowed` middleware, which lists the methods of `app.routes` for the path and adds `HEAD` wherever `GET` is, so no list of paths or methods is kept by hand. The same middleware sits on `app.all("/*", ...)` for the paths that `createApp` registers outside `/api`, so `PUT /share` answers 405 with `Allow: GET, HEAD, POST` to every caller whose body is within the cap; a larger body answers 413 first.
 - `/mcp` is one `all` route and refuses a method itself.
 - A path that no route registers is never a 405. On the container the web app's routes serve it after `createApp`. On the Worker, `isServerPath` sends only `/api`, `/share` and `/mcp` to `createApp`, and `serveDocument` answers the rest, so a `POST` to a page or an asset answers 404 on both.
-- `UNROUTED_PATHS` is the one path table left. The OpenRouter connect paths add the `private` cache headers to the 404 and the 405, and the file and export download paths add the `file` cache headers. The OpenRouter callback allows `GET` only: `getOnly` refuses a `HEAD` before the handler, and `refusingMethods` drops `HEAD` from its `Allow`.
+- The 401 and the 405 carry the cache headers that the `access(...)` gate of a route for the same path declares, which `unrouted(app)` finds in the router, so no path table repeats them: `private` on the OpenRouter connect paths, `file` on the file and export download paths, and `Cache-Control: no-store` on `/api/ai-tasks/{id}`. A path under `/api/files/` that no route has gets the `file` headers on its 404 as well. The OpenRouter callback allows `GET` only: `getOnly` refuses a `HEAD` before the handler, and `refusingMethods` drops `HEAD` from its `Allow`.
 
 ## The task callback credential
 
@@ -151,7 +151,7 @@ One random token per connected agent: `tsa_` and 32 random bytes in base64url, s
 
 - The count is the Items a token added in the current UTC day. A deleted Item frees its place, a save that fails after the insert still counts, and a refresh never counts.
 - The owner's session and tokens with no budget have no cap. A new token starts at 200 Items a day (`DEFAULT_TOKEN_BUDGET`).
-- Known links, short-link aliases included, do not count.
+- Known links, short-link aliases included, do not count. A short link whose alias ends at a Reddit share link counts as possibly new, whatever Item sits under the short link, because the next Paste resolves it again and can add an Item.
 - A limited request reads the count once before saving and is refused whole when its possibly new Items would cross the cap. A refusal answers 429 with `code: budget-spent` and `Retry-After` until the next UTC midnight.
 - Two requests at the same moment can read the same count and both pass, exceeding the limit by one request's links. A batch holds up to `BATCH_LINKS_MAX` (100) links. A held link deleted during a batch and a batch that crosses midnight are not checked again. This is enough for one owner's agents.
 
@@ -180,7 +180,7 @@ The cap holds without `Content-Length` too. A larger body answers 413 and writes
 
 ## The share route
 
-`/share` is the manifest's `share_target` action. It is declared `access("self", { cache: "no-store" })`, so the gate checks no session, token or origin, because the route decides for itself who is trusted. It caps the body and sets `Cache-Control: no-store` on every answer, the 413 included.
+`/share` is the manifest's `share_target` action. It is declared `access("self", { cache: "no-store" })`, so the gate checks no session, token or origin, because the route decides for itself who is trusted. It caps the body and sets `Cache-Control: no-store` on every answer to a `GET`, `HEAD` or `POST`, the 413 included. Another method never reaches the route ([Unrouted paths](#unrouted-paths)). Its 405, or its 413 for a body over the cap, carries no `Cache-Control`, and its body is a fixed message that names no private data.
 
 A write needs a `POST` with all three of these (`sentByOwnPage`):
 
@@ -197,6 +197,7 @@ Missing metadata, `Origin: null` and an agent token never authorize a write.
 A trusted share calls `pasteLink` as the owner and answers 303 to `/?saved=<id>`, or `/?refreshed=<id>` for a known Item that had been fetched. Every other arrival writes nothing and answers 303 to `/?link=<link>`, with a `notice` from `PREFILL_NOTICES` (`empty`, `invalid`, `private`, `restoring`) when a trusted share saved nothing.
 
 - The link is the first `http:` or `https:` address in `url`, then `text`, then `title` (`sharedContentOf`). `linkIn` strips trailing punctuation, so an address that ends in `)`, such as a Wikipedia title with a bracket, loses it. That is the cost of the rule.
+- A share with words and no address prefills the first nonblank of `text`, `url` and `title` and carries `notice=invalid`.
 - The address carries at most 1,000 UTF-16 code units (`PREFILL_MAX`), so the redirect stays under Node's default header limit of 16 KiB even when every unit percent-encodes to 9 bytes, the worst case for a three-byte UTF-8 character. A longer link is cut to that and carries `notice=invalid`.
 
 ## MCP
@@ -224,7 +225,7 @@ The SDK's validators match hostnames without a port, so the gate has its own rul
 
 | `THREADSIFT_PUBLIC_ORIGIN` | `Host` must be | A present `Origin` must be |
 |---|---|---|
-| Set | That origin's host with its port. Loopback is refused, so a client on the same machine uses the public address | The whole origin: scheme, host and port |
+| Set | That origin's host with its port, also when that host is loopback. A request with another host, a loopback host included, is refused | The whole origin: scheme, host and port |
 | Not set | `localhost`, `127.0.0.1` or `[::1]` on any port. Reaching `/mcp` from another machine needs the variable | A loopback origin |
 
 A request without `Origin` passes, because CLI clients send none. `Origin: null`, a malformed one and an unlisted one answer 403.

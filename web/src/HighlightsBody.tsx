@@ -5,7 +5,7 @@ import { HighlightEntry } from "./HighlightEntry.tsx";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { EmptyState, ListHead, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
-import { CLEAR_ALL, RETRY_LABEL } from "./text.ts";
+import { CLEAR_ALL } from "./text.ts";
 import { useFocusNewEntries } from "./use-highlights-focus.ts";
 import { type PageState, type Ready, canLoadMore } from "./use-highlights-page.ts";
 
@@ -83,12 +83,7 @@ function Listed({
     <>
       <ListHead label={head} sort={HIGHLIGHTS_PAGE.sort} />
       {isEmptyResult(length, state.next) ? (
-        <Notice
-          text={HIGHLIGHTS_PAGE.noResults}
-          action={clearAll}
-          label={CLEAR_ALL}
-          alert={false}
-        />
+        <Notice text={HIGHLIGHTS_PAGE.noResults} action={clearAll} label={CLEAR_ALL} />
       ) : (
         <EntryList entries={state.entries} now={now} list={list} />
       )}
@@ -99,23 +94,19 @@ function Listed({
 
 export function HighlightsBody({
   state,
-  retry,
   ...listed
 }: Readonly<{
   state: PageState;
   head: string;
   filters: Filters;
   now: number;
-  retry: () => void;
   loadMore: () => boolean;
   clearAll: () => void;
   list: RefObject<HTMLOListElement | null>;
 }>) {
-  if (state.status === "loading") return <Loading />;
+  if (state.status === "failed") return null;
 
-  if (state.status === "failed") {
-    return <Notice text={HIGHLIGHTS_PAGE.loadFailed} action={retry} label={RETRY_LABEL} alert />;
-  }
+  if (state.status === "loading") return <Loading />;
 
   return state.counts.total === 0 ? (
     <EmptyState heading={HIGHLIGHTS_PAGE.emptyHeading} line={HIGHLIGHTS_PAGE.emptyLine} />

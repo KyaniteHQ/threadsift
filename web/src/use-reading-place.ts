@@ -6,13 +6,15 @@ import { anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts
 
 const SAVE_DELAY_MS = 400;
 
-function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): () => void {
-  const anchor = arriving ? null : placeOf(itemId);
+type Phase =
+  | { readonly kind: "waiting"; readonly ownerMoved: () => boolean }
+  | { readonly kind: "watching"; readonly watching: AbortController }
+  | { readonly kind: "closed" };
+
+function startWatching(slot: HTMLElement, itemId: number): AbortController {
+  const watching = new AbortController();
+  const { signal } = watching;
   let timer = 0;
-
-  slot.scrollTop = 0;
-
-  if (anchor !== null) scrollToAnchor(slot, anchor);
 
   const save = (): void => {
     window.clearTimeout(timer);
@@ -24,36 +26,111 @@ function watchPlace(slot: HTMLElement, itemId: number, arriving: boolean): () =>
     timer = window.setTimeout(save, SAVE_DELAY_MS);
   };
 
-  slot.addEventListener("scroll", onScroll, { passive: true });
-  window.addEventListener("pagehide", save);
+  slot.addEventListener("scroll", onScroll, { passive: true, signal });
+  window.addEventListener("pagehide", save, { signal });
+  signal.addEventListener("abort", save, { once: true });
+
+  return watching;
+}
+
+function restorePlace(slot: HTMLElement, itemId: number): void {
+  const anchor = placeOf(itemId);
+
+  if (anchor !== null) scrollToAnchor(slot, anchor);
+}
+
+const SCROLL_KEYS: ReadonlySet<string> = new Set([
+  " ",
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+]);
+
+function watchOwnerScroll(slot: HTMLElement, signal: AbortSignal): () => boolean {
+  let armed = false;
+  let moved = false;
+  let seenAt = slot.scrollTop;
+  const arm = (): void => {
+    armed = true;
+  };
+  const scrolledByOwner = (): boolean => armed && slot.scrollTop !== seenAt;
+
+  slot.addEventListener("wheel", arm, { passive: true, signal });
+  slot.addEventListener("touchmove", arm, { passive: true, signal });
+  slot.addEventListener(
+    "keydown",
+    (event) => {
+      if (SCROLL_KEYS.has(event.key)) arm();
+    },
+    { signal },
+  );
+  slot.addEventListener(
+    "pointerdown",
+    (event) => {
+      if (event.target === slot) arm();
+    },
+    { signal },
+  );
+  slot.addEventListener(
+    "scroll",
+    () => {
+      moved ||= scrolledByOwner();
+      seenAt = slot.scrollTop;
+    },
+    { passive: true, signal },
+  );
+
+  return () => moved || scrolledByOwner();
+}
+
+function waitForFonts(slot: HTMLElement, itemId: number): () => void {
+  const waiting = new AbortController();
+  let phase: Phase = { kind: "waiting", ownerMoved: watchOwnerScroll(slot, waiting.signal) };
+
+  const keepMoved = (): void => {
+    if (phase.kind === "waiting" && phase.ownerMoved()) keepPlace(itemId, anchorAt(slot));
+  };
+
+  const restore = (): void => {
+    if (phase.kind !== "waiting") return;
+
+    waiting.abort();
+    window.clearTimeout(deadline);
+    if (!phase.ownerMoved()) restorePlace(slot, itemId);
+    phase = { kind: "watching", watching: startWatching(slot, itemId) };
+  };
+
+  const deadline = window.setTimeout(restore, READ_DEADLINE_MS);
+
+  window.addEventListener("pagehide", keepMoved, { signal: waiting.signal });
+  void document.fonts.ready.then(restore);
 
   return () => {
-    save();
-    slot.removeEventListener("scroll", onScroll);
-    window.removeEventListener("pagehide", save);
+    window.clearTimeout(deadline);
+
+    if (phase.kind === "waiting") {
+      waiting.abort();
+      keepMoved();
+    } else if (phase.kind === "watching") {
+      phase.watching.abort();
+    }
+
+    phase = { kind: "closed" };
   };
 }
 
 function watchAfterFonts(slot: HTMLElement, itemId: number, arriving: boolean): () => void {
-  if (arriving) return watchPlace(slot, itemId, true);
+  slot.scrollTop = 0;
 
-  let stop: (() => void) | undefined;
-  let cancelled = false;
+  if (!arriving) return waitForFonts(slot, itemId);
 
-  const restore = (): void => {
-    if (cancelled || stop !== undefined) return;
-
-    window.clearTimeout(deadline);
-    stop = watchPlace(slot, itemId, arriving);
-  };
-
-  const deadline = window.setTimeout(restore, READ_DEADLINE_MS);
-  void document.fonts.ready.then(restore);
+  const watching = startWatching(slot, itemId);
 
   return () => {
-    cancelled = true;
-    window.clearTimeout(deadline);
-    stop?.();
+    watching.abort();
   };
 }
 

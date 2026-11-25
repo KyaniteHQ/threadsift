@@ -21,6 +21,24 @@ function piecesOf(text: string, size: number): AsyncIterable<Uint8Array> {
   };
 }
 
+function openAfter(text: string): AsyncIterable<Uint8Array> {
+  return {
+    [Symbol.asyncIterator]: () => {
+      let sent = false;
+
+      return {
+        next: () => {
+          if (sent) return new Promise<IteratorResult<Uint8Array>>(() => {});
+
+          sent = true;
+
+          return Promise.resolve({ done: false, value: encoder.encode(text) });
+        },
+      };
+    },
+  };
+}
+
 async function bodyOf(text: string, size: number): Promise<string> {
   const response = await readResponse(piecesOf(text, size));
   const parts: Uint8Array[] = [];
@@ -62,6 +80,24 @@ const closeAnswer = [...HEAD, "", BODY].join("\r\n");
 const SIZES = [1, 3, 7, 4096] as const;
 
 const MALFORMED = { name: "MalformedResponse" } as const;
+
+const HEAD_BYTES = 16 * 1024;
+
+const INTERIM = "HTTP/1.1 103 Early Hints\r\nLink: </a>\r\n\r\n";
+
+const FINAL_START = "HTTP/1.1 200 OK\r\nX-Pad: ";
+
+function twoHeadsOf(total: number): string {
+  const padding = total - INTERIM.length - FINAL_START.length - "\r\n\r\n".length;
+
+  return `${INTERIM}${FINAL_START}${"a".repeat(padding)}\r\n\r\n`;
+}
+
+function headWithoutBlankLine(total: number): string {
+  const padding = total - FINAL_START.length - "\r\n".length;
+
+  return `${FINAL_START}${"a".repeat(padding)}\r\n`;
+}
 
 describe("the Worker's HTTP/1.1 reader", () => {
   for (const size of SIZES) {
@@ -109,6 +145,7 @@ describe("the Worker's HTTP/1.1 reader", () => {
     ["a status line that is not HTTP/1", "SPDY 200 OK\r\n\r\n"],
     ["a head that ends before its blank line", "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n"],
     ["a head longer than 16 KiB", `HTTP/1.1 200 OK\r\nX-Long: ${"a".repeat(17_000)}\r\n\r\n`],
+    ["interim and final heads that total 16 KiB and one byte", twoHeadsOf(HEAD_BYTES + 1)],
     ["a Content-Length that is not a number", "HTTP/1.1 200 OK\r\nContent-Length: two\r\n\r\nxx"],
   ] as const;
 
@@ -116,6 +153,22 @@ describe("the Worker's HTTP/1.1 reader", () => {
     it(`refuses ${name}`, async () => {
       await assert.rejects(() => bodyOf(text, 64), MALFORMED);
     });
+  }
+
+  it("reads interim and final heads that total exactly 16 KiB", async () => {
+    const response = await readResponse(piecesOf(twoHeadsOf(HEAD_BYTES), 64));
+
+    assert.equal(response.status, 200);
+  });
+
+  for (const sent of [HEAD_BYTES - 1, HEAD_BYTES]) {
+    it(
+      `refuses a head of ${String(sent)} bytes that has no room left for its blank line, while the connection stays open`,
+      { timeout: 5000 },
+      async () => {
+        await assert.rejects(() => readResponse(openAfter(headWithoutBlankLine(sent))), MALFORMED);
+      },
+    );
   }
 
   it("refuses a body that ends before its Content-Length", async () => {

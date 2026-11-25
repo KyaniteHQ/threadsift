@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { type JsonField, escapedJson } from "../contract/format.ts";
+
 const SQLITE_CONSTANTS = new Set([
   "SQLITE_BUSY",
   "SQLITE_CORRUPT",
@@ -54,11 +56,8 @@ export function databaseCodeOf(cause: unknown, depth = 0): string {
   return depth < 2 ? databaseCodeOf(failure.data.cause, depth + 1) : "unknown";
 }
 
-export function report(
-  event: string,
-  fields: Readonly<Record<string, number | string | null | readonly number[] | readonly string[]>>,
-): void {
-  console.warn(JSON.stringify({ event, ...fields }));
+export function report(event: string, fields: Readonly<Record<string, JsonField>>): void {
+  console.warn(escapedJson({ event, ...fields }));
 }
 
 export function logFailure(
@@ -66,7 +65,7 @@ export function logFailure(
   fields: Readonly<Record<string, string | number>>,
   cause: unknown,
 ): void {
-  console.error(JSON.stringify({ event, ...fields, error: errorClassOf(cause) }));
+  console.error(escapedJson({ event, ...fields, error: errorClassOf(cause) }));
 }
 
 interface FailureLine {
@@ -91,7 +90,7 @@ export function reportFailure(failure: Readonly<FailureLine>, cause: unknown): v
   try {
     logFailure(failure.event, { ...failure.fields, ...codesOf(cause) }, cause);
   } catch {
-    console.error(JSON.stringify({ event: "failure-unreadable", failed: failure.event }));
+    console.error(escapedJson({ event: "failure-unreadable", failed: failure.event }));
   }
 }
 

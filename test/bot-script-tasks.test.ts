@@ -1,23 +1,21 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, utimesSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
-import { ScriptWorld } from "./bot-script-world.ts";
+import { DAY, HOUR, ScriptWorld, ageBy, justBefore, justPast } from "./bot-script-world.ts";
 import { pastDeadline, picksFor } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 
 const NINE_MIB = 9 * 1024 * 1024;
-const HOUR = 3600;
-const DAY = 24 * HOUR;
+const aged = (folder: string, name: string, seconds: number, text = "x") => {
+  const file = join(folder, name);
 
-const ageBy = (file: string, seconds: number) => {
-  const then = Date.now() / 1000 - seconds;
-
-  utimesSync(file, then, then);
+  writeFileSync(file, text);
+  ageBy(file, seconds);
 };
 
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
@@ -106,7 +104,10 @@ describe("the script opens, answers and reports a task and prints one word for e
     assert.equal(world.folder.fileOf(task.id, "task.json"), opened);
     assert.equal(world.folder.fileOf(task.id, "token"), task.token);
 
-    ageBy(join(world.folder.taskFolder(task.id), "task.json"), 2 * HOUR);
+    ageBy(join(world.folder.taskFolder(task.id), "task.json"), justBefore(HOUR));
+    assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "already-open");
+
+    ageBy(join(world.folder.taskFolder(task.id), "task.json"), justPast(HOUR));
     assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "unauthorized");
     assert.equal(world.folder.fileOf(task.id, "task.json"), opened);
     assert.equal(world.folder.fileOf(task.id, "token"), task.token);
@@ -118,28 +119,29 @@ describe("the script opens, answers and reports a task and prints one word for e
     const abandoned = world.folder.taskFolder(222);
     const recent = world.folder.taskFolder(333);
     const kept = world.folder.taskFolder(444);
+    const fresh = world.folder.taskFolder(555);
 
-    for (const folder of [finished, abandoned, recent, kept]) {
+    for (const folder of [finished, abandoned, recent, kept, fresh]) {
       mkdirSync(folder, { recursive: true });
     }
 
-    writeFileSync(join(finished, "done"), "x");
-    writeFileSync(join(abandoned, "token"), "x");
-    writeFileSync(join(abandoned, "task.json"), "{}");
-    writeFileSync(join(recent, "done"), "x");
-    writeFileSync(join(kept, "done"), "x");
-    writeFileSync(join(kept, "task.json"), "{}");
-    ageBy(join(finished, "done"), 8 * DAY);
-    ageBy(join(abandoned, "token"), 2 * DAY);
-    ageBy(join(abandoned, "task.json"), 2 * DAY);
-    ageBy(join(recent, "done"), 6 * DAY);
-    ageBy(join(kept, "task.json"), 2 * DAY);
+    aged(finished, "done", justPast(7 * DAY));
+    aged(abandoned, "token", justPast(DAY));
+    aged(abandoned, "task.json", justPast(DAY), "{}");
+    aged(recent, "done", justBefore(7 * DAY));
+    aged(kept, "done", 0);
+    aged(kept, "task.json", justPast(DAY), "{}");
+    aged(kept, "token", justPast(DAY));
+    aged(fresh, "token", justBefore(DAY));
+    aged(fresh, "task.json", justBefore(DAY), "{}");
 
     assert.equal(await run(["check"]), "ok");
     assert.equal(existsSync(finished), false);
     assert.equal(existsSync(abandoned), false);
     assert.equal(existsSync(join(recent, "done")), true);
     assert.equal(existsSync(join(kept, "task.json")), true);
+    assert.equal(existsSync(join(kept, "token")), false);
+    assert.equal(existsSync(join(fresh, "token")), true);
   });
 
   it("answers closed and marks the task done when Threadsift no longer takes an answer", async () => {

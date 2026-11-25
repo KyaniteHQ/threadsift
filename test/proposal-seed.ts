@@ -1,6 +1,10 @@
 import { DatabaseSync } from "node:sqlite";
 
+import { getTableColumns, getTableName } from "drizzle-orm";
+import type { SQLiteTable } from "drizzle-orm/sqlite-core";
+
 import { PROPOSAL_KINDS, type ProposalKind } from "../src/core/contract/proposal-contract.ts";
+import { SUBJECT_TABLE } from "../src/core/kernel/schema.ts";
 import type { Instance } from "./instance.ts";
 
 interface Seed {
@@ -12,54 +16,61 @@ interface Seed {
 }
 
 export function subjectTable(kind: ProposalKind): string {
-  return `${kind.replaceAll("-", "_")}_proposals`;
+  return getTableName(SUBJECT_TABLE[kind]);
 }
 
-export function seedProposal(
+type SubjectOf<Kind extends ProposalKind> = Kind extends ProposalKind
+  ? Readonly<Omit<(typeof SUBJECT_TABLE)[Kind]["$inferInsert"], "proposalId" | "kind">>
+  : never;
+
+export function seedProposal<Kind extends ProposalKind>(
   instance: Instance,
-  kind: ProposalKind,
-  subject: Readonly<Record<string, number>>,
+  kind: Kind,
+  subject: SubjectOf<Kind>,
   { id, reason = "A reason.", state = "open", createdAt = 1, run }: Readonly<Seed> = {},
 ): number {
-  const database = new DatabaseSync(instance.databaseFile);
+  const given: Readonly<Partial<Record<string, number>>> = subject;
+  const columns = Object.entries(getTableColumns<SQLiteTable>(SUBJECT_TABLE[kind])).flatMap(
+    ([key, { name }]) => {
+      const value = given[key];
 
-  try {
-    const head = database
-      .prepare(
-        "insert into proposals (id, kind, reason, state, created_at, cursor, moved, unit_revision) values (?, ?, ?, ?, ?, ?, ?, ?) returning id",
-      )
-      .get(
-        id ?? null,
-        kind,
-        reason,
-        state,
-        createdAt,
-        run?.cursor ?? null,
-        run?.moved ?? null,
-        run?.unitRevision ?? null,
-      );
+      return value === undefined ? [] : [{ name, value }];
+    },
+  );
 
-    const proposalId = Number(head?.["id"]);
-    const columns = Object.keys(subject);
+  using database = new DatabaseSync(instance.databaseFile);
 
-    database
-      .prepare(
-        `insert into ${subjectTable(kind)} (proposal_id, kind, ${columns.join(", ")}) values (?, ?, ${columns.map(() => "?").join(", ")})`,
-      )
-      .run(proposalId, kind, ...Object.values(subject));
+  database.exec("begin immediate");
 
-    return proposalId;
-  } finally {
-    database.close();
-  }
+  const head = database
+    .prepare(
+      "insert into proposals (id, kind, reason, state, created_at, cursor, moved, unit_revision) values (?, ?, ?, ?, ?, ?, ?, ?) returning id",
+    )
+    .get(
+      id ?? null,
+      kind,
+      reason,
+      state,
+      createdAt,
+      run?.cursor ?? null,
+      run?.moved ?? null,
+      run?.unitRevision ?? null,
+    );
+
+  const proposalId = Number(head?.["id"]);
+
+  database
+    .prepare(
+      `insert into ${subjectTable(kind)} (proposal_id, kind, ${columns.map(({ name }) => name).join(", ")}) values (?, ?, ${columns.map(() => "?").join(", ")})`,
+    )
+    .run(proposalId, kind, ...columns.map(({ value }) => value));
+  database.exec("commit");
+
+  return proposalId;
 }
 
 export function removeProposals(instance: Instance): void {
-  const database = new DatabaseSync(instance.databaseFile);
-
-  try {
-    for (const kind of PROPOSAL_KINDS) database.prepare(`delete from ${subjectTable(kind)}`).run();
-  } finally {
-    database.close();
-  }
+  instance.database.script(
+    PROPOSAL_KINDS.map((kind) => `delete from ${subjectTable(kind)};`).join("\n"),
+  );
 }

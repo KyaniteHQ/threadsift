@@ -8,6 +8,8 @@ import { HEADER_SAFE_SECRET, SECRET_INPUT_MAX } from "./secret-input.ts";
 
 export const GROK_BOT_PING_KIND = "ping";
 
+export const AI_TASK_PATH = "/api/ai-tasks/{id}";
+
 const PUBLIC_ONLY = true;
 
 const QUERY_OR_FRAGMENT_MARK = /[?#]/u;

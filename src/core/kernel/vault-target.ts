@@ -1,12 +1,9 @@
-import { hex } from "../contract/encoding.ts";
+import { hex, joinedBytes } from "../contract/encoding.ts";
 import type { VaultKind, VaultSubject } from "./vault-tables.ts";
 
 export async function gitBlobSha(bytes: Uint8Array): Promise<string> {
   const header = new TextEncoder().encode(`blob ${String(bytes.length)}\0`);
-  const input = new Uint8Array(header.length + bytes.length);
-  input.set(header);
-  input.set(bytes, header.length);
-  return hex(new Uint8Array(await crypto.subtle.digest("SHA-1", input)));
+  return hex(new Uint8Array(await crypto.subtle.digest("SHA-1", joinedBytes([header, bytes]))));
 }
 
 export type VaultFile = Readonly<{ path: string }> &

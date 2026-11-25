@@ -1,18 +1,19 @@
-import { type ChildProcess, execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { join, resolve } from "node:path";
+import { join } from "node:path";
 
-import { z } from "zod";
+import { withCleanup } from "../src/core/kernel/failure-log.ts";
+import { attemptEvery } from "./attempt-every.ts";
+import { exitAfterSignal } from "./exit-after-signal.ts";
+import { lockRuns, type RunLock } from "./worker-build-cost-lock.ts";
+import { ROOT, startWorker, stopGroups, WORKER_HOST } from "./worker-build-cost-processes.ts";
+import { ownerToken, START_DEADLINE_MS, waitUntilServing } from "./worker-build-cost-serving.ts";
 
-const ROOT = resolve(import.meta.dirname, "..");
 const WORKER_FOLDER = join(ROOT, "src", "targets", "worker");
 const CANDIDATE_ENTRY = "src/targets/worker/index.ts";
 const FIRST_PORT = 8841;
-const PASSWORD = "a measurement password of fifteen or more";
-const START_DEADLINE_MS = 240_000;
-const START_POLL_MS = 500;
-const SETTLE_MS = 1500;
+const CLEANUP_FAILED = { event: "worker-build-cost-cleanup-failed", fields: {} } as const;
 
 export const ROUTES = [
   { name: "GET /api/session", path: "/api/session", authorized: false },
@@ -23,19 +24,18 @@ export const ROUTES = [
 
 export type Route = (typeof ROUTES)[number];
 
+const NAMES = ["baseline", "candidate"] as const;
+
+type Name = (typeof NAMES)[number];
+
 export interface Variant {
-  readonly name: "baseline" | "candidate";
+  readonly name: Name;
   readonly origin: string;
   readonly token: string;
   readonly processGroup: number;
 }
 
-export interface Harness {
-  readonly variants: readonly [Variant, Variant];
-  readonly stop: () => Promise<void>;
-}
-
-const TokenSchema = z.object({ value: z.string() });
+export type Variants = readonly [Variant, Variant];
 
 function sourceOf(version: string): string {
   if (existsSync(version)) return readFileSync(version, "utf8");
@@ -45,97 +45,17 @@ function sourceOf(version: string): string {
   });
 }
 
-function pause(ms: number): Promise<void> {
-  return new Promise((done) => {
-    setTimeout(done, ms);
-  });
-}
-
-async function answers(origin: string): Promise<boolean> {
-  try {
-    const response = await fetch(`${origin}/api/session`);
-    await response.arrayBuffer();
-    return response.status === 200;
-  } catch {
-    return false;
-  }
-}
-
-async function waitUntilServing(origin: string, deadline: number): Promise<void> {
-  if (await answers(origin)) return;
-  if (Date.now() > deadline) {
-    throw new Error(`${origin} did not answer GET /api/session within ${START_DEADLINE_MS} ms`);
-  }
-  await pause(START_POLL_MS);
-  await waitUntilServing(origin, deadline);
-}
-
-async function ownerToken(origin: string, setupCode: string): Promise<string> {
-  const headers = { "content-type": "application/json", origin };
-  const setup = await fetch(`${origin}/api/setup`, {
-    method: "POST",
-    headers,
-    body: JSON.stringify({ code: setupCode, password: PASSWORD }),
-  });
-  if (setup.status !== 204) throw new Error(`POST /api/setup answered ${setup.status}`);
-  const cookie = setup.headers
-    .getSetCookie()
-    .map((line) => line.split(";")[0])
-    .join("; ");
-  const created = await fetch(`${origin}/api/tokens`, {
-    method: "POST",
-    headers: { ...headers, cookie },
-    body: JSON.stringify({ name: "worker-build-cost" }),
-  });
-  if (created.status !== 201) throw new Error(`POST /api/tokens answered ${created.status}`);
-  return TokenSchema.parse(await created.json()).value;
-}
-
-function startWorker(
-  port: number,
-  state: string,
-  envFile: string,
-  config: readonly string[],
-): ChildProcess {
-  return spawn(
-    "worker-local",
-    [
-      state,
-      String(port),
-      "--ip",
-      "127.0.0.1",
-      "--inspector-port",
-      "0",
-      "--env-file",
-      envFile,
-      ...config,
-    ],
-    { cwd: ROOT, detached: true, stdio: "ignore" },
-  );
-}
-
-function signalGroup(group: number, signal: NodeJS.Signals): void {
-  try {
-    process.kill(-group, signal);
-  } catch {
-    process.stderr.write(`process group ${group} already ended\n`);
-  }
-}
-
 interface Prepared {
-  readonly state: string;
   readonly setupCode: string;
   readonly envFile: string;
 }
-
-const NAMES = ["baseline", "candidate"] as const;
 
 const entryFile = (name: string): string => `worker-build-cost-${name}.tmp.ts`;
 
 const configFile = (name: string): string => `wrangler.worker-build-cost-${name}.tmp.jsonc`;
 
-function prepare(versions: readonly [string, string], folderName: string): Prepared {
-  const state = join(ROOT, ".wrangler", folderName);
+function prepare(versions: readonly [string, string], state: string): Prepared {
+  remove(state);
   mkdirSync(state, { recursive: true, mode: 0o700 });
   const setupCode = randomBytes(24).toString("base64url");
   const envFile = join(state, "env");
@@ -152,75 +72,123 @@ function prepare(versions: readonly [string, string], folderName: string): Prepa
       wrangler.replace(CANDIDATE_ENTRY, `src/targets/worker/${entryFile(name)}`),
     );
   }
-  return { state, setupCode, envFile };
+  return { setupCode, envFile };
 }
 
-function removeTemporaryFiles(state: string): void {
-  for (const name of NAMES) {
-    rmSync(join(WORKER_FOLDER, entryFile(name)), { force: true });
-    rmSync(join(ROOT, configFile(name)), { force: true });
-  }
-  rmSync(state, { recursive: true, force: true });
+function remove(target: string): void {
+  rmSync(target, { recursive: true, force: true });
 }
+
+function removals(state: string): (() => undefined)[] {
+  const files = NAMES.flatMap((name) => [
+    join(WORKER_FOLDER, entryFile(name)),
+    join(ROOT, configFile(name)),
+  ]);
+
+  return [...files, state].map((target): (() => undefined) => () => {
+    remove(target);
+  });
+}
+
+async function tearDown(
+  state: string,
+  lock: Readonly<RunLock>,
+  groups: readonly number[],
+): Promise<void> {
+  await stopGroups(groups);
+  attemptEvery(removals(state));
+  await lock.release();
+}
+
+type Slot = 0 | 1;
+
+const forBoth = <Value>(make: (name: Name, slot: Slot) => Value): readonly [Value, Value] => [
+  make(NAMES[0], 0),
+  make(NAMES[1], 1),
+];
+
+const portOf = (slot: Slot): number => FIRST_PORT + slot;
+
+const originOf = (slot: Slot): string => `http://${WORKER_HOST}:${portOf(slot)}`;
 
 async function serving(
   prepared: Readonly<Prepared>,
   groups: readonly [number, number],
-): Promise<Harness["variants"]> {
-  const origins = [FIRST_PORT, FIRST_PORT + 1].map((port) => `http://127.0.0.1:${port}`);
+): Promise<Variants> {
   const deadline = Date.now() + START_DEADLINE_MS;
-  await Promise.all(origins.map((origin) => waitUntilServing(origin, deadline)));
-  const [baselineToken, candidateToken] = await Promise.all(
-    origins.map((origin) => ownerToken(origin, prepared.setupCode)),
+  await Promise.all(forBoth((_, slot) => waitUntilServing(originOf(slot), deadline)));
+  const tokens = await Promise.all(
+    forBoth((_, slot) => ownerToken(originOf(slot), prepared.setupCode)),
   );
-  return [
-    {
-      name: "baseline",
-      origin: `http://127.0.0.1:${FIRST_PORT}`,
-      token: baselineToken ?? "",
-      processGroup: groups[0],
-    },
-    {
-      name: "candidate",
-      origin: `http://127.0.0.1:${FIRST_PORT + 1}`,
-      token: candidateToken ?? "",
-      processGroup: groups[1],
-    },
-  ];
+  return forBoth((name, slot) => ({
+    name,
+    origin: originOf(slot),
+    token: tokens[slot],
+    processGroup: groups[slot],
+  }));
+}
+
+interface Starting {
+  readonly spawned: Promise<readonly number[]>;
+  readonly started: Promise<readonly [number, number]>;
+}
+
+function startWorkers(lock: Readonly<RunLock>, state: string, envFile: string): Starting {
+  const pending = Promise.allSettled(
+    forBoth((name, slot) =>
+      startWorker(lock.record, portOf(slot), join(state, name), envFile, [
+        "--config",
+        configFile(name),
+      ]),
+    ),
+  );
+
+  return {
+    spawned: pending.then((workers) =>
+      workers.flatMap((worker) => (worker.status === "fulfilled" ? [worker.value] : [])),
+    ),
+    started: pending.then(([baseline, candidate]): readonly [number, number] => {
+      if (baseline.status === "rejected") throw baseline.reason;
+      if (candidate.status === "rejected") throw candidate.reason;
+
+      return [baseline.value, candidate.value];
+    }),
+  };
 }
 
 export const WORKING_TREE = CANDIDATE_ENTRY;
 
-export async function startHarness(
+export async function withHarness<Result>(
   versions: readonly [string, string],
   folderName: string,
-): Promise<Harness> {
-  const prepared = prepare(versions, folderName);
-  const { state, envFile } = prepared;
-  const groups: readonly [number, number] = [
-    startWorker(FIRST_PORT, join(state, "baseline"), envFile, ["--config", configFile("baseline")])
-      .pid ?? 0,
-    startWorker(FIRST_PORT + 1, join(state, "candidate"), envFile, [
-      "--config",
-      configFile("candidate"),
-    ]).pid ?? 0,
-  ];
-  const signalAll = (): void => {
-    for (const group of groups) signalGroup(group, "SIGTERM");
+  body: (variants: Variants) => Promise<Result>,
+): Promise<Result> {
+  const lock = await lockRuns(forBoth((_, slot) => portOf(slot)));
+  const state = join(ROOT, ".wrangler", folderName);
+  let spawned: Promise<readonly number[]> = Promise.resolve([]);
+  let finished: Promise<void> | undefined;
+  const cleanUp = (): Promise<void> => {
+    finished ??= spawned.then((groups) => tearDown(state, lock, groups));
+
+    return finished;
   };
+  const release = exitAfterSignal(cleanUp);
+
   try {
-    return {
-      variants: await serving(prepared, groups),
-      stop: async (): Promise<void> => {
-        signalAll();
-        await pause(SETTLE_MS);
-        removeTemporaryFiles(state);
+    return await withCleanup(
+      CLEANUP_FAILED,
+      async () => {
+        const prepared = prepare(versions, state);
+        const workers = startWorkers(lock, state, prepared.envFile);
+
+        spawned = workers.spawned;
+
+        return body(await serving(prepared, await workers.started));
       },
-    };
-  } catch (error) {
-    signalAll();
-    removeTemporaryFiles(state);
-    throw error;
+      cleanUp,
+    );
+  } finally {
+    release();
   }
 }
 
@@ -233,28 +201,4 @@ export async function request(variant: Readonly<Variant>, route: Readonly<Route>
   if (response.status !== 200) {
     throw new Error(`${route.name} on ${variant.name} answered ${response.status}`);
   }
-}
-
-export function median(values: readonly number[]): number {
-  return percentile(values, 50);
-}
-
-export function percentile(values: readonly number[], rank: number): number {
-  const sorted = values.toSorted((a, b) => a - b);
-  return sorted[Math.min(sorted.length - 1, Math.floor((rank / 100) * sorted.length))] ?? 0;
-}
-
-export function inSequence<T, R>(
-  items: readonly T[],
-  run: (item: T) => Promise<R>,
-): Promise<readonly R[]> {
-  return items.reduce<Promise<R[]>>(async (done, item) => {
-    const results = await done;
-    results.push(await run(item));
-    return results;
-  }, Promise.resolve([]));
-}
-
-export function counted(total: number): readonly number[] {
-  return Array.from({ length: total }, (_, index) => index);
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { collapsed } from "../contract/format.ts";
 import { GFM_PLUGINS } from "../contract/gfm-markdown.ts";
+import { escapeInline } from "./markdown-escape.ts";
 
 interface Offset {
   readonly offset?: number | undefined;
@@ -33,9 +34,13 @@ export type MarkdownImage = z.infer<typeof MarkdownImageSchema>;
 
 const PROCESSOR = unified().use(remarkParse).use(GFM_PLUGINS);
 
-const ALT_SPECIALS = /[\\`*_~[\]<>&|]/gu;
-
 const TITLE_SPECIALS = /["\\]/gu;
+
+const ESCAPE_STARTS = ["\\", "&"] as const;
+
+export function mayHoldDestination(markdown: string, prefix: string): boolean {
+  return markdown.includes(prefix) || ESCAPE_STARTS.some((start) => markdown.includes(start));
+}
 
 function walk(root: Readonly<MarkdownNode>): MarkdownNode[] {
   const found: MarkdownNode[] = [];
@@ -109,7 +114,7 @@ export function scanMarkdown(markdown: string, wantsLinks: boolean): MarkdownSca
 }
 
 export function altText(alt: string): string {
-  return collapsed(alt).replaceAll(ALT_SPECIALS, "\\$&");
+  return escapeInline(collapsed(alt));
 }
 
 export function inlineImage(image: Readonly<MarkdownImage>, destination: string): string {

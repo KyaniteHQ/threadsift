@@ -4,8 +4,30 @@ import { NoteBox } from "./NoteBox.tsx";
 import { READER_FAILED, READER_STALE } from "./reader-text.ts";
 import { Agent } from "./ReaderColumn.tsx";
 import { Original } from "./ReaderOriginal.tsx";
-import { RETRY_LABEL } from "./text.ts";
+import { AlertRegion, StatusRegion } from "./RetryRegions.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
+
+export function ReaderNotices({
+  state,
+  retry,
+}: Readonly<{ state: DetailState; retry: () => void }>) {
+  return (
+    <>
+      <AlertRegion
+        className="rd-orig"
+        buttonClass="btn btn-block"
+        text={state.status === "failed" ? READER_FAILED : null}
+        retry={retry}
+      />
+      <StatusRegion
+        className="rd-orig"
+        buttonClass="btn btn-block"
+        text={state.status === "ready" && state.stale ? READER_STALE : null}
+        retry={retry}
+      />
+    </>
+  );
+}
 
 export function ReaderContent({
   item,
@@ -16,33 +38,14 @@ export function ReaderContent({
   now,
 }: Readonly<{
   item: Item;
-  state: Exclude<DetailState, { status: "loading" }>;
+  state: Extract<DetailState, { status: "ready" }>;
   actions: DetailActions;
   announce: (text: string) => void;
   tryAgain: (item: Item) => void;
   now: number;
 }>) {
-  if (state.status === "failed") {
-    return (
-      <div className="rd-orig" role="alert">
-        <p className="rd-note">{READER_FAILED}</p>
-        <button type="button" className="btn btn-block" onClick={actions.retry}>
-          {RETRY_LABEL}
-        </button>
-      </div>
-    );
-  }
-
   return (
     <>
-      {state.stale ? (
-        <div className="rd-orig">
-          <output className="rd-note">{READER_STALE}</output>
-          <button type="button" className="btn btn-block" onClick={actions.retry}>
-            {RETRY_LABEL}
-          </button>
-        </div>
-      ) : null}
       <HighlightsProvider
         itemId={item.id}
         view={state.detail.highlights}

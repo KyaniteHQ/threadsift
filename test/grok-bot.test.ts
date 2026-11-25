@@ -10,17 +10,9 @@ import {
   GrokBotViewSchema,
   KEY_NEEDED,
 } from "../src/core/contract/grok-bot-contract.ts";
-import {
-  ADDRESS,
-  KEY,
-  NEW_KEY,
-  OTHER_ADDRESS,
-  PATH,
-  SECRET_KEY,
-  saved,
-  view,
-} from "./grok-bot-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { sealedSecrets } from "../src/core/kernel/sealed-secret.ts";
+import { ADDRESS, KEY, NEW_KEY, OTHER_ADDRESS, PATH, saved, view } from "./grok-bot-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 describe("Save seals the key, never returns it, and asks for a new key with a new address", () => {
   let instance: Instance;
@@ -118,7 +110,9 @@ describe("Save seals the key, never returns it, and asks for a new key with a ne
   it("replaces the address and key together", async () => {
     await instance.send("PUT", PATH, { webhookUrl: ADDRESS, key: KEY });
 
-    const [first] = saved(instance);
+    const opener = await sealedSecrets(SECRET_KEY);
+
+    assert.ok(opener !== null);
 
     await instance.send("PUT", PATH, { webhookUrl: OTHER_ADDRESS, key: NEW_KEY });
 
@@ -126,7 +120,7 @@ describe("Save seals the key, never returns it, and asks for a new key with a ne
 
     assert.deepEqual(others, []);
     assert.equal(second?.webhook_url, OTHER_ADDRESS);
-    assert.notEqual(second?.sealed_key, first?.sealed_key);
+    assert.equal(await opener.open(second?.sealed_key ?? ""), NEW_KEY);
   });
 
   it("removes the row and answers 200 with the view each time", async () => {

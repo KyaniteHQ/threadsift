@@ -1,10 +1,10 @@
 import { base64url, fromBase64url } from "../contract/encoding.ts";
 
-const KEY_PATTERN = /^[\da-f]{64}$/iu;
+export const SECRET_KEY_PATTERN = /^[\da-f]{64}$/iu;
 const IV_BYTES = 12;
 
 function sealingKey(configured: string | undefined): Promise<CryptoKey | null> {
-  if (configured === undefined || !KEY_PATTERN.test(configured)) {
+  if (configured === undefined || !SECRET_KEY_PATTERN.test(configured)) {
     return Promise.resolve(null);
   }
 

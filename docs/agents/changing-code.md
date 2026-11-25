@@ -64,7 +64,7 @@ A text that tells the owner where to look names only what a run shows there. Bad
 
 ## Docs, commit messages and PR bodies
 
-Write them, the README and the guides included, by the `technical-writing` skill, and apply the `humanizer` skill as that skill says.
+Write them, the README and the guides included, by the `technical-writing` skill, and apply the `humanizer` skill as that skill says. Where the skill differs from this page, this page wins.
 
 - **Name the symbol or the command, never the file path.** A path breaks when a file moves, and a symbol does not. Describe a thing by its role or by its GLOSSARY term: "the Reader's lazy page loader", `announcement`, `SettingsActions`, `pnpm run check`. Name a skill or an agent by its name, and a helper by its symbol. Keep a path only inside a command that needs it, a config key, a route or a URL.
 - **Link to another doc with a Markdown link and plain link text**, such as `[Testing](../testing.md)`, never with a path as the link text.

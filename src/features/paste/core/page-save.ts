@@ -1,10 +1,5 @@
 import type { Digest } from "../../../core/contract/digest-schema.ts";
-import {
-  isRedditShareLink,
-  isShortLink,
-  parseLink,
-  takesPage,
-} from "../../../core/contract/links.ts";
+import { needsResolving, parseLink, takesPage } from "../../../core/contract/links.ts";
 import {
   PAGE_BYTES,
   type SuppliedPage,
@@ -36,7 +31,7 @@ export async function savePage(
 
   if (refused !== null) return refused;
 
-  if (isShortLink(absoluteUrl) || isRedditShareLink(absoluteUrl)) {
+  if (needsResolving(absoluteUrl)) {
     return {
       kind: "invalid",
       field: "page",

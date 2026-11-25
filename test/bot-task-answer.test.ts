@@ -2,35 +2,26 @@ import assert from "node:assert/strict";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { dueIds, claimNextDue } from "../src/core/compose/jobs.ts";
+import { DAY_MS } from "../src/core/contract/time-units.ts";
 import {
   type BotLibrary,
-  SECRET_KEY,
   answerOf,
   picksFor,
   relatedLibrary,
   retireTasks,
   saveBot,
   unblock,
+  pickedFor,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { applied, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
-import { exec, pairsOf } from "./related-fixtures.ts";
-
-const DAY_MS = 24 * 3_600_000;
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { sweptWith } from "./weekly-claim-fixtures.ts";
 
 describe("an answer reaches its job whichever happens first, the answer or the sender's deferral", () => {
   let instance: Instance;
   let library: BotLibrary;
-
-  const candidate = () => {
-    const [first] = library.candidates;
-
-    assert.ok(first !== undefined);
-
-    return first;
-  };
 
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
@@ -55,7 +46,10 @@ describe("an answer reaches its job whichever happens first, the answer or the s
       unlessOpen: task.id,
     } as const;
 
-    assert.equal((await answered(instance, task, answerOf(picksFor(candidate())))).status, 204);
+    assert.equal(
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
+      204,
+    );
 
     const committed = Date.now();
 
@@ -78,7 +72,10 @@ describe("an answer reaches its job whichever happens first, the answer or the s
       unlessOpen: task.id,
     });
     assert.equal(jobRow(instance, task.job.id).state, "queued");
-    assert.equal((await answered(instance, task, answerOf(picksFor(candidate())))).status, 204);
+    assert.equal(
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
+      204,
+    );
 
     unblock(instance, library.source);
 
@@ -91,10 +88,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
 
     await applied(instance, claimed, await step(instance, claimed));
 
-    assert.deepEqual(
-      pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [candidate()],
-    );
+    assert.deepEqual(pickedFor(instance, library), [library.candidates[0]]);
     assert.equal(jobRow(instance, task.job.id).state, "done");
   });
 });
@@ -105,6 +99,15 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
 
   const state = (id: number) => taskRow(instance, id).state;
 
+  const sweptAfterDeadline = (ids: readonly number[], ageMs: number) =>
+    sweptWith(instance, (now) => {
+      instance.database.exec(
+        `update ai_tasks set deadline = ? where id in (${ids.map(() => "?").join(", ")})`,
+        now - ageMs,
+        ...ids,
+      );
+    });
+
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
@@ -114,23 +117,17 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
 
   after(() => instance.close());
 
-  const sweep = async () => {
-    exec(instance, "delete from scheduled_runs where task = 'sweep'");
-    await instance.tick();
-  };
-
   it("keeps an answered task, and an unanswered task with a job, past the deadline, and still expires a task with no job", async () => {
     retireTasks(instance);
 
     const answeredTask = await taskAfterStart(instance, library.source);
 
     assert.equal(
-      (await answered(instance, answeredTask, answerOf(picksFor(library.candidates[0] ?? 0))))
-        .status,
+      (await answered(instance, answeredTask, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
 
-    const owned = await taskAfterStart(instance, library.candidates[0] ?? 0);
+    const owned = await taskAfterStart(instance, library.candidates[0]);
 
     const plain = insertedTask(instance, {
       kind: "digest",
@@ -138,24 +135,15 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
       token: "tst_plain",
     });
 
-    exec(instance, "update ai_tasks set job_id = null where id = ?", plain);
+    instance.database.exec("update ai_tasks set job_id = null where id = ?", plain);
 
-    const past = Date.now() - 1000;
+    const states = () => [answeredTask.id, owned.id, plain].map((id) => state(id));
 
-    exec(
-      instance,
-      "update ai_tasks set deadline = ? where id in (?, ?, ?)",
-      past,
-      answeredTask.id,
-      owned.id,
-      plain,
-    );
-    await sweep();
+    await sweptAfterDeadline([answeredTask.id, owned.id, plain], 0);
+    assert.deepEqual(states(), ["running", "running", "running"]);
 
-    assert.deepEqual(
-      [answeredTask.id, owned.id, plain].map((id) => state(id)),
-      ["running", "running", "failed"],
-    );
+    await sweptAfterDeadline([answeredTask.id, owned.id, plain], 1);
+    assert.deepEqual(states(), ["running", "running", "failed"]);
     assert.notEqual(taskRow(instance, answeredTask.id).result, null);
     assert.equal(taskRow(instance, plain).refusal, "timeout");
   });
@@ -164,22 +152,19 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
     retireTasks(instance);
 
     const answeredTask = await taskAfterStart(instance, library.source);
-    const owned = await taskAfterStart(instance, library.candidates[1] ?? 0);
+    const owned = await taskAfterStart(instance, library.candidates[1]);
 
     assert.equal(
-      (await answered(instance, answeredTask, answerOf(picksFor(library.candidates[0] ?? 0))))
-        .status,
+      (await answered(instance, answeredTask, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
-    exec(
-      instance,
-      "update ai_tasks set deadline = ? where id in (?, ?)",
-      Date.now() - DAY_MS - 1000,
-      answeredTask.id,
-      owned.id,
+    await sweptAfterDeadline([answeredTask.id, owned.id], DAY_MS);
+    assert.deepEqual(
+      [answeredTask.id, owned.id].map((id) => state(id)),
+      ["running", "running"],
     );
-    await sweep();
 
+    await sweptAfterDeadline([answeredTask.id, owned.id], DAY_MS + 1);
     assert.deepEqual(
       [answeredTask.id, owned.id].map((id) => state(id)),
       ["failed", "failed"],

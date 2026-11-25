@@ -10,10 +10,10 @@ import {
   sentOf,
   tasksOf,
 } from "./disagreement-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import { listedIds, readPage } from "./lost-highlight-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { SECRET_KEY, count, exec, saveProvider } from "./related-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 import { jobsOf } from "./weekly-claim-fixtures.ts";
 
@@ -43,8 +43,8 @@ describe("disagreement rows beside the other kinds", () => {
       instance,
       "topic-merge",
       {
-        from_topic_id: topicId(instance, "Reading"),
-        into_topic_id: topicId(instance, "Other"),
+        fromTopicId: topicId(instance, "Reading"),
+        intoTopicId: topicId(instance, "Other"),
       },
       { reason: "Same subject." },
     );
@@ -126,7 +126,10 @@ describe("a disagreement row stays only while the pair was judged on the Digests
 
   it("hides an open row whose Items sit in two Topics, keeps it through the next weekly stage, and lists it again when the Items are back in one Topic", async () => {
     moved = proposeDisagreement(instance, [3, 4]);
-    exec(instance, "update items set topic_id = ? where id = 4", topicId(instance, "Other"));
+    instance.database.exec(
+      "update items set topic_id = ? where id = 4",
+      topicId(instance, "Other"),
+    );
 
     assert.deepEqual(await listedIds(instance, "items-disagree"), [kept]);
 
@@ -137,7 +140,10 @@ describe("a disagreement row stays only while the pair was judged on the Digests
       true,
     );
 
-    exec(instance, "update items set topic_id = ? where id = 4", topicId(instance, "Reading"));
+    instance.database.exec(
+      "update items set topic_id = ? where id = 4",
+      topicId(instance, "Reading"),
+    );
 
     assert.deepEqual(await listedIds(instance, "items-disagree"), [moved, kept]);
   });
@@ -183,7 +189,7 @@ describe("deleting an Item that a disagreement row names", () => {
       [0, 0],
     );
     assert.equal(
-      count(instance, "select count(*) as n from proposals where kind = 'items-disagree'"),
+      instance.database.count("select count(*) as n from proposals where kind = 'items-disagree'"),
       0,
     );
   });

@@ -1,7 +1,12 @@
 import type { CommentNode } from "../../../core/contract/comment-view.ts";
 import { utf8Length } from "../../../core/contract/encoding.ts";
-import { isImageRouteOf, keyOfFileRoute } from "../../../core/contract/file-keys.ts";
-import { collapsed } from "../../../core/contract/format.ts";
+import {
+  FILE_ROUTE,
+  isImageRouteOf,
+  itemFilesPrefix,
+  keyOfFileRoute,
+} from "../../../core/contract/file-keys.ts";
+import { collapsed, splitLines } from "../../../core/contract/format.ts";
 import type { Kind, ReadState, Source } from "../../../core/contract/item-contract.ts";
 import {
   COMMENTS_TITLE,
@@ -16,8 +21,13 @@ import {
   UNTITLED,
   handleOf,
 } from "../../../core/contract/reader-text.ts";
-import { inlineImage, rewriteImages, scanMarkdown } from "../../../core/kernel/markdown-images.ts";
-import { lineBreaksOf, plainMarkdown, yamlScalar } from "../../media/core/markdown-escape.ts";
+import { plainMarkdown, yamlScalar } from "../../../core/kernel/markdown-escape.ts";
+import {
+  inlineImage,
+  mayHoldDestination,
+  rewriteImages,
+  scanMarkdown,
+} from "../../../core/kernel/markdown-images.ts";
 
 const SLUG_CODE_POINTS = 80;
 
@@ -88,7 +98,7 @@ function frontMatter(input: Readonly<ItemNoteInput>): string {
 }
 
 function quotedLines(text: string): string[] {
-  return lineBreaksOf(text).map((line) => (line === "" ? ">" : `> ${line}`));
+  return splitLines(text).map((line) => (line === "" ? ">" : `> ${line}`));
 }
 
 function highlightLines({ exact, found }: Readonly<NoteHighlight>): string[] {
@@ -96,9 +106,7 @@ function highlightLines({ exact, found }: Readonly<NoteHighlight>): string[] {
 }
 
 function keyPointLines(point: string): string[] {
-  return lineBreaksOf(plainMarkdown(point)).map((line, at) =>
-    at === 0 ? `- ${line}` : `  ${line}`,
-  );
+  return splitLines(plainMarkdown(point)).map((line, at) => (at === 0 ? `- ${line}` : `  ${line}`));
 }
 
 function section(heading: string, blocks: readonly (readonly string[])[]): string[] {
@@ -128,9 +136,7 @@ function commentLines(node: Readonly<CommentNode>, source: Source): string[] {
 
   return [
     ...(handle === "" ? [] : [`${prefix}**${plainMarkdown(handle)}**`, markers(node.depth + 1)]),
-    ...lineBreaksOf(node.body).map((line) =>
-      line === "" ? markers(node.depth + 1) : prefix + line,
-    ),
+    ...splitLines(node.body).map((line) => (line === "" ? markers(node.depth + 1) : prefix + line)),
   ];
 }
 
@@ -146,6 +152,8 @@ function commentSection(nodes: readonly CommentNode[], source: Source): string[]
 }
 
 function imagesBesideNote(text: string, itemId: number, omittedImages: readonly string[]): string {
+  if (!mayHoldDestination(text, FILE_ROUTE + itemFilesPrefix(itemId))) return text;
+
   const { images } = scanMarkdown(text, false);
 
   return rewriteImages(

@@ -1,7 +1,6 @@
 import { asc, count, eq, gt } from "drizzle-orm";
 
-import { AI_INPUT_BYTES } from "../../../core/contract/ai-contract.ts";
-import { utf8Length } from "../../../core/contract/encoding.ts";
+import { fitsAiInput } from "../../../core/contract/ai-contract.ts";
 import type { MergeKind } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { MERGE } from "./merge-kinds.ts";
@@ -61,7 +60,7 @@ export function proposalsInput(pairs: readonly Readonly<SentPair>[]) {
   const sent: Readonly<SentPair>[] = [];
 
   for (const pair of pairs) {
-    if (utf8Length(proposalsJson([...sent, pair])) <= AI_INPUT_BYTES) sent.push(pair);
+    if (fitsAiInput(proposalsJson([...sent, pair]))) sent.push(pair);
   }
 
   return { input: proposalsJson(sent), sent };

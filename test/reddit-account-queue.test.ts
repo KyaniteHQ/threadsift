@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
+import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { ClaimedRow, Closing } from "../src/core/kernel/job-outcome.ts";
 import { redditClosing, takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
 import {
@@ -21,9 +22,6 @@ import {
   jobs,
   view,
 } from "./reddit-account-fixtures.ts";
-import { exec } from "./related-fixtures.ts";
-
-const HOUR_MS = 3_600_000;
 
 const WAIT_FOR_REDDIT: Closing = { kind: "deferred", wait: "reddit-limit" };
 
@@ -58,15 +56,15 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
 
   beforeEach(async () => {
     claims.clear();
-    exec(instance, "delete from reddit_account");
-    exec(instance, "delete from jobs");
-    exec(instance, "delete from items");
+    instance.database.exec("delete from reddit_account");
+    instance.database.exec("delete from jobs");
+    instance.database.exec("delete from items");
     await connect(instance, SESSION);
     fetchJob(instance, 1, { state: "queued", waitReason: null, dueAt: LATER });
     fetchJob(instance, 2, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
     fetchJob(instance, 3, { state: "queued", waitReason: "reddit-limit", dueAt: LATER });
-    exec(instance, "update reddit_account set queue_head = 2");
-    exec(instance, "update jobs set next_attempt_at = ?", LATER);
+    instance.database.exec("update reddit_account set queue_head = 2");
+    instance.database.exec("update jobs set next_attempt_at = ?", LATER);
   });
 
   after(() => instance.close());
@@ -108,7 +106,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     const now = Date.now();
 
     assert.notEqual(await take(1, now), null);
-    exec(instance, "update jobs set state = 'done' where id = 1");
+    instance.database.exec("update jobs set state = 'done' where id = 1");
     assert.equal(await take(2, now), null);
 
     await closing(1, { kind: "closed" });
@@ -116,7 +114,7 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     assert.equal(account(instance)[0]?.busy_job, null);
     assert.notEqual(await take(2, now), null);
 
-    exec(instance, "delete from jobs where id = 2");
+    instance.database.exec("delete from jobs where id = 2");
     assert.equal(await take(3, now), null);
   });
 
@@ -145,15 +143,18 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     assert.equal(account(instance)[0]?.queue_head, 2);
   });
 
-  it("lets the next job through once the job at the head of the queue is done or gone", async () => {
-    const now = Date.now();
+  it("lets the next job through once the job at the head of the queue is done", async () => {
+    assert.equal(account(instance)[0]?.queue_head, 2);
+    instance.database.exec("update jobs set state = 'done' where id = 2");
 
-    exec(instance, "update jobs set state = 'done' where id = 2");
-    assert.notEqual(await take(3, now), null);
+    assert.notEqual(await take(3, Date.now()), null);
+  });
 
-    exec(instance, "update reddit_account set busy_until = null, busy_job = null");
-    exec(instance, "delete from jobs where id = 3");
-    assert.notEqual(await take(1, now), null);
+  it("lets the next job through once the job at the head of the queue is gone", async () => {
+    assert.equal(account(instance)[0]?.queue_head, 2);
+    instance.database.exec("delete from jobs where id = 2");
+
+    assert.notEqual(await take(3, Date.now()), null);
   });
 
   it("points the head at the next waiting job when the oldest takes the turn", async () => {
@@ -164,8 +165,8 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     assert.notEqual(await take(2, now), null);
     assert.equal(account(instance)[0]?.queue_head, 3);
 
-    exec(instance, "update jobs set state = 'done' where id = 2");
-    exec(instance, "update reddit_account set busy_until = null, busy_job = null");
+    instance.database.exec("update jobs set state = 'done' where id = 2");
+    instance.database.exec("update reddit_account set busy_until = null, busy_job = null");
     assert.equal(await take(4, now), null);
     assert.notEqual(await take(3, now), null);
   });
@@ -176,11 +177,11 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
     await closing(1, WAIT_FOR_REDDIT);
     assert.equal(account(instance)[0]?.queue_head, 1);
 
-    exec(instance, "update jobs set state = 'done' where id = 1");
+    instance.database.exec("update jobs set state = 'done' where id = 1");
     await closing(3, WAIT_FOR_REDDIT);
     assert.equal(account(instance)[0]?.queue_head, 2);
 
-    exec(instance, "update jobs set state = 'done' where id = 2");
+    instance.database.exec("update jobs set state = 'done' where id = 2");
     await closing(3, WAIT_FOR_REDDIT);
     assert.equal(account(instance)[0]?.queue_head, 3);
   });
@@ -196,10 +197,10 @@ describe("one fill takes the Reddit account at a time, oldest first", () => {
   it("gives no turn once the session expired or the account is gone", async () => {
     const now = Date.now();
 
-    exec(instance, "update reddit_account set state = 'expired'");
+    instance.database.exec("update reddit_account set state = 'expired'");
     assert.equal(await take(2, now), null);
 
-    exec(instance, "delete from reddit_account");
+    instance.database.exec("delete from reddit_account");
     assert.equal(await take(2, now), null);
   });
 });
@@ -244,7 +245,7 @@ describe("Reddit answers decide when a fetch job may take its next turn", () => 
     await waitsUntil(NOW + 60_000);
   });
 
-  it("honours the longest 429 delay, caps Retry-After at one hour and waits for an exhausted window to reset", async () => {
+  it("honours the longest 429 delay, and caps Retry-After and the window reset at one hour", async () => {
     const delay = async (reset: string, retryAfter: string | null, wait: number) => {
       await record({ left: null, reset, retryAfter, limited: true });
       await waitsUntil(NOW + wait);
@@ -252,10 +253,10 @@ describe("Reddit answers decide when a fetch job may take its next turn", () => 
     await delay("120", "300", 300_000);
     await delay("900", "Wed, 21 Oct 2026 07:28:00 GMT", 900_000);
     await delay("120", new Date(NOW + 1_200_000).toUTCString(), 1_200_000);
-    await delay("120", "86400", 3_600_000);
-    await delay("86400", null, 86_400_000);
+    await delay("120", "86400", HOUR_MS);
+    await delay("86400", null, HOUR_MS);
     await record({ left: 5, reset: null, retryAfter: null, limited: false });
-    await waitsUntil(NOW + 3_600_000);
+    await waitsUntil(NOW + HOUR_MS);
   });
 
   const refuse = (thread: string) =>

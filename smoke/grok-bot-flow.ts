@@ -2,7 +2,7 @@ import { type Page, expect } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { GROK_BOT_TEXT } from "../web/src/grok-bot-text.ts";
-import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { expectFitsPhone } from "./screen-checks.ts";
 
 const ADDRESS = "https://api2.cursor.sh/automations/webhook/00000000-0000-4000-8000-000000000000";
 
@@ -33,6 +33,10 @@ export async function grokBotFlow(page: Page): Promise<void> {
   await expect(button(page, GROK_BOT_TEXT.test)).toHaveAccessibleDescription(
     GROK_BOT_TEXT.resultNotConfigured,
   );
+  await expect(button(page, GROK_BOT_TEXT.remove)).toHaveAccessibleDescription(
+    GROK_BOT_TEXT.removeNothing,
+  );
+  await expect(section(page).getByText(GROK_BOT_TEXT.removeNothing, { exact: true })).toBeVisible();
 
   await addressField(page).fill(ADDRESS);
   await button(page, GROK_BOT_TEXT.save).click();
@@ -53,9 +57,7 @@ export async function grokBotFlow(page: Page): Promise<void> {
   await addressField(page).fill(OTHER_ADDRESS);
   await expect(page.getByText(GROK_BOT_TEXT.keyNewAddress)).toBeVisible();
 
-  await page.setViewportSize(PHONE);
-  await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await expectFitsPhone(page);
 
   await button(page, GROK_BOT_TEXT.remove).click();
   await expect(page.getByText(GROK_BOT_TEXT.removed)).toBeVisible();

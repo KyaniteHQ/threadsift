@@ -4,9 +4,9 @@ import { z } from "zod";
 
 import type { OverviewGapProposal, ProposalPage } from "../src/core/contract/proposal-contract.ts";
 import type { Instance } from "./instance.ts";
+import { inOrder, pasteInOrder } from "./library-fixtures.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";
 import { seedProposal } from "./proposal-seed.ts";
-import { exec, paste, rows } from "./related-fixtures.ts";
 import { topicId } from "./topic-accept-fixtures.ts";
 
 const GapSchema = z.object({
@@ -17,32 +17,32 @@ const GapSchema = z.object({
 });
 
 export const gapRows = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     GapSchema,
     "select id, topic_id, state, reason from proposals join overview_gap_proposals on proposal_id = id order by id",
   );
 
 export const gapTopics = (instance: Instance): readonly string[] =>
-  rows(
-    instance,
-    z.object({ name: z.string() }),
-    "select topics.name as name from proposals join overview_gap_proposals on proposal_id = proposals.id join topics on topics.id = topic_id order by proposals.id",
-  ).map(({ name }) => name);
+  instance.database
+    .rows(
+      z.object({ name: z.string() }),
+      "select topics.name as name from proposals join overview_gap_proposals on proposal_id = proposals.id join topics on topics.id = topic_id order by proposals.id",
+    )
+    .map(({ name }) => name);
 
 export function proposeGap(instance: Instance, topic: string, state = "open"): number {
   return seedProposal(
     instance,
     "overview-gap",
-    { topic_id: topicId(instance, topic) },
+    { topicId: topicId(instance, topic) },
     { reason: "plain-check", state },
   );
 }
 
 export function pasteInto(instance: Instance, topic: string, slugs: readonly string[]) {
-  return slugs.reduce<Promise<readonly number[]>>(
-    async (done, slug) => [...(await done), await paste(instance, slug, { title: slug, topic })],
-    Promise.resolve([]),
+  return pasteInOrder(
+    instance,
+    slugs.map((slug) => [slug, { title: slug, topic }] as const),
   );
 }
 
@@ -50,17 +50,13 @@ export async function pasteTopics(
   instance: Instance,
   topics: Readonly<Record<string, readonly string[]>>,
 ): Promise<Readonly<Record<string, readonly number[]>>> {
-  const made = await Object.entries(topics).reduce<
-    Promise<readonly (readonly [string, readonly number[]])[]>
-  >(
-    async (done, [topic, slugs]) => [
-      ...(await done),
-      [topic, await pasteInto(instance, topic, slugs)],
-    ],
-    Promise.resolve([]),
-  );
+  const made: Record<string, readonly number[]> = {};
 
-  return Object.fromEntries(made);
+  await inOrder(Object.entries(topics), async ([topic, slugs]) => {
+    made[topic] = await pasteInto(instance, topic, slugs);
+  });
+
+  return made;
 }
 
 export function addTopics(
@@ -68,7 +64,7 @@ export function addTopics(
   topics: readonly Readonly<{ id: number; name: string; items: number; from: number }>[],
 ): void {
   topics.forEach(({ id, name, items, from }) => {
-    exec(instance, "insert into topics (id, name, key) values (?, ?, ?)", id, name, name);
+    instance.database.exec("insert into topics (id, name, key) values (?, ?, ?)", id, name, name);
     seedTopicItems(instance, { topicId: id, name, from, items });
   });
 }
@@ -84,8 +80,7 @@ export function storePage(
 ): void {
   const only = builtFrom === "all" ? "" : `and digests.item_id in (${builtFrom.join(", ")})`;
 
-  exec(
-    instance,
+  instance.database.exec(
     `insert or replace into topic_pages (topic_id, overview, revision, built_from, failure, updated_at)
      select topics.id, ?, 1, coalesce((select json_group_array(json_object('item', digests.item_id, 'digest', digests.task_id)) from digests join items on items.id = digests.item_id where items.topic_id = topics.id ${only}), '[]'), ?, 1
      from topics where topics.name = ?`,
@@ -111,7 +106,7 @@ export function queueOverview(
   itemId: number,
   state: keyof typeof OPEN_JOBS = "queued",
 ): void {
-  exec(instance, overviewJobStatement(itemId, state));
+  instance.database.exec(overviewJobStatement(itemId, state));
 }
 
 export const body = (error: string) => JSON.stringify({ error });
@@ -123,15 +118,13 @@ export const rowStates = (instance: Instance) =>
   gapRows(instance).map(({ id, state }) => [id, state]);
 
 export const overviewJobs = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({ id: z.number(), item_id: z.number(), state: z.string() }),
     "select id, item_id, state from jobs where kind = 'topic_overview' order by id",
   );
 
 export const failureOf = (instance: Instance, topic: string): string | null | undefined =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({ failure: z.string().nullable() }),
     "select topic_pages.failure as failure from topic_pages join topics on topics.id = topic_pages.topic_id where topics.name = ?",
     topic,

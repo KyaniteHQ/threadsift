@@ -1,12 +1,12 @@
-import { type SQL, and, asc, eq, gte, isNull, lte, not, or, sql } from "drizzle-orm";
+import { type SQL, and, eq, gte, isNull, lte, not, or, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { CLAIM_MARGIN_MS } from "../../../core/contract/job-contract.ts";
+import { CLAIM_MARGIN_MS, REDDIT_WAIT } from "../../../core/contract/job-contract.ts";
 import { FILL_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { Closing, JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { enqueueQuietly, holding, jobIsOpen } from "../../../core/kernel/job-rows.ts";
-import { waitingFor, wokenJobs } from "../../../core/kernel/job-waiting.ts";
+import { holding, jobIsOpen } from "../../../core/kernel/job-rows.ts";
+import { enqueueWoken, waitingFetches, wokenJobs } from "../../../core/kernel/job-waiting.ts";
 import {
   ACCOUNT_ROW,
   type AccountRow,
@@ -16,7 +16,7 @@ import { type JobRow, jobs } from "../../../core/kernel/schema.ts";
 
 export const WAIT_CHECK_MS = 300_000;
 
-const WAITING = and(eq(jobs.kind, "fetch"), waitingFor("reddit-limit"));
+export const WAITING = waitingFetches(REDDIT_WAIT);
 
 const OLDEST_WAITING = sql`(select min(${jobs.id}) from ${jobs} where ${WAITING})`;
 
@@ -114,11 +114,9 @@ function wakeOldest(db: Database, run: TurnRun, now: number): BatchItem<"sqlite"
   return wokenJobs(
     db,
     now,
-    and(
-      WAITING,
-      eq(jobs.id, sql`${OLDEST_WAITING}`),
-      sql`exists (select 1 from ${redditAccount} where ${ownedBy(run)})`,
-    ),
+    WAITING,
+    eq(jobs.id, sql`${OLDEST_WAITING}`),
+    sql`exists (select 1 from ${redditAccount} where ${ownedBy(run)})`,
   );
 }
 
@@ -146,11 +144,9 @@ function wakeWhenFree(db: Database, run: TurnRun, now: number): BatchItem<"sqlit
   return wokenJobs(
     db,
     now,
-    and(
-      eq(jobs.id, run.id),
-      WAITING,
-      sql`exists (select 1 from ${redditAccount} where ${takeable})`,
-    ),
+    eq(jobs.id, run.id),
+    WAITING,
+    sql`exists (select 1 from ${redditAccount} where ${takeable})`,
   );
 }
 
@@ -161,7 +157,7 @@ export function redditClosing(
 ): readonly BatchItem<"sqlite">[] {
   return how.kind === "closed"
     ? [wakeOldest(db, job, Date.now()), releaseTurn(db, job)]
-    : how.wait === "reddit-limit"
+    : how.wait === REDDIT_WAIT
       ? [deferTurn(db, job, true), wakeWhenFree(db, job, Date.now())]
       : [deferTurn(db, job, false)];
 }
@@ -175,33 +171,9 @@ export async function redditClosed(
 
   if (!closed) await ports.db.batch([wakeOldest(ports.db, job, now), releaseTurn(ports.db, job)]);
 
-  await enqueueWaiting(ports, now, "oldest");
+  await enqueueWoken(ports, now, WAITING, "oldest");
 }
 
-export function releaseWaiting(db: Database, now: number): BatchItem<"sqlite"> {
-  return wokenJobs(db, now, WAITING);
-}
-
-export function releaseWaitingWhen(db: Database, now: number, condition: SQL): BatchItem<"sqlite"> {
-  return wokenJobs(db, now, and(WAITING, condition));
-}
-
-export async function enqueueWaiting(
-  ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
-  now: number,
-  which: "oldest" | "all",
-): Promise<void> {
-  const due = ports.db
-    .select({ id: jobs.id })
-    .from(jobs)
-    .where(and(WAITING, lte(jobs.nextAttemptAt, now)))
-    .orderBy(asc(jobs.id));
-
-  const rows = await (which === "oldest" ? due.limit(1) : due);
-
-  await enqueueQuietly(
-    ports,
-    rows.map(({ id }) => id),
-    0,
-  );
+export function accountIdle(now: number): SQL {
+  return sql`not exists (select 1 from ${redditAccount} where ${redditAccount.id} = ${ACCOUNT_ROW} and ${redditAccount.busyUntil} > ${now})`;
 }

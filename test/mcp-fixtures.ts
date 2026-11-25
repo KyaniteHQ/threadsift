@@ -1,9 +1,9 @@
-import assert from "node:assert/strict";
-
 import { HighlightResponseSchema } from "../src/core/contract/highlight-contract.ts";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
+import { selectorIn } from "./highlight-selector.ts";
 import type { Instance, Json } from "./instance.ts";
+import { keepPassage } from "./lost-highlight-fixtures.ts";
 
 export const KEPT_ARTICLE = "https://example.com/guides/kept-highlight";
 
@@ -36,8 +36,6 @@ const QUOTE = "online backup command";
 const COMMENT_TEXT = "Use sqlite3 .backup, a plain copy can tear a page while a writer is busy.";
 
 const COMMENT_QUOTE = "plain copy can tear a page";
-
-const CONTEXT = 32;
 
 function comment(id: string, parent: string, body: string, replies: Json): Json {
   return {
@@ -103,19 +101,6 @@ function page(text: string): Json {
   return { markdown: `${BODY}\n\n${text}`, title: "Backing up SQLite", author: "Ada Example" };
 }
 
-function selectorFor(text: string, exact: string): Json {
-  const start = text.indexOf(exact);
-
-  assert.notEqual(start, -1);
-
-  return {
-    exact,
-    prefix: text.slice(Math.max(0, start - CONTEXT), start),
-    suffix: text.slice(start + exact.length, start + exact.length + CONTEXT),
-    hint: start,
-  };
-}
-
 async function paste(instance: Instance, url: string, supplied: Record<string, Json> = {}) {
   const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
     url,
@@ -152,13 +137,7 @@ export async function seedLibrary(instance: Instance): Promise<Library> {
 
   const kept = await instance.detail(keptId);
 
-  await highlight(
-    instance,
-    keptId,
-    { kind: "post" },
-    kept.highlights.revisions.post,
-    selectorFor(kept.postText ?? "", QUOTE),
-  );
+  await keepPassage(instance, keptId, QUOTE);
   await instance.read("PUT", `/api/items/${String(keptId)}/note`, NoteResponseSchema, {
     body: NOTE_BODY,
     revision: kept.note.revision,
@@ -169,15 +148,7 @@ export async function seedLibrary(instance: Instance): Promise<Library> {
     digest: DIGEST,
   });
 
-  const lost = await instance.detail(lostId);
-
-  await highlight(
-    instance,
-    lostId,
-    { kind: "post" },
-    lost.highlights.revisions.post,
-    selectorFor(lost.postText ?? "", QUOTE),
-  );
+  await keepPassage(instance, lostId, QUOTE);
   await paste(instance, LOST_ARTICLE, {
     page: {
       markdown: "A rewritten text with none of the quoted words.\n\n".repeat(30),
@@ -197,7 +168,7 @@ export async function seedLibrary(instance: Instance): Promise<Library> {
     threadId,
     { kind: "comment", commentId: "t1_c2" },
     thread.highlights.revisions.comments ?? 0,
-    selectorFor(COMMENT_TEXT, COMMENT_QUOTE),
+    selectorIn(COMMENT_TEXT, COMMENT_QUOTE),
   );
   await paste(instance, THREAD_LINK, {
     content: JSON.stringify(THREAD),

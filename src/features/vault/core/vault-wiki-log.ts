@@ -5,8 +5,8 @@ import type { LogEntry } from "../../../core/contract/log-contract.ts";
 import { VaultNoteFailure } from "../../../core/contract/vault-note-failure.ts";
 import { VAULT_TEXT } from "../../../core/contract/vault-text.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { plainMarkdown } from "../../../core/kernel/markdown-escape.ts";
 import { logMonthName, logMonthRange } from "../../../core/kernel/vault-log-month.ts";
-import { plainMarkdown } from "../../media/core/markdown-escape.ts";
 import { readLogEntries } from "../../wiki/core/log-page.ts";
 import { WIKI_PAGE_ROWS, linesOf, wikiLink } from "./vault-markdown.ts";
 

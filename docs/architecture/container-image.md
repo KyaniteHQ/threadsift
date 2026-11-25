@@ -11,6 +11,16 @@ The `Containerfile` builds on the official `node:26-slim` image, pinned by diges
 
 Operators install the CLIs into the data volume, so no derived image is needed.
 
+## pnpm
+
+The `packageManager` field carries the version and the SHA-512 hash of the pnpm tarball, in the form Corepack defines: `pnpm@<version>+sha512.<hex>`. The hash is the hex form of the `dist.integrity` that the npm registry lists for that version, so `sha512sum` of the downloaded `pnpm-<version>.tgz` equals it. Corepack in the devenv shell checks the same hash when it downloads pnpm, and does not check a copy that is already in its cache.
+
+`node:26-slim` ships no Corepack, because Node 25 and later do not bundle it ([Corepack](https://github.com/nodejs/corepack#readme)). The `base` stage therefore checks the tarball with what the image has, and installs no package and no helper to do it. A field in any other form, or a tarball that does not match the hash, stops the build.
+
+The hash covers the pnpm wrapper tarball only. The pnpm 12 tarball holds a launcher, and the native binary comes from the `@pnpm/exe.<platform>` package that npm installs next to it. npm checks that package against the integrity in the registry's metadata, and the hash in `packageManager` does not pin it.
+
+Renovate keeps the hash current ([Dependency updates](dependency-updates.md)).
+
 ## The data volume
 
 One volume at `/data` holds the database, the files, and the install folder and login of each CLI. The `node` user owns it, so the owner installs a CLI without root. The image sets `DATA_DIR=/data`. The default data folder of the container target, `/app/.data`, is a link to `/data`, so an empty `DATA_DIR=` or a start without the variable also lands in the volume.
@@ -52,4 +62,4 @@ When the app answers a request without reading its body, for example a 401 or a 
 - The discard stops at 64 MiB, the same limit as `MAX_DRAIN_BYTES` in the `@hono/node-server` version that the repository pins. Past it, the response carries `Connection: close`.
 - A client that sends the body too slowly gets Node's own `408` when `server.requestTimeout` runs out. It is 300000 ms by default on Node 26 (`node -p "http.createServer().requestTimeout"`).
 
-`@hono/node-server`'s own cleanup of an unread body stops after 500 ms and closes the socket, which resets a client whose next request is already on it. The case of a body over the byte cap is unverified ([Open items and unverified claims](open-items-and-unverified-claims.md)).
+`@hono/node-server`'s own cleanup of an unread body stops after 500 ms and closes the socket, which resets a client whose next request is already on it. A core test sends exactly 64 MiB to `answerAfterBody` on loopback and the connection stays usable for the next request. It sends 64 MiB plus one byte, and the 413 then carries `Connection: close` after the client has sent every byte. Larger bodies, and a client that is still sending when the connection closes, are unverified ([Open items and unverified claims](open-items-and-unverified-claims.md)).

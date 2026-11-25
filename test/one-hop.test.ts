@@ -3,13 +3,13 @@ import { after, before, describe, it } from "node:test";
 
 import { botInstance, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { saveProvider } from "./library-fixtures.ts";
 import {
   DIGEST,
   LINKED,
   commentsOf,
   postOf,
-  SECRET_KEY,
   seedGithubCooldown,
   hopThreadOf,
   toolsOf,
@@ -18,7 +18,6 @@ import {
   withoutComments,
 } from "./one-hop-fixtures.ts";
 import { redditAddressOf } from "./reader-thread-fixtures.ts";
-import { saveProvider } from "./related-fixtures.ts";
 
 describe("a Reddit post that links to a page stores one candidate link for the Digest", () => {
   let instance: Instance;

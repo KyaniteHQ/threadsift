@@ -3,23 +3,9 @@ import { type RefObject, use } from "react";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { postTextModule } from "./post-text-module.ts";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
-import { ReaderContent } from "./ReaderContent.tsx";
+import { ReaderContent, ReaderNotices } from "./ReaderContent.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
-
-function useReadyState(
-  state: DetailState,
-  slot: RefObject<HTMLElement | null>,
-  itemId: number,
-): Exclude<DetailState, { status: "loading" }> | null {
-  use(postTextModule());
-
-  const ready = state.status === "loading" ? null : state;
-
-  useReadingPlace(slot, itemId, ready?.status === "ready");
-
-  return ready;
-}
 
 export function ReaderBody({
   item,
@@ -42,7 +28,10 @@ export function ReaderBody({
   focusTitle: boolean;
   tryAgain: (item: Item) => void;
 }>) {
-  const ready = useReadyState(state, slot, item.id);
+  use(postTextModule());
+  useReadingPlace(slot, item.id, state.status === "ready");
+
+  const loading = state.status === "loading";
   const content = { item, actions, announce, tryAgain, now };
 
   return (
@@ -53,10 +42,12 @@ export function ReaderBody({
         now={now}
         titleId={titleId}
         focusTitle={focusTitle}
-        loading={ready === null}
+        loading={loading}
         tryAgain={tryAgain}
       />
-      {ready === null ? <ReaderLoading /> : <ReaderContent {...content} state={ready} />}
+      <ReaderNotices state={state} retry={actions.retry} />
+      {loading ? <ReaderLoading /> : null}
+      {state.status === "ready" ? <ReaderContent {...content} state={state} /> : null}
     </>
   );
 }

@@ -1,16 +1,16 @@
 import { answerWithin } from "./cli-process.ts";
+import type { SignIn } from "./cli-sign-in.ts";
 import { inRunFolders } from "./grok-folders.ts";
 import type { GrokCli } from "./grok-process.ts";
-import type { SignInLine } from "./grok-sign-in.ts";
 
 const STATUS_CACHE_MS = 10_000;
 
 interface Reading {
   readonly version: string | null;
-  readonly signedIn: SignInLine;
+  readonly signedIn: SignIn;
 }
 
-async function readSignIn(cli: GrokCli, limit: AbortSignal): Promise<SignInLine> {
+async function readSignIn(cli: GrokCli, limit: AbortSignal): Promise<SignIn> {
   const probe = () => inRunFolders((folders) => cli.signIn(folders, limit));
   const first = await probe();
 

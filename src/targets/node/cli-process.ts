@@ -32,6 +32,7 @@ export type ProcessEnd =
       readonly kind: "exited";
       readonly code: number | null;
       readonly stdout: string;
+      readonly stderr: string;
     }
   | { readonly kind: "aborted" }
   | { readonly kind: "over-cap" }
@@ -39,7 +40,7 @@ export type ProcessEnd =
 
 export type UnfinishedEnd = Exclude<ProcessEnd, { readonly kind: "exited" }>;
 
-function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
+export function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
   try {
     process.kill(-pid, signal);
   } catch (error) {
@@ -69,7 +70,7 @@ class Execution {
     this.signal = signal;
     this.finish = finish;
     this.out = new Capture(spec.stdoutCap, spec.keepStdout);
-    this.err = new Capture(STDERR_CAP, false);
+    this.err = new Capture(STDERR_CAP, true);
 
     this.child = spawn(spec.binary, [...spec.args], {
       cwd: spec.cwd,
@@ -160,7 +161,8 @@ class Execution {
   private settle(code: number | null): void {
     if (this.signal.aborted) this.settleWith({ kind: "aborted" });
     else if (this.overCap) this.settleWith({ kind: "over-cap" });
-    else this.settleWith({ kind: "exited", code, stdout: this.out.text() });
+    else
+      this.settleWith({ kind: "exited", code, stdout: this.out.text(), stderr: this.err.text() });
   }
 
   private settleWith(end: ProcessEnd): void {
@@ -235,7 +237,9 @@ export function answerWithin<Answer>(
   unanswered: Answer,
 ): Promise<Answer> {
   const deadline = AbortSignal.any([AbortSignal.timeout(PROBE_MS), shutdown]);
-  const answer = probe(deadline).catch(() => unanswered);
+  const answer = new Promise<Answer>((resolve) => {
+    resolve(probe(deadline));
+  }).catch(() => unanswered);
 
   const expired = new Promise<Answer>((resolve) => {
     deadline.addEventListener("abort", () => {

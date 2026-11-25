@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { fromBase64 } from "../../../core/contract/encoding.ts";
 import type { FetchFailure } from "../../../core/contract/fetch-results.ts";
+import { GITHUB_WAIT } from "../../../core/contract/job-contract.ts";
 import { type RepositoryRef, repositoryRef } from "../../../core/contract/repository-ref.ts";
 import { WholeCount } from "../../../core/contract/whole-count.ts";
 import {
@@ -103,7 +104,7 @@ function failureOf(
 }
 
 function waitingFetched({ until, limited }: Readonly<Waiting>): Fetched {
-  return { status: "waiting", until, limited, wait: "github-rate-limit" };
+  return { status: "waiting", until, limited, wait: GITHUB_WAIT };
 }
 
 async function readmeAfter(

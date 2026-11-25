@@ -24,8 +24,8 @@ export function isBusy(outcome: Acceptance): outcome is Busy {
   return BUSY.some((busy) => busy === outcome);
 }
 
-export function fetchProposals(cursor: string | null): Promise<ProposalPage> {
-  return parsedFrom("GET", withCursor("/api/proposals", cursor), ProposalPageSchema);
+export function fetchProposals(cursor: string | null, signal: AbortSignal): Promise<ProposalPage> {
+  return parsedFrom("GET", withCursor("/api/proposals", cursor), ProposalPageSchema, { signal });
 }
 
 export function fetchProposalState(id: number): Promise<ProposalState | "gone"> {

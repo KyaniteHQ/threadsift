@@ -1,7 +1,6 @@
 import { and, desc, eq, sql } from "drizzle-orm";
 
-import { AI_INPUT_BYTES } from "../../../core/contract/ai-contract.ts";
-import { utf8Length } from "../../../core/contract/encoding.ts";
+import { fitsAiInput } from "../../../core/contract/ai-contract.ts";
 import {
   ADDED_READ_LIMIT,
   type BuiltFrom,
@@ -212,9 +211,7 @@ function fitted(
   for (let count = item.keyPoints.length; count >= fewest; count -= 1) {
     const cut = { ...item, keyPoints: item.keyPoints.slice(0, count) };
 
-    if (utf8Length(promptJson(read, current, [...included, cut])) <= AI_INPUT_BYTES) {
-      return cut;
-    }
+    if (fitsAiInput(promptJson(read, current, [...included, cut]))) return cut;
   }
 
   return null;

@@ -17,8 +17,15 @@ const REFUSAL_OF_FAULT: Readonly<Record<ZipFault, RestoreRefusal>> = {
   "bad-checksum": "crc",
 };
 
-export function restoreRefusalOf(cause: unknown): RestoreRefusal | null {
-  if (cause instanceof RestoreRefused) return cause.code;
+export interface RefusalDetail {
+  readonly code: RestoreRefusal;
+  readonly message: string;
+}
 
-  return cause instanceof ZipRefused ? REFUSAL_OF_FAULT[cause.fault] : null;
+export function restoreRefusalOf(cause: unknown): RefusalDetail | null {
+  if (cause instanceof RestoreRefused) return { code: cause.code, message: cause.message };
+
+  return cause instanceof ZipRefused
+    ? { code: REFUSAL_OF_FAULT[cause.fault], message: cause.message }
+    : null;
 }

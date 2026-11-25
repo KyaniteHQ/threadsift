@@ -4,33 +4,12 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { runJob } from "../src/core/compose/jobs.ts";
-import { jobRow } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
+import { jobAfterAttempts, jobRow, dueNow } from "./job-fixtures.ts";
+import { paste, saveProvider, until } from "./library-fixtures.ts";
 import { entryCount } from "./log-fixtures.ts";
-import {
-  count,
-  SECRET_KEY,
-  exec,
-  firstPickTask,
-  pairsOf,
-  paste,
-  pickJobs,
-  pickTasks,
-  rows,
-  saveProvider,
-  until,
-} from "./related-fixtures.ts";
-
-function seed(instance: Instance, source: number, related: number, position: number): void {
-  exec(
-    instance,
-    "insert into related_items (item_id, related_id, position, reason) values (?, ?, ?, ?)",
-    source,
-    related,
-    position,
-    "An earlier reason",
-  );
-}
+import { pairsOf, seedPair } from "./related-fixtures.ts";
+import { firstPickTask, pickJobs, pickTasks } from "./related-pick-fixtures.ts";
 
 function openPicks(instance: Instance, itemId: number): number {
   return pickJobs(instance, itemId).filter(({ state }) => state !== "done").length;
@@ -59,8 +38,7 @@ describe("the pick job opens only when a Provider is saved, once for each Item, 
 
     const id = await paste(instance, "with", { title: "Quasar lattice" });
 
-    const jobs = rows(
-      instance,
+    const jobs = instance.database.rows(
       z.object({ id: z.number(), kind: z.string(), state: z.string() }),
       "select id, kind, state from jobs where item_id = ? order by id",
       id,
@@ -81,6 +59,14 @@ describe("the pick job opens only when a Provider is saved, once for each Item, 
     assert.equal(openPicks(instance, id), 1);
 
     await paste(instance, "again", { title: "Again lattice, revised" });
+    await until(
+      "the revised Digest is stored",
+      () =>
+        instance.database
+          .rows(z.object({ title: z.string() }), "select title from digests where item_id = ?", id)
+          .map(({ title }) => title),
+      (titles) => titles.length === 1 && titles[0] === "Again lattice, revised",
+    );
     assert.equal(openPicks(instance, id), 1);
     assert.equal(pickJobs(instance, id).length, 1);
   });
@@ -96,7 +82,7 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
     await instance.setUp();
     id = await paste(instance, "source", { title: "Quasar lattice decoder", tags: ["quasar"] });
     other = await paste(instance, "other", { title: "Quasar lattice", tags: ["quasar"] });
-    seed(instance, id, other, 0);
+    seedPair(instance, id, other, 0, "An earlier reason");
     await saveProvider(instance);
     id = await paste(instance, "source", { title: "Quasar lattice decoder", tags: ["quasar"] });
   });
@@ -108,10 +94,9 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
 
     assert.equal(task.state, "failed");
     assert.equal(task.refusal, "unreachable");
-    assert.deepEqual(
-      pairsOf(instance, id).map(({ related_id: related }) => related),
-      [other],
-    );
+    assert.deepEqual(pairsOf(instance, id), [
+      { item_id: id, related_id: other, position: 0, reason: "An earlier reason" },
+    ]);
     assert.equal((await instance.settledItem(id)).status, "ready");
     assert.equal(openPicks(instance, id), 1);
     assert.equal(entryCount(instance, "related"), 0);
@@ -122,14 +107,13 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
     const [job] = pickJobs(instance, id);
     assert.ok(job);
     const digestOpen = () =>
-      count(
-        instance,
+      instance.database.count(
         "select count(*) as n from jobs where kind = 'digest' and item_id = ? and state <> 'done'",
         id,
       );
 
     assert.equal((await instance.send("POST", `/api/items/${String(id)}/digest`)).status, 200);
-    exec(instance, "update jobs set next_attempt_at = 0 where id = ?", job.id);
+    dueNow(instance, job.id);
     await runJob(instance.core, job.id);
 
     assert.equal(digestOpen(), 1);
@@ -141,15 +125,16 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
     await paste(instance, "source", { title: "Quasar lattice decoder", tags: ["quasar"] });
     assert.equal(digestOpen(), 0);
     await runJob(instance.core, job.id);
-    const [earlier, later] = await until(tasks, (ids) => ids.length === 2);
+    const [earlier, later] = await until(
+      "two Related pick tasks exist",
+      tasks,
+      (ids) => ids.length === 2,
+    );
     assert.deepEqual(
       pickJobs(instance, id).map(({ id: pickId }) => pickId),
       [job.id],
     );
-    await until(
-      () => jobRow(instance, job.id),
-      (row) => row.attempts === held.attempts + 1,
-    );
+    await jobAfterAttempts(instance, job.id, held.attempts + 1);
     assert.equal(earlier, first.id);
     assert.ok(later !== undefined && later > first.id);
   });
@@ -167,8 +152,8 @@ describe("an Item with no term or no candidate gets an empty set and makes no AI
     neighbour = await paste(instance, "neighbour", { title: "Neighbour" });
     noTerm = await paste(instance, "no-term", { title: "!!!", tags: ["?"] });
     noCandidate = await paste(instance, "no-candidate", { title: "Zyxwvut" });
-    seed(instance, noTerm, neighbour, 0);
-    seed(instance, noCandidate, neighbour, 0);
+    seedPair(instance, noTerm, neighbour, 0, "An earlier reason");
+    seedPair(instance, noCandidate, neighbour, 0, "An earlier reason");
     await saveProvider(instance);
     await paste(instance, "no-term", { title: "!!!", tags: ["?"] });
     await paste(instance, "no-candidate", { title: "Zyxwvut" });
@@ -178,10 +163,12 @@ describe("an Item with no term or no candidate gets an empty set and makes no AI
 
   it("clears the seeded earlier set, closes the job and writes no related entry for the empty set", async () => {
     await until(
+      "neither Item has Related Items",
       () => [pairsOf(instance, noTerm).length, pairsOf(instance, noCandidate).length],
       (counts) => counts.every((each) => each === 0),
     );
     await until(
+      "neither Item has an open Related pick",
       () => [openPicks(instance, noTerm), openPicks(instance, noCandidate)],
       (counts) => counts.every((each) => each === 0),
     );

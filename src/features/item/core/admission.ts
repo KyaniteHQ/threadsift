@@ -27,7 +27,7 @@ export function admitted<Result>(
   urls: readonly string[],
   run: () => Promise<Result>,
 ): Promise<Budgeted<Result> | Closed> {
-  return whileOpen(ports.db, () => withinBudget(ports, caller, urls, run));
+  return whileOpen(() => withinBudget(ports, caller, urls, run));
 }
 
 export function refusedHost(absoluteUrl: string): Refused | null {

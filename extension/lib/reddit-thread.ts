@@ -95,17 +95,13 @@ function cancelInTab(cancelEvent: string): void {
   window.dispatchEvent(new Event(cancelEvent));
 }
 
-function stopped(signal: AbortSignal | undefined): boolean {
-  return signal?.aborted === true;
-}
-
 async function answerFor(
   tabId: number,
   address: string,
   deadlineMs: number,
-  signal: AbortSignal | undefined,
-): Promise<TabAnswer> {
-  if (stopped(signal)) return NO_ANSWER;
+  signal: AbortSignal,
+): Promise<TabAnswer | null> {
+  if (signal.aborted) return null;
 
   const cancelEvent = `threadsift-cancel-${crypto.randomUUID()}`;
 
@@ -115,7 +111,7 @@ async function answerFor(
       .catch(() => null);
   };
 
-  signal?.addEventListener("abort", cancel, { once: true });
+  signal.addEventListener("abort", cancel, { once: true });
 
   try {
     const answer = await resultInTab(
@@ -126,9 +122,10 @@ async function answerFor(
           args: [address, deadlineMs, THREAD_CONTENT_BYTES, cancelEvent],
         }),
       TabAnswerSchema,
+      "tab-read-failed",
     );
 
-    if (answer === null) return NO_ANSWER;
+    if (answer === null) return null;
 
     if (answer.failure !== null) {
       logFailure("reddit-thread-read-failed", new Error(answer.failure));
@@ -136,14 +133,19 @@ async function answerFor(
 
     return answer;
   } finally {
-    signal?.removeEventListener("abort", cancel);
+    signal.removeEventListener("abort", cancel);
   }
 }
 
-function threadAddress({ url }: Readonly<ThreadTab>): string {
-  const { origin, pathname } = new URL(url);
+function withoutTrailingSlash({
+  origin,
+  pathname,
+}: Readonly<Pick<URL, "origin" | "pathname">>): string {
+  return `${origin}${pathname.replace(/\/+$/u, "")}`;
+}
 
-  return `${origin}${pathname.replace(/\/+$/u, "")}/.json?${THREAD_QUERY}`;
+function threadAddress({ url }: Readonly<ThreadTab>): string {
+  return `${withoutTrailingSlash(new URL(url))}/.json?${THREAD_QUERY}`;
 }
 
 interface ThreadRead {
@@ -170,13 +172,26 @@ export async function fetchThread(
 
   if (ref === null) return null;
 
-  const first = await answerFor(tab.id, threadAddress(tab), REQUEST_DEADLINE_MS, signal);
+  const tabLost = new AbortController();
+  const stop = signal === undefined ? tabLost.signal : AbortSignal.any([signal, tabLost.signal]);
+
+  const read = async (address: string, deadlineMs: number): Promise<TabAnswer> => {
+    const answer = await answerFor(tab.id, address, deadlineMs, stop);
+
+    if (answer !== null) return answer;
+
+    tabLost.abort();
+
+    return NO_ANSWER;
+  };
+
+  const first = await read(threadAddress(tab), REQUEST_DEADLINE_MS);
   const hidden = hiddenIn(first, ref.postId);
 
-  if (hidden === null || stopped(signal)) return null;
+  if (hidden === null || stop.aborted) return null;
 
   const filled = await fillAnswers(
-    (address, deadlineMs) => answerFor(tab.id, address, deadlineMs, signal),
+    read,
     {
       addressFor: (commentId) =>
         `${new URL(tab.url).origin}${permalinkPath(ref.postId, commentId)}`,
@@ -184,16 +199,18 @@ export async function fetchThread(
       first,
       hidden,
     },
-    { deadlineMs: THREAD_READ_DEADLINE_MS, signal },
+    { deadlineMs: THREAD_READ_DEADLINE_MS, signal: stop },
   );
 
-  if (stopped(signal)) return null;
+  if (stop.aborted) return null;
 
   const body = fitThreadBody(tab.url, filled.answers, fill === true);
 
   if (body === null) return null;
 
   const unfilled = unfilledStubsOf(body.content, ref.postId);
+
+  if (unfilled === null) return null;
 
   return { body, completeness: unfilled === 0 ? "whole" : "replies-missing" };
 }

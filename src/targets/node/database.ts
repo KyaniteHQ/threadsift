@@ -7,6 +7,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { z } from "zod";
 
 import type { Database } from "../../core/kernel/database.ts";
+import { reportFailure } from "../../core/kernel/failure-log.ts";
 
 const SqlParamsSchema = z.array(
   z.union([z.null(), z.number(), z.bigint(), z.string(), z.instanceof(Uint8Array)]),
@@ -15,6 +16,16 @@ const SqlParamsSchema = z.array(
 interface OpenDatabase {
   readonly db: Database;
   close(): void;
+}
+
+const ROLLBACK_FAILED = { event: "transaction-rollback-failed", fields: {} } as const;
+
+function rollBack(sqlite: DatabaseSync): void {
+  try {
+    if (sqlite.isTransaction) sqlite.exec("ROLLBACK");
+  } catch (cause) {
+    reportFailure(ROLLBACK_FAILED, cause);
+  }
 }
 
 function inTransaction<T>(sqlite: DatabaseSync, work: () => T): T {
@@ -26,7 +37,8 @@ function inTransaction<T>(sqlite: DatabaseSync, work: () => T): T {
 
     return result;
   } catch (error) {
-    sqlite.exec("ROLLBACK");
+    rollBack(sqlite);
+
     throw error;
   }
 }

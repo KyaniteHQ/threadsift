@@ -6,17 +6,15 @@ import { parseArgs } from "node:util";
 import { z } from "zod";
 
 import {
-  type Harness,
   ROUTES,
   type Route,
   type Variant,
-  counted,
-  inSequence,
-  median,
+  type Variants,
   request,
   WORKING_TREE,
-  startHarness,
+  withHarness,
 } from "./worker-build-cost-harness.ts";
+import { counted, inSequence, median } from "./worker-build-cost-stats.ts";
 
 const TICKS_PER_SECOND = 100;
 const SLOW_ROUTE_DIVISOR = 4;
@@ -71,29 +69,26 @@ async function cpuMsPerRequest(
   return ((cpuTicks(pids) - before) * 1000) / TICKS_PER_SECOND / count;
 }
 
-async function measure(harness: Readonly<Harness>, route: Readonly<Route>) {
-  const count = route.name === SLOW_ROUTE ? Math.round(requests / SLOW_ROUTE_DIVISOR) : requests;
+async function measure(variants: Variants, route: Readonly<Route>) {
+  const count =
+    route.name === SLOW_ROUTE ? Math.max(1, Math.round(requests / SLOW_ROUTE_DIVISOR)) : requests;
   const perRound: Record<"baseline" | "candidate", number[]> = { baseline: [], candidate: [] };
   await inSequence(counted(rounds), (round) =>
-    inSequence(
-      round % 2 === 0 ? harness.variants : harness.variants.toReversed(),
-      async (variant) => {
-        perRound[variant.name].push(await cpuMsPerRequest(variant, route, count));
-      },
-    ),
+    inSequence(round % 2 === 0 ? variants : variants.toReversed(), async (variant) => {
+      perRound[variant.name].push(await cpuMsPerRequest(variant, route, count));
+    }),
   );
   return { count, perRound };
 }
 
-const harness = await startHarness([baseline, candidate], "worker-build-cost-cpu-time");
-try {
+await withHarness([baseline, candidate], "worker-build-cost-cpu-time", async (variants) => {
   console.log(
     "| route | requests per round | baseline CPU ms per request | candidate CPU ms per request | added ms |",
   );
   console.log("|---|---|---|---|---|");
   const routes = ROUTES.filter(({ authorized, path }) => authorized || path === "/api/session");
   const results = await inSequence(routes, async (route) => {
-    const result = await measure(harness, route);
+    const result = await measure(variants, route);
     const [before, after] = [median(result.perRound.baseline), median(result.perRound.candidate)];
     console.log(
       `| ${route.name} | ${result.count} | ${before.toFixed(2)} | ${after.toFixed(2)} | ${(after - before).toFixed(2)} |`,
@@ -106,6 +101,4 @@ try {
   if (values.out !== undefined) {
     writeFileSync(values.out, JSON.stringify({ requests, rounds, warmup, results }));
   }
-} finally {
-  await harness.stop();
-}
+});

@@ -9,6 +9,7 @@ import type { RunnerTask } from "../../core/kernel/ai-runtime.ts";
 import { readOrAssume, report } from "../../core/kernel/failure-log.ts";
 import { parsedJson } from "../../core/kernel/parsed-json.ts";
 import { findBinary, inEmptyFolder, runProcess } from "./cli-process.ts";
+import { type SignIn, signInFrom } from "./cli-sign-in.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
   type Attempt,
@@ -102,10 +103,16 @@ class ClaudeCode extends SlottedCli {
     return { slug, levels: ["low", "medium", "high", "xhigh", "max"] } as const;
   }
 
-  protected async probe(signal: AbortSignal): Promise<boolean> {
+  protected async probe(signal: AbortSignal): Promise<SignIn> {
     const end = await this.spawn(["auth", "status", "--json"], "", signal);
 
-    return end.kind === "exited" && parsedJson(StatusSchema, end.stdout)?.loggedIn === true;
+    return signInFrom(end, ({ stdout }) => {
+      const status = parsedJson(StatusSchema, stdout);
+
+      if (status === null) return "unknown";
+
+      return status.loggedIn ? "signed-in" : "signed-out";
+    });
   }
 
   protected async attempt<Result>(
@@ -118,7 +125,7 @@ class ClaudeCode extends SlottedCli {
       signal,
     );
 
-    const result = await this.outcome(end, (exited) => this.answerOf(task.schema, exited));
+    const result = this.outcome(end, (exited) => this.answerOf(task.schema, exited));
 
     return { result, code: exitCode(end) };
   }
@@ -145,7 +152,7 @@ class ClaudeCode extends SlottedCli {
   ): AiExecution<Result> | null {
     const envelope = parsedJson(EnvelopeSchema, stdout);
 
-    if (envelope === null) return refusedAi(code === 0 ? "no-json" : "unreachable");
+    if (envelope === null) return code === 0 ? refusedAi("no-json") : null;
 
     if (!envelope.is_error) {
       const parsed = schema.safeParse(envelope.structured_output);

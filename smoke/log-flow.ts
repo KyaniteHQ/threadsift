@@ -1,16 +1,17 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
-import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
+import { PAGE_SIZE } from "../src/core/contract/paging.ts";
 import { LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";
 import { topicLinkLabel } from "../web/src/topic-text.ts";
-import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { savedItem } from "./saved-item.ts";
+import { atPhoneWidth, expectNoSidewaysScroll, expectTarget } from "./screen-checks.ts";
 
-const TARGET_PX = 44;
+const LINES_PER_FILLER = 2;
 
-const FILLERS = 22;
+const FILLERS = Math.ceil((PAGE_SIZE + 1) / LINES_PER_FILLER);
 
 const STAMP_PATTERN = "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}";
 
@@ -32,23 +33,16 @@ const LOGGED = {
   tags: ["alpha-beta", "gamma", "delta-epsilon"],
 };
 
-async function save(
+const save = (
   page: Page,
   link: string,
   digest: Readonly<{ title: string; topic: string; tags: readonly string[] }>,
-): Promise<number> {
-  const saved = await page.request.post("/api/items", {
-    data: {
-      url: link,
-      page: { markdown: MARKDOWN, title: digest.title },
-      digest: { ...digest, summary: "A short summary.", keyPoints: ["One point"] },
-    },
+): Promise<number> =>
+  savedItem(page.request, {
+    url: link,
+    page: { markdown: MARKDOWN, title: digest.title },
+    digest: { ...digest, summary: "A short summary.", keyPoints: ["One point"] },
   });
-
-  expect(saved.status()).toBe(201);
-
-  return SavedItemResponseSchema.parse(await saved.json()).item.id;
-}
 
 const rows = (page: Page) => page.locator(".lg-line");
 
@@ -60,16 +54,11 @@ async function openLogFromPanel(page: Page): Promise<void> {
   await expect(page).toHaveTitle("Log, Threadsift");
 }
 
-async function expectTargets(page: Page, row: Locator): Promise<void> {
+async function expectTargets(row: Locator): Promise<void> {
   const links = await row.getByRole("link").all();
-  const boxes = await Promise.all(links.map((link) => link.boundingBox()));
 
-  expect(boxes).toHaveLength(2);
-
-  for (const box of boxes) {
-    expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
-    expect(box?.width).toBeGreaterThanOrEqual(TARGET_PX);
-  }
+  expect(links).toHaveLength(2);
+  await Promise.all(links.map((link) => expectTarget(link)));
 }
 
 export async function logFlow(page: Page): Promise<void> {
@@ -104,19 +93,18 @@ export async function logFlow(page: Page): Promise<void> {
     .click();
   await expect(page).toHaveURL(/\/topics\/the%20log%20smoke%20topic$/u);
 
-  await page.setViewportSize(PHONE);
-  await page.goto("/log");
-  await expect(rows(page).first()).toContainText("ingest");
-  await expectNoSidewaysScroll(page);
+  await atPhoneWidth(page, async () => {
+    await page.goto("/log");
+    await expect(rows(page).first()).toContainText("ingest");
+    await expectNoSidewaysScroll(page);
+    await expectTargets(rows(page).first());
 
-  await expectTargets(page, rows(page).first());
+    await save(page, SHORT.link, { title: SHORT.name, topic: SHORT.name, tags: [] });
+    await page.goto("/log");
+    await expect(rows(page).first()).toContainText(`ingest | ${SHORT.name} | topic: ${SHORT.name}`);
+    await expectTargets(rows(page).first());
+  });
 
-  await save(page, SHORT.link, { title: SHORT.name, topic: SHORT.name, tags: [] });
-  await page.goto("/log");
-  await expect(rows(page).first()).toContainText(`ingest | ${SHORT.name} | topic: ${SHORT.name}`);
-  await expectTargets(page, rows(page).first());
-
-  await page.setViewportSize({ width: 1280, height: 800 });
   await expectSlashAddresses(page, id);
   await deleteAndReload(page, id);
 }
@@ -161,14 +149,14 @@ export async function failedLoadMore(page: Page): Promise<void> {
     .not.toBeNull();
 
   await page.goto("/log");
-  await expect(rows(page)).toHaveCount(50);
+  await expect(rows(page)).toHaveCount(PAGE_SIZE);
   await page.context().setOffline(true);
   await page.getByRole("button", { name: LOAD_MORE }).click();
   await expect(page.getByText(LOG_PAGE.loadMoreFailed)).toBeVisible();
-  await expect(rows(page)).toHaveCount(50);
+  await expect(rows(page)).toHaveCount(PAGE_SIZE);
   await page.context().setOffline(false);
   await page.getByRole("button", { name: RETRY_LABEL }).focus();
   await page.keyboard.press("Enter");
-  await expect(rows(page).nth(50)).toBeVisible();
-  await expect(rows(page).nth(50).getByRole("link").first()).toBeFocused();
+  await expect(rows(page).nth(PAGE_SIZE)).toBeVisible();
+  await expect(rows(page).nth(PAGE_SIZE).getByRole("link").first()).toBeFocused();
 }

@@ -9,7 +9,6 @@ import { botInstance, openJobOf, sentTask } from "./bot-kinds-fixtures.ts";
 import { taskRow, topicFailures } from "./bot-task-rows.ts";
 import { seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { exec } from "./related-fixtures.ts";
 
 const THIRD_SEND = 2;
 
@@ -31,15 +30,15 @@ describe("a Topic overview that gave up after the third unanswered send marks th
       attempts: THIRD_SEND,
     });
 
-    exec(instance, "update items set topic_id = 2 where id = 101");
+    instance.database.exec("update items set topic_id = 2 where id = 101");
     const earlier = await sentTask(instance, opened);
 
-    exec(instance, "update items set topic_id = 1 where id = 101");
+    instance.database.exec("update items set topic_id = 1 where id = 101");
     await executeClaimed(instance.core, earlier.job);
 
     const { job, ...sent } = await sentTask(instance, opened);
 
-    exec(instance, "update items set topic_id = 2 where id = 101");
+    instance.database.exec("update items set topic_id = 2 where id = 101");
 
     await exhaust(instance.core, job, HANDLERS.topic_overview, THIRD_SEND + 1);
 
@@ -48,7 +47,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
   });
 
   it("still marks the Topic of the owner Item when the job never sent a bot task", async () => {
-    exec(instance, "delete from topic_pages");
+    instance.database.exec("delete from topic_pages");
 
     const job = await openJobOf(instance, {
       kind: "topic_overview",
@@ -62,8 +61,8 @@ describe("a Topic overview that gave up after the third unanswered send marks th
   });
 
   it("leaves a page that a newer overview stored since the task was sent unmarked", async () => {
-    exec(instance, "delete from topic_pages");
-    exec(instance, "update items set topic_id = 1 where id = 101");
+    instance.database.exec("delete from topic_pages");
+    instance.database.exec("update items set topic_id = 1 where id = 101");
 
     const opened = await openJobOf(instance, {
       kind: "topic_overview",
@@ -72,8 +71,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
     });
     const { job } = await sentTask(instance, opened);
 
-    exec(
-      instance,
+    instance.database.exec(
       "insert into topic_pages (topic_id, overview, revision, built_from, updated_at) values (1, 'Newer text', 3, '[]', 1)",
     );
 

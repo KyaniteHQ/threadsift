@@ -1,6 +1,6 @@
 # Open items and unverified claims
 
-This page lists what v1 does not fully build or has not proven by a real run. "Not verified" means the code handles the case as written and no real run reached it. An entry leaves when a run proves it, and the proof goes to the doc that owns the topic. A case that needs a vendor to answer on demand, a clock to pass or a failure to happen stays here with the run that would settle it, because [Testing](../testing.md) allows no fakes, stubs or test-only seams.
+This page lists what v1 does not fully build, what it has not proven by a real run, and what the gate does not run. "Not verified" means the code handles the case as written and no real run reached it. Such an entry leaves when a run proves it, and the proof goes to the doc that owns the topic. "Not run by the gate" marks a case that no test or smoke repeats, so a later change can break it unseen. Such an entry says why the gate cannot run the case or what a repeatable run needs. When a run by hand showed the case, the entry names that run. The entry leaves when the gate runs the case, and a run by hand does not remove it. A case that needs a vendor to answer on demand, a clock to pass or a failure to happen stays here with the run that would settle it, because [Testing](../testing.md) allows no fakes, stubs or test-only seams.
 
 Contents:
 
@@ -30,6 +30,7 @@ Not verified:
 - A working preview build. The [self-hosting guide](../guides/self-hosting.md) turns off preview builds because the update pull request's preview failed.
 - The update workflow when the copy's token lacks Contents, Workflows or Pull requests write access. Each refusal needs a token that lacks that one permission.
 - `pnpm run deploy` into an empty Workers Paid account, and the setup page opening on that plan.
+- That a client disconnect aborts `request.signal` on a deployed Worker, with the `enable_request_signal` compatibility flag set. No route is verified: AI Verify, Grok Bot Test, the GitHub, Vault mirror and Reddit account Verify, and the close of an MCP request's transport. On 2026-11-24, in two `wrangler dev --local` runs (wrangler 4.162.0, local D1), with and without `--compatibility-flags enable_request_signal`, an AI Verify whose client disconnected after 3 s left its task `running` and its Provider connection open for the 70 s watched. To check AI Verify and Grok Bot Test on a deployed Worker, save an address that accepts the connection and never answers, which must be a public address because the Worker refuses a loopback one, close the client, and read whether that connection closes. For AI Verify, also read the task's row in `ai_tasks` with `wrangler d1 execute --remote`. The GitHub, Vault mirror and Reddit account Verify call fixed hosts, so no outside observer sees their upstream request end, and the MCP transport's close has no outside observer either, so this entry gives no check for them.
 - That an invocation log of a callback request holds a URL without its query, and that the stored logs hold no bot error text. Read a log of a callback request, and the container proxy's access log.
 
 ## Vault mirror
@@ -40,7 +41,7 @@ Not verified on either install target: a real GitHub `Retry-After` answer follow
 
 ### Reddit share links
 
-- Not run by the gate: Reddit answered 403 to every share link request from the GitHub runner (2026-11-08), and 301 from the development machine. The cause is not confirmed, because the 403's body and headers were not logged.
+- Not verified: why Reddit answered 403 to every share link request from the GitHub runner (2026-11-08) and 301 from the development machine. The 403's body and headers were not logged.
 - Not verified: a share link that redirects to another host, a burst in one Import, a share link whose post was removed, `/u/` share links, and whether one comment can carry both its old 7-character id and the 12-character id new links use. That fact decides whether the Extension's canonical address joins an Item made by an older share link.
 
 ### Short-link aliases and link titles
@@ -48,14 +49,19 @@ Not verified on either install target: a real GitHub `Retry-After` answer follow
 Not verified, because no stable public page or on-demand service produces the case, and the container's adapter reaches only globally reachable addresses, so no local redirect server can stand in for a short link host:
 
 - A short link whose target moves or dies between two Pastes, and two simultaneous Pastes that resolve to different targets.
-- The two alias guards (the success batch and the failure write) in the current suites. Their last proof is a container run (2026-11-08).
+- Two first saves of one short link that run at the same time, which the single-process test database cannot overlap. Core tests cover the alias guard of each batch: `holdsNoRival` in the success batch and the alias check of the failure write.
 - That a Paste that has read its alias and is still resolving shows nothing, because it writes nothing before its batch.
+- The repeat Paste of a short link whose alias ends at a Reddit share link, through `saveItem`: the core tests call `saveResolution` with a literal resolution and the stored alias, so what the Paste writes for each resolution is checked. Three parts are checked only by reading, because no local host can answer for a short link host or for Reddit: the early return from the alias when its address is no share link, the call from `saveShortLink` to `resolveShortLink` for a stale alias, and the second hop of `resolveShortLink` from a short link to a share link and on to its post. A change that makes `saveShortLink` answer from a stale alias without resolving, or that passes `saveResolution` another alias than the one it read, passes every test. A `POST /api/items` run with only the loopback interface up (`unshare -rn`) tells it apart in one state: when another alias has already moved the Item to its post, the current code queues the fetch at the Item's own address and that change queues it at the share link (2026-11-24). The same run gives the same Item, alias and jobs while the Item is still under the share link. No core test holds the run, because with the network up the Paste asks a real short link host, and a core test reaches no host on the internet ([Testing](../testing.md), Core tests).
 - A meta refresh that leads to the target's Item, to a private address, to Reddit or X, past the 20th redirect, or with a delay above 0.
 - A `<title>` after the 512 KiB cap, a remote title that changes between two Pastes, and the `deflate` encoding on a page with a title.
 - The paste box's notices for `unreadable` and `failed`.
 - How many bytes a hop reads for a page that is not HTML. The paste outcome is the same either way.
 
 Open: the name check is missing on the local Worker under `wrangler dev`. A name that resolves to loopback, such as `localtest.me`, passes the core check there, because the Worker adapter calls the global `fetch`, which has no hook between the lookup and the connection. Run a Paste of such a name to see whether workerd connects.
+
+### Cloudflare's origin error on the Worker
+
+Not verified: a deployed Worker that fetches a host that does not resolve. `workerFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test sends that status and body from a local server, in one chunk, in two chunks and with a trailing newline, and covers the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
 
 ### Article images, long post texts and Defuddle
 
@@ -74,7 +80,7 @@ Open: the name check is missing on the local Worker under `wrangler dev`. A name
 No run has read a repository from a deployed Worker, and no run from the development address can exhaust the budget other programs there share.
 
 - Limits: the headers and message of a real primary or secondary limit, whether GitHub answers 403 or 429, a `retry-after` in HTTP-date form, the attempt count (two deferrals, then the `rate-limited` failure), the waits of a limit with no usable time, two limited answers that extend the cooldown at once, the 24-hour queue delay clamp, and recovery after a real limit.
-- No test covers the cooldown check on a Paste or on Verify, the deferral under a held claim, the screens, and Try again from the terminal `rate-limited` failure during a cooldown.
+- No test covers the cooldown check on a Paste, the deferral under a held claim, the screens, and Try again from the terminal `rate-limited` failure during a cooldown. A Paste of a GitHub link in a test would reach `api.github.com` as soon as the cooldown ends.
 - The fetch: a `status` outcome for any answer but a 404, a README over `README_ANSWER_BYTES` (570 KiB to 1 MB would spend the shared budget), a README that is not Markdown, that `X-GitHub-Api-Version` takes effect, and that no other host receives the GitHub headers.
 - The token: a CI run with the workflow's own `GITHUB_TOKEN` (limit 1,000 per repository), a working token that GitHub revoked after it was saved, that a redirect to another origin drops the token, the refusal of a repository marked `private` before the README request, and a rate-limited answer to a request that carried a token.
 
@@ -100,7 +106,8 @@ Not verified:
 - The browsers' own Reddit permission prompts on Turn on and Connect Reddit, and the physical toolbar click. The runs pressed keys through `xdotool` in Chrome and turned `extensions.webextOptionalPermissionPrompts` off in Firefox.
 - Cancelling a Fill and framed Instance pages in Firefox. The `frameId` check on the relay port cannot be reached from a page.
 - A signed Firefox update through the store.
-- The Extension's `budget-spent` state in the gate. No test loads the built Extension, because its save code imports `wxt/browser`, which Node does not run. No live run checked how the Threadsift bot script handles a 429 from a real Instance (it maps `save:429` to `budget-spent`), and outside clients' handling of 429 and `Retry-After` is not checked.
+- Not run by the gate: the Extension's `budget-spent` state. No check saves through the Extension, in a browser or by calling its save code, against an Instance whose agent token has spent its Daily budget.
+- Not verified: how the Threadsift bot script handles a 429 from a real Instance (it maps `save:429` to `budget-spent`); no live run checked it. Outside clients' handling of 429 and `Retry-After` is not checked.
 - That a Reddit post page's `<title>` ends in the community name, which is why the Extension takes the title from Defuddle's Reddit extractor. Save a Reddit post page with the built Extension in Chromium and compare the stored title with `document.title`.
 
 ## X reader
@@ -239,7 +246,7 @@ Not verified:
 - Automatic Digests: a real result becoming stale during an overlapping refresh, its discard and requeue at the same attempt count, and a mutation that removes that guard. The local Queue serializes consumers, and a live model gives a run no way to order the stale path without a fake or a sleep.
 - The one hop: Reddit's own `.json` for a link post (`curl` answered 403 from the development host, 2026-11-11, and the Extension's request needs the owner's signed-in browser), an AI timeout after a hop that retries and fetches the page again, a refresh or caller Digest that lands between the hop and the model call, the hop on a deployed Worker, and a real GitHub limit.
 - The empty-input Digest guard (`emptyInput`) through the app. No run places a commit between the job's read and its finishing batch, because a trigger inside the batch rolls back with it.
-- A write that lands between the read and the guarded batch of one request is proven only where a test holds the lock (`lockedWriter`, a second process that holds the database file's write lock). Two cases run that way: Accept of a disagreement when a Digest changes after the read, and Accept of an overview-gap row when a run is queued after the read. These stay unproven:
+- A write that lands between the read and the guarded batch of one request is proven only where a test holds the lock (`lockedWriter`, a second process that holds the database file's write lock). The cases that run that way are Accept of a disagreement when a Digest changes after the read, Accept of an overview-gap row when a run is queued after the read, the removal of the GitHub token when another removal took it first, a Provider switch that abandons an answered Grok Bot task while its job applies the answer, and the start of a Topic overview task when another job inserted its own after the prepare. These stay unproven:
   - Accept of a Topic merge. `acceptMerge` writes before it reads, and the guard of the unit batch (`continueMerges`, reached by `sweep` and not by a route) has no entry that places a write inside it. Revision contention on a merge unit needs 50 repeated interferences.
   - A Provider that returns between the refused batch of an overview-gap Accept and its recheck. The recheck is a read, and no lock stops a read.
   - The Paste of an X thread with fewer replies than a thread that another Paste saves after its check.
@@ -247,10 +254,11 @@ Not verified:
 ## Access, HTTP and screens
 
 - Open: the login throttle is global. Ten wrong passwords lock sign-in for 60 seconds, doubling to 1 hour, for the owner too, because the app has no client address it can trust behind a proxy or a Cloudflare route. A stranger who reaches the login can keep the owner out of the sign-in screen, while open sessions and agent tokens keep working. A per-address count would need a trusted forwarded-for header, which neither target guarantees ([Access](access-owner-login-agent-tokens-mcp.md), Throttle).
-- A request body over 64 MiB on the container. The 413 carries `Connection: close`, and RFC 9112 section 9.6 warns the client can get a reset before it reads the answer.
+- A request body well over 64 MiB on the container, or one that crosses a proxy. The 413 carries `Connection: close`, and RFC 9112 section 9.6 warns the client can get a reset before it reads the answer while it is still sending. Only bodies of exactly 64 MiB and of 64 MiB plus one byte on loopback ran, and each client received the 413.
 - Two setups at the same moment. Neither local runtime interleaves two requests between the owner check and the insert, so the `ON CONFLICT DO NOTHING` on the `owner` row is what keeps one owner, and deployed D1 can interleave them.
 - The CPU milliseconds of a password change on a deployed Worker (two scrypt runs in one request). It answered 204 in 1.6 s of wall time with no CPU-limit error.
 - Not run by the gate: a late `signed-out` answer to a session check does not close the library after the owner signs in, and a failed Revoke keeps its question open with its alert. Both need a response that Playwright holds until a later action finishes, and no smoke file holds a response.
+- Not run by the gate: the Reader's reading place while its restore still waits for the fonts ([Web app](web-app.md), the reading place). Space on the bar's Back, or a key in the Note field followed by Back, closes the Reader and keeps the stored place instead of saving the top. A wheel scroll during the wait stays where it is when the fonts settle, and is saved when the Reader closes. A run needs an Item with a stored place below the top, so that a kept place differs from a saved top, and the font requests held open, for example by a Playwright route that continues each font request late, so that `document.fonts.ready` stays pending. Each action must happen before `READ_DEADLINE_MS` ends the wait. No smoke file holds a font request. One run on 2026-11-24 on the container target, in a phone-sized Chromium with the font requests held, showed each case.
 - The look settings: a `localStorage` that refuses access with a `SecurityError`, and `100dvh` on a real phone (Playwright's mobile emulation draws no browser toolbar, so it cannot tell `dvh` from `vh`).
 - The disagreement Pin ([Proposals](../proposals.md)): that its text is the agent's own reason sentence and cites no Item text beyond what the agent wrote. To check on a real Instance, select `from_name` from `pins` where `kind = 'items-disagree'` and compare it with the Summaries and titles of the two pinned Items.
 - The Related Item pick ([Wiki](../wiki.md)): that joining the candidate terms with AND would match almost nothing, which is the reason for OR. Run the related-candidates query joined with AND over a seeded library and compare the counts with the OR query.
@@ -259,10 +267,11 @@ Not verified:
 
 ### Export
 
+- The V8 fault behind the loop-free `fitting` in the Export slice code. The cause is shown only by flags on Node 26.13.1 (`--no-maglev` and `--no-maglev-loop-peeling` remove it, [Export entry count on Node 26.13.1](decisions-and-evidence.md#export-entry-count-on-node-26131) lists the flags that do not). No standalone case reproduces it, it is not reported to Node or V8, and the Worker target's runtime (workerd) and newer Node releases were not checked. `entriesOf` and `completeLines` have the same counting shape; a comparison of both with a reference on random inputs, run in one process with the Export and Restore core tests, gave the same results under both flag sets, and no wrong result was found.
 - On a deployed Worker: a slice at the 8 MiB budget (the largest slice run was 3.9 MB), so the CRC-32 time over 8 MiB, the memory of a slice under the 128 MB isolate limit and the subrequest count of a slice are open. The Workers invocation metric counts `fetch` calls and not D1 or R2 binding calls, and Workers observability reports no memory figure.
 - A browser saving a zip of several GiB from `GET /api/export/{id}/download`, the Worker download of a multi-gigabyte zip, a client that disconnects early on the deployed Worker, and a ZIP64 zip made by the whole export chain and not by the zip writer alone.
 - The download limit on the Worker, from the Workers limits and not measured: it reads 2 objects per slice and the tail, each a subrequest of the one invocation that streams the zip, so 10,000 subrequests (Workers Paid) end a download at 4,998 slices ([Export, backup and restore](export-backup-and-restore.md) has the recount). The Cloudflare target does not support the Free plan. The largest download run on a Worker is 6.1 MB in 4 slices.
-- About 440 D1 statements for a 40-Item slice against the 1,000 queries of one invocation, up to 21 R2 reads for each Item, and the memory of a slice. Joining a slice's `dir` object into its `part` object would halve the reads. It is not built, because the planned library (4,000 Items) needs about 200 to 8,000 reads, under the 10,000 of Workers Paid.
+- About 440 D1 statements for the Item reads of a 40-Item slice, and up to 880 when every Item is read again after a miss, plus the one query for the ids, against the 1,000 queries of one invocation. Each attempt to read an Item also makes one R2 read for each stored image the slice takes, at most 20 (`ITEM_IMAGES_MAX`), and a miss repeats them, so up to 40 for one Item. The memory of a slice is open as well. Joining a slice's `dir` object into its `part` object would halve the reads. It is not built, because the planned library (4,000 Items) needs about 200 to 8,000 reads, under the 10,000 of Workers Paid. The 200 is 100 slices of 40 Items at 2 reads each, and the 8,000 assumes one slice for each Item. Both are guesses: an Item with more than 8 MiB of images spreads over several slices, so an image-heavy library needs more, and no library's slice count was measured.
 
 ### Restore
 
@@ -273,7 +282,7 @@ Not verified:
 - The cost of reading a slice's part on R2. A slice reads its part as a stream from the start and skips to its window, because the file store has no byte range, so a slice reads on average half a part of 32 MiB for 1.5 MB of records.
 - A browser uploading a zip of several GiB in 32 MiB parts, a slow link, a failed part, and a part of 32 MiB on a Worker.
 - The request body limit of the owner's reverse proxy or tunnel, and an upload above 1 GB through one. No run crossed a proxy.
-- A zip over 4 GiB (the ZIP64 path of the zip reader), and a zip written by another release.
+- A zip over 4 GiB. The core tests run the ZIP64 records of the zip writer and reader with 65,536 entries and with an entry at an offset past 4 GiB, but no run read or wrote that many bytes. Also a zip written by another release.
 - A comparison of 20 searches and 50 Items with the source. The live proof compared 51 Item documents and 6 images, and no search.
 - A real D1 row near the 2,000,000-byte limit of a bound string ([D1 limits](https://developers.cloudflare.com/d1/platform/limits/)). `RESTORE_BIND_BYTES` keeps a window at 1.9 MB.
 - How the owner finishes the Items that had an open job in an Export taken during an Import, because nothing resumes their work after a Restore.
@@ -284,7 +293,7 @@ A cancel after a Restore that wrote `reddit_settings` empties it, which reads as
 
 ## Threadsift bot, Share target and bot script
 
-- No core test exercises the `failed` answer when `mark` cannot read random bytes. On 2026-11-21, a local run of `unshare -rm sh -c 'mount --bind /dev/null /dev/urandom && bash bot/scripts/threadsift.sh mark'` printed `failed` and `no random bytes` and exited with status 2. The `check` job leaves the setup action’s `unprivileged-userns` input at its default of `false`.
+- Not run by the gate: the `failed` answer when `mark` cannot read random bytes. No core test exercises it. On 2026-11-21, a local run of `unshare -rm sh -c 'mount --bind /dev/null /dev/urandom && bash bot/scripts/threadsift.sh mark'` printed `failed` and `no random bytes` and exited with status 2. The `check` job leaves the setup action’s `unprivileged-userns` input at its default of `false`.
 - Not run for the Threadsift bot: an off-topic request (a coding task, a reply on X, a general chat) to a freshly imported bot, which would show whether the short profile keeps the boundary when the skill is not loaded. The bookmark sync routine and the import of all bookmarks on the live bot are unproven live by the owner's choice (2026-11-15). The bookmark folder tools have never been called, so folders are not imported.
 - The bot script's checks of an answer that a real Instance never sends: `failed` for a save whose 200 or 201 body has an `item.id` that is not an integer or a `url` that is not `/items/<item.id>`, and `failed` for a batch answer with fewer results than ids sent. A listener that answers by itself is a fake.
 - The Grok Bot shell tool ([the bot README](../../bot/README.md)): why a `threadsift.sh write` call is limited to 3,000 characters. The smallest size that failed was about 20,000 characters (it arrived with no command twice) and about 1,000 worked, so the size is not a measured maximum. Send heredoc calls of 1,000, 3,000, 10,000 and 20,000 characters from a Grok Bot chat and compare `wc -c` of each stored file with the text sent.

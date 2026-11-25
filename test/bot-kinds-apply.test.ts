@@ -5,7 +5,7 @@ import { executeClaimed } from "../src/core/compose/jobs.ts";
 import { parseStoredDigest } from "../src/core/contract/digest-schema.ts";
 import { DIGEST_ANSWER, KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
-import { jobRow, libraryDump, rowCount, taskRow, topicPage } from "./bot-task-rows.ts";
+import { jobRow, libraryDump, taskRow, topicPage } from "./bot-task-rows.ts";
 import { seedDigested } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { lockedWriter } from "./locked-writer.ts";
@@ -87,7 +87,7 @@ describe("an empty answer to a weekly run applies and completes the task", () =>
           [
             taskRow(instance, sent.id).state,
             jobRow(instance, job.id).state,
-            rowCount(instance, "proposals", "state = 'open'"),
+            instance.database.rowCount("proposals", "state = 'open'"),
           ],
           ["done", "done", 0],
         );

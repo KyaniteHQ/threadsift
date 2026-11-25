@@ -6,7 +6,6 @@ import { type Sent, botInstance, openJobOf, sentTask } from "./bot-kinds-fixture
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
-import { catalogVersion, count } from "./related-fixtures.ts";
 
 const WEEKLY = new Set(["proposals", "topic_proposals"]);
 
@@ -32,8 +31,11 @@ describe("a bot task of each kind stores the context its answer is checked and a
       if (WEEKLY.has(kindCase.kind)) {
         it("records the catalog revision the pairs were read under", () => {
           assert.equal(
-            count(instance, "select input_revision as n from ai_tasks where id = ?", sent.id),
-            catalogVersion(instance),
+            instance.database.count(
+              "select input_revision as n from ai_tasks where id = ?",
+              sent.id,
+            ),
+            instance.database.catalogVersion(),
           );
         });
       }

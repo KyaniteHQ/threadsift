@@ -12,6 +12,7 @@ import type { CliProvider } from "../../core/contract/provider-families.ts";
 import type { CliRunner, RunnerTask } from "../../core/kernel/ai-runtime.ts";
 import { report } from "../../core/kernel/failure-log.ts";
 import { type ProcessEnd, type UnfinishedEnd, answerWithin } from "./cli-process.ts";
+import type { ExitedEnd, SignIn } from "./cli-sign-in.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 
 export const STDOUT_CAP = 1024 * 1024;
@@ -44,8 +45,10 @@ export function promptOf({ instructions, input }: Readonly<AiTaskRequest<unknown
   return `${instructions}\n\n${input}`;
 }
 
+const SIGN_IN_UNKNOWN = { kind: "sign-in-unknown" } as const;
+
 export interface Attempt<Result> {
-  readonly result: AiExecution<Result>;
+  readonly result: AiExecution<Result> | typeof SIGN_IN_UNKNOWN;
   readonly code: number | null;
 }
 
@@ -96,30 +99,40 @@ export abstract class SlottedCli implements CliRunner {
     return { ...config, model: choice.slug };
   }
 
-  protected abstract probe(signal: AbortSignal): Promise<boolean>;
+  protected abstract probe(signal: AbortSignal): Promise<SignIn>;
 
   protected abstract attempt<Result>(
     task: RunnerTask<Result, "cli">,
     signal: AbortSignal,
   ): Promise<Attempt<Result>>;
 
-  protected async outcome<Result>(
+  protected outcome<Result>(
     end: Readonly<ProcessEnd>,
-    read: (
-      exited: Readonly<Extract<ProcessEnd, { readonly kind: "exited" }>>,
-    ) => AiExecution<Result> | null,
-  ): Promise<AiExecution<Result>> {
+    read: (exited: Readonly<ExitedEnd>) => AiExecution<Result> | null,
+  ): Attempt<Result>["result"] {
     if (end.kind !== "exited") return endRefusal(end);
 
-    return read(end) ?? refusedAi((await this.signedIn()) ? "unreachable" : "not-configured");
+    return read(end) ?? SIGN_IN_UNKNOWN;
+  }
+
+  private signIn(stop: AbortSignal): Promise<SignIn> {
+    return answerWithin(stop, (signal) => this.probe(signal), "unknown");
+  }
+
+  private async signInRefusal(stop: AbortSignal) {
+    const signIn = await this.signIn(stop);
+
+    if (stop.aborted) return refusedAi("timeout");
+
+    return refusedAi(signIn === "signed-out" ? "not-configured" : "unreachable");
   }
 
   stop(): void {
     this.shutdown.abort();
   }
 
-  readonly signedIn = (): Promise<boolean> =>
-    answerWithin(this.shutdown.signal, (signal) => this.probe(signal), false);
+  readonly signedIn = async (): Promise<boolean> =>
+    (await this.signIn(this.shutdown.signal)) === "signed-in";
 
   readonly run = async <Result>(
     task: RunnerTask<Result, "cli">,
@@ -127,16 +140,17 @@ export abstract class SlottedCli implements CliRunner {
   ): Promise<AiExecution<Result>> => {
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 
-    const done = await inSlot(this.slots, stop, async () => {
-      const { result, code } = await this.attempt(task, stop);
+    const done = await inSlot(this.slots, stop, () => this.attempt(task, stop));
 
-      if (result.kind === "refused") {
-        report("cli-refused", { provider: this.provider, reason: result.reason, exit: code });
-      }
+    if (done === null) return refusedAi("timeout");
 
-      return result;
-    });
+    const result =
+      done.result.kind === SIGN_IN_UNKNOWN.kind ? await this.signInRefusal(stop) : done.result;
 
-    return done ?? refusedAi("timeout");
+    if (result.kind === "refused") {
+      report("cli-refused", { provider: this.provider, reason: result.reason, exit: done.code });
+    }
+
+    return result;
   };
 }

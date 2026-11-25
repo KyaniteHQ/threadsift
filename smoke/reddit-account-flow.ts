@@ -2,7 +2,7 @@ import { type Page, expect } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { REDDIT_ACCOUNT_TEXT } from "../web/src/reddit-account-text.ts";
-import { PHONE, expectNoSidewaysScroll } from "./screen-checks.ts";
+import { expectFitsPhone } from "./screen-checks.ts";
 
 const SESSION = "a-smoke-session-value.that_is-not-real";
 
@@ -24,6 +24,12 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await expect(button(page, REDDIT_ACCOUNT_TEXT.verify)).toHaveAccessibleDescription(
     REDDIT_ACCOUNT_TEXT.resultNotConfigured,
   );
+  await expect(button(page, REDDIT_ACCOUNT_TEXT.disconnect)).toHaveAccessibleDescription(
+    REDDIT_ACCOUNT_TEXT.removeNothing,
+  );
+  await expect(
+    section(page).getByText(REDDIT_ACCOUNT_TEXT.removeNothing, { exact: true }),
+  ).toBeVisible();
 
   await button(page, REDDIT_ACCOUNT_TEXT.connect).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.valueNeeded)).toBeVisible();
@@ -43,9 +49,7 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateConnected)).toBeVisible();
   await expect(page.getByText(SESSION)).toHaveCount(0);
 
-  await page.setViewportSize(PHONE);
-  await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await expectFitsPhone(page);
 
   await button(page, REDDIT_ACCOUNT_TEXT.disconnect).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.disconnected)).toBeVisible();
@@ -54,9 +58,7 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await button(page, REDDIT_ACCOUNT_TEXT.connectExtension).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.extensionMissing)).toBeVisible();
 
-  await page.setViewportSize(PHONE);
-  await expectNoSidewaysScroll(page);
-  await page.setViewportSize({ width: 1280, height: 800 });
+  await expectFitsPhone(page);
 
   const scopes = page.getByRole("group", { name: SETTINGS.scopesLabel });
 

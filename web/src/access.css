@@ -322,6 +322,3 @@
   align-items: center;
   gap: var(--s2);
 }
-.bk-state:empty {
-  position: absolute;
-}

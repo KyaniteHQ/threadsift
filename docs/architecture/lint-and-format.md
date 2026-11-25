@@ -51,10 +51,12 @@ Details of the matching:
 - It resolves relative specifiers and the Extension's WXT aliases `@/`, `~/`, `@@/` and `~~/`, which the Extension's generated tsconfig maps to the Extension folder. The root TypeScript configuration, the Vite configuration and the web app define no alias, and the Extension defines no other.
 - A `require()`, `createRequire(...)()` or `import()` whose source is computed is reported when a string in it names a path under `src/core` or `src/features`, or, in a file of `web/`, `extension/` or `design/`, a path under `src/http` or `src/targets`. A source with no such string, such as `import(pathToFileURL(path).href)` in the container's fetcher module loader, is not seen.
 - `new URL(..., import.meta.url)` and `import.meta.resolve` load nothing and are not checked.
-- No code outside `design/prototype/` calls `require` or `createRequire`.
+- No linted file calls `require` or `createRequire`.
 - The rule applies to every linted file, so it has no `files` override and no exception. The packages a browser may load are the job of `threadsift/no-server-value-import`.
 
 ## Custom rules
+
+A core test copies the plug-in and the layout file into a temporary repository, writes fixture files, runs oxlint on them and checks, for each rule below, a fixture it refuses and one it passes. The layer rule's fixtures include an Extension alias. The run takes the Threadsift rules, their options and their file scopes from the repository's configuration, so the test also checks that every Threadsift rule the configuration enables refuses at least one fixture.
 
 ### `threadsift/no-comments`
 
@@ -68,9 +70,9 @@ The rule matches the identifier `items` as the first argument. It does not see a
 
 ### `threadsift/no-server-value-import`
 
-It reports a value import whose chain reaches a server module (the `forbidden` option in the oxlint configuration lists them), because the bundler ships every module a value import reaches. A plugin rule sees only the file it lints, so the walk reads the other files itself. It scans their import statements with regular expressions and follows only relative `.ts`, `.tsx` and `.mts` paths. The plugin runs in Node, so `node:fs` works, as `pnpm lint` shows. The plugin docs ([Writing JS plugins](https://oxc.rs/docs/guide/usage/linter/js-plugins)) do not mention reading files, and the `@oxlint/plugins` types give a rule `context.cwd` and `context.filename`.
+It reports a value import whose chain reaches a server module (the `forbidden` option in the oxlint configuration lists them), because the bundler ships every module a value import reaches. A plugin rule sees only the file it lints, so the walk reads the other files itself. It scans their import statements with regular expressions and follows only `.ts`, `.tsx` and `.mts` files, reached by a relative path or, from an Extension file, by one of its WXT aliases (the same resolution as `threadsift/layer-imports`). The plugin runs in Node, so `node:fs` works, as `pnpm lint` shows. The plugin docs ([Writing JS plugins](https://oxc.rs/docs/guide/usage/linter/js-plugins)) do not mention reading files, and the `@oxlint/plugins` types give a rule `context.cwd` and `context.filename`.
 
-The rule sees no path alias, no `require` and no import in a file that the walk cannot scan as TypeScript. The repository has none of those, and the root TypeScript configuration sets no `paths`. The WXT and Vite configurations run in Node, so the folders above exclude them.
+The rule sees no `require`, no path alias outside the Extension and no import in a file that the walk cannot scan as TypeScript. In the folders it covers, no file calls `require` or uses another alias, every relative import names a TypeScript file or a style sheet, which holds no import of code, and the root TypeScript configuration sets no `paths`. The WXT and Vite configurations run in Node, so the folders above exclude them.
 
 ### `threadsift/no-await-before-rethrow`
 
@@ -109,11 +111,11 @@ It refuses a path, a link, a symbol paired with a path, or a line number that th
 
 ### `pnpm docs:impact [base]`
 
-The command lists the doc lines that a change may make untrue ([Changing code](../agents/changing-code.md), Finish).
+The command lists the doc lines that a change may make untrue ([Changing code](../agents/changing-code.md), Finish). It exits 1 and prints the reason when it cannot compare with the base.
 
 ## Fixes that run without review
 
-The commit hook and the agent hook apply safe fixes only. The agent hook runs after each edit to a file in the project or in one of its git worktrees, and lints with that checkout's own `node_modules`. Suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
+The commit hook and the agent hook apply safe fixes only. The agent hook is Claude Code's: it runs after each Edit, MultiEdit or Write of a file in the project or in one of its git worktrees, and only when that checkout has its own installed oxlint. An edit made through a shell command is not linted. Codex runs no lint hook, so a Codex edit meets the lint at the commit hook or at `pnpm lint:fix`. Suggestion fixes run only through `pnpm lint:fix`, whose diff the agent reads.
 
 ## Outside the lint
 

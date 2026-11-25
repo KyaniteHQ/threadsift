@@ -1,5 +1,7 @@
 import { browser } from "wxt/browser";
 
+import { logFailure } from "../../lib/log.ts";
+import { newestRequest } from "../../lib/newest-request.ts";
 import { applyLook, button, element, replaceControls, say } from "../../lib/page-look.ts";
 import { SAVE_PORT } from "../../lib/ports.ts";
 import {
@@ -11,13 +13,15 @@ import {
   redditStatusText,
   redditTone,
 } from "../../lib/reddit-setting.ts";
-import { SAVE_STATE_FACTS, opensItem } from "../../lib/save-state-facts.ts";
+import { SAVE_STATE_FACTS, leavesRedditUnknown, opensItem } from "../../lib/save-state-facts.ts";
 import { type SaveState, SaveStateSchema, ask } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
 
 const SAVE_DEADLINE_MS = 240_000;
 
 let reddit: RedditView | null = null;
+
+const beginReddit = newestRequest();
 
 const root = document.querySelector("#root");
 
@@ -49,7 +53,7 @@ function actions(state: Readonly<SaveState>): HTMLElement[] {
     case "settings":
       return [button(TEXT.openSettings, () => void browser.runtime.openOptionsPage())];
     case "retry":
-      return [button(TEXT.tryAgain, () => void save())];
+      return [button(TEXT.tryAgain, () => void saveAndOffer())];
     case "none":
       return [];
     default:
@@ -84,28 +88,61 @@ function moveReddit(next: RedditView): void {
 async function reconnect(): Promise<void> {
   if (reddit?.kind === "working") return;
 
+  beginReddit();
   moveReddit({ kind: "working", access: false });
   moveReddit((await reconnectFromPopup()) ?? { kind: "expired", access: false });
 }
 
-async function offerReconnect(): Promise<void> {
-  const view = await loadReddit();
-
-  if (view.kind === "expired") moveReddit(view);
+function hideReddit(): void {
+  reddit = null;
+  redditBlock.hidden = true;
 }
 
-async function save(): Promise<void> {
+function withdrawReddit(): void {
+  if (reddit?.kind === "working") return;
+
+  beginReddit();
+  hideReddit();
+}
+
+async function offerReconnect(): Promise<void> {
+  if (reddit?.kind === "working") return;
+
+  const isNewest = beginReddit();
+  const view = await loadReddit();
+
+  if (!isNewest()) return;
+
+  if (view.kind === "expired") moveReddit(view);
+  else hideReddit();
+}
+
+async function save(): Promise<SaveState> {
   show({ kind: "saving" });
 
   try {
-    show(await ask(SAVE_PORT, SaveStateSchema, { deadlineMs: SAVE_DEADLINE_MS }));
-  } catch {
-    show({ kind: "failed" });
+    const answer = await ask(SAVE_PORT, SaveStateSchema, { deadlineMs: SAVE_DEADLINE_MS });
+
+    show(answer);
+
+    return answer;
+  } catch (cause) {
+    logFailure("popup-save-failed", cause);
+
+    const failed: SaveState = { kind: "failed" };
+
+    show(failed);
+
+    return failed;
   }
+}
+
+async function saveAndOffer(): Promise<void> {
+  withdrawReddit();
+
+  if (leavesRedditUnknown(await save())) await offerReconnect();
 }
 
 applyLook();
 
-await save();
-
-await offerReconnect();
+await saveAndOffer();

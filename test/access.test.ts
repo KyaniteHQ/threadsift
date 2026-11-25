@@ -1,13 +1,11 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { SessionStateSchema } from "../src/core/contract/access-wire.ts";
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ConnectStartResponseSchema } from "../src/core/contract/openrouter-contract.ts";
-import { Instance, PASSWORD, SETUP_CODE } from "./instance.ts";
+import { Instance, PASSWORD, SETUP_CODE, SECRET_KEY } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
-import { SECRET_KEY } from "./related-fixtures.ts";
 
 const WRONG_SETUP_CODE = "a-wrong-setup-code-of-sixteen";
 
@@ -109,6 +107,7 @@ const UNMATCHED: readonly Row[] = [
   ["PUT", "/api/tokens/1", 405, ["PATCH", "DELETE"]],
   ["GET", "/api/logout", 405, ["POST"]],
   ["OPTIONS", "/api/ai-tasks/1/result", 405, ["POST"]],
+  ["DELETE", "/api/ai-tasks/1", 405, ["GET", "HEAD"], ["cache-control", "no-store"]],
   ["POST", "/api/settings/ai/openrouter/callback", 405, ["GET"]],
   ["DELETE", "/api/settings/ai/openrouter/start", 405, ["POST"], ["cache-control", "no-store"]],
   [
@@ -144,7 +143,7 @@ describe("a request that matches no route answers 404, or 405 with Allow, and an
     const addOnly = await createAgentToken(instance, "add", ["add"]);
 
     callers = [
-      { cookie: instance.sessionCookie ?? "" },
+      { cookie: instance.ownerCookie },
       { authorization: `Bearer ${all.value}` },
       { authorization: `Bearer ${addOnly.value}` },
     ];
@@ -207,17 +206,7 @@ describe("a HEAD on the OpenRouter callback", () => {
   const CALLBACK = "/api/settings/ai/openrouter/callback";
   let instance: Instance;
 
-  const attempts = () => {
-    const database = new DatabaseSync(instance.databaseFile, { readOnly: true });
-
-    try {
-      return database.prepare("select count(*) as n from openrouter_connect_transactions").get()?.[
-        "n"
-      ];
-    } finally {
-      database.close();
-    }
-  };
+  const attempts = () => instance.database.rowCount("openrouter_connect_transactions");
 
   before(async () => {
     instance = await Instance.start({ publicOrigin: "http://localhost", secretKey: SECRET_KEY });
@@ -238,7 +227,7 @@ describe("a HEAD on the OpenRouter callback", () => {
 
     const { authorizationUrl } = ConnectStartResponseSchema.parse(JSON.parse(started.body));
     const state = new URL(authorizationUrl).searchParams.get("state");
-    const headers = { cookie: instance.sessionCookie ?? "" };
+    const headers = { cookie: instance.ownerCookie };
 
     const head = await instance.fetch(`${CALLBACK}?code=a-code&state=${state}`, {
       method: "HEAD",

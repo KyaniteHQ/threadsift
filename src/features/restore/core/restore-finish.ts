@@ -10,10 +10,9 @@ import {
   restoreRuns,
 } from "../../../core/kernel/schema.ts";
 import type { Manifest } from "../../export/core/export-format.ts";
-import type { ZipSource } from "../../export/core/zip-read.ts";
 import { EMBEDDED_JOB_ID } from "./named-files.ts";
-import { recordFiles } from "./restore-records.ts";
 import { RESTORE_TABLES, tableSpec } from "./restore-registry.ts";
+import type { Release } from "./restore-source.ts";
 import { endedUnit, tallied } from "./restore-unit.ts";
 
 const sqliteSequence = sqliteTable("sqlite_sequence", {
@@ -87,13 +86,12 @@ function singletonResets(db: Database, manifest: Readonly<Manifest>) {
   });
 }
 
-export async function finishUnit(
+export function finishUnit(
   ports: JobPorts,
   run: Readonly<RestoreRow>,
-  source: Readonly<ZipSource>,
-): Promise<JobOutcome> {
+  { manifest }: Readonly<Release>,
+): JobOutcome {
   const { db } = ports;
-  const { manifest } = await recordFiles(source);
 
   const before = [
     ...sequenceWrites(db, manifest),

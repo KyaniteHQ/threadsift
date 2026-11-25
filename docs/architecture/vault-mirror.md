@@ -56,7 +56,7 @@ The generation and target identify the singleton lease. `currentVaultNotes` chec
 - Every acknowledgement removes only sequences at or below those read. An answer lost after GitHub committed leaves the queue for another attempt.
 - Each `createCommitOnBranch` carries `expectedHeadOid`, so a moved branch, including a reset, refuses the entire commit. A stale-head refusal reads the new tip and rebuilds from the queue, at most three attempts per lease.
 - REST is used only for branch, commit and subtree reads.
-- The tick runs the sweep and the mirror as separate best-effort tasks.
+- The tick runs the mirror after the sweep, also when the sweep failed, and rethrows the sweep's error after the mirror. A failure inside the mirror is logged as `vault-mirror-failed`, and one that escapes it as `vault-tick-failed`. Neither fails the tick.
 
 ## Bounds, files and retry
 
@@ -86,6 +86,7 @@ A real GitHub `Retry-After` wait is unverified ([Open items and unverified claim
 The settings module seals tokens through the Instance's `Sealer`. A missing sealing key prevents Save.
 
 - Verify reads a candidate branch without saving or writing files. It does not prove Contents write permission or permission to update a protected branch. The mirror needs Contents write for its selected repository ([GraphQL authentication](https://docs.github.com/en/graphql/guides/forming-calls-with-graphql#authenticating-with-a-personal-access-token) supports fine-grained tokens).
+- With no saved destination the settings view reads GitHub mode with no repository and the branch `main`, and it offers Folder where the target has a folder writer.
 - Disconnect and a switch of destination leave the previous target's files in place. Saving the new target queues the full library.
 
 ## Wikilinks
@@ -106,7 +107,7 @@ GitHub's [FileAddition and FileChanges](https://docs.github.com/en/graphql/refer
 - adds an Item's assets in earlier commits, writes its note last, then deletes obsolete assets,
 - when it removes an Item, deletes the note before its assets, because removal reverses that dependency.
 
-A missing file parks that Item and leaves others eligible. The size rules:
+A missing file parks that Item and leaves others eligible. The Item's files are planned from one database read and the post text file read after it, so a refresh that lands between the two makes the first plan miss. `readAgainOnce` reads the Item once more when the first plan is missing, and only a second miss parks the Item, the way `getItem` and the Export read an Item again. The size rules:
 
 - An Item file above 100 MiB is omitted, and the writer records its path once in the Log. An omitted image's embed is removed from the Item note. Stored images are checked by size before reading them.
 - An Item file that exceeds the writer's 8 MiB budget and fits GitHub's file limit stays queued with `file-too-large`.

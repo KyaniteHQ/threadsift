@@ -10,6 +10,11 @@ type AccessResult = "reconciled" | "kept";
 
 export const exclusive = oneAtATime();
 
+export function onPermissionsChanged(listener: () => void): void {
+  browser.permissions.onAdded.addListener(listener);
+  browser.permissions.onRemoved.addListener(listener);
+}
+
 const ManifestSchema = z.object({
   host_permissions: z.array(z.string()).nullish(),
   content_scripts: z.array(z.object({ matches: z.array(z.string()).nullish() })).nullish(),

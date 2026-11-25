@@ -1,11 +1,9 @@
 import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
-import { exec, rows } from "./related-fixtures.ts";
 
 export const pinRows = (instance: Instance) =>
-  rows(
-    instance,
+  instance.database.rows(
     z.object({
       id: z.number(),
       from_key: z.string(),
@@ -46,5 +44,5 @@ export const digestTokenStatements = (itemId: number, token: number): readonly s
 ];
 
 export function replaceDigestToken(instance: Instance, itemId: number, token: number): void {
-  for (const statement of digestTokenStatements(itemId, token)) exec(instance, statement);
+  for (const statement of digestTokenStatements(itemId, token)) instance.database.exec(statement);
 }

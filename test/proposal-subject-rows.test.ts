@@ -11,7 +11,6 @@ import {
 import { Instance } from "./instance.ts";
 import { subjectTable } from "./proposal-seed.ts";
 import { COLUMNS, type SubjectStorage, subjectStorage } from "./proposal-storage-fixtures.ts";
-import { exec, rows } from "./related-fixtures.ts";
 
 const PARENT = {
   "tag-merge": "tags",
@@ -89,8 +88,7 @@ describe("a Proposal head with no subject row", () => {
     await instance.setUp();
 
     PROPOSAL_KINDS.forEach((kind) => {
-      exec(
-        instance,
+      instance.database.exec(
         "insert into proposals (kind, reason, state, created_at) values (?, 'A reason.', 'open', 1)",
         kind,
       );
@@ -112,8 +110,7 @@ describe("a Proposal head with no subject row", () => {
   };
 
   const answersAsUnknown = async (kind: ProposalKind): Promise<void> => {
-    const [found] = rows(
-      instance,
+    const [found] = instance.database.rows(
       z.object({ id: z.number() }),
       "select id from proposals where kind = ?",
       kind,
@@ -133,7 +130,7 @@ describe("a Proposal head with no subject row", () => {
       [404, 404],
     );
     assert.deepEqual(
-      rows(instance, StateSchema, "select id, state from proposals where id = ?", found.id),
+      instance.database.rows(StateSchema, "select id, state from proposals where id = ?", found.id),
       [{ id: found.id, state: "open" }],
     );
   };

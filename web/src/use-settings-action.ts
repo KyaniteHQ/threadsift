@@ -100,9 +100,9 @@ export function useActionFlow<Action extends string>(failedText: string) {
 export function useAction<Action extends string>({
   run,
   action,
-  unavailable,
+  unavailable = null,
   task,
-}: Readonly<{ run: RunAction<Action>; action: Action; unavailable: Unavailable; task: Task }>) {
+}: Readonly<{ run: RunAction<Action>; action: Action; unavailable?: Unavailable; task: Task }>) {
   return useCallback(() => {
     void run(action, task, unavailable);
   }, [action, unavailable, run, task]);
@@ -120,6 +120,21 @@ interface ButtonSet<Check extends string> {
   readonly showReason: boolean;
   readonly press: { readonly check: () => void; readonly remove: () => void };
   readonly saveSecondary?: boolean;
+}
+
+function removeButton(
+  labels: Labels,
+  reason: Unavailable,
+  onClick: () => void,
+): ActionButton<"remove"> {
+  return {
+    action: "remove",
+    ...labels,
+    blocked: reason !== null,
+    hint: reason ?? undefined,
+    onClick,
+    secondary: true,
+  };
 }
 
 export function useActionButtons<Check extends string>({
@@ -151,13 +166,7 @@ export function useActionButtons<Check extends string>({
         onClick: press.check,
         secondary: true,
       },
-      {
-        action: "remove",
-        ...labels.remove,
-        blocked: removeReason !== null,
-        onClick: press.remove,
-        secondary: true,
-      },
+      removeButton(labels.remove, removeReason, press.remove),
     ],
     [
       check,
