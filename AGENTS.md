@@ -49,3 +49,9 @@ Workers AI bills the owner's Cloudflare account by use. Do not call Workers AI f
 ## Data and private values
 
 The prototype's `data.json` and `img/` are the owner's real saves: other people's posts, comments and images. They stay gitignored, and so does any other fetched content. Hostnames, account names and server details live in the gitignored `docs/private/` on the owner's machine; public docs say "the owner's home server" and "a separate Reddit account".
+
+## Grok Bot
+
+Before you design anything that touches the Grok Bot (the Threadsift bot, its skill or routines, the Instance routes it calls, or the Grok Bot Provider), read `docs/private/grok-bot/NOTES.md`. `docs/private/` exists only in the owner's main checkout, never in a worktree, so read and save there. Ask the owner's primary Bot (xAI's name for the main Grok Bot of an account, the one the owner talks to) only what the notes do not already answer as verified. Save the questions and answers in that folder, and give each answer a status in `NOTES.md`: verified by xAI's Grok Bot docs (https://docs.x.ai/grok-bot/overview), verified by a run, stated by the Bot only, refuted, or open. Rely only on a verified answer, because the docs leave much of a Bot's behaviour out, and the Bot answers from its own tool descriptions, which runs have contradicted.
+
+On the owner's machine a session reaches the Bot through the Grok Bot app, with `box-browser --app <account> <agent-browser command>`; `NOTES.md`, "Reaching the primary Bot", names the account. A run that adds or changes anything on the owner's Bot, such as a skill or a routine, waits for the owner's yes. It records each setting it changes before the run, puts it back after, and checks that it is back, and it deletes what it added.
