@@ -23,7 +23,7 @@ description: >-
   TS_<hex1>
   ```
   `<hex1>` is the 32 characters after `TS_` in the word `mark` printed. The file lands in `~/threadsift/tmp/` and `write` prints `ok`. Name each file `<kind>-<hex1>.json` or `<kind>-<hex1>.txt`: `write` refuses a name without the 32 characters of a `mark`. Text with a NUL byte is not supported. When `write` or `append` prints `bad-input`, end the run with that word.
-- One `write` or `append` call carries at most 3,000 characters of text. Write a longer text with one `write` and then `append` calls, each with a fresh `mark` as its delimiter (`<hex2>` for the first `append`, and so on) and the file name of the `write`. Split anywhere, inside a JSON string too. `write` and `append` drop the one final newline the heredoc adds, so the parts join into exactly the text. A second file of the same step takes its own `mark`.
+- One `write` or `append` call carries at most 20,000 characters of text. Write a longer text with one `write` and then `append` calls, each with a fresh `mark` as its delimiter (`<hex2>` for the first `append`, and so on) and the file name of the `write`. Split anywhere, inside a JSON string too. `write` and `append` drop the one final newline the heredoc adds, so the parts join into exactly the text. A second file of the same step takes its own `mark`. Each `write` and `append` must print `ok` before the next call. When a call prints no word at all, run `mark` and start the file again with a `write` under the new name; never repeat only the `append`, because its part may have landed.
   ```bash
   ~/threadsift/threadsift.sh append event-<hex1>.json <<'TS_<hex2>'
   <the next part of the text, unchanged>
@@ -163,6 +163,6 @@ End `threadsift import: <added> added, <known> known, <refused> refused`. When t
 ## Setup and update
 For "set up threadsift" or a new owner's first conversation, follow `~/threadsift/setup.md`. For "update threadsift", follow `~/threadsift/update.md`, and apply an update only on the owner's yes. If the file or the script is missing, fetch the pinned release first with this exact line:
 ```bash
-TAG=bot-v11 SUMS_SHA256=ad9247ffb0841918177a0861d75bf32445c5425ba544f9e4771cc4c279b060b4; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
+TAG=bot-v12 SUMS_SHA256=ad9247ffb0841918177a0861d75bf32445c5425ba544f9e4771cc4c279b060b4; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
 ```
 If any check fails, delete what was fetched, tell the owner, and stop.
