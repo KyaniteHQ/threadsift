@@ -79,7 +79,7 @@ export class ScriptWorld {
 
     return new ScriptWorld(
       instance,
-      { agentToken: value, candidate: library.candidates[0] ?? 0, source: library.source },
+      { agentToken: value, candidate: library.candidates[0], source: library.source },
       { real: await listening((request) => instance.fetch(request)), failing: await shutDown() },
     );
   }

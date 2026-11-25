@@ -32,14 +32,6 @@ describe("botStep takes the step the latest task of the job calls for and spends
   let instance: Instance;
   let library: BotLibrary;
 
-  const firstCandidate = () => {
-    const [candidate] = library.candidates;
-
-    assert.ok(candidate !== undefined);
-
-    return candidate;
-  };
-
   const tasksOf = (jobId: number) => taskRows(instance, "job_id = ?", jobId);
 
   before(async () => {
@@ -138,7 +130,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
     assert.deepEqual([row.state, row.refusal], ["failed", "timeout"]);
     assert.equal(jobRow(instance, job.id).state, "done");
     assert.equal(
-      (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
       409,
     );
   });
@@ -162,7 +154,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
 
     exec(instance, "update jobs set attempts = 2 where id = ?", task.job.id);
     assert.equal(
-      (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
 
@@ -170,7 +162,7 @@ describe("botStep takes the step the latest task of the job calls for and spends
 
     assert.deepEqual(
       pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [firstCandidate()],
+      [library.candidates[0]],
     );
     assert.deepEqual(
       [taskRow(instance, task.id).state, jobRow(instance, task.job.id).state],
@@ -199,7 +191,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
   let instance: Instance;
   let library: BotLibrary;
 
-  const answeredTask = async (candidates: readonly number[]) => {
+  const answeredTask = async (candidate: number) => {
     retireTasks(instance);
 
     const task = await sentRelatedTask(instance, library.source);
@@ -207,10 +199,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
 
     exec(instance, "update jobs set attempts = 1 where id = ?", job.id);
 
-    const [first] = candidates;
-
-    assert.ok(first !== undefined);
-    assert.equal((await answered(instance, task, answerOf(picksFor(first)))).status, 204);
+    assert.equal((await answered(instance, task, answerOf(picksFor(candidate)))).status, 204);
 
     return { task, job };
   };
@@ -226,7 +215,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
   after(() => instance.close());
 
   const settled = async (candidate: number, change: () => Promise<void>) => {
-    const { task, job } = await answeredTask([candidate]);
+    const { task, job } = await answeredTask(candidate);
 
     await change();
     await applied(instance, job, await step(instance, job));
@@ -256,7 +245,6 @@ describe("an answer that no longer fits fails the task, and the job starts a new
   it("when a sent candidate was deleted", async () => {
     const [candidate] = library.candidates;
 
-    assert.ok(candidate !== undefined);
     await settled(candidate, async () => {
       assert.equal((await instance.send("DELETE", `/api/items/${String(candidate)}`)).status, 204);
     });
@@ -264,10 +252,7 @@ describe("an answer that no longer fits fails the task, and the job starts a new
 
   it("when the stored answer no longer fits its kind", async () => {
     const candidate = library.candidates[1];
-
-    assert.ok(candidate !== undefined);
-
-    const { task, job } = await answeredTask([candidate]);
+    const { task, job } = await answeredTask(candidate);
 
     exec(instance, "update ai_tasks set result = '\"x\"' where id = ?", task.id);
     await assert.rejects(step(instance, job), /no longer fits/u);
@@ -282,7 +267,6 @@ describe("an answer that no longer fits fails the task, and the job starts a new
   it("when a sent candidate got a new Digest", async () => {
     const candidate = library.candidates[1];
 
-    assert.ok(candidate !== undefined);
     await settled(candidate, async () => {
       await paste(instance, "near-two", { title: "Quasar notes, revised", tags: ["quasar"] });
     });

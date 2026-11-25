@@ -22,9 +22,7 @@ describe("the result route answers each status of its contract and writes nothin
 
   before(async () => {
     ({ instance, library, agentToken } = await readWorld());
-    const [first] = library.candidates;
-    assert.ok(first !== undefined);
-    candidate = first;
+    [candidate] = library.candidates;
   });
 
   beforeEach(() => {
@@ -222,8 +220,6 @@ describe("the result route answers each status of its contract and writes nothin
   it("accepts exactly one of two simultaneous answers and keeps the winner's result", async () => {
     const task = await fresh();
     const [first, second] = library.candidates;
-
-    assert.ok(first !== undefined && second !== undefined);
 
     const answers = await Promise.all(
       [first, second].map(async (item) => ({

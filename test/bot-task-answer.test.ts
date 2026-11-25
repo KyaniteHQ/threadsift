@@ -23,14 +23,6 @@ describe("an answer reaches its job whichever happens first, the answer or the s
   let instance: Instance;
   let library: BotLibrary;
 
-  const candidate = () => {
-    const [first] = library.candidates;
-
-    assert.ok(first !== undefined);
-
-    return first;
-  };
-
   before(async () => {
     instance = await Instance.start({ secretKey: SECRET_KEY });
     await instance.setUp();
@@ -54,7 +46,10 @@ describe("an answer reaches its job whichever happens first, the answer or the s
       unlessOpen: task.id,
     } as const;
 
-    assert.equal((await answered(instance, task, answerOf(picksFor(candidate())))).status, 204);
+    assert.equal(
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
+      204,
+    );
 
     const committed = Date.now();
 
@@ -77,7 +72,10 @@ describe("an answer reaches its job whichever happens first, the answer or the s
       unlessOpen: task.id,
     });
     assert.equal(jobRow(instance, task.job.id).state, "queued");
-    assert.equal((await answered(instance, task, answerOf(picksFor(candidate())))).status, 204);
+    assert.equal(
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
+      204,
+    );
 
     unblock(instance, library.source);
 
@@ -92,7 +90,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
 
     assert.deepEqual(
       pairsOf(instance, library.source).map(({ related_id: id }) => id),
-      [candidate()],
+      [library.candidates[0]],
     );
     assert.equal(jobRow(instance, task.job.id).state, "done");
   });
@@ -129,12 +127,11 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
     const answeredTask = await taskAfterStart(instance, library.source);
 
     assert.equal(
-      (await answered(instance, answeredTask, answerOf(picksFor(library.candidates[0] ?? 0))))
-        .status,
+      (await answered(instance, answeredTask, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
 
-    const owned = await taskAfterStart(instance, library.candidates[0] ?? 0);
+    const owned = await taskAfterStart(instance, library.candidates[0]);
 
     const plain = insertedTask(instance, {
       kind: "digest",
@@ -159,11 +156,10 @@ describe("the sweep fails an unclaimed task and leaves an answer and an owned ta
     retireTasks(instance);
 
     const answeredTask = await taskAfterStart(instance, library.source);
-    const owned = await taskAfterStart(instance, library.candidates[1] ?? 0);
+    const owned = await taskAfterStart(instance, library.candidates[1]);
 
     assert.equal(
-      (await answered(instance, answeredTask, answerOf(picksFor(library.candidates[0] ?? 0))))
-        .status,
+      (await answered(instance, answeredTask, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
     await sweptAfterDeadline([answeredTask.id, owned.id], DAY_MS);

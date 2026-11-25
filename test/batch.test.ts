@@ -52,7 +52,11 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
   });
 
   it("answers each link in the order sent, and answers known, with no refresh, for the repeat of a settled call", async () => {
-    const sent = ["https://first.test/settled", "http://localhost/private", xLink(3000000002)];
+    const sent = [
+      "https://first.test/settled",
+      "http://localhost/private",
+      xLink(3000000002),
+    ] as const;
 
     const body = {
       links: sent.map((url) => ({ url })),
@@ -85,7 +89,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     const repeated = {
       ...body,
       links: [
-        { url: sent[0] ?? "", digest: { ...DIGEST, summary: "Late digest.\nSecond line." } },
+        { url: sent[0], digest: { ...DIGEST, summary: "Late digest.\nSecond line." } },
         ...body.links.slice(1),
       ],
     };

@@ -44,7 +44,7 @@ describe("the task credential is kept only as a digest and ends at a resend", ()
     const stale = await answered(
       instance,
       { id, token },
-      answerOf(picksFor(library.candidates[0] ?? 0)),
+      answerOf(picksFor(library.candidates[0])),
     );
 
     const main = await readFile(instance.databaseFile);

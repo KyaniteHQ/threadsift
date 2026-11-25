@@ -61,7 +61,7 @@ describe("only one Topic or Tag merge can run at a time", () => {
 
 describe("Accept of a Topic row moves everything the Topic owns in one batch", () => {
   let instance: Instance;
-  let ids: readonly number[];
+  let ids: readonly [number, number, number, number];
   let loser = 0;
   let survivor = 0;
   let versionBefore = 0;
@@ -79,7 +79,7 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
     ];
     loser = topicId(instance, "ML");
     survivor = topicId(instance, "Machine learning");
-    exec(instance, "update digests set digest = 'not json' where item_id = ?", ids[1] ?? 0);
+    exec(instance, "update digests set digest = 'not json' where item_id = ?", ids[1]);
     proposeTopics(instance, ["ML", "Games"], "open", "Other.");
     proposeTopics(instance, ["Machine learning", "Games"], "open", "Kept.");
     exec(
@@ -119,8 +119,8 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
         instance,
         DigestSchema,
         "select topic, digest as json from digests where item_id in (?, ?) order by item_id",
-        ids[0] ?? 0,
-        ids[1] ?? 0,
+        ids[0],
+        ids[1],
       ).map(({ topic, json }) => [
         topic,
         json.startsWith("{") ? JsonTopicSchema.parse(JSON.parse(json)).topic : json,

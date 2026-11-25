@@ -24,14 +24,6 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
   let instance: Instance;
   let library: BotLibrary;
 
-  const firstCandidate = () => {
-    const [candidate] = library.candidates;
-
-    assert.ok(candidate !== undefined);
-
-    return candidate;
-  };
-
   before(async () => {
     instance = await botInstance();
     library = await relatedLibrary(instance);
@@ -46,7 +38,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
 
     exec(instance, "update ai_tasks set sent_at = ? where id = ?", Date.now(), task.id);
     assert.equal(
-      (await answered(instance, task, answerOf(picksFor(firstCandidate())))).status,
+      (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
       204,
     );
 
@@ -58,7 +50,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     assert.equal(rowCount(instance, "related_items"), 1);
     assert.deepEqual(
       pairsOf(instance, library.source).map(({ related_id }) => related_id),
-      [firstCandidate()],
+      [library.candidates[0]],
     );
   });
 
@@ -107,7 +99,7 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
 
     assert.equal(next?.executor, "http");
 
-    const late = await answered(instance, task, answerOf(picksFor(firstCandidate())));
+    const late = await answered(instance, task, answerOf(picksFor(library.candidates[0])));
 
     assert.equal(late.status, 409);
     assert.equal(taskRow(instance, task.id).answered_at, null);

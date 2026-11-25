@@ -132,7 +132,7 @@ describe("the task read answers what the bot has to do to the task's own credent
     assert.equal(
       (
         await answered(world.instance, answeredTask, {
-          result: picksFor(world.library.candidates[0] ?? 0),
+          result: picksFor(world.library.candidates[0]),
         })
       ).status,
       204,

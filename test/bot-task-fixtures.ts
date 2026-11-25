@@ -20,7 +20,7 @@ const UNREACHABLE_ADDRESS = "https://no-such-host.invalid/automations/webhook/no
 
 export interface BotLibrary {
   readonly source: number;
-  readonly candidates: readonly number[];
+  readonly candidates: readonly [number, number];
 }
 
 export async function saveBot(instance: Instance): Promise<void> {

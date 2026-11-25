@@ -32,8 +32,8 @@ const overviewJobs = (instance: Instance): readonly number[] =>
 
 interface Library {
   readonly instance: Instance;
-  readonly loserItems: readonly number[];
-  readonly survivorItems: readonly number[];
+  readonly loserItems: readonly [number, number];
+  readonly survivorItems: readonly [number, number];
 }
 
 const withLibrary = async (
@@ -45,14 +45,23 @@ const withLibrary = async (
   try {
     await instance.setUp();
 
-    const library = await pasteTopics(instance, { Loser: ["l1", "l2"], Survivor: ["s1", "s2"] });
-    const loserItems = library["Loser"];
-    const survivorItems = library["Survivor"];
-    assert.ok(loserItems && survivorItems);
+    const { Loser: [loserOwner, loserOther] = [], Survivor: [survivorOwner, survivorOther] = [] } =
+      await pasteTopics(instance, { Loser: ["l1", "l2"], Survivor: ["s1", "s2"] });
+
+    assert.ok(
+      loserOwner !== undefined &&
+        loserOther !== undefined &&
+        survivorOwner !== undefined &&
+        survivorOther !== undefined,
+    );
 
     if (provider) await saveProvider(instance);
 
-    await run({ instance, loserItems, survivorItems });
+    await run({
+      instance,
+      loserItems: [loserOwner, loserOther],
+      survivorItems: [survivorOwner, survivorOther],
+    });
   } finally {
     await instance.close();
   }
@@ -77,7 +86,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
 
   it("adds none when the survivor's owner Item already has a queued job", () =>
     withLibrary({ provider: true }, async ({ instance, loserItems }) => {
-      const [owner = 0] = loserItems;
+      const [owner] = loserItems;
 
       queue(instance, owner);
       assert.equal(
@@ -89,7 +98,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
 
   it("records the jobs that exist when queued jobs sit on the loser's owner Item and on another Item of each Topic", () =>
     withLibrary({ provider: true }, async ({ instance, loserItems, survivorItems }) => {
-      const queued = [loserItems[1] ?? 0, survivorItems[1] ?? 0];
+      const queued = [loserItems[1], survivorItems[1]];
 
       for (const id of queued) queue(instance, id);
 
@@ -98,7 +107,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
         200,
       );
 
-      const [owner = 0] = loserItems;
+      const [owner] = loserItems;
 
       assert.deepEqual(
         overviewJobs(instance),

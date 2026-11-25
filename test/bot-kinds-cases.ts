@@ -53,14 +53,14 @@ function mergesBreakingRules(context: string): Json {
   };
 }
 
-function oneTopic(instance: Instance, items: readonly number[]): number {
+function oneTopic(instance: Instance, items: readonly [number, ...number[]]): number {
   seedTopics(instance, { 1: "Alpha" });
   seedDigested(
     instance,
     items.map((id) => ({ id, topic: 1 })),
   );
 
-  return items[0] ?? 0;
+  return items[0];
 }
 
 async function tagLibrary(instance: Instance): Promise<number> {

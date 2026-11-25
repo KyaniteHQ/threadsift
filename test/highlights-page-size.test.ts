@@ -79,16 +79,17 @@ describe("the Highlights page shows 50 entries at a time and pages by cursor wit
 describe("the Highlights page answers exactly 50 entries without a cursor, and the 51st on a second page", () => {
   let instance: Instance;
   let itemId: number;
-  const passages = tokens(51);
+  const fifty = tokens(50);
+  const fiftyFirst = "token50";
 
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
     itemId = await paste(instance, "fifty", {
       title: "Fifty passages",
-      postText: textHolding(passages.join(" ")),
+      postText: textHolding([...fifty, fiftyFirst].join(" ")),
     });
-    await keepEach(instance, itemId, passages.slice(0, 50));
+    await keepEach(instance, itemId, fifty);
   });
 
   after(() => instance.close());
@@ -102,7 +103,7 @@ describe("the Highlights page answers exactly 50 entries without a cursor, and t
   });
 
   it("answers 50 entries and a cursor, then the 51st, when the library holds 51", async () => {
-    const last = await keepPassage(instance, itemId, passages[50] ?? "");
+    const last = await keepPassage(instance, itemId, fiftyFirst);
     const first = await pageOf(instance);
 
     assert.equal(first.entries.length, 50);
