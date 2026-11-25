@@ -4,8 +4,7 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { runJob } from "../src/core/compose/jobs.ts";
 import { acceptedByBot, botInstance } from "./bot-task-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
-import { insertedTask, jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
-import { until } from "./library-fixtures.ts";
+import { insertedTask, jobAfterAttempts, jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import { answerOf, contentOf, digestOf } from "./x-intake-bodies.ts";
 import {
   advancedContent,
@@ -59,11 +58,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
 
     assert.equal((await intakeTo(instance, task, UNREADABLE)).status, 400);
 
-    const claimed = await until(
-      `job ${String(task.job.id)} has spent one attempt`,
-      () => jobRow(instance, task.job.id),
-      ({ attempts }) => attempts === 1,
-    );
+    const claimed = await jobAfterAttempts(instance, task.job.id, 1);
 
     assert.equal(claimed.state, "queued");
     assert.ok(claimed.next_attempt_at - Date.now() <= THIRTY_SECONDS_MS);
@@ -120,11 +115,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
     await intakeTo(instance, task, UNREADABLE);
     await intakeTo(instance, task, UNREADABLE);
     const moved = taskRow(instance, task.id).deadline;
-    const retry = await until(
-      `job ${String(task.job.id)} has spent one attempt`,
-      () => jobRow(instance, task.job.id),
-      (job) => job.attempts === 1,
-    );
+    const retry = await jobAfterAttempts(instance, task.job.id, 1);
     assert.equal((await intakeTo(instance, task, WRONG_TYPE)).status, 400);
     assert.equal(taskRow(instance, task.id).deadline, moved);
     assert.equal(jobRow(instance, task.job.id).next_attempt_at, retry.next_attempt_at);
@@ -166,11 +157,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
     assert.equal((await intakeTo(instance, renewed, UNREADABLE)).status, 400);
     assert.equal(jobRow(instance, task.job.id).next_attempt_at, deadline);
     assert.equal((await intakeTo(instance, renewed, UNREADABLE)).status, 400);
-    await until(
-      `job ${String(task.job.id)} has spent one attempt`,
-      () => jobRow(instance, task.job.id),
-      (job) => job.attempts === 1,
-    );
+    await jobAfterAttempts(instance, task.job.id, 1);
     assert.equal(taskRow(instance, task.id).refusal, "timeout");
   });
 
@@ -281,11 +268,7 @@ describe("refusing an X link answer records its reason and wakes the job after t
           ).status,
           400,
         );
-        await until(
-          `job ${String(task.job.id)} has spent one attempt`,
-          () => jobRow(instance, task.job.id),
-          (job) => job.attempts === 1,
-        );
+        await jobAfterAttempts(instance, task.job.id, 1);
         const failed = taskRow(instance, task.id);
         assert.deepEqual([failed.state, failed.refusal], ["failed", "timeout"]);
       }),

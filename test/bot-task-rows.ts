@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { Instance } from "./instance.ts";
+import { until } from "./library-fixtures.ts";
 
 const TaskRowSchema = z.object({
   id: z.number(),
@@ -57,6 +58,13 @@ export function jobRow(instance: Instance, id: number) {
 
   return row;
 }
+
+export const jobAfterAttempts = (instance: Instance, id: number, attempts: number) =>
+  until(
+    `job ${String(id)} has spent ${String(attempts)} attempts`,
+    () => jobRow(instance, id),
+    (row) => row.attempts === attempts,
+  );
 
 export function reclaimed(instance: Instance, job: Readonly<{ id: number }>): void {
   instance.database.exec(

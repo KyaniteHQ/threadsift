@@ -4,7 +4,7 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { runJob } from "../src/core/compose/jobs.ts";
-import { jobRow } from "./bot-task-rows.ts";
+import { jobAfterAttempts, jobRow } from "./bot-task-rows.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { paste, saveProvider, until } from "./library-fixtures.ts";
 import { entryCount } from "./log-fixtures.ts";
@@ -127,11 +127,7 @@ describe("a failed pick leaves the earlier set and the Item untouched and record
       pickJobs(instance, id).map(({ id: pickId }) => pickId),
       [job.id],
     );
-    await until(
-      `job ${String(job.id)} has spent one more attempt`,
-      () => jobRow(instance, job.id),
-      (row) => row.attempts === held.attempts + 1,
-    );
+    await jobAfterAttempts(instance, job.id, held.attempts + 1);
     assert.equal(earlier, first.id);
     assert.ok(later !== undefined && later > first.id);
   });

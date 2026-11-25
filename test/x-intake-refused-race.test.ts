@@ -4,10 +4,9 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { SECOND_MS } from "../src/core/contract/time-units.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
-import { jobRow, taskRow } from "./bot-task-rows.ts";
+import { jobAfterAttempts, jobRow, taskRow } from "./bot-task-rows.ts";
 import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
-import { until } from "./library-fixtures.ts";
 import { intakeTo, sentIntake, stepOf, waitingIntake } from "./x-intake-fixtures.ts";
 
 const UNREADABLE = { content: "this is not a thread" };
@@ -29,11 +28,7 @@ describe("a refusal that lands while the job's send is still being recorded or a
     await intakeTo(instance, task, UNREADABLE);
     await applied(instance, task.job, outcome);
 
-    const claimed = await until(
-      `job ${String(task.job.id)} has spent one attempt`,
-      () => jobRow(instance, task.job.id),
-      ({ attempts }) => attempts === 1,
-    );
+    const claimed = await jobAfterAttempts(instance, task.job.id, 1);
 
     assert.equal(claimed.state, "queued");
   });
@@ -73,11 +68,7 @@ describe("a refusal that lands while the job's send is still being recorded or a
     const task = await waitingIntake(instance);
     await intakeTo(instance, task, UNREADABLE);
     await intakeTo(instance, task, UNREADABLE);
-    const retry = await until(
-      `job ${String(task.job.id)} has spent one attempt`,
-      () => jobRow(instance, task.job.id),
-      (job) => job.attempts === 1,
-    );
+    const retry = await jobAfterAttempts(instance, task.job.id, 1);
     const moved = taskRow(instance, task.id).deadline;
     const response = await atClock(
       () => moved,
