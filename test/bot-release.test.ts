@@ -11,7 +11,7 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { after, before, describe, it } from "node:test";
+import { afterEach, beforeEach, describe, it } from "node:test";
 
 const ROOT = join(import.meta.dirname, "..");
 
@@ -37,7 +37,7 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
 
   const skillPath = () => join(copy, "bot", "skills", "threadsift", "SKILL.md");
 
-  before(() => {
+  beforeEach(() => {
     copy = mkdtempSync(join(tmpdir(), "threadsift-release-"));
     mkdirSync(join(copy, "tools"));
     cpSync(join(ROOT, "bot"), join(copy, "bot"), { recursive: true });
@@ -49,7 +49,7 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
     );
   });
 
-  after(() => {
+  afterEach(() => {
     rmSync(copy, { recursive: true });
   });
 
@@ -109,7 +109,7 @@ describe("the release tool keeps SHA256SUMS and the hash pinned in SKILL.md true
   });
 
   it("refuses to refresh after a change to a hashed file once the release is tagged, fails the check when the files are refreshed by hand, and passes again after a new release", () => {
-    writeFileSync(join(copy, "bot", "VERSION"), "1\n");
+    assert.equal(release("release").stdout.trim(), "bot-v1");
     git("init", "--quiet");
     git("add", ".");
     git("commit", "--quiet", "-m", "release");

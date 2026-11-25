@@ -10,11 +10,18 @@ import { paste } from "./related-fixtures.ts";
 describe("a Note is saved against the revision the owner loaded, and a save of a stale revision is refused with the current Note", () => {
   let instance: Instance;
   let itemId: number;
+  let pasted = 0;
+
+  const freshItem = () => {
+    pasted += 1;
+
+    return paste(instance, `note-${String(pasted)}`, { title: "With a note", noDigest: true });
+  };
 
   before(async () => {
     instance = await Instance.start();
     await instance.setUp();
-    itemId = await paste(instance, "note", { title: "With a note", noDigest: true });
+    itemId = await freshItem();
   });
 
   after(() => instance.close());
@@ -22,51 +29,52 @@ describe("a Note is saved against the revision the owner loaded, and a save of a
   const put = (id: number, body: string, revision: number) =>
     instance.send("PUT", `/api/items/${String(id)}/note`, { body, revision });
 
-  const noteOf = async () => (await instance.detail(itemId)).note;
+  const noteOf = async (id = itemId) => (await instance.detail(id)).note;
 
   it("reads a Note that was never saved as revision 0 and no body", async () => {
-    assert.deepEqual(await noteOf(), { body: null, revision: 0 });
+    assert.deepEqual(await noteOf(await freshItem()), { body: null, revision: 0 });
   });
 
   it("saves a Note against revision 0 and answers it with the next revision", async () => {
-    const saved = await put(itemId, "first text", 0);
+    const id = await freshItem();
+    const saved = await put(id, "first text", 0);
 
     assert.equal(saved.status, 200);
     assert.deepEqual(NoteResponseSchema.parse(JSON.parse(saved.body)), {
       note: { body: "first text", revision: 1 },
     });
-    assert.deepEqual(await noteOf(), { body: "first text", revision: 1 });
+    assert.deepEqual(await noteOf(id), { body: "first text", revision: 1 });
   });
 
-  it("refuses a save of an old revision with 409, the current Note, and nothing written", async () => {
-    await put(itemId, "second text", 1);
+  it("refuses a save of an old revision with 409, the current Note, and nothing written, then replaces the Note when the text is sent again with the revision the refusal named", async () => {
+    const id = await freshItem();
 
-    const stale = await put(itemId, "text from a stale page", 1);
+    assert.equal((await put(id, "first text", 0)).status, 200);
+    assert.equal((await put(id, "second text", 1)).status, 200);
+
+    const stale = await put(id, "the owner's text", 1);
 
     assert.equal(stale.status, 409);
-    assert.deepEqual(NoteConflictSchema.parse(JSON.parse(stale.body)).note, {
-      body: "second text",
-      revision: 2,
-    });
-    assert.deepEqual(await noteOf(), { body: "second text", revision: 2 });
+
+    const { note } = NoteConflictSchema.parse(JSON.parse(stale.body));
+
+    assert.deepEqual(note, { body: "second text", revision: 2 });
+    assert.deepEqual(await noteOf(id), { body: "second text", revision: 2 });
+
+    const retried = await put(id, "the owner's text", note.revision);
+
+    assert.equal(retried.status, 200);
+    assert.deepEqual(await noteOf(id), { body: "the owner's text", revision: 3 });
   });
 
   it("refuses the repeat of a save that landed, even when the texts match", async () => {
-    const landed = await put(itemId, "same text", 2);
-    const repeated = await put(itemId, "same text", 2);
+    const id = await freshItem();
+    const landed = await put(id, "same text", 0);
+    const repeated = await put(id, "same text", 0);
 
     assert.equal(landed.status, 200);
     assert.equal(repeated.status, 409);
-    assert.deepEqual(await noteOf(), { body: "same text", revision: 3 });
-  });
-
-  it("replaces the Note when the text is sent again with the revision the refusal named", async () => {
-    const stale = await put(itemId, "the owner's text", 1);
-    const { note } = NoteConflictSchema.parse(JSON.parse(stale.body));
-    const retried = await put(itemId, "the owner's text", note.revision);
-
-    assert.equal(retried.status, 200);
-    assert.deepEqual(await noteOf(), { body: "the owner's text", revision: note.revision + 1 });
+    assert.deepEqual(await noteOf(id), { body: "same text", revision: 1 });
   });
 
   it("clears the Note with an empty or whitespace-only body, and advances the revision", async () => {

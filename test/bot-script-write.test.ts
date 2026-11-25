@@ -6,6 +6,7 @@ import {
   readFileSync,
   readdirSync,
   rmSync,
+  statSync,
   symlinkSync,
   writeFileSync,
 } from "node:fs";
@@ -54,6 +55,9 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
 
   const stored = (name: string) => join(world.folder.path, "tmp", name);
 
+  const files = () =>
+    world.folder.tree().filter((entry) => statSync(join(world.folder.path, entry)).isFile());
+
   const edge = async (text: string) => {
     const name = `edge-${(await run(["mark"])).slice(3)}.txt`;
 
@@ -86,7 +90,7 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
   });
 
   it("answers bad-input and writes nothing for a name without the hex of a mark, a path, a name the script writes itself, and a text over the cap", async () => {
-    const unchanged = world.folder.tree();
+    const unchanged = files();
 
     const refused = [
       "../x.json",
@@ -116,7 +120,7 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
     );
     assert.equal(await run(["write", `edge-${HEX}.txt`], "a".repeat(ITEM_REQUEST_BYTES)), "ok");
     assert.deepEqual(
-      world.folder.tree().filter((entry) => !unchanged.includes(entry)),
+      files().filter((entry) => !unchanged.includes(entry)),
       [`tmp/edge-${HEX}.txt`],
     );
   });
