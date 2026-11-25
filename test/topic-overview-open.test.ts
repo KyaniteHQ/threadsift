@@ -1,10 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
-import { setTimeout as delay } from "node:timers/promises";
 
 import { TopicPageSchema } from "../src/core/contract/topic-overview-contract.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
-import { paste, saveProvider } from "./library-fixtures.ts";
+import { paste, saveProvider, until } from "./library-fixtures.ts";
 import { lines } from "./log-fixtures.ts";
 import { failureOf, overviewJobs, queueOverview, storePage } from "./overview-gap-fixtures.ts";
 
@@ -28,21 +27,11 @@ describe("a published Digest opens the Topic overview run when a Provider is sav
   });
 });
 
-const OVERVIEW_DEADLINE_MS = 20_000;
-
 const TOPIC = "Removals";
 
 const TOPIC_PATH = "/api/topics/removals";
 
-async function overviewSettled(instance: Instance, deadline: number) {
-  const page = await instance.read("GET", TOPIC_PATH, TopicPageSchema);
-
-  if (page.overview.state !== "pending" || Date.now() > deadline) return page;
-
-  await delay(50);
-
-  return overviewSettled(instance, deadline);
-}
+const topicPage = (instance: Instance) => instance.read("GET", TOPIC_PATH, TopicPageSchema);
 
 const saveAndPublish = (instance: Instance, slug: string) =>
   paste(instance, slug, { title: slug, topic: TOPIC });
@@ -53,7 +42,7 @@ async function removeAndRewrite(instance: Instance, id: number): Promise<void> {
   assert.equal((await instance.send("POST", `${TOPIC_PATH}/overview`)).status, 202);
 }
 
-function summary({ overview, topic }: Awaited<ReturnType<typeof overviewSettled>>) {
+function summary({ overview, topic }: Awaited<ReturnType<typeof topicPage>>) {
   return {
     state: overview.state,
     failure: overview.failure,
@@ -66,17 +55,13 @@ function summary({ overview, topic }: Awaited<ReturnType<typeof overviewSettled>
 async function removeAndWrite(instance: Instance, id: number) {
   await removeAndRewrite(instance, id);
 
-  return summary(await overviewSettled(instance, Date.now() + OVERVIEW_DEADLINE_MS));
-}
-
-async function builtFromReaches(instance: Instance, count: number, deadline: number) {
-  const page = await instance.read("GET", TOPIC_PATH, TopicPageSchema);
-
-  if (page.overview.builtFrom === count || Date.now() > deadline) return page;
-
-  await delay(50);
-
-  return builtFromReaches(instance, count, deadline);
+  return summary(
+    await until(
+      "the overview leaves pending",
+      () => topicPage(instance),
+      (page) => page.overview.state !== "pending",
+    ),
+  );
 }
 
 describe("a removed Item leaves the overview without a model call when nothing was added", () => {
@@ -164,7 +149,11 @@ describe("a removal that leaves no overview line sends the remaining Items to th
     });
     await removeAndRewrite(instance, cited);
 
-    const page = await builtFromReaches(instance, 0, Date.now() + OVERVIEW_DEADLINE_MS);
+    const page = await until(
+      "the overview is built from no Item",
+      () => topicPage(instance),
+      ({ overview }) => overview.builtFrom === 0,
+    );
 
     assert.deepEqual(summary(page), {
       state: "pending",
