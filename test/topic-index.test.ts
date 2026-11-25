@@ -169,7 +169,7 @@ describe("the Index pages through 51 Topics, the last of the first page with a k
     assert.equal(first.total, 51);
     assert.equal(first.next, expandingKey);
 
-    const second = await read(instance, `?cursor=${encodeURIComponent(first.next ?? "")}`);
+    const second = await read(instance, `?cursor=${encodeURIComponent(expandingKey)}`);
 
     assert.deepEqual(
       second.topics.map(({ key }) => key),

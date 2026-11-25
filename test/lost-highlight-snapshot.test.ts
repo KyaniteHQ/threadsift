@@ -68,9 +68,11 @@ describe("the Proposals list filters before the page limit", () => {
 
     assert.equal(first.proposals.length, 50);
     assert.equal(first.proposals[0]?.id, 51);
-    assert.equal(first.next, String(first.proposals.at(-1)?.id));
+    const cursor = String(first.proposals.at(-1)?.id);
 
-    const second = await readPage(instance, `?cursor=${first.next ?? ""}`);
+    assert.equal(first.next, cursor);
+
+    const second = await readPage(instance, `?cursor=${cursor}`);
 
     assert.deepEqual(
       second.proposals.map(({ id }) => id),

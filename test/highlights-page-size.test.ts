@@ -40,9 +40,9 @@ describe("the Highlights page shows 50 entries at a time and pages by cursor wit
     const first = await pageOf(instance);
 
     assert.equal(first.entries.length, 50);
-    assert.notEqual(first.next, null);
+    assert.ok(first.next !== null);
 
-    const second = await pageOf(instance, `?cursor=${first.next ?? ""}`);
+    const second = await pageOf(instance, `?cursor=${first.next}`);
 
     assert.equal(second.entries.length, 2);
     assert.equal(second.next, null);
@@ -63,13 +63,17 @@ describe("the Highlights page shows 50 entries at a time and pages by cursor wit
 
   it("repeats none and skips none when a Highlight is kept between the two reads, and shows the new one first from the top", async () => {
     const first = await pageOf(instance);
+    const cursor = first.next;
+
+    assert.ok(cursor !== null);
+
     const listed = idsOf([
       ...first.entries,
-      ...(await pageOf(instance, `?cursor=${first.next ?? ""}`)).entries,
+      ...(await pageOf(instance, `?cursor=${cursor}`)).entries,
     ]);
 
     const added = await keepPassage(instance, itemId, "token05 token06");
-    const second = await pageOf(instance, `?cursor=${first.next ?? ""}`);
+    const second = await pageOf(instance, `?cursor=${cursor}`);
 
     assert.deepEqual(idsOf([...first.entries, ...second.entries]), listed);
     assert.equal((await pageOf(instance)).entries[0]?.id, added);
@@ -107,9 +111,9 @@ describe("the Highlights page answers exactly 50 entries without a cursor, and t
     const first = await pageOf(instance);
 
     assert.equal(first.entries.length, 50);
-    assert.notEqual(first.next, null);
+    assert.ok(first.next !== null);
 
-    const second = await pageOf(instance, `?cursor=${first.next ?? ""}`);
+    const second = await pageOf(instance, `?cursor=${first.next}`);
 
     assert.equal(first.entries[0]?.id, last);
     assert.equal(second.entries.length, 1);

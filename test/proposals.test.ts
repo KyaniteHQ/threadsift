@@ -232,11 +232,13 @@ describe("the Proposals list is paged at 50 rows", () => {
     const last = first.proposals.at(-1);
 
     assert.equal(first.proposals.length, 50);
-    assert.equal(first.next, String(last?.id));
+    const cursor = String(last?.id);
+
+    assert.equal(first.next, cursor);
 
     const second = await instance.read(
       "GET",
-      `/api/proposals?cursor=${first.next ?? ""}`,
+      `/api/proposals?cursor=${cursor}`,
       ProposalPageSchema,
     );
 
