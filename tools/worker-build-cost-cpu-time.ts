@@ -70,7 +70,8 @@ async function cpuMsPerRequest(
 }
 
 async function measure(variants: Variants, route: Readonly<Route>) {
-  const count = route.name === SLOW_ROUTE ? Math.round(requests / SLOW_ROUTE_DIVISOR) : requests;
+  const count =
+    route.name === SLOW_ROUTE ? Math.max(1, Math.round(requests / SLOW_ROUTE_DIVISOR)) : requests;
   const perRound: Record<"baseline" | "candidate", number[]> = { baseline: [], candidate: [] };
   await inSequence(counted(rounds), (round) =>
     inSequence(round % 2 === 0 ? variants : variants.toReversed(), async (variant) => {
