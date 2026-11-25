@@ -1,5 +1,6 @@
 import { type RefObject, useCallback, useEffect, useRef } from "react";
 
+import { focusUnmoved } from "./focus-unmoved.ts";
 import type { More } from "./list-paging.ts";
 
 export interface LoadedRows {
@@ -9,7 +10,7 @@ export interface LoadedRows {
 
 interface Waiting {
   readonly from: number;
-  readonly origin: Element | null;
+  readonly unmoved: () => boolean;
 }
 
 export function useFocusNewRows(
@@ -32,14 +33,12 @@ export function useFocusNewRows(
 
     waiting.current = null;
 
-    const active = document.activeElement;
-
-    if (active === wait.origin || active === document.body) {
+    if (wait.unmoved()) {
       list.current?.children[wait.from]?.querySelector<HTMLElement>(link)?.focus();
     }
   }, [count, link, list, more]);
 
   return useCallback((from) => {
-    waiting.current = from === null ? null : { from, origin: document.activeElement };
+    waiting.current = from === null ? null : { from, unmoved: focusUnmoved() };
   }, []);
 }

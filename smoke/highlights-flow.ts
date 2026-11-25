@@ -1,8 +1,9 @@
-import { type Page, expect } from "@playwright/test";
+import { type Locator, type Page, expect } from "@playwright/test";
 
 import { PAGE_SIZE } from "../src/core/contract/paging.ts";
+import { NOTE_TITLE } from "../src/core/contract/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "../web/src/highlights-page-text.ts";
-import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
+import { DELETE_CONFIRM, DELETE_LABEL, REMOVE_GROUP } from "../web/src/reader-text.ts";
 import { LOAD_MORE } from "../web/src/text.ts";
 import { HIGHLIGHTS, NOTE, TITLE, keepHighlightsAndNote, sentence } from "./highlights-seed.ts";
 import {
@@ -11,6 +12,32 @@ import {
   expectScrollEnded,
   openSettings,
 } from "./screen-checks.ts";
+
+async function removeAfterFocusMoved(page: Page, mark: Locator, address: string): Promise<void> {
+  const route = `**${address}`;
+  const { promise: held, resolve: release } = Promise.withResolvers<null>();
+
+  await page.route(route, async (request) => {
+    await held;
+    await request.continue();
+  });
+
+  const removed = page.waitForResponse(
+    (response) => response.url().endsWith(address) && response.request().method() === "DELETE",
+  );
+
+  await mark.click();
+  await page.getByRole("button", { name: REMOVE_GROUP, exact: true }).click();
+
+  const note = page.getByRole("textbox", { name: NOTE_TITLE, exact: true });
+
+  await note.focus();
+  release(null);
+  await removed;
+  await expect(mark).toHaveCount(0);
+  await expect(note).toBeFocused();
+  await page.unroute(route);
+}
 
 export async function highlightsFlow(page: Page): Promise<void> {
   const { item, oldestHighlight } = await keepHighlightsAndNote(page);
@@ -53,6 +80,11 @@ export async function highlightsFlow(page: Page): Promise<void> {
 
   await page.goto(`/items/${String(item)}`);
   await expect(mark).toBeInViewport();
+  await removeAfterFocusMoved(
+    page,
+    mark,
+    `/api/items/${String(item)}/highlights/${String(oldestHighlight)}`,
+  );
   await page.getByRole("button", { name: DELETE_LABEL, exact: true }).click();
   await page.getByRole("button", { name: DELETE_CONFIRM }).click();
   await expect(page).not.toHaveURL(new RegExp(`/items/${String(item)}`, "u"));

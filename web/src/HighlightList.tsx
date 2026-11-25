@@ -2,6 +2,7 @@ import { type MouseEvent, memo, useCallback } from "react";
 
 import type { Highlight } from "../../src/core/contract/highlight-contract.ts";
 import { HIGHLIGHTS_TITLE, NOT_FOUND } from "../../src/core/contract/reader-text.ts";
+import { focusUnmoved } from "./focus-unmoved.ts";
 import { useHighlights } from "./highlights-context.ts";
 import { QuoteText } from "./QuoteText.tsx";
 import { REMOVE_LABEL, removeNamed } from "./reader-text.ts";
@@ -20,8 +21,10 @@ async function removeAndRefocus(
 ): Promise<void> {
   const neighbour = entry === null ? null : neighbourOf(entry);
   const title = entry === null ? null : readerTitleOf(entry);
+  const unmoved = focusUnmoved();
 
-  if (await removed()) (neighbour?.isConnected === true ? neighbour : title)?.focus();
+  if ((await removed()) && unmoved())
+    (neighbour?.isConnected === true ? neighbour : title)?.focus();
 }
 
 function Entry({ highlight }: Readonly<{ highlight: Highlight }>) {
