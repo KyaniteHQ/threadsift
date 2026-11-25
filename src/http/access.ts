@@ -85,13 +85,8 @@ export function originCheckOf(handler: H): OriginCheck {
   return who === undefined ? "none" : originCheck(who);
 }
 
-type CacheAt = (path: string) => CacheKind | null;
-
-function planOf(c: Ctx, who: Who | "unrouted", cacheAt: CacheAt): Plan {
-  if (who === "unrouted") return unroutedPlan(c.req.path, cacheAt);
-
+function planOf(c: Ctx, who: Who, cache: CacheKind | null): Plan {
   const csrf = originCheck(who);
-  const cache = cacheAt(c.req.path);
 
   if (who === "self") return { credentials: null, csrf, after: "next", cache };
 
@@ -165,15 +160,16 @@ function signedOutAnswer(
   return navigating ? new Response(null, { status: 303, headers: { location: address } }) : answer;
 }
 
-function gateOf<E extends Env, W extends Who | "unrouted">(
-  who: W,
-  { body = DEFAULT_CAP, cache, signedOutNavigation }: Limits,
-  cacheAt: CacheAt = () => cache ?? null,
-): Gate<E, W> {
+function gated<E extends Env>(
+  who: string,
+  body: Cap,
+  planAt: (c: Ctx) => Plan,
+  signedOutNavigation?: string,
+): MiddlewareHandler<E> {
   const cap = capOf(body);
 
   const middleware = createMiddleware<E>(async (c, next) => {
-    const plan = planOf(c, who, cacheAt);
+    const plan = planAt(c);
     const answer = signedOutAnswer(c, await answerOf(c, plan, cap, next), signedOutNavigation);
 
     applyCache(answer ?? c.res, plan.cache);
@@ -183,6 +179,15 @@ function gateOf<E extends Env, W extends Who | "unrouted">(
 
   GATES.set(middleware, who);
   CAPS.set(middleware, body);
+
+  return middleware;
+}
+
+function gateOf<E extends Env, W extends Who>(
+  who: W,
+  { body = DEFAULT_CAP, cache, signedOutNavigation }: Limits,
+): Gate<E, W> {
+  const middleware = gated<E>(who, body, (c) => planOf(c, who, cache ?? null), signedOutNavigation);
 
   if (cache !== undefined) CACHES.set(middleware, cache);
 
@@ -219,11 +224,15 @@ function routeCacheAt(
 export function unrouted(app: OpenAPIHono): Gate<BlankEnv, "unrouted"> {
   let methods: readonly string[] | undefined;
 
-  return gateOf<BlankEnv, "unrouted">("unrouted", {}, (path) => {
-    methods ??= [...new Set(app.routes.map((route) => route.method))];
+  const middleware = gated<BlankEnv>("unrouted", DEFAULT_CAP, (c) =>
+    unroutedPlan(c.req.path, (path) => {
+      methods ??= [...new Set(app.routes.map((route) => route.method))];
 
-    return routeCacheAt(app, methods, path);
-  });
+      return routeCacheAt(app, methods, path);
+    }),
+  );
+
+  return Object.assign(middleware, { who: "unrouted" as const });
 }
 
 export function ownCheck<E extends Env>(check: MiddlewareHandler<E>): Gate<E, "self"> {
