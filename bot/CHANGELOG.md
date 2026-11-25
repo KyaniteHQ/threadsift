@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v12
+
+- One `write` or `append` call carries up to 20,000 characters, up from 3,000, so a text of 3,001 to 20,000 characters takes one shell call instead of several. On 2026-11-25 single shell calls of up to 40,000 characters stored the whole text on the Grok Bot shell tool. When a `write` or `append` call prints nothing, the bot starts the file again under a fresh `mark` instead of repeating the call.
+
 ## bot-v11
 
 - A task id with a leading zero, or a task id of 0, is refused as `bad-input` before any call, because the Instance answers 401 for it. The Instance sends only ids that start with 1 to 9.
