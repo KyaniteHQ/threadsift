@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { Hono } from "hono";
 
-import { workerFetch } from "../src/targets/worker/network.ts";
+import { originFetch } from "../src/core/kernel/origin-fetch.ts";
 import { type Listening, listening } from "./loopback-server.ts";
 
 const PAGE_TEXT = "error code: 1016";
@@ -46,7 +46,7 @@ function chunkedBody(
   });
 }
 
-describe("the Worker's fetch returns an origin's answer as it was sent, except a 530 whose whole body is an error code, and follows no redirect", () => {
+describe("the origin fetch returns an origin's answer as it was sent, except a 530 whose whole body is an error code, and follows no redirect", () => {
   let server: Listening;
 
   const finishers = new Map<string, () => void>();
@@ -96,7 +96,7 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
         const url = `${server.url}/page-530/${name}`;
 
         await assert.rejects(
-          workerFetch(url),
+          originFetch(url),
           new Error(`Cloudflare could not reach ${url}: ${PAGE_TEXT}`),
         );
       }),
@@ -106,7 +106,7 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
   it("returns a 530 whose body only quotes an error code, or continues past one in its first 64 bytes, with its status and its whole body", async () => {
     await Promise.all(
       Object.entries(QUOTING_BODIES).map(async ([path, body]) => {
-        const answer = await workerFetch(`${server.url}${path}`);
+        const answer = await originFetch(`${server.url}${path}`);
 
         assert.deepEqual([answer.status, await answer.text()], [530, body]);
       }),
@@ -119,7 +119,7 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
     async () => {
       await Promise.all(
         Object.entries(HEAD_CHUNKS).map(async ([name, chunks]) => {
-          const answer = await workerFetch(`${server.url}/open-530/${name}`);
+          const answer = await originFetch(`${server.url}/open-530/${name}`);
 
           assert.equal(answer.status, 530);
           finishers.get(name)?.();
@@ -130,15 +130,15 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
   );
 
   it("returns an answer with another status even when its whole body is an error code", async () => {
-    const unavailable = await workerFetch(`${server.url}/unavailable`);
-    const ok = await workerFetch(`${server.url}/ok-with-page-text`);
+    const unavailable = await originFetch(`${server.url}/unavailable`);
+    const ok = await originFetch(`${server.url}/ok-with-page-text`);
 
     assert.deepEqual([unavailable.status, ok.status], [503, 200]);
     assert.deepEqual([await unavailable.text(), await ok.text()], [PAGE_TEXT, PAGE_TEXT]);
   });
 
   it("returns a redirect answer without following it", async () => {
-    const answer = await workerFetch(`${server.url}/moved`);
+    const answer = await originFetch(`${server.url}/moved`);
 
     assert.equal(answer.status, 302);
     assert.equal(answer.headers.get("location"), "/ok-with-page-text");

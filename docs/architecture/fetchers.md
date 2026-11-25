@@ -78,11 +78,11 @@ The account is the first source for a post or comment with no saved thread, befo
 
 ### Transport
 
-`Ports.redditSession` is one `get(path, cookie, signal)` to `www.reddit.com`. The shared adapter fixes the host, follows no redirect with the session, sends the app's `Threadsift/1` User-Agent, refuses a path without a leading `/` and a path or cookie with a line break, and cuts the body at `THREAD_CONTENT_BYTES`.
+`redditSessionGet` sends one GET with the session to `www.reddit.com` through `originFetch`, the platform `fetch` with `redirect: "manual"`, the same on both targets. It fixes the host, follows no redirect with the session, sends the app's `Threadsift/1` User-Agent, refuses a path without a leading `/`, and cuts the body at `THREAD_CONTENT_BYTES`.
 
 - A request that throws and an answer whose body cannot be read or passes `THREAD_CONTENT_BYTES` both count as status 0 in the `reddit-fill` line. Each also writes its own line first: `reddit-request-failed`, or `reddit-answer-unread` with the status of the answer, and the error class in both (`RangeError` for a body over `THREAD_CONTENT_BYTES`). No line holds the cookie, the path or the body.
-- The container uses the platform `fetch`.
-- The Worker writes HTTP/1.1 by hand over `connect()` from `cloudflare:sockets`, because Reddit answers the Workers `fetch` client with 403 even with the cookie, while a raw socket from the same Worker got 200 ([Decisions and evidence](decisions-and-evidence.md), Reddit). It opens one connection for each request (`Connection: close`, because a socket cannot outlive its invocation), asks for `Accept-Encoding: identity` and refuses an encoded body. No maintained HTTP client over `connect()` exists, so the reader is the app's own.
+- Reddit answered the Workers `fetch` with 200 for a valid session on 2026-11-25 ([Decisions and evidence](decisions-and-evidence.md), Reddit).
+- A Cloudflare `530` error page throws, as on the Worker's `Network` adapter, so Verify answers `unreachable` and records no request window.
 
 ### Request limit and session health
 
@@ -331,7 +331,7 @@ One normalizer (lower-case host, no `www.`, tracking parameters dropped, short l
 
 A pasted link, a one-hop link or a redirect could point a fetcher at the server's own network, and the page would then be stored, served over MCP and mirrored to GitHub. So every request to a pasted address goes through `guardedFetch`. The one exception is a plug-in's own network calls (the images in its Markdown still download through the guard).
 
-The guard follows redirects by hand and checks each hop before it connects. The `Network` port makes one request per call without following redirects: the container's adapter is `node:http` and `node:https`, and the Worker's is the global `fetch` with `redirect: "manual"`. On Cloudflare, that `fetch` answers a host that does not resolve with Cloudflare's own `530` and the body `error code: 1016`, so the Worker's adapter turns that answer into a network failure, and a new Item ends `failed` as on the container.
+The guard follows redirects by hand and checks each hop before it connects. The `Network` port makes one request per call without following redirects: the container's adapter is `node:http` and `node:https`, and the Worker's is the global `fetch` with `redirect: "manual"`. On Cloudflare, that `fetch` answers a host that does not resolve with Cloudflare's own `530` and the body `error code: 1016`, so `originFetch`, which the Worker's adapter uses, turns that answer into a network failure, and a new Item ends `failed` as on the container.
 
 - A literal address is allowed only when it is global unicast and outside every block of the IANA special-purpose registries whose Globally Reachable value is not True, plus multicast and the reserved IPv4 block. The guard also refuses `2002::/16` (6to4), decodes the IPv4 address embedded in `64:ff9b::/96` ([RFC 6052](https://www.rfc-editor.org/rfc/rfc6052)), and refuses `64:ff9b:1::/48` whole, because the registry marks it Globally Reachable False. Blocks whose registry rows hold a True sub-block (`192.0.0.0/24`, `2001::/23`) are refused whole. The URL parser turns `2130706433` and `0x7f.1` into `127.0.0.1` before the check. `localhost` and every name under `.localhost` are refused by name ([RFC 6761](https://www.rfc-editor.org/rfc/rfc6761)).
 - On the container, the adapter passes a `lookup` function to `http.request`, so the check runs on the addresses the connection will use, and the name is never resolved a second time. A name such as `localtest.me`, which resolves to `127.0.0.1` in public DNS, is refused after it resolves.

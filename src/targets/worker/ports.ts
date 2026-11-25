@@ -2,13 +2,13 @@ import { drizzle } from "drizzle-orm/d1";
 
 import { NOTHING } from "../../core/contract/nothing.ts";
 import { batchesOf } from "../../core/kernel/batches.ts";
+import { originFetch } from "../../core/kernel/origin-fetch.ts";
 import type { TargetAdapters } from "../shared/ports.ts";
 import type { SettingVariables } from "../shared/settings.ts";
 import { type AiBinding, bindingRunner } from "./ai-binding.ts";
 import { type FilesBucket, r2FileStore } from "./file-store.ts";
-import { workerNetwork, workerFetch } from "./network.ts";
+import { workerNetwork } from "./network.ts";
 import { workerPageReader } from "./page-reader.ts";
-import { workerRedditSession } from "./reddit-session.ts";
 
 const MAX_QUEUE_DELAY_SECONDS = 86_400;
 
@@ -34,7 +34,6 @@ export function workerAdapters(env: Env): TargetAdapters {
     files: r2FileStore(env.FILES),
     network: workerNetwork,
     vaultFolder: null,
-    redditSession: workerRedditSession,
     pages: workerPageReader,
     jobs: {
       wake: NOTHING,
@@ -53,7 +52,7 @@ export function workerAdapters(env: Env): TargetAdapters {
     xFetcher: null,
     ai: {
       publicOnly: true,
-      request: workerFetch,
+      request: originFetch,
       binding: env.AI === undefined ? null : bindingRunner(env.AI),
       cli: [],
     },

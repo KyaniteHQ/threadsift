@@ -61,7 +61,7 @@ Open: the name check is missing on the local Worker under `wrangler dev`. A name
 
 ### Cloudflare's origin error on the Worker
 
-Not verified: a deployed Worker that fetches a host that does not resolve. `workerFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test sends that status and body from a local server, in one chunk, in two chunks and with a trailing newline, and covers the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
+Not verified: a deployed Worker that fetches a host that does not resolve. `originFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test sends that status and body from a local server, in one chunk, in two chunks and with a trailing newline, and covers the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
 
 ### Article images, long post texts and Defuddle
 
@@ -90,7 +90,7 @@ No run has read a repository from a deployed Worker, and no run from the develop
 
 Not verified:
 
-- A Worker deployed to Cloudflare. Only `wrangler dev --local` ran, so Reddit's answer to Cloudflare's addresses is unknown.
+- Reddit's answer to the deployed Worker over time. A throwaway Worker got 200 for a thread's `.json`, a comment's permalink and `me.json` on one day ([Decisions and evidence](decisions-and-evidence.md), Reddit), and no check repeats it. If Reddit refuses Cloudflare's addresses again, three refused threads in a row expire the session ([Fetchers](fetchers.md), Request limit and session health).
 - A real logged-out `me.json` answer. Reddit answered 403 to an altered cookie and to no cookie. A 401, or a 200 without a `t2` name, marks the session as logged out at once, and neither was observed.
 - How long Reddit keeps a session valid, the third attempt that falls through to the archive after two 429s, and a run of 100 links.
 - The limits of the shared fill loop (`fillAnswers`): the 500 ms spacing, the stop at the first 429 or on a used-up window, the 8 MiB bound, the deadline, the abort signal and the per-request check that the account is still connected. Only live runs prove them.
@@ -312,7 +312,7 @@ Each entry names the doc that makes the claim and how to check it.
   - First check: build two images from a one-line Containerfile with `--label io.threadsift.smoke=true`, give the second a second tag with `podman tag`, remove the first one's tag with `podman untag`, run `podman image prune --force --filter label=io.threadsift.smoke=true`, and compare `podman images -a` before and after. The untagged image goes and the image with two tags stays.
   - Second check: start a container from the old image, rebuild the same tag, run the prune of `container:build` and look for the untagged image in `podman images -a`.
 - [CI, releases and rollback](ci-releases-and-rollback.md): Nix retries a throttled download 5 times before the job fails, and a retry wrapper on the same address would only hide the throttle. Run the gate cold on a pull request with the cache deleted, with and without a retry wrapper, and compare the 429 counts, or read the `download-attempts` default in `nix.conf`.
-- [Fetchers](fetchers.md): every primary limit GitHub documents is per hour, which is why `MAX_COOLDOWN_MS` is one hour (list each primary limit's period in the REST API rate limits docs). A socket cannot outlive the invocation on the Worker, which is why it opens one connection for each request with `Connection: close` (under `wrangler dev`, keep a module-level `connect()` socket across two requests and see whether the second request still works).
+- [Fetchers](fetchers.md): every primary limit GitHub documents is per hour, which is why `MAX_COOLDOWN_MS` is one hour (list each primary limit's period in the REST API rate limits docs).
 
 ## Product
 

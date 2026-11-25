@@ -26,13 +26,11 @@ import {
   recordWindow,
   windowRecordOf,
 } from "./reddit-account-states.ts";
-import { answerOf } from "./reddit-session.ts";
+import { answerOf, redditSessionGet } from "./reddit-session.ts";
 
 type AccountPorts = Pick<Ports, "db" | "secrets">;
 
 type ChangePorts = AccountPorts & Pick<Ports, "jobs">;
-
-type VerifyPorts = ChangePorts & Pick<Ports, "redditSession">;
 
 type ConnectOutcome =
   | { readonly kind: "connected"; readonly view: RedditAccountView }
@@ -144,7 +142,6 @@ function verdictOf(answer: Readonly<Pick<RedditAnswer, "status" | "text">>): Ses
 }
 
 export async function checkSession(
-  { redditSession }: Readonly<Pick<Ports, "redditSession">>,
   cookie: string,
   signal: AbortSignal | undefined,
 ): Promise<SessionCheck> {
@@ -152,7 +149,7 @@ export async function checkSession(
 
   try {
     const answer = await answerOf(
-      await redditSession.get(ME_PATH, cookie, within(signal, deadline)),
+      await redditSessionGet(ME_PATH, cookie, within(signal, deadline)),
     );
 
     return { verdict: verdictOf(answer), answer };
@@ -162,7 +159,7 @@ export async function checkSession(
 }
 
 export async function verifyRedditAccount(
-  ports: Readonly<VerifyPorts>,
+  ports: Readonly<ChangePorts>,
   signal: AbortSignal,
 ): Promise<RedditVerifyResult> {
   const { db, secrets } = ports;
@@ -177,7 +174,7 @@ export async function verifyRedditAccount(
 
   if (session === null) return "unreadable";
 
-  const { verdict, answer } = await checkSession(ports, session, signal);
+  const { verdict, answer } = await checkSession(session, signal);
 
   await settledVerdict(ports, row, verdict, answer);
 
@@ -185,7 +182,7 @@ export async function verifyRedditAccount(
 }
 
 async function settledVerdict(
-  ports: Readonly<VerifyPorts>,
+  ports: Readonly<ChangePorts>,
   session: AccountSession,
   verdict: SessionVerdict,
   answer: Readonly<RedditAnswer> | null,

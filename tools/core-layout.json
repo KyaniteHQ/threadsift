@@ -114,13 +114,7 @@
       "x-verify-job.ts",
       "x-verify-store.ts"
     ],
-    "reddit": [
-      "oembed-details.ts",
-      "reddit-account-queue.ts",
-      "reddit-fetch.ts",
-      "reddit-json.ts",
-      "reddit-session.ts"
-    ],
+    "reddit": ["oembed-details.ts", "reddit-account-queue.ts", "reddit-fetch.ts", "reddit-json.ts"],
     "fetch": ["fetch-job.ts", "fetch-link.ts", "page-answer.ts"],
     "digest": ["digest-job.ts", "digest-kind.ts", "digest-retry.ts", "digest-task.ts"],
     "paste": ["paste-refusal.ts", "paste.ts"],
