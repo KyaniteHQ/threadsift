@@ -42,9 +42,7 @@ export async function saveLinked(
   const { db } = ports;
 
   const around: Around | undefined =
-    existing === "keep"
-      ? { guard: holdsNoItem(db, link.normalizedUrl), before: [], after: [] }
-      : undefined;
+    existing === "keep" ? { guard: holdsNoItem(db, link.normalizedUrl), after: [] } : undefined;
 
   const saved = await writeQueued(ports, paste, link, around);
 
