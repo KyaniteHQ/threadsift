@@ -66,7 +66,7 @@ After the last table the slices read the Items by id, at most `EXPORT_SLICE_ITEM
 
 `takeItems` reads each Item with the Reader's read plus its stored files, its Topic and its Kept comments in one batch that also lists its stored files, so the note and the image list come from the same rows. `readPlannedItem` turns that read into the note's input, the post text file and the stored files with `itemFilePlan`, and the Vault mirror plans an Item's files through it too. `readAgainOnce` is the one place that repeats a read after a miss, for the Export's `gather` and the Vault mirror's plan alike. A stored image whose size differs from the recorded one counts as missing.
 
-Each Item costs 11 D1 statements (the Reader's 10 and the list of stored files), so a slice of 40 Items runs near 440 against the 1,000 queries of one invocation (arithmetic).
+Each read of an Item costs 11 D1 statements (the Reader's 10 and the list of stored files), so a slice of 40 Items runs near 440, and up to 880 when every Item is read again after a miss, against the 1,000 queries of one invocation (arithmetic).
 
 ### Note format
 
