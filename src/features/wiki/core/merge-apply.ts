@@ -2,9 +2,8 @@ import { type SQL, eq, notExists, sql } from "drizzle-orm";
 
 import { catalogKey } from "../../../core/contract/catalog-key.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedOpenings } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { enqueueRows } from "../../../core/kernel/job-rows.ts";
+import { enqueueRows, guardedOpenings } from "../../../core/kernel/job-rows.ts";
 import { loggedMerge } from "../../../core/kernel/log-writes.ts";
 import { proposals } from "../../../core/kernel/schema.ts";
 import { retired } from "./catalog.ts";

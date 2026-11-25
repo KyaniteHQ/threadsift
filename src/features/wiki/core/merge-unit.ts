@@ -4,7 +4,7 @@ import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
 import type { MergeKind, ProposalState } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import type { OpeningWrite } from "../../../core/kernel/guards.ts";
+import type { OpeningWrite } from "../../../core/kernel/job-rows.ts";
 import type { SUBJECT_TABLE, pins, tags, topics } from "../../../core/kernel/schema.ts";
 import type { OwnSubjects } from "./proposal-lifecycle.ts";
 import type { SentNames } from "./proposal-names.ts";

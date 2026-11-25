@@ -1,7 +1,6 @@
 import { type SQLWrapper, notExists, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 import { type SQLiteTable, check, integer, sqliteTable } from "drizzle-orm/sqlite-core";
-import { z } from "zod";
 
 import type { Database } from "./database.ts";
 import { readOrAssume } from "./failure-log.ts";
@@ -96,7 +95,7 @@ export async function unlessRefused<Result, Refused>(
   }
 }
 
-function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(
+export function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(
   db: Database,
   condition: Readonly<SQLWrapper>,
   writes: Writes,
@@ -104,41 +103,15 @@ function guardedWrites<Writes extends readonly BatchItem<"sqlite">[]>(
   return [insertGuard(db, condition), ...writes, db.delete(guards)] as const;
 }
 
-export type OpeningWrite = BatchItem<"sqlite"> & {
-  readonly _: { readonly result: readonly Readonly<{ id: number }>[] };
-};
-
-const OpenedSchema = z.array(z.object({ id: z.number().int() }));
-
-export function guardedOpenings(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  {
-    before,
-    opening,
-    after = [],
-  }: Readonly<{
-    before: readonly BatchItem<"sqlite">[];
-    opening: readonly OpeningWrite[];
-    after?: readonly BatchItem<"sqlite">[];
-  }>,
-): Promise<readonly Readonly<{ id: number }>[] | null> {
-  return unlessRefused(db, condition, async () => {
-    const results = await db.batch(guardedWrites(db, condition, [...before, ...opening, ...after]));
-    const first = 1 + before.length;
-
-    return results
-      .slice(first, first + opening.length)
-      .flatMap((opened) => OpenedSchema.parse(opened));
-  });
-}
-
 export async function guardedBatch(
   db: Database,
   condition: Readonly<SQLWrapper>,
   writes: readonly BatchItem<"sqlite">[],
 ): Promise<boolean> {
-  return (await guardedOpenings(db, condition, { before: writes, opening: [] })) !== null;
+  return (
+    (await unlessRefused(db, condition, () => db.batch(guardedWrites(db, condition, writes)))) !==
+    null
+  );
 }
 
 export function guardedWrite<Write extends BatchItem<"sqlite">>(

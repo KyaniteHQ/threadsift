@@ -1,10 +1,10 @@
 import { type SQL, and, eq, sql } from "drizzle-orm";
 
 import { entering } from "../../../core/contract/restore-contract.ts";
-import { guardedBatch, guardedOpenings } from "../../../core/kernel/guards.ts";
+import { guardedBatch } from "../../../core/kernel/guards.ts";
 import { closeRunJobs } from "../../../core/kernel/job-close.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { enqueueRows } from "../../../core/kernel/job-rows.ts";
+import { enqueueRows, guardedOpenings } from "../../../core/kernel/job-rows.ts";
 import {
   NEWEST_RESTORE,
   UNWRITTEN_RESTORE,
