@@ -17,7 +17,7 @@ import {
   surfaceArguments,
   taskArguments,
 } from "./codex-process.ts";
-import { type ToollessCatalog, readOutcome, surfaceOf } from "./codex-protocol.ts";
+import { type ToollessCatalog, loginStatusOf, readOutcome, surfaceOf } from "./codex-protocol.ts";
 import {
   type Attempt,
   STDOUT_CAP,
@@ -66,7 +66,7 @@ class CodexCli extends SlottedCli {
       }),
     );
 
-    return signInFrom(end, ({ code }) => (code === 0 ? "signed-in" : "signed-out"));
+    return signInFrom(end, loginStatusOf);
   }
 
   protected modelChoice(model: string) {

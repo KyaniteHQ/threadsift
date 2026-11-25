@@ -57,8 +57,8 @@ describe("the run surface is proven by the version and the empty local tool list
   });
 
   it("checks a finished run by its tool list, also when the run failed", () => {
-    const clean = { kind: "exited", code: 0, stdout: "" } as const;
-    const failed = { kind: "exited", code: 1, stdout: "" } as const;
+    const clean = { kind: "exited", code: 0, stdout: "", stderr: "" } as const;
+    const failed = { kind: "exited", code: 1, stdout: "", stderr: "" } as const;
 
     assert.deepEqual(
       [

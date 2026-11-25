@@ -12,6 +12,7 @@ const exited = (stdout: string, code: number | null = 0): ProcessEnd => ({
   kind: "exited",
   code,
   stdout,
+  stderr: "",
 });
 
 const envelope = (fields: Readonly<Record<string, Json>>) =>
@@ -24,7 +25,7 @@ const ENDS_OF_A_VERSION_RUN: readonly ProcessEnd[] = [
   { kind: "aborted" },
   { kind: "spawn-failed" },
   { kind: "over-cap" },
-  { kind: "exited", code: 0, stdout: "" },
+  { kind: "exited", code: 0, stdout: "", stderr: "" },
 ];
 
 const SIGNED_OUT_MESSAGE =
