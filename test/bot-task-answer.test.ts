@@ -5,7 +5,6 @@ import { dueIds, claimNextDue } from "../src/core/compose/jobs.ts";
 import { DAY_MS } from "../src/core/contract/time-units.ts";
 import {
   type BotLibrary,
-  SECRET_KEY,
   answerOf,
   picksFor,
   relatedLibrary,
@@ -17,7 +16,7 @@ import {
 import { answered } from "./bot-task-http.ts";
 import { applied, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { sweptWith } from "./weekly-claim-fixtures.ts";
 
 describe("an answer reaches its job whichever happens first, the answer or the sender's deferral", () => {

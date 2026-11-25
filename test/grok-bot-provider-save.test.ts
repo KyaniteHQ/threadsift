@@ -9,14 +9,13 @@ import {
 } from "../src/core/contract/ai-settings-contract.ts";
 import { saveBot, AI_PATH, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { taskRows } from "./bot-task-rows.ts";
-import { SECRET_KEY } from "./grok-bot-fixtures.ts";
 import {
   revisionOf,
   storedSettings,
   unreadableBotKey,
   usedAsProvider,
 } from "./grok-bot-provider-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { saveProvider } from "./library-fixtures.ts";
 
 const REFUSAL = z.object({ error: z.string(), code: z.string() });

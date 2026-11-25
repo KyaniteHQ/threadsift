@@ -4,7 +4,6 @@ import { after, before, describe, it } from "node:test";
 
 import {
   type BotLibrary,
-  SECRET_KEY,
   answerOf,
   picksFor,
   relatedLibrary,
@@ -13,7 +12,7 @@ import {
 import { answered } from "./bot-task-http.ts";
 import { step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { digestOfToken, taskRow } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 describe("the task credential is kept only as a digest and ends at a resend", () => {
   let instance: Instance;

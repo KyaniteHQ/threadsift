@@ -3,9 +3,8 @@ import { it } from "node:test";
 
 import { z } from "zod";
 
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import {
-  SECRET_KEY,
   LINKED,
   hopResults,
   seedGithubCooldown,

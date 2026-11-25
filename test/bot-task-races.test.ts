@@ -9,7 +9,6 @@ import {
 import { acceptBotAnswer } from "../src/features/bot/core/bot-answer.ts";
 import {
   type BotLibrary,
-  SECRET_KEY,
   answerOf,
   pastDeadline,
   picksFor,
@@ -21,7 +20,7 @@ import {
 import { answered } from "./bot-task-http.ts";
 import { sendFor, settle, sentRelatedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 describe("an accepted answer survives a lost claim, a failing send, a timeout check and a resend", () => {
   let instance: Instance;

@@ -9,7 +9,6 @@ import { ownerOf, startBotTask } from "../src/features/ai/core/bot-task-start.ts
 import {
   type BotLibrary,
   GROK_BOT_IN_FLIGHT,
-  SECRET_KEY,
   bulkJobs,
   openJob,
   relatedLibrary,
@@ -19,7 +18,7 @@ import {
 } from "./bot-task-fixtures.ts";
 import { step } from "./bot-task-lifecycle.ts";
 import { jobRow, taskRows } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 const START = { inputs: "{}", inputRevision: 1, context: "{}" } as const;
 

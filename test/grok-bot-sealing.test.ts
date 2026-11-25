@@ -6,17 +6,8 @@ import {
   GrokBotTestSchema,
   GrokBotViewSchema,
 } from "../src/core/contract/grok-bot-contract.ts";
-import {
-  ADDRESS,
-  KEY,
-  NEW_KEY,
-  PATH,
-  SECRET_KEY,
-  saved,
-  tested,
-  view,
-} from "./grok-bot-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { ADDRESS, KEY, NEW_KEY, PATH, saved, tested, view } from "./grok-bot-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { inOrder } from "./library-fixtures.ts";
 
 describe("an Instance with no sealing key, and a row sealed under another key", () => {

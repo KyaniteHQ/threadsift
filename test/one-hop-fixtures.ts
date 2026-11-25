@@ -12,8 +12,6 @@ export const DIGEST = {
   keyPoints: ["The post links to a page"],
 };
 
-export const SECRET_KEY = "ab".repeat(32);
-
 const COOLDOWN_MS = 30 * 60 * 1000;
 
 export const LINKED = "https://github.com/threadsift-test/linked-repository";

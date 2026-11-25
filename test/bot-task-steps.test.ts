@@ -4,7 +4,6 @@ import { after, before, beforeEach, describe, it } from "node:test";
 import { executeClaimed } from "../src/core/compose/jobs.ts";
 import {
   type BotLibrary,
-  SECRET_KEY,
   answerOf,
   openJob,
   pastDeadline,
@@ -24,7 +23,7 @@ import {
   taskAfterStart,
 } from "./bot-task-lifecycle.ts";
 import { jobRow, reclaimed, taskRow, taskRows } from "./bot-task-rows.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { paste } from "./library-fixtures.ts";
 
 const SEND_FAILED = /send failed: unreachable/u;

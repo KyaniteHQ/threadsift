@@ -8,12 +8,10 @@ import { bestEffort } from "../src/core/kernel/failure-log.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { type JobRow, jobs } from "../src/core/kernel/schema.ts";
 import { newCallbackCredential } from "../src/features/ai/core/callback-credential.ts";
-import { KEY, PATH, SECRET_KEY } from "./grok-bot-fixtures.ts";
-import { type Answer, Instance, type Json } from "./instance.ts";
+import { KEY, PATH } from "./grok-bot-fixtures.ts";
+import { type Answer, Instance, type Json, SECRET_KEY } from "./instance.ts";
 import { paste, inOrder } from "./library-fixtures.ts";
 import { pairsOf } from "./related-fixtures.ts";
-
-export { SECRET_KEY };
 
 export const GROK_BOT_IN_FLIGHT = 10;
 

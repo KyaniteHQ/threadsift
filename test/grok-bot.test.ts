@@ -10,17 +10,8 @@ import {
   GrokBotViewSchema,
   KEY_NEEDED,
 } from "../src/core/contract/grok-bot-contract.ts";
-import {
-  ADDRESS,
-  KEY,
-  NEW_KEY,
-  OTHER_ADDRESS,
-  PATH,
-  SECRET_KEY,
-  saved,
-  view,
-} from "./grok-bot-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { ADDRESS, KEY, NEW_KEY, OTHER_ADDRESS, PATH, saved, view } from "./grok-bot-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 describe("Save seals the key, never returns it, and asks for a new key with a new address", () => {
   let instance: Instance;

@@ -3,8 +3,6 @@ import { z } from "zod";
 import { GrokBotTestSchema, GrokBotViewSchema } from "../src/core/contract/grok-bot-contract.ts";
 import type { Instance } from "./instance.ts";
 
-export const SECRET_KEY = "ab".repeat(32);
-
 export const ADDRESS =
   "https://api2.cursor.sh/automations/webhook/00000000-0000-4000-8000-000000000000";
 

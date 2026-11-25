@@ -1,7 +1,7 @@
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
-import { type BotLibrary, SECRET_KEY, relatedLibrary, saveBot } from "./bot-task-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { type BotLibrary, relatedLibrary, saveBot } from "./bot-task-fixtures.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 
 export interface ReadWorld {
   readonly instance: Instance;

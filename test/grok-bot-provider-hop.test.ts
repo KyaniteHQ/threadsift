@@ -2,11 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { saveBot, chooseGrokBot } from "./bot-task-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { until } from "./library-fixtures.ts";
 import {
   LINKED,
-  SECRET_KEY,
   hopResults,
   seedGithubCooldown,
   toolsOf,

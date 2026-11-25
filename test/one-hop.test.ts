@@ -3,14 +3,13 @@ import { after, before, describe, it } from "node:test";
 
 import { botInstance, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { unreadableBotKey } from "./grok-bot-provider-fixtures.ts";
-import { Instance } from "./instance.ts";
+import { Instance, SECRET_KEY } from "./instance.ts";
 import { saveProvider } from "./library-fixtures.ts";
 import {
   DIGEST,
   LINKED,
   commentsOf,
   postOf,
-  SECRET_KEY,
   seedGithubCooldown,
   hopThreadOf,
   toolsOf,
