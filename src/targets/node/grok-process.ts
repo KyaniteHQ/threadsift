@@ -1,7 +1,8 @@
 import { writeFile } from "node:fs/promises";
 
 import { splitLines } from "../../core/contract/format.ts";
-import { type ProcessEnd, type SignIn, runProcess } from "./cli-process.ts";
+import { type ProcessEnd, runProcess } from "./cli-process.ts";
+import { type SignIn, signInFrom } from "./cli-sign-in.ts";
 import { type RunFolders, sweepGrokTemp, toolListOf } from "./grok-folders.ts";
 import { signInOf } from "./grok-sign-in.ts";
 import { type ToolList, runArguments } from "./grok-surface.ts";
@@ -68,7 +69,7 @@ async function versionWith(
 async function signInWith(spawn: Spawn, folders: RunFolders, signal: AbortSignal): Promise<SignIn> {
   const end = await spawn(folders, ["models"], signal, LINE_CAP);
 
-  return end.kind === "exited" ? signInOf(end.stdout) : "unknown";
+  return signInFrom(end, ({ stdout }) => signInOf(stdout));
 }
 
 async function runWith(

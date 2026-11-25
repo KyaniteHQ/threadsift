@@ -11,7 +11,8 @@ import {
 import type { CliProvider } from "../../core/contract/provider-families.ts";
 import type { CliRunner, RunnerTask } from "../../core/kernel/ai-runtime.ts";
 import { report } from "../../core/kernel/failure-log.ts";
-import { type ProcessEnd, type SignIn, type UnfinishedEnd, answerWithin } from "./cli-process.ts";
+import { type ProcessEnd, type UnfinishedEnd, answerWithin } from "./cli-process.ts";
+import type { ExitedEnd, SignIn } from "./cli-sign-in.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 
 export const STDOUT_CAP = 1024 * 1024;
@@ -107,9 +108,7 @@ export abstract class SlottedCli implements CliRunner {
 
   protected outcome<Result>(
     end: Readonly<ProcessEnd>,
-    read: (
-      exited: Readonly<Extract<ProcessEnd, { readonly kind: "exited" }>>,
-    ) => AiExecution<Result> | null,
+    read: (exited: Readonly<ExitedEnd>) => AiExecution<Result> | null,
   ): Attempt<Result>["result"] {
     if (end.kind !== "exited") return endRefusal(end);
 

@@ -1,4 +1,5 @@
-import { type SignIn, answerWithin } from "./cli-process.ts";
+import { answerWithin } from "./cli-process.ts";
+import type { SignIn } from "./cli-sign-in.ts";
 import { inRunFolders } from "./grok-folders.ts";
 import type { GrokCli } from "./grok-process.ts";
 

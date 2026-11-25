@@ -8,7 +8,8 @@ import { PROBE_MS } from "../../core/contract/request-waits.ts";
 import type { RunnerTask } from "../../core/kernel/ai-runtime.ts";
 import { readOrAssume, report } from "../../core/kernel/failure-log.ts";
 import { parsedJson } from "../../core/kernel/parsed-json.ts";
-import { type SignIn, findBinary, inEmptyFolder, runProcess } from "./cli-process.ts";
+import { findBinary, inEmptyFolder, runProcess } from "./cli-process.ts";
+import { type SignIn, signInFrom } from "./cli-sign-in.ts";
 import type { Slots } from "./cli-slots.ts";
 import {
   type Attempt,
@@ -104,11 +105,14 @@ class ClaudeCode extends SlottedCli {
 
   protected async probe(signal: AbortSignal): Promise<SignIn> {
     const end = await this.spawn(["auth", "status", "--json"], "", signal);
-    const status = end.kind === "exited" ? parsedJson(StatusSchema, end.stdout) : null;
 
-    if (status === null) return "unknown";
+    return signInFrom(end, ({ stdout }) => {
+      const status = parsedJson(StatusSchema, stdout);
 
-    return status.loggedIn ? "signed-in" : "signed-out";
+      if (status === null) return "unknown";
+
+      return status.loggedIn ? "signed-in" : "signed-out";
+    });
   }
 
   protected async attempt<Result>(
