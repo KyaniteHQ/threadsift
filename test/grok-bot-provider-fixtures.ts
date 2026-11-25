@@ -4,11 +4,15 @@ import { setImmediate } from "node:timers/promises";
 
 import { z } from "zod";
 
-import { HOUR_MS } from "../src/core/contract/time-units.ts";
+import { HOUR_MS, MINUTE_MS } from "../src/core/contract/time-units.ts";
 import { awaitVerifiedDigest } from "../src/features/bot/core/bot-verify-wait.ts";
 import { DIGEST_ANSWER } from "./bot-kinds-cases.ts";
 import { acceptedByBot, botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 import type { Instance } from "./instance.ts";
+
+export function assertDueBeyondHalfHour(what: string, due: number): void {
+  assert.ok(due > Date.now() + 30 * MINUTE_MS, `${what} is due at ${String(due)}`);
+}
 
 export const VERIFY_PATH = "/api/settings/ai/verify";
 
