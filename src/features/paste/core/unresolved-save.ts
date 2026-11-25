@@ -38,9 +38,7 @@ interface Failure {
   readonly addedByToken: Paste["addedByToken"];
 }
 
-const FAILED_ITEM = 4;
-
-const INSERTED_FAILURE_ITEM = 4;
+const ITEM_READ = 4;
 
 async function insertedFailure(
   db: Database,
@@ -75,7 +73,7 @@ async function insertedFailure(
     ? null
     : {
         kind: "saved",
-        item: foundItem(inserted[INSERTED_FAILURE_ITEM][0], normalizedUrl),
+        item: foundItem(inserted[ITEM_READ][0], normalizedUrl),
         created: true,
       };
 }
@@ -104,7 +102,7 @@ async function refreshedFailure(
     db.delete(guards),
   ]);
 
-  const [item] = refreshed[FAILED_ITEM];
+  const [item] = refreshed[ITEM_READ];
 
   return item === undefined ? null : { kind: "saved", item, created: false };
 }
