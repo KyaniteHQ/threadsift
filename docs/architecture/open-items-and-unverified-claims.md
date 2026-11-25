@@ -90,7 +90,7 @@ No run has read a repository from a deployed Worker, and no run from the develop
 
 Not verified:
 
-- Reddit's answer to the deployed Worker over time. A throwaway Worker got 200 for a thread's `.json` and `me.json` in 3 runs on one day, and no check repeats it. A permalink request behind a `more` stub was not sent from a Worker. If Reddit refuses Cloudflare's addresses again, three refused threads in a row expire the session ([Fetchers](fetchers.md), Request limit and session health).
+- Reddit's answer to the deployed Worker over time. A throwaway Worker got 200 for a thread's `.json`, a comment's permalink and `me.json` on one day ([Decisions and evidence](decisions-and-evidence.md), Reddit), and no check repeats it. If Reddit refuses Cloudflare's addresses again, three refused threads in a row expire the session ([Fetchers](fetchers.md), Request limit and session health).
 - A real logged-out `me.json` answer. Reddit answered 403 to an altered cookie and to no cookie. A 401, or a 200 without a `t2` name, marks the session as logged out at once, and neither was observed.
 - How long Reddit keeps a session valid, the third attempt that falls through to the archive after two 429s, and a run of 100 links.
 - The limits of the shared fill loop (`fillAnswers`): the 500 ms spacing, the stop at the first 429 or on a used-up window, the 8 MiB bound, the deadline, the abort signal and the per-request check that the account is still connected. Only live runs prove them.
