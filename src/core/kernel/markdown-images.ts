@@ -36,11 +36,10 @@ const PROCESSOR = unified().use(remarkParse).use(GFM_PLUGINS);
 
 const TITLE_SPECIALS = /["\\]/gu;
 
-const ESCAPED_DESTINATION =
-  /\\[!-/:-@[-`{-~]|&(?:[A-Za-z][A-Za-z0-9]{0,30}|#[0-9]{1,7}|#[Xx][0-9A-Fa-f]{1,6});/u;
+const ESCAPE_STARTS = ["\\", "&"] as const;
 
 export function mayHoldDestination(markdown: string, prefix: string): boolean {
-  return markdown.includes(prefix) || ESCAPED_DESTINATION.test(markdown);
+  return markdown.includes(prefix) || ESCAPE_STARTS.some((start) => markdown.includes(start));
 }
 
 function walk(root: Readonly<MarkdownNode>): MarkdownNode[] {
