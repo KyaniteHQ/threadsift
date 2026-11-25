@@ -16,7 +16,7 @@ Both drivers are async and support `db.batch()`. D1 has no interactive transacti
 
 A batch that may only commit while a condition holds starts with an insert into `guards`, a table with `CHECK (ok = 1)`. The insert selects the count of rows that the condition's `SELECT` returns, so a failed condition inserts 0 and the check fails. The failed check aborts the whole batch on D1 and in the container alike, so a guarded write is all or nothing. Examples of a condition are a Proposal still at the unit revision a merge read, and a catalog still at the version a job read.
 
-The helpers are `guardedResults`, `guardedWrite` and `guardedBatch`, and `insertGuard` for a batch that builds its own guard.
+The helpers are `guardedBatch`, `guardedWrite`, `guardedOpenings` for a batch whose job-opening writes return the rows to queue, and `insertGuard` for a batch that builds its own guard.
 
 - A helper reports a refusal only when the error is a failed guard check (`GUARD_REFUSED` lists the messages that count, and a helper reads only the innermost error of the cause chain, because the message of a Drizzle wrapper holds the bound parameters) and the condition no longer holds. That is a lost lease with nothing written.
 - A helper rethrows any other error, because its outcome is unknown. A D1 batch whose answer is lost can have committed, and the condition then no longer holds because the batch itself changed it.
