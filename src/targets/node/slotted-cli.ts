@@ -11,7 +11,7 @@ import {
 import type { CliProvider } from "../../core/contract/provider-families.ts";
 import type { CliRunner, RunnerTask } from "../../core/kernel/ai-runtime.ts";
 import { report } from "../../core/kernel/failure-log.ts";
-import { type ProcessEnd, type UnfinishedEnd, answerWithin } from "./cli-process.ts";
+import { type ProcessEnd, type SignIn, type UnfinishedEnd, answerWithin } from "./cli-process.ts";
 import { type Slots, inSlot } from "./cli-slots.ts";
 
 export const STDOUT_CAP = 1024 * 1024;
@@ -43,8 +43,6 @@ export function outputSchema(schema: z.ZodType): string {
 export function promptOf({ instructions, input }: Readonly<AiTaskRequest<unknown>>): string {
   return `${instructions}\n\n${input}`;
 }
-
-const UNANSWERED_COUNTS_AS_SIGNED_IN = true;
 
 const SIGN_IN_UNKNOWN = { kind: "sign-in-unknown" } as const;
 
@@ -100,7 +98,7 @@ export abstract class SlottedCli implements CliRunner {
     return { ...config, model: choice.slug };
   }
 
-  protected abstract probe(signal: AbortSignal): Promise<boolean>;
+  protected abstract probe(signal: AbortSignal): Promise<SignIn>;
 
   protected abstract attempt<Result>(
     task: RunnerTask<Result, "cli">,
@@ -118,24 +116,24 @@ export abstract class SlottedCli implements CliRunner {
     return read(end) ?? SIGN_IN_UNKNOWN;
   }
 
+  private signIn(stop: AbortSignal): Promise<SignIn> {
+    return answerWithin(stop, (signal) => this.probe(signal), "unknown");
+  }
+
   private async signInRefusal(stop: AbortSignal) {
-    const signedIn = await answerWithin(
-      stop,
-      (signal) => this.probe(signal),
-      UNANSWERED_COUNTS_AS_SIGNED_IN,
-    );
+    const signIn = await this.signIn(stop);
 
     if (stop.aborted) return refusedAi("timeout");
 
-    return refusedAi(signedIn ? "unreachable" : "not-configured");
+    return refusedAi(signIn === "signed-out" ? "not-configured" : "unreachable");
   }
 
   stop(): void {
     this.shutdown.abort();
   }
 
-  readonly signedIn = (): Promise<boolean> =>
-    answerWithin(this.shutdown.signal, (signal) => this.probe(signal), false);
+  readonly signedIn = async (): Promise<boolean> =>
+    (await this.signIn(this.shutdown.signal)) === "signed-in";
 
   readonly run = async <Result>(
     task: RunnerTask<Result, "cli">,
