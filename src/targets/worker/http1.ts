@@ -27,42 +27,40 @@ type HeaderMap = ReadonlyMap<string, string>;
 
 const LINE_BREAK_BYTES = 2;
 
-interface HeadLine {
-  readonly line: string;
-  readonly left: number;
+type NextLine = () => Promise<string>;
+
+function headLines(reader: Readonly<ByteReader>): NextLine {
+  let left = HEAD_LIMIT_BYTES;
+
+  return async () => {
+    const line = await reader.line(left - LINE_BREAK_BYTES);
+
+    if (line === null) throw new MalformedResponse("the head ended early");
+
+    left -= line.length + LINE_BREAK_BYTES;
+
+    return line;
+  };
 }
 
-async function headLine(reader: Readonly<ByteReader>, left: number): Promise<HeadLine> {
-  const line = await reader.line(left - LINE_BREAK_BYTES);
+async function headersOf(nextLine: NextLine): Promise<HeaderMap> {
+  const headers = new Map<string, string>();
+  let line = await nextLine();
 
-  if (line === null) throw new MalformedResponse("the head ended early");
+  while (line !== "") {
+    const colon = line.indexOf(":");
 
-  return { line, left: left - LINE_BREAK_BYTES - line.length };
-}
+    if (colon < 1) throw new MalformedResponse("a header has no name");
 
-interface HeadFields {
-  readonly headers: HeaderMap;
-  readonly left: number;
-}
+    const name = line.slice(0, colon).toLowerCase();
 
-async function headersOf(
-  reader: Readonly<ByteReader>,
-  left: number,
-  headers = new Map<string, string>(),
-): Promise<HeadFields> {
-  const read = await headLine(reader, left);
+    if (!headers.has(name)) headers.set(name, line.slice(colon + 1).trim());
 
-  if (read.line === "") return { headers, left: read.left };
+    // oxlint-disable-next-line eslint/no-await-in-loop -- the head lines are read in order.
+    line = await nextLine();
+  }
 
-  const colon = read.line.indexOf(":");
-
-  if (colon < 1) throw new MalformedResponse("a header has no name");
-
-  const name = read.line.slice(0, colon).toLowerCase();
-
-  if (!headers.has(name)) headers.set(name, read.line.slice(colon + 1).trim());
-
-  return headersOf(reader, read.left, headers);
+  return headers;
 }
 
 async function* untilClose(reader: Readonly<ByteReader>): AsyncGenerator<Uint8Array> {
@@ -151,16 +149,15 @@ interface Head {
   readonly headers: HeaderMap;
 }
 
-async function finalHead(reader: Readonly<ByteReader>, left: number): Promise<Head> {
-  const read = await headLine(reader, left);
-  const status = Number(STATUS_LINE.exec(read.line)?.[1]);
+async function finalHead(nextLine: NextLine): Promise<Head> {
+  const status = Number(STATUS_LINE.exec(await nextLine())?.[1]);
 
   if (!Number.isInteger(status)) throw new MalformedResponse("the status line is not readable");
 
-  const { headers, left: rest } = await headersOf(reader, read.left);
+  const headers = await headersOf(nextLine);
 
   return status >= 100 && status < 200 && status !== SWITCHING_PROTOCOLS
-    ? finalHead(reader, rest)
+    ? finalHead(nextLine)
     : { status, headers };
 }
 
@@ -168,7 +165,7 @@ export async function readResponse(
   source: Readonly<AsyncIterable<Uint8Array>>,
 ): Promise<WireResponse> {
   const reader = byteReader(source);
-  const { status, headers } = await finalHead(reader, HEAD_LIMIT_BYTES);
+  const { status, headers } = await finalHead(headLines(reader));
 
   return {
     status,
