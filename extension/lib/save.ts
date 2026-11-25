@@ -1,16 +1,11 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import { untrackedQuery } from "../../src/core/contract/links.ts";
+import { hostOf, isTrackingParam } from "../../src/core/contract/links.ts";
 import { SuppliedPageSchema } from "../../src/core/contract/supplied-page.ts";
 import { type Config, holdsInstanceAccess } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
-import {
-  type ThreadTab,
-  fetchThread,
-  pageCompleteness,
-  withoutTrailingSlash,
-} from "./reddit-thread.ts";
+import { type ThreadTab, fetchThread, pageCompleteness } from "./reddit-thread.ts";
 import { send } from "./save-request.ts";
 import type { SaveState } from "./state.ts";
 import { resultInTab } from "./tab-result.ts";
@@ -37,9 +32,13 @@ function capturedPage(tabId: number): Promise<Captured | null> {
 }
 
 function pageKey(address: string): string {
-  const url = new URL(address);
+  const { origin, pathname, search } = new URL(address);
+  const host = hostOf(address);
+  const fields = search === "" ? [] : search.slice(1).split("&");
+  const kept = fields.filter((field) => !isTrackingParam(field, host));
+  const path = pathname.endsWith("/") ? pathname.slice(0, -1) : pathname;
 
-  return `${withoutTrailingSlash(url)}${untrackedQuery(url)}`;
+  return `${origin}${path}${kept.length > 0 ? `?${kept.join("&")}` : ""}`;
 }
 
 function isSamePage(started: string, captured: string): boolean {

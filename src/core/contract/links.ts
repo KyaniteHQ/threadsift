@@ -53,7 +53,7 @@ export const REDDIT_PATH_PREFIXES: ReadonlySet<string> = new Set(["r", "user", "
 const REDDIT_ID = /^[a-zA-Z\d]+$/u;
 const REDDIT_SHARE_PATH = /^\/r\/[^/]+\/s\/[a-zA-Z\d]+\/?$/u;
 
-function isTrackingParam(pair: string, host: string): boolean {
+export function isTrackingParam(pair: string, host: string): boolean {
   const key = (new URLSearchParams(pair).keys().next().value ?? "").toLowerCase();
 
   return (
@@ -85,9 +85,9 @@ function canonicalHost(rawHost: string): string {
   return labels.slice(first).join(".");
 }
 
-export function untrackedQuery({ search, hostname }: Readonly<Pick<URL, "search" | "hostname">>) {
-  const host = canonicalHost(hostname);
-  const kept = search
+function untrackedQuery(url: Readonly<Pick<URL, "search" | "hostname">>): string {
+  const host = canonicalHost(url.hostname);
+  const kept = url.search
     .slice(1)
     .split("&")
     .filter((pair) => pair !== "" && !isTrackingParam(pair, host));
