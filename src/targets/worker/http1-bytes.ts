@@ -6,6 +6,8 @@ export class MalformedResponse extends Error {
   override readonly name = "MalformedResponse";
 }
 
+export const LINE_BREAK_BYTES = 2;
+
 const CR = 13;
 
 const LF = 10;
@@ -30,7 +32,7 @@ function terminatorIn(heldEndsWithCr: boolean, data: Uint8Array): Terminator | n
 
   const end = lineEnd(data);
 
-  return end < 0 ? null : { trimmed: 0, end, resume: end + 2 };
+  return end < 0 ? null : { trimmed: 0, end, resume: end + LINE_BREAK_BYTES };
 }
 
 interface Queue {

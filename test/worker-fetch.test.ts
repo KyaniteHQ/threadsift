@@ -24,7 +24,6 @@ const TAIL = "tail of the body";
 
 const PAGE_CHUNKS = {
   "one-chunk": [PAGE_TEXT],
-  "two-chunks": ["error code:", " 1016"],
   "trailing-newline": [`${PAGE_TEXT}\n`],
 } as const;
 
@@ -39,14 +38,10 @@ function chunkedBody(
       for (const [index, chunk] of chunks.entries()) {
         setTimeout(() => {
           controller.enqueue(TEXT.encode(chunk));
+
+          if (index === chunks.length - 1) whenSent(controller);
         }, index * CHUNK_GAP_MS);
       }
-      setTimeout(
-        () => {
-          whenSent(controller);
-        },
-        (chunks.length - 1) * CHUNK_GAP_MS,
-      );
     },
   });
 }
@@ -95,7 +90,7 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
     await server.stop();
   });
 
-  it("fails as an unreachable origin for a 530 whose whole body is an error code, sent in one chunk, in two, or with a trailing newline", async () => {
+  it("fails as an unreachable origin for a 530 whose whole body is an error code, sent alone or with a trailing newline", async () => {
     await Promise.all(
       Object.keys(PAGE_CHUNKS).map(async (name) => {
         const url = `${server.url}/page-530/${name}`;

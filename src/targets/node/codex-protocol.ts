@@ -1,7 +1,9 @@
 import { z } from "zod";
 
 import { type AiExecution, apiRefusal, refusedAi } from "../../core/contract/ai-contract.ts";
+import { splitLines } from "../../core/contract/format.ts";
 import { parsedJson } from "../../core/kernel/parsed-json.ts";
+import type { ExitedEnd, SignIn } from "./cli-sign-in.ts";
 
 const CatalogSchema = z
   .looseObject({
@@ -203,4 +205,14 @@ export function surfaceOf(stdout: string): Surface | null {
     extraTools: items.flatMap((item) => toolNames(item)).filter((name) => !ALLOWED_TOOLS.has(name)),
     foreignTexts: foreignCount(items),
   };
+}
+
+const NOT_LOGGED_IN = "Not logged in";
+
+export function loginStatusOf({ code, stderr }: Readonly<ExitedEnd>): SignIn {
+  if (code === 0) return "signed-in";
+
+  const signedOut = code === 1 && splitLines(stderr).some((line) => line.trim() === NOT_LOGGED_IN);
+
+  return signedOut ? "signed-out" : "unknown";
 }
