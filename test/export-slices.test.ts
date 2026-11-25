@@ -18,7 +18,15 @@ import {
 import { bytesOfKey, postTextKey } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { latestMigration } from "./related-fixtures.ts";
-import { entriesOf, entryOf, linesOf, manifestOf, recordLines, rootOf } from "./zip-fixtures.ts";
+import {
+  assertSameBytes,
+  entriesOf,
+  entryOf,
+  linesOf,
+  manifestOf,
+  recordLines,
+  rootOf,
+} from "./zip-fixtures.ts";
 
 const SLICE_BYTES = 8_388_608;
 
@@ -87,10 +95,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
 
     const status = await instance.read("GET", "/api/export", ExportStatusSchema);
 
-    assert.ok(
-      Buffer.concat(stored).equals(zip),
-      "the download is the stored parts, then the directories, then the tail",
-    );
+    assertSameBytes(Buffer.concat(stored), zip, "the stored pieces in download order");
     assert.equal(status.state, "ready");
     assert.equal(status.zipBytes, zip.length);
 
@@ -109,7 +114,9 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     const entries = await entriesOf(zip);
 
     assert.deepEqual([...entries.keys()].toSorted(), [...independent.keys()].toSorted());
-    assert.deepEqual(entries, independent);
+    for (const [name, bytes] of entries) {
+      assertSameBytes(bytes, entryOf(independent, name), name);
+    }
     assert.match(rootOf(entries), /^threadsift-\d{4}-\d{2}-\d{2}\/$/u);
     assert.ok([...entries.keys()].every((name) => name.startsWith(rootOf(entries))));
   });
@@ -164,7 +171,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
     }
 
     for (const [id, text] of library.longTexts) {
-      assert.deepEqual(
+      assertSameBytes(
         entryOf(entries, `${root}${postTextKey(id)}`),
         new TextEncoder().encode(text),
         `post text file of ${String(id)}`,
@@ -272,9 +279,10 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
         .map(({ size }) => size),
       [textBytes],
     );
-    assert.deepEqual(
+    assertSameBytes(
       entryOf(entries, `${rootOf(entries)}${postKey}`),
       new TextEncoder().encode("x".repeat(textBytes)),
+      "post text file",
     );
   });
 

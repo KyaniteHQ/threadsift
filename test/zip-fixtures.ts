@@ -190,3 +190,14 @@ export function withRecordLines(
     },
   }));
 }
+
+export function assertSameBytes(actual: Uint8Array, expected: Uint8Array, what: string): void {
+  if (Buffer.compare(actual, expected) === 0) return;
+
+  const differing = actual.findIndex((byte, at) => byte !== expected[at]);
+  const offset = differing === -1 ? Math.min(actual.length, expected.length) : differing;
+
+  assert.fail(
+    `${what}: ${String(actual.length)} bytes, expected ${String(expected.length)}, first difference at byte ${String(offset)}`,
+  );
+}
