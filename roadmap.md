@@ -56,7 +56,7 @@ These run beside the list. Each is the owner's, and most have a long wait.
 - [ ] 0.4 **WAITING (owner, then Reddit).** Ask Reddit in writing what a paid Threadsift may store (#723), and whether a free public demo may show real Reddit threads, with or without Reddit's Data API. **Check:** the request is sent, and #723 names the date.
   WAITS: since 2026-11-25. The request is written, in the private requests folder. The owner decided to send it when the hosted product is close (Part 9), because nothing in v1 needs Reddit's answer: until then a hosted Instance stores a Reddit Item as a Link-only Item.
 - [ ] 0.5 **WAITING (owner, then a payment company).** Ask a payment company whether it accepts a seller in Türkiye for this product (#725). **Check:** the request is sent, and #725 names the date.
-  WAITS: since 2026-11-25, for the owner to send the request to Paddle from the private requests folder and to say the date, which goes into #725. The accountant's question of #725 is the owner's too.
+  WAITS: since 2026-11-25. The request to Paddle is written, in the private requests folder. The owner decided to send nothing until Part 9 starts, because the self-hosted release comes first and nothing in v1 needs a payment company. Part 9 first decides who sells, which decides the payment company.
 - [ ] 0.6 **WAITING (owner).** Open the Chrome Web Store and Mozilla add-ons developer accounts (#767, decision 3). The first upload is in Part 4 (item 4.14), so the accounts must exist before the end of Part 4. **Check:** both accounts exist, and #767 records decision 3.
 - [x] 0.7 The owner decided the sign-in lock ceiling (#726): it is built for the hosted product, in 9.5. **Check:** the decision is recorded in #726.
 - [ ] 0.8 **WAITING (owner, then X).** Ask X in writing the five points only X can settle (#724): what must be deleted when a post is deleted, whether a check once a day meets the 24 hours and how fresh a displayed post must be, whether post text may go to an AI vendor for a Digest, when the Enterprise plan is needed, and whether a public demo fits pay-per-use. The text is in the private requests folder. **Check:** the question is sent, and #724 names the date.
@@ -276,7 +276,7 @@ Items:
 
 ## Part 9. The hosted product (#705)
 
-#705 says the engineering steps wait for the four answers, and that each ticket is rewritten against the code just before it is built. So items 9.5 to 9.11 need 9.1 to 9.4, and each starts with that rewrite.
+#705 says the engineering steps wait for the four answers, and that each ticket is rewritten against the code just before it is built. So items 9.5 to 9.11 need 9.1 to 9.4, and each starts with that rewrite. Before 9.4, the owner decides who the seller is: the owner in Türkiye through a merchant of record such as Paddle, or a partner's business in the EU through its own payment account. The seller's country decides which of the answers of 0.3 apply, so 9.1 records them for that seller.
 
 - [ ] 9.1 Record the data-protection and hosting answers of 0.3 in the decisions doc, each with its date, how sure it is and the cautious choice taken, and open an issue for each document an answer needs (#722). #722 asks for a lawyer's answers; its text is edited to name the source of 0.3 before the item is built. Needs 0.3. **Check:** #722's criteria as edited, and each new issue is named under this item and counted in "Issues and this file".
 - [ ] 9.2 **WAITING (Reddit).** Reddit's written answer (#723). Started in 0.4. **Check:** #723's criteria.
