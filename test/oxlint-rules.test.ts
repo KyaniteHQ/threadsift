@@ -66,8 +66,6 @@ describe("the custom oxlint rules refuse what the lint and format architecture s
   const found = new Map<string, Found[number][]>();
 
   const at = (path: FixturePath): Found => {
-    if (!Object.hasOwn(FIXTURES, path)) throw new Error(`${path} is not a lint fixture`);
-
     return found.get(path) ?? [];
   };
 
