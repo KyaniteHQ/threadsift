@@ -215,7 +215,7 @@ Spacing runs on six steps (`s1` to `s6`). Density multiplies the vertical spacin
 
 List is three panes: the sidebar (wordmark, paste box and filter rail), the item list and the reader pane. Under `--bp-medium` the sidebar becomes a header above the list. Under `--bp-narrow` everything stacks into one column and items open full page. Grid is a header row (wordmark, search, paste box), a filter bar, then a card grid centred at most `--page-max` wide. In Grid, an item opens as a full page or as a sheet over the dimmed grid, with Previous and Next buttons outside the sheet.
 
-The app measures its own width and writes every band it is under to `data-bp` (`--bp-phone`, `--bp-narrow`, `--bp-medium` and `--bp-wide`). Components read that attribute instead of media queries, so a preview can draw the phone form inside a wide window. Under 480px every control grows to the 44px target (`--target`); a link and a Highlight mark in post or comment text keep the width of their text, as the target rule under Do's and Don'ts says.
+The app measures its own width and writes every band it is under to `data-bp` (`--bp-phone`, `--bp-narrow`, `--bp-medium` and `--bp-wide`). Components read that attribute instead of media queries, so a preview can draw the phone form inside a wide window. Under 480px every control grows to the 44px target (`--target`), with the exceptions the target rule under Do's and Don'ts lists.
 
 ### Named Rules
 **The Still Root Rule.** The app root never scrolls. Each pane scrolls itself, and keeping an item in view scrolls only its own pane.
