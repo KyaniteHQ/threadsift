@@ -5,7 +5,7 @@ import type { Database } from "../../../core/kernel/database.ts";
 import { guards, holdsNoRow, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
 import { hasOpenJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { orRestoreHolds } from "../../../core/kernel/restore-hold.ts";
+import { orRestoreHolds, restoreGuard } from "../../../core/kernel/restore-hold.ts";
 import { itemAliases, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import {
@@ -17,7 +17,7 @@ import {
   itemAt,
   itemInsert,
 } from "../../item/core/item-rows.ts";
-import { itemRead } from "../../item/core/item-selection.ts";
+import { itemRead, itemWhere } from "../../item/core/item-selection.ts";
 import { settle } from "../../item/core/settle.ts";
 import type { Concluded } from "../../media/core/details.ts";
 
@@ -38,7 +38,7 @@ interface Failure {
   readonly addedByToken: Paste["addedByToken"];
 }
 
-const FAILED_ITEM = 3;
+const FAILED_ITEM = 4;
 
 const INSERTED_FAILURE_ITEM = 4;
 
@@ -84,10 +84,13 @@ async function refreshedFailure(
   db: Database,
   noAlias: Readonly<SQLWrapper>,
   { link: { normalizedUrl }, fetched, now }: Readonly<Failure>,
-): Promise<Saved> {
-  const known = await itemAt(db, normalizedUrl);
+): Promise<Saved | null> {
+  const known = await itemWhere(db, eq(items.normalizedUrl, normalizedUrl));
+
+  if (known === undefined) return null;
 
   const refreshed = await db.batch([
+    restoreGuard(db),
     insertGuard(db, noAlias),
     db
       .update(items)
@@ -101,11 +104,9 @@ async function refreshedFailure(
     db.delete(guards),
   ]);
 
-  return {
-    kind: "saved",
-    item: foundItem(refreshed[FAILED_ITEM][0], normalizedUrl),
-    created: false,
-  };
+  const [item] = refreshed[FAILED_ITEM];
+
+  return item === undefined ? null : { kind: "saved", item, created: false };
 }
 
 export function saveUnresolved(
@@ -118,7 +119,7 @@ export function saveUnresolved(
 
   return unlessRefused(
     db,
-    noAlias,
+    orRestoreHolds(db, noAlias),
     async () =>
       (await insertedFailure(db, noAlias, failure)) ??
       (existing === "keep"
