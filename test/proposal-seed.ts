@@ -42,36 +42,31 @@ export function seedProposal<Kind extends ProposalKind>(
 
   database.exec("begin immediate");
 
-  try {
-    const head = database
-      .prepare(
-        "insert into proposals (id, kind, reason, state, created_at, cursor, moved, unit_revision) values (?, ?, ?, ?, ?, ?, ?, ?) returning id",
-      )
-      .get(
-        id ?? null,
-        kind,
-        reason,
-        state,
-        createdAt,
-        run?.cursor ?? null,
-        run?.moved ?? null,
-        run?.unitRevision ?? null,
-      );
+  const head = database
+    .prepare(
+      "insert into proposals (id, kind, reason, state, created_at, cursor, moved, unit_revision) values (?, ?, ?, ?, ?, ?, ?, ?) returning id",
+    )
+    .get(
+      id ?? null,
+      kind,
+      reason,
+      state,
+      createdAt,
+      run?.cursor ?? null,
+      run?.moved ?? null,
+      run?.unitRevision ?? null,
+    );
 
-    const proposalId = Number(head?.["id"]);
+  const proposalId = Number(head?.["id"]);
 
-    database
-      .prepare(
-        `insert into ${subjectTable(kind)} (proposal_id, kind, ${columns.map(({ name }) => name).join(", ")}) values (?, ?, ${columns.map(() => "?").join(", ")})`,
-      )
-      .run(proposalId, kind, ...columns.map(({ value }) => value));
-    database.exec("commit");
+  database
+    .prepare(
+      `insert into ${subjectTable(kind)} (proposal_id, kind, ${columns.map(({ name }) => name).join(", ")}) values (?, ?, ${columns.map(() => "?").join(", ")})`,
+    )
+    .run(proposalId, kind, ...columns.map(({ value }) => value));
+  database.exec("commit");
 
-    return proposalId;
-  } catch (error) {
-    database.exec("rollback");
-    throw error;
-  }
+  return proposalId;
 }
 
 export function removeProposals(instance: Instance): void {
