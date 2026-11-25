@@ -3,7 +3,7 @@ set -euo pipefail
 
 skipped() {
   case "$1" in
-    AGENTS.md|README.md|docs/*.md|docs/assets/*.png|docs/assets/*.gif) ;;
+    AGENTS.md|README.md|roadmap.md|docs/*.md|docs/assets/*.png|docs/assets/*.gif) ;;
     *) return 1 ;;
   esac
 }
