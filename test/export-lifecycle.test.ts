@@ -112,7 +112,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
     assert.equal(rowCount(instance, "exports", "id = ? and state = 'expired'", id), 1);
   });
 
-  it("replaces a ready Export on a new start, deleting the old objects", async () => {
+  it("replaces a ready Export on a new start, deleting the old objects, and answers 404 to the old download and 200 to the new one", async () => {
     const first = await readyExport(instance);
 
     assert.ok((await exportKeys(instance, first.id)).length > 0);
@@ -121,12 +121,6 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
     assert.notEqual(second.id, first.id);
     assert.deepEqual(await exportKeys(instance, first.id), []);
-  });
-
-  it("answers 404 to the download of a replaced Export and 200 to the new one", async () => {
-    const first = await readyExport(instance);
-    const second = await readyExport(instance);
-
     assert.equal(
       (await instance.send("GET", `/api/export/${String(first.id)}/download`)).status,
       404,
