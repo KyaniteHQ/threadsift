@@ -141,6 +141,7 @@ export function useGrokBotForm(view: GrokBotView, changed: Changed) {
   const removeNow = useAction({
     run,
     action: "remove",
+    unavailable: unavailable.remove,
     task: useRemove(fields, changed),
   });
 
