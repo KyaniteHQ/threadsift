@@ -58,17 +58,23 @@ const enabledRules = (sets: readonly (object | undefined)[]) =>
 
 type Found = readonly Readonly<{ rule: string; line: number; message: string }>[];
 
+type FixturePath = keyof typeof FIXTURES;
+
 describe("the custom oxlint rules refuse what the lint and format architecture says and pass what it allows", () => {
   let repository = "";
   let scratch: ReturnType<typeof mkdtempDisposableSync>;
   const found = new Map<string, Found[number][]>();
 
-  const at = (path: string): Found => found.get(path) ?? [];
+  const at = (path: FixturePath): Found => {
+    if (!Object.hasOwn(FIXTURES, path)) throw new Error(`${path} is not a lint fixture`);
 
-  const messageOf = (path: string, rule: string) =>
+    return found.get(path) ?? [];
+  };
+
+  const messageOf = (path: FixturePath, rule: string) =>
     at(path).find((diagnostic) => diagnostic.rule === rule)?.message ?? "";
 
-  const rulesAt = (path: string) =>
+  const rulesAt = (path: FixturePath) =>
     at(path)
       .map(({ rule, line }) => `${rule}:${String(line)}`)
       .toSorted((left, right) => left.localeCompare(right));
@@ -216,7 +222,7 @@ describe("the custom oxlint rules refuse what the lint and format architecture s
         "web/src/value-cloudflare.ts",
         "web/src/value-drizzle.ts",
         "extension/entrypoints/value-node.ts",
-      ]) {
+      ] as const) {
         assert.deepEqual(rulesAt(path), ["no-server-value-import:1"], path);
       }
     });
