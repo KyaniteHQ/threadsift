@@ -2,7 +2,7 @@
 
 [The spec](../spec.md) states what the app does. This page holds the reasons behind its product decisions and the measured or sourced facts the spec leaves out. A fact here carries the command, address or source that shows it. [Open items and unverified claims](open-items-and-unverified-claims.md) holds a fact no run has proven.
 
-Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads).
+Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131).
 
 ## Product decisions
 
@@ -237,3 +237,7 @@ Measured on a throwaway pull request copy of the Worker (2026-11-07). A login wi
 ## Aborted list reads
 
 An aborted request ends the browser's side only. In a local Worker run (`wrangler dev`, one saved Item), a Playwright script, which the repository does not keep, typed the 6 characters `sqlite` into the search box and counted the `GET /api/items?q=` requests with the page events `requestfinished` and `requestfailed`. Before the ticket aborted a superseded read, 6 requests finished and none failed. After it, 1 finished and 5 failed with `net::ERR_ABORTED`, and the list showed one row and no alert. The local Worker log showed 6 finished handlers in both runs, so the abort saved nothing on the server side of that run. The run says nothing about a deployed Worker, where the request's work may be canceled when the client disconnects.
+
+## Export entry count on Node 26.13.1
+
+On Node 26.13.1 a `while` loop that counts the entries of an Item that fit in an Export slice returned a wrong `next` after the process had run it for many Items, so the Export ended `ready` without the post text file ([Export, backup and restore](export-backup-and-restore.md), Item notes, images and post text). The core tests of two files in one process (`node --test --test-isolation=none test/export-lifecycle.test.ts test/export-slices.test.ts`) showed it on every run. It did not appear with `--no-maglev` or `--no-maglev-loop-peeling`, and it still appeared with `--no-turbofan`, `--no-opt`, `--no-maglev-inlining`, `--no-maglev-truncation` and `--no-maglev-cons-string-elision`. Logging inside the loop hid it.
