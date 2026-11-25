@@ -65,28 +65,42 @@ describe("a Note is saved against the revision the owner loaded, and a save of a
 
     assert.equal(retried.status, 200);
     assert.deepEqual(await noteOf(id), { body: "the owner's text", revision: 3 });
+
+    const older = await put(id, "text from a page two revisions behind", 1);
+
+    assert.equal(older.status, 409);
+    assert.deepEqual(NoteConflictSchema.parse(JSON.parse(older.body)).note, {
+      body: "the owner's text",
+      revision: 3,
+    });
+    assert.deepEqual(await noteOf(id), { body: "the owner's text", revision: 3 });
   });
 
   it("refuses the repeat of a save that landed, even when the texts match", async () => {
     const id = await freshItem();
-    const landed = await put(id, "same text", 0);
-    const repeated = await put(id, "same text", 0);
+
+    assert.equal((await put(id, "first text", 0)).status, 200);
+
+    const landed = await put(id, "same text", 1);
+    const repeated = await put(id, "same text", 1);
 
     assert.equal(landed.status, 200);
     assert.equal(repeated.status, 409);
-    assert.deepEqual(await noteOf(id), { body: "same text", revision: 1 });
+    assert.deepEqual(await noteOf(id), { body: "same text", revision: 2 });
   });
 
   it("clears the Note with an empty or whitespace-only body, and advances the revision", async () => {
-    const { revision } = await noteOf();
+    const id = await freshItem();
 
-    const cleared = await put(itemId, " \n\t ", revision);
+    assert.equal((await put(id, "text to clear", 0)).status, 200);
+
+    const cleared = await put(id, " \n\t ", 1);
 
     assert.equal(cleared.status, 200);
     assert.deepEqual(NoteResponseSchema.parse(JSON.parse(cleared.body)), {
-      note: { body: null, revision: revision + 1 },
+      note: { body: null, revision: 2 },
     });
-    assert.deepEqual(await noteOf(), { body: null, revision: revision + 1 });
+    assert.deepEqual(await noteOf(id), { body: null, revision: 2 });
   });
 
   it("accepts 10,000 code points, counted as code points and not as UTF-16 units, and refuses 10,001 with 400", async () => {
