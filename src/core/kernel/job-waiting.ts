@@ -69,7 +69,7 @@ export async function wakeWaitingFetches(
   {
     writes,
     when,
-    held,
+    held = sql`1`,
     now,
   }: Readonly<{
     writes: readonly [BatchItem<"sqlite">, ...BatchItem<"sqlite">[]];
@@ -79,10 +79,10 @@ export async function wakeWaitingFetches(
   }>,
 ): Promise<void> {
   const waiting = waitingFetches(reason);
-  const batch = [...writes, wokenJobs(ports.db, now, waiting, when)] as const;
+  const written = await guardedBatch(ports.db, held, [
+    ...writes,
+    wokenJobs(ports.db, now, waiting, when),
+  ]);
 
-  if (held === undefined) await ports.db.batch(batch);
-  else if (!(await guardedBatch(ports.db, held, batch))) return;
-
-  await enqueueWoken(ports, now, waiting, "all");
+  if (written) await enqueueWoken(ports, now, waiting, "all");
 }
