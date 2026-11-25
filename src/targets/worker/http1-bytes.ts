@@ -80,17 +80,27 @@ function queueOf(source: Readonly<AsyncIterable<Uint8Array>>): Queue {
 
 export function byteReader(source: Readonly<AsyncIterable<Uint8Array>>): ByteReader {
   const queue = queueOf(source);
-  const held: Uint8Array[] = [];
-  let heldBytes = 0;
 
   const line = async (limit: number): Promise<string | null> => {
-    const data = await queue.next();
+    const held: Uint8Array[] = [];
+    let heldBytes = 0;
+    let data = await queue.next();
 
-    if (data === null) return null;
+    while (data !== null) {
+      const found = terminatorIn(held.at(-1)?.at(-1) === CR, data);
 
-    const found = terminatorIn(held.at(-1)?.at(-1) === CR, data);
+      if (found !== null) {
+        const bytes = heldBytes - found.trimmed + found.end;
 
-    if (found === null) {
+        if (bytes > limit) throw new MalformedResponse("a line is too long");
+
+        queue.unread(data.subarray(found.resume));
+
+        return decoder.decode(
+          joinedBytes([...held, data.subarray(0, found.end)]).subarray(0, bytes),
+        );
+      }
+
       held.push(data);
       heldBytes += data.length;
 
@@ -98,22 +108,11 @@ export function byteReader(source: Readonly<AsyncIterable<Uint8Array>>): ByteRea
         throw new MalformedResponse("a line is too long");
       }
 
-      return line(limit);
+      // oxlint-disable-next-line eslint/no-await-in-loop -- the pieces of a line are read in order.
+      data = await queue.next();
     }
 
-    const bytes = heldBytes - found.trimmed + found.end;
-
-    if (bytes > limit) throw new MalformedResponse("a line is too long");
-
-    const text = decoder.decode(
-      joinedBytes([...held, data.subarray(0, found.end)]).subarray(0, bytes),
-    );
-
-    held.length = 0;
-    heldBytes = 0;
-    queue.unread(data.subarray(found.resume));
-
-    return text;
+    return null;
   };
 
   return { line, take: queue.take };
