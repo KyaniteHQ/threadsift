@@ -4,8 +4,8 @@ import { after, before, describe, it } from "node:test";
 import { z } from "zod";
 
 import { runJob } from "../src/core/compose/jobs.ts";
-import { jobAfterAttempts, jobRow, dueNow } from "./bot-task-rows.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
+import { jobAfterAttempts, jobRow, dueNow } from "./job-fixtures.ts";
 import { paste, saveProvider, until } from "./library-fixtures.ts";
 import { entryCount } from "./log-fixtures.ts";
 import { pairsOf, seedPair } from "./related-fixtures.ts";

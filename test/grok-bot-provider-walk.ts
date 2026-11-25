@@ -4,9 +4,9 @@ import { claimNextDue, executeClaimed } from "../src/core/compose/jobs.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
 import { sentTask } from "./bot-kinds-fixtures.ts";
 import { pastDeadline } from "./bot-task-fixtures.ts";
-import { jobRow } from "./bot-task-rows.ts";
 import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { jobRow } from "./job-fixtures.ts";
 
 export async function claimedAgain(
   instance: Instance,

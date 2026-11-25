@@ -12,8 +12,9 @@ import {
   selectGrokBot,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { jobRow, taskRow, taskRows, requeued } from "./bot-task-rows.ts";
+import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance, Json } from "./instance.ts";
+import { requeued } from "./job-fixtures.ts";
 
 export { botInstance, selectGrokBot } from "./bot-task-fixtures.ts";
 

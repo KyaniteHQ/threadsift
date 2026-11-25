@@ -4,9 +4,10 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { SECOND_MS } from "../src/core/contract/time-units.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
-import { jobAfterAttempts, jobRow, taskRow } from "./bot-task-rows.ts";
+import { taskRow } from "./bot-task-rows.ts";
 import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { jobAfterAttempts, jobRow } from "./job-fixtures.ts";
 import { intakeTo, sentIntake, stepOf, waitingIntake } from "./x-intake-fixtures.ts";
 
 const UNREADABLE = { content: "this is not a thread" };

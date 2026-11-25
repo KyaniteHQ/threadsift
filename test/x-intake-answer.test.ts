@@ -3,8 +3,9 @@ import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
-import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
+import { insertedTask, taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
+import { jobRow } from "./job-fixtures.ts";
 import {
   answerOf,
   contentOf,
