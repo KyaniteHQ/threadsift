@@ -16,8 +16,10 @@ export const DIGEST = {
 };
 
 export function xClient(instance: Instance) {
-  const tableCount = (table: string) =>
-    instance.database.count(`select count(*) as n from ${table}`);
+  const refusedTables = () =>
+    ["items", "reddit_comments", "reddit_threads"].map((table) =>
+      instance.database.rowCount(table),
+    );
 
   const saved = async (body: Json) => {
     const answer = await instance.send("POST", "/api/items", body);
@@ -28,18 +30,11 @@ export function xClient(instance: Instance) {
   };
 
   const refused = async (body: Json): Promise<string> => {
-    const before = [
-      tableCount("items"),
-      tableCount("reddit_comments"),
-      tableCount("reddit_threads"),
-    ];
+    const before = refusedTables();
     const answer = await instance.send("POST", "/api/items", body);
 
     assert.equal(answer.status, 400, answer.body);
-    assert.deepEqual(
-      [tableCount("items"), tableCount("reddit_comments"), tableCount("reddit_threads")],
-      before,
-    );
+    assert.deepEqual(refusedTables(), before);
 
     return ErrorSchema.parse(JSON.parse(answer.body)).error;
   };
@@ -63,5 +58,5 @@ export function xClient(instance: Instance) {
       itemId,
     )[0]?.generation;
 
-  return { count: tableCount, saved, refused, itemIdOf, generationOf };
+  return { saved, refused, itemIdOf, generationOf };
 }

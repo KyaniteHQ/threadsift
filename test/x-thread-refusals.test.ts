@@ -169,8 +169,7 @@ describe("an X post sent with a Paste is refused with its own reason, and nothin
 
   it("answers 413 to three texts of 3.5 MiB that together pass 8 MiB, and stores nothing", async () => {
     const texts = Array.from({ length: 3 }, () => "a".repeat(3.5 * 1024 * 1024));
-    const { count } = xClient(instance);
-    const itemsBefore = count("items");
+    const itemsBefore = instance.database.rowCount("items");
 
     const { value: token } = await instance.read(
       "POST",
@@ -184,7 +183,7 @@ describe("an X post sent with a Paste is refused with its own reason, and nothin
     });
 
     assert.equal(over.status, 413);
-    assert.equal(count("items"), itemsBefore);
+    assert.equal(instance.database.rowCount("items"), itemsBefore);
   });
 
   it("answers 400 for an X thread sent with a Reddit link", async () => {
