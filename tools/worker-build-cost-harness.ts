@@ -1,15 +1,15 @@
-import { execFileSync, spawn } from "node:child_process";
+import { execFileSync } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { once } from "node:events";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 
 import { z } from "zod";
 
 import { pause } from "../src/core/contract/pause.ts";
-import { bestEffort, errnoCodeOf, withCleanup } from "../src/core/kernel/failure-log.ts";
+import { withCleanup } from "../src/core/kernel/failure-log.ts";
 import { attemptEvery } from "./attempt-every.ts";
 import { exitAfterSignal } from "./exit-after-signal.ts";
+import { lockRuns, startWorker, stopGroups } from "./worker-build-cost-processes.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const WORKER_FOLDER = join(ROOT, "src", "targets", "worker");
@@ -18,7 +18,6 @@ const FIRST_PORT = 8841;
 const PASSWORD = "a measurement password of fifteen or more";
 const START_DEADLINE_MS = 240_000;
 const START_POLL_MS = 500;
-const SETTLE_MS = 1500;
 const CLEANUP_FAILED = { event: "worker-build-cost-cleanup-failed", fields: {} } as const;
 
 export const ROUTES = [
@@ -37,13 +36,9 @@ export interface Variant {
   readonly processGroup: number;
 }
 
-export interface Harness {
-  readonly variants: readonly [Variant, Variant];
-  readonly stop: () => Promise<void>;
-}
+export type Variants = readonly [Variant, Variant];
 
 const TokenSchema = z.object({ value: z.string() });
-const ProcessGroupSchema = z.number().int().positive();
 
 function sourceOf(version: string): string {
   if (existsSync(version)) return readFileSync(version, "utf8");
@@ -91,41 +86,6 @@ async function ownerToken(origin: string, setupCode: string): Promise<string> {
   });
   if (created.status !== 201) throw new Error(`POST /api/tokens answered ${created.status}`);
   return TokenSchema.parse(await created.json()).value;
-}
-
-async function startWorker(
-  port: number,
-  state: string,
-  envFile: string,
-  config: readonly string[],
-): Promise<number> {
-  const worker = spawn(
-    "worker-local",
-    [
-      state,
-      String(port),
-      "--ip",
-      "127.0.0.1",
-      "--inspector-port",
-      "0",
-      "--env-file",
-      envFile,
-      ...config,
-    ],
-    { cwd: ROOT, detached: true, stdio: "ignore" },
-  );
-  await once(worker, "spawn");
-  return ProcessGroupSchema.parse(worker.pid);
-}
-
-function signalGroup(group: number, signal: NodeJS.Signals): void {
-  try {
-    process.kill(-group, signal);
-  } catch (error) {
-    if (errnoCodeOf(error) !== "ESRCH") throw error;
-
-    process.stderr.write(`process group ${group} already ended\n`);
-  }
 }
 
 interface Prepared {
@@ -177,19 +137,14 @@ function removals(state: string): (() => void)[] {
 }
 
 async function tearDown(state: string, groups: readonly number[]): Promise<void> {
-  await attemptEvery([
-    ...groups.map((group) => () => {
-      signalGroup(group, "SIGTERM");
-    }),
-    () => pause(SETTLE_MS),
-    ...removals(state),
-  ]);
+  await stopGroups(groups);
+  attemptEvery(removals(state));
 }
 
 async function serving(
   prepared: Readonly<Prepared>,
   groups: readonly [number, number],
-): Promise<Harness["variants"]> {
+): Promise<Variants> {
   const origins = [FIRST_PORT, FIRST_PORT + 1].map((port) => `http://127.0.0.1:${port}`);
   const deadline = Date.now() + START_DEADLINE_MS;
   await Promise.all(origins.map((origin) => waitUntilServing(origin, deadline)));
@@ -212,78 +167,67 @@ async function serving(
   ];
 }
 
-function startWorkers(
-  state: string,
-  envFile: string,
-): Promise<[PromiseSettledResult<number>, PromiseSettledResult<number>]> {
-  return Promise.allSettled([
+interface Starting {
+  readonly spawned: Promise<readonly number[]>;
+  readonly started: Promise<readonly [number, number]>;
+}
+
+function startWorkers(state: string, envFile: string): Starting {
+  const pending = Promise.allSettled([
     startWorker(FIRST_PORT, join(state, "baseline"), envFile, ["--config", configFile("baseline")]),
     startWorker(FIRST_PORT + 1, join(state, "candidate"), envFile, [
       "--config",
       configFile("candidate"),
     ]),
   ]);
+
+  return {
+    spawned: pending.then((workers) =>
+      workers.flatMap((worker) => (worker.status === "fulfilled" ? [worker.value] : [])),
+    ),
+    started: pending.then(([baseline, candidate]): readonly [number, number] => {
+      if (baseline.status === "rejected") throw baseline.reason;
+      if (candidate.status === "rejected") throw candidate.reason;
+
+      return [baseline.value, candidate.value];
+    }),
+  };
 }
 
 export const WORKING_TREE = CANDIDATE_ENTRY;
 
-async function startHarness(
+export async function withHarness<Result>(
   versions: readonly [string, string],
   folderName: string,
-): Promise<Harness> {
+  body: (variants: Variants) => Promise<Result>,
+): Promise<Result> {
+  const unlock = lockRuns();
   const state = join(ROOT, ".wrangler", folderName);
   let spawned: Promise<readonly number[]> = Promise.resolve([]);
   let finished: Promise<void> | undefined;
   const cleanUp = (): Promise<void> => {
-    finished ??= spawned.then((groups) => tearDown(state, groups));
+    finished ??= spawned.then((groups) => tearDown(state, groups)).finally(unlock);
 
     return finished;
   };
-  const release = exitAfterSignal(() => bestEffort(CLEANUP_FAILED, cleanUp));
+  const release = exitAfterSignal(cleanUp);
 
   try {
-    const prepared = prepare(versions, state);
-    const { envFile } = prepared;
+    return await withCleanup(
+      CLEANUP_FAILED,
+      async () => {
+        const prepared = prepare(versions, state);
+        const workers = startWorkers(state, prepared.envFile);
 
-    const pending = startWorkers(state, envFile);
+        spawned = workers.spawned;
 
-    spawned = pending.then((workers) =>
-      workers.flatMap((worker) => (worker.status === "fulfilled" ? [worker.value] : [])),
-    );
-    const [baseline, candidate] = await pending;
-
-    if (baseline.status === "rejected") throw baseline.reason;
-    if (candidate.status === "rejected") throw candidate.reason;
-
-    return {
-      variants: await serving(prepared, [baseline.value, candidate.value]),
-      stop: async (): Promise<void> => {
-        try {
-          await cleanUp();
-        } finally {
-          release();
-        }
+        return body(await serving(prepared, await workers.started));
       },
-    };
-  } catch (error) {
-    await bestEffort(CLEANUP_FAILED, cleanUp);
+      cleanUp,
+    );
+  } finally {
     release();
-    throw error;
   }
-}
-
-export async function withHarness<Result>(
-  versions: readonly [string, string],
-  folderName: string,
-  body: (harness: Readonly<Harness>) => Promise<Result>,
-): Promise<Result> {
-  const harness = await startHarness(versions, folderName);
-
-  return withCleanup(
-    CLEANUP_FAILED,
-    () => body(harness),
-    () => harness.stop(),
-  );
 }
 
 export async function request(variant: Readonly<Variant>, route: Readonly<Route>): Promise<void> {

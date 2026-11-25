@@ -6,10 +6,10 @@ import { parseArgs } from "node:util";
 import { z } from "zod";
 
 import {
-  type Harness,
   ROUTES,
   type Route,
   type Variant,
+  type Variants,
   request,
   WORKING_TREE,
   withHarness,
@@ -45,9 +45,9 @@ async function timed(variant: Readonly<Variant>, route: Readonly<Route>): Promis
   return performance.now() - start;
 }
 
-async function measure(harness: Readonly<Harness>, route: Readonly<Route>): Promise<Samples> {
+async function measure(variants: Variants, route: Readonly<Route>): Promise<Samples> {
   const taken: Record<Variant["name"], number[]> = { baseline: [], candidate: [] };
-  const [first, second] = harness.variants;
+  const [first, second] = variants;
   await inSequence(counted(warmup + pairs), (pair) =>
     inSequence(pair % 2 === 0 ? [first, second] : [second, first], async (variant) => {
       const ms = await timed(variant, route);
@@ -76,10 +76,10 @@ function report(route: Readonly<Route>, samples: Readonly<Samples>): string {
   ].join("\n");
 }
 
-await withHarness([baseline, candidate], "worker-build-cost-wall-time", async (harness) => {
+await withHarness([baseline, candidate], "worker-build-cost-wall-time", async (variants) => {
   const load = [loadavg()[0]];
   const results = await inSequence(ROUTES, async (route) => {
-    const samples = await measure(harness, route);
+    const samples = await measure(variants, route);
     console.log(report(route, samples));
     load.push(loadavg()[0]);
     return { route: route.name, samples };

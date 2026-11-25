@@ -198,7 +198,8 @@ Two tools start two Workers side by side with `worker-local` (a baseline and a c
 
 - `node tools/worker-build-cost-wall-time.ts --baseline <ref>` alternates one request to each Worker, 60 warm-up pairs and 400 measured pairs for each route, and prints the median, p95 and p99 of each Worker and of the per-pair difference.
 - `node tools/worker-build-cost-cpu-time.ts --baseline <ref>` reads `utime` plus `stime` of the `workerd` processes of each Worker from `/proc`, around 1,500 sequential requests (375 for `GET /api/openapi.json`), 200 warm-up requests before each round, 4 rounds with the Worker order alternated.
-- Both commands stop the two Workers and delete their temporary files at the end. A failed cleanup after a finished measurement makes the command exit non-zero, and a cleanup after a failed measurement only logs its own failure.
+- One run goes at a time, because both commands use the same temporary file names and ports. A run refuses to start while a running process holds the run lock, and takes over a lock whose process has ended.
+- Both commands stop the two Workers at the end and delete their temporary files once both process groups have exited. A group still running 10 s after SIGTERM gets SIGKILL. If it still runs 2 s later, the command keeps the files and fails. A failed cleanup after a finished measurement makes the command exit non-zero, and a cleanup after a failed measurement only logs its own failure.
 
 Wall time, 3 runs on 2026-11-20 against `4cc5f0d4` (Node 26.13.1, 16 cores), each with a 1-minute load average under 8 at its start and end. Each cell is the median of the 3 run medians, with the lowest and highest run in brackets. The tail columns are the p95 and p99 of the per-pair difference, which holds the noise of two requests. The static page, which no change reaches, shows how large that noise is.
 
