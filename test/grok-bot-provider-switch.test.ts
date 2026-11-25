@@ -14,11 +14,13 @@ import {
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { startedTask } from "./bot-task-lifecycle.ts";
-import { insertedTask, jobRow, taskRow, taskRows, waitsLong } from "./bot-task-rows.ts";
+import { insertedTask, jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
 import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { pairsOf, saveProvider, exec, rowCount } from "./related-fixtures.ts";
 import { waitingIntake } from "./x-intake-fixtures.ts";
+
+const HALF_HOUR_MS = 30 * 60 * 1000;
 
 describe("a Related pick on Grok Bot follows the lifecycle through the production runner, and a change of Provider abandons what is open", () => {
   let instance: Instance;
@@ -66,9 +68,12 @@ describe("a Related pick on Grok Bot follows the lifecycle through the productio
     await executeClaimed(instance.core, job);
     assert.equal(jobRow(instance, job.id).next_attempt_at, taskRow(instance, task.id).deadline);
 
-    assert.ok(waitsLong(jobRow(instance, job.id).next_attempt_at));
+    const halfHourFromNow = Date.now() + HALF_HOUR_MS;
+    const jobDue = jobRow(instance, job.id).next_attempt_at;
     const intakeDue = jobRow(instance, intake.job.id).next_attempt_at;
-    assert.ok(waitsLong(intakeDue));
+
+    assert.ok(jobDue > halfHourFromNow, `the Related pick job is due at ${String(jobDue)}`);
+    assert.ok(intakeDue > halfHourFromNow, `the X link job is due at ${String(intakeDue)}`);
 
     await saveProvider(instance);
 

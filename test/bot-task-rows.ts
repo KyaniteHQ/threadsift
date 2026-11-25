@@ -70,8 +70,6 @@ export function reclaimed(instance: Instance, job: Readonly<{ id: number }>): vo
   );
 }
 
-export const waitsLong = (dueAt: number): boolean => dueAt > Date.now() + HOUR_MS / 2;
-
 export function insertedTask(
   instance: Instance,
   { kind, executor, token }: Readonly<{ kind: string; executor: string; token: string }>,
