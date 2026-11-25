@@ -62,7 +62,7 @@ Threadsift has two aims:
 
 - A browser extension for desktop Chrome and Firefox saves the page in the owner's own tab in one click. Firefox for Android is not supported.
 - Any http or https page works except a page on x.com, twitter.com or github.com, a page on a link shortener's own address (`bit.ly`, `t.co` and the other short-link hosts) and a Reddit page that is not a post or comment. The server refuses those, and the Extension says it cannot save them.
-- On a Reddit thread it sends the thread's `.json` and falls back to Defuddle's Reddit extractor when that request fails or its answers cannot be assembled into one thread.
+- On a Reddit thread it sends the thread's `.json` with the answers for the replies behind its `more` stubs, and falls back to Defuddle's Reddit extractor when that request fails or its answers cannot be assembled into one thread.
 - A page capture is sent only when the tab still holds the page the Save started on, with a hash, a tracking parameter or a trailing slash the page adds itself ignored. When the tab moved to another page meanwhile, nothing is sent and the Extension says it could not save.
 - With "Fill saved Reddit Items" on, opening a Link-only Reddit Item's thread fills that Item.
 - In the self-hosted builds, the Extension's Connect Reddit button connects the owner's Reddit account ([Connect a Reddit account](guides/reddit-account.md)).
@@ -147,7 +147,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 ### Reddit post or comment
 
 - A pasted Reddit link becomes a Link-only Item with its title, author and subreddit from Reddit's oEmbed endpoint.
-- On Save, the Extension reads the thread's `.json` with one signed-in request from the owner's tab, fetches the replies behind each `more` stub, and posts the assembled thread. A reply that still fails becomes a Context stub that says it was not saved ([Fetchers](architecture/fetchers.md), Reddit). When the `.json` request fails, or its answers cannot be assembled into one thread, the Extension falls back to the Reddit extractor of Defuddle on the rendered page.
+- On Save, the Extension reads the thread's `.json` with one signed-in request from the owner's tab, fetches the replies behind each `more` stub, and sends the thread's answer and the reply answers together in one request. A reply that still fails becomes a Context stub that says it was not saved ([Fetchers](architecture/fetchers.md), Reddit). When the `.json` request fails, or its answers cannot be assembled into one thread, the Extension falls back to the Reddit extractor of Defuddle on the rendered page.
 - With "Fill saved Reddit Items" turned on in the Extension's settings, opening a Link-only Reddit Item's thread in the browser saves it the same way, and never overwrites a saved thread. While such an Item is not processing, the Reader says its thread is not saved yet and how to fill it ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md)).
 - Without the Extension, the owner can send the text of the post's `.json` page from their own browser as `content` of `POST /api/items`. The paste box has no field for it.
 
