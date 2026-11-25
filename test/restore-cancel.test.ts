@@ -13,7 +13,7 @@ import {
   restoreProgress,
   restoreStatus,
   restoredDone,
-  settledAfterRetries,
+  failedAfterRetries,
   settledRestore,
   startedRestore,
   unblockItemFiles,
@@ -240,7 +240,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
 
     assert.equal(cancel.status, 202);
 
-    const failed = await settledAfterRetries(target, ["failed"]);
+    const failed = await failedAfterRetries(target);
 
     assert.deepEqual(
       [failed.failure, failed.cancelFailed, failed.resumable],

@@ -45,7 +45,7 @@ describe("the Proposals routes with Tag and Topic rows together", () => {
   });
 });
 
-describe("checkedAt is the most recent start of either weekly run", () => {
+describe("checkedAt is the most recent start of any weekly run", () => {
   let instance: Instance;
 
   const checkedAt = async () =>
@@ -58,16 +58,21 @@ describe("checkedAt is the most recent start of either weekly run", () => {
 
   after(() => instance.close());
 
-  it("is null with neither claim, the Topic claim's time with only that claim, and the larger time with both", async () => {
+  it("is null with no claim, then the largest time among the weekly tasks, and ignores the sweep", async () => {
     assert.equal(await checkedAt(), null);
 
     holdClaim(instance, "topic_proposals", 5000);
     assert.equal(await checkedAt(), 5000);
 
     holdClaim(instance, "proposals", 3000);
+    holdClaim(instance, "highlight_proposals", 2000);
+    holdClaim(instance, "overview_proposals", 4000);
     assert.equal(await checkedAt(), 5000);
 
-    holdClaim(instance, "proposals", 9000);
+    holdClaim(instance, "disagreement_proposals", 9000);
+    assert.equal(await checkedAt(), 9000);
+
+    holdClaim(instance, "sweep", 20_000);
     assert.equal(await checkedAt(), 9000);
 
     releaseClaim(instance, "topic_proposals");

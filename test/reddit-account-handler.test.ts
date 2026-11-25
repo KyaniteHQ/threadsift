@@ -5,8 +5,8 @@ import { executeClaimed, runJob } from "../src/core/compose/jobs.ts";
 import { MAX_ATTEMPTS } from "../src/core/contract/job-contract.ts";
 import type { ClaimedRow } from "../src/core/kernel/job-outcome.ts";
 import { takeTurn } from "../src/features/reddit/core/reddit-account-queue.ts";
-import { dueNow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
+import { dueNow } from "./job-fixtures.ts";
 import {
   LATER,
   accountInstance,

@@ -4,14 +4,8 @@ import { afterEach, beforeEach, describe, it } from "node:test";
 import { runJob } from "../src/core/compose/jobs.ts";
 import { acceptedByBot, botInstance } from "./bot-task-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
-import {
-  insertedTask,
-  jobAfterAttempts,
-  jobRow,
-  taskRow,
-  taskRows,
-  dueNow,
-} from "./bot-task-rows.ts";
+import { insertedTask, taskRow, taskRows } from "./bot-task-rows.ts";
+import { jobAfterAttempts, jobRow, dueNow } from "./job-fixtures.ts";
 import { answerOf, contentOf, digestOf } from "./x-intake-bodies.ts";
 import {
   advancedContent,

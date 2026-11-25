@@ -112,23 +112,19 @@ describe("Accept of a Topic row moves everything the Topic owns in one batch", (
   });
 
   it("writes the survivor's name into digests.topic and the Digest JSON read from digests, and keeps the text of one that is not JSON", () => {
-    assert.deepEqual(
-      instance.database
-        .rows(
-          DigestSchema,
-          "select topic, digest as json from digests where item_id in (?, ?) order by item_id",
-          ids[0],
-          ids[1],
-        )
-        .map(({ topic, json }) => [
-          topic,
-          json.startsWith("{") ? JsonTopicSchema.parse(JSON.parse(json)).topic : json,
-        ]),
-      [
-        ["Machine learning", "Machine learning"],
-        ["Machine learning", "not json"],
-      ],
+    const [parsed, unparsed] = instance.database.rows(
+      DigestSchema,
+      "select topic, digest as json from digests where item_id in (?, ?) order by item_id",
+      ids[0],
+      ids[1],
     );
+
+    assert.ok(parsed !== undefined && unparsed !== undefined);
+    assert.deepEqual(
+      [parsed.topic, JsonTopicSchema.parse(JSON.parse(parsed.json)).topic],
+      ["Machine learning", "Machine learning"],
+    );
+    assert.deepEqual([unparsed.topic, unparsed.json], ["Machine learning", "not json"]);
     assert.equal(
       instance.database.count("select count(*) as n from digests where topic = 'ML'"),
       0,

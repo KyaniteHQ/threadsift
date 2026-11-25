@@ -4,8 +4,9 @@ import { after, before, describe, it } from "node:test";
 import { runJob } from "../src/core/compose/jobs.ts";
 import { MAX_ATTEMPTS } from "../src/core/contract/job-contract.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
-import { taskRow, requeued } from "./bot-task-rows.ts";
+import { taskRow } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
+import { requeued } from "./job-fixtures.ts";
 import { sentIntake } from "./x-intake-fixtures.ts";
 
 describe("an X link task that the bot did not answer ends with its fetch job", () => {

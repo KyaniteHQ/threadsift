@@ -12,7 +12,7 @@ import {
 } from "./export-restore-fixtures.ts";
 import { bytesOfKey, exportKeys, postTextKey, strayExportObject } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { loggedAttempts, untilRetried } from "./restore-fixtures.ts";
+import { loggedAttempts, untilRetried } from "./job-fixtures.ts";
 import { nextSweep, sweptWith } from "./weekly-claim-fixtures.ts";
 import { entriesOf, manifestOf } from "./zip-fixtures.ts";
 

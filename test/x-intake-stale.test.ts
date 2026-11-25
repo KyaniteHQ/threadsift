@@ -2,8 +2,9 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { botInstance, pastDeadline } from "./bot-task-fixtures.ts";
-import { jobRow, taskRow, taskRows } from "./bot-task-rows.ts";
+import { taskRow, taskRows } from "./bot-task-rows.ts";
 import type { Instance } from "./instance.ts";
+import { jobRow } from "./job-fixtures.ts";
 import { answerOf, suppliedContent } from "./x-intake-bodies.ts";
 import {
   xAddressOf,

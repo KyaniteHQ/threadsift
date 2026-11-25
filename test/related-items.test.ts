@@ -1,17 +1,19 @@
 import assert from "node:assert/strict";
-import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
 
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { paste } from "./library-fixtures.ts";
 import { pairsOf, seedPair } from "./related-fixtures.ts";
 
-function refused(instance: Instance, query: string, ...params: readonly (string | number)[]): void {
-  using database = new DatabaseSync(instance.databaseFile);
-
-  database.exec("PRAGMA foreign_keys = ON");
-
-  assert.throws(() => database.prepare(query).run(...params));
+function refused(
+  instance: Instance,
+  constraint: RegExp,
+  query: string,
+  ...params: readonly (string | number)[]
+): void {
+  assert.throws(() => {
+    instance.database.exec(query, ...params);
+  }, constraint);
 }
 
 describe("an Item's Related Items are read through the API and leave with either Item", () => {
@@ -20,6 +22,7 @@ describe("an Item's Related Items are read through the API and leave with either
   let first: number;
   let digestless: number;
   let gap: number;
+  let fourth: number;
   let last: number;
   let alone: number;
 
@@ -34,11 +37,13 @@ describe("an Item's Related Items are read through the API and leave with either
       noDigest: true,
     });
     gap = await paste(instance, "gap", { title: "Third Digest title" });
+    fourth = await paste(instance, "fourth", { title: "Fourth Digest title" });
     last = await paste(instance, "last", { title: "Last Digest title" });
     alone = await paste(instance, "alone", { title: "Alone" });
     seedPair(instance, source, last, 4, "Reason of the last");
     seedPair(instance, source, first, 0, "Reason of the first");
     seedPair(instance, source, gap, 2, "Reason of the third");
+    seedPair(instance, source, fourth, 3, "Reason of the fourth");
     seedPair(instance, source, digestless, 1, "Reason of the second");
   });
 
@@ -58,6 +63,7 @@ describe("an Item's Related Items are read through the API and leave with either
         [first, "First Digest title", "article", "Reason of the first"],
         [digestless, "Fetched title", "article", "Reason of the second"],
         [gap, "Third Digest title", "article", "Reason of the third"],
+        [fourth, "Fourth Digest title", "article", "Reason of the fourth"],
         [last, "Last Digest title", "article", "Reason of the last"],
       ],
     );
@@ -72,11 +78,11 @@ describe("an Item's Related Items are read through the API and leave with either
     assert.equal((await instance.send("DELETE", `/api/items/${String(gap)}`)).status, 204);
     assert.deepEqual(
       (await readRelated(source)).map(({ id }) => id),
-      [first, digestless, last],
+      [first, digestless, fourth, last],
     );
     assert.deepEqual(
       pairsOf(instance, source).map(({ position }) => position),
-      [0, 1, 4],
+      [0, 1, 3, 4],
     );
     assert.equal((await instance.send("DELETE", `/api/items/${String(source)}`)).status, 204);
     assert.equal(instance.database.count("select count(*) as n from related_items"), 0);
@@ -104,15 +110,15 @@ describe("the related_items table refuses a row that contradicts itself", () => 
     "insert into related_items (item_id, related_id, position, reason) values (?, ?, ?, ?)";
 
   it("refuses a repeated pair, an Item paired with itself and a duplicate position", () => {
-    refused(instance, insert, a, b, 1, "Again");
-    refused(instance, insert, a, a, 1, "Itself");
-    refused(instance, insert, a, c, 0, "Same position");
+    refused(instance, /UNIQUE constraint failed/u, insert, a, b, 1, "Again");
+    refused(instance, /CHECK constraint failed/u, insert, a, a, 1, "Itself");
+    refused(instance, /UNIQUE constraint failed/u, insert, a, c, 0, "Same position");
   });
 
   it("refuses a position outside 0 to 4, an empty reason and an unknown Item", () => {
-    refused(instance, insert, a, c, 5, "Too far");
-    refused(instance, insert, a, c, -1, "Too early");
-    refused(instance, insert, a, c, 1, "");
-    refused(instance, insert, a, 9999, 1, "Unknown");
+    refused(instance, /CHECK constraint failed/u, insert, a, c, 5, "Too far");
+    refused(instance, /CHECK constraint failed/u, insert, a, c, -1, "Too early");
+    refused(instance, /CHECK constraint failed/u, insert, a, c, 1, "");
+    refused(instance, /FOREIGN KEY constraint failed/u, insert, a, 9999, 1, "Unknown");
   });
 });

@@ -4,7 +4,8 @@ import { z } from "zod";
 
 import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { Instance } from "./instance.ts";
-import { until } from "./library-fixtures.ts";
+
+export { jobRow } from "./job-fixtures.ts";
 
 const TaskRowSchema = z.object({
   id: z.number(),
@@ -38,45 +39,6 @@ export function taskRow(instance: Instance, id: number) {
 
   return row;
 }
-
-const JobRowSchema = z.object({
-  state: z.string(),
-  attempts: z.number(),
-  next_attempt_at: z.number(),
-  wait_reason: z.string().nullable(),
-  stale_requeues: z.number(),
-});
-
-export function jobRow(instance: Instance, id: number) {
-  const [row] = instance.database.rows(
-    JobRowSchema,
-    "select state, attempts, next_attempt_at, wait_reason, stale_requeues from jobs where id = ?",
-    id,
-  );
-
-  if (row === undefined) throw new Error(`no job ${String(id)}`);
-
-  return row;
-}
-
-export function dueNow(instance: Instance, id: number): void {
-  instance.database.exec("update jobs set next_attempt_at = 0 where id = ?", id);
-}
-
-export function requeued(instance: Instance, id: number, attempts?: number): void {
-  instance.database.exec(
-    "update jobs set state = 'queued', attempts = coalesce(?, attempts), next_attempt_at = 0, claim_expires = null where id = ?",
-    attempts ?? null,
-    id,
-  );
-}
-
-export const jobAfterAttempts = (instance: Instance, id: number, attempts: number) =>
-  until(
-    `job ${String(id)} has spent ${String(attempts)} attempts`,
-    () => jobRow(instance, id),
-    (row) => row.attempts === attempts,
-  );
 
 export function reclaimed(instance: Instance, job: Readonly<{ id: number }>): void {
   instance.database.exec(

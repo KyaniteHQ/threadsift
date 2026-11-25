@@ -2,7 +2,14 @@ import { z } from "zod";
 
 import type { Instance } from "./instance.ts";
 
-const ALL_TABLES = ["items", "jobs", "ai_tasks", "reddit_comments", "digests"] as const;
+const ALL_TABLES = [
+  "items",
+  "jobs",
+  "ai_tasks",
+  "reddit_comments",
+  "digests",
+  "x_verifications",
+] as const;
 
 export const PUBLISHED_TABLES = ["items", "reddit_comments", "digests", "x_verifications"] as const;
 

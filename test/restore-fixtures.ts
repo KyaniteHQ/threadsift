@@ -5,7 +5,6 @@ import type { TestContext } from "node:test";
 
 import { z } from "zod";
 
-import type { UnownedJobKind } from "../src/core/contract/job-contract.ts";
 import {
   RestoreStatusSchema,
   type RestoreStatus,
@@ -14,13 +13,8 @@ import {
 } from "../src/core/contract/restore-contract.ts";
 import { exportedZip } from "./export-restore-fixtures.ts";
 import type { Instance } from "./instance.ts";
+import { loggedAttempts, untilRetried } from "./job-fixtures.ts";
 import { until } from "./library-fixtures.ts";
-
-const AttemptLineSchema = z.object({
-  event: z.literal("job-attempt-failed"),
-  kind: z.string(),
-  attempt: z.number(),
-});
 
 const ProgressSchema = z.object({
   state: z.string(),
@@ -103,6 +97,15 @@ export function settledRestore<State extends Settled>(
   );
 }
 
+export const failedAfterRetries = (instance: Instance) =>
+  untilRetried(
+    instance,
+    "restore",
+    "the Restore is failed",
+    () => restoreStatus(instance),
+    isSettled(["failed"]),
+  );
+
 export async function restoredDone(instance: Instance) {
   const status = await settledRestore(instance, ["done", "failed"]);
 
@@ -110,58 +113,6 @@ export async function restoredDone(instance: Instance) {
 
   return status;
 }
-
-function retryNow(instance: Instance, kind: UnownedJobKind): void {
-  instance.database.exec(
-    "update jobs set next_attempt_at = 0 where state = 'queued' and kind = ?",
-    kind,
-  );
-  instance.core.jobs.wake();
-}
-
-export function untilRetried<Value, Done extends Value>(
-  instance: Instance,
-  kind: UnownedJobKind,
-  what: string,
-  read: () => Promise<Value>,
-  isDone: (value: Value) => value is Done,
-): Promise<Done>;
-export function untilRetried<Value>(
-  instance: Instance,
-  kind: UnownedJobKind,
-  what: string,
-  read: () => Promise<Value>,
-  isDone: (value: Value) => boolean,
-): Promise<Value>;
-export function untilRetried<Value>(
-  instance: Instance,
-  kind: UnownedJobKind,
-  what: string,
-  read: () => Promise<Value>,
-  isDone: (value: Value) => boolean,
-): Promise<Value> {
-  return until(
-    `${what} after retries`,
-    () => {
-      retryNow(instance, kind);
-
-      return read();
-    },
-    isDone,
-  );
-}
-
-export const settledAfterRetries = <State extends Settled>(
-  instance: Instance,
-  states: readonly State[],
-) =>
-  untilRetried(
-    instance,
-    "restore",
-    `the Restore is ${states.join(" or ")}`,
-    () => restoreStatus(instance),
-    isSettled(states),
-  );
 
 function itemFilesPath(instance: Instance): string {
   return join(dirname(instance.databaseFile), "data", "files", "items");
@@ -191,17 +142,6 @@ export function unblockItemFiles(instance: Instance): void {
   }
 }
 
-export function loggedAttempts(t: TestContext, kind: string): () => readonly number[] {
-  const logged = t.mock.method(console, "error", () => {});
-
-  return () =>
-    logged.mock.calls.flatMap(({ arguments: args }) => {
-      const line = AttemptLineSchema.safeParse(JSON.parse(String(args[0])));
-
-      return line.success && line.data.kind === kind ? [line.data.attempt] : [];
-    });
-}
-
 export async function gaveUpInFiles(t: TestContext, instance: Instance, bytes: Uint8Array) {
   const attempts = loggedAttempts(t, "restore");
   const id = await uploadedRestore(instance, bytes);
@@ -209,7 +149,7 @@ export async function gaveUpInFiles(t: TestContext, instance: Instance, bytes: U
   blockItemFiles(instance);
   assert.equal((await instance.send("POST", `/api/restore/${String(id)}/start`)).status, 202);
 
-  const failed = await settledAfterRetries(instance, ["failed"]);
+  const failed = await failedAfterRetries(instance);
 
   assert.deepEqual([failed.failure, failed.resumable], ["gave-up", true], JSON.stringify(failed));
   assert.deepEqual(attempts(), [1, 2, 3]);
