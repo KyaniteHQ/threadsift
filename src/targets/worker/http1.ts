@@ -1,5 +1,5 @@
 import type { RequestHeaders, WireResponse } from "../../core/kernel/network.ts";
-import { type ByteReader, MalformedResponse, byteReader } from "./http1-bytes.ts";
+import { type ByteReader, LINE_BREAK_BYTES, MalformedResponse, byteReader } from "./http1-bytes.ts";
 
 const HEAD_LIMIT_BYTES = 16 * 1024;
 
@@ -25,14 +25,14 @@ export function requestBytes(host: string, path: string, headers: RequestHeaders
 
 type HeaderMap = ReadonlyMap<string, string>;
 
-const LINE_BREAK_BYTES = 2;
-
 type NextLine = () => Promise<string>;
 
-function headLines(reader: Readonly<ByteReader>): NextLine {
+function nextHeadLineOf(reader: Readonly<ByteReader>): NextLine {
   let left = HEAD_LIMIT_BYTES;
 
   return async () => {
+    if (left < LINE_BREAK_BYTES) throw new MalformedResponse("the head is too long");
+
     const line = await reader.line(left - LINE_BREAK_BYTES);
 
     if (line === null) throw new MalformedResponse("the head ended early");
@@ -113,7 +113,8 @@ async function* chunked(reader: Readonly<ByteReader>): AsyncGenerator<Uint8Array
     yield* byLength(reader, size);
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- each chunk ends with its own line break.
-    if ((await reader.line(2)) !== "") throw new MalformedResponse("a chunk has no line break");
+    if ((await reader.line(LINE_BREAK_BYTES)) !== "")
+      throw new MalformedResponse("a chunk has no line break");
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- the chunks are read in order.
     size = await chunkSizeOf(reader);
@@ -165,7 +166,7 @@ export async function readResponse(
   source: Readonly<AsyncIterable<Uint8Array>>,
 ): Promise<WireResponse> {
   const reader = byteReader(source);
-  const { status, headers } = await finalHead(headLines(reader));
+  const { status, headers } = await finalHead(nextHeadLineOf(reader));
 
   return {
     status,
