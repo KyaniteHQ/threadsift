@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import { untrackedQuery } from "../../src/core/contract/links.ts";
 import { SuppliedPageSchema } from "../../src/core/contract/supplied-page.ts";
-import { holdsInstanceAccess } from "./config.ts";
+import { type Config, holdsInstanceAccess } from "./config.ts";
 import { loadConfig } from "./credentials.ts";
 import {
   type ThreadTab,
@@ -11,7 +11,7 @@ import {
   pageCompleteness,
   withoutTrailingSlash,
 } from "./reddit-thread.ts";
-import { type Saving, send } from "./save-request.ts";
+import { send } from "./save-request.ts";
 import type { SaveState } from "./state.ts";
 import { resultInTab } from "./tab-result.ts";
 
@@ -46,31 +46,20 @@ function isSamePage(started: string, captured: string): boolean {
   return URL.canParse(captured) && pageKey(captured) === pageKey(started);
 }
 
-type Prepared =
-  | { readonly step: "send"; readonly saving: Saving }
-  | { readonly step: "stop"; readonly state: SaveState };
-
-function stopped(state: SaveState): Prepared {
-  return { step: "stop", state };
-}
-
-async function bodyOf(tab: Readonly<ThreadTab>): Promise<Prepared> {
+async function saveTab(config: Readonly<Config>, tab: Readonly<ThreadTab>): Promise<SaveState> {
   const thread = await fetchThread(tab);
 
-  if (thread !== null) return { step: "send", saving: thread };
+  if (thread !== null) return send(config, thread);
 
   const captured = await capturedPage(tab.id);
 
-  if (captured === null) return stopped({ kind: "page-blocked" });
+  if (captured === null) return { kind: "page-blocked" };
 
-  if (!isSamePage(tab.url, captured.url)) return stopped({ kind: "failed" });
+  if (!isSamePage(tab.url, captured.url)) return { kind: "failed" };
 
   const { url, ...page } = captured;
 
-  return {
-    step: "send",
-    saving: { body: { url, page }, completeness: pageCompleteness(tab) },
-  };
+  return send(config, { body: { url, page }, completeness: pageCompleteness(tab) });
 }
 
 export async function savePage(): Promise<SaveState> {
@@ -82,7 +71,5 @@ export async function savePage(): Promise<SaveState> {
     return { kind: "access-missing" };
   }
 
-  const prepared = tab === null ? stopped({ kind: "page-blocked" }) : await bodyOf(tab);
-
-  return prepared.step === "send" ? send(config, prepared.saving) : prepared.state;
+  return tab === null ? { kind: "page-blocked" } : saveTab(config, tab);
 }

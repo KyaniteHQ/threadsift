@@ -29,7 +29,7 @@ const SAVED_KIND = {
 
 type PageBody = Readonly<Pick<SaveItemInput, "url"> & { page: NonNullable<SaveItemInput["page"]> }>;
 
-export type Saving = Fetched<ThreadBody | PageBody>;
+type Saving = Fetched<ThreadBody | PageBody>;
 
 function refusedState(refusal: Readonly<z.output<typeof TolerantRefusalSchema>> | null): SaveState {
   if (refusal?.fetch === "refused") return { kind: "private-link" };
