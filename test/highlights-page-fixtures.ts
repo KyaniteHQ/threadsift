@@ -3,6 +3,7 @@ import { NoteResponseSchema } from "../src/core/contract/note-contract.ts";
 import { atClock } from "./clock-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { keepPassage } from "./lost-highlight-fixtures.ts";
+import { inOrder } from "./related-fixtures.ts";
 
 export const keepNote = (
   instance: Instance,
@@ -25,7 +26,9 @@ export const keepAt = (instance: Instance, instant: number, itemId: number, pass
   );
 
 export const keepEach = (instance: Instance, itemId: number, passages: readonly string[]) =>
-  Promise.all(passages.map((passage) => keepPassage(instance, itemId, passage)));
+  inOrder(passages, async (passage) => {
+    await keepPassage(instance, itemId, passage);
+  });
 
 export const pageOf = (instance: Instance, query = "") =>
   instance.read("GET", `/api/highlights${query}`, HighlightsPageResponseSchema);
