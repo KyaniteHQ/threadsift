@@ -61,7 +61,7 @@ Open: the name check is missing on the local Worker under `wrangler dev`. A name
 
 ### Cloudflare's origin error on the Worker
 
-Not verified: a deployed Worker that fetches a host that does not resolve. `workerFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test sends that status and body from a local server, in one chunk, in two chunks and with a trailing newline, and covers the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
+Not verified: a deployed Worker that fetches a host that does not resolve. `originFetch` turns Cloudflare's `530` with the body `error code: 1xxx` into a network failure ([Fetchers](fetchers.md)), but only Cloudflare sends that answer, and `wrangler dev` does not. The core test sends that status and body from a local server, in one chunk, in two chunks and with a trailing newline, and covers the answers that pass through unchanged: a `530` with another body, a `503` or a `200` whose body is an error code, and a redirect.
 
 ### Article images, long post texts and Defuddle
 
@@ -90,7 +90,7 @@ No run has read a repository from a deployed Worker, and no run from the develop
 
 Not verified:
 
-- A Worker deployed to Cloudflare. Only `wrangler dev --local` ran, so Reddit's answer to Cloudflare's addresses is unknown.
+- Reddit's answer to the deployed Worker over time. A throwaway Worker got 200 for a thread's `.json` and `me.json` in 3 runs on one day, and no check repeats it. A permalink request behind a `more` stub was not sent from a Worker. If Reddit refuses Cloudflare's addresses again, three refused threads in a row expire the session ([Fetchers](fetchers.md), Request limit and session health).
 - A real logged-out `me.json` answer. Reddit answered 403 to an altered cookie and to no cookie. A 401, or a 200 without a `t2` name, marks the session as logged out at once, and neither was observed.
 - How long Reddit keeps a session valid, the third attempt that falls through to the archive after two 429s, and a run of 100 links.
 - The limits of the shared fill loop (`fillAnswers`): the 500 ms spacing, the stop at the first 429 or on a used-up window, the 8 MiB bound, the deadline, the abort signal and the per-request check that the account is still connected. Only live runs prove them.

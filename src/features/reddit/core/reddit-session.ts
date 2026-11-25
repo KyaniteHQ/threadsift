@@ -10,6 +10,7 @@ import {
   networkResponseOf,
   wireResponseOf,
 } from "../../../core/kernel/network.ts";
+import { originFetch } from "../../../core/kernel/origin-fetch.ts";
 
 const REDDIT_HOST = "www.reddit.com";
 
@@ -41,9 +42,8 @@ export async function redditSessionGet(
   if (!path.startsWith("/")) throw new TypeError("the path does not start with /");
 
   const wire = wireResponseOf(
-    await fetch(`https://${REDDIT_HOST}${path}`, {
+    await originFetch(`https://${REDDIT_HOST}${path}`, {
       headers: redditSessionHeaders(cookie),
-      redirect: "manual",
       signal,
     }),
   );
