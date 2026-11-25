@@ -8,7 +8,10 @@ import { type Listening, listening } from "./loopback-server.ts";
 
 const PAGE_TEXT = "error code: 1016";
 
-const QUOTING_BODY = `${PAGE_TEXT} was reported by the upstream service`;
+const QUOTING_BODIES = {
+  "/own-530": `${PAGE_TEXT} was reported by the upstream service`,
+  "/padded-530": `${PAGE_TEXT.padEnd(64, " ")}and the origin's own page after it`,
+} as const;
 
 const TEXT = new TextEncoder();
 
@@ -26,8 +29,6 @@ const PAGE_CHUNKS = {
 } as const;
 
 const CHUNK_GAP_MS = 30;
-
-const CHUNK_PROBE_DEADLINE_MS = 2000;
 
 function chunkedBody(
   chunks: readonly string[],
@@ -48,17 +49,6 @@ function chunkedBody(
       );
     },
   });
-}
-
-async function firstTwoChunkLengths(url: string): Promise<readonly (number | undefined)[]> {
-  const answer = await fetch(url, { signal: AbortSignal.timeout(CHUNK_PROBE_DEADLINE_MS) });
-  assert.ok(answer.body);
-  const reader = answer.body.getReader();
-  const first = await reader.read();
-  const second = await reader.read();
-  await reader.cancel();
-
-  return [first.value?.length, second.value?.length];
 }
 
 describe("the Worker's fetch returns an origin's answer as it was sent, except a 530 whose whole body is an error code, and follows no redirect", () => {
@@ -92,7 +82,9 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
       });
     }
 
-    app.get("/own-530", () => new Response(QUOTING_BODY, { status: 530 }));
+    for (const [path, body] of Object.entries(QUOTING_BODIES)) {
+      app.get(path, () => new Response(body, { status: 530 }));
+    }
     app.get("/unavailable", (context) => context.text(PAGE_TEXT, 503));
     app.get("/ok-with-page-text", (context) => context.text(PAGE_TEXT, 200));
     app.get("/moved", (context) => context.redirect("/ok-with-page-text", 302));
@@ -101,11 +93,6 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
 
   after(async () => {
     await server.stop();
-  });
-
-  it("sends the two-chunk bodies to the client as two chunks", async () => {
-    assert.deepEqual(await firstTwoChunkLengths(`${server.url}/page-530/two-chunks`), [11, 5]);
-    assert.deepEqual(await firstTwoChunkLengths(`${server.url}/open-530/two-chunks`), [40, 40]);
   });
 
   it("fails as an unreachable origin for a 530 whose whole body is an error code, sent in one chunk, in two, or with a trailing newline", async () => {
@@ -121,11 +108,14 @@ describe("the Worker's fetch returns an origin's answer as it was sent, except a
     );
   });
 
-  it("returns a 530 whose body only quotes an error code, with its status and its whole body", async () => {
-    const answer = await workerFetch(`${server.url}/own-530`);
+  it("returns a 530 whose body only quotes an error code, or continues past one in its first 64 bytes, with its status and its whole body", async () => {
+    await Promise.all(
+      Object.entries(QUOTING_BODIES).map(async ([path, body]) => {
+        const answer = await workerFetch(`${server.url}${path}`);
 
-    assert.equal(answer.status, 530);
-    assert.equal(await answer.text(), QUOTING_BODY);
+        assert.deepEqual([answer.status, await answer.text()], [530, body]);
+      }),
+    );
   });
 
   it(

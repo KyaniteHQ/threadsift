@@ -113,7 +113,7 @@ A check that needs the parsed body reads who calls from `principal`. A `digest` 
 
 ### Unrouted paths
 
-A call to `/api/*` that matches no route for its method goes through `unrouted()`. [HTTP interfaces](http-interfaces.md) links here for these answers.
+A call to `/api/*` that matches no route for its method goes through `unrouted(app)`. [HTTP interfaces](http-interfaces.md) links here for these answers.
 
 - The owner's session and any agent token, whatever its scopes, get 404 when no route has the path, and 405 with an `Allow` header when the path has routes for other methods (RFC 9110 9.1 and 15.5.6). That includes `/api/ai-tasks/{id}/result` and `/intake`.
 - A call with no credentials gets 401 for both, because a caller who has signed in nothing must not learn which paths exist.
@@ -121,7 +121,7 @@ A call to `/api/*` that matches no route for its method goes through `unrouted()
 - `refusingMethods` builds the 405 with Hono's `methodNotAllowed` middleware, which lists the methods of `app.routes` for the path and adds `HEAD` wherever `GET` is, so no list of paths or methods is kept by hand. The same middleware sits on `app.all("/*", ...)` for the paths that `createApp` registers outside `/api`, so `PUT /share` answers 405 with `Allow: GET, HEAD, POST` to every caller whose body is within the cap; a larger body answers 413 first.
 - `/mcp` is one `all` route and refuses a method itself.
 - A path that no route registers is never a 405. On the container the web app's routes serve it after `createApp`. On the Worker, `isServerPath` sends only `/api`, `/share` and `/mcp` to `createApp`, and `serveDocument` answers the rest, so a `POST` to a page or an asset answers 404 on both.
-- `UNROUTED_PATHS` is the one path table left. The OpenRouter connect paths add the `private` cache headers to the 404 and the 405, the file and export download paths add the `file` cache headers, and `/api/ai-tasks/{id}` adds `Cache-Control: no-store`, as its `GET` route declares. The OpenRouter callback allows `GET` only: `getOnly` refuses a `HEAD` before the handler, and `refusingMethods` drops `HEAD` from its `Allow`.
+- The 401 and the 405 carry the cache headers that the `access(...)` gate of a route for the same path declares, which `unrouted(app)` finds in the router, so no path table repeats them: `private` on the OpenRouter connect paths, `file` on the file and export download paths, and `Cache-Control: no-store` on `/api/ai-tasks/{id}`. A path under `/api/files/` that no route has gets the `file` headers on its 404 as well. The OpenRouter callback allows `GET` only: `getOnly` refuses a `HEAD` before the handler, and `refusingMethods` drops `HEAD` from its `Allow`.
 
 ## The task callback credential
 

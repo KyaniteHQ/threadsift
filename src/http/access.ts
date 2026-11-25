@@ -1,3 +1,4 @@
+import type { OpenAPIHono } from "@hono/zod-openapi";
 import type { MiddlewareHandler, Next } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { createMiddleware } from "hono/factory";
@@ -68,6 +69,8 @@ const GATES = new WeakMap<object, string>();
 
 const CAPS = new WeakMap<object, Cap>();
 
+const CACHES = new WeakMap<object, CacheKind>();
+
 const PORTS = new WeakSet<object>();
 
 function originCheck(who: string): OriginCheck {
@@ -83,7 +86,7 @@ export function originCheckOf(handler: H): OriginCheck {
 }
 
 function planOf(c: Ctx, who: Who | "unrouted", cache: CacheKind | null): Plan {
-  if (who === "unrouted") return unroutedPlan(c);
+  if (who === "unrouted") return unroutedPlan(c.req.path, cache);
 
   const csrf = originCheck(who);
 
@@ -162,11 +165,12 @@ function signedOutAnswer(
 function gateOf<E extends Env, W extends Who | "unrouted">(
   who: W,
   { body = DEFAULT_CAP, cache, signedOutNavigation }: Limits,
+  cacheAt?: (path: string) => CacheKind | null,
 ): Gate<E, W> {
   const cap = capOf(body);
 
   const middleware = createMiddleware<E>(async (c, next) => {
-    const plan = planOf(c, who, cache ?? null);
+    const plan = planOf(c, who, cacheAt?.(c.req.path) ?? cache ?? null);
     const answer = signedOutAnswer(c, await answerOf(c, plan, cap, next), signedOutNavigation);
 
     applyCache(answer ?? c.res, plan.cache);
@@ -176,6 +180,8 @@ function gateOf<E extends Env, W extends Who | "unrouted">(
 
   GATES.set(middleware, who);
   CAPS.set(middleware, body);
+
+  if (cache !== undefined) CACHES.set(middleware, cache);
 
   return Object.assign(middleware, { who });
 }
@@ -191,8 +197,20 @@ export function access(who: Who, limits: Limits = {}) {
     : gateOf<BlankEnv, Exclude<Who, "callback">>(who, limits);
 }
 
-export function unrouted(): Gate<BlankEnv, "unrouted"> {
-  return gateOf<BlankEnv, "unrouted">("unrouted", {});
+function routeCacheAt(app: OpenAPIHono, path: string): CacheKind | null {
+  for (const method of new Set(app.routes.map((route) => route.method))) {
+    for (const [[handler]] of app.router.match(method, path)[0]) {
+      const kind = CACHES.get(handler);
+
+      if (kind !== undefined) return kind;
+    }
+  }
+
+  return null;
+}
+
+export function unrouted(app: OpenAPIHono): Gate<BlankEnv, "unrouted"> {
+  return gateOf<BlankEnv, "unrouted">("unrouted", {}, (path) => routeCacheAt(app, path));
 }
 
 export function ownCheck<E extends Env>(check: MiddlewareHandler<E>): Gate<E, "self"> {

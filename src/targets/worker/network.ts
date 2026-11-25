@@ -14,7 +14,7 @@ const ERROR_PAGE_BYTES = 64;
 
 const PEEK_NOT_CANCELLED = { event: "origin-error-peek-not-cancelled", fields: {} } as const;
 
-async function firstBytes(body: ReadableStream<Uint8Array> | null): Promise<string> {
+async function wholeShortBody(body: ReadableStream<Uint8Array> | null): Promise<string | null> {
   if (body === null) {
     return "";
   }
@@ -22,7 +22,7 @@ async function firstBytes(body: ReadableStream<Uint8Array> | null): Promise<stri
   const prefix = await readPrefix(body.values({ preventCancel: true }), ERROR_PAGE_BYTES);
   void bestEffort(PEEK_NOT_CANCELLED, () => body.cancel());
 
-  return new TextDecoder().decode(prefix);
+  return prefix.length < ERROR_PAGE_BYTES ? new TextDecoder().decode(prefix) : null;
 }
 
 async function refuseUnreachableOrigin(url: string, response: Response): Promise<void> {
@@ -30,9 +30,9 @@ async function refuseUnreachableOrigin(url: string, response: Response): Promise
     return;
   }
 
-  const page = await firstBytes(response.clone().body);
+  const page = await wholeShortBody(response.clone().body);
 
-  if (CLOUDFLARE_ERROR_PAGE.test(page)) {
+  if (page !== null && CLOUDFLARE_ERROR_PAGE.test(page)) {
     await response.body?.cancel();
 
     throw new Error(`Cloudflare could not reach ${url}: ${page.trim()}`);

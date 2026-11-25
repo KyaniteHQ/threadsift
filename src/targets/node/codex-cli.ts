@@ -4,7 +4,7 @@ import { refusedAi } from "../../core/contract/ai-contract.ts";
 import { PROVIDERS } from "../../core/contract/provider-families.ts";
 import type { RunnerTask } from "../../core/kernel/ai-runtime.ts";
 import { report } from "../../core/kernel/failure-log.ts";
-import { findBinary } from "./cli-process.ts";
+import { type SignIn, findBinary } from "./cli-process.ts";
 import type { Slots } from "./cli-slots.ts";
 import { codexHomeOf, reserveCodexHome } from "./codex-home.ts";
 import {
@@ -57,7 +57,7 @@ class CodexCli extends SlottedCli {
         : undefined;
   }
 
-  protected async probe(signal: AbortSignal): Promise<boolean> {
+  protected async probe(signal: AbortSignal): Promise<SignIn> {
     const end = await inRunFolders((folders) =>
       spawnCodex(this.installation, folders, ["login", "status"], "", signal, {
         cap: STDOUT_CAP,
@@ -65,7 +65,9 @@ class CodexCli extends SlottedCli {
       }),
     );
 
-    return end.kind === "exited" && end.code === 0;
+    if (end.kind !== "exited") return "unknown";
+
+    return end.code === 0 ? "signed-in" : "signed-out";
   }
 
   protected modelChoice(model: string) {

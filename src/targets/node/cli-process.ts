@@ -229,6 +229,8 @@ export function inChildFolders<Result>(work: (folders: ChildFolders) => Promise<
   });
 }
 
+export type SignIn = "signed-in" | "signed-out" | "unknown";
+
 export function answerWithin<Answer>(
   shutdown: AbortSignal,
   probe: (signal: AbortSignal) => Promise<Answer>,

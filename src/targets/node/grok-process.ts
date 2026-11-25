@@ -1,8 +1,8 @@
 import { writeFile } from "node:fs/promises";
 
-import { type ProcessEnd, runProcess } from "./cli-process.ts";
+import { type ProcessEnd, type SignIn, runProcess } from "./cli-process.ts";
 import { type RunFolders, sweepGrokTemp, toolListOf } from "./grok-folders.ts";
-import { type SignInLine, signInOf } from "./grok-sign-in.ts";
+import { signInOf } from "./grok-sign-in.ts";
 import { type ToolList, runArguments } from "./grok-surface.ts";
 
 const ANSWER_CAP = 4 * 1024 * 1024;
@@ -21,7 +21,7 @@ export interface RunRecord {
 export interface GrokCli {
   readonly path: string;
   readonly version: (folders: RunFolders, signal: AbortSignal) => Promise<Versioned>;
-  readonly signIn: (folders: RunFolders, signal: AbortSignal) => Promise<SignInLine>;
+  readonly signIn: (folders: RunFolders, signal: AbortSignal) => Promise<SignIn>;
   readonly run: (folders: RunFolders, prompt: string, signal: AbortSignal) => Promise<RunRecord>;
 }
 
@@ -64,11 +64,7 @@ async function versionWith(
   return { end, version: line.trim() === "" ? null : line.trim() };
 }
 
-async function signInWith(
-  spawn: Spawn,
-  folders: RunFolders,
-  signal: AbortSignal,
-): Promise<SignInLine> {
+async function signInWith(spawn: Spawn, folders: RunFolders, signal: AbortSignal): Promise<SignIn> {
   const end = await spawn(folders, ["models"], signal, LINE_CAP);
 
   return end.kind === "exited" ? signInOf(end.stdout) : "unknown";
