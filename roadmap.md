@@ -56,9 +56,11 @@ These run beside the list. Each is the owner's, and most have a long wait.
 - [ ] 0.3 **WAITING (owner, then a lawyer).** Start the lawyer's read (#722), and give the lawyer the X questions of #724 with the three new sources from `docs/private/x-api/design-notes.md` (the "derivative works" definition, the rule against customers' own keys, the display-freshness sentence). Add the demo's questions: whether X's "limited number of end-users" covers a public demo, and whether showing handles and replies there is lawful processing of personal data. **Check:** the questions are sent, and each issue names the date.
   WAITS: since 2026-11-25, for the owner to send the 16 questions and the cover note in the private requests folder, and to say the date, which goes into #722 and #724.
 - [ ] 0.4 **WAITING (owner, then Reddit).** Ask Reddit in writing what a paid Threadsift may store (#723), and whether a free public demo may show real Reddit threads, with or without Reddit's Data API. **Check:** the request is sent, and #723 names the date.
+  WAITS: since 2026-11-25, for the owner to send the request in the private requests folder through Reddit's Data Access Request form and to say the date, which goes into #723.
 - [ ] 0.5 **WAITING (owner, then a payment company).** Ask a payment company whether it accepts a seller in Türkiye for this product (#725). **Check:** the request is sent, and #725 names the date.
+  WAITS: since 2026-11-25, for the owner to send the request to Paddle from the private requests folder and to say the date, which goes into #725. The accountant's question of #725 is the owner's too.
 - [ ] 0.6 **WAITING (owner).** Open the Chrome Web Store and Mozilla add-ons developer accounts (#767, decision 3). The first upload is in Part 4 (item 4.14), so the accounts must exist before the end of Part 4. **Check:** both accounts exist, and #767 records decision 3.
-- [ ] 0.7 **WAITING (owner).** Decide the sign-in lock ceiling (#726). **Check:** the decision is recorded in #726.
+- [x] 0.7 The owner decided the sign-in lock ceiling (#726): it is built for the hosted product, in 9.5. **Check:** the decision is recorded in #726.
 
 ## Part 1. Ground rules for the agents
 
