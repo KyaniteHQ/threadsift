@@ -196,10 +196,9 @@ describe("a short link whose alias ends at a Reddit share link is resolved again
       await firstResolved(instance, second, stale.share);
 
       const [promoting, failing] = promoter === "first" ? [first, second] : [second, first];
-      const promoted = await repasted(instance, promoting, resolvedTo(post));
+      const promoted = await repasted(instance, promoting, resolvedTo(post), "keep");
 
       assert.ok(promoted !== null && promoted.item.id === stale.id);
-      exec(instance, "update jobs set state = 'done' where item_id = ?", stale.id);
 
       const [own, total, atShareLink] = [
         parseLink(post).normalizedUrl,

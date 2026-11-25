@@ -118,6 +118,27 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
   });
 
   withEachExisting([{}]).forEach(({ existing }) => {
+    it(`reaches the Item that another Paste moved the alias to and leaves the alias as that Paste wrote it, when the late resolution is the post that Item holds, for a ${existing} Paste`, async () => {
+      const short = `https://t.co/samepost${existing}`;
+      const post = redditPost(`samepost${existing}`);
+      const stale = await stagedStaleAlias(instance, short);
+      const snapshot = await aliasOf(instance, short);
+      const held = await firstResolved(instance, `https://t.co/samepostholds${existing}`, post);
+
+      assert.ok(held !== null);
+      await repasted(instance, short, resolvedTo(post));
+
+      const total = await instance.itemTotal();
+      const saved = await repastedFrom(instance, short, resolvedTo(post), snapshot, existing);
+
+      assert.ok(saved !== null && saved.item.id === held.item.id && !saved.created);
+      assert.equal(await instance.itemTotal(), total);
+      await stillAtShareLink(instance, stale.id, stale.share);
+      assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, post, held.item.id)]);
+    });
+  });
+
+  withEachExisting([{}]).forEach(({ existing }) => {
     it(`saves a new Item at the post and records the alias when the owner deleted the Item of a stale alias while the resolution ran, for a ${existing} Paste`, async () => {
       const short = `https://t.co/latedeleted${existing}`;
       const post = redditPost(`latedeleted${existing}`);
