@@ -1,4 +1,3 @@
-import { fromBase64 } from "../../../core/contract/encoding.ts";
 import { fits } from "../../../core/contract/image-rules.ts";
 import {
   type ImageType,
@@ -62,7 +61,7 @@ export function decoded(dataUrl: string): Downloaded {
 
     if (base64.length > BASE64_CHARACTERS) return { ok: false, reason: "too-large" };
 
-    const bytes = fromBase64(base64);
+    const bytes = Uint8Array.fromBase64(base64);
     const verdict = checked(type, bytes, bytes.length > IMAGE_MAX_BYTES);
 
     return verdict.ok ? { ...verdict, bytes, finalUrl: null } : verdict;

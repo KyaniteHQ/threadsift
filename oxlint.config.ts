@@ -54,6 +54,9 @@ function restrictImports(patterns: readonly ImportPattern[]): DummyRuleMap {
   };
 }
 
+const BASE64_BASELINE =
+  "Uint8Array base64 methods are Baseline newly available (2025-09-05), not widely available, so the web app does not call them (docs/agents/changing-code.md).";
+
 const WEB_FETCH = {
   name: "fetch",
   message:
@@ -266,6 +269,8 @@ export default defineConfig({
             property: WEB_FETCH.name,
             message: WEB_FETCH.message,
           })),
+          { property: "toBase64", message: BASE64_BASELINE },
+          { object: "Uint8Array", property: "fromBase64", message: BASE64_BASELINE },
         ],
       },
     },
