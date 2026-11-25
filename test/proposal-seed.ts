@@ -1,6 +1,6 @@
 import { DatabaseSync } from "node:sqlite";
 
-import { getTableColumns } from "drizzle-orm";
+import { getTableColumns, getTableName } from "drizzle-orm";
 import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 
 import { PROPOSAL_KINDS, type ProposalKind } from "../src/core/contract/proposal-contract.ts";
@@ -16,7 +16,7 @@ interface Seed {
 }
 
 export function subjectTable(kind: ProposalKind): string {
-  return `${kind.replaceAll("-", "_")}_proposals`;
+  return getTableName(SUBJECT_TABLE[kind]);
 }
 
 type SubjectOf<Kind extends ProposalKind> = Kind extends ProposalKind
