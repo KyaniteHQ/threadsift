@@ -85,10 +85,13 @@ export function originCheckOf(handler: H): OriginCheck {
   return who === undefined ? "none" : originCheck(who);
 }
 
-function planOf(c: Ctx, who: Who | "unrouted", cache: CacheKind | null): Plan {
-  if (who === "unrouted") return unroutedPlan(c.req.path, cache);
+type CacheAt = (path: string) => CacheKind | null;
+
+function planOf(c: Ctx, who: Who | "unrouted", cacheAt: CacheAt): Plan {
+  if (who === "unrouted") return unroutedPlan(c.req.path, cacheAt);
 
   const csrf = originCheck(who);
+  const cache = cacheAt(c.req.path);
 
   if (who === "self") return { credentials: null, csrf, after: "next", cache };
 
@@ -165,12 +168,12 @@ function signedOutAnswer(
 function gateOf<E extends Env, W extends Who | "unrouted">(
   who: W,
   { body = DEFAULT_CAP, cache, signedOutNavigation }: Limits,
-  cacheAt?: (path: string) => CacheKind | null,
+  cacheAt: CacheAt = () => cache ?? null,
 ): Gate<E, W> {
   const cap = capOf(body);
 
   const middleware = createMiddleware<E>(async (c, next) => {
-    const plan = planOf(c, who, cacheAt?.(c.req.path) ?? cache ?? null);
+    const plan = planOf(c, who, cacheAt);
     const answer = signedOutAnswer(c, await answerOf(c, plan, cap, next), signedOutNavigation);
 
     applyCache(answer ?? c.res, plan.cache);
@@ -197,8 +200,12 @@ export function access(who: Who, limits: Limits = {}) {
     : gateOf<BlankEnv, Exclude<Who, "callback">>(who, limits);
 }
 
-function routeCacheAt(app: OpenAPIHono, path: string): CacheKind | null {
-  for (const method of new Set(app.routes.map((route) => route.method))) {
+function routeCacheAt(
+  app: OpenAPIHono,
+  methods: readonly string[],
+  path: string,
+): CacheKind | null {
+  for (const method of methods) {
     for (const [[handler]] of app.router.match(method, path)[0]) {
       const kind = CACHES.get(handler);
 
@@ -210,7 +217,13 @@ function routeCacheAt(app: OpenAPIHono, path: string): CacheKind | null {
 }
 
 export function unrouted(app: OpenAPIHono): Gate<BlankEnv, "unrouted"> {
-  return gateOf<BlankEnv, "unrouted">("unrouted", {}, (path) => routeCacheAt(app, path));
+  let methods: readonly string[] | undefined;
+
+  return gateOf<BlankEnv, "unrouted">("unrouted", {}, (path) => {
+    methods ??= [...new Set(app.routes.map((route) => route.method))];
+
+    return routeCacheAt(app, methods, path);
+  });
 }
 
 export function ownCheck<E extends Env>(check: MiddlewareHandler<E>): Gate<E, "self"> {

@@ -8,11 +8,11 @@ function underFiles(path: string): boolean {
   return path === FILES_ROOT || path.startsWith(FILE_ROUTE);
 }
 
-export function unroutedPlan(path: string, routeCache: CacheKind | null): Plan {
+export function unroutedPlan(path: string, routeCache: (path: string) => CacheKind | null): Plan {
   return {
     credentials: "any",
     csrf: "none",
     after: "next",
-    cache: underFiles(path) ? "file" : routeCache,
+    cache: underFiles(path) ? "file" : routeCache(path),
   };
 }
