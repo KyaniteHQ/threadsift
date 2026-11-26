@@ -33,7 +33,7 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
   restoring:
     "A Restore is running, so this link wasn’t saved. Paste the link again when the Restore has finished.",
   refused:
-    "This link leads to a private network or your computer, so it was saved without a title.",
+    "This link leads to a private network or a loopback address, so it was saved without a title.",
   unsupported:
     "This link redirected to an address that isn’t a web page, so it was saved without a title.",
   "redirect-limit": "This link redirected too many times, so it was saved without a title.",
@@ -47,7 +47,7 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
     "GitHub rejected the saved token, so this Item wasn’t updated. Replace or remove the token in Settings, then paste the link again.",
   ...X_NOTICES,
   "title-kept": "Couldn’t update the title for this link, so the title saved earlier was kept.",
-  private: "Links to a private network or your own computer can’t be saved.",
+  private: "Links to a private network or a loopback address can’t be saved.",
 };
 
 export const TOKEN_REFUSED = {
@@ -121,13 +121,13 @@ export function waitTitle({ reason }: Readonly<{ reason: WaitReason }>): string 
 }
 
 export const SORT_LABEL = "Newest saved first";
-export const LOADING_LABEL = "Loading saved links…";
+export const LOADING_LABEL = "Loading Items…";
 
 export const LOAD_MORE = "Load more";
 export const LOADING_MORE = "Loading more…";
 export const NEWEST_FIRST = "Newest first";
 export const BACK_TO_LIBRARY = "Back to library";
-export const LOAD_FAILED = "Couldn’t load your saved links.";
+export const LOAD_FAILED = "Couldn’t load the Items.";
 
 export const SETTINGS_GEAR_LABEL = "Settings";
 export const SETTINGS_TITLE = "Settings";
@@ -135,16 +135,16 @@ export const CLOSE_LABEL = "Close";
 export const RESET_LABEL = "Reset look";
 
 export const RESET_NOTE =
-  "Reset look puts look settings back to their defaults and keeps Layout, Open items as and Theme.";
+  "Look settings return to their defaults. Layout, Open items as and Theme stay as they are.";
 
 export const MATCH_SYSTEM_NOTES = {
   dark: "Match system · dark now",
   light: "Match system · light now",
 } as const;
 
-export const SEARCH_LABEL = "Search items";
-export const SEARCH_PLACEHOLDER = "Search title, post text, summary or tags";
-export const SKIP_LABEL = "Skip to items";
+export const SEARCH_LABEL = "Search Items";
+export const SEARCH_PLACEHOLDER = "Title, post text, Summary or Tags";
+export const SKIP_LABEL = "Skip to Items";
 
 export const FILTER_GROUPS = {
   source: "Source",
@@ -156,8 +156,8 @@ export const FILTER_GROUPS = {
 export const ALL_CHOICE = "All";
 
 export const ALL_NAMED = {
-  source: "All {count} from all sources",
-  read: "All {count} in all read states",
+  source: "All {count} from all Sources",
+  read: "All {count} in all Read states",
 } as const;
 
 export const READ_LABELS: Readonly<Record<ReadState, string>> = {
@@ -165,32 +165,32 @@ export const READ_LABELS: Readonly<Record<ReadState, string>> = {
   read: "Read",
 };
 
-export const ALL_ROWS = { topic: "All {count} topics", tag: "All {count} tags" } as const;
+export const ALL_ROWS = { topic: "All {count} Topics", tag: "All {count} Tags" } as const;
 export const SHOW_FEWER = "Show fewer";
 export const FILTERS_BUTTON = "Filters";
 export const FILTERS_BUTTON_ACTIVE = "Filters · {count}";
 export const CLEAR_FILTERS = "Clear filters";
-export const ANY_CHOICE = { topic: "Any topic", tag: "Any tag" } as const;
+export const ANY_CHOICE = { topic: "Any Topic", tag: "Any Tag" } as const;
 const NAMED_OPTION = "{name} ({count})";
 
 export function namedOption(name: string, count: number): string {
   return filled(NAMED_OPTION, { name, count: String(count) });
 }
 
-export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
+export const NO_ROWS = { topic: "No Topics yet", tag: "No Tags yet" } as const;
 
-export const NO_RESULTS = "No items match";
+export const NO_RESULTS = "No Items match";
 export const CLEAR_ALL = "Clear search and filters";
 
-const TOTAL_NAME_ONE = "1 item in library";
-const TOTAL_NAME_MANY = "{count} items in library";
+const TOTAL_NAME_ONE = "1 Item in library";
+const TOTAL_NAME_MANY = "{count} Items in library";
 
 export function totalName(count: number): string {
   return count === 1 ? TOTAL_NAME_ONE : filled(TOTAL_NAME_MANY, { count: String(count) });
 }
 
 export const EMPTY_LIST = {
-  heading: "Nothing saved yet",
+  heading: "No Items yet",
   line: "Paste a link in the box and press Add.",
 } as const;
 
@@ -211,7 +211,7 @@ export function starsLabel(count: number): string {
 
 export const SAVED_COMMENT = "Saved comment";
 
-export const STYLE_NOTE = "Set by the style";
+export const STYLE_NOTE = "Set by the Style";
 export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";
 export const NO_DIGEST = "No Digest";
 export const DIGEST_NOT_UPDATED = "Digest not updated";

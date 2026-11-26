@@ -320,14 +320,16 @@ const shownItem = (s) => {
   const vis = visible(s);
   return vis.find((i) => i.id === s.item) ?? vis[0];
 };
-const noResults = () => `<div class="empty" role="status"><p>No items match</p><button class="btn" type="button" data-act="clear">Clear search and filters</button></div>`;
+const countText = (vis) =>
+  vis.length === items.length ? `${items.length} Items, ${items.filter((i) => !i.read).length} unread` : `${vis.length} of ${items.length} Items`;
+const noResults = () => `<div class="empty" role="status"><p>No Items match</p><button class="btn" type="button" data-act="clear">Clear search and filters</button></div>`;
 
 let uidN = 0;
 function pasteBox() {
   const id = `paste-${++uidN}`;
   return `<form class="paste" data-act="paste"><label class="vh" for="${id}">Paste a link to save</label><input class="field" id="${id}" type="url" placeholder="Paste a link" required><button class="btn primary" type="submit">Add</button></form>`;
 }
-const searchBox = () => `<label class="search"><span class="vh">Search items</span>${icon("search")}<input class="field" type="search" placeholder="Search title, post text, summary or tags"></label>`;
+const searchBox = () => `<label class="search"><span class="vh">Search Items</span>${icon("search")}<input class="field" type="search" placeholder="Title, post text, Summary or Tags"></label>`;
 
 function listScreen(s) {
   const vis = visible(s);
@@ -335,7 +337,7 @@ function listScreen(s) {
   const reader = open ? `<div class="rd">${readerBar(open, "pane", vis)}<div class="rd-col">${readerBody(open)}</div></div>` : `<p class="rd-empty">Select an item</p>`;
   return `<div class="l-screen">
     <aside class="side"><div class="side-top">${wordmark()}<div class="g-tools"><button class="btn quiet icon" type="button" aria-label="Grid layout" data-act="screen" data-screen="grid">${icon("grid")}</button>${aaBtn()}</div></div>${pasteBox()}${filterRail(s)}</aside>
-    <section class="list-pane" aria-label="Items"><div class="list-head">${searchBox()}<span class="count">${vis.length} Items</span></div>
+    <section class="list-pane" aria-label="Items"><div class="list-head">${searchBox()}<span class="count">${countText(vis)}</span></div>
       <div class="rows">${vis.length ? vis.map((i) => row(i, { open: i === open })).join("") : noResults()}</div></section>
     <section class="rd-pane" aria-label="Reader">${reader}</section>
   </div>${panel(s)}`;
@@ -378,7 +380,7 @@ function componentsScreen(s) {
     </div></section>
     <section class="c-sec"><h2 class="h2">Fields</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Paste box</span>${pasteBox()}</div>
-      <div class="c-demo"><span class="label">Search, focused</span><label class="search"><span class="vh">Search items</span>${icon("search")}<input class="field is-focus" type="search" value="sqlite"></label></div>
+      <div class="c-demo"><span class="label">Search, focused</span><label class="search"><span class="vh">Search Items</span>${icon("search")}<input class="field is-focus" type="search" value="sqlite"></label></div>
       <div class="c-demo fld"><label class="label" for="c-name">Instance name</label><span class="fld-hint">Shown in the masthead of the sign-in screen.</span><input class="field is-invalid" id="c-name" value="" placeholder="Library" aria-describedby="c-err"><span class="fld-err" id="c-err">Enter a value.</span></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">Chips, segments and Tags</h2><div class="c-cols">
@@ -510,6 +512,7 @@ export function boot() {
       } else el.querySelector(".lbl").textContent = readLabel(it);
     }
     for (const el of document.querySelectorAll(`:is(.row, .card, .rd-head)[data-id="${id}"]`)) el.classList.toggle("unread", !it.read);
+    for (const el of document.querySelectorAll(".list-head .count")) el.textContent = countText(visible(s));
   }
   function focusKey(el) {
     const sel = ["act", "id", "step", "v", "src"].map((k) => (el.dataset[k] === undefined ? "" : `[data-${k}="${el.dataset[k]}"]`)).join("");

@@ -38,7 +38,36 @@ Karakeep, the closest open-source tool, has no comment-thread model, so it would
 ## Brand Commitments
 
 - The name is Threadsift. The masthead wordmark reads Threadsift; the Style named Library keeps its name.
-- Interface text has no hand-picked voice: `tools/copy/write-copy.sh` writes every text a user reads in the product, as `docs/agents/changing-code.md` (Interface text) describes.
+- Every text a user reads in the product follows the Interface voice below. `tools/copy/write-copy.sh` writes each one, as `docs/agents/changing-code.md` (Interface text) describes.
+
+### Interface voice
+
+These rules hold for every text a person reads in the product: labels, buttons, messages, empty states, errors and notes. The voice is plain, exact and quiet, like a catalogue note. The copy script puts this section into its prompt, so the section has to read on its own.
+
+1. **Use the glossary's word, with its capital letter, and the same word every time.** Item, Topic, Tag, Digest, Summary, Highlight, Note, Reader, Instance, Provider, Paste, Import and the other terms of `GLOSSARY.md` keep their capital in the middle of a sentence. Never use a word from a term's Avoid line.
+   - Bad: "Search saved posts"
+   - Good: "Search Items"
+2. **Name a count, a state or the next action.** A count is a figure. A state says what is true now. An action says what the owner can do.
+   - Bad: "Some of these are still new"
+   - Good: "6 Items, 2 unread"
+3. **Never cheer, hurry or claim.** No exclamation marks, no emoji, no praise of the owner or of Threadsift, and no "just", "simply", "instantly" or "seamless". Never promise a time or a result the Instance cannot know.
+   - Bad: "Done! Your link is saved in seconds."
+   - Good: "Added"
+4. **An error says what failed, then why when the Instance knows it, then what the owner can do.** Name what failed: the website, GitHub, Reddit, X, the grok CLI or the Grok Bot. Never blame the owner, and never show an error code as the message.
+   - Bad: "Error 504. Please try again."
+   - Good: "The website didn’t answer in time."
+5. **A control names its result.** A button is a verb, or a verb and its object. A field label names what goes in the field. A placeholder gives an example or a hint and never replaces the label.
+   - Bad: "OK", "Submit"
+   - Good: "Add", "Clear filters", "Reset look"
+6. **Say each fact once, in the fewest words that keep it.** Do not repeat the heading, the label or the button in the text beside it. Write one idea per sentence.
+   - Bad: "Reset look puts the look settings back to their defaults" beside the Reset look button
+   - Good: "Theme and Layout stay as they are."
+7. **Threadsift speaks of itself in the third person, and speaks to the owner only when the owner must act.** Write "Threadsift", never "we" or "I". Use "you" only in an instruction.
+   - Bad: "We couldn’t reach your website"
+   - Good: "Couldn’t reach the website"
+8. **Use sentence case, and punctuation that marks the kind of text.** Only the first word and glossary terms take a capital letter. A full sentence ends with a period; a label, a heading, a title or a count does not. Use ’ for an apostrophe, … after an action that is still running, and · only between the parts of one line, as the kept strip does.
+   - Bad: "Load More."
+   - Good: "Load more", "Saving…"
 
 ## Brand Brief
 
@@ -49,7 +78,7 @@ This section describes the brand the app moves to, not the app as built. The cho
 - **The brand is what never changes,** so a screenshot in any Style, Theme, Accent or Font is still Threadsift. The design system's Brand Brief, What no Style may change, holds the one list.
 - **A Style is a material.** It changes only the token values the design system's Brand Brief lists: never where things are or what a component is made of. Choosing a Style writes its Font and Accent into the settings, and the owner can change either afterwards. No control is disabled.
 - **Three Styles.** Library is the brand's default and is built from Quarto. Beside it sit a print Style and a technical Style, whose names Broadsheet and Workbench are working names. Broadsheet has sharp corners, hairline rules, no shadows and a serif reading face. Workbench has a mono-forward face for a library of repositories and code. Dark is a Theme, so no Style is the dark one.
-- **The voice.** Plain, exact and quiet, like a catalogue note: a text names a count, a state or the next action in the glossary's words, and never cheers, hurries or claims. The rule set the copy script follows is written from this line. Until the copy script carries those rules, the Brand Commitments line above holds, and the script writes without a hand-picked voice.
+- **The voice.** Plain, exact and quiet, like a catalogue note: a text names a count, a state or the next action in the glossary's words, and never cheers, hurries or claims. Brand Commitments, Interface voice, holds the rules written from this line.
 
 ## Evidence on Hand
 

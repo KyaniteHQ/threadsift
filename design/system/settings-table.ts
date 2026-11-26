@@ -1,4 +1,4 @@
-export const GROUPS = ["View", "Reading", "Cards and tags"] as const;
+export const GROUPS = ["View", "Reading", "Cards and Tags"] as const;
 
 export interface Option {
   readonly id: string;
@@ -173,7 +173,7 @@ export const SETTINGS = [
     label: "Accent",
     attribute: "data-accent",
     kind: "swatches",
-    group: "Cards and tags",
+    group: "Cards and Tags",
     look: true,
     default: "cobalt",
     options: [
@@ -189,7 +189,7 @@ export const SETTINGS = [
     label: "Tag style",
     attribute: "data-tags",
     kind: "segments",
-    group: "Cards and tags",
+    group: "Cards and Tags",
     look: true,
     default: "dots",
     options: [
@@ -203,7 +203,7 @@ export const SETTINGS = [
     label: "Card images",
     attribute: "data-images",
     kind: "segments",
-    group: "Cards and tags",
+    group: "Cards and Tags",
     look: true,
     default: "on",
     options: [

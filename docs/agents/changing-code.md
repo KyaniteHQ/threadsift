@@ -44,7 +44,7 @@ Each rule names the code that shows its shape. Where a doc already states the ru
 
 ## Interface text
 
-The copy script writes every text a user reads in the product: labels, buttons, messages, empty states, errors, onboarding and site prose. Nobody writes one by hand. The script runs the Antigravity CLI (`agy`) with the `humanizer` skill, [the product brief](../../PRODUCT.md) and the [GLOSSARY](../../GLOSSARY.md) as context. The README and the guides are docs and follow Docs, commit messages and PR bodies below.
+The copy script writes every text a user reads in the product: labels, buttons, messages, empty states, errors, onboarding and site prose. Nobody writes one by hand. The script runs the Antigravity CLI (`agy`) with the `humanizer` skill, [the product brief](../../PRODUCT.md) and the [GLOSSARY](../../GLOSSARY.md) as context, and puts the product brief's Interface voice section, under Brand Commitments, into its prompt. Those rules are the voice of every text; change them there, never in the script. The README and the guides are docs and follow Docs, commit messages and PR bodies below.
 
 1. Write a brief to a file outside the repository: where the text shows, what it must say, the facts it may use, length and case limits, and the neighbouring texts it must match.
 2. Run `tools/copy/write-copy.sh <brief>`. It prints the text, or exits non-zero with the reason on stderr.

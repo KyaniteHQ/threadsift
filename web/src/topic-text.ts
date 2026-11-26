@@ -18,7 +18,7 @@ export const TOPIC_PAGE = {
   emptyHeading: "No items in this topic",
   emptyLine: "This topic has no items in your library.",
   loadMoreFailed: "Couldn’t load more items.",
-  openPage: "Open topic page",
+  openPage: "Open Topic page",
   disagreementsHeading: "Known disagreements",
   disagreementsEntryLabel: "Items in this disagreement",
 } as const;
@@ -28,7 +28,7 @@ const BUILT_FROM_ALL = "Built from all {total} items";
 const ITEMS_ONE = "1 item";
 const ITEMS_MANY = "{count} items";
 const CITATION_LABEL = "Open item {title}";
-const TOPIC_LINK = "Open topic page for {name}";
+const TOPIC_LINK = "Open Topic page for {name}";
 
 export function builtFromLabel(built: number, total: number): string {
   if (total === 1) return TOPIC_PAGE.builtFromOne;

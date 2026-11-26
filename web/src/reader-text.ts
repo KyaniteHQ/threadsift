@@ -17,7 +17,7 @@ export const ROW_MARK_READ = "Mark as read";
 export const ROW_MARK_UNREAD = "Mark as unread";
 export const MARKED_READ = "Marked as read";
 export const MARKED_UNREAD = "Marked as unread";
-export const READ_FAILED = "Couldn’t change this item’s read state.";
+export const READ_FAILED = "Couldn’t change this Item’s Read state.";
 export const DELETE_LABEL = "Delete";
 export const DELETE_TITLE = "Delete this item?";
 

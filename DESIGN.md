@@ -371,12 +371,11 @@ These rules describe the app as built and stay until Quarto is built. That build
 
 ### Rules of other docs that the Brand Brief contradicts
 
-- [The spec](docs/spec.md), Style, and [the glossary](GLOSSARY.md), Style: Library plus 10 Styles, and a Style other than Library replaces Font and Accent, whose controls are disabled with "Set by the style". Under the Brand Brief the app has three Styles, choosing one writes its Font and Accent into the settings once, the owner can change either, and no control is disabled.
+- [The spec](docs/spec.md), Style, and [the glossary](GLOSSARY.md), Style: Library plus 10 Styles, and a Style other than Library replaces Font and Accent, whose controls are disabled with "Set by the Style". Under the Brand Brief the app has three Styles, choosing one writes its Font and Accent into the settings once, the owner can change either, and no control is disabled.
 - The spec, Look settings, and the glossary, Look settings: Tag style (Chips, Text, Dots) and Comment style (Indented lines, Cards, Rail), where Rail draws an avatar beside each comment. The brand draws one Tag and one comment tree, with no avatars, so both settings go.
 - The spec, Look settings: Font offers 5 pairs. Under the Brand Brief it offers four.
 - The spec, Look settings: Density offers Compact, Comfortable and Roomy. Under the Brand Brief it offers Compact and Comfortable.
 - The spec, Layout and reader, Reset look and Storage, and the glossary, Reader style: the "Open items as" setting (Page or Sheet). Under the Brand Brief, Grid opens a sheet from 1080px up and a full page below that, so the setting goes.
-- The product brief, Brand Commitments: interface text has no hand-picked voice. The Brand Brief sets one.
 
 ### Quarto
 
