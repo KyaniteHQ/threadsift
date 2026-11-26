@@ -10,7 +10,7 @@ import { plural } from "./plural.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
 import { CLOSE_LABEL } from "./text.ts";
 
-export const READER_PLACEHOLDER = "Select an Item";
+export const READER_PLACEHOLDER = "Select an item";
 export const MARK_READ = "Mark read";
 export const MARK_UNREAD = "Mark unread";
 export const ROW_MARK_READ = "Mark as read";
@@ -19,36 +19,36 @@ export const MARKED_READ = "Marked as read";
 export const MARKED_UNREAD = "Marked as unread";
 export const READ_FAILED = "Couldn’t change this item’s read state. Try again.";
 export const DELETE_LABEL = "Delete";
-export const DELETE_TITLE = "Delete this Item?";
+export const DELETE_TITLE = "Delete this item?";
 
 export const DELETE_DESCRIPTION =
-  "Deleting removes this Item, its Summary and Key points, its saved text and its Kept comments from the library. This can’t be undone.";
+  "The item, its summary, key points, saved text and kept comments will be removed from the library. This can’t be undone.";
 
 export const CANCEL_LABEL = "Cancel";
-export const DELETE_CONFIRM = "Delete Item";
-export const DELETE_PENDING = "Deleting Item…";
-export const DELETE_FAILED = "Couldn’t delete this Item. Try again.";
-export const DELETED = "Item deleted.";
+export const DELETE_CONFIRM = "Delete item";
+export const DELETE_PENDING = "Deleting item…";
+export const DELETE_FAILED = "Couldn’t delete this item. Try again.";
+export const DELETED = "Item deleted";
 const BACK_LONG = "Back to list";
 const BACK_TO_GRID = "Back to grid";
 const BACK_SHORT = "Back";
-export const PREVIOUS_ITEM = "Previous Item";
-export const NEXT_ITEM = "Next Item";
+export const PREVIOUS_ITEM = "Previous item";
+export const NEXT_ITEM = "Next item";
 export const HINT_LIST = "j k move · Enter open · m read · / search";
 export const HINT_PANE = "j k move · Enter open · m read · / search · Esc close";
-export const READER_LOADING = "Loading Item…";
-export const READER_FAILED = "Couldn’t load this Item.";
-export const READER_STALE = "This text is from earlier and may be outdated.";
-export const DIGEST_PENDING = "The Summary and Key points are not ready yet.";
-export const NO_POST_TEXT = "This Item has no post text.";
+export const READER_LOADING = "Loading item…";
+export const READER_FAILED = "Couldn’t load this item.";
+export const READER_STALE = "Couldn’t reload this item. Showing an earlier copy.";
+export const DIGEST_PENDING = "Writing the summary and key points…";
+export const NO_POST_TEXT = "This item has no post text.";
 
 export const FILL_NOTE =
-  "The thread for this Item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
+  "The post and comments aren’t saved yet. Open the post on Reddit in a browser with the Threadsift extension and its filling turned on to save them.";
 
-const ARCHIVE_NOTE = "The post and comments were filled from the Arctic Shift archive on {date}.";
+const ARCHIVE_NOTE = "The post and comments were saved from the Arctic Shift archive on {date}.";
 
 const ARCHIVE_COMMENTS_NOTE =
-  "Only the comments were filled from the Arctic Shift archive on {date}.";
+  "Only the comments were saved from the Arctic Shift archive on {date}.";
 
 export const NO_README = "This repository has no Markdown README.";
 export const GITHUB_TOPICS_LABEL = "Topics on GitHub";
@@ -100,8 +100,8 @@ export const NOTE_KEYS = "Ctrl+Enter or Cmd+Enter saves";
 export const NOTE_NEWER_LABEL = "Newer version";
 
 export const FOOTNOTES_LABEL = "Footnotes";
-const FOOTNOTE_BACK = "Back to reference {reference}";
-const FOOTNOTE_BACK_AGAIN = "Back to footnote {reference}, reference {again}";
+const FOOTNOTE_BACK = "Back to text, footnote {reference}";
+const FOOTNOTE_BACK_AGAIN = "Back to text, footnote {reference}, reference {again}";
 
 export const REPOSITORY_LABELS = {
   stars: "Stars",

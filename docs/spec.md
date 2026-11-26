@@ -267,7 +267,7 @@ Rules for the Digest:
 - The Highlights list at the end of the Reader holds every Highlight of the Item, and choosing one scrolls to its mark and opens the fold around it. A Highlight whose passage is gone shows its quote with the note "Passage no longer found because the item’s text changed." Each entry has its own Remove. When that removal ends, focus moves to the Remove of the next entry, or of the previous one when it was the last, or to the Reader title when none is left, unless the owner moved focus to another control while the removal ran; a failed removal leaves focus where it is.
 - **Note.** The Note box follows the Highlights list (Highlights, Notes and the Highlights page).
 - **Reading place.** Each browser tab remembers where the owner stopped in each Item, for the last 100 Items it saved a place in, and returns there on reopen, as long as the text at that place is still in the Item.
-- **Delete.** Delete asks "Delete this Item?" with Cancel and Delete Item. While the request runs both buttons and Escape do nothing, and after 20 seconds without an answer the dialog reports the failure and offers both again.
+- **Delete.** Delete asks "Delete this item?" with Cancel and Delete item. While the request runs both buttons and Escape do nothing, and after 20 seconds without an answer the dialog reports the failure and offers both again.
 
 ## Highlights, Notes and the Highlights page
 

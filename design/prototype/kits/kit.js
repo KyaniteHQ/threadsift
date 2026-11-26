@@ -110,9 +110,9 @@ const STUB_TEXTS = {
   "not-kept": "Comment not kept, shown so the replies below make sense.",
   more: "Further replies were not saved.",
 };
-const DIGEST_PENDING = "The Summary and Key points are not ready yet.";
+const DIGEST_PENDING = "Writing the summary and key points…";
 const UNFILTERED_PENDING = "The comments below are not filtered by a Digest yet. One is being made now, and the filter follows when it is ready.";
-const FILL_NOTE = "The thread for this Item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
+const FILL_NOTE = "The post and comments aren’t saved yet. Open the post on Reddit in a browser with the Threadsift extension and its filling turned on to save them.";
 const SOURCE_MARKS = {
   reddit: '<path d="M5 4v16"/><path d="M5 7h13"/><path d="M9 12h11"/><path d="M9 17h7"/>',
   x: '<path d="M4 5h16v11h-9l-4 4v-4H4z"/>',
@@ -259,8 +259,8 @@ function readerBar(it, mode, seq, from) {
         : `<button class="btn quiet" type="button" data-act="back">${icon("back")}<span class="lbl">${from === "grid" ? "Back to grid" : "Back to list"}</span></button>`;
   const expand = mode === "sheet" ? `<button class="btn quiet icon" type="button" aria-label="Open as a full page" data-act="expand">${icon("expand")}</button>` : "";
   return `<div class="rd-bar">${back}<span class="pos">${i + 1} of ${seq.length}</span>
-    <button class="btn quiet icon" type="button" aria-label="Previous Item" data-act="step" data-step="-1">${icon("prev")}</button>
-    <button class="btn quiet icon" type="button" aria-label="Next Item" data-act="step" data-step="1">${icon("next")}</button>
+    <button class="btn quiet icon" type="button" aria-label="Previous item" data-act="step" data-step="-1">${icon("prev")}</button>
+    <button class="btn quiet icon" type="button" aria-label="Next item" data-act="step" data-step="1">${icon("next")}</button>
     <span class="grow"></span>
     <button class="btn" type="button" data-act="read" data-id="${it.id}">${icon("check")}<span class="lbl">${readLabel(it)}</span></button>
     <a class="btn quiet icon" href="#" aria-label="${OPEN_LABELS[it.source]}" data-act="none">${icon("out")}</a>
@@ -335,7 +335,7 @@ const searchBox = () => `<label class="search"><span class="vh">Search items</sp
 function listScreen(s) {
   const vis = visible(s);
   const open = shownItem(s);
-  const reader = open ? `<div class="rd">${readerBar(open, "pane", vis)}<div class="rd-col">${readerBody(open)}</div></div>` : `<p class="rd-empty">Select an Item</p>`;
+  const reader = open ? `<div class="rd">${readerBar(open, "pane", vis)}<div class="rd-col">${readerBody(open)}</div></div>` : `<p class="rd-empty">Select an item</p>`;
   return `<div class="l-screen">
     <aside class="side"><div class="side-top">${wordmark()}<div class="g-tools"><button class="btn quiet icon" type="button" aria-label="Grid layout" data-act="screen" data-screen="grid">${icon("grid")}</button>${aaBtn()}</div></div>${pasteBox()}${filterRail(s)}</aside>
     <section class="list-pane" aria-label="Items"><div class="list-head">${searchBox()}<span class="count">${countText(s)}</span></div>
@@ -377,7 +377,7 @@ function componentsScreen(s) {
     <section class="c-sec"><h2 class="h2">Buttons</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Default, primary, quiet</span><div class="c-line"><button class="btn" type="button">Mark read</button><button class="btn primary" type="button">Add</button><button class="btn quiet" type="button">Reset look</button></div></div>
       <div class="c-demo"><span class="label">Disabled</span><div class="c-line"><button class="btn" type="button" disabled>Mark read</button><button class="btn primary" type="button" disabled>Add</button></div></div>
-      <div class="c-demo"><span class="label">Focus</span><div class="c-line"><button class="btn is-focus" type="button">Mark read</button><button class="btn primary is-focus" type="button">Add</button><button class="btn quiet icon is-focus" type="button" aria-label="Next Item">${icon("next")}</button></div></div>
+      <div class="c-demo"><span class="label">Focus</span><div class="c-line"><button class="btn is-focus" type="button">Mark read</button><button class="btn primary is-focus" type="button">Add</button><button class="btn quiet icon is-focus" type="button" aria-label="Next item">${icon("next")}</button></div></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">Fields</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Paste box</span>${pasteBox()}</div>
