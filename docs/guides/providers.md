@@ -166,7 +166,7 @@ Workers AI bills by use. Leave `CLOUDFLARE_WORKERS_AI_TOKEN` unset in a comparis
 
    The command prints the capture folder. Keep its `inputs.json`, which freezes the app's selected comments, catalog and linked-page text together. Use that same file in later runs, even if the library changes.
 
-   Capture changes no library data. It reuses a current model Digest input when one exists, and otherwise prepares one from the Item and its linked page through the app's core functions. An Item without usable content gets a reason in each Provider's record. If linked GitHub pages need the library's saved GitHub token, inject that Instance's `THREADSIFT_SECRET_KEY` for capture. If capture reports `Duplicate Items`, remove the repeated selector and capture again.
+   Capture changes no library data. It reads stored post text from the `files` folder beside the database, so a copy of the database needs a copy of that folder beside it. It reuses a current model Digest input when one exists, and otherwise prepares one from the Item and its linked page through the app's core functions. An Item without usable content gets a reason in each Provider's record. If linked GitHub pages need the library's saved GitHub token, inject that Instance's `THREADSIFT_SECRET_KEY` for capture. If capture reports `Duplicate Items`, remove the repeated selector and capture again.
 
 3. Create `providers.json` outside the checkout. `ProvidersSchema` defines the fields. Each row has a unique `id`, a `provider` and an explicit `model`. A Claude Code or Codex row may include an `effort`.
    - Use `claude-code`, `codex`, `workers-ai`, `openrouter` and `grok-bot` as the `provider` values.
