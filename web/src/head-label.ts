@@ -13,12 +13,12 @@ export const ITEM_HEAD = {
 } as const;
 
 export const HIGHLIGHTS_HEAD = {
-  one: "1 Highlight or Note",
-  many: "{total} Highlights and Notes",
-  matching: "{shown} of {total} Highlights and Notes",
-  matchingText: "{shown} of {total} Highlights and Notes matching “{text}”",
-  matchingOne: "{shown} of 1 Highlight or Note",
-  matchingTextOne: "{shown} of 1 Highlight or Note matching “{text}”",
+  one: "1 highlight or note",
+  many: "{total} highlights and notes",
+  matching: "{shown} of {total} highlights and notes",
+  matchingText: "{shown} of {total} highlights and notes matching “{text}”",
+  matchingOne: "{shown} of 1 highlight or note",
+  matchingTextOne: "{shown} of 1 highlight or note matching “{text}”",
 } as const;
 
 type HeadWords = Readonly<Record<keyof typeof ITEM_HEAD, string>>;
