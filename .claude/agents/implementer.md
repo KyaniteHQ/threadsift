@@ -1,7 +1,7 @@
 ---
 name: implementer
 description: Implements one Threadsift task (an issue, a spec section or a fix) in a worktree the caller names, following docs/agents/changing-code.md, and writes a report file. Use for every code, config or script change in this repository.
-tools: Read, Edit, Write, Bash, Glob, Grep, Skill, WebFetch, WebSearch
+tools: Read, Edit, Write, Bash, Glob, Grep, Skill, WebFetch, WebSearch, mcp__x-docs__search_x, mcp__x-docs__query_docs_filesystem_x
 model: claude-sonnet-5-5
 effort: high
 skills:

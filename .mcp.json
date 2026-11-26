@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "x-docs": {
+      "type": "http",
+      "url": "https://docs.x.com/mcp"
+    }
+  }
+}
