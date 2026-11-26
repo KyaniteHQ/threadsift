@@ -46,6 +46,8 @@ Work is tracked in GitHub issues on `kyanitehq/threadsift` (use `gh`). The `read
 
 Workers AI bills the owner's Cloudflare account by use. Do not call Workers AI from a test, a smoke or live check, a comparison run (`tools/provider-comparison.ts`; Compare Providers in `docs/guides/providers.md`) or an Instance, the owner's included. Never save it as an Instance's Provider. In a comparison run leave `CLOUDFLARE_WORKERS_AI_TOKEN` unset, so its Workers AI row records `workers-ai-credentials-missing`.
 
+The X API bills the owner's X developer account by use. Do not call the X API from a test, a smoke or live check, the gate or a comparison run. The `x-api:probe` task calls it, by hand, with a cap ([CI, releases and rollback](docs/architecture/ci-releases-and-rollback.md#x-api-probe)).
+
 ## Data and private values
 
 The prototype's `data.json` and `img/` are the owner's real saves: other people's posts, comments and images. They stay gitignored, and so does any other fetched content. Hostnames, account names and server details live in the gitignored `docs/private/` on the owner's machine; public docs say "the owner's home server" and "a separate Reddit account".
