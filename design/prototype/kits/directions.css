@@ -4,7 +4,7 @@
   --ls-label: 0.06em;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --target: 44px; --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px;
-  --thumb: 56px; --rail-w: 264px; --list-w: 420px; --list-min: 320px; --page-max: 1480px; --pop-w: 25rem; --bar-h: 56px;
+  --thumb: 40px; --rail-w: 264px; --list-w: 420px; --list-min: 320px; --page-max: 1480px; --pop-w: 25rem; --bar-h: 56px;
   --ind: 22px; --swatch: 24px;
   --dur-move: 280ms; --dur-fade: 200ms; --ease-move: cubic-bezier(0.2, 0.7, 0.2, 1);
   --tag-c: 0.13;

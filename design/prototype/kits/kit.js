@@ -1,4 +1,4 @@
-import { items, topics } from "./items.js";
+import { items, topicHue, topics } from "./items.js";
 
 export const DIRECTIONS = {
   quarto: {
@@ -55,6 +55,7 @@ const SCREENS = [
   { id: "grid", name: "Grid" },
   { id: "reader", name: "Reader" },
   { id: "components", name: "Components" },
+  { id: "covers", name: "Covers" },
 ];
 const THEMES = [
   { id: "light", name: "Light" },
@@ -96,8 +97,8 @@ function rand(seed) {
   };
 }
 
-function coverSVG(item) {
-  const { kind, hue } = item.cover;
+function pictureSVG(item) {
+  const { kind, hue } = item.picture;
   const r = rand(item.id);
   const c = (l, ch = 0.06, h = hue) => `oklch(${l} ${ch} ${h})`;
   let body = "";
@@ -132,6 +133,14 @@ function coverSVG(item) {
 }
 
 const SOURCE = { reddit: "Reddit", x: "X", github: "GitHub", article: "Article", other: "Other" };
+const SOURCE_MARKS = {
+  reddit: '<path d="M5 4v16"/><path d="M5 7h13"/><path d="M9 12h11"/><path d="M9 17h7"/>',
+  x: '<path d="M4 5h16v11h-9l-4 4v-4H4z"/>',
+  github: '<path d="M8 7l-5 5 5 5"/><path d="M16 7l5 5-5 5"/>',
+  article: '<path d="M4 6h16M4 10h16M4 14h16M4 18h10"/>',
+  other: '<circle cx="12" cy="12" r="8"/><path d="M4 12h16M12 4c3.5 3.5 3.5 12.5 0 16M12 4c-3.5 3.5-3.5 12.5 0 16"/>',
+};
+const sourceMark = (it) => `<svg class="ic smark" viewBox="0 0 24 24" aria-hidden="true">${SOURCE_MARKS[it.source]}</svg>`;
 
 const drawnComments = (list) => list.reduce((n, c) => n + (c.a ? 1 : 0) + drawnComments(c.kids ?? []), 0);
 const commentCount = (it) => `${it.digest ? "Kept" : "Showing"} ${drawnComments(it.comments)} of ${it.savedComments}`;
@@ -144,6 +153,32 @@ function stripText(it) {
   if (it.source === "github") return `GitHub · ${it.language}`;
   return `${SOURCE[it.source]} · ${it.domain}`;
 }
+function coverStripText(it) {
+  if (it.linkOnly) return `r/${it.community} · Link-only`;
+  if (it.source === "reddit") return stripText(it);
+  if (it.source === "x") return `@${it.handle}`;
+  if (it.source === "github") return `${it.repo} · ${it.language} · ${it.stars} stars`;
+  return `${it.site} · ${it.readingTime} read`;
+}
+function afterTitle(text, title) {
+  return text.toLowerCase().startsWith(title.toLowerCase()) ? text.slice(title.length).replace(/^[\s.,:;!?-]+/, "") : text;
+}
+function coverBody(it) {
+  if (it.linkOnly) return `<p class="tc-host">${esc(it.host)}</p><p class="tc-path">${esc(it.path)}</p>`;
+  const own = afterTitle(it.excerpt, it.title);
+  if (it.source === "github") return `<p class="tc-lead">${esc(it.description)}</p>${own ? `<p class="tc-more">${esc(own)}</p>` : ""}`;
+  if (own || !it.firstKept) return `<p>${esc(own)}</p>`;
+  const who = it.source === "reddit" ? `u/${it.firstKept.author}` : it.firstKept.author;
+  return `<p class="tc-who">${esc(who)}</p><p>${esc(it.firstKept.text)}</p>`;
+}
+const tint = (it) => `style="--topic-h:${topicHue[it.topic]}"`;
+function textCover(it, ownStrip, cls = "") {
+  const strip = ownStrip ? `<p class="tc-strip"><span class="st">${esc(coverStripText(it))}</span>${sourceMark(it)}</p>` : "";
+  return `<div class="cover tcover ${cls}" ${tint(it)}><div class="tc-in">${strip}<div class="tc-body">${ownStrip ? "" : sourceMark(it)}${coverBody(it)}</div></div></div>`;
+}
+const media = (it, ownStrip, cls = "") => (it.picture ? `<div class="cover ${cls}">${pictureSVG(it)}</div>` : textCover(it, ownStrip, cls));
+const thumb = (it, tile) =>
+  it.picture ? `<div class="cover thumb">${pictureSVG(it)}</div>` : tile ? `<div class="cover thumb ltile" ${tint(it)}>${sourceMark(it)}</div>` : "";
 const keptShare = (it) => (it.digest && it.savedComments ? (drawnComments(it.comments) / it.savedComments).toFixed(3) : 0);
 
 function markBtn(it, cls = "") {
@@ -160,20 +195,20 @@ function byline(it, withTopic = true) {
 }
 const tagList = (it) => (it.tags.length ? `<div class="tags">${it.tags.map((t) => `<span class="tag" data-tag="${t.hue}"><span class="nm">${esc(t.name)}</span></span>`).join("")}</div>` : "");
 
-function row(it, open) {
+function row(it, open, tile = false) {
   return `<article class="row ${it.read ? "" : "unread"}" data-id="${it.id}" ${open ? 'aria-current="true"' : ""}>
     ${strip(it)}
     <div class="row-main"><div class="row-text">
       <h2 class="title"><a href="#${it.id}" data-act="open" data-id="${it.id}">${esc(it.title)}</a></h2>
       <p class="meta">${byline(it)}</p>${tagList(it)}
-    </div>${it.cover ? `<div class="cover thumb">${coverSVG(it)}</div>` : ""}</div>
+    </div>${thumb(it, tile)}</div>
   </article>`;
 }
 
-function card(it) {
-  return `<article class="card banded ruled-strip ${it.read ? "" : "unread"} ${it.cover ? "has-cover" : ""}" data-id="${it.id}" data-read="${it.read}">
+function card(it, ownStrip = false) {
+  return `<article class="card banded ruled-strip has-cover ${it.read ? "" : "unread"}" data-id="${it.id}" data-read="${it.read}">
     ${strip(it)}
-    ${it.cover ? `<div class="cover">${coverSVG(it)}</div>` : ""}
+    ${media(it, ownStrip)}
     <div class="card-body">
       <h2 class="title"><a href="#${it.id}" data-act="open" data-id="${it.id}">${esc(it.title)}</a></h2>
       <p class="meta">${markBtn(it, "mark-meta")}${byline(it, false)}</p>
@@ -202,21 +237,22 @@ function summaryBox(it) {
   }</section>`;
 }
 
-function readerHead(it) {
+function readerHead(it, withCover = false) {
   return `<header class="rd-head banded ruled-strip ${it.read ? "" : "unread"}">
     ${strip(it)}
     <h2 class="rd-title">${esc(it.title)}</h2>
     <p class="meta">${markBtn(it, "mark-meta")}${byline(it)}</p>
     ${tagList(it)}
-    ${it.cover ? `<div class="cover rd-cover">${coverSVG(it)}</div>` : ""}
+    ${it.picture || withCover ? media(it, false, "rd-cover") : ""}
   </header>`;
 }
 
-function readerBody(it) {
+function readerBody(it, withCover = false) {
   if (it.linkOnly) {
-    return `${readerHead(it)}<section class="linkonly"><span class="label">Link-only Item</span><p>Threadsift stores this link with its title and community. No post text or comments were fetched. Save the thread with the Extension from your own tab to keep it.</p><div class="rd-actions"><a class="btn" href="#" data-act="none">${icon("out")}Open on Reddit</a><button class="btn quiet" type="button">Try again</button></div></section>`;
+    return `${readerHead(it, withCover)}<section class="linkonly"><span class="label">Link-only Item</span><p>Threadsift stores this link with its title and community. No post text or comments were fetched. Save the thread with the Extension from your own tab to keep it.</p><div class="rd-actions"><a class="btn" href="#" data-act="none">${icon("out")}Open on Reddit</a><button class="btn quiet" type="button">Try again</button></div></section>`;
   }
-  const post = it.post.map((p) => `<p>${esc(p)}</p>`).join("") + (it.thread ? it.thread.map((p) => `<p class="thread-part">${esc(p)}</p>`).join("") : "");
+  const linked = it.linkTo ? `<p><a class="post-link" href="#" data-act="none">${icon("out")}${esc(it.linkTo)}</a></p>` : "";
+  const post = linked + it.post.map((p) => `<p>${esc(p)}</p>`).join("") + (it.thread ? it.thread.map((p) => `<p class="thread-part">${esc(p)}</p>`).join("") : "");
   const facts = it.source === "github" ? `<dl class="facts"><div><dt class="label">Stars</dt><dd>${it.stars}</dd></div><div><dt class="label">Language</dt><dd>${it.language}</dd></div><div><dt class="label">Updated</dt><dd>${it.updated}</dd></div></dl>` : "";
   const heading = it.source === "github" ? "README" : it.kind === "comment" ? "Saved comment" : it.source === "article" || it.source === "other" ? "Article" : "Original post";
   const parentStub = it.parentStub ? `<div class="stub">${icon("up")}The post and the comment above this one are not saved</div>` : "";
@@ -225,7 +261,7 @@ function readerBody(it) {
         it.digest ? "" : `<p class="note-first">A Digest has not covered this thread yet, so these are the comments that passed the first step.</p>`
       }${commentNodes(it.comments, 1)}</section>`
     : "";
-  return `${readerHead(it)}${summaryBox(it)}${facts}<section class="post"><h3 class="h2">${heading}</h3>${parentStub}${post}</section>${comments}`;
+  return `${readerHead(it, withCover)}${summaryBox(it)}${facts}<section class="post"><h3 class="h2">${heading}</h3>${parentStub}${post}</section>${comments}`;
 }
 
 function readerBar(it, mode) {
@@ -324,14 +360,14 @@ function gridScreen(s, d) {
       <span class="sep" aria-hidden="true"></span>
       ${["reddit", "x", "github", "article"].map((k) => `<button class="chip" type="button" aria-pressed="${s.src === k}" data-act="src" data-src="${k}">${SOURCE[k]}<span class="n">${items.filter((i) => i.source === k).length}</span></button>`).join("")}
     </div>
-    <div class="grid">${vis.map(card).join("")}</div></div>
+    <div class="grid">${vis.map((i) => card(i)).join("")}</div></div>
   </div>${sheet(s)}${panel(s, d)}`;
 }
 
 function sheet(s) {
   const it = items.find((i) => i.id === s.item);
   if (!s.sheetOpen || !it) return "";
-  return `<dialog class="sheet" aria-label="${esc(it.title)}"><div class="rd">${readerBar(it, "sheet")}<div class="rd-col">${readerBody(it)}</div></div></dialog>`;
+  return `<dialog class="sheet" aria-label="${esc(it.title)}"><div class="rd">${readerBar(it, "sheet")}<div class="rd-col">${readerBody(it, true)}</div></div></dialog>`;
 }
 
 function readerScreen(s, d) {
@@ -369,6 +405,28 @@ function componentsScreen(s, d) {
     <section class="c-sec"><h2 class="h2">Reader header and summary box</h2><div class="c-cols"><div class="c-reader">${readerHead(mini)}${summaryBox(mini)}</div><div class="c-reader">${readerHead(items.find((i) => i.id === "sqlite-wal"))}${summaryBox(items.find((i) => i.id === "sqlite-wal"))}</div></div></section>
     <section class="c-sec"><h2 class="h2">Comment tree with Context stubs</h2><div class="c-reader">${commentNodes(mini.comments, 1)}</div></section>
     <section class="c-sec"><h2 class="h2">Settings panel</h2><div class="c-panel">${panel(s, d, false)}</div></section>
+  </div></div>`;
+}
+
+const COVER_KINDS = [
+  { id: "mini-pc", name: "Reddit post", shows: "The post's first lines, or the first Kept comment when the post has no text. Its own strip: the community and the count." },
+  { id: "x-short", name: "X post", shows: "The post text that the title does not already hold. Its own strip: the handle." },
+  { id: "tidepool", name: "GitHub repository", shows: "The description, then the first README lines. Its own strip: owner/name, the language and the stars." },
+  { id: "long-threads", name: "Article with no picture", shows: "The first paragraph. Its own strip: the site and the reading time." },
+  { id: "stabilizers", name: "Link-only Item", shows: "The host in the mono face and the path under it. Its own strip: the community." },
+];
+
+function coversScreen() {
+  return `<div class="c-screen"><div class="c-page cv-page">
+    <div class="c-intro"><h1>Covers</h1><p>An Item with no stored picture gets a cover drawn from its own fields: its first lines in the reading face, a mark for its Source and a quiet tint from its Topic, in the same 16:10 box as a picture. A cover never repeats the title and never shows votes or likes. The proposed card draws no strip on the cover, because the kept strip directly above it already names the Source and the count; the other choice keeps the cover's own strip, so the two can be compared.</p></div>
+    <div class="cv-kinds">${COVER_KINDS.map(({ id, name, shows }) => {
+      const it = items.find((i) => i.id === id);
+      return `<section class="cv-kind" aria-labelledby="cv-${id}"><div class="cv-head"><h2 class="h2" id="cv-${id}">${name}</h2><p class="cv-shows">${esc(shows)}</p></div>
+        <div class="c-demo"><span class="label">Proposed: the kept strip only</span><div class="grid cv-grid">${card(it)}</div></div>
+        <div class="c-demo"><span class="label">Other choice: the cover keeps its strip</span><div class="grid cv-grid">${card(it, true)}</div></div>
+        <div class="c-demo"><span class="label">List row, 40 px tile</span><div class="c-rows">${row(it, false, true)}</div></div>
+      </section>`;
+    }).join("")}</div>
   </div></div>`;
 }
 
@@ -435,7 +493,7 @@ export function boot() {
     apply();
     url();
     main.dataset.screen = s.screen;
-    main.innerHTML = { list: listScreen, grid: gridScreen, reader: readerScreen, components: componentsScreen }[s.screen](s, d);
+    main.innerHTML = { list: listScreen, grid: gridScreen, reader: readerScreen, components: componentsScreen, covers: coversScreen }[s.screen](s, d);
     sync();
     const dlg = main.querySelector("dialog.sheet");
     if (dlg) {

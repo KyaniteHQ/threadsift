@@ -6,10 +6,18 @@ These pages draw the three candidate directions of the Brand Brief, Quarto, Inde
 
 Serve the prototype folder as [the prototype README](../README.md) says, then open:
 
-- http://127.0.0.1:8000/kits/ for the three directions side by side. Its controls switch the screen (List, Grid, Reader, Components), the Theme (Light, Dark, Sepia) and the frame each direction draws in (1440 px or 1080 px wide, scaled to fit, or a 390 px phone).
-- http://127.0.0.1:8000/kits/kit.html?d=quarto for one direction at full width. `d` takes `quarto`, `index` or `proof`; `screen` takes `list`, `grid`, `reader` or `components`; `theme` takes `light`, `dark` or `sepia`. The bar at the top switches all three.
+- http://127.0.0.1:8000/kits/ for the three directions side by side. Its controls switch the screen (List, Grid, Reader, Components, Covers), the Theme (Light, Dark, Sepia) and the frame each direction draws in (1440 px or 1080 px wide, scaled to fit, or a 390 px phone).
+- http://127.0.0.1:8000/kits/kit.html?d=quarto for one direction at full width. `d` takes `quarto`, `index` or `proof`; `screen` takes `list`, `grid`, `reader`, `components` or `covers`; `theme` takes `light`, `dark` or `sepia`. The bar at the top switches all three.
 
-Each screen opens the "Aa" panel from its Aa button. The panel works: Style, Theme, Accent, Font, Text size, Text width, Density and Card images change the page, and Reset look returns every Look setting to the direction's default.
+List, Grid and the Reader open the "Aa" panel from their Aa button, and Components shows the same panel inline. The panel works: Style, Theme, Accent, Font, Text size, Text width, Density and Card images change the page, and Reset look returns every Look setting to the direction's default.
+
+## Covers
+
+An Item with no stored picture gets a cover in the Grid card and in the Grid's sheet: its first lines in the reading face, top left, fading out at the bottom, with a mark for its Source and a quiet tint from its Topic, in the same 16:10 box as a stored picture. The page draws it in HTML and CSS from the Item's fields, so it follows the direction and the Theme through the same custom properties as the rest of the kit, and its text never goes under 12 px. A cover never repeats the title: when the post text begins with the title, the cover starts after it, and a Reddit post with no text shows its first Kept comment.
+
+A cover draws no strip of its own, because the kept strip opens every box a cover sits in, directly above the cover in the Grid card, and already names the Source and the count.
+
+The Covers screen shows the five kinds side by side: a Reddit post, an X post, a GitHub repository, an Article with no picture and a Link-only Item. Each shows the proposed card, the other choice, in which the cover keeps its own one-line strip in the mono face, and the List row with its 40 px tile, which holds the Topic tint and the Source mark and no text.
 
 ## How a direction is built
 
@@ -19,7 +27,7 @@ The Style tiles of the panel apply the room each direction leaves for the two ot
 
 ## Synthetic Items
 
-The kits draw 12 made-up Items: Reddit posts with nested comments, a saved Reddit comment, X posts with an Author thread, GitHub repositories, Articles, a Link-only Item and an Other link, read and unread, with and without a Digest. Authors, communities, domains and text are invented, and the domains end in `.example`. Each Item stores how many comments were saved; the kept strip and the Reader's Comments heading count the comments the Reader draws for it. Covers are shapes the page draws in SVG from each Item's id; no picture is downloaded.
+The kits draw 13 made-up Items: Reddit posts with nested comments, a Reddit link post with no text, a saved Reddit comment, X posts with an Author thread, GitHub repositories, Articles, a Link-only Item and an Other link, read and unread, with and without a Digest. Authors, communities, domains and text are invented, and the domains end in `.example`. Each Item stores how many comments were saved; the kept strip and the Reader's Comments heading count the comments the Reader draws for it. Three Items stand for an Item with a stored picture: the page draws their picture as SVG shapes from the Item's id, and no picture is downloaded. Every other Item gets a cover. Besides the post text, the comments and the facts every Item holds, the synthetic set holds the fields a cover reads: a repository's description, an Article's site and reading time, and a Link-only Item's host and path. The excerpt of the post text, and the first Kept comment of a post with no text, are derived from the post and its comments.
 
 ## Fonts
 

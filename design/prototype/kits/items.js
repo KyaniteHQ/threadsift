@@ -1,4 +1,5 @@
 export const topics = ["Home servers", "Databases", "Typography", "Local-first software", "Keyboards", "Personal finance"];
+export const topicHue = { "Home servers": 230, Databases: 30, Typography: 330, "Local-first software": 150, Keyboards: 75, "Personal finance": 105 };
 
 export const items = [
   {
@@ -13,7 +14,6 @@ export const items = [
     savedComments: 64,
     topic: "Home servers",
     tags: [{ name: "power draw", hue: 1 }, { name: "transcoding", hue: 4 }, { name: "backups", hue: 6 }],
-    cover: null,
     summary:
       "A mini PC with an external drive shelf replaced a four-bay NAS and cut idle power by about half. The kept comments agree on one warning: plan the backup path before the move, not after.",
     keyPoints: [
@@ -79,7 +79,7 @@ export const items = [
     savedComments: 92,
     topic: "Home servers",
     tags: [{ name: "power draw", hue: 1 }, { name: "networking", hue: 5 }],
-    cover: { kind: "rack", hue: 230 },
+    picture: { kind: "rack", hue: 230 },
     summary:
       "Replacing two old managed switches with one fanless switch took the rack from 104 W to 61 W. Commenters add that the savings depend on how many ports run at full speed.",
     keyPoints: [
@@ -124,7 +124,6 @@ export const items = [
     savedComments: 57,
     topic: "Databases",
     tags: [],
-    cover: null,
     summary: null,
     keyPoints: [],
     post: [
@@ -156,6 +155,39 @@ export const items = [
     ],
   },
   {
+    id: "mail-outage",
+    source: "reddit",
+    community: "mailcellar",
+    author: "spf_and_sorrow",
+    title: "Three days without mail because of one DNS record: my write-up",
+    saved: "17 Nov",
+    read: false,
+    digest: true,
+    savedComments: 48,
+    topic: "Home servers",
+    tags: [{ name: "dns", hue: 5 }, { name: "email", hue: 3 }],
+    summary:
+      "A link to a write-up of a self-hosted mail outage traced to an expired DNS record. The kept comments add a monitoring check and one counterpoint about running mail at home.",
+    keyPoints: ["The record had a short lifetime and nobody owned its renewal.", "A daily check of the published records would have caught it in hours."],
+    linkTo: "notes.example/mail-outage",
+    post: [],
+    comments: [
+      {
+        a: "mx_lookup",
+        age: "9 d",
+        text: "Put a daily check on every record your mail depends on and alert on any change, not only on failure. A changed record is the early warning; a bounced message is the late one.",
+        kids: [{ a: "spf_and_sorrow", age: "9 d", text: "Adding that this week. The check is ten lines of shell.", kids: [] }],
+      },
+      {
+        a: "relay_rhonda",
+        age: "8 d",
+        text: "Counterpoint: this is why I send through a relay and only receive at home. Outbound mail is where the deliverability pain lives.",
+        kids: [],
+      },
+      { stub: "more", n: 19 },
+    ],
+  },
+  {
     id: "kerning-comment",
     source: "reddit",
     kind: "comment",
@@ -168,7 +200,6 @@ export const items = [
     savedComments: 0,
     topic: "Typography",
     tags: [{ name: "headings", hue: 2 }, { name: "spacing", hue: 7 }],
-    cover: null,
     summary:
       "Large type needs negative tracking because a face's default spacing is tuned for text sizes. The comment gives a working range and a test.",
     keyPoints: ["Start at -0.01em for headings and go down to -0.03em for display sizes.", "Check with real words, not the alphabet."],
@@ -190,7 +221,7 @@ export const items = [
     savedComments: 37,
     topic: "Local-first software",
     tags: [{ name: "sync", hue: 3 }, { name: "conflicts", hue: 0 }],
-    cover: { kind: "blocks", hue: 150 },
+    picture: { kind: "blocks", hue: 150 },
     summary:
       "A thread on the parts of local-first sync that took longest: merging edits from two offline devices and telling people what happened. Replies add two libraries and one failure case.",
     keyPoints: [
@@ -231,10 +262,11 @@ export const items = [
     savedComments: 12,
     topic: "Local-first software",
     tags: [],
-    cover: null,
     summary: null,
     keyPoints: [],
-    post: ["A rule I keep for side projects: every feature must survive one week of me not touching it. If it breaks on its own, it was not done."],
+    post: [
+      "A rule I keep for side projects: every feature must survive one week of me not touching it. If it breaks on its own, it was not done. Most of mine failed on the same four things: a cron job, a certificate, disk space and an expired API token. Each of those now gets an alert before the project gets a new feature.",
+    ],
     comments: [
       { a: "@ninefold", age: "8 d", text: "Same idea as a cron job you never have to think about.", kids: [] },
       {
@@ -260,7 +292,7 @@ export const items = [
     updated: "4 days ago",
     topic: "Databases",
     tags: [{ name: "job queue", hue: 4 }, { name: "sqlite", hue: 5 }],
-    cover: { kind: "arcs", hue: 30 },
+    description: "Background jobs for small services, kept in one SQLite file. No broker to run.",
     summary:
       "A job queue that keeps its state in one SQLite file. It retries failed jobs with backoff and ships an optional web view of the queue.",
     keyPoints: ["One file holds jobs, attempts and results.", "Retries back off up to a limit you set per job kind.", "The web view is a separate feature flag."],
@@ -282,10 +314,10 @@ export const items = [
     savedComments: 0,
     language: "Go",
     stars: "640",
+    description: "Diff two Postgres dumps table by table.",
     updated: "3 weeks ago",
     topic: "Databases",
     tags: [{ name: "postgres", hue: 5 }],
-    cover: null,
     summary: "A command-line tool that reads two snapshots and prints inserted, changed and deleted rows per table.",
     keyPoints: ["Works on dumps, not live servers.", "Prints a summary first, then the rows."],
     post: ["Give it two dump files and it prints, table by table, the rows that were inserted, changed or deleted."],
@@ -295,6 +327,8 @@ export const items = [
     id: "boring-formats",
     source: "article",
     domain: "fieldnotes.example",
+    site: "Field Notes",
+    readingTime: "7 min",
     author: "Ines Halloran",
     title: "The case for boring storage formats",
     saved: "20 Nov",
@@ -303,7 +337,7 @@ export const items = [
     savedComments: 0,
     topic: "Local-first software",
     tags: [{ name: "file formats", hue: 2 }, { name: "archiving", hue: 6 }],
-    cover: { kind: "terrain", hue: 200 },
+    picture: { kind: "terrain", hue: 200 },
     summary:
       "Plain text, CSV and SQLite outlive the apps that write them. The essay argues for picking a format by how easily a stranger could read it in twenty years.",
     keyPoints: ["A format is only as durable as its simplest reader.", "Keep an export path even when the app is the main reader."],
@@ -317,6 +351,8 @@ export const items = [
     id: "long-threads",
     source: "article",
     domain: "margins.example",
+    site: "Margins",
+    readingTime: "4 min",
     author: "Tomas Okafor",
     title: "Reading long threads without losing the plot",
     saved: "14 Nov",
@@ -325,7 +361,6 @@ export const items = [
     savedComments: 0,
     topic: "Typography",
     tags: [{ name: "reading", hue: 7 }],
-    cover: null,
     summary: "Indentation, a capped depth and one line for every skipped reply keep a long thread readable.",
     keyPoints: ["Cap the indent so deep replies keep a readable width.", "Show a one-line note where replies were left out."],
     post: ["A thread of three hundred replies is not read; it is skimmed. Three habits help: indent replies, cap the indent, and mark every place where something was left out with one quiet line."],
@@ -336,6 +371,8 @@ export const items = [
     source: "reddit",
     linkOnly: true,
     community: "keebworkshop",
+    host: "www.reddit.com",
+    path: "/r/keebworkshop/comments/1q7w3e/lubing_stabilizers_without_a_kit/",
     author: null,
     title: "Lubing stabilizers without a kit",
     saved: "25 Nov",
@@ -344,7 +381,6 @@ export const items = [
     savedComments: 0,
     topic: "Keyboards",
     tags: [],
-    cover: null,
     summary: null,
     keyPoints: [],
     post: [],
@@ -362,10 +398,26 @@ export const items = [
     savedComments: 0,
     topic: "Personal finance",
     tags: [{ name: "plain text", hue: 2 }],
-    cover: { kind: "stripes", hue: 95 },
+    site: "Plain Tools",
+    readingTime: "9 min",
     summary: "Double-entry bookkeeping in a text file: one transaction per paragraph, checked by a small command-line tool.",
     keyPoints: ["Every transaction balances to zero.", "The file is the database, so version control is the history."],
     post: ["Each transaction is a date, a description and two or more postings that add up to zero. A command-line tool reads the file and prints balances."],
     comments: [],
   },
 ];
+
+const EXCERPT_MAX = 400;
+const firstShown = (list) => {
+  for (const c of list) {
+    const found = c.a ? c : firstShown(c.kids ?? []);
+    if (found) return found;
+  }
+  return null;
+};
+for (const it of items) {
+  const text = it.post.join(" ");
+  it.excerpt = text.length > EXCERPT_MAX ? text.slice(0, text.lastIndexOf(" ", EXCERPT_MAX)) : text;
+  const kept = text ? null : firstShown(it.comments);
+  it.firstKept = kept && { author: kept.a, text: kept.text };
+}
