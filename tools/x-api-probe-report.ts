@@ -67,7 +67,7 @@ export function printPlan(config: Config): void {
     );
   }
   process.stdout.write(
-    `${probe} worst case of the run: ${countsText(worstOf(config.plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n${probe} assumptions that S1 measures:\n${ASSUMPTIONS.map((line) => `  - ${line}\n`).join("")}`,
+    `${probe} worst case of the run: ${countsText(worstOf(config.plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n${probe} assumptions:\n${ASSUMPTIONS.map((line) => `  - ${line}\n`).join("")}`,
   );
   const usageRule = usageFailureRuleOf(probe, config.plan);
 

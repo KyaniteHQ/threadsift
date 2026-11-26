@@ -14,10 +14,10 @@ export const PRICE_MICROS = {
 } as const;
 
 export const ASSUMPTIONS = [
-  `A usage or balance read is counted at ${usd(ASSUMED.usageReadMicros)} USD, the highest charge on X's pricing page, because the page does not price the usage endpoints. S1 measures it.`,
-  `The username expansion is counted at ${ASSUMED.usernameUsersPerPost} users per post (the author and the authors of ${REFERENCE_TYPES} referenced posts), because the OpenAPI document does not describe it. S1 measures it.`,
-  "Media, polls, places, topics and calls are not on X's price table, so they count 0. S1 measures the photo of its post.",
-  "X bills a post or a user once per UTC day, so a second lookup of the same post on one day costs nothing and the counted spend can exceed the measured spend. S1's second lookup reads the same post and is expected to cost nothing. S2 and S3 need posts not read earlier the same UTC day.",
+  `A usage or balance read is counted at ${usd(ASSUMED.usageReadMicros)} USD, the highest charge on X's pricing page, because the page does not price the usage endpoints. A balance read showed no cost within the balance's 0.01 USD step on 2026-11-26; the price of a usage read is not measured.`,
+  `The username expansion is counted at ${ASSUMED.usernameUsersPerPost} users per post (the author and the authors of ${REFERENCE_TYPES} referenced posts), because the OpenAPI document does not describe it. S1 returned 1 user for a post that quotes its own author on 2026-11-26, which leaves the bound open.`,
+  "Media, polls, places, topics and calls are not on X's price table, so they count 0. The photo of S1's post added no charge that the balance can show on 2026-11-26.",
+  "X bills a post or a user once per UTC day, so a second lookup of the same post on one day costs nothing and the counted spend can exceed the measured spend. S1's second lookup reads the same post and cost nothing on 2026-11-26. S2 and S3 need posts not read earlier the same UTC day.",
 ] as const;
 
 export const CEILING = { usdMicros: 2 * MICROS_PER_USD, posts: 400 } as const;
