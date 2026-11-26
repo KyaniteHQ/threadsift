@@ -69,7 +69,7 @@ function probeInputOf(): ProbeInput {
     case "S2": {
       const names = z
         .enum(FIELD_NAMES)
-        .safeParse(required("X_API_FIELD_NAMES", "give the names probe S1 found: tweet or post"));
+        .safeParse(required("X_API_FIELD_NAMES", "give the names to send: tweet or post"));
 
       if (!names.success) throw new Refusal("X_API_FIELD_NAMES must be tweet or post");
       return { probe: known, plainId: first, expandedId: second, names: names.data };
