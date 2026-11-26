@@ -1,4 +1,4 @@
-import type { HighlightsPage } from "../../src/core/contract/highlights-page-wire.ts";
+import type { HighlightsList } from "../../src/core/contract/highlights-page-wire.ts";
 import { filled } from "./filled.ts";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { matchedCount } from "./list-counts.ts";
@@ -38,7 +38,7 @@ export function headLabel(
 }
 
 export function highlightsHeadText(
-  counts: Readonly<HighlightsPage["counts"]>,
+  counts: Readonly<HighlightsList["counts"]>,
   filters: Readonly<Filters>,
 ): string {
   if (counts.total === 0) return "";

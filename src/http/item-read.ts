@@ -7,6 +7,13 @@ import { listItems } from "../features/item/core/item-selection.ts";
 import { itemView } from "./item-view.ts";
 import type { ItemQuerySchema } from "./route-input.ts";
 
+export function withCounts<Shown extends object, Counts>(
+  shown: Shown,
+  counts: Counts | null,
+): Shown | (Shown & { readonly counts: Counts }) {
+  return counts === null ? shown : { ...shown, counts };
+}
+
 export async function readItemPage(ports: Ports, query: Readonly<z.infer<typeof ItemQuerySchema>>) {
   const { cursor = null, ...typed } = query;
 
@@ -14,7 +21,7 @@ export async function readItemPage(ports: Ports, query: Readonly<z.infer<typeof 
 
   const shown = { items: items.map((row) => itemView(row)), next };
 
-  return counts === null ? shown : { ...shown, counts };
+  return withCounts(shown, counts);
 }
 
 export async function readItem(ports: Ports, id: number) {

@@ -277,7 +277,7 @@ Rules for the Digest:
 - A Note is plain text of up to 10,000 code points, saved with the Save button or Ctrl or Cmd with Enter.
 - When the Note changed elsewhere since the owner loaded it, the save is refused and the Reader shows the newer Note beside the owner's text, with a choice to keep the owner's text or take the newer one. Text the owner typed and did not save stays in that browser for the Item.
 - A second page lists every Highlight and every Item Note, newest first, each with its Item's Source, title and date and a link back to that place in the Reader. Search and the Source, Topic and Tag filters work there too.
-- The page opens from the Highlights link, the first of the page links in the settings panel, and at `/highlights`. It shows 50 entries at a time with Load more. Load more pressed with the keyboard moves focus to the first new entry once it arrives, unless the owner moved focus to another control while it loaded; the Index, the Log and the Proposals page do the same.
+- The page opens from the Highlights link, the first of the page links in the settings panel, and at `/highlights`. It shows 50 entries at a time with Load more. The counts beside the filters come with the first 50 entries and stay as they are while Load more adds entries. Load more pressed with the keyboard moves focus to the first new entry once it arrives, unless the owner moved focus to another control while it loaded; the Index, the Log and the Proposals page do the same.
 - A Highlight is dated when it was kept and a Note when it was last saved. A Note the owner cleared has no entry.
 - Search there matches only the entry's own quote or Note text, not the Item's title, Summary or Tags.
 
