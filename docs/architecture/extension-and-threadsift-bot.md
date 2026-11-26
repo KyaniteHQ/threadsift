@@ -160,7 +160,7 @@ A template carries skills as text and no other file, so the bot folder holds one
 
 - The bot loads the skill on every webhook wake, and on another chat turn only when its description matches, so it stays short.
 - A template has one profile field, which the host uses for the marketplace card, the share page and the imported bot's profile. The profile file is one description of one or two sentences that names the boundary, and the skill holds the full rules.
-- A template carries no routine, so setup creates the two routines from the routine files in the bot folder.
+- A template can carry a routine: on 2026-11-26 the template details of a shared Bot listed its webhook routine with the routine's instruction. Whether it keeps a scheduled routine's schedule is not verified. The Threadsift bot's template carries none, so setup creates the two routines from the routine files in the bot folder.
 - The skill pins the hash of `SHA256SUMS` and the release tag (`TAG=` and `SUMS_SHA256=` in its bootstrap line) and is not listed in `SHA256SUMS`, because each would then depend on the other. An update trusts the new `SKILL.md` through HTTPS and the tag only.
 
 ### Webhook tasks
