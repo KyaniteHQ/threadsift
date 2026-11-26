@@ -4,10 +4,8 @@ The brand is Quarto, a technical monograph: one grotesque family, a ruled matrix
 
 ## Why Quarto
 
-Three directions were drawn as kits on synthetic Items: Quarto, Index Room and Proof Sheet. The owner chose Quarto. These facts set it apart:
-
-- **Its accent is an existing Accent.** Quarto defaults to Moss, one of the five hues the Accent setting offers, so the brand needs no new hue. Proof Sheet defaulted to a red at hue 25, which the Accent setting does not offer.
-- **The Font setting keeps 4 choices.** Each of the 3 Styles writes a pair of its own: Schibsted Grotesk for Library, Schibsted Grotesk with Source Serif 4 for Broadsheet, and Commit Mono for Workbench. Atkinson Hyperlegible is the fourth. Index Room and Proof Sheet read in a serif already, so their Broadsheet had no pair of its own and their Font setting held 3.
+- **Its accent is an existing Accent.** Quarto's default accent is Moss, one of the five hues the Accent setting offers, so the brand needs no new hue.
+- **The Font setting keeps 4 choices.** Quarto reads in a grotesque, so each of the 3 Styles writes a pair of its own: Schibsted Grotesk for Library, Schibsted Grotesk with Source Serif 4 for Broadsheet, and Commit Mono for Workbench. Atkinson Hyperlegible is the fourth. A brand that read in a serif already would leave Broadsheet no reading face of its own, and the Font setting would hold 3.
 
 ## The kept strip in the Reader
 

@@ -134,6 +134,14 @@ _Avoid_: Placeholder, removed comment
 The view that shows one Item in full: header, Summary, Key points, post text, the comments (Kept comments, and any comment that holds an attached Highlight, once a Digest covers the thread, otherwise every comment that passes the first step of the comment filter), the link a Reddit link post points at, and the owner's Highlights and Note.
 _Avoid_: Detail view, article view
 
+**Kept strip**:
+The one line of monospaced text that opens a List row and a Grid card and starts the line under the Reader's title: it names where the Item came from and, for a thread, counts the comments the Reader shows out of the saved ones.
+_Avoid_: Meta line, badge, header
+
+**Cover**:
+What a Grid card shows in place of a picture for an Item with no stored picture: the Item's own first lines, a mark for its Source and a tint from its Topic. In a List row the same Item shows a tile with only the mark and the tint.
+_Avoid_: Placeholder, generated image, thumbnail
+
 **Author thread**:
 The posts an X post's author wrote as a chain of replies to their own post. The Reader shows them as part of the post text, in order, once each is checked against X (a Paste's own text is not checked); a follow-up that fails the check is left out and the post text says a part was not saved.
 _Avoid_: Thread (alone, it also means the replies), self-replies, author chain

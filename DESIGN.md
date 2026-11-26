@@ -297,6 +297,7 @@ Quarto's neutral hue and chroma, faces, default accent, corners, hairlines, shad
 - Controls, fields, cards, boxes and panels are square or nearly square: every corner is 0 to 4px (`--r1` to `--r3`). No control, Tag, mark or swatch is a stadium, a shape whose corner is half its height, so the brand draws no pills. Pills are the common shape of product sites today, so a pill would not mark a screen as Threadsift.
 - Hairlines draw the structure: a row divider, a card edge, the rule above the kept strip. Tone (page, surface, sunk surface) separates regions where a line would be noise.
 - Marks are squares: the unread mark, the Accent swatch and a Tag's colour mark.
+- No row, card or box carries a bar down one side. A selected or open part shows its state through its fill, its text weight or an edge round the whole part.
 
 ### Colour world
 
@@ -308,7 +309,7 @@ Quarto's neutral hue and chroma, faces, default accent, corners, hairlines, shad
 
 - Three roles: a UI face for titles, labels and controls; a reading face for post, comment and summary text, which may be the UI face; and a monospaced face for the kept strip and code.
 - Every face is served from the Instance, so its licence must allow self-hosting: each face named in the Brand Brief is under the SIL Open Font License 1.1 and is published on Fontsource, where the app takes today's faces from. `pnpm run check:faces` checks that every Font and Style stack in the tokens starts with a face the app loads.
-- The Font setting offers four pairs. Three are the pairs of the three Styles, and choosing a Style writes its pair into the setting. The fourth is chosen for legibility: Atkinson Hyperlegible Next for the UI and reading text, and Atkinson Hyperlegible Mono for the kept strip and code. Both are under the SIL OFL 1.1, from [Google Fonts](https://github.com/google/fonts), and on Fontsource as variable fonts with weights 200 to 800 and an italic. The owner can choose any of the four under any Style. The Plain Panel Rule (Typography, above) stays.
+- The Font setting offers four pairs. Three are the pairs of the three Styles, and choosing a Style writes its pair into the setting. The fourth is chosen for legibility: Atkinson Hyperlegible Next for the UI and reading text, and Atkinson Hyperlegible Mono for the kept strip and code. Both are under the SIL OFL 1.1, from [Google Fonts](https://github.com/google/fonts), and on Fontsource as variable fonts with weights 200 to 800 and an italic. The owner can choose any of the four under any Style. The Plain Panel Rule (Typography, above) stays, with the Library pair in place of the Plex pair.
 
 ### Motion
 
@@ -321,6 +322,7 @@ Quarto's neutral hue and chroma, faces, default accent, corners, hairlines, shad
 - An Item with no stored picture gets a cover in the Grid card, in the same 16:10 box as a stored picture. The cover holds the Item's own first lines in the reading face, top left, fading out at the bottom, the Topic tint and the Source mark, and nothing else.
 - A cover draws no strip of its own. The kept strip directly above it in the card already names the community or the Source, the handle, the language or the domain, and counts a thread's comments.
 - A repository's stars and an Article's reading time sit on the card's line under the title, with the author and the date.
+- A List row of an Item with no stored picture shows a 40px tile in place of the picture, with the Topic tint and the Source mark and no text, at every Density.
 - A cover never repeats the title and never shows vote arrows or counts of likes, and its text never goes under 12px.
 
 ### What no Style may change
@@ -353,9 +355,11 @@ These rules describe the app as built and stay until Quarto is built. That build
 - Colors, Neutral: Grid tilts the greys toward violet (`--nh`, `--nc`). Quarto keeps one neutral world for List and Grid.
 - Colors, Neutral, and Components, Chips: three Tag styles, with a coloured dot before the name by default. Quarto draws one Tag: a square swatch before the name.
 - Typography: IBM Plex Sans and the Font setting's five pairs. Quarto names its own faces, and the Font setting offers four pairs.
+- Typography, the Plain Panel Rule: the settings panel keeps the Plex pair. Under the Brand Brief it keeps the Library pair, Schibsted Grotesk.
 - Typography, Title: the Cal.com Style, one of the Styles the app has today. Under the Brand Brief the app has three Styles: Library and the two the product brief names.
 - Layout: in Grid an Item opens as a full page or as a sheet, as the owner chooses. Under the Brand Brief, Grid opens a sheet from `--bp-medium` (1080px) up, with a button that expands it to a full page, and a full page below that width.
 - Elevation & Depth, Key Characteristics, and the Lifted Only Rule: Grid cards carry the low shadow, and the settings panel, the reader sheet and the floating paste card carry the high shadow. Quarto draws Grid cards flat.
+- List row, and Do's: the open row takes a 3px accent bar on its left edge as well as its tint. Under the Brand Brief the open row takes the tint and a 1px accent-ink edge round the whole row, because the brand draws no bar down one side of a box. The edge measures 5.3:1 or more against the tint (accent ink on the accent soft tint, in the table below).
 - List row, and Do's: the unread dot sits on the first metadata line. Under the Brand Brief the kept strip is the first line of a List row and a Grid card, and the unread mark sits at its start. In the Reader the strip and the unread mark open the line under the title, before the author and the date.
 
 ### Rules of other docs that the Brand Brief contradicts
@@ -363,6 +367,7 @@ These rules describe the app as built and stay until Quarto is built. That build
 - [The spec](docs/spec.md), Style, and [the glossary](GLOSSARY.md), Style: Library plus 10 Styles, and a Style other than Library replaces Font and Accent, whose controls are disabled with "Set by the style". Under the Brand Brief the app has three Styles, choosing one writes its Font and Accent into the settings once, the owner can change either, and no control is disabled.
 - The spec, Look settings, and the glossary, Look settings: Tag style (Chips, Text, Dots) and Comment style (Indented lines, Cards, Rail), where Rail draws an avatar beside each comment. The brand draws one Tag and one comment tree, with no avatars, so both settings go.
 - The spec, Look settings: Font offers 5 pairs. Under the Brand Brief it offers four.
+- The spec, Look settings: Density offers Compact, Comfortable and Roomy. Under the Brand Brief it offers Compact and Comfortable.
 - The spec, Layout and reader, Reset look and Storage, and the glossary, Reader style: the "Open items as" setting (Page or Sheet). Under the Brand Brief, Grid opens a sheet from 1080px up and a full page below that, so the setting goes.
 - The product brief, Brand Commitments: interface text has no hand-picked voice. The Brand Brief sets one.
 
