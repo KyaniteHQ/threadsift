@@ -42,32 +42,38 @@ Karakeep, the closest open-source tool, has no comment-thread model, so it would
 
 ### Interface voice
 
-These rules hold for every text a person reads in the product: labels, buttons, messages, empty states, errors and notes. The voice is plain, exact and quiet, like a catalogue note. The copy script puts this section into its prompt, so the section has to read on its own.
+These rules hold for every text a person reads in the web app, the browser extension and the Threadsift bot: labels, buttons, messages, empty states, errors and notes. The voice is plain, exact and quiet, like a catalogue note. The copy script puts this section into its prompt, so the section has to read on its own.
 
-1. **Use the glossary's word, with its capital letter, and the same word every time.** Item, Topic, Tag, Digest, Summary, Highlight, Note, Reader, Instance, Provider, Paste, Import and the other terms of `GLOSSARY.md` keep their capital in the middle of a sentence. Never use a word from a term's Avoid line.
+1. **Use the glossary's word in ordinary sentence case, and use the same word every time.** Name each concept with its `GLOSSARY.md` word (`item`, `topic`, `tag`, `digest`, `summary`, `highlight`, `note`, `reader`, `instance`, `provider`, `paste`, `import`), lowercase in the middle of a sentence. Never use a word from a term's Avoid line, and do not surface internal-only terms (such as "context stub" or "short-link alias") when plain words explain the state directly.
    - Bad: "Search saved posts"
-   - Good: "Search Items"
-2. **Name a count, a state or the next action.** A count is a figure. A state says what is true now. An action says what the owner can do.
+   - Good: "Search items"
+2. **Name a count, a state or the next action.** A count is a figure. A state says what is true now. An action says what the person can do next.
    - Bad: "Some of these are still new"
-   - Good: "6 Items, 2 unread"
-3. **Never cheer, hurry or claim.** No exclamation marks, no emoji, no praise of the owner or of Threadsift, and no "just", "simply", "instantly" or "seamless". Never promise a time or a result the Instance cannot know.
+   - Good: "6 items, 2 unread"
+3. **Never cheer, hurry or claim.** No exclamation marks, no emoji, no praise of the reader or of Threadsift, and no "just", "simply", "instantly" or "seamless". Never promise a time or a result Threadsift cannot know.
    - Bad: "Done! Your link is saved in seconds."
    - Good: "Added"
-4. **An error says what failed, then why when the Instance knows it, then what the owner can do.** Name what failed: the website, GitHub, Reddit, X, the grok CLI or the Grok Bot. Never blame the owner, and never show an error code as the message.
-   - Bad: "Error 504. Please try again."
-   - Good: "The website didn’t answer in time."
-5. **A control names its result.** A button is a verb, or a verb and its object. A field label names what goes in the field. A placeholder gives an example or a hint and never replaces the label.
-   - Bad: "OK", "Submit"
-   - Good: "Add", "Clear filters", "Reset look"
+4. **An error says what failed, why when Threadsift knows it, and what the person can do next.** Name what failed in plain words (such as the website, GitHub, Reddit, X, the Grok Bot, a saved token or a form field), and skip the next step in prose when a button beside the error already names it. Never blame the person, and never show an error code or raw technical message as the text.
+   - Bad: "Error 401. Invalid credentials."
+   - Good: "GitHub rejected the saved token. Replace or remove it in Settings."
+5. **Every control names its result or destination.** A button is a verb, or a verb and its object. A link names where it goes, never "Click here" or "Learn more". A field label names what goes in the field; instructions and rules live in a visible hint outside the field, while a placeholder gives only a short example and never replaces the label.
+   - Bad: "OK", "Submit", "Click here"
+   - Good: "Add", "Clear filters", "Open on Reddit"
 6. **Say each fact once, in the fewest words that keep it.** Do not repeat the heading, the label or the button in the text beside it. Write one idea per sentence.
    - Bad: "Reset look puts the look settings back to their defaults" beside the Reset look button
    - Good: "Layout, Open items as and Theme stay as they are."
-7. **Threadsift speaks of itself in the third person, and speaks to the owner only when the owner must act.** Write "Threadsift", never "we" or "I". Use "you" only in an instruction.
-   - Bad: "We couldn’t reach your website"
-   - Good: "Couldn’t reach the website"
-8. **Use sentence case, and punctuation that marks the kind of text.** Only the first word and glossary terms take a capital letter. A full sentence ends with a period; a label, a heading, a title or a count does not. Use ’ for an apostrophe, … after an action that is still running, and · only between the parts of one line, as the kept strip does.
-   - Bad: "Load More."
-   - Good: "Load more", "Saving…"
+7. **Threadsift speaks of itself in the third person, and uses "you" only for instructions or to clarify ownership.** Write "Threadsift" only when naming the actor adds clarity, and never write "we" or "I". Use "you" or "your" when giving an instruction or distinguishing the person's own input or account (such as a password or an unsaved note), never as filler on ordinary labels.
+   - Bad: "We couldn’t reach your website."
+   - Good: "Couldn’t reach the website."
+8. **Use ordinary sentence case, and punctuation that marks the kind of text.** Capitalize only the first word, proper nouns (such as Threadsift, Reddit, X, GitHub, Grok Bot and named styles, themes or accents like Library or Sepia) and exact UI labels when pointing to a screen or control (such as Settings, Open items as or Try again). A full sentence ends with a period, or a question mark when asking; a label, button, heading, title, count or short status fragment does not. Use ’ for an apostrophe, … after an action that is still running, and · only between the parts of one inline metadata line.
+   - Bad: "Load More Items."
+   - Good: "Load more items", "Saving…"
+9. **Use plain words that work in every layout, theme and device.** Avoid developer jargon (such as "payload", "endpoint" or "JSON") unless the person must enter or match a technical value. Never refer to colour, screen position or input device ("green", "on the left", "above", "click", "tap"); name the control or section instead.
+   - Bad: "Click the green link above to check the webhook endpoint."
+   - Good: "Open Settings to check the Grok Bot address."
+10. **State the impact of a permanent or destructive action plainly.** Skip "Are you sure?". Name what will be removed or changed, and say when an action cannot be undone, without drama.
+    - Bad: "Are you sure you want to delete this item?"
+    - Good: "Delete this item? Its highlights, note and saved images will be removed. This can’t be undone."
 
 ## Brand Brief
 

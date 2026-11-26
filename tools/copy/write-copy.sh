@@ -23,7 +23,7 @@ voice=$(awk '/^### Interface voice$/ { found = 1; next } found && /^(#|##|###)[[
   exit 65
 }
 
-models=(gemini-4-argon-high gemini-3.8-flash-high)
+models=(gemini-4-neon-high gemini-4-argon-high gemini-3.8-flash-high)
 
 available=$(timeout 20 agy models 2>&1) || true
 for model in "${models[@]}"; do
@@ -33,7 +33,7 @@ for model in "${models[@]}"; do
   }
 done
 
-prompt="Use the humanizer skill: read .agents/skills/humanizer/SKILL.md in this workspace and follow it. Read PRODUCT.md and GLOSSARY.md, then write the text the brief below asks for, in the order it asks. Every text follows the voice rules below; where the humanizer skill and a voice rule differ, the voice rule wins. Return only that text, with no preamble and no notes.
+prompt="Use the humanizer skill: read .agents/skills/humanizer/SKILL.md in this workspace and follow it. Read PRODUCT.md and GLOSSARY.md. To see where a text shows, you may read DESIGN.md and the files under design/system and design/prototype, and for interface practice https://github.com/GoogleChrome/modern-web-guidance. Change no file. Then write the text the brief below asks for, in the order it asks. Every text follows the voice rules below; where the humanizer skill and a voice rule differ, the voice rule wins. Return only that text, with no preamble and no notes.
 
 <voice-rules>
 $voice
