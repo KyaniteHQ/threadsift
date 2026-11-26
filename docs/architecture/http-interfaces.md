@@ -88,6 +88,7 @@ The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 
 
 - `POST /api/items/:id/highlights` answers 409 when the text changed since the owner read it, and 400 with `code` `selector-mismatch` when the passage does not stand at its hint in that text.
 - `PUT /api/items/:id/note` takes the Note's `revision` and answers 409 with the stored Note when it moved.
+- `GET /api/highlights` answers its `counts` only when the request has no `cursor`, by the rule of the Item list, so a Load more does not count the library again.
 
 ## The Index, the Log and Proposals
 

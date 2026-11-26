@@ -1,8 +1,10 @@
+import type { ZodType } from "zod";
+
 import { ErrorResponseSchema } from "../../src/core/contract/error-wire.ts";
 import { refreshedOf } from "../../src/core/contract/fetch-results.ts";
 import {
+  HighlightsListResponseSchema,
   HighlightsPageResponseSchema,
-  type HighlightsPage,
 } from "../../src/core/contract/highlights-page-wire.ts";
 import type { ReadState } from "../../src/core/contract/item-contract.ts";
 import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
@@ -12,8 +14,6 @@ import {
   ItemPageResponseSchema,
   ItemResponseSchema,
   SavedItemResponseSchema,
-  type ItemList,
-  type ItemPage,
 } from "../../src/core/contract/item-route-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import {
@@ -70,32 +70,26 @@ export async function putReadState(id: number, readState: ReadState): Promise<It
   ).item;
 }
 
-export function fetchItems(filters: Readonly<Filters>, signal: AbortSignal): Promise<ItemList> {
-  return parsedFrom("GET", `/api/items${queryOf(filters)}`, ItemListResponseSchema, { signal });
+function filteredReads<List, Page>(path: string, list: ZodType<List>, page: ZodType<Page>) {
+  return {
+    first: (filters: Readonly<Filters>, signal: AbortSignal): Promise<List> =>
+      parsedFrom("GET", `${path}${queryOf(filters)}`, list, { signal }),
+    after: (filters: Readonly<Filters>, cursor: string, signal: AbortSignal): Promise<Page> =>
+      parsedFrom("GET", `${path}${queryOf(filters, cursor)}`, page, { signal }),
+  };
 }
 
-export function fetchItemsAfter(
-  filters: Readonly<Filters>,
-  cursor: string,
-  signal: AbortSignal,
-): Promise<ItemPage> {
-  return parsedFrom("GET", `/api/items${queryOf(filters, cursor)}`, ItemPageResponseSchema, {
-    signal,
-  });
-}
+export const { first: fetchItems, after: fetchItemsAfter } = filteredReads(
+  "/api/items",
+  ItemListResponseSchema,
+  ItemPageResponseSchema,
+);
 
-export function fetchHighlightsPage(
-  filters: Readonly<Filters>,
-  cursor: string | null,
-  signal: AbortSignal,
-): Promise<HighlightsPage> {
-  return parsedFrom(
-    "GET",
-    `/api/highlights${queryOf(filters, cursor)}`,
-    HighlightsPageResponseSchema,
-    { signal },
-  );
-}
+export const { first: fetchHighlights, after: fetchHighlightsAfter } = filteredReads(
+  "/api/highlights",
+  HighlightsListResponseSchema,
+  HighlightsPageResponseSchema,
+);
 
 export type TopicRead =
   | { readonly outcome: "found"; readonly page: TopicPage }

@@ -15,12 +15,10 @@ import { digests, highlights, items, notes, searchParts } from "../../../core/ke
 import { type ItemFilters, facetCounts, facetQueries, itemConditions } from "./item-filters.ts";
 import { partMatching } from "./search.ts";
 
-export interface HighlightsPage {
+export interface HighlightsRead {
   readonly entries: readonly Entry[];
   readonly next: string | null;
-  readonly counts: {
-    readonly total: number;
-  } & ReturnType<typeof facetCounts>;
+  readonly counts: ({ readonly total: number } & ReturnType<typeof facetCounts>) | null;
 }
 
 function ownPart(terms: readonly string[], owner: Readonly<SQLWrapper>): SQL | undefined {
@@ -124,28 +122,35 @@ function entryOf(row: Readonly<Row>): Entry {
     : { kind: "note", ...shared };
 }
 
-export async function highlightsPage(
-  db: Database,
-  filters: Readonly<ItemFilters>,
-  cursor: PageCursor | null,
-): Promise<HighlightsPage> {
-  const facets = { ...filters, terms: [] };
-
-  const [rows, [highlightTotal], [noteTotal], ...counted] = await db.batch([
-    pageQuery(db, filters, cursor),
-    ...entryTotals(db),
-    ...facetQueries(db, facets, () => entryUnit(filters.terms)),
-  ]);
-
+function pageOf(rows: readonly Row[]) {
   const { items: entries, next } = pageTail(
     rows.map((row) => entryOf(row)),
     PAGE_SIZE,
     formatCursor,
   );
 
+  return { entries, next };
+}
+
+export async function highlightsPage(
+  db: Database,
+  filters: Readonly<ItemFilters>,
+  cursor: PageCursor | null,
+): Promise<HighlightsRead> {
+  if (cursor !== null) {
+    return { ...pageOf(await pageQuery(db, filters, cursor)), counts: null };
+  }
+
+  const facets = { ...filters, terms: [] };
+
+  const [rows, [highlightTotal], [noteTotal], ...counted] = await db.batch([
+    pageQuery(db, filters, null),
+    ...entryTotals(db),
+    ...facetQueries(db, facets, () => entryUnit(filters.terms)),
+  ]);
+
   return {
-    entries,
-    next,
+    ...pageOf(rows),
     counts: {
       total: (highlightTotal?.count ?? 0) + (noteTotal?.count ?? 0),
       ...facetCounts(counted),

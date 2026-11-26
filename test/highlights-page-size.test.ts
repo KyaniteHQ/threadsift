@@ -3,7 +3,13 @@ import { after, before, describe, it } from "node:test";
 
 import { MINUTE_MS } from "../src/core/contract/time-units.ts";
 import { atClock } from "./clock-fixtures.ts";
-import { keepEach, keepNote, pageOf } from "./highlights-page-fixtures.ts";
+import {
+  countingBatches,
+  keepEach,
+  keepNote,
+  pageAfter,
+  pageOf,
+} from "./highlights-page-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { paste } from "./library-fixtures.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
@@ -36,16 +42,24 @@ describe("the Highlights page shows 50 entries at a time and pages by cursor wit
 
   after(() => instance.close());
 
-  it("answers a first page of 50 and a cursor, then the rest and no cursor, with the 52 entries of one date each once", async () => {
-    const first = await pageOf(instance);
+  it("answers a first page of 50 with its counts and a cursor, then the rest with no cursor and no counts and without counting the library again, with the 52 entries of one date each once", async () => {
+    const { answer: first, batches: firstCounted } = await countingBatches(instance, () =>
+      pageOf(instance),
+    );
 
     assert.equal(first.entries.length, 50);
     assert.ok(first.next !== null);
 
-    const second = await pageOf(instance, `?cursor=${first.next}`);
+    const cursor = first.next;
+    const { answer: second, batches: secondCounted } = await countingBatches(instance, () =>
+      pageAfter(instance, cursor),
+    );
 
     assert.equal(second.entries.length, 2);
     assert.equal(second.next, null);
+    assert.equal(second.counts, undefined);
+    assert.equal(firstCounted, 1);
+    assert.equal(secondCounted, 0);
 
     const all = [...first.entries, ...second.entries];
 
@@ -67,13 +81,10 @@ describe("the Highlights page shows 50 entries at a time and pages by cursor wit
 
     assert.ok(cursor !== null);
 
-    const listed = idsOf([
-      ...first.entries,
-      ...(await pageOf(instance, `?cursor=${cursor}`)).entries,
-    ]);
+    const listed = idsOf([...first.entries, ...(await pageAfter(instance, cursor)).entries]);
 
     const added = await keepPassage(instance, itemId, "token05 token06");
-    const second = await pageOf(instance, `?cursor=${cursor}`);
+    const second = await pageAfter(instance, cursor);
 
     assert.deepEqual(idsOf([...first.entries, ...second.entries]), listed);
     assert.equal((await pageOf(instance)).entries[0]?.id, added);
@@ -113,7 +124,7 @@ describe("the Highlights page answers exactly 50 entries without a cursor, and t
     assert.equal(first.entries.length, 50);
     assert.ok(first.next !== null);
 
-    const second = await pageOf(instance, `?cursor=${first.next}`);
+    const second = await pageAfter(instance, first.next);
 
     assert.equal(first.entries[0]?.id, last);
     assert.equal(second.entries.length, 1);
