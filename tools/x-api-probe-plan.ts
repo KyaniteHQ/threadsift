@@ -206,6 +206,22 @@ export function isBalanceRead(request: PlannedRequest): boolean {
   return request.role !== "usage" && request.role !== "lookup";
 }
 
+function goesOnAfterServerError(request: PlannedRequest): boolean {
+  return request.role === "usage";
+}
+
+export function endsRunOn(request: PlannedRequest, status: number): boolean {
+  return status === 401 || status === 429 || (status >= 500 && !goesOnAfterServerError(request));
+}
+
+export function serverErrorRuleOf(plan: readonly PlannedRequest[]): string {
+  const goesOn = plan.filter((request) => goesOnAfterServerError(request));
+
+  return goesOn.length === 0
+    ? "A 5xx answer to any request ends the run."
+    : `A 5xx answer to ${goesOn.map((request) => request.label).join(", ")} is saved and the run goes on to its next request; such a run leaves the usage question of S1, whether a usage read costs anything, unanswered. A 5xx answer to any other request ends the run.`;
+}
+
 export const BALANCE_SETTLE_MS = 60_000;
 
 export const PLAN_FILE = "plan.json";

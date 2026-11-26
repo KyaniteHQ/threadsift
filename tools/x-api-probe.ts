@@ -15,6 +15,8 @@ import {
   PLAN_FILE,
   Refusal,
   SUMMARY_FILE,
+  endsRunOn,
+  serverErrorRuleOf,
   worstOf,
 } from "./x-api-probe-plan.ts";
 import {
@@ -39,7 +41,7 @@ function nextOf(config: Config, sent: Sent): Next {
     };
   const { status } = sent.outcome;
 
-  if (status === 401 || status === 429 || status >= 500)
+  if (endsRunOn(sent.request, status))
     return { kind: "end", ending: { kind: "answer", label, status } };
   switch (role) {
     case "opening-balance": {
@@ -127,6 +129,7 @@ async function runLive(config: Config, token: string, runFolder: string): Promis
     caps: capsRecord(config.caps),
     settleSeconds: BALANCE_SETTLE_MS / 1000,
     assumptions: ASSUMPTIONS,
+    onServerError: serverErrorRuleOf(config.plan),
     requests: config.plan.map((request) => ({
       ...request,
       worstUsd: usd(costOf(request.worst)),
@@ -140,7 +143,7 @@ async function runLive(config: Config, token: string, runFolder: string): Promis
 
   await writeRecord(run, SUMMARY_FILE, JSON.stringify(summary, null, 2));
   process.stdout.write(
-    `${JSON.stringify({ ending: summary.ending, countedSpend: summary.countedSpend, measuredSpend: summary.measuredSpend, folder: run.folder })}\n`,
+    `${JSON.stringify({ ending: summary.ending, usageQuestion: summary.usageQuestion, countedSpend: summary.countedSpend, measuredSpend: summary.measuredSpend, folder: run.folder })}\n`,
   );
   return state.ending.kind === "completed" ? 0 : 1;
 }

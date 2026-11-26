@@ -11,7 +11,12 @@ import {
 } from "./x-api-probe-cost.ts";
 import type { Reading } from "./x-api-probe-count.ts";
 import type { Config } from "./x-api-probe-input.ts";
-import { BALANCE_SETTLE_MS, type PlannedRequest, worstOf } from "./x-api-probe-plan.ts";
+import {
+  BALANCE_SETTLE_MS,
+  type PlannedRequest,
+  serverErrorRuleOf,
+  worstOf,
+} from "./x-api-probe-plan.ts";
 
 export type Ending =
   | { readonly kind: "completed" }
@@ -61,7 +66,7 @@ export function printPlan(config: Config): void {
     );
   }
   process.stdout.write(
-    `${probe} worst case of the run: ${countsText(worstOf(config.plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n${probe} assumptions that S1 measures:\n${ASSUMPTIONS.map((line) => `  - ${line}\n`).join("")}`,
+    `${probe} worst case of the run: ${countsText(worstOf(config.plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n${probe} assumptions that S1 measures:\n${ASSUMPTIONS.map((line) => `  - ${line}\n`).join("")}${probe} ${serverErrorRuleOf(config.plan)}\n`,
   );
 }
 
@@ -118,6 +123,14 @@ function measuredSpendOf(state: RunState) {
   return { known: true, spentUsd: usd(opening - closing), balances } as const;
 }
 
+function usageQuestionOf(state: RunState): string | undefined {
+  const usage = state.sent.find((item) => item.request.role === "usage");
+
+  return usage?.outcome.kind === "answer" && usage.outcome.status !== 200
+    ? `unanswered: the usage read failed with ${usage.outcome.status}, so this run does not show whether a usage read costs anything`
+    : undefined;
+}
+
 export function summaryOf(config: Config, folder: string, state: RunState) {
   const counted = state.sent.flatMap((item) =>
     item.reading?.kind === "counted" ? [item.reading.counts] : [],
@@ -128,6 +141,7 @@ export function summaryOf(config: Config, folder: string, state: RunState) {
     probe: config.input.probe,
     folder,
     ending: state.ending,
+    usageQuestion: usageQuestionOf(state),
     caps: capsRecord(config.caps),
     pricesUsd: {
       post: usd(PRICE_MICROS.post),
