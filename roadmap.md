@@ -220,7 +220,7 @@ Items:
 
 ## Part 7. The rest of #1, then the release
 
-- [ ] 7.1 Every Instance tells search engines not to list it (#706). **Check:** #706's criteria, on both targets.
+- [x] 7.1 Every Instance tells search engines not to list it (#706). **Check:** #706's criteria, on both targets.
 - [ ] 7.2 The owner decisions in the source tree (#662). The issue has no acceptance criteria; its comments hold the decisions of 2026-11-20 and later, and some are built (migrations 0008 to 0012 exist) while others are not (several of the test-only exports it names still appear in the code; the audit below settles each).
   - First, an audit: one comment in #662 lists every decision with its state, done (with the pull request) or left.
   - Then each decision that is left is built or dropped with a reason. This includes the one migration before v1 that renames the thread tables and carries the other changes of that section (comment of 2026-11-24). It changes the Export format, so it lands before the release candidate of 7.18.
