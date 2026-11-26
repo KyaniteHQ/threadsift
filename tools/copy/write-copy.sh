@@ -13,6 +13,16 @@ brief=$1
 brief=$(realpath "$brief")
 cd "$(git -C "$(dirname "$0")" rev-parse --show-toplevel)"
 
+[[ -r PRODUCT.md ]] || {
+  echo "write-copy: PRODUCT.md is missing" >&2
+  exit 65
+}
+voice=$(awk '/^### Interface voice$/ { found = 1; next } found && /^(#|##|###)[[:space:]]/ { exit } found' PRODUCT.md)
+[[ -n ${voice//[[:space:]]/} ]] || {
+  echo "write-copy: PRODUCT.md has no Interface voice section" >&2
+  exit 65
+}
+
 models=(gemini-4-argon-high gemini-3.8-flash-high)
 
 available=$(timeout 20 agy models 2>&1) || true
@@ -22,12 +32,6 @@ for model in "${models[@]}"; do
     exit 69
   }
 done
-
-voice=$(awk '/^### Interface voice$/ { found = 1; next } found && /^##/ { exit } found' PRODUCT.md)
-[[ -n ${voice//[[:space:]]/} ]] || {
-  echo "write-copy: PRODUCT.md has no Interface voice section" >&2
-  exit 65
-}
 
 prompt="Use the humanizer skill: read .agents/skills/humanizer/SKILL.md in this workspace and follow it. Read PRODUCT.md and GLOSSARY.md, then write the text the brief below asks for, in the order it asks. Every text follows the voice rules below; where the humanizer skill and a voice rule differ, the voice rule wins. Return only that text, with no preamble and no notes.
 
