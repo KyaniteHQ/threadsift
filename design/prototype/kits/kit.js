@@ -588,9 +588,11 @@ export function boot() {
     else if (act === "screen") go(el.dataset.screen);
     else if (act === "step") {
       const vis = visible(s);
-      const seq = vis.some((i) => i.id === s.item) ? vis : items;
-      const i = seq.findIndex((x) => x.id === s.item);
-      s.item = seq[(i + Number(el.dataset.step) + seq.length) % seq.length].id;
+      const pool = vis.length ? vis : items;
+      const from = items.findIndex((x) => x.id === s.item);
+      const n = items.length;
+      const ahead = Array.from({ length: n }, (_, k) => items[(((from + Number(el.dataset.step) * (k + 1)) % n) + n) % n]);
+      s.item = (ahead.find((i) => pool.includes(i)) ?? items[from]).id;
     } else if (act === "readf") {
       s.readf = el.dataset.v;
       filtered();
