@@ -6,6 +6,7 @@ These rules apply to every agent that writes or changes code, config, scripts, d
 
 - Before you use an API, a config key, a CLI flag or a library function, read its official docs, its source at the installed version under `node_modules`, or its versioned schema. A CLI's own `--help` counts.
 - When the docs and the installed source disagree, the installed source wins.
+- For X's API and developer terms, a session in a trusted folder has `x-docs`, X's docs MCP server at `https://docs.x.com/mcp`, which needs no key. `search_x` searches X's developer docs and `query_docs_filesystem_x` reads a page. Its third tool, `submit_feedback`, sends a report to X's docs team, so it is off: Codex enables the two read tools by name, and Claude Code denies `submit_feedback` by name, so check the tool list when X adds a tool. The X MCP, which calls the X API and spends X API credit, is not configured.
 - The commit message cites each source: the URL, and for a repository the commit SHA or tag.
 
 ## No comments

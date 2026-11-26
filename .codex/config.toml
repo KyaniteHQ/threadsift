@@ -1,2 +1,6 @@
 [shell_environment_policy]
 set = { IMPECCABLE_NO_SWITCH_SYNC = "1", IMPECCABLE_NO_TASTE = "1", IMPECCABLE_PRO = "off" }
+
+[mcp_servers.x-docs]
+url = "https://docs.x.com/mcp"
+enabled_tools = ["search_x", "query_docs_filesystem_x"]
