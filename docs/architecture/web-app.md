@@ -43,7 +43,7 @@ The container sets them in `webRoutes` and compresses with Hono's `compress` mid
 
 `DOCUMENT_HEADERS` is the one source of the headers on the page. The container sets them on `index.html`, and the build writes them under `/` in `_headers`. That rule covers every page address on Workers, because the Worker answers a path such as `/items/5` with `ASSETS.fetch` of `/`, and the platform applies `_headers` to that response. A rule with a splat would put the policy on every asset too, because the rules of `_headers` add up.
 
-- The Worker's `_headers` has rules for `/assets/*` and `/` only, so the manifest and icons get no `nosniff` on the Worker, while the container sends it on every static file.
+- The Worker's `_headers` adds only `X-Robots-Tag` under `/*` ([HTTP interfaces](http-interfaces.md), Search engines) and holds its other rules under `/assets/*` and `/`, so the manifest and icons get no `nosniff` on the Worker, while the container sends it on every static file.
 - `Cross-Origin-Opener-Policy` is `same-origin-allow-popups`, because the app opens no window from script and OpenRouter Connect navigates the page.
 - The `file` cache rule keeps a stricter policy for `/api/files/*`, and the document's headers never replace it. The container mounts the API before the static files, and `_headers` never touches a Worker response.
 - The app sends no `Strict-Transport-Security`, because it cannot know how an Instance is reached. Whoever terminates TLS sets that header.

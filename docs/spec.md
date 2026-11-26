@@ -46,6 +46,7 @@ Threadsift has two aims:
 
 - **Name and licence.** The product is Threadsift. The licence is AGPL-3.0-only. The required CLA check verifies that outside contributors have signed the contributor licence agreement.
 - **App type.** A public web app with an owner login. Each connected agent gets its own token. The app needs a public HTTPS address so that Grok Bot can reach it.
+- **Search engines.** Every answer of an Instance, on both install targets, carries `X-Robots-Tag: noindex, nofollow`, so a search engine does not list the Instance's address. The one exception is the 400 that the container's Node server writes for a request it cannot parse as HTTP. `/robots.txt` answers 404, because a crawler that `robots.txt` keeps out never fetches a page and never reads its `noindex` rule ([HTTP interfaces](architecture/http-interfaces.md), Search engines).
 - **Intake.** One link at a time through the paste box, the Web Share Target, the Extension, the HTTP API, MCP or Grok Bot, plus an Import of many links at once.
 - **Import.** The Import screen at `/import`, opened from the Import link in the settings panel beside Highlights, takes a pasted list or a CSV or text file, shows its progress and resumes a list it imported before ([Web app](architecture/web-app.md), The Import screen). Reddit's saved-posts CSV export goes in through the list import as Link-only Items.
 - **X bookmarks.** The Threadsift bot sends the post ids of the owner's X bookmarks, in a sync and in a one-time import of all bookmarks, and the Instance fetches each thread through the bot.

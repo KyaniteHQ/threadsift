@@ -7,13 +7,12 @@ import type {
   SavedItemResponseSchema,
 } from "../core/contract/item-route-wire.ts";
 import { logFailure } from "../core/kernel/failure-log.ts";
+import { INTERNAL_ERROR } from "./refusals.ts";
 
 type Structured =
   | z.infer<typeof ItemReadResponseSchema>
   | z.infer<typeof ItemDetailResponseSchema>
   | z.infer<typeof SavedItemResponseSchema>;
-
-const INTERNAL_ERROR = "Internal error";
 
 export function answered<Body extends Structured>(
   outputSchema: z.ZodType<Body>,
