@@ -4,6 +4,7 @@ export const topicHue = { "Home servers": 230, Databases: 30, Typography: 330, "
 export const items = [
   {
     id: "mini-pc",
+    url: "https://www.reddit.com/r/homeserverlog/comments/1p2k8d/moved_my_media_server_off_a_fourbay_nas_to_a/",
     source: "reddit",
     community: "homeserverlog",
     author: "tallow_and_tin",
@@ -69,6 +70,7 @@ export const items = [
   },
   {
     id: "rack",
+    url: "https://www.reddit.com/r/rackandstack/comments/1o9x4f/one_year_of_the_small_rack_power_down_to_61_w/",
     source: "reddit",
     community: "rackandstack",
     author: "lowvoltage_lou",
@@ -114,6 +116,7 @@ export const items = [
   },
   {
     id: "sqlite-wal",
+    url: "https://www.reddit.com/r/sqlitenotes/comments/1p6c2m/wal_mode_and_a_network_drive_why_my_apps/",
     source: "reddit",
     community: "sqlitenotes",
     author: "page_cache",
@@ -156,6 +159,7 @@ export const items = [
   },
   {
     id: "mail-outage",
+    url: "https://www.reddit.com/r/mailcellar/comments/1p8h5t/three_days_without_mail_because_of_one_dns/",
     source: "reddit",
     community: "mailcellar",
     author: "spf_and_sorrow",
@@ -189,6 +193,7 @@ export const items = [
   },
   {
     id: "kerning-comment",
+    url: "https://www.reddit.com/r/typesetters/comments/1n4r7q/comment/kz81wd/",
     source: "reddit",
     kind: "comment",
     community: "typesetters",
@@ -211,6 +216,7 @@ export const items = [
   },
   {
     id: "local-first",
+    url: "https://x.com/mirela_ships/status/1859203314455102218",
     source: "x",
     handle: "mirela_ships",
     author: "Mirela Vos",
@@ -252,6 +258,7 @@ export const items = [
   },
   {
     id: "x-short",
+    url: "https://x.com/ferro_fern/status/1858471100293846016",
     source: "x",
     handle: "ferro_fern",
     author: "Ferro Fernández",
@@ -279,6 +286,7 @@ export const items = [
   },
   {
     id: "tidepool",
+    url: "https://github.com/sundry-kettle/tidepool",
     source: "github",
     repo: "sundry-kettle/tidepool",
     author: "sundry-kettle",
@@ -304,6 +312,7 @@ export const items = [
   },
   {
     id: "snapshot-diff",
+    url: "https://github.com/oxbow-tooling/pg-snapshot-diff",
     source: "github",
     repo: "oxbow-tooling/pg-snapshot-diff",
     author: "oxbow-tooling",
@@ -325,6 +334,7 @@ export const items = [
   },
   {
     id: "boring-formats",
+    url: "https://fieldnotes.example/boring-storage-formats",
     source: "article",
     domain: "fieldnotes.example",
     site: "Field Notes",
@@ -349,6 +359,7 @@ export const items = [
   },
   {
     id: "long-threads",
+    url: "https://margins.example/2026/reading-long-threads",
     source: "article",
     domain: "margins.example",
     site: "Margins",
@@ -368,11 +379,10 @@ export const items = [
   },
   {
     id: "stabilizers",
+    url: "https://www.reddit.com/r/keebworkshop/comments/1q7w3e/lubing_stabilizers_without_a_kit/",
     source: "reddit",
     linkOnly: true,
     community: "keebworkshop",
-    host: "www.reddit.com",
-    path: "/r/keebworkshop/comments/1q7w3e/lubing_stabilizers_without_a_kit/",
     author: null,
     title: "Lubing stabilizers without a kit",
     saved: "25 Nov",
@@ -388,6 +398,7 @@ export const items = [
   },
   {
     id: "plain-ledger",
+    url: "https://tools.example/guides/plain-text-accounting",
     source: "other",
     domain: "tools.example",
     author: null,
@@ -415,9 +426,20 @@ const firstShown = (list) => {
   }
   return null;
 };
+const opening = (it) => (it.source === "article" || it.source === "other" ? it.post.slice(0, 1) : it.post).join(" ");
+function upToSentence(text) {
+  if (text.length <= EXCERPT_MAX) return text;
+  const cut = text.slice(0, EXCERPT_MAX);
+  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("? "), cut.lastIndexOf("! "));
+  if (end > 0) return cut.slice(0, end + 1);
+  const space = cut.lastIndexOf(" ");
+  return `${space > 0 ? cut.slice(0, space) : cut}…`;
+}
 for (const it of items) {
-  const text = it.post.join(" ");
-  it.excerpt = text.length > EXCERPT_MAX ? text.slice(0, text.lastIndexOf(" ", EXCERPT_MAX)) : text;
-  const kept = text ? null : firstShown(it.comments);
+  const { host, pathname } = new URL(it.url);
+  it.host = host;
+  it.path = pathname;
+  it.excerpt = upToSentence(opening(it));
+  const kept = it.source === "reddit" && it.digest ? firstShown(it.comments) : null;
   it.firstKept = kept && { author: kept.a, text: kept.text };
 }

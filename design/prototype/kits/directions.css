@@ -21,8 +21,8 @@
 :root, [data-density] { --k: 0.75; --t-body-base: 0.84375rem; --t-title-base: 0.9375rem; }
 [data-density="comfortable"] { --k: 1; --t-body-base: 0.90625rem; --t-title-base: 1.03125rem; }
 
-:root, [data-images] { --card-media: block; }
-[data-images="off"] { --card-media: none; }
+:root, [data-images] { --card-media: block; --card-excerpt: none; }
+[data-images="off"] { --card-media: none; --card-excerpt: -webkit-box; }
 
 [data-accent="cobalt"] { --ah: 258; }
 [data-accent="rust"] { --ah: 42; }
