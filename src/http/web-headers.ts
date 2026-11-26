@@ -33,3 +33,7 @@ export const DOCUMENT_HEADERS = {
   "Cross-Origin-Resource-Policy": "same-origin",
   "X-Frame-Options": "DENY",
 } as const;
+
+export const NO_INDEX_HEADERS = {
+  "X-Robots-Tag": "noindex, nofollow",
+} as const;

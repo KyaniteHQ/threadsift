@@ -37,7 +37,7 @@ The app listens on plain HTTP inside the container. Public HTTPS comes from the 
 
 ## Keep-alive timeout
 
-The Node entry sets `keepAliveTimeout`, so the server advertises `Keep-Alive: timeout=65`. Node adds a 1-second buffer and closes an idle socket after 66 seconds. Node 26 defaults to 5 seconds plus that buffer.
+`serveContainer`, the container's HTTP server, sets `keepAliveTimeout`, so the server advertises `Keep-Alive: timeout=65`. Node adds a 1-second buffer and closes an idle socket after 66 seconds. Node 26 defaults to 5 seconds plus that buffer.
 
 The 5-second default reset a save batch: in two CI traces the reset came 5.984 to 5.991 seconds after the document requests, and a local save that reached Node directly failed the same way. Playwright's request agent does not retire a socket from the advertised timeout, so the smoke run stays clear of this race while its sockets idle for less than 66 seconds.
 

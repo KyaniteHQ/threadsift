@@ -1,7 +1,8 @@
 {
   "$schema": "https://json.schemastore.org/claude-code-settings.json",
   "permissions": {
-    "allow": ["WebFetch", "WebSearch"]
+    "allow": ["WebFetch", "WebSearch"],
+    "deny": ["mcp__x-docs__submit_feedback"]
   },
   "env": {
     "IMPECCABLE_NO_SWITCH_SYNC": "1",
@@ -19,6 +20,7 @@
   "enabledPlugins": {
     "modern-web-guidance@googlechrome": true
   },
+  "enabledMcpjsonServers": ["x-docs"],
   "hooks": {
     "PostToolUse": [
       {

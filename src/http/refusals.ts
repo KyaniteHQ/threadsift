@@ -14,6 +14,8 @@ type AccessRefusal = Refused<RefusalName> | LockedOut;
 
 export const NOT_FOUND = "Not found";
 
+export const INTERNAL_ERROR = "Internal error";
+
 const METHOD_NOT_ALLOWED = "Method not allowed";
 
 export const PASSWORD_RULE = `The password is shorter than ${PASSWORD_MIN} or longer than ${groupedNumber(PASSWORD_MAX)} characters.`;
@@ -24,6 +26,10 @@ export function notFound(c: Context) {
 
 export function notAllowed(c: Context, methods: readonly string[]) {
   return c.json({ error: METHOD_NOT_ALLOWED }, 405, { Allow: methods.join(", ") });
+}
+
+function logRequestFailure(path: string, cause: unknown): void {
+  logFailure("request-failed", { path }, cause);
 }
 
 export async function answerFailure(
@@ -40,9 +46,15 @@ export async function answerFailure(
     return c.json({ error: (await refusal.text()) || "Request refused" }, error.status);
   }
 
-  logFailure("request-failed", { path: c.req.path }, error);
+  logRequestFailure(c.req.path, error);
 
-  return c.json({ error: "Internal error" }, 500);
+  return c.json({ error: INTERNAL_ERROR }, 500);
+}
+
+export function failedRequest(path: string, cause: unknown): Response {
+  logRequestFailure(path, cause);
+
+  return Response.json({ error: INTERNAL_ERROR }, { status: 500 });
 }
 
 export function turnedAway(c: Context, refusal: Readonly<AccessRefusal>): Response {

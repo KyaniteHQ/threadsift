@@ -68,7 +68,7 @@ function PictureLink({
   const projectedAsPlaceholder = (alt ?? "") === "" && keyOfFileRoute(href) !== null;
 
   return (
-    <Link href={target} data-failed-picture={projectedAsPlaceholder ? href : undefined}>
+    <Link href={target} failedPicture={projectedAsPlaceholder ? href : undefined}>
       {pictureLabel(href, alt)}
     </Link>
   );

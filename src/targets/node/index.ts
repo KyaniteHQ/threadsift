@@ -1,12 +1,13 @@
 import { join } from "node:path";
 
-import { type HttpBindings, serve } from "@hono/node-server";
+import type { HttpBindings } from "@hono/node-server";
 import { Hono } from "hono";
 import { compress } from "hono/compress";
 
 import { createApp } from "../../http/app.ts";
 import { openDatabase } from "./database.ts";
 import { REPOSITORY_ROOT, nodeEnvironment } from "./environment.ts";
+import { serveContainer } from "./http-server.ts";
 import { startNode } from "./ports.ts";
 import { answerAfterBody } from "./unread-body.ts";
 import { webRoutes } from "./web-routes.ts";
@@ -32,21 +33,7 @@ app.route("/", createApp(node.ports));
 
 app.route("/", webRoutes(join(REPOSITORY_ROOT, "dist", "web")));
 
-const server = serve({
-  fetch: app.fetch,
-  port: environment.port,
-  serverOptions: { keepAliveTimeout: 65_000 },
-});
-
-if (!("closeAllConnections" in server)) {
-  throw new Error("The container requires an HTTP/1 server");
-}
-
-server.prependListener("request", (_request, response) => {
-  response.once("finish", () => {
-    if (!server.listening) server.closeIdleConnections();
-  });
-});
+const server = serveContainer(app.fetch, environment.port);
 
 const shutdown = async (): Promise<void> => {
   const drained = new Promise<void>((finishDrain) => {

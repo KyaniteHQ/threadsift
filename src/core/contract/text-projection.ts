@@ -4,16 +4,14 @@ import { unified } from "unified";
 import { z } from "zod";
 
 import { GFM_PLUGINS } from "./gfm-markdown.ts";
-import { FOOTNOTE_LABEL_ID, pictureText } from "./reader-url.ts";
+import { type GeneratedProperties, isGenerated } from "./projection-markers.ts";
+import { pictureText } from "./reader-url.ts";
 
-interface HastProperties {
+interface HastProperties extends GeneratedProperties {
   readonly alt?: unknown;
   readonly src?: unknown;
   readonly href?: unknown;
-  readonly id?: unknown;
   readonly dataHighlights?: unknown;
-  readonly dataFootnoteRef?: unknown;
-  readonly dataFootnoteBackref?: unknown;
 }
 
 export interface HastNode {
@@ -156,16 +154,6 @@ function codeCells(node: Readonly<HastNode>): Cell[] {
   return node.type === "text" || node.type === "raw"
     ? cellsOf(node, node.value ?? "")
     : (node.children ?? []).flatMap((child) => codeCells(child));
-}
-
-function isGenerated({ tagName, properties }: Readonly<HastNode>): boolean {
-  if (tagName === "a") {
-    return (
-      properties?.dataFootnoteRef !== undefined || properties?.dataFootnoteBackref !== undefined
-    );
-  }
-
-  return tagName === "h2" && properties?.id === FOOTNOTE_LABEL_ID;
 }
 
 export function imageText({ properties }: Readonly<HastNode>): string {

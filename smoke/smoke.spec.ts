@@ -3,7 +3,7 @@ import { type Page, expect, test } from "@playwright/test";
 import { IMPORT, countLabel } from "../web/src/import-text.ts";
 import { ADD_LABEL, BACK_TO_LIBRARY, PASTE_LABEL } from "../web/src/text.ts";
 import { libraryHeading, setUp, signOutAndIn } from "./access-flow.ts";
-import { expectDocumentHeaders, watchContext } from "./document-checks.ts";
+import { expectAnswerHeaders, watchContext } from "./document-checks.ts";
 import { type TopicCase, openIndex, openTopicPage, phoneRailTarget } from "./index-flow.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
 import { readXThread, readerWithoutProvider } from "./reader-flows.ts";
@@ -122,8 +122,8 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
 
   const expectNoCspViolations = await watchContext(page.context());
 
-  await test.step("the app page carries its security headers on / and on a deep address", () =>
-    expectDocumentHeaders(page));
+  await test.step("every answer tells search engines not to list the Instance, and the app page carries its security headers on / and on a deep address", () =>
+    expectAnswerHeaders(page));
   await test.step("set up the owner with the setup code", () => setUp(page));
   await test.step("sign out and sign in again", () => signOutAndIn(page));
   await test.step("paste an X link, find its Link-only row after a reload", () => pasteXLink(page));
