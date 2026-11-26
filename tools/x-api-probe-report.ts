@@ -11,7 +11,13 @@ import {
 } from "./x-api-probe-cost.ts";
 import type { Reading } from "./x-api-probe-count.ts";
 import type { Config } from "./x-api-probe-input.ts";
-import { BALANCE_SETTLE_MS, type PlannedRequest, worstOf } from "./x-api-probe-plan.ts";
+import {
+  BALANCE_SETTLE_MS,
+  type PlannedRequest,
+  usageFailureRuleOf,
+  usageQuestionOf,
+  worstOf,
+} from "./x-api-probe-plan.ts";
 
 export type Ending =
   | { readonly kind: "completed" }
@@ -63,6 +69,9 @@ export function printPlan(config: Config): void {
   process.stdout.write(
     `${probe} worst case of the run: ${countsText(worstOf(config.plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n${probe} assumptions that S1 measures:\n${ASSUMPTIONS.map((line) => `  - ${line}\n`).join("")}`,
   );
+  const usageRule = usageFailureRuleOf(probe, config.plan);
+
+  if (usageRule !== undefined) process.stdout.write(`${probe} ${usageRule}\n`);
 }
 
 export function redacted(text: string, token: string): string {
@@ -118,6 +127,16 @@ function measuredSpendOf(state: RunState) {
   return { known: true, spentUsd: usd(opening - closing), balances } as const;
 }
 
+function unansweredUsageOf(state: RunState): string | undefined {
+  return state.sent
+    .map((item) =>
+      item.outcome.kind === "answer"
+        ? usageQuestionOf(item.request, item.outcome.status)
+        : undefined,
+    )
+    .find((question) => question !== undefined);
+}
+
 export function summaryOf(config: Config, folder: string, state: RunState) {
   const counted = state.sent.flatMap((item) =>
     item.reading?.kind === "counted" ? [item.reading.counts] : [],
@@ -128,6 +147,7 @@ export function summaryOf(config: Config, folder: string, state: RunState) {
     probe: config.input.probe,
     folder,
     ending: state.ending,
+    usageQuestion: unansweredUsageOf(state),
     caps: capsRecord(config.caps),
     pricesUsd: {
       post: usd(PRICE_MICROS.post),
