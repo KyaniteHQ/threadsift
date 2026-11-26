@@ -283,7 +283,7 @@ function panel(s, popover = true) {
     <div class="p-row"><span class="label" id="lbl-style">Style</span><div class="tiles" role="radiogroup" aria-labelledby="lbl-style">${STYLES.map(
       (st) => `<label class="tile"><input type="radio" name="style" value="${st.id}" ${s.style === st.id ? "checked" : ""}>${tileArt(st.id)}<span class="tile-name">${st.name}</span></label>`,
     ).join("")}</div></div>
-    <div class="p-row"><span class="label">Theme</span>${seg("theme", [...THEMES, { id: "system", name: "Match system" }], s.theme, "Theme")}</div>
+    <div class="p-row"><span class="label">Theme</span>${seg("theme", [...THEMES, { id: "system", name: "System" }], s.theme, "Theme")}</div>
     <div class="p-row"><span class="label" id="lbl-acc">Accent</span><div class="swatches" role="radiogroup" aria-labelledby="lbl-acc">${ACCENTS.map((a) => `<label class="swatch" data-accent="${a.id}" title="${a.name}"><input type="radio" name="accent" value="${a.id}" aria-label="${a.name}" ${s.accent === a.id ? "checked" : ""}><span></span></label>`)
       .join("")}</div></div>
     <div class="p-row"><span class="label" id="lbl-font">Font</span><div class="tiles fonts" role="radiogroup" aria-labelledby="lbl-font">${FONTS.map((f) => `<label class="tile"><input type="radio" name="font" value="${f.id}" ${s.font === f.id ? "checked" : ""}><span class="tile-art font-art" data-font="${f.id}"><span class="ag">Ag</span><span class="rd">Reading text</span></span><span class="tile-name">${esc(f.name)}</span></label>`)

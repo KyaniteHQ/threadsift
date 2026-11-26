@@ -67,7 +67,7 @@ var LIB = (function () {
     layout: { label: 'Layout', kind: 'seg', options: [{ id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' }] },
     openAs: { label: 'Open items as', kind: 'seg', options: [{ id: 'page', label: 'Page' }, { id: 'sheet', label: 'Sheet' }] },
     style: { label: 'Style', kind: 'select', options: STYLES },
-    theme: { label: 'Theme', kind: 'seg', options: THEMES.concat([{ id: 'system', label: 'Match system' }]) },
+    theme: { label: 'Theme', kind: 'seg', options: THEMES.concat([{ id: 'system', label: 'System' }]) },
     font: { label: 'Font', kind: 'select', options: TYPES },
     width: { label: 'Text width', kind: 'seg', options: MEASURES },
     density: { label: 'Density', kind: 'seg', options: DENSITIES },

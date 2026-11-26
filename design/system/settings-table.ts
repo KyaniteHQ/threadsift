@@ -38,7 +38,7 @@ export const THEME = setting({
     { id: "light", label: "Light" },
     { id: "dark", label: "Dark" },
     { id: "sepia", label: "Sepia" },
-    { id: "system", label: "Match system", followsDevice: ["light", "dark"] },
+    { id: "system", label: "System", followsDevice: ["light", "dark"] },
   ],
 });
 
