@@ -1,6 +1,6 @@
 # Security model
 
-What an Instance protects, who can reach it, and where content and credentials cross a boundary. A security review ranks its findings against this page. The page covers one Instance on either install target. Each control is described where it is built, and this page links there.
+What an Instance protects, who can reach it, where content and credentials cross a boundary, and the scope of a security review: the assets it treats as critical, the attackers it defends against and the limits the owner accepts. A security review ranks its findings against this page. The page covers one Instance on either install target. Each control is described where it is built, and this page links there.
 
 ## What an Instance protects
 
@@ -37,9 +37,27 @@ What an Instance protects, who can reach it, and where content and credentials c
 - **The Vault mirror writes outside the Instance.** It copies the library as Markdown into a local folder on the container, or into a GitHub repository whose visibility the owner sets. It never imports the destination back ([Vault mirror](vault-mirror.md)).
 - **The upstream pipeline publishes, and the operator deploys.** GitHub Actions build the image and the release. The operator installs an Instance and holds its secrets ([CI, releases and rollback](ci-releases-and-rollback.md)).
 
+## The scope of a security review
+
+A security review ranks a finding higher when it touches a critical asset and an attacker in scope reaches it.
+
+- **Critical.** The library and its Export, the credentials and the owner's authority, and the host and its private network. The fourth asset, job capacity and the Provider's spend, is protected but not critical.
+- **Attackers in scope.** An anonymous caller on the network, a caller who uses a stolen agent token or task callback credential, a hostile site, redirect or author of saved content, and a compromised integration.
+- **Accepted risk.** The owner accepts the limits under [Known limits](#known-limits) and no other risk.
+
+## Known limits
+
+Other sections record these limits, and the owner accepts each one.
+
+- Anyone who reaches the sign-in can lock it for up to 1 hour ([Access](access-owner-login-agent-tokens-mcp.md#throttle)).
+- A plug-in runs without isolation ([Fetchers](fetchers.md#deadline)).
+- The Worker cannot check the address that a public name resolves to, and the local Worker has no name check ([Open items and unverified claims](open-items-and-unverified-claims.md#fetching-links)).
+- The Daily budget does not bound refreshes, and two requests at the same moment can both pass, which exceeds the budget by the links of one request ([Access](access-owner-login-agent-tokens-mcp.md#daily-budget)).
+- A hostile post or reply can make the Grok CLI open a public page, which sends public post text and the Grok account's saved rules to a page that the attacker chose. A Grok account kept for the Instance limits what leaves ([Fetchers](fetchers.md#the-isolation-rule)).
+- The limit of 6 reply searches in the Grok CLI's prompt is a request to the model. The deadline and the 2 slots bound a run ([Fetchers](fetchers.md#grok-cli)).
+
 ## What this page does not settle
 
 - **Exposure.** The README's container command publishes the port on `127.0.0.1` only. Whether an Instance sits behind a reverse proxy or a tunnel, and how that one is configured, is the operator's choice and outside the repository.
 - **Enabled integrations.** Which Provider, which X reader and whether the Vault mirror is on differ for each Instance.
 - **The hosted product.** It is not built. This page describes one owner on one Instance.
-- **Limits that other sections record.** Anyone who reaches the sign-in can lock it for up to 1 hour ([Access](access-owner-login-agent-tokens-mcp.md#throttle)). A plug-in runs without isolation ([Fetchers](fetchers.md#deadline)). The Worker cannot check the address that a public name resolves to, and the local Worker has no name check ([Open items and unverified claims](open-items-and-unverified-claims.md#fetching-links)). The Daily budget does not bound refreshes ([Access](access-owner-login-agent-tokens-mcp.md#daily-budget)).
