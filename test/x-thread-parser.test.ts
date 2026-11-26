@@ -25,7 +25,7 @@ describe("an X thread is read into the stored thread by parseXThread", () => {
 
     assert.deepEqual(
       nodeIds(thread(ids.map((id) => reply(id, POST_ID)))),
-      [9n, 10n, 100n, 9007199254740992n, 9007199254740993n].map((id) => `t1_${String(id)}`),
+      [9n, 10n, 100n, 9007199254740992n, 9007199254740993n].map(String),
     );
   });
 
@@ -34,8 +34,8 @@ describe("an X thread is read into the stored thread by parseXThread", () => {
     const earlier = { postedAt: "2026-03-04T10:00:00.1231Z" };
 
     assert.deepEqual(nodeIds(thread([reply(10n, POST_ID, earlier), reply(9n, POST_ID, later)])), [
-      "t1_9",
-      "t1_10",
+      "9",
+      "10",
     ]);
   });
 
@@ -76,8 +76,8 @@ describe("an X thread is read into the stored thread by parseXThread", () => {
         linkedUrl: null,
       },
     );
-    assert.equal(nodes.find(({ id }) => id === "t1_1000000000000000011")?.score, 12);
-    assert.equal(nodes.find(({ id }) => id === "t1_1000000000000000012")?.score, null);
+    assert.equal(nodes.find(({ id }) => id === "1000000000000000011")?.score, 12);
+    assert.equal(nodes.find(({ id }) => id === "1000000000000000012")?.score, null);
   });
 
   it("takes exactly 500 replies", () => {

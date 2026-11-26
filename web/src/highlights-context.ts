@@ -56,7 +56,7 @@ export function useSpanIndex(items: readonly Highlight[]): SpanIndex {
 }
 
 export function useSpans(key: string): readonly MarkSpan[] {
-  return useHighlights().spans[key] ?? NO_SPANS;
+  return useHighlights().spans.get(key) ?? NO_SPANS;
 }
 
 export function useOpenOnReveal(

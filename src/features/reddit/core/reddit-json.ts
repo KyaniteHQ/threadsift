@@ -1,4 +1,3 @@
-import { storedCommentId } from "../../../core/contract/comment-id.ts";
 import { type RedditRef, redditRefOf } from "../../../core/contract/links.ts";
 import {
   type Walked,
@@ -25,19 +24,17 @@ import { chooseCandidateLink, shownLinkOf } from "./candidate-link.ts";
 
 function entryOf(
   entry: Readonly<Walked>,
-  place: Readonly<{ base: number; root: string }>,
+  place: Readonly<{ base: number; rootId: string | null }>,
 ): NodeEntry {
-  const { comment, parent } = entry;
-  const parentId = parent === place.root ? null : parent;
+  const { comment } = entry;
+  const parentId = entry.parentId === place.rootId ? null : entry.parentId;
   const depth = entry.depth - place.base;
 
   if (comment === null) return { kind: "more", parentId, depth };
 
-  const id = storedCommentId(comment.id);
-
   return {
     kind: "comment",
-    id,
+    id: comment.id,
     parentId,
     depth,
     author: comment.author,
@@ -47,9 +44,13 @@ function entryOf(
   };
 }
 
-function nodesOf(entries: readonly Walked[], base: number, root: string): readonly ThreadNode[] {
+function nodesOf(
+  entries: readonly Walked[],
+  base: number,
+  rootId: string | null,
+): readonly ThreadNode[] {
   return threadNodesOf(
-    entries.map((entry) => entryOf(entry, { base, root })),
+    entries.map((entry) => entryOf(entry, { base, rootId })),
     (id) => id,
   );
 }
@@ -74,7 +75,7 @@ function ofPost(post: Readonly<WirePost>, walked: readonly Walked[]): ParsedThre
     reported: post.num_comments ?? null,
     linkedUrl: chooseCandidateLink({ url: post.url ?? null, text: postText }),
     postLink: postLinkOf(post),
-    nodes: nodesOf(walked, 0, `t3_${post.id}`),
+    nodes: nodesOf(walked, 0, null),
   };
 }
 
@@ -97,10 +98,10 @@ function ofComment(
   }
 
   const rest = walked.slice(at + 1);
-  const rootId = storedCommentId(comment.id);
   const childDepth = root.depth + 1;
   const end = rest.findIndex(
-    ({ depth, parent }) => depth < childDepth || (depth === childDepth && parent !== rootId),
+    ({ depth, parentId }) =>
+      depth < childDepth || (depth === childDepth && parentId !== comment.id),
   );
 
   return {
@@ -112,7 +113,7 @@ function ofComment(
     reported: null,
     linkedUrl: null,
     postLink: null,
-    nodes: nodesOf(end === -1 ? rest : rest.slice(0, end), childDepth, rootId),
+    nodes: nodesOf(end === -1 ? rest : rest.slice(0, end), childDepth, comment.id),
   };
 }
 
@@ -146,6 +147,7 @@ export function parseRedditThread(answers: ThreadAnswers, ref: Readonly<RedditRe
     const first = walk(
       children,
       ref.commentId === undefined ? `t3_${post.id}` : firstParentOf(children),
+      post.id,
     );
 
     checkedIds(ids, first);

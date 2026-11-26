@@ -2,7 +2,7 @@ import { desc, eq } from "drizzle-orm";
 
 import { isThreadSource } from "../../../core/contract/item-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { redditThreads } from "../../../core/kernel/schema.ts";
+import { threads } from "../../../core/kernel/schema.ts";
 import { commentCandidates } from "../../thread/core/thread-selection.ts";
 import type { DigestInput } from "./digest-input.ts";
 import {
@@ -14,10 +14,10 @@ import {
 
 async function joinedFollowUps(db: Database, itemId: number): Promise<number> {
   const [newest] = await db
-    .select({ followUps: redditThreads.followUps })
-    .from(redditThreads)
-    .where(eq(redditThreads.itemId, itemId))
-    .orderBy(desc(redditThreads.generation))
+    .select({ followUps: threads.followUps })
+    .from(threads)
+    .where(eq(threads.itemId, itemId))
+    .orderBy(desc(threads.generation))
     .limit(1);
 
   return newest?.followUps ?? 0;

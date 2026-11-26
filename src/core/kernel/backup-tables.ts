@@ -57,7 +57,7 @@ export const BACKUP_TABLES = {
     columns: ["item_id", "description", "stars", "language", "license", "topics", "pushed_at"],
     leftOut: [],
   },
-  reddit_threads: {
+  threads: {
     scope: "per-item",
     columns: [
       "item_id",
@@ -71,7 +71,7 @@ export const BACKUP_TABLES = {
     ],
     leftOut: [],
   },
-  reddit_comments: {
+  thread_comments: {
     scope: "per-item",
     columns: [
       "item_id",

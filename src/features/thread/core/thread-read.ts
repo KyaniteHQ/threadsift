@@ -9,7 +9,7 @@ import {
 } from "../../../core/contract/comment-view.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { providerSet } from "../../../core/kernel/provider-saved.ts";
-import { redditComments, redditThreads } from "../../../core/kernel/schema.ts";
+import { threadComments, threads } from "../../../core/kernel/schema.ts";
 import { commentReadable, digestCoversThread, readGeneration } from "./thread-store.ts";
 
 export function readableBody(
@@ -19,14 +19,14 @@ export function readableBody(
   generation: number,
 ) {
   return db
-    .select({ body: redditComments.body })
-    .from(redditComments)
+    .select({ body: threadComments.body })
+    .from(threadComments)
     .where(
       and(
-        eq(redditComments.itemId, itemId),
-        eq(redditComments.generation, generation),
-        commentId === null ? sql`0` : eq(redditComments.id, commentId),
-        eq(redditComments.kind, "comment"),
+        eq(threadComments.itemId, itemId),
+        eq(threadComments.generation, generation),
+        commentId === null ? sql`0` : eq(threadComments.id, commentId),
+        eq(threadComments.kind, "comment"),
         commentReadable(),
       ),
     );
@@ -37,47 +37,42 @@ function threadRows(db: Database, itemId: number) {
 
   return db
     .select({
-      id: redditComments.id,
-      parentId: redditComments.parentId,
-      depth: redditComments.depth,
-      kind: redditComments.kind,
-      eligible: redditComments.eligible,
-      kept: redditComments.kept,
+      id: threadComments.id,
+      parentId: threadComments.parentId,
+      depth: threadComments.depth,
+      kind: threadComments.kind,
+      eligible: threadComments.eligible,
+      kept: threadComments.kept,
       readable: sql<boolean>`${readable}`.mapWith(Boolean),
-      author: sql<string | null>`case when ${readable} then ${redditComments.author} end`,
-      body: sql<string | null>`case when ${readable} then ${redditComments.body} end`,
-      score: sql<number | null>`case when ${readable} then ${redditComments.score} end`,
-      postedAt: sql<number | null>`case when ${readable} then ${redditComments.postedAt} end`,
+      author: sql<string | null>`case when ${readable} then ${threadComments.author} end`,
+      body: sql<string | null>`case when ${readable} then ${threadComments.body} end`,
+      score: sql<number | null>`case when ${readable} then ${threadComments.score} end`,
+      postedAt: sql<number | null>`case when ${readable} then ${threadComments.postedAt} end`,
     })
-    .from(redditComments)
+    .from(threadComments)
     .where(
       and(
-        eq(redditComments.itemId, itemId),
-        sql`${redditComments.generation} = ${readGeneration(itemId)}`,
+        eq(threadComments.itemId, itemId),
+        sql`${threadComments.generation} = ${readGeneration(itemId)}`,
       ),
     )
-    .orderBy(asc(redditComments.position));
+    .orderBy(asc(threadComments.position));
 }
 
 function threadReport(db: Database, itemId: number) {
   return db
     .select({
-      reported: redditThreads.reported,
-      archivedAt: redditThreads.archivedAt,
-      generation: redditThreads.generation,
+      reported: threads.reported,
+      archivedAt: threads.archivedAt,
+      generation: threads.generation,
       published: sql<boolean>`${digestCoversThread(itemId)}`.mapWith(Boolean),
       provider: sql<boolean>`${providerSet()}`.mapWith(Boolean),
       link: sql<
         string | null
-      >`(select newest.post_link from ${redditThreads} as newest where newest.item_id = ${redditThreads}.item_id order by newest.generation desc limit 1)`,
+      >`(select newest.post_link from ${threads} as newest where newest.item_id = ${threads}.item_id order by newest.generation desc limit 1)`,
     })
-    .from(redditThreads)
-    .where(
-      and(
-        eq(redditThreads.itemId, itemId),
-        sql`${redditThreads.generation} = ${readGeneration(itemId)}`,
-      ),
-    );
+    .from(threads)
+    .where(and(eq(threads.itemId, itemId), sql`${threads.generation} = ${readGeneration(itemId)}`));
 }
 
 export function threadReads(db: Database, itemId: number) {

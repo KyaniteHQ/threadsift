@@ -9,17 +9,17 @@ import {
   digests,
   highlights,
   items,
-  redditComments,
-  redditThreads,
+  threadComments,
+  threads,
 } from "../../../core/kernel/schema.ts";
 import type { StoredThread } from "./stored-thread.ts";
 import { jsonArrays, rowJson } from "./thread-rows.ts";
 
 export function commentReadable(): SQL<boolean> {
-  const covered = sql`${redditComments}.generation in (${publishedGeneration(sql`${redditComments}.item_id`)})`;
-  const held = sql`exists (select 1 from ${highlights} where ${highlights.itemId} = ${redditComments}.item_id and ${highlights.status} = 'attached' and ${highlights.commentId} = ${redditComments}.id)`;
+  const covered = sql`${threadComments}.generation in (${publishedGeneration(sql`${threadComments}.item_id`)})`;
+  const held = sql`exists (select 1 from ${highlights} where ${highlights.itemId} = ${threadComments}.item_id and ${highlights.status} = 'attached' and ${highlights.commentId} = ${threadComments}.id)`;
 
-  return sql<boolean>`(${redditComments.kept} = 1 or ${held} or (${redditComments.eligible} = 1 and not ${covered}))`;
+  return sql<boolean>`(${threadComments.kept} = 1 or ${held} or (${threadComments.eligible} = 1 and not ${covered}))`;
 }
 
 export interface Owner {
@@ -51,21 +51,16 @@ function supersededDeletes(db: Database, owner: Readonly<Owner>) {
 
   return [
     db
-      .delete(redditComments)
+      .delete(threadComments)
       .where(
         and(
-          eq(redditComments.itemId, owner.id),
-          sql`${redditComments.generation} is not ${published}`,
+          eq(threadComments.itemId, owner.id),
+          sql`${threadComments.generation} is not ${published}`,
         ),
       ),
     db
-      .delete(redditThreads)
-      .where(
-        and(
-          eq(redditThreads.itemId, owner.id),
-          sql`${redditThreads.generation} is not ${published}`,
-        ),
-      ),
+      .delete(threads)
+      .where(and(eq(threads.itemId, owner.id), sql`${threads.generation} is not ${published}`)),
   ];
 }
 
@@ -80,7 +75,7 @@ function headerInsert(
   }: Readonly<Pick<StoredThread, "reported" | "linkedUrl" | "postLink" | "followUps">>,
   archivedAt: number | null,
 ) {
-  return db.insert(redditThreads).select(
+  return db.insert(threads).select(
     db
       .select({
         itemId: sql<number>`${owner.id}`.as("item_id"),
@@ -98,7 +93,7 @@ function headerInsert(
 }
 
 function commentInsert(db: Database, owner: Readonly<Owner>, json: string) {
-  return db.insert(redditComments).select(
+  return db.insert(threadComments).select(
     db
       .select({
         itemId: sql<number>`${owner.id}`.as("item_id"),
@@ -137,7 +132,7 @@ export function threadWrites(
 }
 
 function publishedGeneration(itemId: number | Readonly<SQLWrapper>) {
-  return sql`select ${redditThreads.generation} from ${redditThreads} join ${digests} on ${digests.itemId} = ${redditThreads.itemId} and ${digests.generation} = ${redditThreads.generation} where ${redditThreads.itemId} = ${itemId}`;
+  return sql`select ${threads.generation} from ${threads} join ${digests} on ${digests.itemId} = ${threads.itemId} and ${digests.generation} = ${threads.generation} where ${threads.itemId} = ${itemId}`;
 }
 
 export function digestCoversThread(itemId: number | Readonly<SQLWrapper>): SQL {
@@ -146,7 +141,7 @@ export function digestCoversThread(itemId: number | Readonly<SQLWrapper>): SQL {
 
 export function readGeneration(itemId: number | Readonly<SQLWrapper>) {
   const published = publishedGeneration(itemId);
-  const stored = sql`select max(${redditThreads.generation}) from ${redditThreads} where ${redditThreads.itemId} = ${itemId}`;
+  const stored = sql`select max(${threads.generation}) from ${threads} where ${threads.itemId} = ${itemId}`;
 
   return sql<number | null>`coalesce((${published}), (${stored}))`;
 }
@@ -175,9 +170,9 @@ export function repliesOf({
 }
 
 function storedReplies(itemId: number | Readonly<SQLWrapper>) {
-  const generation = sql`max(coalesce((select max(newest.generation) from ${redditComments} as newest where newest.item_id = ${itemId} and newest.kind = 'comment'), -1), coalesce((select max(joined.generation) from ${redditThreads} as joined where joined.item_id = ${itemId} and joined.follow_ups > 0), -1))`;
+  const generation = sql`max(coalesce((select max(newest.generation) from ${threadComments} as newest where newest.item_id = ${itemId} and newest.kind = 'comment'), -1), coalesce((select max(joined.generation) from ${threads} as joined where joined.item_id = ${itemId} and joined.follow_ups > 0), -1))`;
 
-  return sql<number>`((select count(*) from ${redditComments} as kept where kept.item_id = ${itemId} and kept.kind = 'comment' and kept.generation = ${generation}) + coalesce((select stored.follow_ups from ${redditThreads} as stored where stored.item_id = ${itemId} and stored.generation = ${generation}), 0))`;
+  return sql<number>`((select count(*) from ${threadComments} as kept where kept.item_id = ${itemId} and kept.kind = 'comment' and kept.generation = ${generation}) + coalesce((select stored.follow_ups from ${threads} as stored where stored.item_id = ${itemId} and stored.generation = ${generation}), 0))`;
 }
 
 export function holdsAtLeastStored(itemId: number | Readonly<SQLWrapper>, replies: number) {
@@ -201,23 +196,23 @@ export async function fewerThanStored(
   return repliesOf(thread) < (await storedReplyCount(db, owner.id));
 }
 
-const OF_READ_THREAD = sql`${redditComments.itemId} = ${items.id} and ${redditComments.generation} = (${readGeneration(items.id)}) and ${redditComments.kind} = 'comment'`;
+const OF_READ_THREAD = sql`${threadComments.itemId} = ${items.id} and ${threadComments.generation} = (${readGeneration(items.id)}) and ${threadComments.kind} = 'comment'`;
 
 export const COMMENT_COUNT_COLUMNS = {
   commentsPublished: sql<boolean>`${digestCoversThread(items.id)}`
     .mapWith(Boolean)
     .as("comments_published"),
   commentsReceived:
-    sql<number>`(select count(*) from ${redditComments} where ${OF_READ_THREAD})`.as(
+    sql<number>`(select count(*) from ${threadComments} where ${OF_READ_THREAD})`.as(
       "comments_received",
     ),
   commentsShown:
-    sql<number>`(select count(*) from ${redditComments} where ${OF_READ_THREAD} and ${commentReadable()})`.as(
+    sql<number>`(select count(*) from ${threadComments} where ${OF_READ_THREAD} and ${commentReadable()})`.as(
       "comments_shown",
     ),
   commentsReported: sql<
     number | null
-  >`(select ${redditThreads.reported} from ${redditThreads} where ${redditThreads.itemId} = ${items.id} and ${redditThreads.generation} = (${readGeneration(items.id)}))`.as(
+  >`(select ${threads.reported} from ${threads} where ${threads.itemId} = ${items.id} and ${threads.generation} = (${readGeneration(items.id)}))`.as(
     "comments_reported",
   ),
 };

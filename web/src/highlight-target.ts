@@ -1,11 +1,11 @@
 import { codePointCount } from "../../src/core/contract/code-points.ts";
-import { StoredCommentId } from "../../src/core/contract/comment-id.ts";
+import { CommentId } from "../../src/core/contract/comment-id.ts";
 import type { Highlight, HighlightTarget } from "../../src/core/contract/highlight-contract.ts";
 import type { MarkSpan } from "./highlight-marks.ts";
 
 export const BODY_SELECTOR = ".md[data-target]";
 
-export const POST_KEY = "post";
+export const POST_KEY = "#post";
 
 export function keyOf(target: Readonly<HighlightTarget>): string {
   return target.kind === "post" ? POST_KEY : target.commentId;
@@ -14,16 +14,16 @@ export function keyOf(target: Readonly<HighlightTarget>): string {
 export function targetOfKey(key: string): HighlightTarget | null {
   if (key === POST_KEY) return { kind: "post" };
 
-  const commentId = StoredCommentId.safeParse(key);
+  const commentId = CommentId.safeParse(key);
 
   return commentId.success ? { kind: "comment", commentId: commentId.data } : null;
 }
 
-export type SpanIndex = Readonly<Record<string, readonly MarkSpan[]>>;
+export type SpanIndex = ReadonlyMap<string, readonly MarkSpan[]>;
 
 export const NO_SPANS: readonly MarkSpan[] = Object.freeze([]);
 
-export const NO_INDEX: SpanIndex = {};
+export const NO_INDEX: SpanIndex = new Map();
 
 function sameSpans(a: readonly MarkSpan[], b: readonly MarkSpan[]): boolean {
   return (
@@ -36,7 +36,7 @@ function sameSpans(a: readonly MarkSpan[], b: readonly MarkSpan[]): boolean {
   );
 }
 
-export function indexSpans(items: readonly Highlight[], previous: SpanIndex): SpanIndex {
+export function indexSpans(items: readonly Highlight[], previous: Readonly<SpanIndex>): SpanIndex {
   const grouped = new Map<string, MarkSpan[]>();
 
   for (const item of items) {
@@ -50,19 +50,17 @@ export function indexSpans(items: readonly Highlight[], previous: SpanIndex): Sp
     else list.push(span);
   }
 
-  const next = Object.fromEntries(
+  const next: SpanIndex = new Map(
     Array.from(grouped, ([key, spans]) => {
-      const was = previous[key];
+      const was = previous.get(key);
 
       return [key, was !== undefined && sameSpans(was, spans) ? was : spans];
     }),
   );
 
-  const keys = Object.keys(next);
-
   const unchanged =
-    keys.length === Object.keys(previous).length &&
-    keys.every((key) => previous[key] === next[key]);
+    next.size === previous.size &&
+    Array.from(next).every(([key, spans]) => previous.get(key) === spans);
 
   return unchanged ? previous : next;
 }

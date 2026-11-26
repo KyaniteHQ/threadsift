@@ -32,18 +32,18 @@ export function displayedBesideThread(after: Readonly<DisplayedAfter>): Publicat
 
 const PLACES_PER_STATEMENT = 1000;
 
-type Project = (key: string, markdown: string) => string;
+type Project = (commentId: string | null, markdown: string) => string;
 
 function memoProjection(): Project {
-  const known = new Map<string, string>();
+  const known = new Map<string | null, string>();
 
-  return (key, markdown) => {
-    const cached = known.get(key);
+  return (commentId, markdown) => {
+    const cached = known.get(commentId);
 
     if (cached !== undefined) return cached;
 
     const text = projectText(markdown);
-    known.set(key, text);
+    known.set(commentId, text);
 
     return text;
   };
@@ -99,7 +99,7 @@ function anchorOf(
   const selector = { exact: row.exact, prefix: row.prefix, suffix: row.suffix };
 
   if (row.commentId === null) {
-    return after.post === undefined ? null : anchorIn(project("post", after.post ?? ""), selector);
+    return after.post === undefined ? null : anchorIn(project(null, after.post ?? ""), selector);
   }
 
   if (after.comments === undefined) return null;

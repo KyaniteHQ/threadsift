@@ -153,14 +153,14 @@ describe("a Digest that keeps a comment id the bot was not sent", () => {
 
       const result = taskRow(instance, sent.id).result;
       assert.ok(result !== null);
-      assert.deepEqual(parseStoredDigest(result).keptComments, ["t1_c1"]);
+      assert.deepEqual(parseStoredDigest(result).keptComments, ["c1"]);
 
       const { comments } = await instance.detail(owner);
 
       assert.equal(comments.view.filter, "kept");
       assert.deepEqual(
         comments.nodes.filter(({ kind }) => kind === "comment").map(({ id }) => id),
-        ["t1_c1"],
+        ["c1"],
       );
     } finally {
       await instance.close();

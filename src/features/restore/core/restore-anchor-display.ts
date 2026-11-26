@@ -3,7 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { utf8Length } from "../../../core/contract/encoding.ts";
 import { RESTORE_ANCHOR_BYTES } from "../../../core/contract/restore-contract.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { items, redditComments } from "../../../core/kernel/schema.ts";
+import { items, threadComments } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
 import { type AnchorSnapshot, commentIdsOf } from "../../item/core/highlight-publish.ts";
 import { readPostTextWithin } from "../../thread/core/post-text.ts";
@@ -84,15 +84,15 @@ export async function commentDisplay(
 
   const comments = await db
     .select({
-      id: redditComments.id,
-      body: sql<string | null>`case when ${commentReadable()} then ${redditComments.body} end`,
+      id: threadComments.id,
+      body: sql<string | null>`case when ${commentReadable()} then ${threadComments.body} end`,
     })
-    .from(redditComments)
+    .from(threadComments)
     .where(
       and(
-        eq(redditComments.itemId, snapshot.itemId),
-        eq(redditComments.generation, generation),
-        among(redditComments.id, ids),
+        eq(threadComments.itemId, snapshot.itemId),
+        eq(threadComments.generation, generation),
+        among(threadComments.id, ids),
       ),
     );
 

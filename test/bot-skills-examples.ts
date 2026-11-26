@@ -1,6 +1,5 @@
 import assert from "node:assert/strict";
 
-import { storedCommentId } from "../src/core/contract/comment-id.ts";
 import { DigestSchema } from "../src/core/contract/digest-schema.ts";
 import { IntakeAnswerSchema } from "../src/core/contract/x-intake-contract.ts";
 import { XBotThreadSchema } from "../src/core/contract/x-wire.ts";
@@ -54,7 +53,7 @@ export function assertExamplesAccepted(): void {
     "thread",
   );
   assert.deepEqual(IntakeAnswerSchema.parse({ content, digest }), { content, digest });
-  assert.deepEqual(digest.keptComments, [storedCommentId(thread.replies[0]?.id ?? "")]);
+  assert.deepEqual(digest.keptComments, [thread.replies[0]?.id ?? ""]);
   assert.deepEqual(IntakeAnswerSchema.parse({ unavailable: true }), { unavailable: true });
 }
 

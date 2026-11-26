@@ -86,7 +86,7 @@ describe("the Reader links the address a Reddit link post points at", () => {
 
     await paste("fill1", {
       content: threadOf("fill1"),
-      digest: { ...DIGEST, keptComments: ["t1_c1"] },
+      digest: { ...DIGEST, keptComments: ["c1"] },
     });
 
     assert.equal((await instance.detail(id)).link, TARGET);
@@ -95,7 +95,7 @@ describe("the Reader links the address a Reddit link post points at", () => {
   it("shows the link of the newest save while an older Digest still covers the Kept comments", async () => {
     const id = await paste("newer1", {
       content: threadOf("newer1", { url: redditAddressOf("newer1") }),
-      digest: { ...DIGEST, keptComments: ["t1_c1"] },
+      digest: { ...DIGEST, keptComments: ["c1"] },
     });
 
     assert.equal((await instance.detail(id)).link, null);

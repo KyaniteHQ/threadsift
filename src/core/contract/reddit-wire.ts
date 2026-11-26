@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { WireCommentId } from "./comment-id.ts";
+import { CommentId } from "./comment-id.ts";
 import { WholeCount } from "./whole-count.ts";
 
 export interface WireComment {
@@ -26,7 +26,7 @@ export type WireChild =
     };
 
 export const COMMENT_FIELDS = {
-  id: WireCommentId,
+  id: CommentId,
   author: z.string(),
   body: z.string(),
   parent_id: z.string(),
@@ -36,7 +36,7 @@ export const COMMENT_FIELDS = {
 
 export const MoreChild = z.object({
   kind: z.literal("more"),
-  data: z.object({ parent_id: z.string(), children: z.array(WireCommentId).default([]) }),
+  data: z.object({ parent_id: z.string(), children: z.array(CommentId).default([]) }),
 });
 
 const Child: z.ZodType<WireChild> = z.lazy(() =>

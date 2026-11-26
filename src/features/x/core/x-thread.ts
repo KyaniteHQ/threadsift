@@ -1,4 +1,3 @@
-import { storedCommentId, wireCommentId } from "../../../core/contract/comment-id.ts";
 import { utf8Length } from "../../../core/contract/encoding.ts";
 import { MAX_ROW_BYTES } from "../../../core/contract/limits.ts";
 import {
@@ -107,16 +106,14 @@ function walk(postId: string, replies: readonly XReply[]): readonly Placed[] {
   const stack = [...children]
     .filter(([parent]) => !known.has(parent))
     .toReversed()
-    .flatMap(([parent, siblings]) => placed(siblings, storedCommentId(parent), 1));
+    .flatMap(([parent, siblings]) => placed(siblings, parent, 1));
 
   stack.push(...placed(children.get(postId), null, 0));
 
   for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
     walked.push(next);
 
-    stack.push(
-      ...placed(children.get(next.reply.id), storedCommentId(next.reply.id), next.depth + 1),
-    );
+    stack.push(...placed(children.get(next.reply.id), next.reply.id, next.depth + 1));
   }
 
   if (walked.length !== replies.length) {
@@ -127,13 +124,13 @@ function walk(postId: string, replies: readonly XReply[]): readonly Placed[] {
 }
 
 function replyNamed(id: string): string {
-  return `reply ${wireCommentId(id) ?? id}`;
+  return `reply ${id}`;
 }
 
 function entryOf({ reply, parentId, depth }: Readonly<Placed>): NodeEntry {
   return {
     kind: "comment",
-    id: storedCommentId(reply.id),
+    id: reply.id,
     parentId,
     depth,
     author: reply.author,

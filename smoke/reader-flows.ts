@@ -78,7 +78,7 @@ export async function readXThread(page: Page): Promise<void> {
       tags: ["sqlite"],
       summary: "Use the online backup command.\nCheck the copy opens.",
       keyPoints: ["A plain copy can tear a page"],
-      keptComments: ["t1_3000000000000000011", "t1_3000000000000000012"],
+      keptComments: ["3000000000000000011", "3000000000000000012"],
     },
   });
   await page.goto("/");

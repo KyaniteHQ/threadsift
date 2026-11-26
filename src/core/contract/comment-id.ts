@@ -1,25 +1,47 @@
 import { z } from "zod";
 
-const PREFIX = "t1_";
+const COMMENT_FULLNAME_PREFIX = "t1_";
 
-const MAX_BYTES = 32;
+const SENT_PREFIX_PATTERN = "[tT]1_";
 
-export const WIRE_ID_MAX = MAX_BYTES - PREFIX.length;
+const BARE_ID_PATTERN = "[A-Za-z\\d]+";
 
-export const StoredCommentId = z
+export const COMMENT_ID_MAX = 29;
+
+const SENT_ID_MAX = COMMENT_FULLNAME_PREFIX.length + COMMENT_ID_MAX;
+
+export const CommentId = z
   .string()
-  .max(MAX_BYTES)
-  .regex(/^[tT]1_[A-Za-z\d]+$/u);
+  .max(COMMENT_ID_MAX)
+  .regex(new RegExp(`^${BARE_ID_PATTERN}$`, "u"));
 
-export const WireCommentId = z
-  .string()
-  .max(WIRE_ID_MAX)
-  .regex(/^[A-Za-z\d]+$/u);
-
-export function storedCommentId(wireId: string): string {
-  return `${PREFIX}${wireId}`;
+export function commentFullname(id: string): string {
+  return `${COMMENT_FULLNAME_PREFIX}${id}`;
 }
 
-export function wireCommentId(storedId: string): string | null {
-  return storedId.startsWith(PREFIX) ? storedId.slice(PREFIX.length) : null;
+export function idOfCommentFullname(fullname: string): string | null {
+  return fullname.startsWith(COMMENT_FULLNAME_PREFIX)
+    ? fullname.slice(COMMENT_FULLNAME_PREFIX.length)
+    : null;
 }
+
+const SENT_FULLNAME = new RegExp(`^${SENT_PREFIX_PATTERN}(${BARE_ID_PATTERN})$`, "u");
+
+function withoutFullnamePrefix(id: string): string {
+  const bare = SENT_FULLNAME.exec(id)?.[1];
+
+  return bare !== undefined && CommentId.safeParse(bare).success ? bare : id;
+}
+
+export const SentCommentId = z
+  .string()
+  .max(SENT_ID_MAX)
+  .regex(new RegExp(`^(?:${SENT_PREFIX_PATTERN})?${BARE_ID_PATTERN}$`, "u"))
+  .transform(withoutFullnamePrefix)
+  .pipe(CommentId);
+
+export const ModelCommentId = z
+  .string()
+  .max(SENT_ID_MAX)
+  .transform(withoutFullnamePrefix)
+  .pipe(z.string().max(SENT_ID_MAX));

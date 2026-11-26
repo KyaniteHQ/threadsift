@@ -1,15 +1,15 @@
 import { and, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 
-import { items, redditComments, redditThreads } from "./schema.ts";
+import { items, threadComments, threads } from "./schema.ts";
 
 function eligibleComments(): SQL {
-  return sql`exists (select 1 from ${redditComments} where ${redditComments.itemId} = ${items.id} and ${redditComments.generation} = ${items.generation} and ${redditComments.eligible} = 1)`;
+  return sql`exists (select 1 from ${threadComments} where ${threadComments.itemId} = ${items.id} and ${threadComments.generation} = ${items.generation} and ${threadComments.eligible} = 1)`;
 }
 
 export function candidateLink(): SQL<string | null> {
   return sql<
     string | null
-  >`(select ${redditThreads.linkedUrl} from ${redditThreads} where ${redditThreads.itemId} = ${items.id} and ${redditThreads.generation} = ${items.generation})`;
+  >`(select ${threads.linkedUrl} from ${threads} where ${threads.itemId} = ${items.id} and ${threads.generation} = ${items.generation})`;
 }
 
 function digestContent() {

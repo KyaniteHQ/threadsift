@@ -35,8 +35,8 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
 | `items` | One row per Item. `normalized_url` is the one unique identity (Item identity). |
 | `item_aliases` | One row per short link that made or reached an Item (Short-link aliases). |
 | `github_repos` | One row per GitHub repository Item. `topics` are GitHub's, not Threadsift Topics or Tags. |
-| `reddit_threads` | One row per Item and content generation that has a Reddit or X thread. |
-| `reddit_comments` | One row per comment or `more` stub, in tree order. X replies use it too. |
+| `threads` | One row per Item and content generation that has a Reddit or X thread. |
+| `thread_comments` | One row per comment, X reply or `more` stub, in tree order. |
 | `x_verifications` | One row per X Item whose thread waits for the check against X. |
 | `media` | One row per image or video of an Article, and per photo of an X post (Media). |
 | `digests` | One stored Digest per Item. |
@@ -54,13 +54,13 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
   - `post_text` holds up to 1,000,000 bytes. A longer text is a file that `post_text_key` names, and a row never holds both.
   - `reason` is the failure marker and the only stored part of an Item's status. The Item view derives `processing` and `ready` from open jobs (One Item status rule in [Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
   - `fetch_result` stays null until a fetch stores its result, and a fetch that gives up leaves it null. Every write of the fetch result sets `x_note`, which names why an X link was not read.
-  - The unique index `items_id_source` on `(id, source)` looks redundant next to the primary key. SQLite accepts a composite foreign key only onto a unique index on exactly its parent columns, and `reddit_threads` and `reddit_comments` reference `(id, source)`. Without the index every thread insert fails with `foreign key mismatch`.
-- **`reddit_threads`.**
+  - The unique index `items_id_source` on `(id, source)` looks redundant next to the primary key. SQLite accepts a composite foreign key only onto a unique index on exactly its parent columns, and `threads` and `thread_comments` reference `(id, source)`. Without the index every thread insert fails with `foreign key mismatch`.
+- **`threads`.**
   - The identity is `(item_id, generation)`. A new content generation, such as the Extension's Save, writes a new row. The older generation's row and comments stay only while the Item has a published Digest, because the Reader keeps showing the published comments. A Digest that publishes for the new generation deletes every other generation.
   - `archived_at` is the fill time of an Arctic Shift fill, and null for a thread that the Extension, a `.json` Paste, an X Paste or the connected Reddit account sent.
   - `linked_url` is the candidate link for the Digest's one hop, read for the Item's current generation (`candidateLink`). `post_link` is the address a Reddit link post points at, read from the newest generation. The candidate differs: it skips video and Reddit or X addresses and falls back to the first link of the post text.
   - The foreign key `(item_id, source)` to `items(id, source)` refuses a row that names another Source than its Item.
-- **`reddit_comments`.** `eligible` is false for a deleted or removed body, `AutoModerator` and a bare agreement such as "this" or "thanks". A Digest publication sets `kept` on eligible rows only and deletes every older generation in the same batch.
+- **`thread_comments`.** `id` and `parent_id` hold the comment id at its Source: Reddit's base-36 comment id without the `t1_` of its fullname, or the status id of an X reply. A `more` stub's id is `more_<position>`, and a comment's `parent_id` is null for a reply to the post. `eligible` is false for a deleted or removed body, `AutoModerator` and a bare agreement such as "this" or "thanks". A Digest publication sets `kept` on eligible rows only and deletes every older generation in the same batch.
 
 ### Settings and integrations
 
@@ -136,7 +136,7 @@ An attempt counts itself in `throttles` before it is checked (`admit`), and a su
 
 ## Highlights
 
-**Identity.** A Highlight's id is generated and never reused. A post Highlight names its Item. A comment Highlight names the Item and Reddit's comment id (`t1_...`), never the generation-specific row of `reddit_comments`, so it survives a refresh, a re-paste and a new Digest. A Remove and the delete of the Item end it. The `status`, the revision and `start` are derived.
+**Identity.** A Highlight's id is generated and never reused. A post Highlight names its Item. A comment Highlight names the Item and the comment id that `thread_comments.id` holds, never the generation-specific row of `thread_comments`, so it survives a refresh, a re-paste and a new Digest. A Remove and the delete of the Item end it. The `status`, the revision and `start` are derived.
 
 A Restore keeps the id, the target, the selector and `createdAt`, and then anchors each Item's Highlights against the restored text as a refresh does. A Highlight comes back found or no longer found as the text decides, except that a text above 256 KiB keeps the exported status ([Export, backup and restore](export-backup-and-restore.md), Restore). A merge of two copies of a library needs its own contract, as the Item merge does (Item identity).
 

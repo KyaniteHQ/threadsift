@@ -4,6 +4,7 @@ import { describe, it } from "node:test";
 import { z } from "zod";
 
 import { AI_INPUT_BYTES } from "../src/core/contract/ai-contract.ts";
+import { COMMENT_ID_MAX } from "../src/core/contract/comment-id.ts";
 import { utf8Length } from "../src/core/contract/encoding.ts";
 import { type LinkedPage, digestPrompt } from "../src/features/digest/core/digest-prompt.ts";
 import type { CommentCandidate } from "../src/features/thread/core/thread-selection.ts";
@@ -17,7 +18,7 @@ function pageOf(text: string, title = "A page"): LinkedPage {
 }
 
 function comment(index: number, body: string): CommentCandidate {
-  return { id: `t1_c${String(index)}`, parentId: null, body };
+  return { id: `c${String(index)}`, parentId: null, body };
 }
 
 const RecordSchema = z.object({
@@ -54,7 +55,7 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
 
     assert.equal(
       prompt.input,
-      '{"topics":[],"tags":[]}\n{"title":"A post","source":"reddit","postText":"A short post.","comments":[{"id":"t1_c1","parentId":null,"body":"A comment."}]}',
+      '{"topics":[],"tags":[]}\n{"title":"A post","source":"reddit","postText":"A short post.","comments":[{"id":"c1","parentId":null,"body":"A comment."}]}',
     );
   });
 
@@ -139,10 +140,10 @@ describe("the Digest prompt carries the linked page inside the input cap", () =>
     const { prompt } = readyInput(ITEM, comments, NO_CATALOG, pageOf("l".repeat(5000)));
     assert.equal(prompt.counts.omitted, 1);
 
-    assert.equal(prompt.maxOutputTokens, 2129);
+    assert.equal(prompt.maxOutputTokens, 2099);
 
-    const longIds = Array.from({ length: 180 }, (_, index) => ({
-      id: `t1_${String(index).padStart(29, "a")}`,
+    const longIds = Array.from({ length: 200 }, (_, index) => ({
+      id: String(index).padStart(COMMENT_ID_MAX, "a"),
       parentId: null,
       body: "x",
     }));

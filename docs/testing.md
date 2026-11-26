@@ -70,4 +70,4 @@ The live check reaches the internet when you run it by hand before a release, an
 
 ## Live deployment guard
 
-Only the `deploy` job of the gate workflow targets `--env live`. A machine signed in to Wrangler reaches the live account, and `CI=true` skips Wrangler's confirmation prompt, so a local check uses `--local`.
+Only the `deploy` job of the gate workflow targets `--env live`. A machine signed in to Wrangler reaches the live account, and `CI=true` skips Wrangler's confirmation prompt, so a local check uses `--local`. The one exception is the read-only `select` that lists colliding comment ids before a migration that copies a table, which the owner runs by hand ([CI, releases and rollback](architecture/ci-releases-and-rollback.md#a-migration-that-copies-a-table)).

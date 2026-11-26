@@ -27,9 +27,9 @@ const STORED = "1000000000000000005";
 
 const STORED_LINK = `https://x.com/someone/status/${STORED}`;
 
-const PARENT = "t1_1000000000000000011";
+const PARENT = "1000000000000000011";
 
-const CHILD = "t1_1000000000000000012";
+const CHILD = "1000000000000000012";
 
 describe("an X thread is stored like a Reddit thread, read in the Reader and rebuilt by a newer Paste", () => {
   let instance: Instance;
@@ -44,7 +44,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
   const nodeIds = async (id: number) =>
     (await instance.detail(id)).comments.nodes.map((node) => node.id);
 
-  it("stores a reply to the post with a null parent and a reply to a reply with the parent's t1_ id, and lists the counts", async () => {
+  it("stores a reply to the post with a null parent and a reply to a reply with the parent's id, and lists the counts", async () => {
     const { saved } = xClient(instance);
 
     const item = await saved({
@@ -57,19 +57,19 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
 
     const stored = instance.database.rows(
       z.object({ id: z.string(), parent_id: z.string().nullable(), depth: z.number() }),
-      "select id, parent_id, depth from reddit_comments where item_id = ? order by position",
+      "select id, parent_id, depth from thread_comments where item_id = ? order by position",
       item.id,
     );
 
     assert.deepEqual(
       stored.map(({ id, parent_id, depth }) => [id, parent_id, depth]),
       [
-        ["t1_1000000000000000013", null, 0],
-        ["t1_1000000000000000014", null, 0],
-        ["t1_1000000000000000011", null, 0],
-        ["t1_1000000000000000012", "t1_1000000000000000011", 1],
-        ["t1_1000000000000000016", "t1_1000000000000000012", 2],
-        ["t1_1000000000000000015", null, 0],
+        ["1000000000000000013", null, 0],
+        ["1000000000000000014", null, 0],
+        ["1000000000000000011", null, 0],
+        ["1000000000000000012", "1000000000000000011", 1],
+        ["1000000000000000016", "1000000000000000012", 2],
+        ["1000000000000000015", null, 0],
       ],
     );
 
@@ -83,13 +83,13 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
   it("stores the Source of the Item on its thread row and on each of its reply rows", () => {
     const id = xClient(instance).itemIdOf(STORED);
 
-    const sources = (table: "reddit_threads" | "reddit_comments") =>
+    const sources = (table: "threads" | "thread_comments") =>
       instance.database
         .rows(z.object({ source: z.string() }), `select source from ${table} where item_id = ?`, id)
         .map(({ source }) => source);
-    assert.deepEqual(sources("reddit_threads"), ["x"]);
+    assert.deepEqual(sources("threads"), ["x"]);
     assert.deepEqual(
-      sources("reddit_comments"),
+      sources("thread_comments"),
       Array.from({ length: 6 }, () => "x"),
     );
   });
@@ -130,18 +130,18 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
           { id: STORED },
         ),
       ),
-      digest: { ...DIGEST, keptComments: ["t1_21"] },
+      digest: { ...DIGEST, keptComments: ["21"] },
     });
     await instance.settledItem(id);
 
     assert.equal(generationOf(id), first + 1);
-    assert.deepEqual(await nodeIds(id), ["t1_21"]);
+    assert.deepEqual(await nodeIds(id), ["21"]);
 
     await saved({ url: STORED_LINK });
     await instance.settledItem(id);
 
     assert.equal(generationOf(id), first + 1);
-    assert.deepEqual(await nodeIds(id), ["t1_21"]);
+    assert.deepEqual(await nodeIds(id), ["21"]);
   });
 
   it("deletes the Item with its thread rows", async () => {
@@ -150,7 +150,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     assert.equal((await instance.send("DELETE", `/api/items/${String(id)}`)).status, 204);
     assert.equal(
       instance.database.count(
-        "select (select count(*) from reddit_comments where item_id = ?) + (select count(*) from reddit_threads where item_id = ?) as n",
+        "select (select count(*) from thread_comments where item_id = ?) + (select count(*) from threads where item_id = ?) as n",
         id,
         id,
       ),
@@ -158,7 +158,7 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     );
   });
 
-  it("sends the eligible replies with their t1_ ids and no author name to the Digest", async () => {
+  it("sends the eligible replies with their ids and no author name to the Digest", async () => {
     await saveProvider(instance);
 
     const item = await xClient(instance).saved({
@@ -178,36 +178,37 @@ describe("an X thread is stored like a Reddit thread, read in the Reader and reb
     );
 
     const sent = task?.inputs ?? "";
+    const { comments } = z
+      .object({ comments: z.array(z.object({ id: z.string() })) })
+      .parse(JSON.parse(sent.slice(sent.indexOf("\n") + 1)));
 
-    assert.equal(
-      ["011", "012", "016"].every((tail) => sent.includes(`t1_1000000000000000${tail}`)),
-      true,
-    );
+    const ids = comments.map(({ id }) => id);
+
+    assert.deepEqual(ids, [PARENT, CHILD, "1000000000000000016"]);
     assert.ok(sent.includes(SQLITE_FACT));
-    assert.equal(/t1_1000000000000000(?:013|014|015)|Remember the rules/u.test(sent), false, sent);
+    assert.equal(/"1000000000000000(?:013|014|015)"|Remember the rules/u.test(sent), false, sent);
     assert.equal(/bob|carol|dave|erin|AutoModerator/iu.test(sent), false, sent);
 
     instance.database.exec("delete from ai_tasks where item_id = ?", item.id);
   });
 
   it("keeps only the replies a caller-sent Digest names that are eligible", async () => {
+    const sent = [`t1_${PARENT}`, `T1_${CHILD}`, "t1_1000000000000000013", "999"];
     const item = await xClient(instance).saved({
       url: "https://x.com/someone/status/1000000000000000007",
       content: JSON.stringify(authored("1000000000000000007")),
-      digest: { ...DIGEST, keptComments: [PARENT, "t1_1000000000000000013", "t1_999"] },
+      digest: { ...DIGEST, keptComments: sent },
     });
 
     await instance.settledItem(item.id);
 
     assert.deepEqual(
-      instance.database
-        .rows(
-          z.object({ id: z.string() }),
-          "select id from reddit_comments where item_id = ? and kept = 1 order by position",
-          item.id,
-        )
-        .map(({ id }) => id),
-      [PARENT],
+      instance.database.rows(
+        z.object({ rows: z.string(), digest: z.string() }),
+        "select json_group_array(id order by position) as rows, (select json_extract(digest, '$.keptComments') from digests where item_id = ?1) as digest from thread_comments where item_id = ?1 and kept = 1",
+        item.id,
+      ),
+      [{ rows: JSON.stringify([PARENT, CHILD]), digest: JSON.stringify([PARENT, CHILD]) }],
     );
   });
 

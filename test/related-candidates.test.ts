@@ -166,7 +166,7 @@ describe("the related pick matches only the Digest parts of an Item that has a D
       title: "Thread about food",
       url: "https://www.reddit.com/r/science/comments/q1/a_thread/",
       content: JSON.stringify(REDDIT_THREAD),
-      kept: ["t1_c1"],
+      kept: ["c1"],
     });
 
     const noted = await paste(instance, "noted", {

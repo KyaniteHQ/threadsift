@@ -134,7 +134,7 @@ Fill saves the thread of a Link-only Reddit Item when the owner opens it in a ta
 
 #### `fillable`
 
-Every Item view carries `fillable` (`FILLABLE_COLUMNS`). It is true for a Reddit post or comment that has no `reddit_threads` row for any generation, and false for a thread whose Digest never published. The Reader shows `FILL_NOTE` above the empty text of a `fillable` Item that is not `processing`.
+Every Item view carries `fillable` (`FILLABLE_COLUMNS`). It is true for a Reddit post or comment that has no `threads` row for any generation, and false for a thread whose Digest never published. The Reader shows `FILL_NOTE` above the empty text of a `fillable` Item that is not `processing`.
 
 #### `fill: true`
 

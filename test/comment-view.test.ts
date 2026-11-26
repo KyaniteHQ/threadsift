@@ -39,19 +39,14 @@ describe("the Reader shows the comments that pass the script's first step until 
       cause: "no-provider",
       count: { filter: "unfiltered", shown: 3, total: 6 },
     });
-    assert.deepEqual(await nodes(id), [
-      "comment:t1_c1",
-      "stub:t1_c2",
-      "comment:t1_c3",
-      "comment:t1_c6",
-    ]);
+    assert.deepEqual(await nodes(id), ["comment:c1", "stub:c2", "comment:c3", "comment:c6"]);
     assert.deepEqual(row?.commentCount, { filter: "unfiltered", shown: 3, total: 6 });
   });
 
   it("shows the Kept comments, the stub of a dropped parent once a Digest covers the thread", async () => {
     const id = await paste("kept1", {
       content: threadOf("kept1"),
-      digest: { ...DIGEST, keptComments: ["t1_c3"] },
+      digest: { ...DIGEST, keptComments: ["c3"] },
     });
 
     const row = await listed(id);
@@ -60,7 +55,7 @@ describe("the Reader shows the comments that pass the script's first step until 
       filter: "kept",
       count: { filter: "kept", shown: 1, total: 6 },
     });
-    assert.deepEqual(await nodes(id), ["stub:t1_c2", "comment:t1_c3"]);
+    assert.deepEqual(await nodes(id), ["stub:c2", "comment:c3"]);
     assert.deepEqual(row?.commentCount, { filter: "kept", shown: 1, total: 6 });
     assert.equal((await instance.detail(id)).comments.kept, 1);
   });
@@ -111,15 +106,23 @@ describe("the Reader shows the comments that pass the script's first step until 
     const selector = selectorIn(body, "sqlite3 app.db");
 
     const shown = await instance.send("POST", path, {
-      target: { kind: "comment", commentId: "t1_c1" },
+      target: { kind: "comment", commentId: "c1" },
       revision,
       selector,
     });
 
     assert.equal(shown.status, 201, shown.body);
 
+    const prefixed = await instance.send("POST", path, {
+      target: { kind: "comment", commentId: "t1_c1" },
+      revision,
+      selector,
+    });
+
+    assert.equal(prefixed.status, 400, prefixed.body);
+
     const hidden = await instance.send("POST", path, {
-      target: { kind: "comment", commentId: "t1_c5" },
+      target: { kind: "comment", commentId: "c5" },
       revision,
       selector: { exact: "lol", prefix: "", suffix: "", hint: 0 },
     });
@@ -128,10 +131,10 @@ describe("the Reader shows the comments that pass the script's first step until 
 
     await paste("mark1", {
       content: threadOf("mark1"),
-      digest: { ...DIGEST, keptComments: ["t1_c6"] },
+      digest: { ...DIGEST, keptComments: ["c6"] },
     });
 
-    assert.deepEqual(await nodes(id), ["comment:t1_c1", "comment:t1_c6"]);
+    assert.deepEqual(await nodes(id), ["comment:c1", "comment:c6"]);
     assert.deepEqual((await listed(id))?.commentCount, { filter: "kept", shown: 2, total: 6 });
   });
 
@@ -163,11 +166,11 @@ describe("the Reader shows the comments that pass the script's first step until 
         node.kind === "stub" ? node.reason : null,
       ]),
       [
-        ["comment", "t1_180", null, 0, null],
-        ["stub", "t1_120", null, 0, "not-saved"],
-        ["comment", "t1_150", "t1_120", 1, null],
-        ["comment", "t1_160", "t1_150", 2, null],
-        ["comment", "t1_170", "t1_120", 1, null],
+        ["comment", "180", null, 0, null],
+        ["stub", "120", null, 0, "not-saved"],
+        ["comment", "150", "120", 1, null],
+        ["comment", "160", "150", 2, null],
+        ["comment", "170", "120", 1, null],
       ],
     );
     assert.equal(comments.received, 4);
@@ -195,9 +198,9 @@ describe("the Reader shows the comments that pass the script's first step until 
     );
 
     assert.deepEqual(await nodes(id), [
-      "comment:t1_1000000000000000011",
-      "comment:t1_1000000000000000012",
-      "comment:t1_1000000000000000016",
+      "comment:1000000000000000011",
+      "comment:1000000000000000012",
+      "comment:1000000000000000016",
     ]);
   });
 });

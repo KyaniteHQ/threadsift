@@ -34,7 +34,7 @@ Every answer carries `NO_INDEX_HEADERS` (`X-Robots-Tag: noindex, nofollow`). The
 Every route reads a path id (`{id}`, `highlightId`, a Restore's `part`) as text through `CanonicalNumberTextSchema` and refuses a non-canonical id. An ordinary route answers 400; the exceptions are listed below. The same rule reads the numbers of the Item, Highlight, Proposal and Log cursors, the web app's Item address `/items/<id>` and `highlight` query, and the owner id of a storage key. It reads text and not `Number()`, because `Number()` also reads `0x10`, `016`, `16.0`, `+16` and `1e3`, and each would be one more address for a record. The MCP tool `read` takes the same range as a JSON number.
 
 - The served parameter carries the pattern `^[1-9]\d{0,15}$`. The OpenAPI generator appends a regex's flags to its text, and `servedDocument` removes them from a `pattern` value only when the text before the flags is the `source` of a regex in a registered schema.
-- A JSON Schema pattern has no flags, so a served regex spells out each case in its character classes. `StoredCommentId` reads `^[tT]1_[A-Za-z\d]+$`, not the case-insensitive `/iu`, which would also accept the Kelvin sign and the long s.
+- A JSON Schema pattern has no flags, so a served regex spells out each case in its character classes. `SentCommentId` reads `^(?:[tT]1_)?[A-Za-z\d]+$`, not the case-insensitive `/iu`, which would also accept the Kelvin sign and the long s.
 - The Grok Bot task routes check the id before the credential, so an id the schema refuses is an unknown task there and answers 401.
 - The image route `/api/files/items/{id}/{name}` reads `{id}` as part of a storage key and checks the whole key, so a bad one answers 404.
 
@@ -87,6 +87,7 @@ The Instance saves the cursor only after every link has an outcome, so a call th
 The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 to an agent token. All Highlight and Note writes answer 403 to an agent token too. `GET /api/highlights` answers one page of the Highlights page and is open to agent tokens.
 
 - `POST /api/items/:id/highlights` answers 409 when the text changed since the owner read it, and 400 with `code` `selector-mismatch` when the passage does not stand at its hint in that text.
+- Its `target.commentId` takes the comment id that `GET /api/items/:id` answers (`CommentId`) and answers 400 for an id with Reddit's `t1_` prefix, which a Digest's `keptComments` still accept. A Reader tab that loaded an Item from a build that stored the prefix sends it, so that tab must be reloaded.
 - `PUT /api/items/:id/note` takes the Note's `revision` and answers 409 with the stored Note when it moved.
 
 ## The Index, the Log and Proposals

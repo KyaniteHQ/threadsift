@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- The Digest names each kept reply in `keptComments` by its id alone, such as `1000000000000000011`, because the Instance stores comment ids without Reddit's `t1_` prefix. Update the Threadsift Instance first: an Instance from before this release refuses an id without `t1_`, and an Instance of this release still accepts one with it.
+
 ## bot-v12
 
 - One `write` or `append` call carries up to 20,000 characters, up from 3,000, so a text of 3,001 to 20,000 characters takes one shell call instead of several. On 2026-11-25 single shell calls of up to 40,000 characters stored the whole text on the Grok Bot shell tool. When a `write` or `append` call prints nothing, the bot starts the file again under a fresh `mark` instead of repeating the call.
