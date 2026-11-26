@@ -291,7 +291,7 @@ a.btn { text-decoration: none; }
 .mast { display: flex; flex-direction: column; gap: var(--s4); min-width: 0; }
 .brand { position: relative; display: flex; align-items: center; gap: var(--s2); }   /* holds the settings popover */
 .brand h1 { margin: 0; }
-.wordmark { font-family: var(--f-brand); font-weight: var(--brand-w); letter-spacing: var(--brand-ls); font-size: var(--t-brand); line-height: var(--lh-display); }
+.wordmark { font-family: var(--f-brand); font-weight: var(--brand-w); text-rendering: geometricPrecision; letter-spacing: var(--brand-ls); font-size: var(--t-brand); line-height: var(--lh-display); }
 .wordmark .wm-sift { color: var(--acc-ink); }
 .brand-n { color: var(--muted); font-variant-numeric: tabular-nums; }
 .search, .filters-slot { min-width: 0; }

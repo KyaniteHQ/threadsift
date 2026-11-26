@@ -77,10 +77,10 @@
    ===================================================================== */
 
 /* 1. Fixed tokens -------------------------------------------------------
-   Eight type sizes: label, meta, code (code blocks, the one exception to the
+   Nine type sizes: label, meta, code (code blocks, the one exception to the
    16px reading floor), body (list text), title (list titles), read (post,
    comment and summary text, never under 16px), h2 (section headings in the
-   reader) and display (reader title). They are in rem, so the browser's own
+   reader), display (reader title) and brand (wordmark). They are in rem, so the browser's own
    font size scales them (1rem is 16px at its default); Text size (--tz,
    below) scales body, title and read, and label and meta never scale.
    --t-floor is the 16px that reading text and a phone's text field and select
@@ -90,7 +90,7 @@
   --t-label: max(var(--t-floor-ui), 0.75rem); --t-meta: max(var(--t-floor-ui), 0.8125rem); --t-code: max(var(--t-floor-ui), 0.875rem); --t-h2: max(1.25rem, calc(var(--t-floor) / var(--post-h-cap))); --post-h-cap: 0.95; --rd-title-min: 1.1; --t-read-base: 1.0625rem; --t-floor: 16px; --t-floor-ui: 12px;
   --lh-display: 1.15; --lh-title: 1.25; --lh-label: 1.4; --lh-ui: 1.45; --lh-text: 1.5; --lh-read: 1.6; --lh-code: 1.5;
   --ls-label: 0.06em;                 /* uppercase labels */
-  --f-brand: 'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif; --brand-w: 600; --brand-ls: -0.015em;
+  --f-brand: 'Schibsted Grotesk Variable', 'Schibsted Grotesk', 'Schibsted Grotesk Fallback', system-ui, sans-serif; --brand-w: 600; --brand-ls: -0.015em;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --r1: 4px; --r2: 8px; --r3: 14px; --r4: 999px;
   --target: 44px;                     /* the smallest touch target: phone controls, the settings gear, the sheet's side buttons */
@@ -118,6 +118,7 @@
   --z-popover: 40;                    /* the settings panel and focused skip button */
   --vh: 100dvh;
 }
+@font-face { font-family: 'Schibsted Grotesk Fallback'; src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold'), local('Arimo-Bold'); font-weight: 100 900; size-adjust: 102.9%; ascent-override: 94.95%; descent-override: 25.07%; line-gap-override: 0%; }
 
 /* 2. The look ------------------------------------------------------------ */
 

@@ -7,7 +7,8 @@ import { z } from "zod";
 const root = resolve(import.meta.dirname, "..");
 const SOURCE_FILE = "design/system/icon.svg";
 const SIDE = 64;
-const SAFE_RADIUS = 0.4 * SIDE;
+const MASKABLE_SIZE = 512;
+const SAFE_RADIUS = 0.4 * SIDE - SIDE / MASKABLE_SIZE;
 const CENTRE = SIDE / 2;
 
 type Fit = "tile" | "full-bleed" | "maskable";
@@ -16,7 +17,7 @@ const OUTPUTS: readonly { file: string; size: number; fit: Fit }[] = [
   { file: "web/public/icon-32.png", size: 32, fit: "tile" },
   { file: "web/public/icon-192.png", size: 192, fit: "tile" },
   { file: "web/public/icon-512.png", size: 512, fit: "tile" },
-  { file: "web/public/icon-maskable-512.png", size: 512, fit: "maskable" },
+  { file: "web/public/icon-maskable-512.png", size: MASKABLE_SIZE, fit: "maskable" },
   { file: "web/public/apple-touch-icon.png", size: 180, fit: "full-bleed" },
   { file: "extension/public/icon/16.png", size: 16, fit: "tile" },
   { file: "extension/public/icon/32.png", size: 32, fit: "tile" },
