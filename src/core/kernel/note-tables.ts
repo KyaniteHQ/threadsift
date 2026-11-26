@@ -1,13 +1,17 @@
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { items } from "./item-tables.ts";
 
-export const notes = sqliteTable("notes", {
-  itemId: integer("item_id")
-    .primaryKey()
-    .references(() => items.id, { onDelete: "cascade" }),
-  body: text("body"),
-  revision: integer("revision").notNull(),
-  createdAt: integer("created_at").notNull(),
-  updatedAt: integer("updated_at").notNull(),
-});
+export const notes = sqliteTable(
+  "notes",
+  {
+    itemId: integer("item_id")
+      .primaryKey()
+      .references(() => items.id, { onDelete: "cascade" }),
+    body: text("body"),
+    revision: integer("revision").notNull(),
+    createdAt: integer("created_at").notNull(),
+    updatedAt: integer("updated_at").notNull(),
+  },
+  (table) => [index("notes_updated_at").on(table.updatedAt)],
+);

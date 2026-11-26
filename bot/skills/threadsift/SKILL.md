@@ -108,7 +108,7 @@ Write the thread JSON (copy every text verbatim, with no trimming, summary or tr
 }
 ```
 
-The Digest: one `topic` and at most 3 `tags`. Run `mark`, then `threadsift.sh topics <hex1>` first, which writes `~/threadsift/tmp/topics-<hex1>.json` with the library's first 50 Topics (`name`, `itemCount`), and reuse a name from it as the `topic` when one fits. The `topics` file holds no Tags. A `search` file lists the library's Tags in `counts.tags` (`key`, `name` and `count`, the number of matching Items that carry the Tag), so reuse a Tag from a search file you have, when one fits, and otherwise choose tags yourself. Keep a reply only when it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument. Name each kept reply in `keptComments` as `t1_` and its id.
+The Digest: one `topic` and at most 3 `tags`. Run `mark`, then `threadsift.sh topics <hex1>` first, which writes `~/threadsift/tmp/topics-<hex1>.json` with the library's first 50 Topics (`name`, `itemCount`), and reuse a name from it as the `topic` when one fits. The `topics` file holds no Tags. A `search` file lists the library's Tags in `counts.tags` (`key`, `name` and `count`, the number of matching Items that carry the Tag), so reuse a Tag from a search file you have, when one fits, and otherwise choose tags yourself. Keep a reply only when it adds a fact, a fix, a working link or command, first-hand experience or a real counterargument. Name each kept reply in `keptComments` by its id.
 
 ```json digest
 {
@@ -117,7 +117,7 @@ The Digest: one `topic` and at most 3 `tags`. Run `mark`, then `threadsift.sh to
   "tags": ["sqlite", "backups"],
   "summary": "Use the online backup command.\nCheck the copy opens before trusting it.",
   "keyPoints": ["A plain copy can tear a page"],
-  "keptComments": ["t1_1000000000000000011"]
+  "keptComments": ["1000000000000000011"]
 }
 ```
 

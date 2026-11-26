@@ -22,6 +22,7 @@ export const highlights = sqliteTable(
   },
   (table) => [
     index("highlights_item").on(table.itemId),
+    index("highlights_created_at").on(table.createdAt),
     check(
       "highlights_start_when_attached",
       sql`(${table.status} = 'attached') = (${table.start} is not null)`,

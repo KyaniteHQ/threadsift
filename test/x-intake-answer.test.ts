@@ -1,6 +1,8 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { z } from "zod";
+
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { insertedTask, taskRow } from "./bot-task-rows.ts";
@@ -50,7 +52,7 @@ describe("an X link answer with the task's credential is stored once and only fo
     assert.equal(verification?.thread.replies.length, 1);
     assert.equal(verification?.digest, JSON.stringify(digestOf()));
     assert.deepEqual([item.fetch_result, item.generation], [null, 0]);
-    assert.equal(stored(instance, ["reddit_comments", "digests"]), "[[],[]]");
+    assert.equal(stored(instance, ["thread_comments", "digests"]), "[[],[]]");
 
     const unchanged = stored(instance, ["ai_tasks", "x_verifications"]);
     const repeat = await intakeTo(instance, task, answerOf(task.statusId));
@@ -80,6 +82,12 @@ describe("an X link answer with the task's credential is stored once and only fo
       verification?.thread.replies.map(({ id }) => id),
       offsets.map((offset) => String(BigInt(task.statusId) + BigInt(offset))),
     );
+    assert.deepEqual(
+      z
+        .object({ keptComments: z.array(z.string()) })
+        .parse(JSON.parse(verification?.digest ?? "null")).keptComments,
+      [2n, 3n, 99n, 101n].map((offset) => String(root + offset)),
+    );
   });
 
   it("refuses a thread when the selected replies exceed the stored row limit and names the limit", async () => {
@@ -94,7 +102,7 @@ describe("an X link answer with the task's credential is stored once and only fo
   it("keeps a Digest the owner supplied with the link when the answer holds none", async () => {
     const task = await sentIntake(instance);
     const picked = String(BigInt(task.statusId) + 99n);
-    const supplied = JSON.stringify({ ...digestOf(), keptComments: [`t1_${picked}`] });
+    const supplied = JSON.stringify({ ...digestOf(), keptComments: [picked] });
 
     instance.database.exec(
       "update items set pending_digest = ? where id = ?",

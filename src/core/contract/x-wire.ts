@@ -1,11 +1,11 @@
 import { z } from "zod";
 
-import { WIRE_ID_MAX } from "./comment-id.ts";
+import { COMMENT_ID_MAX } from "./comment-id.ts";
 import { X_QUOTES_MAX, X_REPLIES_MAX } from "./limits.ts";
 import { WholeCount } from "./whole-count.ts";
 import { onlyXImages } from "./x-images.ts";
 
-const X_STATUS_ID_MAX = WIRE_ID_MAX;
+const X_STATUS_ID_MAX = COMMENT_ID_MAX;
 
 export const StatusIdSchema = z
   .string()

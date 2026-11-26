@@ -173,13 +173,13 @@ describe("the parsers turn literal input into the values the library stores", ()
         body,
       ]),
       [
-        ["t1_c1", null, 0, true, "Use the online backup command instead of copying the file."],
-        ["t1_c2", "t1_c1", 1, false, null],
-        ["t1_c3", "t1_c2", 2, true, "It worked for me after a restart."],
-        ["t1_c4", "t1_c2", 2, false, null],
-        ["t1_c5", "t1_c0", 1, true, "I keep two copies."],
-        ["t1_c6", "t1_c0", 1, true, "I check both copies."],
-        ["t1_C7", null, 0, true, "Check the restore."],
+        ["c1", null, 0, true, "Use the online backup command instead of copying the file."],
+        ["c2", "c1", 1, false, null],
+        ["c3", "c2", 2, true, "It worked for me after a restart."],
+        ["c4", "c2", 2, false, null],
+        ["c5", "c0", 1, true, "I keep two copies."],
+        ["c6", "c0", 1, true, "I check both copies."],
+        ["C7", null, 0, true, "Check the restore."],
       ],
     );
   });

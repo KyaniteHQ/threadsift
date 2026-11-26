@@ -158,7 +158,7 @@ export async function seedLibrary(instance: Instance): Promise<Library> {
 
   const threadId = await paste(instance, THREAD_LINK, {
     content: JSON.stringify(THREAD),
-    digest: { ...DIGEST, keptComments: ["t1_c2"] },
+    digest: { ...DIGEST, keptComments: ["c2"] },
   });
 
   const thread = await instance.detail(threadId);
@@ -166,13 +166,13 @@ export async function seedLibrary(instance: Instance): Promise<Library> {
   await highlight(
     instance,
     threadId,
-    { kind: "comment", commentId: "t1_c2" },
+    { kind: "comment", commentId: "c2" },
     thread.highlights.revisions.comments ?? 0,
     selectorIn(COMMENT_TEXT, COMMENT_QUOTE),
   );
   await paste(instance, THREAD_LINK, {
     content: JSON.stringify(THREAD),
-    digest: { ...DIGEST, keptComments: ["t1_c1"] },
+    digest: { ...DIGEST, keptComments: ["c1"] },
   });
 
   const fillerIds = await Promise.all(

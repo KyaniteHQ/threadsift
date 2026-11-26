@@ -1,9 +1,9 @@
 import { type SQL, type SQLWrapper, and, asc, eq, isNotNull, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { StoredCommentId } from "../../../core/contract/comment-id.ts";
+import { CommentId } from "../../../core/contract/comment-id.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { digests, items, redditComments, redditThreads } from "../../../core/kernel/schema.ts";
+import { digests, items, threadComments, threads } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
 
 export interface CommentCandidate {
@@ -13,11 +13,11 @@ export interface CommentCandidate {
 }
 
 export function keptCommentIds(): SQL<string> {
-  return sql<string>`(select coalesce(json_group_array(id), '[]') from (select ${redditComments.id} as id from ${redditComments} join ${digests} on ${digests.itemId} = ${redditComments.itemId} and ${digests.generation} = ${redditComments.generation} where ${redditComments.itemId} = ${items.id} and ${redditComments.kept} = 1 order by ${redditComments.position}))`;
+  return sql<string>`(select coalesce(json_group_array(id), '[]') from (select ${threadComments.id} as id from ${threadComments} join ${digests} on ${digests.itemId} = ${threadComments.itemId} and ${digests.generation} = ${threadComments.generation} where ${threadComments.itemId} = ${items.id} and ${threadComments.kept} = 1 order by ${threadComments.position}))`;
 }
 
 function selected(kept: readonly string[]): SQL {
-  return sql`${redditComments.eligible} = 1 and ${among(redditComments.id, kept)}`;
+  return sql`${threadComments.eligible} = 1 and ${among(threadComments.id, kept)}`;
 }
 
 function commentsWhere(
@@ -26,16 +26,16 @@ function commentsWhere(
   condition: Readonly<SQLWrapper>,
 ) {
   return db
-    .select({ id: redditComments.id, body: redditComments.body })
-    .from(redditComments)
+    .select({ id: threadComments.id, body: threadComments.body })
+    .from(threadComments)
     .where(
       and(
-        eq(redditComments.itemId, snapshot.itemId),
-        eq(redditComments.generation, snapshot.generation),
+        eq(threadComments.itemId, snapshot.itemId),
+        eq(threadComments.generation, snapshot.generation),
         sql`${condition}`,
       ),
     )
-    .orderBy(asc(redditComments.position));
+    .orderBy(asc(threadComments.position));
 }
 
 async function bodiesWhere(
@@ -72,7 +72,7 @@ export function keptBodies(
   db: Database,
   snapshot: Readonly<{ itemId: number; generation: number }>,
 ): Promise<readonly string[]> {
-  return bodiesWhere(db, snapshot, eq(redditComments.kept, true));
+  return bodiesWhere(db, snapshot, eq(threadComments.kept, true));
 }
 
 export function highlightedComments(
@@ -89,7 +89,7 @@ export function submittedAmong(
 ): readonly string[] {
   const allowed = new Set(submitted);
 
-  return [...new Set(ids)].filter((id) => allowed.has(id) && StoredCommentId.safeParse(id).success);
+  return [...new Set(ids)].filter((id) => allowed.has(id) && CommentId.safeParse(id).success);
 }
 
 export async function commentCandidates(
@@ -97,17 +97,17 @@ export async function commentCandidates(
   snapshot: Readonly<{ itemId: number; generation: number }>,
 ): Promise<readonly CommentCandidate[]> {
   const rows = await db
-    .select({ id: redditComments.id, parentId: redditComments.parentId, body: redditComments.body })
-    .from(redditComments)
+    .select({ id: threadComments.id, parentId: threadComments.parentId, body: threadComments.body })
+    .from(threadComments)
     .where(
       and(
-        eq(redditComments.itemId, snapshot.itemId),
-        eq(redditComments.generation, snapshot.generation),
-        eq(redditComments.eligible, true),
-        isNotNull(redditComments.body),
+        eq(threadComments.itemId, snapshot.itemId),
+        eq(threadComments.generation, snapshot.generation),
+        eq(threadComments.eligible, true),
+        isNotNull(threadComments.body),
       ),
     )
-    .orderBy(asc(redditComments.position));
+    .orderBy(asc(threadComments.position));
 
   return rows.flatMap(({ id, parentId, body }) => (body === null ? [] : [{ id, parentId, body }]));
 }
@@ -121,18 +121,16 @@ export function selectionWrites(
 
   return [
     db
-      .update(redditComments)
+      .update(threadComments)
       .set({ kept: selected(kept) })
-      .where(and(eq(redditComments.itemId, itemId), eq(redditComments.generation, generation))),
+      .where(and(eq(threadComments.itemId, itemId), eq(threadComments.generation, generation))),
     db
-      .delete(redditComments)
+      .delete(threadComments)
       .where(
-        and(eq(redditComments.itemId, itemId), sql`${redditComments.generation} <> ${generation}`),
+        and(eq(threadComments.itemId, itemId), sql`${threadComments.generation} <> ${generation}`),
       ),
     db
-      .delete(redditThreads)
-      .where(
-        and(eq(redditThreads.itemId, itemId), sql`${redditThreads.generation} <> ${generation}`),
-      ),
+      .delete(threads)
+      .where(and(eq(threads.itemId, itemId), sql`${threads.generation} <> ${generation}`)),
   ];
 }

@@ -63,7 +63,7 @@ export function toolsOf(instance: Instance) {
   const candidates = (itemId: number) =>
     instance.database.rows(
       z.object({ generation: z.number(), linked_url: z.string().nullable() }),
-      "select generation, linked_url from reddit_threads where item_id = ? order by generation",
+      "select generation, linked_url from threads where item_id = ? order by generation",
       itemId,
     );
 

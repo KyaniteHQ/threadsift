@@ -26,7 +26,7 @@ The manifest lists the record files with their row counts. It also holds the for
 `BACKUP_TABLES` holds one record for every included table: the columns a backup exports, the columns it leaves out, and what a Restore does with the table (`mustBeEmpty` for a table whose rows make the library non-empty, `singleton`, `rewrites` and `rebuiltInto`). Each table the records leave out has a reason beside it:
 
 - Secrets, the owner's password hash, sessions, agent token hashes and the working tables are left out, because a restored Instance gets a new password and new tokens and starts with no work in flight.
-- The `ai_tasks` rows that Digests name stay, because `digests.task_id` is NOT NULL and a task's inputs hold the comment ids the agent was shown.
+- The `ai_tasks` rows that Digests name stay, because `digests.task_id` is NOT NULL and a task's inputs hold the comment ids the agent was shown. A model's or the Grok Bot's task keeps its inputs as sent, so a task sent before the migration that renamed the thread tables still shows `t1_` ids there. Its `result`, and the `inputs` of a caller's task, hold a Digest and carry the bare ids that every stored Digest carries.
 - `d1_migrations` and `sqlite_sequence` are excluded as `carried-in-manifest`.
 - The records hold every stored comment, Kept or not. The Item notes hold Kept comments only.
 

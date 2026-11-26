@@ -200,7 +200,7 @@ describe("an agent searches and reads Items through /mcp with the same answers a
     assert.equal(item.comments.kept, 1);
     assert.deepEqual(
       item.comments.nodes.map(({ id }) => id),
-      ["t1_c1", "t1_c2"],
+      ["c1", "c2"],
     );
     assert.deepEqual(
       item.highlights.items.map(({ status }) => status),

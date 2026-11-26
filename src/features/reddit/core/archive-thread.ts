@@ -90,7 +90,7 @@ export function parseArchiveThread(
 
     checkedPost(post);
 
-    const walked = walkArchive(children, `t3_${post.id}`);
+    const walked = walkArchive(children, post.id);
 
     checkedIds(new Set<string>(), walked);
 

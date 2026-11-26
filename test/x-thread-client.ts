@@ -17,9 +17,7 @@ export const DIGEST = {
 
 export function xClient(instance: Instance) {
   const refusedTables = () =>
-    ["items", "reddit_comments", "reddit_threads"].map((table) =>
-      instance.database.rowCount(table),
-    );
+    ["items", "thread_comments", "threads"].map((table) => instance.database.rowCount(table));
 
   const saved = async (body: Json) => {
     const answer = await instance.send("POST", "/api/items", body);

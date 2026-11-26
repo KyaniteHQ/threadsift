@@ -6,12 +6,12 @@ const ALL_TABLES = [
   "items",
   "jobs",
   "ai_tasks",
-  "reddit_comments",
+  "thread_comments",
   "digests",
   "x_verifications",
 ] as const;
 
-export const PUBLISHED_TABLES = ["items", "reddit_comments", "digests", "x_verifications"] as const;
+export const PUBLISHED_TABLES = ["items", "thread_comments", "digests", "x_verifications"] as const;
 
 export function stored(instance: Instance, tables: readonly string[] = ALL_TABLES): string {
   return JSON.stringify(
@@ -72,7 +72,7 @@ export function verifyJobStates(instance: Instance, itemId: number) {
 
 export function commentCount(instance: Instance, itemId: number): number {
   return instance.database.count(
-    "select count(*) as n from reddit_comments where item_id = ?",
+    "select count(*) as n from thread_comments where item_id = ?",
     itemId,
   );
 }

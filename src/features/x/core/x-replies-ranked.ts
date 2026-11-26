@@ -1,4 +1,3 @@
-import { storedCommentId } from "../../../core/contract/comment-id.ts";
 import {
   X_REPLIES_KEPT_MAX,
   X_REPLIES_LIKES_PERCENT,
@@ -93,7 +92,7 @@ function rankedThread(
 
   const rankedIds = ranked.map(({ id }) => id);
   const picked = new Set(keptComments);
-  const digestIds = rankedIds.filter((id) => picked.has(storedCommentId(id)));
+  const digestIds = rankedIds.filter((id) => picked.has(id));
   const keptFor = (count: number) =>
     withAncestors([...parts, ...digestIds, ...rankedIds.slice(0, count)], byId);
 

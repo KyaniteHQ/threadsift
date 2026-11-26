@@ -38,6 +38,8 @@ The current triggers are the three `search_parts` triggers that feed the FTS5 ta
 | Container | The node target applies the same files at start. |
 | Local D1 | `wrangler d1 migrations apply DB --local --persist-to <dir>` needs no Cloudflare login. |
 
+Each target applies a migration file whole or not at all. Wrangler 4.166.0 sends each file with its `d1_migrations` insert as one query (`buildMigrationQuery`), and D1 runs every query inside an implicit transaction ([D1 foreign keys](https://developers.cloudflare.com/d1/sql-api/foreign-keys/)). The node target runs each file and its insert in one `BEGIN` and `COMMIT`. A statement that fails leaves the database as it was before the file on both, which a local run showed for local D1 and the container. A file must also finish within D1's 30 seconds for a query ([D1 limits](https://developers.cloudflare.com/d1/platform/limits/)).
+
 The deploy applies a migration before it deploys the Worker, so the previous Worker runs for a short time on the new schema. A migration that drops a column or a trigger that the previous Worker still uses needs a deploy while no feature that uses it is running, because there is no compatibility layer. No build older than the one that migrated a database is supported on it.
 
 - SQLite treats each NULL as distinct in a unique index, so `jobs_one_open_per_item_kind` accepts two open `export` jobs with no Item. The partial unique index `exports_one_live` guards the one-live-Export rule instead.

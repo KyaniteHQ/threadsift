@@ -2,7 +2,7 @@
 
 [The spec](../spec.md) states what the app does. This page holds the reasons behind its product decisions and the measured or sourced facts the spec leaves out. A fact here carries the command, address or source that shows it. [Open items and unverified claims](open-items-and-unverified-claims.md) holds a fact no run has proven.
 
-Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131).
+Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131), [Highlights page order](#highlights-page-order).
 
 ## Product decisions
 
@@ -239,3 +239,16 @@ An aborted request ends the browser's side only. In a local Worker run (`wrangle
 ## Export entry count on Node 26.13.1
 
 On Node 26.13.1 a `while` loop that counts the entries of an Item that fit in an Export slice returned a wrong `next` after the process had run it for many Items, so the Export ended `ready` without the post text file ([Export, backup and restore](export-backup-and-restore.md), Item notes, images and post text). The core tests of two files in one process (`node --test --test-isolation=none test/export-lifecycle.test.ts test/export-slices.test.ts`) showed it on every run. It did not appear with `--no-maglev` or `--no-maglev-loop-peeling`, and it still appeared with `--no-turbofan`, `--no-opt`, `--no-maglev-inlining`, `--no-maglev-truncation` and `--no-maglev-cons-string-elision`. Logging inside the loop hid it.
+
+## Highlights page order
+
+Measured on 2026-11-26 on synthetic libraries of 1,000, 10,000 and 100,000 Highlights, built with the real migrations through the container's `node:sqlite` binding (SQLite 3.54.0). The statement is the first page of `highlightsPage`, captured from the running code, and each time is the median of 20 runs. Rows read are `meta.rows_read` of the statement's `prepare(...).all()` on the D1 binding that Wrangler's `getPlatformProxy` gives, with the same tables in a local D1 database (wrangler 4.166.0). The numbers cover the page select with no filter and no search. The totals and the counts of the filter groups are separate statements, and a page with a filter or a search was not measured.
+
+| Highlights | Without `highlights_created_at` and `notes_updated_at` | With them |
+|---:|---|---|
+| 1,000 | 4,323 rows read, 1.64 ms | 215 rows read, 0.34 ms |
+| 10,000 | 43,806 rows read, 39.5 ms | 214 rows read, 0.48 ms |
+| 100,000 | 438,438 rows read, 395 ms | 215 rows read, 0.35 ms |
+
+At 100,000 Highlights the two indexes add 0.9 % to the database file, and 1,000 inserts took the same time with and without them. The page rows are the same with and without them.
+
