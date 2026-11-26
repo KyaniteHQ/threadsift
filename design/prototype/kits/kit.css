@@ -142,7 +142,7 @@ svg.ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor
   font: 400 max(var(--t-floor-ui), 0.75rem) / 1.3 var(--f-mono); text-transform: var(--strip-case); letter-spacing: var(--strip-track); font-variant-numeric: tabular-nums;
 }
 .tc-strip .st { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tc-body { flex: 1; min-height: 0; padding: var(--tc-pad) var(--tc-pad) 0; }
+.tc-body { flex: 1; min-height: 0; padding: var(--tc-pad) var(--tc-pad) var(--s2); }
 .tc-text {
   height: 100%; height: round(down, 100%, var(--tc-lh)); overflow: hidden;
   font: 400 var(--tc-size) / var(--tc-lh) var(--f-read); color: var(--text); text-wrap: pretty; overflow-wrap: anywhere;
@@ -187,7 +187,7 @@ svg.ic { width: 18px; height: 18px; flex: none; fill: none; stroke: currentColor
 .row[aria-current="true"] { background: var(--acc-soft); box-shadow: inset 3px 0 0 var(--acc); }
 .row-main { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--s3); align-items: start; }
 .row-text { display: grid; gap: calc(var(--s1) * var(--k) * 1.5); }
-.row .title { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.row .title { text-wrap: balance; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .row .thumb { width: var(--thumb); aspect-ratio: 1; }
 .row .mark, .card .mark, .rd-head .mark { z-index: 2; }
 
