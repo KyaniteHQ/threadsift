@@ -40,23 +40,20 @@ Measurements behind the Reddit fetch:
 
 ## AI providers
 
-The owner chose `claude-sonnet-5-5` at medium effort for Claude Code and `gpt-6.2-sol` at medium for Codex. The provider comparison tool ([Providers guide](../guides/providers.md), Compare Providers) ran Digests on 20 Items from the owner's library. The table's rows come from two captures:
+The owner chose `claude-sonnet-5-5` at medium effort for Claude Code and `gpt-6.2-sol` at medium for Codex. The provider comparison tool ([Providers guide](../guides/providers.md), Compare Providers) ran Digests on 20 Items from the owner's library: 16 X posts, 2 Reddit posts, 1 GitHub repository and 1 article. Every row comes from runs on 2026-11-26 at revision `de5a779`, on one capture with snapshot hash `da7b825cd72a…`. Two runs held every Provider, with Claude Code 2.1.332. Two later runs held only the two Codex Providers, with Codex CLI 0.172.0, because the reserved Codex home was not signed in during the first two runs, whose Codex rows recorded `cli-not-signed-in`.
 
-- **2026-11-26, the Claude Code rows.** Two runs at revision `de5a779` on one capture with snapshot hash `da7b825cd72a…`, with Claude Code 2.1.332. The capture holds 16 X posts, 2 Reddit posts, 1 GitHub repository and 1 article.
-- **2026-11-18, the Codex rows.** Runs at revisions `fd4eee8` and `d43acd8` on an earlier capture of 20 Items. In the runs of 2026-11-26 the reserved Codex home was not signed in, so both Codex rows recorded `cli-not-signed-in`.
+The median and the longest call cover the calls that returned a Digest. The records stay outside the repository.
 
-The median and the longest call cover the calls that returned a Digest. Times of rows from different dates are not comparable, because the captures differ. The records stay outside the repository.
+| Provider | Model | Effort | Digests | Median call | Longest call |
+|---|---|---|---:|---:|---:|
+| Claude Code | `claude-sonnet-5-5` | Medium | 40/40 | 5.6 s | 9.0 s |
+| Claude Code | `claude-sonnet-5-5` | High | 40/40 | 9.7 s | 19.5 s |
+| Claude Code | `claude-sonnet-5-5` | CLI default | 40/40 | 5.6 s | 9.5 s |
+| Claude Code | `claude-haiku-5-5` | CLI default | 40/40 | 12.6 s | 29.3 s |
+| Codex | `gpt-6.2-sol` | Medium | 40/40 | 12.2 s | 24.7 s |
+| Codex | `gpt-6.2-sol` | CLI default (low) | 40/40 | 11.1 s | 19.8 s |
 
-| Provider | Model | Effort | Date | Digests | Median call | Longest call |
-|---|---|---|---|---:|---:|---:|
-| Claude Code | `claude-sonnet-5-5` | Medium | 2026-11-26 | 40/40 | 5.6 s | 9.0 s |
-| Claude Code | `claude-sonnet-5-5` | High | 2026-11-26 | 40/40 | 9.7 s | 19.5 s |
-| Claude Code | `claude-sonnet-5-5` | CLI default | 2026-11-26 | 40/40 | 5.6 s | 9.5 s |
-| Claude Code | `claude-haiku-5-5` | CLI default | 2026-11-26 | 40/40 | 12.6 s | 29.3 s |
-| Codex | `gpt-6.2-sol` | Medium | 2026-11-18 | 20/20 | 15.3 s | 26.1 s |
-| Codex | `gpt-6.2-sol` | CLI default (low) | 2026-11-18 | 20/20 | 13.9 s | 22.6 s |
-
-Workers AI bills by use, so its row recorded `workers-ai-credentials-missing` and sent no call. In the runs of 2026-11-26 six free OpenRouter models returned 6 Digests across 240 attempts. Of the other 234 attempts, 149 were refused as `provider-busy`, 45 as `cut-off` and 40 as `model-not-found`. Grok Bot has no model field; its row recorded `bot-callback-fixed-to-live-instance` for all 40 records and sent no call (Providers guide, Read the results). These Providers have no recommendation.
+Workers AI bills by use, so its row recorded `workers-ai-credentials-missing` and sent no call. In the first two runs six free OpenRouter models returned 6 Digests across 240 attempts. Of the other 234 attempts, 149 were refused as `provider-busy`, 45 as `cut-off` and 40 as `model-not-found`. Grok Bot has no model field; its row recorded `bot-callback-fixed-to-live-instance` for all 40 records and sent no call (Providers guide, Read the results). These Providers have no recommendation.
 
 - Anthropic, OpenAI and xAI have no successful live run until the owner supplies a key. Only their refusal of a wrong key ran against the vendors. OpenRouter ran a real Verify on the container with a free model.
 - OpenRouter turns a new key on some seconds after it makes it (up to 17.2 s in 16 runs), so Connect saves the key and then checks once a second for up to 45 s.
