@@ -1,41 +1,12 @@
 import { items, topicHue, topics } from "./items.js";
 
-export const DIRECTIONS = {
-  quarto: {
-    name: "Quarto",
-    idea: "A technical monograph: one grotesque family, a ruled matrix of hairlines, and a green ink.",
-    accent: "moss",
-    fonts: [
-      { id: "library", name: "Schibsted Grotesk" },
-      { id: "broadsheet", name: "Schibsted + Source Serif" },
-      { id: "workbench", name: "Commit Mono" },
-      { id: "atkinson", name: "Atkinson Hyperlegible" },
-    ],
-    styleFont: { library: "library", broadsheet: "broadsheet", workbench: "workbench" },
-  },
-  index: {
-    name: "Index Room",
-    idea: "A library catalogue: every Item is a card filed in a reading room, headed by its catalogue line and stamped while unread.",
-    accent: "iris",
-    fonts: [
-      { id: "library", name: "Libre Franklin + Literata" },
-      { id: "workbench", name: "Fragment Mono + Literata" },
-      { id: "atkinson", name: "Atkinson Hyperlegible" },
-    ],
-    styleFont: { library: "library", broadsheet: "library", workbench: "workbench" },
-  },
-  proof: {
-    name: "Proof Sheet",
-    idea: "A photographer's contact sheet: every frame is shown, and a china marker picks the keepers.",
-    accent: "marker",
-    fonts: [
-      { id: "library", name: "Archivo + Source Serif" },
-      { id: "workbench", name: "JetBrains Mono + Source Serif" },
-      { id: "atkinson", name: "Atkinson Hyperlegible" },
-    ],
-    styleFont: { library: "library", broadsheet: "library", workbench: "workbench" },
-  },
-};
+const FONTS = [
+  { id: "library", name: "Schibsted Grotesk" },
+  { id: "broadsheet", name: "Schibsted + Source Serif" },
+  { id: "workbench", name: "Commit Mono" },
+  { id: "atkinson", name: "Atkinson Hyperlegible" },
+];
+const DEFAULT_ACCENT = "moss";
 
 const STYLES = [
   { id: "library", name: "Library" },
@@ -43,7 +14,6 @@ const STYLES = [
   { id: "workbench", name: "Workbench" },
 ];
 const ACCENTS = [
-  { id: "marker", name: "Marker red", only: "proof" },
   { id: "cobalt", name: "Cobalt" },
   { id: "rust", name: "Rust" },
   { id: "moss", name: "Moss" },
@@ -155,13 +125,6 @@ function stripText(it) {
   if (it.source === "github") return line("GitHub", it.language);
   return line(SOURCE[it.source], it.domain);
 }
-function coverStripText(it) {
-  if (it.linkOnly) return line(it.community && `r/${it.community}`, "Link-only");
-  if (it.source === "reddit") return stripText(it);
-  if (it.source === "x") return line(it.handle && `@${it.handle}`);
-  if (it.source === "github") return line(it.repo, it.language, it.stars && `${it.stars} stars`);
-  return line(it.site, it.readingTime && `${it.readingTime} read`);
-}
 const WORD_END = /[\p{L}\p{N}]$/u;
 const WORD_START = /^[\p{L}\p{N}]/u;
 function afterTitle(text = "", title) {
@@ -183,33 +146,33 @@ function coverBody(it) {
   return linkLines(it);
 }
 const tint = (it) => `style="--topic-h:${topicHue[it.topic]}"`;
-function textCover(it, ownStrip) {
-  const strip = ownStrip ? `<p class="tc-strip"><span class="st">${esc(coverStripText(it))}</span>${sourceMark(it)}</p>` : "";
-  return `<div class="cover tcover" aria-hidden="true" ${tint(it)}><div class="tc-in">${strip}<div class="tc-body"><div class="tc-text">${ownStrip ? "" : sourceMark(it)}${coverBody(it)}</div></div></div></div>`;
+function textCover(it) {
+  return `<div class="cover tcover" aria-hidden="true" ${tint(it)}><div class="tc-in"><div class="tc-body"><div class="tc-text">${sourceMark(it)}${coverBody(it)}</div></div></div></div>`;
 }
 const pictureBox = (it, cls = "") => `<div class="cover ${cls}">${pictureSVG(it)}</div>`;
-const media = (it, ownStrip) => (it.picture ? pictureBox(it) : textCover(it, ownStrip));
+const media = (it) => (it.picture ? pictureBox(it) : textCover(it));
 const thumb = (it, tile) => (it.picture ? pictureBox(it, "thumb") : tile ? `<div class="cover thumb ltile" ${tint(it)}>${sourceMark(it)}</div>` : "");
 const keptShare = (it) => (it.digest && it.savedComments ? (drawnComments(it.comments) / it.savedComments).toFixed(3) : 0);
 
-function markBtn(it, cls = "") {
-  return `<button class="mark ${cls}" type="button" aria-pressed="${it.read}" aria-label="Read" data-act="read" data-id="${it.id}"></button>`;
+function markBtn(it) {
+  return `<button class="mark" type="button" aria-pressed="${it.read}" aria-label="Read" data-act="read" data-id="${it.id}"></button>`;
 }
 function strip(it) {
   return `<div class="share" style="--kept:${keptShare(it)}"></div><div class="strip">${markBtn(it)}<span class="st">${esc(stripText(it))}</span></div>`;
 }
+const SEP = '<span class="sep" aria-hidden="true">·</span><wbr>';
 function byline(it, last = it.topic) {
   const who = it.author ? (it.source === "reddit" ? `u/${it.author}` : it.source === "github" ? it.repo : it.author) : "No author stored";
-  return [who, `Saved ${it.saved}`, last].filter(Boolean).map(esc).join('<span class="sep" aria-hidden="true">·</span>');
+  return [who, `Saved ${it.saved}`, last].filter(Boolean).map((p) => `<span class="nw">${esc(p)}</span>`).join(SEP);
 }
 function cardFact(it) {
   if (it.source === "github") return it.stars ? `${it.stars} stars` : null;
   if (it.source === "article" || it.source === "other") return it.readingTime ? `${it.readingTime} read` : null;
   return null;
 }
-const metaLine = (it, last) => `<p class="meta">${markBtn(it, "mark-meta")}${byline(it, last)}</p>`;
+const readerMeta = (it) => `<p class="meta rd-meta"><span class="nw">${markBtn(it)}<span class="st">${esc(stripText(it))}</span></span>${SEP}${byline(it)}</p>`;
 const titleLink = (it, sample) => (sample ? esc(it.title) : `<a href="#${it.id}" data-act="open" data-id="${it.id}">${esc(it.title)}</a>`);
-const tagList = (it) => (it.tags.length ? `<div class="tags">${it.tags.map((t) => `<span class="tag" data-tag="${t.hue}"><span class="nm">${esc(t.name)}</span></span>`).join("")}</div>` : "");
+const tagList = (it) => (it.tags.length ? `<div class="tags">${it.tags.map((t) => `<span class="tag" data-tag="${t.hue}">${esc(t.name)}</span>`).join("")}</div>` : "");
 
 function row(it, { open = false, tile = false, sample = false } = {}) {
   const h = sample ? "h3" : "h2";
@@ -222,20 +185,10 @@ function row(it, { open = false, tile = false, sample = false } = {}) {
   </article>`;
 }
 
-function banded(it, tag, cls, inner, attrs = "") {
-  return `<${tag} class="${cls} banded ruled-strip ${it.read ? "" : "unread"}" ${attrs}>${strip(it)}${inner}</${tag}>`;
-}
-
-function card(it, { ownStrip = false, sample = false } = {}) {
+function card(it, { sample = false } = {}) {
   const h = sample ? "h3" : "h2";
   const excerpt = it.summary ?? (it.linkOnly ? "Link-only Item. No content was fetched." : "Waiting for a Digest.");
-  return banded(
-    it,
-    "article",
-    "card",
-    `${media(it, ownStrip)}<div class="card-body"><${h} class="title">${titleLink(it, sample)}</${h}>${metaLine(it, cardFact(it))}<p class="excerpt">${esc(excerpt)}</p>${tagList(it)}</div>`,
-    `data-id="${it.id}" data-read="${it.read}"`,
-  );
+  return `<article class="card ${it.read ? "" : "unread"}" data-id="${it.id}">${strip(it)}${media(it)}<div class="card-body"><${h} class="title">${titleLink(it, sample)}</${h}><p class="meta">${byline(it, cardFact(it))}</p><p class="excerpt">${esc(excerpt)}</p>${tagList(it)}</div></article>`;
 }
 
 function commentNodes(list, depth) {
@@ -258,7 +211,7 @@ function summaryBox(it) {
 }
 
 function readerHead(it) {
-  return banded(it, "header", "rd-head", `<h2 class="rd-title">${esc(it.title)}</h2>${metaLine(it)}${tagList(it)}${it.picture ? pictureBox(it, "rd-cover") : ""}`);
+  return `<header class="rd-head ${it.read ? "" : "unread"}"><div class="share" style="--kept:${keptShare(it)}"></div><h2 class="rd-title">${esc(it.title)}</h2>${readerMeta(it)}${tagList(it)}${it.picture ? pictureBox(it, "rd-cover") : ""}</header>`;
 }
 
 function readerBody(it) {
@@ -305,20 +258,17 @@ function seg(name, opts, current, extra = "") {
     .join("")}</div>`;
 }
 
-function panel(s, d, popover = true) {
-  const dir = DIRECTIONS[d];
-  const tileArt = (st) => `<span class="tile-art" data-style="${st}" data-theme="${s.theme === "system" ? sysTheme() : s.theme}" data-accent="${dir.accent}" data-font="${dir.styleFont[st]}"><span class="t-card"><span class="t-strip"></span><span class="t-line"></span><span class="t-line"></span></span><span class="t-btn"></span></span>`;
+function panel(s, popover = true) {
+  const tileArt = (st) => `<span class="tile-art" data-style="${st}" data-theme="${s.theme === "system" ? sysTheme() : s.theme}" data-accent="${DEFAULT_ACCENT}" data-font="${st}"><span class="t-card"><span class="t-strip"></span><span class="t-line"></span><span class="t-line"></span></span><span class="t-btn"></span></span>`;
   return `<div class="panel" ${popover ? 'popover id="look"' : ""} data-font="library" aria-label="Look settings">
     <div class="panel-head"><h2>Look</h2>${popover ? `<button class="btn quiet icon" type="button" popovertarget="look" popovertargetaction="hide" aria-label="Close">${icon("close")}</button>` : ""}</div>
     <div class="p-row"><span class="label" id="lbl-style">Style</span><div class="tiles" role="radiogroup" aria-labelledby="lbl-style">${STYLES.map(
       (st) => `<label class="tile"><input type="radio" name="style" value="${st.id}" ${s.style === st.id ? "checked" : ""}>${tileArt(st.id)}<span class="tile-name">${st.name}</span></label>`,
     ).join("")}</div></div>
     <div class="p-row"><span class="label">Theme</span>${seg("theme", [...THEMES, { id: "system", name: "Match system" }], s.theme, "Theme")}</div>
-    <div class="p-row"><span class="label" id="lbl-acc">Accent</span><div class="swatches" role="radiogroup" aria-labelledby="lbl-acc">${ACCENTS.filter((a) => !a.only || a.only === d)
-      .map((a) => `<label class="swatch" data-accent="${a.id}" title="${a.name}"><input type="radio" name="accent" value="${a.id}" aria-label="${a.name}" ${s.accent === a.id ? "checked" : ""}><span></span></label>`)
+    <div class="p-row"><span class="label" id="lbl-acc">Accent</span><div class="swatches" role="radiogroup" aria-labelledby="lbl-acc">${ACCENTS.map((a) => `<label class="swatch" data-accent="${a.id}" title="${a.name}"><input type="radio" name="accent" value="${a.id}" aria-label="${a.name}" ${s.accent === a.id ? "checked" : ""}><span></span></label>`)
       .join("")}</div></div>
-    <div class="p-row"><span class="label" id="lbl-font">Font</span><div class="tiles fonts" role="radiogroup" aria-labelledby="lbl-font">${dir.fonts
-      .map((f) => `<label class="tile"><input type="radio" name="font" value="${f.id}" ${s.font === f.id ? "checked" : ""}><span class="tile-art font-art" data-font="${f.id}"><span class="ag">Ag</span><span class="rd">Reading text</span></span><span class="tile-name">${esc(f.name)}</span></label>`)
+    <div class="p-row"><span class="label" id="lbl-font">Font</span><div class="tiles fonts" role="radiogroup" aria-labelledby="lbl-font">${FONTS.map((f) => `<label class="tile"><input type="radio" name="font" value="${f.id}" ${s.font === f.id ? "checked" : ""}><span class="tile-art font-art" data-font="${f.id}"><span class="ag">Ag</span><span class="rd">Reading text</span></span><span class="tile-name">${esc(f.name)}</span></label>`)
       .join("")}</div></div>
     <div class="p-row"><span class="label">Text size</span>${seg("size", [{ id: "small", name: "Small" }, { id: "medium", name: "Medium" }, { id: "large", name: "Large" }], s.size, "Text size")}</div>
     <div class="p-row"><span class="label">Text width</span>${seg("width", [{ id: "narrow", name: "Narrow" }, { id: "medium", name: "Medium" }, { id: "wide", name: "Wide" }], s.width, "Text width")}</div>
@@ -354,7 +304,7 @@ function uid(same) {
 }
 const searchBox = (ph = "Search the library") => `<label class="search"><span class="vh">Search</span>${icon("search")}<input class="field" type="search" placeholder="${ph}"></label>`;
 
-function listScreen(s, d) {
+function listScreen(s) {
   const vis = visible(s);
   const open = items.find((i) => i.id === s.item) ?? vis[0] ?? items[0];
   return `<div class="l-screen">
@@ -362,10 +312,10 @@ function listScreen(s, d) {
     <section class="list-pane" aria-label="Items"><div class="list-head">${searchBox()}<span class="count">${vis.length} Items</span></div>
       <div class="rows">${vis.map((i) => row(i, { open: i === open })).join("")}</div></section>
     <section class="rd-pane" aria-label="Reader"><div class="rd">${readerBar(open, "pane")}<div class="rd-col">${readerBody(open)}</div></div></section>
-  </div>${panel(s, d)}`;
+  </div>${panel(s)}`;
 }
 
-function gridScreen(s, d) {
+function gridScreen(s) {
   const vis = visible(s);
   return `<div class="g-screen">
     <header class="g-head">${wordmark()}${searchBox()}${pasteBox()}<div class="g-tools"><button class="btn quiet icon" type="button" aria-label="List layout" data-act="screen" data-screen="list">${icon("list")}</button>${aaBtn()}</div></header>
@@ -375,7 +325,7 @@ function gridScreen(s, d) {
       ${["reddit", "x", "github", "article"].map((k) => `<button class="chip" type="button" aria-pressed="${s.src === k}" data-act="src" data-src="${k}">${SOURCE[k]}<span class="n">${items.filter((i) => i.source === k).length}</span></button>`).join("")}
     </div>
     <div class="grid">${vis.map((i) => card(i)).join("")}</div></div>
-  </div>${sheet(s)}${panel(s, d)}`;
+  </div>${sheet(s)}${panel(s)}`;
 }
 
 function sheet(s) {
@@ -384,17 +334,16 @@ function sheet(s) {
   return `<dialog class="sheet" aria-label="${esc(it.title)}"><div class="rd">${readerBar(it, "sheet")}<div class="rd-col">${readerBody(it)}</div></div></dialog>`;
 }
 
-function readerScreen(s, d) {
+function readerScreen(s) {
   const it = items.find((i) => i.id === s.item) ?? items[0];
-  return `<div class="rd-pane" style="height:100%"><h1 class="vh">Threadsift</h1><div class="rd">${readerBar(it, "page")}<div class="rd-col">${readerBody(it)}</div></div></div>${panel(s, d)}`;
+  return `<div class="rd-pane" style="height:100%"><h1 class="vh">Threadsift</h1><div class="rd">${readerBar(it, "page")}<div class="rd-col">${readerBody(it)}</div></div></div>${panel(s)}`;
 }
 
-function componentsScreen(s, d) {
-  const dir = DIRECTIONS[d];
+function componentsScreen(s) {
   const sample = items.filter((i) => ["mini-pc", "sqlite-wal", "kerning-comment", "stabilizers", "tidepool", "boring-formats", "local-first"].includes(i.id));
   const mini = items.find((i) => i.id === "mini-pc");
   return `<div class="c-screen"><div class="c-page">
-    <div class="c-intro"><h1>${dir.name}</h1><p>${esc(dir.idea)} Every part below is the same markup in all three directions; only the custom properties of the direction change it.</p></div>
+    <div class="c-intro"><h1>Quarto</h1><p>A technical monograph: one grotesque family, a ruled matrix of hairlines, and a green ink. The Style tiles of the Look panel change only the custom properties of these parts, never their markup.</p></div>
     <section class="c-sec"><h2 class="h2">Buttons</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Default, primary, quiet</span><div class="c-line"><button class="btn" type="button">Mark as read</button><button class="btn primary" type="button">Add</button><button class="btn quiet" type="button">Reset look</button></div></div>
       <div class="c-demo"><span class="label">Disabled</span><div class="c-line"><button class="btn" type="button" disabled>Mark as read</button><button class="btn primary" type="button" disabled>Add</button></div></div>
@@ -411,33 +360,32 @@ function componentsScreen(s, d) {
       <div class="c-demo"><span class="label">Tags</span><div class="tags">${["power draw", "sqlite", "file formats", "sync", "transcoding", "a much longer tag name"].map((t, i) => `<span class="tag" data-tag="${(i * 3) % 8}"><span class="nm">${t}</span></span>`).join("")}</div></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">Kept strip and unread mark</h2><div class="c-cols">
-      <div class="c-demo"><span class="label">List row form</span><div class="c-strips">${sample.map((i) => `<div class="ruled-strip ${i.read ? "" : "unread"}">${strip(i)}</div>`).join("")}</div></div>
-      <div class="c-demo"><span class="label">Card and Reader header form</span><div class="c-strips">${sample.slice(0, 4).map((i) => `<div class="banded ruled-strip" style="padding:0">${strip(i)}</div>`).join("")}</div></div>
+      <div class="c-demo"><span class="label">List row and Grid card: the first line</span><div class="c-strips">${sample.map((i) => `<div>${strip(i)}</div>`).join("")}</div></div>
+      <div class="c-demo"><span class="label">Reader: the line under the title</span><div class="c-strips">${sample.map((i) => `<div class="c-meta">${readerMeta(i)}</div>`).join("")}</div></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">List rows</h2><div class="c-cols"><div class="c-rows">${["mini-pc", "rack", "sqlite-wal", "stabilizers"].map((id, n) => row(items.find((i) => i.id === id), { open: n === 1 })).join("")}</div></div></section>
     <section class="c-sec"><h2 class="h2">Grid cards</h2><div class="grid c-grid">${["local-first", "sqlite-wal", "tidepool"].map((id) => card(items.find((i) => i.id === id))).join("")}</div></section>
     <section class="c-sec"><h2 class="h2">Reader header and summary box</h2><div class="c-cols"><div class="c-reader">${readerHead(mini)}${summaryBox(mini)}</div><div class="c-reader">${readerHead(items.find((i) => i.id === "sqlite-wal"))}${summaryBox(items.find((i) => i.id === "sqlite-wal"))}</div></div></section>
     <section class="c-sec"><h2 class="h2">Comment tree with Context stubs</h2><div class="c-reader">${commentNodes(mini.comments, 1)}</div></section>
-    <section class="c-sec"><h2 class="h2">Settings panel</h2><div class="c-panel">${panel(s, d, false)}</div></section>
+    <section class="c-sec"><h2 class="h2">Settings panel</h2><div class="c-panel">${panel(s, false)}</div></section>
   </div></div>`;
 }
 
 const COVER_KINDS = [
-  { id: "mini-pc", name: "Reddit post", shows: "The post's first lines, or the first Kept comment when the post has no text. Its own strip: the community and the count, the same line as the kept strip above it." },
-  { id: "x-short", name: "X post", shows: "The post text that the title does not already hold. Its own strip: the handle." },
-  { id: "tidepool", name: "GitHub repository", shows: "The description, then the first README lines. Its own strip: owner/name, the language and the stars." },
-  { id: "long-threads", name: "Article with no picture", shows: "The first paragraph. Its own strip: the site and the reading time." },
-  { id: "stabilizers", name: "Link-only Item", shows: "The host in the mono face and the path under it. Its own strip: the community." },
+  { id: "mini-pc", name: "Reddit post", shows: "The post's first lines, or the first Kept comment when the post has no text. The kept strip above names the community and counts the comments." },
+  { id: "x-short", name: "X post", shows: "The post text that the title does not already hold. The kept strip above names the handle and counts the replies." },
+  { id: "tidepool", name: "GitHub repository", shows: "The description, then the first README lines. The kept strip above names the language, and the line under the title holds owner/name and the stars." },
+  { id: "long-threads", name: "Article with no picture", shows: "The first paragraph. The kept strip above names the domain, and the line under the title holds the reading time." },
+  { id: "stabilizers", name: "Link-only Item", shows: "The host in the mono face and the path under it. The kept strip above names the community." },
 ];
 
 function coversScreen() {
   return `<div class="c-screen"><div class="c-page cv-page">
-    <div class="c-intro"><h1>Covers</h1><p>An Item with no stored picture gets a cover drawn from its own fields: its first lines in the reading face, a mark for its Source and a quiet tint from its Topic, in the same 16:10 box as a picture. A cover never repeats the title and never shows votes or likes. The proposed card draws no strip on the cover, because the kept strip directly above it already holds the community or the Source, the handle, the language or the domain, and a thread's comment count. A repository's stars and an Article's reading time go on the metadata line under the title. The other choice keeps the cover's own strip, so the two can be compared.</p></div>
+    <div class="c-intro"><h1>Covers</h1><p>An Item with no stored picture gets a cover drawn from its own fields: its first lines in the reading face, a mark for its Source and a quiet tint from its Topic, in the same 16:10 box as a picture. A cover never repeats the title and never shows votes or likes. It draws no strip of its own, because the kept strip directly above it already names the community or the Source, the handle, the language or the domain, and counts a thread's comments. A repository's stars and an Article's reading time go on the line under the title.</p></div>
     <div class="cv-kinds">${COVER_KINDS.map(({ id, name, shows }) => {
       const it = items.find((i) => i.id === id);
       return `<section class="cv-kind" aria-labelledby="cv-${id}"><div class="cv-head"><h2 class="h2" id="cv-${id}">${name}</h2><p class="cv-shows">${esc(shows)}</p></div>
-        <div class="c-demo"><span class="label">Proposed: the kept strip only</span><div class="grid cv-grid">${card(it, { sample: true })}</div></div>
-        <div class="c-demo"><span class="label">Other choice: the cover keeps its strip</span><div class="grid cv-grid">${card(it, { ownStrip: true, sample: true })}</div></div>
+        <div class="c-demo"><span class="label">Grid card</span><div class="grid cv-grid">${card(it, { sample: true })}</div></div>
         <div class="c-demo"><span class="label">List row, 40 px tile</span><div class="c-rows">${row(it, { tile: true, sample: true })}</div></div>
       </section>`;
     }).join("")}</div>
@@ -448,8 +396,6 @@ const sysTheme = () => (matchMedia("(prefers-color-scheme: dark)").matches ? "da
 
 export function boot() {
   const q = new URLSearchParams(location.search);
-  const d = Object.hasOwn(DIRECTIONS, q.get("d")) ? q.get("d") : "quarto";
-  const dir = DIRECTIONS[d];
   const s = {
     screen: SCREENS.some((x) => x.id === q.get("screen")) ? q.get("screen") : "list",
     theme: [...THEMES.map((t) => t.id), "system"].includes(q.get("theme")) ? q.get("theme") : "light",
@@ -457,7 +403,7 @@ export function boot() {
     sheetOpen: false,
     style: "library",
     font: "library",
-    accent: dir.accent,
+    accent: DEFAULT_ACCENT,
     size: "medium",
     width: "medium",
     density: "compact",
@@ -466,21 +412,18 @@ export function boot() {
     src: null,
   };
   s.from = s.screen === "grid" ? "grid" : "list";
-  const embed = q.has("embed");
   const root = document.documentElement;
   const main = document.querySelector("#screen");
   const bar = document.querySelector(".kitbar");
   const LOOK = ["style", "font", "accent", "size", "width", "density", "images"];
 
   function apply() {
-    root.dataset.direction = d;
     root.dataset.theme = s.theme === "system" ? sysTheme() : s.theme;
     for (const k of LOOK) root.dataset[k] = s[k];
   }
   function url() {
-    const p = new URLSearchParams({ d, screen: s.screen, theme: s.theme });
+    const p = new URLSearchParams({ screen: s.screen, theme: s.theme });
     if (s.screen === "reader" || s.screen === "list") p.set("item", s.item);
-    if (embed) p.set("embed", "");
     history.replaceState(null, "", `?${p}`);
   }
   function check(name, value) {
@@ -491,23 +434,17 @@ export function boot() {
     for (const art of document.querySelectorAll(".tile-art[data-style]")) art.dataset.theme = root.dataset.theme;
     check("kb-screen", s.screen);
     check("kb-theme", root.dataset.theme);
-    bar.querySelector(".kb-end")?.setAttribute("href", `./index.html?screen=${s.screen}&theme=${root.dataset.theme}`);
   }
   function kitbar() {
-    if (embed) {
-      bar.remove();
-      return;
-    }
-    bar.innerHTML = `<b>Brand kit</b><span class="kb-group"><span class="kb-name">Direction</span>${seg("kb-d", Object.entries(DIRECTIONS).map(([id, v]) => ({ id, name: v.name })), d, "Direction")}</span>
+    bar.innerHTML = `<b>Quarto brand kit</b>
       <span class="kb-group"><span class="kb-name">Screen</span>${seg("kb-screen", SCREENS, s.screen, "Screen")}</span>
-      <span class="kb-group"><span class="kb-name">Theme</span>${seg("kb-theme", THEMES, root.dataset.theme, "Theme")}</span>
-      <a class="kb-end" href="./index.html">Side by side</a>`;
+      <span class="kb-group"><span class="kb-name">Theme</span>${seg("kb-theme", THEMES, root.dataset.theme, "Theme")}</span>`;
   }
   function render() {
     apply();
     url();
     main.dataset.screen = s.screen;
-    main.innerHTML = { list: listScreen, grid: gridScreen, reader: readerScreen, components: componentsScreen, covers: coversScreen }[s.screen](s, d);
+    main.innerHTML = { list: listScreen, grid: gridScreen, reader: readerScreen, components: componentsScreen, covers: coversScreen }[s.screen](s);
     sync();
     const dlg = main.querySelector("dialog.sheet");
     if (dlg) {
@@ -536,11 +473,7 @@ export function boot() {
     const t = e.target;
     if (!(t instanceof HTMLInputElement)) return;
     const n = t.name;
-    if (n === "kb-d") {
-      const p = new URLSearchParams(location.search);
-      p.set("d", t.value);
-      location.search = p.toString();
-    } else if (n === "kb-screen") {
+    if (n === "kb-screen") {
       go(t.value);
       render();
     } else if (n === "readf") {
@@ -552,8 +485,8 @@ export function boot() {
       look();
     } else if (n === "style") {
       s.style = t.value;
-      s.font = dir.styleFont[t.value];
-      s.accent = dir.accent;
+      s.font = t.value;
+      s.accent = DEFAULT_ACCENT;
       look();
     } else if (LOOK.includes(n)) {
       s[n] = t.value;
@@ -579,7 +512,7 @@ export function boot() {
       closeSheet();
       return;
     } else if (act === "reset") {
-      Object.assign(s, { style: "library", font: "library", accent: dir.accent, size: "medium", width: "medium", density: "compact", images: "on" });
+      Object.assign(s, { style: "library", font: "library", accent: DEFAULT_ACCENT, size: "medium", width: "medium", density: "compact", images: "on" });
       look();
       return;
     } else if (act === "expand") {

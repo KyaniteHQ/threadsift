@@ -29,7 +29,6 @@
 [data-accent="moss"] { --ah: 145; }
 [data-accent="iris"] { --ah: 300; }
 [data-accent="teal"] { --ah: 200; }
-[data-accent="marker"] { --ah: 25; }
 
 [data-tag="0"] { --tag-h: 20; }
 [data-tag="1"] { --tag-h: 60; }
@@ -40,92 +39,31 @@
 [data-tag="6"] { --tag-h: 285; }
 [data-tag="7"] { --tag-h: 330; }
 
-[data-direction="quarto"], [data-direction="quarto"] [data-style] {
+:root, [data-style] {
   --nh: 180; --nc: 0.005;
-  --r1: 2px; --r2: 2px; --r3: 2px; --card-r: 0; --hw: 1px;
-  --card-shadow: none; --float-shadow: var(--soft-lg); --float-edge: var(--line-2);
+  --r1: 2px; --r2: 2px; --r3: 2px; --hw: 1px;
+  --float-shadow: var(--soft-lg);
   --btn-bg: transparent; --btn-edge: var(--ctl-line); --btn-hover: var(--surface-2);
-  --field-edge: var(--ctl-line);
-  --tag-sq: inline-block; --tag-fg: var(--muted); --tag-edge: transparent; --tag-bar: 0px; --tag-under: none; --tag-pad-x: 0px; --tag-pad-y: 0px;
-  --mark-s: 8px; --mark-order: -1; --mark-push: 0;
-  --share: block; --strip-under: 0px; --strip-case: none; --strip-track: 0em;
-  --band-bg: transparent; --band-fg: var(--muted); --head-mark-strip: inline-flex; --head-mark-meta: none;
-  --grid-gap: 0px; --grid-rule: var(--hw); --card-bw: 0 var(--hw) var(--hw) 0; --card-edge: var(--line); --card-bg: var(--surface);
-  --box-edge: var(--line); --box-bg: var(--surface);
-  --label-f: var(--f-ui); --label-w: 600; --title-stretch: 100%;
 }
+[data-style="broadsheet"] { --r1: 0px; --r2: 0px; --r3: 0px; --hw: 2px; --float-shadow: none; }
+[data-style="workbench"] { --nc: 0; }
 
-[data-direction="index"], [data-direction="index"] [data-style] {
-  --nh: 250; --nc: 0.004;
-  --r1: 2px; --r2: 2px; --r3: 4px 0 0 0; --card-r: 4px 0 0 0; --hw: 1px;
-  --card-shadow: none; --float-shadow: var(--soft-lg); --float-edge: var(--line-2);
-  --btn-bg: var(--surface); --btn-edge: var(--ctl-line); --btn-hover: var(--surface-2);
-  --field-edge: var(--ctl-line);
-  --tag-sq: none; --tag-fg: var(--text); --tag-edge: var(--line); --tag-bar: 3px; --tag-under: none; --tag-pad-x: 6px; --tag-pad-y: 1px;
-  --mark-s: 10px; --mark-order: 2; --mark-push: auto;
-  --share: none; --strip-under: var(--hw); --strip-case: none; --strip-track: 0em;
-  --band-bg: transparent; --band-fg: var(--muted); --head-mark-strip: inline-flex; --head-mark-meta: none;
-  --grid-gap: var(--s4); --grid-rule: 0px; --card-bw: var(--hw); --card-edge: var(--line); --card-bg: var(--surface);
-  --box-edge: var(--line); --box-bg: var(--surface);
-  --label-f: var(--f-mono); --label-w: 400; --title-stretch: 100%;
-}
-
-[data-direction="proof"], [data-direction="proof"] [data-style] {
-  --nh: 225; --nc: 0.006;
-  --r1: 0px; --r2: 0px; --r3: 0px; --card-r: 0; --hw: 1px;
-  --card-shadow: none; --float-shadow: none; --float-edge: var(--line-2);
-  --btn-bg: var(--surface-2); --btn-edge: transparent; --btn-hover: var(--press);
-  --field-edge: var(--text);
-  --tag-sq: none; --tag-fg: var(--text); --tag-edge: transparent; --tag-bar: 0px; --tag-under: underline; --tag-pad-x: 0px; --tag-pad-y: 0px;
-  --mark-s: 8px; --mark-order: -1; --mark-push: 0;
-  --share: none; --strip-under: 0px; --strip-case: uppercase; --strip-track: 0.06em;
-  --band-bg: var(--text); --band-fg: var(--bg); --head-mark-strip: none; --head-mark-meta: inline-flex;
-  --grid-gap: var(--s2); --grid-rule: 0px; --card-bw: var(--hw); --card-edge: transparent; --card-bg: var(--surface);
-  --box-edge: transparent; --box-bg: var(--surface);
-  --label-f: var(--f-ui); --label-w: 600; --title-stretch: 92%;
-}
-
-[data-direction="quarto"][data-style="broadsheet"], [data-direction="quarto"] [data-style="broadsheet"] { --r1: 0px; --r2: 0px; --r3: 0px; --hw: 2px; --float-shadow: none; }
-[data-direction="index"][data-style="broadsheet"], [data-direction="index"] [data-style="broadsheet"] { --r3: 0px; --card-r: 0; --strip-under: 2px; --btn-bg: transparent; --float-shadow: none; }
-[data-direction="proof"][data-style="broadsheet"], [data-direction="proof"] [data-style="broadsheet"] { --card-edge: var(--line); }
-[data-direction][data-style="workbench"], [data-direction] [data-style="workbench"] { --nc: 0; }
-
-[data-direction="quarto"][data-font="library"], [data-direction="quarto"] [data-font="library"] {
+[data-font="library"] {
   --f-display: 'Schibsted Grotesk Variable', system-ui, sans-serif; --f-ui: 'Schibsted Grotesk Variable', system-ui, sans-serif;
   --f-read: 'Schibsted Grotesk Variable', system-ui, sans-serif; --f-mono: 'Commit Mono', ui-monospace, monospace;
   --dw: 600; --dw-strong: 700; --dz: 1; --rz: 1; --cw: 0.47; --dws: 0.05em; --dls: -0.015em;
 }
-[data-direction="quarto"][data-font="broadsheet"], [data-direction="quarto"] [data-font="broadsheet"] {
+[data-font="broadsheet"] {
   --f-display: 'Schibsted Grotesk Variable', system-ui, sans-serif; --f-ui: 'Schibsted Grotesk Variable', system-ui, sans-serif;
   --f-read: 'Source Serif 4 Variable', Georgia, serif; --f-mono: 'Commit Mono', ui-monospace, monospace;
   --dw: 600; --dw-strong: 700; --dz: 1; --rz: 1.04; --cw: 0.44; --dws: 0.05em; --dls: -0.015em;
 }
-[data-direction="quarto"][data-font="workbench"], [data-direction="quarto"] [data-font="workbench"] {
+[data-font="workbench"] {
   --f-display: 'Commit Mono', ui-monospace, monospace; --f-ui: 'Commit Mono', ui-monospace, monospace;
   --f-read: 'Schibsted Grotesk Variable', system-ui, sans-serif; --f-mono: 'Commit Mono', ui-monospace, monospace;
   --dw: 700; --dw-strong: 700; --dz: 0.92; --rz: 1; --cw: 0.47; --dws: 0em; --dls: -0.02em;
 }
-[data-direction="index"][data-font="library"], [data-direction="index"] [data-font="library"] {
-  --f-display: 'Libre Franklin Variable', system-ui, sans-serif; --f-ui: 'Libre Franklin Variable', system-ui, sans-serif;
-  --f-read: 'Literata Variable', Georgia, serif; --f-mono: 'Fragment Mono', ui-monospace, monospace;
-  --dw: 650; --dw-strong: 700; --dz: 1; --rz: 1.02; --cw: 0.45; --dws: 0em; --dls: -0.012em;
-}
-[data-direction="index"][data-font="workbench"], [data-direction="index"] [data-font="workbench"] {
-  --f-display: 'Fragment Mono', ui-monospace, monospace; --f-ui: 'Libre Franklin Variable', system-ui, sans-serif;
-  --f-read: 'Literata Variable', Georgia, serif; --f-mono: 'Fragment Mono', ui-monospace, monospace;
-  --dw: 400; --dw-strong: 400; --dz: 0.92; --rz: 1.02; --cw: 0.45; --dws: 0em; --dls: -0.02em;
-}
-[data-direction="proof"][data-font="library"], [data-direction="proof"] [data-font="library"] {
-  --f-display: 'Archivo Variable', system-ui, sans-serif; --f-ui: 'Archivo Variable', system-ui, sans-serif;
-  --f-read: 'Source Serif 4 Variable', Georgia, serif; --f-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
-  --dw: 650; --dw-strong: 700; --dz: 1.02; --rz: 1.04; --cw: 0.44; --dws: 0em; --dls: -0.01em;
-}
-[data-direction="proof"][data-font="workbench"], [data-direction="proof"] [data-font="workbench"] {
-  --f-display: 'JetBrains Mono Variable', ui-monospace, monospace; --f-ui: 'Archivo Variable', system-ui, sans-serif;
-  --f-read: 'Source Serif 4 Variable', Georgia, serif; --f-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
-  --dw: 700; --dw-strong: 800; --dz: 0.92; --rz: 1.04; --cw: 0.44; --dws: 0em; --dls: -0.02em;
-}
-[data-direction][data-font="atkinson"], [data-direction] [data-font="atkinson"] {
+[data-font="atkinson"] {
   --f-display: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif; --f-ui: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
   --f-read: 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif; --f-mono: 'Atkinson Hyperlegible Mono Variable', ui-monospace, monospace;
   --dw: 650; --dw-strong: 750; --dz: 1; --rz: 1; --cw: 0.49; --dws: 0em; --dls: -0.01em;
