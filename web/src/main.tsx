@@ -5,6 +5,7 @@ import "@fontsource/ibm-plex-sans/400.css";
 import "@fontsource/ibm-plex-sans/500.css";
 import "@fontsource/ibm-plex-sans/600.css";
 import "@fontsource/ibm-plex-sans/700.css";
+import "@fontsource-variable/schibsted-grotesk/wght.css";
 import "../../design/system/tokens.css";
 import "../../design/system/components.css";
 import "./page.css";

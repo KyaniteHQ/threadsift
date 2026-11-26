@@ -1,4 +1,5 @@
 import { type Browser, type BrowserContext, type Page, expect } from "@playwright/test";
+import { z } from "zod";
 
 import { DOCUMENT_HEADERS } from "../src/http/web-headers.ts";
 
@@ -16,6 +17,41 @@ const ANSWERS = [
   { address: "/index.html", status: 307 },
   { address: "/share", status: 303 },
 ];
+
+const ManifestIconsSchema = z.object({ icons: z.array(z.object({ src: z.string() })) });
+
+const ICON_RELS: ReadonlySet<string> = new Set(["icon", "apple-touch-icon"]);
+
+const PAGE_ICON_KINDS = ["apple-touch-icon png", "icon png", "icon svg"];
+
+const ICON_TYPES: ReadonlyMap<string, string> = new Map([
+  ["png", "image/png"],
+  ["svg", "image/svg+xml"],
+]);
+
+function extensionOf(address: string): string {
+  return /\.(?<extension>[a-z0-9]+)$/u.exec(address)?.groups?.["extension"] ?? "";
+}
+
+function pageIcons(document: string): { rel: string; href: string }[] {
+  return [...document.matchAll(/<link\b[^>]*>/giu)].flatMap(([tag]) => {
+    const attributes = new Map(
+      [...tag.matchAll(/(?<name>[\w-]+)\s*=\s*(?:"(?<double>[^"]*)"|'(?<single>[^']*)')/gu)].map(
+        ({ groups }) => [
+          (groups?.["name"] ?? "").toLowerCase(),
+          groups?.["double"] ?? groups?.["single"] ?? "",
+        ],
+      ),
+    );
+    const rel = (attributes.get("rel") ?? "")
+      .toLowerCase()
+      .split(/\s+/u)
+      .find((token) => ICON_RELS.has(token));
+    const href = attributes.get("href");
+
+    return rel === undefined || href === undefined ? [] : [{ rel, href }];
+  });
+}
 
 const PROBE_SCRIPT = "https://csp-probe.invalid/probe.js";
 
@@ -75,17 +111,41 @@ export async function expectAnswerHeaders(page: Page): Promise<void> {
       response: await page.request.get(address, { maxRedirects: 0 }),
     })),
   );
-  const document = answers.find(({ address }) => address === "/");
-  const script = /src="(?<asset>\/assets\/[^"]+)"/u.exec((await document?.response.text()) ?? "")
-    ?.groups?.["asset"];
+  const document = (await answers.find(({ address }) => address === "/")?.response.text()) ?? "";
+  const script = /src="(?<asset>\/assets\/[^"]+)"/u.exec(document)?.groups?.["asset"];
 
   if (script === undefined) throw new Error("The page names no script under /assets/");
 
-  answers.push({
-    address: script,
-    status: 200,
-    response: await page.request.get(script, { maxRedirects: 0 }),
-  });
+  const manifest = ManifestIconsSchema.parse(
+    await answers.find(({ address }) => address === "/manifest.webmanifest")?.response.json(),
+  );
+  const linked = pageIcons(document);
+
+  expect(
+    linked.map(({ rel, href }) => `${rel} ${extensionOf(href)}`).toSorted(),
+    "the icon links of the page",
+  ).toEqual(PAGE_ICON_KINDS);
+  expect(manifest.icons.length, "the icons of the manifest").toBeGreaterThan(0);
+
+  const icons = [...linked.map(({ href }) => href), ...manifest.icons.map(({ src }) => src)];
+
+  answers.push(
+    ...(await Promise.all(
+      [script, ...icons].map(async (address) => ({
+        address,
+        status: 200,
+        response: await page.request.get(address, { maxRedirects: 0 }),
+      })),
+    )),
+  );
+
+  for (const icon of icons) {
+    const response = answers.find(({ address }) => address === icon)?.response;
+
+    expect
+      .soft(response?.headers()["content-type"]?.split(";")[0], `Content-Type of ${icon}`)
+      .toBe(ICON_TYPES.get(extensionOf(icon)) ?? `an image type for ${icon}`);
+  }
 
   for (const { address, status, response } of answers) {
     expect.soft(response.status(), `status of ${address}`).toBe(status);
