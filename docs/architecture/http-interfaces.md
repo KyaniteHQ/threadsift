@@ -22,6 +22,13 @@ A key that no Topic has but a merged-away Topic had answers the page of the Topi
 
 Each route declares who may call it, how large its body may be and how its answer is cached with `access(...)`, and `createApp` stops at start-up when a route has no statement. [Access](access-owner-login-agent-tokens-mcp.md) (Route access) holds the classes, the order of checks, the 401, 403, 404 and 405 answers, and the daily budget refusal (429 `budget-spent`). The routes below name only what sets them apart.
 
+### Search engines
+
+Every answer carries `NO_INDEX_HEADERS` (`X-Robots-Tag: noindex, nofollow`). `/robots.txt` answers 404, because a crawler that `robots.txt` keeps out never fetches a page and never reads its `noindex` rule ([Google Search Central, Block indexing](https://developers.google.com/search/docs/crawling-indexing/block-indexing)).
+
+- The container sets the header in `noIndex`, the first middleware of its app, so it reaches the API, the files, the redirects, the 404s and the error answers.
+- The Worker sets it on every answer of its `fetch`. The platform serves a file of the built web app before the Worker runs, and Worker code never touches that answer, so `workerHeadersPlugin` writes the header under `/*` in `_headers` for it ([Workers docs, Static Assets, Headers](https://developers.cloudflare.com/workers/static-assets/headers/)). `run_worker_first: true` would let the Worker set it alone, at the cost of one Worker request for each file.
+
 ### Canonical numbers
 
 Every route reads a path id (`{id}`, `highlightId`, a Restore's `part`) as text through `CanonicalNumberTextSchema` and refuses a non-canonical id. An ordinary route answers 400; the exceptions are listed below. The same rule reads the numbers of the Item, Highlight, Proposal and Log cursors, the web app's Item address `/items/<id>` and `highlight` query, and the owner id of a storage key. It reads text and not `Number()`, because `Number()` also reads `0x10`, `016`, `16.0`, `+16` and `1e3`, and each would be one more address for a record. The MCP tool `read` takes the same range as a JSON number.

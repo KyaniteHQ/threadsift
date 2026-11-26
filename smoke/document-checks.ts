@@ -1,8 +1,21 @@
-import { type Browser, type BrowserContext, type Page, expect } from "@playwright/test";
+import {
+  type APIResponse,
+  type Browser,
+  type BrowserContext,
+  type Page,
+  expect,
+} from "@playwright/test";
 
-import { DOCUMENT_HEADERS } from "../src/http/web-headers.ts";
+import { DOCUMENT_HEADERS, NO_INDEX_HEADERS } from "../src/http/web-headers.ts";
 
 const DOCUMENT_ADDRESSES = ["/", "/log"];
+
+const ANSWER_ADDRESSES = [
+  ...DOCUMENT_ADDRESSES,
+  "/manifest.webmanifest",
+  "/api/session",
+  "/api/items",
+];
 
 const PROBE_SCRIPT = "https://csp-probe.invalid/probe.js";
 
@@ -54,16 +67,42 @@ export async function visitSignedOut(browser: Browser, address: string): Promise
   }
 }
 
-export async function expectDocumentHeaders(page: Page): Promise<void> {
-  const responses = await Promise.all(
-    DOCUMENT_ADDRESSES.map((address) => page.request.get(address)),
-  );
-
+function expectHeaders(
+  responses: readonly APIResponse[],
+  headers: Readonly<Record<string, string>>,
+): void {
   for (const response of responses) {
-    for (const [name, value] of Object.entries(DOCUMENT_HEADERS)) {
+    for (const [name, value] of Object.entries(headers)) {
       expect
         .soft(response.headers()[name.toLowerCase()], `${name} of ${response.url()}`)
         .toBe(value);
     }
   }
+}
+
+export async function expectDocumentHeaders(page: Page): Promise<void> {
+  const responses = await Promise.all(
+    DOCUMENT_ADDRESSES.map((address) => page.request.get(address)),
+  );
+
+  expectHeaders(responses, DOCUMENT_HEADERS);
+}
+
+export async function expectNoIndexHeaders(page: Page): Promise<void> {
+  const document = await (await page.request.get("/")).text();
+  const script = /src="(?<asset>\/assets\/[^"]+)"/u.exec(document)?.groups?.["asset"];
+
+  if (script === undefined) throw new Error("The page names no script under /assets/");
+
+  const robots = await page.request.get("/robots.txt");
+  const responses = [
+    robots,
+    ...(await Promise.all(
+      [...ANSWER_ADDRESSES, script].map((address) => page.request.get(address)),
+    )),
+  ];
+
+  expectHeaders(responses, NO_INDEX_HEADERS);
+
+  expect(await robots.text()).not.toMatch(/^\s*disallow:\s*\/\s*$/imu);
 }

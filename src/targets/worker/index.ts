@@ -5,6 +5,7 @@ import { tick } from "../../core/compose/tick.ts";
 import type { Ports } from "../../core/kernel/ports.ts";
 import { createApp } from "../../http/app.ts";
 import { isDocumentPath, isServerPath } from "../../http/document-path.ts";
+import { NO_INDEX_HEADERS } from "../../http/web-headers.ts";
 import { portsOf } from "../shared/ports.ts";
 import { settingVariablesOf, settingsOf } from "../shared/settings.ts";
 import { type Env, workerAdapters } from "./ports.ts";
@@ -35,6 +36,20 @@ function serveDocument(request: Request, env: Env): Response | Promise<Response>
   return new Response("404 Not Found", { status: 404 });
 }
 
+function unindexed(response: Response): Response {
+  const answer = new Response(response.body, response);
+
+  for (const [name, value] of Object.entries(NO_INDEX_HEADERS)) answer.headers.set(name, value);
+
+  return answer;
+}
+
+async function answerRequest(request: Request, env: Env): Promise<Response> {
+  return isServerPath(new URL(request.url).pathname)
+    ? createApp(await build(env)).fetch(request)
+    : serveDocument(request, env);
+}
+
 async function runMessage(env: Env, message: Readonly<JobMessage>): Promise<void> {
   const body = JobBodySchema.safeParse(message.body);
 
@@ -49,9 +64,7 @@ async function runMessage(env: Env, message: Readonly<JobMessage>): Promise<void
 
 export default {
   fetch: async (request: Request, env: Env): Promise<Response> =>
-    isServerPath(new URL(request.url).pathname)
-      ? createApp(await build(env)).fetch(request)
-      : serveDocument(request, env),
+    unindexed(await answerRequest(request, env)),
   queue: async (batch: Readonly<JobBatch>, env: Env): Promise<void> => {
     await Promise.all(batch.messages.map((message) => runMessage(env, message)));
   },

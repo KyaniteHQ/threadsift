@@ -9,7 +9,7 @@ import { openDatabase } from "./database.ts";
 import { REPOSITORY_ROOT, nodeEnvironment } from "./environment.ts";
 import { startNode } from "./ports.ts";
 import { answerAfterBody } from "./unread-body.ts";
-import { webRoutes } from "./web-routes.ts";
+import { noIndex, webRoutes } from "./web-routes.ts";
 
 const HTTP_DRAIN_TIMEOUT_MS = 9000;
 
@@ -21,6 +21,8 @@ const database = openDatabase(
 );
 
 const app = new Hono<{ Bindings: HttpBindings }>();
+
+app.use("*", noIndex);
 
 app.use("*", compress());
 

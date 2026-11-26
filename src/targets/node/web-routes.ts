@@ -1,14 +1,21 @@
 import { join, relative, sep } from "node:path";
 
 import { serveStatic } from "@hono/node-server/serve-static";
-import { type Context, Hono } from "hono";
+import { type Context, Hono, type MiddlewareHandler } from "hono";
 
 import { isDocumentPath } from "../../http/document-path.ts";
 import {
   DOCUMENT_HEADERS,
   HASHED_ASSET_HEADERS,
+  NO_INDEX_HEADERS,
   REVALIDATED_HEADERS,
 } from "../../http/web-headers.ts";
+
+export const noIndex: MiddlewareHandler = async (context, next) => {
+  await next();
+
+  for (const [name, value] of Object.entries(NO_INDEX_HEADERS)) context.header(name, value);
+};
 
 export function webRoutes(builtWebApp: string): Hono {
   const webRoot = relative(process.cwd(), builtWebApp);
