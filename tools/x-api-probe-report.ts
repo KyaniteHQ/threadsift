@@ -14,7 +14,8 @@ import type { Config } from "./x-api-probe-input.ts";
 import {
   BALANCE_SETTLE_MS,
   type PlannedRequest,
-  serverErrorRuleOf,
+  usageFailureRuleOf,
+  usageQuestionOf,
   worstOf,
 } from "./x-api-probe-plan.ts";
 
@@ -66,8 +67,11 @@ export function printPlan(config: Config): void {
     );
   }
   process.stdout.write(
-    `${probe} worst case of the run: ${countsText(worstOf(config.plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n${probe} assumptions that S1 measures:\n${ASSUMPTIONS.map((line) => `  - ${line}\n`).join("")}${probe} ${serverErrorRuleOf(config.plan)}\n`,
+    `${probe} worst case of the run: ${countsText(worstOf(config.plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n${probe} assumptions that S1 measures:\n${ASSUMPTIONS.map((line) => `  - ${line}\n`).join("")}`,
   );
+  const usageRule = usageFailureRuleOf(probe, config.plan);
+
+  if (usageRule !== undefined) process.stdout.write(`${probe} ${usageRule}\n`);
 }
 
 export function redacted(text: string, token: string): string {
@@ -123,12 +127,14 @@ function measuredSpendOf(state: RunState) {
   return { known: true, spentUsd: usd(opening - closing), balances } as const;
 }
 
-function usageQuestionOf(state: RunState): string | undefined {
-  const usage = state.sent.find((item) => item.request.role === "usage");
-
-  return usage?.outcome.kind === "answer" && usage.outcome.status !== 200
-    ? `unanswered: the usage read failed with ${usage.outcome.status}, so this run does not show whether a usage read costs anything`
-    : undefined;
+function unansweredUsageOf(state: RunState): string | undefined {
+  return state.sent
+    .map((item) =>
+      item.outcome.kind === "answer"
+        ? usageQuestionOf(item.request, item.outcome.status)
+        : undefined,
+    )
+    .find((question) => question !== undefined);
 }
 
 export function summaryOf(config: Config, folder: string, state: RunState) {
@@ -141,7 +147,7 @@ export function summaryOf(config: Config, folder: string, state: RunState) {
     probe: config.input.probe,
     folder,
     ending: state.ending,
-    usageQuestion: usageQuestionOf(state),
+    usageQuestion: unansweredUsageOf(state),
     caps: capsRecord(config.caps),
     pricesUsd: {
       post: usd(PRICE_MICROS.post),

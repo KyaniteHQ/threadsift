@@ -206,20 +206,37 @@ export function isBalanceRead(request: PlannedRequest): boolean {
   return request.role !== "usage" && request.role !== "lookup";
 }
 
-function goesOnAfterServerError(request: PlannedRequest): boolean {
-  return request.role === "usage";
+function isServerError(status: number): boolean {
+  return status >= 500 && status <= 599;
 }
 
 export function endsRunOn(request: PlannedRequest, status: number): boolean {
-  return status === 401 || status === 429 || (status >= 500 && !goesOnAfterServerError(request));
+  return (
+    status === 401 ||
+    status === 429 ||
+    status > 599 ||
+    (isServerError(status) && request.role !== "usage")
+  );
 }
 
-export function serverErrorRuleOf(plan: readonly PlannedRequest[]): string {
-  const goesOn = plan.filter((request) => goesOnAfterServerError(request));
+const USAGE_UNANSWERED =
+  "does not show whether a usage read costs anything, and its balance-lag check rests on the lookups alone";
 
-  return goesOn.length === 0
-    ? "A 5xx answer to any request ends the run."
-    : `A 5xx answer to ${goesOn.map((request) => request.label).join(", ")} is saved and the run goes on to its next request; such a run leaves the usage question of S1, whether a usage read costs anything, unanswered. A 5xx answer to any other request ends the run.`;
+export function usageFailureRuleOf(
+  probe: ProbeName,
+  plan: readonly PlannedRequest[],
+): string | undefined {
+  const labels = plan.flatMap((request) => (request.role === "usage" ? [request.label] : []));
+
+  return labels.length === 0
+    ? undefined
+    : `An answer to ${labels.join(", ")} with a status below 600 other than 200, 401 and 429 is saved, stays charged at its worst case, and the run goes on; such a run of ${probe} ${USAGE_UNANSWERED}.`;
+}
+
+export function usageQuestionOf(request: PlannedRequest, status: number): string | undefined {
+  return request.role === "usage" && status !== 200 && !endsRunOn(request, status)
+    ? `unanswered: the usage read failed with ${status}, so this run ${USAGE_UNANSWERED}`
+    : undefined;
 }
 
 export const BALANCE_SETTLE_MS = 60_000;

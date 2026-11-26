@@ -16,7 +16,7 @@ import {
   Refusal,
   SUMMARY_FILE,
   endsRunOn,
-  serverErrorRuleOf,
+  usageFailureRuleOf,
   worstOf,
 } from "./x-api-probe-plan.ts";
 import {
@@ -129,7 +129,7 @@ async function runLive(config: Config, token: string, runFolder: string): Promis
     caps: capsRecord(config.caps),
     settleSeconds: BALANCE_SETTLE_MS / 1000,
     assumptions: ASSUMPTIONS,
-    onServerError: serverErrorRuleOf(config.plan),
+    onUsageFailure: usageFailureRuleOf(config.input.probe, config.plan),
     requests: config.plan.map((request) => ({
       ...request,
       worstUsd: usd(costOf(request.worst)),
