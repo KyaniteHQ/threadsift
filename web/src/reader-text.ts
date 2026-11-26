@@ -126,7 +126,8 @@ export const ELLIPSIS = "…";
 const POSTED = "posted {when}";
 const CODE_ONE = "Code block, 1 line";
 const CODE_MANY = "Code block, {count} lines";
-const TABLE_NAME = "Table, {count} columns";
+const TABLE_ONE = "Table, 1 column";
+const TABLE_MANY = "Table, {count} columns";
 const FOLD_SHOW = "Show all {count} lines";
 
 const COUNT_TEXTS = {
@@ -196,7 +197,7 @@ export function codeName(lines: number): string {
 }
 
 export function tableName(columns: number): string {
-  return filled(TABLE_NAME, { count: String(columns) });
+  return plural(columns, TABLE_ONE, TABLE_MANY);
 }
 
 export function foldShowLabel(lines: number): string {
