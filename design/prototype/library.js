@@ -87,7 +87,7 @@ var LIB = (function () {
   var LOOK_KEYS = ['style', 'font', 'width', 'density', 'comments', 'accent', 'tags', 'images'];
   // What a style other than Library sets itself, so these rows are shown off while one is on.
   var STYLE_SETS = ['font', 'accent'];
-  // The defaults: the List look (the plain values in tokens.css), List, Page and Match system.
+  // The defaults: the List look (the plain values in tokens.css), List, Page and System.
   var SETTINGS_DEFAULT = { layout: 'list', openAs: 'page', theme: 'system', font: 'plex', width: 'medium', density: 'compact', comments: 'lines', accent: 'cobalt', tags: 'dots', images: true, style: 'library' };
   // Built-in presets for the Tweaks panel: the defaults, and the old Grid draft's look.
   var PRESETS = [
