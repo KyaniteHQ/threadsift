@@ -164,6 +164,42 @@ Each Paste carries a caller-sent Digest ([the v1 spec](../spec.md), Agent output
 - Plan limit. A plan at its usage limit answers the CLI with HTTP 429. The executor maps it to `provider-busy`, so Verify fails with that refusal, the container log holds `cli-refused` with reason `provider-busy`, and the Digest wait is never reached.
 - Job timeout. `timeout-minutes: 30` is above the 20-minute test timeout, the 3-minute server start, the devenv setup and an image build.
 
+### X API probe
+
+`devenv tasks run live:x-api` sends one named probe to the X API with the owner's Bearer token, and every request spends the owner's X credit. Only the owner runs it, by hand. No workflow runs it, no gate task runs it, and no core test or smoke check calls the X API. Each probe answers a question that X's docs leave open:
+
+| Probe | Question | Requests |
+|---|---|---|
+| S1 | Which names the API takes: `tweet.fields` and `note_tweet` from the docs pages, or `post.fields`, `note_post` and the `username` expansion from the OpenAPI document. Whether a usage read costs anything | a usage read, a balance read, then two lookups of one long post with a photo and a quote, one with each set of names |
+| S2 | Whether expanded users and quoted posts are billed | a lookup of one post without expansions, a balance read, a lookup of a second post with expansions |
+| S3 | What a deleted, a protected and a suspended post return | three single lookups and one batch lookup of the three ids |
+
+S4 to S7 belong to later roadmap items, and the task refuses them with the item that defines each. Every probe starts and ends with a balance read (`GET /2/usage/credits`).
+
+The task reads its input from the environment, as the other live tasks do:
+
+| Variable | Value |
+|---|---|
+| `X_API_PROBE` | `S1`, `S2` or `S3` |
+| `X_API_POST_IDS` | the post ids, comma-separated: 1 for S1; 2 for S2, the plain one first; 3 for S3, in the order deleted, protected, suspended |
+| `X_API_FIELD_NAMES` | S2 only: `tweet` or `post`, the names that S1 found |
+| `X_API_CAP_USD`, `X_API_CAP_POSTS` | the caps of the run, at most 2 USD and 400 posts |
+| `X_API_BEARER_TOKEN` | the app's Bearer token from the owner's secret store, set in the environment of this one command |
+| `X_API_RUNS_DIR` | an absolute folder that git ignores or that is outside every git work tree, such as a runs folder in the owner's private folder |
+| `X_API_DRY_RUN` | `1` prints each planned request with its worst-case cost and sends nothing. It needs no token and no runs folder |
+
+The task refuses to start when a variable is missing or wrong, when a cap is above the ceiling, or when the worst case of the probe is above a cap. The refusal names the variable and exits 1. A cap of 0 sends no request, not even a balance read, and exits 0. The token goes only into the `authorization` header. The task never prints it, and it replaces the token, its URL-encoded form and any `Bearer` value with `[redacted]` in every file it writes.
+
+How the task bounds the spend:
+
+- **Prices.** A post costs 0.005 USD and a user 0.010 USD per resource returned ([pricing](https://docs.x.com/x-api/getting-started/pricing)). Media, polls and places are not on the price table, so they count 0. The [usage endpoints](https://docs.x.com/x-api/usage/introduction) are not on the table either, so the task counts each usage read at 0.010 USD, the highest per-request price on the table, until S1 measures them.
+- **Worst case of a lookup.** Each id returns its own post. `referenced_tweets.id` or `referenced_posts` adds 3 posts for each id, because a post can reply to, quote and repost, the three kinds of `referenced_tweets` in the [data dictionary](https://docs.x.com/x-api/fundamentals/data-dictionary). `author_id` adds 1 user, `referenced_tweets.id.author_id` adds 3 and `username` adds 1. The OpenAPI document gives the `username` expansion no description, so its bound is a guess.
+- **Before each request.** The counted spend so far, the request's worst case and the worst case of the last balance read must fit both caps. Otherwise the task skips to the last balance read. An answer that the task cannot count is charged its worst case. The run also stops after the first balance read when the balance is below the probe's worst case.
+- **No retry.** A 401, a 429, a 5xx, no answer within 30 s or a network failure ends the run with the answer saved, and the task never sends a request again. Any other status, such as the 404 that S3 expects, is saved and the run continues.
+- **Balance lag.** Each balance read after the first waits 60 s, because the balance may lag the requests. S1 checks this guess.
+
+Each run writes a folder `<UTC time>-<probe>` in `X_API_RUNS_DIR`, with mode 0700 and files with mode 0600. It holds `plan.json` (the requests and their worst cases), one file for each request (the status, the rate-limit headers and the body), and `summary.json`: the resources counted by kind, the counted spend at table prices and with the usage reads, and the measured spend, the first balance minus the last. The terminal shows only counts, post ids, problem types and balances, never post text. The task exits 0 when the probe finished and 1 when it stopped early.
+
 ## Image
 
 The `image` job of the gate workflow publishes the amd64 image after the full gate passes on the same tree, on a push to `main` or a manual dispatch with publishing enabled. The release workflow builds both architectures with provenance attestations.

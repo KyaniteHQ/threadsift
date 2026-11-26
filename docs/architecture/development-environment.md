@@ -21,6 +21,8 @@ devenv owns everything a contributor or CI runs. You need Nix, devenv and direnv
 
 `devenv tasks list` shows every task. [Testing](testing.md) lists the smoke and live runs, and [CI, releases and rollback](ci-releases-and-rollback.md) describes the jobs that run them.
 
+`devenv tasks run live:x-api` sends one capped probe to the X API with the owner's Bearer token, and every request spends the owner's X credit. Only the owner runs it, by hand; no workflow and no gate task runs it. It needs `X_API_PROBE`, `X_API_POST_IDS`, `X_API_CAP_USD`, `X_API_CAP_POSTS`, `X_API_BEARER_TOKEN` and `X_API_RUNS_DIR` in its environment, and `X_API_DRY_RUN=1` prints the plan without a request. [CI, releases and rollback](ci-releases-and-rollback.md#x-api-probe) describes each variable and the caps.
+
 ## Corepack and Node
 
 Corepack comes from the unmodified `pkgs.corepack`, whose launcher uses Node 24. App commands still use `nodejs_26`. `cache.nixos.org` serves the unmodified package, so a cold runner skips its build and install checks. Overriding Corepack to use Node 26 changes its derivation and loses that.

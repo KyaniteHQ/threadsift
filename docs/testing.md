@@ -21,6 +21,7 @@ Read this page before you write, change or delete a test. It overrides broader t
 | `devenv tasks run image:build` | Builds the image that the start check runs, tagged `localhost/threadsift:publish` (one tag for every checkout). |
 | `tools/start-check.sh <image>` | The start check. |
 | `devenv tasks run live:worker`, `devenv tasks run live:container` | The live check, by hand before a release. |
+| `devenv tasks run live:x-api` | One capped probe of the X API, by the owner only ([CI, releases and rollback](architecture/ci-releases-and-rollback.md#x-api-probe)). |
 
 ## Core tests
 

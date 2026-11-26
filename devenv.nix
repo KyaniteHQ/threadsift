@@ -214,5 +214,10 @@ in
       ];
       exec = playwright "THREADSIFT_LIVE=1 THREADSIFT_TARGET=container" "live";
     };
+    "live:x-api" = {
+      after = [ "ci:install" ];
+      showOutput = true;
+      exec = "node tools/x-api-probe.ts";
+    };
   };
 }
