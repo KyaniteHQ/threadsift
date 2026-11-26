@@ -3,9 +3,12 @@ import { createContext, use, type ReactNode } from "react";
 import {
   FAILED_PICTURE,
   FOOTNOTE_BACKREF,
+  FOOTNOTE_BACKREF_PROPERTY,
   FOOTNOTE_LABEL_ID,
   FOOTNOTE_REF,
-} from "../../src/core/contract/reader-url.ts";
+  FOOTNOTE_REF_PROPERTY,
+} from "../../src/core/contract/projection-markers.ts";
+import type { HastNode } from "../../src/core/contract/text-projection.ts";
 
 export const FootnoteScope = createContext("");
 
@@ -24,23 +27,21 @@ export function classed(base: string, extra: string | undefined): string {
 }
 
 interface LinkAttributes extends Generated {
+  readonly node?: HastNode | undefined;
   readonly href?: string | undefined;
   readonly "aria-label"?: string | undefined;
   readonly "aria-describedby"?: string | undefined;
-  readonly [FOOTNOTE_REF]?: string | undefined;
-  readonly [FOOTNOTE_BACKREF]?: string | undefined;
   readonly failedPicture?: string | undefined;
 }
 
 export function Link({
+  node,
   href,
   id,
   className,
   children,
   "aria-label": label,
   "aria-describedby": describedBy,
-  [FOOTNOTE_REF]: footnoteRef,
-  [FOOTNOTE_BACKREF]: footnoteBackref,
   failedPicture,
 }: Readonly<LinkAttributes>) {
   const scope = use(FootnoteScope);
@@ -59,8 +60,8 @@ export function Link({
       aria-label={label}
       aria-describedby={scoped(scope, describedBy)}
       {...{
-        [FOOTNOTE_REF]: footnoteRef,
-        [FOOTNOTE_BACKREF]: footnoteBackref,
+        [FOOTNOTE_REF]: node?.properties?.[FOOTNOTE_REF_PROPERTY],
+        [FOOTNOTE_BACKREF]: node?.properties?.[FOOTNOTE_BACKREF_PROPERTY],
         [FAILED_PICTURE]: failedPicture,
       }}
     >

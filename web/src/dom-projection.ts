@@ -2,10 +2,12 @@ import { codePointCount } from "../../src/core/contract/code-points.ts";
 import {
   FAILED_PICTURE,
   FOOTNOTE_BACKREF,
+  FOOTNOTE_BACKREF_PROPERTY,
   FOOTNOTE_LABEL_ID,
   FOOTNOTE_REF,
+  FOOTNOTE_REF_PROPERTY,
   TASK_BOX,
-} from "../../src/core/contract/reader-url.ts";
+} from "../../src/core/contract/projection-markers.ts";
 import { type HastNode, projectTree } from "../../src/core/contract/text-projection.ts";
 
 interface DomProjection {
@@ -30,8 +32,8 @@ function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
     tagName: picture ? "img" : label ? "h2" : task ? "input" : node.localName,
     properties: {
       id: label ? FOOTNOTE_LABEL_ID : node.id,
-      dataFootnoteRef: marker(node, FOOTNOTE_REF),
-      dataFootnoteBackref: marker(node, FOOTNOTE_BACKREF),
+      [FOOTNOTE_REF_PROPERTY]: marker(node, FOOTNOTE_REF),
+      [FOOTNOTE_BACKREF_PROPERTY]: marker(node, FOOTNOTE_BACKREF),
       alt: node.getAttribute("alt") ?? undefined,
       src: failedPicture ?? node.getAttribute("src") ?? undefined,
     },

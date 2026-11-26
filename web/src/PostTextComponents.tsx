@@ -1,7 +1,7 @@
 import { type ReactNode, use } from "react";
 import type { Components } from "react-markdown";
 
-import { TASK_BOX } from "../../src/core/contract/reader-url.ts";
+import { TASK_BOX } from "../../src/core/contract/projection-markers.ts";
 import { type HastNode, TEXT } from "../../src/core/contract/text-projection.ts";
 import { type CodePart, CodeBlock } from "./CodeBlock.tsx";
 import { Mark } from "./Mark.tsx";

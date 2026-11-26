@@ -13,13 +13,3 @@ export function pictureText(alt: string, src: string): string {
 
   return keyOfFileRoute(src) === null ? readerUrl(src) : STORED_PICTURE_TEXT;
 }
-
-export const FOOTNOTE_LABEL_ID = "footnote-label";
-
-export const FOOTNOTE_REF = "data-footnote-ref";
-
-export const FOOTNOTE_BACKREF = "data-footnote-backref";
-
-export const FAILED_PICTURE = "data-failed-picture";
-
-export const TASK_BOX = "data-task-box";
