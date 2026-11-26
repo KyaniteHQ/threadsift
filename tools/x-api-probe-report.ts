@@ -1,30 +1,40 @@
-import type { Counted } from "./x-api-probe-count.ts";
-import { totalOf } from "./x-api-probe-count.ts";
-import type { Config } from "./x-api-probe-input.ts";
 import {
-  BALANCE_SETTLE_MS,
+  ASSUMPTIONS,
+  type Billed,
+  type Counts,
   PRICE_MICROS,
-  type PlannedRequest,
-  type Resources,
+  billedPostsOf,
+  capsRecord,
   costOf,
-  sumOf,
+  totalOf,
   usd,
-  worstOf,
-} from "./x-api-probe-plan.ts";
+} from "./x-api-probe-cost.ts";
+import type { Reading } from "./x-api-probe-count.ts";
+import type { Config } from "./x-api-probe-input.ts";
+import { BALANCE_SETTLE_MS, type PlannedRequest, worstOf } from "./x-api-probe-plan.ts";
 
 export type Ending =
   | { readonly kind: "completed" }
   | { readonly kind: "cap"; readonly label: string }
   | { readonly kind: "low-balance"; readonly balanceUsd: string; readonly needUsd: string }
-  | { readonly kind: "balance-unread" }
+  | { readonly kind: "balance-unread"; readonly label: string }
+  | { readonly kind: "uncountable"; readonly label: string }
+  | {
+      readonly kind: "over-plan";
+      readonly label: string;
+      readonly counted: Billed;
+      readonly planned: Billed;
+    }
   | { readonly kind: "answer"; readonly label: string; readonly status: number }
   | { readonly kind: "no-answer"; readonly label: string; readonly errorClass: string };
 
 export type Sent = {
-  readonly label: string;
-  readonly status: number | null;
-  readonly counted: Counted | null;
-  readonly billed: Resources;
+  readonly request: PlannedRequest;
+  readonly outcome:
+    | { readonly kind: "answer"; readonly status: number }
+    | { readonly kind: "no-answer"; readonly errorClass: string };
+  readonly reading: Reading | null;
+  readonly charged: Counts;
   readonly balanceMicros: number | null;
 };
 
@@ -36,20 +46,22 @@ function queryText(request: PlannedRequest): string {
   return pairs.length === 0 ? request.path : `${request.path}?${pairs.join("&")}`;
 }
 
-function resourcesText(resources: Resources): string {
-  return `${resources.posts} posts, ${resources.users} users, ${resources.usageReads} usage reads = ${usd(costOf(resources))} USD`;
+function countsText(counts: Counts): string {
+  return `${billedPostsOf(counts)} posts, ${counts.users} users, ${counts.usageReads} usage reads = ${usd(costOf(counts))} USD`;
 }
 
-export function printPlan(config: Config, plan: readonly PlannedRequest[]): void {
-  for (const [index, request] of plan.entries()) {
+export function printPlan(config: Config): void {
+  const { probe } = config.input;
+
+  for (const [index, request] of config.plan.entries()) {
     const wait = request.settleFirst ? ` (waits ${BALANCE_SETTLE_MS / 1000} s first)` : "";
 
     process.stdout.write(
-      `${config.input.probe} ${index + 1} ${request.label}${wait}\n  GET ${queryText(request)}\n  worst case: ${resourcesText(request.worst)}\n`,
+      `${probe} ${index + 1} ${request.label}${wait}\n  GET ${queryText(request)}\n  worst case: ${countsText(request.worst)}\n`,
     );
   }
   process.stdout.write(
-    `${config.input.probe} worst case of the run: ${resourcesText(worstOf(plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n`,
+    `${probe} worst case of the run: ${countsText(worstOf(config.plan))}; caps ${usd(config.caps.usdMicros)} USD and ${config.caps.posts} posts\n${probe} assumptions that S1 measures:\n${ASSUMPTIONS.map((line) => `  - ${line}\n`).join("")}`,
   );
 }
 
@@ -59,61 +71,83 @@ export function redacted(text: string, token: string): string {
     .replaceAll(/Bearer\s+[^\s"'\\]+/giu, "Bearer [redacted]");
 }
 
-export function printSent(probe: string, index: number, sent: Sent): void {
-  const ids = sent.counted?.postIds ?? [];
-  const problems = sent.counted?.problems ?? [];
-  const counts = sent.counted?.counts;
-  const parts = [
-    `${probe} ${index + 1} ${sent.label}`,
-    `status=${sent.status ?? "none"}`,
-    counts === undefined
-      ? "counts=none"
-      : `posts=${counts.posts} includedPosts=${counts.includedPosts} users=${counts.users} media=${counts.media} errors=${counts.errors}`,
-    sent.balanceMicros === null ? "" : `balance=${usd(sent.balanceMicros)} USD`,
-    ids.length > 0 ? `ids=${ids.join(",")}` : "",
+function readingText(reading: Reading | null): readonly string[] {
+  if (reading === null) return ["counts=none"];
+  if (reading.kind === "uncountable") return ["counts=uncountable"];
+  const { counts, postIds, problems } = reading;
+
+  return [
+    `posts=${counts.posts} includedPosts=${counts.includedPosts} users=${counts.users} media=${counts.media} errors=${counts.errors}`,
+    postIds.length > 0 ? `ids=${postIds.join(",")}` : "",
     problems.length > 0 ? `problems=${problems.join(",")}` : "",
+  ];
+}
+
+export function printSent(probe: string, index: number, sent: Sent): void {
+  const parts = [
+    `${probe} ${index + 1} ${sent.request.label}`,
+    sent.outcome.kind === "answer"
+      ? `status=${sent.outcome.status}`
+      : `no-answer=${sent.outcome.errorClass}`,
+    sent.balanceMicros === null ? "" : `balance=${usd(sent.balanceMicros)} USD`,
+    ...readingText(sent.reading),
   ];
 
   process.stdout.write(`${parts.filter((part) => part !== "").join(" ")}\n`);
 }
 
-export function summaryOf(config: Config, folder: string, state: RunState) {
-  const billed = sumOf(state.sent.map((item) => item.billed));
+function balanceAt(state: RunState, role: "opening-balance" | "closing-balance") {
+  return state.sent.find((item) => item.request.role === role)?.balanceMicros ?? null;
+}
+
+function measuredSpendOf(state: RunState) {
   const balances = state.sent.flatMap((item) =>
     item.balanceMicros === null
       ? []
-      : [{ label: item.label, totalBalanceUsd: usd(item.balanceMicros) }],
+      : [{ label: item.request.label, totalBalanceUsd: usd(item.balanceMicros) }],
   );
-  const first = state.sent[0]?.balanceMicros ?? null;
-  const lastSent = state.sent.at(-1);
-  const last = lastSent?.label === "balance-after" ? lastSent.balanceMicros : null;
+  const opening = balanceAt(state, "opening-balance");
+  const closing = balanceAt(state, "closing-balance");
+
+  if (opening === null || closing === null)
+    return {
+      known: false,
+      reason: `measured spend unknown: the ${opening === null ? "opening" : "closing"} balance was not read`,
+      balances,
+    } as const;
+  return { known: true, spentUsd: usd(opening - closing), balances } as const;
+}
+
+export function summaryOf(config: Config, folder: string, state: RunState) {
+  const counted = state.sent.flatMap((item) =>
+    item.reading?.kind === "counted" ? [item.reading.counts] : [],
+  );
+  const total = totalOf(counted);
 
   return {
     probe: config.input.probe,
     folder,
     ending: state.ending,
-    caps: { usd: usd(config.caps.usdMicros), posts: config.caps.posts },
+    caps: capsRecord(config.caps),
     pricesUsd: {
       post: usd(PRICE_MICROS.post),
       user: usd(PRICE_MICROS.user),
       usageReadAssumed: usd(PRICE_MICROS.usageRead),
     },
+    assumptions: ASSUMPTIONS,
     requests: state.sent.map((item) => ({
-      label: item.label,
-      status: item.status,
-      counts: item.counted?.counts ?? null,
+      label: item.request.label,
+      outcome: item.outcome,
+      counts: item.reading?.kind === "counted" ? item.reading.counts : null,
     })),
-    totals: totalOf(
-      state.sent.flatMap((item) => (item.counted === null ? [] : [item.counted.counts])),
-    ),
+    totals: total,
     countedSpend: {
-      atTablePricesUsd: usd(costOf({ ...billed, usageReads: 0 })),
-      withUsageReadsAssumedUsd: usd(costOf(billed)),
-      posts: billed.posts,
+      complete: counted.length === state.sent.length,
+      posts: billedPostsOf(total),
+      atTablePricesUsd: usd(costOf({ ...total, usageReads: 0 })),
+      withUsageReadsAssumedUsd: usd(costOf(total)),
     },
-    measuredSpend: {
-      balances,
-      spentUsd: first === null || last === null ? null : usd(first - last),
-    },
+    chargedForCapsUsd: usd(costOf(totalOf(state.sent.map((item) => item.charged)))),
+    measuredSpend: measuredSpendOf(state),
   };
 }

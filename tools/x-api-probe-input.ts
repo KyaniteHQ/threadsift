@@ -1,29 +1,28 @@
-import { spawnSync } from "node:child_process";
-import { existsSync, realpathSync } from "node:fs";
-import { basename, dirname, isAbsolute, join } from "node:path";
-
 import { z } from "zod";
 
-import { errnoCodeOf } from "../src/core/kernel/failure-log.ts";
+import { CEILING, type Caps, MICROS_PER_USD, usd } from "./x-api-probe-cost.ts";
 import {
-  CEILING,
-  type Caps,
   FIELD_NAMES,
-  LATER_PROBES,
-  MICROS_PER_USD,
   POST_ID_COUNT,
   PROBES,
+  type PlannedRequest,
   type ProbeInput,
-  usd,
+  Refusal,
+  planOf,
+  runFilesOf,
 } from "./x-api-probe-plan.ts";
-
-export class Refusal extends Error {}
+import { runFolderOf } from "./x-api-probe-runs-dir.ts";
 
 export type Mode =
   | { readonly kind: "dry" }
-  | { readonly kind: "live"; readonly token: string; readonly runsDir: string };
+  | { readonly kind: "live"; readonly token: string; readonly runFolder: string };
 
-export type Config = { readonly input: ProbeInput; readonly caps: Caps; readonly mode: Mode };
+export type Config = {
+  readonly input: ProbeInput;
+  readonly caps: Caps;
+  readonly plan: readonly PlannedRequest[];
+  readonly mode: Mode;
+};
 
 function variable(name: string): string | undefined {
   const value = process.env[name]?.trim();
@@ -47,6 +46,8 @@ function postIds(probe: ProbeInput["probe"]): readonly string[] {
     throw new Refusal(
       `X_API_POST_IDS must hold ${POST_ID_COUNT[probe]} numeric post ids for ${probe}`,
     );
+  if (new Set(ids).size !== ids.length)
+    throw new Refusal(`X_API_POST_IDS must hold ${POST_ID_COUNT[probe]} different post ids`);
   return ids;
 }
 
@@ -55,13 +56,11 @@ function probeInputOf(): ProbeInput {
   const probe = z.enum(PROBES).safeParse(name);
 
   if (!probe.success)
-    throw new Refusal(`X_API_PROBE is ${name}, not a probe; the probes are ${PROBES.join(", ")}`);
+    throw new Refusal(`X_API_PROBE is not a probe; the probes are ${PROBES.join(", ")}`);
   const known = probe.data;
 
   if (known === "S4" || known === "S5" || known === "S6" || known === "S7")
-    throw new Refusal(
-      `probe ${known} belongs to roadmap item ${LATER_PROBES[known]}, which defines it; this task runs S1, S2 and S3`,
-    );
+    throw new Refusal(`probe ${known} is not defined yet; this task runs S1, S2 and S3`);
   const [first = "", second = "", third = ""] = postIds(known);
 
   switch (known) {
@@ -104,80 +103,48 @@ function capsOf(): Caps {
   };
 
   if (caps.usdMicros > CEILING.usdMicros)
-    throw new Refusal(
-      `X_API_CAP_USD is ${usdText}, above the ceiling of ${usd(CEILING.usdMicros)} USD a run`,
-    );
+    throw new Refusal(`X_API_CAP_USD is above the ceiling of ${usd(CEILING.usdMicros)} USD a run`);
   if (caps.posts > CEILING.posts)
-    throw new Refusal(
-      `X_API_CAP_POSTS is ${postsText}, above the ceiling of ${CEILING.posts} posts a run`,
-    );
+    throw new Refusal(`X_API_CAP_POSTS is above the ceiling of ${CEILING.posts} posts a run`);
   return caps;
 }
 
-function nearestExisting(path: string) {
-  const rest: string[] = [];
-  let folder = path;
+function runFolderName(input: ProbeInput): string {
+  const stamp = new Date()
+    .toISOString()
+    .replace(/\.\d+Z$/u, "Z")
+    .replaceAll(":", "-");
 
-  while (!existsSync(folder)) {
-    rest.unshift(basename(folder));
-    folder = dirname(folder);
-  }
-  return { folder: realpathSync(folder), rest };
+  return `${stamp}-${input.probe}`;
 }
 
-function git(folder: string, args: readonly string[]) {
-  const result = spawnSync("git", ["-C", folder, ...args], { encoding: "utf8" });
+function modeOf(input: ProbeInput, plan: readonly PlannedRequest[]): Mode {
+  const dry = variable("X_API_DRY_RUN");
 
-  if (result.error !== undefined)
-    throw new Refusal(
-      `git could not run (${errnoCodeOf(result.error)}), so X_API_RUNS_DIR cannot be checked`,
-    );
-  return { status: result.status, stdout: result.stdout, stderr: result.stderr };
-}
-
-function runsDirOf(): string {
-  const raw = required(
-    "X_API_RUNS_DIR",
-    "give an absolute folder that git ignores or that sits outside every git work tree, such as the runs folder in the owner's private folder",
-  );
-
-  if (!isAbsolute(raw)) throw new Refusal("X_API_RUNS_DIR must be an absolute path");
-  const { folder, rest } = nearestExisting(raw);
-  const runsDir = join(folder, ...rest);
-  const where = git(folder, ["rev-parse", "--is-inside-git-dir", "--is-inside-work-tree"]);
-
-  if (where.status !== 0) {
-    if (where.stderr.includes("not a git repository")) return runsDir;
-    throw new Refusal("git could not tell whether X_API_RUNS_DIR is inside a work tree");
-  }
-  const [insideGitDir, insideWorkTree] = where.stdout.trim().split("\n");
-
-  if (insideGitDir !== "false") throw new Refusal("X_API_RUNS_DIR is inside a .git folder");
-  if (insideWorkTree !== "true") return runsDir;
-  const ignored = git(folder, ["check-ignore", "--quiet", "--", join(runsDir, "run")]);
-
-  if (ignored.status === 0) return runsDir;
-  if (ignored.status === 1)
-    throw new Refusal(
-      "X_API_RUNS_DIR is inside a git work tree and git does not ignore it; use the owner's private folder or a folder outside every checkout",
-    );
-  throw new Refusal("git could not tell whether X_API_RUNS_DIR is ignored");
-}
-
-function modeOf(): Mode {
-  if (variable("X_API_DRY_RUN") === "1") return { kind: "dry" };
+  if (dry === "1") return { kind: "dry" };
+  if (dry !== undefined) throw new Refusal("X_API_DRY_RUN must be 1 or unset");
   const token = required(
     "X_API_BEARER_TOKEN",
     "set it from the owner's secret store in this shell's environment only",
   );
 
   if (/\s/u.test(token)) throw new Refusal("X_API_BEARER_TOKEN holds whitespace");
-  return { kind: "live", token, runsDir: runsDirOf() };
+  const runsDir = required(
+    "X_API_RUNS_DIR",
+    "give an absolute folder that git ignores or that sits outside every git work tree, such as the runs folder in the owner's private folder",
+  );
+
+  return {
+    kind: "live",
+    token,
+    runFolder: runFolderOf(runsDir, runFolderName(input), runFilesOf(plan)),
+  };
 }
 
 export function configOf(): Config {
   const input = probeInputOf();
   const caps = capsOf();
+  const plan = planOf(input);
 
-  return { input, caps, mode: modeOf() };
+  return { input, caps, plan, mode: modeOf(input, plan) };
 }

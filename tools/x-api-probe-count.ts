@@ -1,9 +1,12 @@
 import { z } from "zod";
 
 import { parsedJson } from "../src/core/kernel/parsed-json.ts";
-import { MICROS_PER_USD, type RequestKind, type Resources } from "./x-api-probe-plan.ts";
+import { type Counts, MICROS_PER_USD, NO_COUNTS } from "./x-api-probe-cost.ts";
+import type { RequestRole } from "./x-api-probe-plan.ts";
 
-const IdSchema = z.object({ id: z.string() });
+const PostIdSchema = z.string().regex(/^\d{1,19}$/u);
+const IdSchema = z.object({ id: PostIdSchema });
+const Collection = z.array(z.unknown()).optional();
 const ProblemSchema = z.object({
   type: z.string().optional(),
   resource_id: z.string().optional(),
@@ -12,27 +15,19 @@ const ProblemSchema = z.object({
 const AnswerSchema = z.object({
   data: z.union([z.array(IdSchema), IdSchema]).optional(),
   includes: z
-    .object({
-      tweets: z.array(z.unknown()).optional(),
-      users: z.array(z.unknown()).optional(),
-      media: z.array(z.unknown()).optional(),
-      polls: z.array(z.unknown()).optional(),
-      places: z.array(z.unknown()).optional(),
+    .strictObject({
+      tweets: z.array(IdSchema).optional(),
+      posts: z.array(IdSchema).optional(),
+      users: Collection,
+      media: Collection,
+      polls: Collection,
+      places: Collection,
+      topics: Collection,
+      calls: Collection,
     })
     .optional(),
   errors: z.array(ProblemSchema).optional(),
 });
-
-export type Counts = {
-  readonly posts: number;
-  readonly includedPosts: number;
-  readonly users: number;
-  readonly media: number;
-  readonly polls: number;
-  readonly places: number;
-  readonly errors: number;
-  readonly usageReads: number;
-};
 
 export type Counted = {
   readonly counts: Counts;
@@ -40,73 +35,50 @@ export type Counted = {
   readonly problems: readonly string[];
 };
 
-const NO_COUNTS: Counts = {
-  posts: 0,
-  includedPosts: 0,
-  users: 0,
-  media: 0,
-  polls: 0,
-  places: 0,
-  errors: 0,
-  usageReads: 0,
-};
+export type Reading = ({ readonly kind: "counted" } & Counted) | { readonly kind: "uncountable" };
 
-export function countedOf(kind: RequestKind, text: string): Counted | null {
-  if (kind !== "lookup")
-    return { counts: { ...NO_COUNTS, usageReads: 1 }, postIds: [], problems: [] };
+function problemOf(problem: z.infer<typeof ProblemSchema>): string {
+  const type = problem.type?.split("/").at(-1) ?? "";
+  const resource = problem.resource_id ?? "";
+
+  return `${/^[a-z-]{1,64}$/u.test(type) ? type : "unrecognized"}:${PostIdSchema.safeParse(resource).success ? resource : "none"}`;
+}
+
+export function readingOf(role: RequestRole, text: string): Reading {
+  if (role !== "lookup")
+    return { kind: "counted", counts: { ...NO_COUNTS, usageReads: 1 }, postIds: [], problems: [] };
   const answer = parsedJson(AnswerSchema, text);
 
-  if (answer === null) return null;
+  if (answer === null) return { kind: "uncountable" };
   const { data, includes, errors } = answer;
   const posts = data === undefined ? [] : Array.isArray(data) ? data : [data];
+  const included = new Set(
+    [...(includes?.tweets ?? []), ...(includes?.posts ?? [])].map((post) => post.id),
+  );
 
   return {
+    kind: "counted",
     counts: {
       posts: posts.length,
-      includedPosts: includes?.tweets?.length ?? 0,
+      includedPosts: included.size,
       users: includes?.users?.length ?? 0,
       media: includes?.media?.length ?? 0,
       polls: includes?.polls?.length ?? 0,
       places: includes?.places?.length ?? 0,
+      topics: includes?.topics?.length ?? 0,
+      calls: includes?.calls?.length ?? 0,
       errors: errors?.length ?? 0,
       usageReads: 0,
     },
     postIds: posts.map((post) => post.id),
-    problems: (errors ?? []).map(
-      (problem) =>
-        `${problem.type?.split("/").at(-1) ?? "unknown"}:${problem.resource_id ?? "none"}`,
-    ),
+    problems: (errors ?? []).map((problem) => problemOf(problem)),
   };
 }
 
 const BalanceSchema = z.object({ data: z.object({ total_balance: z.number() }) });
 
-export function balanceOf(text: string): number | null {
-  const balance = parsedJson(BalanceSchema, text);
+export function balanceOf(status: number, text: string): number | null {
+  const balance = status === 200 ? parsedJson(BalanceSchema, text) : null;
 
   return balance === null ? null : Math.round(balance.data.total_balance * MICROS_PER_USD);
-}
-
-export function totalOf(all: readonly Counts[]): Counts {
-  return all.reduce(
-    (sum, next) => ({
-      posts: sum.posts + next.posts,
-      includedPosts: sum.includedPosts + next.includedPosts,
-      users: sum.users + next.users,
-      media: sum.media + next.media,
-      polls: sum.polls + next.polls,
-      places: sum.places + next.places,
-      errors: sum.errors + next.errors,
-      usageReads: sum.usageReads + next.usageReads,
-    }),
-    NO_COUNTS,
-  );
-}
-
-export function billedOf(counts: Counts): Resources {
-  return {
-    posts: counts.posts + counts.includedPosts,
-    users: counts.users,
-    usageReads: counts.usageReads,
-  };
 }

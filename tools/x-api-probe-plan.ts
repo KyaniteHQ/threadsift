@@ -1,12 +1,9 @@
+import { ASSUMED, type Counts, NO_COUNTS, REFERENCE_TYPES, totalOf } from "./x-api-probe-cost.ts";
+
+export class Refusal extends Error {}
+
 export const PROBES = ["S1", "S2", "S3", "S4", "S5", "S6", "S7"] as const;
 export type ProbeName = (typeof PROBES)[number];
-
-export const LATER_PROBES = {
-  S4: "6.5",
-  S5: "6.5",
-  S6: "6.8",
-  S7: "6.7",
-} as const satisfies Partial<Record<ProbeName, string>>;
 
 export const FIELD_NAMES = ["tweet", "post"] as const;
 export type FieldNames = (typeof FIELD_NAMES)[number];
@@ -31,28 +28,6 @@ export const POST_ID_COUNT = { S1: 1, S2: 2, S3: 3 } as const satisfies Record<
   number
 >;
 
-export const MICROS_PER_USD = 1_000_000;
-
-export const PRICE_MICROS = {
-  post: 5_000,
-  user: 10_000,
-  usageRead: 10_000,
-} as const;
-
-export const BALANCE_SETTLE_MS = 60_000;
-
-export const CEILING = { usdMicros: 2 * MICROS_PER_USD, posts: 400 } as const;
-
-export type Caps = { readonly usdMicros: number; readonly posts: number };
-
-export type Resources = {
-  readonly posts: number;
-  readonly users: number;
-  readonly usageReads: number;
-};
-
-const NO_RESOURCES: Resources = { posts: 0, users: 0, usageReads: 0 };
-
 type Expansion =
   | "author_id"
   | "referenced_tweets.id"
@@ -61,25 +36,31 @@ type Expansion =
   | "attachments.media_keys"
   | "username";
 
-const REFERENCE_TYPES = 3;
-
-const WORST_PER_POST: Record<Expansion, { readonly posts: number; readonly users: number }> = {
-  author_id: { posts: 0, users: 1 },
-  "referenced_tweets.id": { posts: REFERENCE_TYPES, users: 0 },
-  "referenced_tweets.id.author_id": { posts: 0, users: REFERENCE_TYPES },
-  referenced_posts: { posts: REFERENCE_TYPES, users: 0 },
-  "attachments.media_keys": { posts: 0, users: 0 },
-  username: { posts: 0, users: 1 },
+const WORST_PER_POST: Record<
+  Expansion,
+  { readonly includedPosts: number; readonly users: number }
+> = {
+  author_id: { includedPosts: 0, users: 1 },
+  "referenced_tweets.id": { includedPosts: REFERENCE_TYPES, users: 0 },
+  "referenced_tweets.id.author_id": { includedPosts: 0, users: REFERENCE_TYPES },
+  referenced_posts: { includedPosts: REFERENCE_TYPES, users: 0 },
+  "attachments.media_keys": { includedPosts: 0, users: 0 },
+  username: { includedPosts: 0, users: ASSUMED.usernameUsersPerPost },
 };
 
-export type RequestKind = "balance" | "usage" | "lookup";
+export type RequestRole =
+  | "opening-balance"
+  | "mid-balance"
+  | "closing-balance"
+  | "usage"
+  | "lookup";
 
 export type PlannedRequest = {
   readonly label: string;
-  readonly kind: RequestKind;
+  readonly role: RequestRole;
   readonly path: string;
   readonly query: Readonly<Record<string, string>>;
-  readonly worst: Resources;
+  readonly worst: Counts;
   readonly settleFirst: boolean;
 };
 
@@ -125,24 +106,27 @@ const S2_EXPANSIONS: Record<FieldNames, readonly Expansion[]> = {
 
 const PLAIN: LookupFields = { expansions: [], detailFields: false };
 
-function balanceRead(label: string, settleFirst: boolean): PlannedRequest {
+function balanceRead(
+  label: string,
+  role: "opening-balance" | "mid-balance" | "closing-balance",
+): PlannedRequest {
   return {
     label,
-    kind: "balance",
+    role,
     path: "/2/usage/credits",
     query: {},
-    worst: { ...NO_RESOURCES, usageReads: 1 },
-    settleFirst,
+    worst: { ...NO_COUNTS, usageReads: 1 },
+    settleFirst: role !== "opening-balance",
   };
 }
 
 function usageRead(): PlannedRequest {
   return {
     label: "usage-tweets",
-    kind: "usage",
+    role: "usage",
     path: "/2/usage/tweets",
     query: { days: "1", "usage.fields": "daily_client_app_usage" },
-    worst: { ...NO_RESOURCES, usageReads: 1 },
+    worst: { ...NO_COUNTS, usageReads: 1 },
     settleFirst: false,
   };
 }
@@ -152,10 +136,10 @@ function lookupRead(label: string, ids: readonly string[], fields: LookupFields)
   const single = ids.length === 1 && only !== undefined;
   const perPost = fields.expansions.reduce(
     (sum, expansion) => ({
-      posts: sum.posts + WORST_PER_POST[expansion].posts,
+      includedPosts: sum.includedPosts + WORST_PER_POST[expansion].includedPosts,
       users: sum.users + WORST_PER_POST[expansion].users,
     }),
-    { posts: 1, users: 0 },
+    { includedPosts: 0, users: 0 },
   );
   const query: (readonly [string, string])[] = [];
 
@@ -167,13 +151,14 @@ function lookupRead(label: string, ids: readonly string[], fields: LookupFields)
 
   return {
     label,
-    kind: "lookup",
+    role: "lookup",
     path: single ? `/2/tweets/${only}` : "/2/tweets",
     query: Object.fromEntries(query),
     worst: {
-      posts: ids.length * perPost.posts,
+      ...NO_COUNTS,
+      posts: ids.length,
+      includedPosts: ids.length * perPost.includedPosts,
       users: ids.length * perPost.users,
-      usageReads: 0,
     },
     settleFirst: false,
   };
@@ -184,14 +169,14 @@ function probeSteps(input: ProbeInput): readonly PlannedRequest[] {
     case "S1":
       return [
         usageRead(),
-        balanceRead("balance-after-usage-reads", true),
+        balanceRead("balance-after-usage-reads", "mid-balance"),
         lookupRead("lookup-tweet-names", [input.postId], S1_LOOKUPS.tweet),
         lookupRead("lookup-post-names", [input.postId], S1_LOOKUPS.post),
       ];
     case "S2":
       return [
         lookupRead("lookup-plain", [input.plainId], PLAIN),
-        balanceRead("balance-after-plain", true),
+        balanceRead("balance-after-plain", "mid-balance"),
         lookupRead("lookup-expanded", [input.expandedId], {
           expansions: S2_EXPANSIONS[input.names],
           detailFields: false,
@@ -211,39 +196,29 @@ function probeSteps(input: ProbeInput): readonly PlannedRequest[] {
 
 export function planOf(input: ProbeInput): readonly PlannedRequest[] {
   return [
-    balanceRead("balance-before", false),
+    balanceRead("balance-before", "opening-balance"),
     ...probeSteps(input),
-    balanceRead("balance-after", true),
+    balanceRead("balance-after", "closing-balance"),
   ];
 }
 
-export function sumOf(all: readonly Resources[]): Resources {
-  return all.reduce(
-    (sum, next) => ({
-      posts: sum.posts + next.posts,
-      users: sum.users + next.users,
-      usageReads: sum.usageReads + next.usageReads,
-    }),
-    NO_RESOURCES,
-  );
+export function isBalanceRead(request: PlannedRequest): boolean {
+  return request.role !== "usage" && request.role !== "lookup";
 }
 
-export function worstOf(plan: readonly PlannedRequest[]): Resources {
-  return sumOf(plan.map((request) => request.worst));
+export const BALANCE_SETTLE_MS = 60_000;
+
+export const PLAN_FILE = "plan.json";
+export const SUMMARY_FILE = "summary.json";
+
+export function recordNameOf(index: number, request: PlannedRequest): string {
+  return `${String(index + 1).padStart(2, "0")}-${request.label}.json`;
 }
 
-export function costOf(resources: Resources): number {
-  return (
-    resources.posts * PRICE_MICROS.post +
-    resources.users * PRICE_MICROS.user +
-    resources.usageReads * PRICE_MICROS.usageRead
-  );
+export function runFilesOf(plan: readonly PlannedRequest[]): readonly string[] {
+  return [PLAN_FILE, ...plan.map((request, index) => recordNameOf(index, request)), SUMMARY_FILE];
 }
 
-export function withinCaps(resources: Resources, caps: Caps): boolean {
-  return costOf(resources) <= caps.usdMicros && resources.posts <= caps.posts;
-}
-
-export function usd(micros: number): string {
-  return (micros / MICROS_PER_USD).toFixed(4);
+export function worstOf(plan: readonly PlannedRequest[]): Counts {
+  return totalOf(plan.map((request) => request.worst));
 }

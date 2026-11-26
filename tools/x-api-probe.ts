@@ -1,21 +1,20 @@
-import { promises as fs } from "node:fs";
-import { join } from "node:path";
-import { setTimeout as sleep } from "node:timers/promises";
-
-import { z } from "zod";
-
-import { errnoCodeOf, errorClassOf } from "../src/core/kernel/failure-log.ts";
-import { parsedJson } from "../src/core/kernel/parsed-json.ts";
-import { balanceOf, billedOf, countedOf } from "./x-api-probe-count.ts";
-import { type Config, Refusal, configOf } from "./x-api-probe-input.ts";
 import {
-  BALANCE_SETTLE_MS,
-  type PlannedRequest,
+  ASSUMPTIONS,
+  billedOf,
+  billedPostsOf,
+  capsRecord,
   costOf,
-  planOf,
-  sumOf,
+  exceedsPlan,
+  totalOf,
   usd,
   withinCaps,
+} from "./x-api-probe-cost.ts";
+import { type Config, configOf } from "./x-api-probe-input.ts";
+import {
+  BALANCE_SETTLE_MS,
+  PLAN_FILE,
+  Refusal,
+  SUMMARY_FILE,
   worstOf,
 } from "./x-api-probe-plan.ts";
 import {
@@ -23,213 +22,153 @@ import {
   type RunState,
   type Sent,
   printPlan,
-  printSent,
-  redacted,
   summaryOf,
 } from "./x-api-probe-report.ts";
+import { createdRunFolder } from "./x-api-probe-runs-dir.ts";
+import { type Run, step, writeRecord } from "./x-api-probe-step.ts";
 
-const API_ORIGIN = "https://api.x.com";
-const REQUEST_DEADLINE_MS = 30_000;
-const KEPT_HEADERS = [
-  "content-type",
-  "date",
-  "x-rate-limit-limit",
-  "x-rate-limit-remaining",
-  "x-rate-limit-reset",
-  "x-transaction-id",
-  "x-response-time",
-] as const;
+type Next = { readonly kind: "go" } | { readonly kind: "stop" | "end"; readonly ending: Ending };
 
-type Answer =
-  | {
-      readonly kind: "answer";
-      readonly status: number;
-      readonly headers: Readonly<Record<string, string>>;
-      readonly text: string;
+function nextOf(config: Config, sent: Sent): Next {
+  const { label, role, worst } = sent.request;
+
+  if (sent.outcome.kind === "no-answer")
+    return {
+      kind: "end",
+      ending: { kind: "no-answer", label, errorClass: sent.outcome.errorClass },
+    };
+  const { status } = sent.outcome;
+
+  if (status === 401 || status === 429 || status >= 500)
+    return { kind: "end", ending: { kind: "answer", label, status } };
+  switch (role) {
+    case "opening-balance": {
+      const need = costOf(worstOf(config.plan));
+
+      if (sent.balanceMicros === null)
+        return { kind: "end", ending: { kind: "balance-unread", label } };
+      if (sent.balanceMicros < need)
+        return {
+          kind: "end",
+          ending: { kind: "low-balance", balanceUsd: usd(sent.balanceMicros), needUsd: usd(need) },
+        };
+      return { kind: "go" };
     }
-  | { readonly kind: "no-answer"; readonly errorClass: string };
-
-type Run = {
-  readonly config: Config;
-  readonly plan: readonly PlannedRequest[];
-  readonly folder: string;
-  readonly token: string;
-};
-
-async function writeRecord(run: Run, name: string, json: string): Promise<void> {
-  await fs.writeFile(join(run.folder, name), `${redacted(json, run.token)}\n`, {
-    flag: "wx",
-    mode: 0o600,
-  });
-}
-
-async function send(request: PlannedRequest, token: string): Promise<Answer> {
-  const url = new URL(request.path, API_ORIGIN);
-
-  for (const [key, value] of Object.entries(request.query)) url.searchParams.set(key, value);
-  try {
-    const response = await fetch(url, {
-      headers: { authorization: `Bearer ${token}` },
-      redirect: "error",
-      signal: AbortSignal.timeout(REQUEST_DEADLINE_MS),
-    });
-    const headers = Object.fromEntries(
-      KEPT_HEADERS.flatMap((name) => {
-        const value = response.headers.get(name);
-
-        return value === null ? [] : [[name, value]];
-      }),
-    );
-
-    return { kind: "answer", status: response.status, headers, text: await response.text() };
-  } catch (error) {
-    const cause = error instanceof Error ? error.cause : undefined;
-
-    return { kind: "no-answer", errorClass: `${errorClassOf(error)}/${errnoCodeOf(cause)}` };
+    case "mid-balance":
+      return sent.balanceMicros === null
+        ? { kind: "stop", ending: { kind: "balance-unread", label } }
+        : { kind: "go" };
+    case "lookup":
+      if (sent.reading?.kind !== "counted")
+        return { kind: "stop", ending: { kind: "uncountable", label } };
+      if (exceedsPlan(sent.reading.counts, worst))
+        return {
+          kind: "stop",
+          ending: {
+            kind: "over-plan",
+            label,
+            counted: billedOf(sent.reading.counts),
+            planned: billedOf(worst),
+          },
+        };
+      return { kind: "go" };
+    case "usage":
+    case "closing-balance":
+      return { kind: "go" };
+    default:
+      return role satisfies never;
   }
 }
 
-function endingOf(request: PlannedRequest, answer: Answer): Ending | null {
-  if (answer.kind === "no-answer")
-    return { kind: "no-answer", label: request.label, errorClass: answer.errorClass };
-  if (answer.status === 401 || answer.status === 429 || answer.status >= 500)
-    return { kind: "answer", label: request.label, status: answer.status };
-  return null;
-}
-
-async function step(
-  run: Run,
-  index: number,
-  request: PlannedRequest,
-): Promise<{ readonly sent: Sent; readonly ending: Ending | null }> {
-  if (request.settleFirst) await sleep(BALANCE_SETTLE_MS);
-  const answer = await send(request, run.token);
-  const text = answer.kind === "answer" ? answer.text : null;
-  const counted = text === null ? null : countedOf(request.kind, text);
-  const sent: Sent = {
-    label: request.label,
-    status: answer.kind === "answer" ? answer.status : null,
-    counted,
-    billed: counted === null ? request.worst : billedOf(counted.counts),
-    balanceMicros: text === null || request.kind !== "balance" ? null : balanceOf(text),
-  };
-  const record = {
-    request: { method: "GET", path: request.path, query: request.query },
-    sentAt: new Date().toISOString(),
-    answer:
-      answer.kind === "answer"
-        ? {
-            status: answer.status,
-            headers: answer.headers,
-            body: parsedJson(z.json(), answer.text) ?? answer.text,
-          }
-        : answer,
-    counts: counted?.counts ?? null,
-  };
-
-  await writeRecord(
-    run,
-    `${String(index + 1).padStart(2, "0")}-${request.label}.json`,
-    JSON.stringify(record, null, 2),
-  );
-  printSent(run.config.input.probe, index, sent);
-  return { sent, ending: endingOf(request, answer) };
-}
-
-function balanceEnding(first: Sent, plan: readonly PlannedRequest[]): Ending | null {
-  const need = costOf(worstOf(plan));
-
-  if (first.balanceMicros === null) return { kind: "balance-unread" };
-  if (first.balanceMicros < need)
-    return { kind: "low-balance", balanceUsd: usd(first.balanceMicros), needUsd: usd(need) };
-  return null;
-}
-
 async function runPlan(run: Run): Promise<RunState> {
+  const { plan, caps } = run.config;
+  const closing = plan.find((request) => request.role === "closing-balance");
   const sent: Sent[] = [];
-  const final = run.plan.at(-1);
-  let capped: Ending | null = null;
+  let stop: Ending | null = null;
 
-  for (const [index, request] of run.plan.entries()) {
-    const isFinal = request === final;
+  for (const [index, request] of plan.entries()) {
+    const isClosing = request === closing;
 
-    if (capped !== null && !isFinal) continue;
-    const spent = sumOf(sent.map((item) => item.billed));
-    const reserve = isFinal || final === undefined ? [] : [final.worst];
+    if (stop !== null && !isClosing) continue;
+    const reserve = isClosing || closing === undefined ? [] : [closing.worst];
+    const charged = totalOf([...sent.map((item) => item.charged), request.worst, ...reserve]);
 
-    if (!withinCaps(sumOf([spent, request.worst, ...reserve]), run.config.caps)) {
-      capped ??= { kind: "cap", label: request.label };
+    if (!withinCaps(charged, caps)) {
+      stop ??= { kind: "cap", label: request.label };
       continue;
     }
     // oxlint-disable-next-line eslint/no-await-in-loop -- Requests go one at a time, so each balance read follows the requests before it and each cap check counts every earlier answer.
     const done = await step(run, index, request);
 
-    sent.push(done.sent);
-    const ending = done.ending ?? (index === 0 ? balanceEnding(done.sent, run.plan) : null);
+    sent.push(done);
+    const next = nextOf(run.config, done);
 
-    if (ending !== null) return { sent, ending };
+    if (next.kind === "end") return { sent, ending: next.ending };
+    if (next.kind === "stop") stop ??= next.ending;
   }
-  return { sent, ending: capped ?? { kind: "completed" } };
+  const closingRead = sent.find((item) => item.request === closing);
+
+  return {
+    sent,
+    ending:
+      stop ??
+      ((closingRead?.balanceMicros ?? null) === null
+        ? { kind: "balance-unread", label: closing?.label ?? "balance-after" }
+        : { kind: "completed" }),
+  };
 }
 
-async function runLive(
-  config: Config,
-  plan: readonly PlannedRequest[],
-  token: string,
-  runsDir: string,
-): Promise<number> {
-  const stamp = new Date()
-    .toISOString()
-    .replace(/\.\d+Z$/u, "Z")
-    .replaceAll(":", "-");
-  const run: Run = { config, plan, token, folder: join(runsDir, `${stamp}-${config.input.probe}`) };
+async function runLive(config: Config, token: string, runFolder: string): Promise<number> {
+  const run: Run = { config, token, folder: runFolder };
 
-  await fs.mkdir(runsDir, { recursive: true, mode: 0o700 });
-  await fs.mkdir(run.folder, { mode: 0o700 });
+  await createdRunFolder(runFolder);
   const planRecord = {
     input: config.input,
-    caps: { usd: usd(config.caps.usdMicros), posts: config.caps.posts },
+    caps: capsRecord(config.caps),
     settleSeconds: BALANCE_SETTLE_MS / 1000,
-    requests: plan.map((request) => ({ ...request, worstUsd: usd(costOf(request.worst)) })),
-    worstUsd: usd(costOf(worstOf(plan))),
+    assumptions: ASSUMPTIONS,
+    requests: config.plan.map((request) => ({
+      ...request,
+      worstUsd: usd(costOf(request.worst)),
+    })),
+    worstUsd: usd(costOf(worstOf(config.plan))),
   };
 
-  await writeRecord(run, "plan.json", JSON.stringify(planRecord, null, 2));
+  await writeRecord(run, PLAN_FILE, JSON.stringify(planRecord, null, 2));
   const state = await runPlan(run);
-  const summary = summaryOf(run.config, run.folder, state);
+  const summary = summaryOf(config, run.folder, state);
 
-  await writeRecord(run, "summary.json", JSON.stringify(summary, null, 2));
+  await writeRecord(run, SUMMARY_FILE, JSON.stringify(summary, null, 2));
   process.stdout.write(
     `${JSON.stringify({ ending: summary.ending, countedSpend: summary.countedSpend, measuredSpend: summary.measuredSpend, folder: run.folder })}\n`,
   );
   return state.ending.kind === "completed" ? 0 : 1;
 }
 
-function main(): number | Promise<number> {
+function main(): Promise<number> {
   const config = configOf();
-  const plan = planOf(config.input);
 
   if (config.caps.usdMicros === 0 || config.caps.posts === 0) {
     process.stdout.write(
       `${config.input.probe}: a cap is 0, so the run sends no request, not even a balance read\n`,
     );
-    return 0;
+    return Promise.resolve(0);
   }
-  printPlan(config, plan);
-  const worst = worstOf(plan);
+  printPlan(config);
+  const worst = worstOf(config.plan);
 
   if (!withinCaps(worst, config.caps))
     throw new Refusal(
-      `the worst case of ${config.input.probe} is ${usd(costOf(worst))} USD and ${worst.posts} posts, above the caps; raise them to at least that, up to the ceiling`,
+      `the worst case of ${config.input.probe} is ${usd(costOf(worst))} USD and ${billedPostsOf(worst)} posts, above the caps; raise them to at least that, up to the ceiling`,
     );
   switch (config.mode.kind) {
     case "dry":
       process.stdout.write(
         `${config.input.probe}: dry run, the worst case fits the caps, no request sent\n`,
       );
-      return 0;
+      return Promise.resolve(0);
     case "live":
-      return runLive(config, plan, config.mode.token, config.mode.runsDir);
+      return runLive(config, config.mode.token, config.mode.runFolder);
     default:
       return config.mode satisfies never;
   }
@@ -239,6 +178,6 @@ try {
   process.exitCode = await main();
 } catch (error) {
   if (!(error instanceof Refusal)) throw error;
-  process.stderr.write(`live:x-api refused: ${error.message}\n`);
+  process.stderr.write(`x-api:probe refused: ${error.message}\n`);
   process.exitCode = 1;
 }
