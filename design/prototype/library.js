@@ -79,7 +79,7 @@ var LIB = (function () {
   var SETTING_GROUPS = [
     { label: 'View', keys: ['layout', 'openAs'] },
     { label: 'Reading', keys: ['style', 'theme', 'font', 'width', 'density', 'comments'] },
-    { label: 'Cards and tags', keys: ['accent', 'tags', 'images'] }
+    { label: 'Cards and Tags', keys: ['accent', 'tags', 'images'] }
   ];
   // Style comes last, so a preset code saved before it existed (one part shorter) still reads, as Library.
   var SETTING_KEYS = ['layout', 'openAs', 'theme', 'font', 'width', 'density', 'comments', 'accent', 'tags', 'images', 'style'];
@@ -253,7 +253,7 @@ var LIB = (function () {
     return [20, 60, 105, 150, 195, 240, 285, 330][h % 8];
   }
   var PASTE = {
-    processing: { title: 'Reading the link', sub: 'Usually done within a minute', icon: 'spin', tone: 'acc', actions: [] },
+    processing: { title: 'Reading the link…', sub: '', icon: 'spin', tone: 'acc', actions: [] },
     done: { title: 'Added', icon: 'check', tone: 'ok', actions: ['open', 'dismiss'] },
     refreshed: { title: 'Already saved, refreshed', icon: 'refresh', tone: 'acc', actions: ['open', 'dismiss'] },
     failed: { title: '', icon: 'warn', tone: 'warn', actions: ['retry', 'dismiss'] },

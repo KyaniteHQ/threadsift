@@ -131,9 +131,9 @@ body{margin:0}
 <sc-if value="{{hasBack}}" hint-placeholder-val="{{ true }}"><button type="button" class="btn btn-plain rd-back {{backCls}}" onClick="{{ui.close}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><sc-for list="{{backIcon}}" as="d" hint-placeholder-count="0"><path d="{{d}}"></path></sc-for></svg><span>{{backLabel}}</span></button></sc-if>
 <sc-if value="{{hasPos}}" hint-placeholder-val="{{ false }}">
 <div class="rd-nav" role="group" aria-label="Item position">
-<sc-if value="{{navButtons}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-icon" aria-label="Previous item" title="Previous item (← or k)" aria-keyshortcuts="ArrowLeft k" disabled="{{ui.noPrev}}" onClick="{{ui.prev}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button></sc-if>
+<sc-if value="{{navButtons}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-icon" aria-label="Previous Item" title="Previous Item (← or k)" aria-keyshortcuts="ArrowLeft k" disabled="{{ui.noPrev}}" onClick="{{ui.prev}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button></sc-if>
 <span class="rd-pos {{posCls}}">{{ui.pos}}</span>
-<sc-if value="{{navButtons}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-icon" aria-label="Next item" title="Next item (→ or j)" aria-keyshortcuts="ArrowRight j" disabled="{{ui.noNext}}" onClick="{{ui.next}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button></sc-if>
+<sc-if value="{{navButtons}}" hint-placeholder-val="{{ false }}"><button type="button" class="btn btn-icon" aria-label="Next Item" title="Next Item (→ or j)" aria-keyshortcuts="ArrowRight j" disabled="{{ui.noNext}}" onClick="{{ui.next}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button></sc-if>
 </div>
 </sc-if>
 <div class="rd-actions">

@@ -89,7 +89,7 @@ body{margin:0}
 </section>
 </sc-for>
 </div>
-<div class="st-foot"><button type="button" class="st-reset" aria-describedby="{{resetNoteId}}" onClick="{{reset}}">Reset look</button><p class="st-foot-note" id="{{resetNoteId}}">Reset look puts look settings back to their defaults and keeps Layout, Open items as and Theme.</p></div>
+<div class="st-foot"><button type="button" class="st-reset" aria-describedby="{{resetNoteId}}" onClick="{{reset}}">Reset look</button><p class="st-foot-note" id="{{resetNoteId}}">Layout, Open items as and Theme stay as they are.</p></div>
 </div>
 </sc-if>
 </x-dc>
@@ -107,7 +107,7 @@ body{margin:0}
 // returns to the gear; so does a tap on the dimmed page behind the phone sheet. A click
 // elsewhere, or focus moving out of the panel, closes it too.
 var count = 0;
-var STYLE_NOTE = 'Set by the style';
+var STYLE_NOTE = 'Set by the Style';
 function narrowNote() {   // built from the narrow breakpoint in tokens.css
   var b = LIB.breakpoints();
   return 'Under ' + (b ? b.narrow + 'px' : 'the narrow width') + ' wide, items always open full screen';

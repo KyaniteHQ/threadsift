@@ -246,14 +246,14 @@ body { margin: 0; }
 </article>
 </sc-for>
 <sc-if value="{{noResults}}" hint-placeholder-val="{{ false }}"><div class="noresults"><p>Nothing matches.</p><button type="button" class="btn" onClick="{{clearAll}}">Clear search and filters</button></div></sc-if>
-<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}"><div class="empty"><svg class="ic ic-xl" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l2.5-7h11l2.5 7"></path><path d="M4 13v5h16v-5h-5a3 3 0 0 1-6 0z"></path></svg><h2>Nothing saved yet</h2><p>Paste a Reddit, X, GitHub or article link in the box.</p><p>The agent files it with a topic, up to 3 tags and a short summary.</p></div></sc-if>
+<sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}"><div class="empty"><svg class="ic ic-xl" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l2.5-7h11l2.5 7"></path><path d="M4 13v5h16v-5h-5a3 3 0 0 1-6 0z"></path></svg><h2>No Items yet</h2><p>Paste a Reddit, X, GitHub or article link in the box.</p><p>The agent files it with a topic, up to 3 tags and a short summary.</p></div></sc-if>
 </div>
 </div>
 
 <sc-if value="{{placeholder}}" hint-placeholder-val="{{ false }}"><div class="reader-ph"><svg class="ic ic-xl" viewBox="0 0 24 24" aria-hidden="true"><path d="M5 4h10l4 4v12H5z"></path><path d="M9 12h6M9 16h4"></path></svg><span>Select an item to read</span></div></sc-if>
 <sc-if value="{{scrim}}" hint-placeholder-val="{{ false }}"><button type="button" class="scrim" tabindex="-1" aria-hidden="true" onClick="{{close}}"></button></sc-if>
 <sc-if value="{{hasReader}}" hint-placeholder-val="{{ false }}"><div class="reader-slot"><dc-import name="Reader" item="{{openItem}}" read="{{openRead}}" on-toggle-read="{{toggleOpenRead}}" ui="{{ui}}" cut="{{cut}}" as-of="{{asOf}}" hint-size="100%,480px"></dc-import></div></sc-if>
-<sc-if value="{{sideNav}}" hint-placeholder-val="{{ false }}"><button type="button" class="side-nav side-prev" aria-label="Previous item" title="Previous item (← or k)" aria-keyshortcuts="ArrowLeft k" disabled="{{ui.noPrev}}" onClick="{{prev}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button><button type="button" class="side-nav side-next" aria-label="Next item" title="Next item (→ or j)" aria-keyshortcuts="ArrowRight j" disabled="{{ui.noNext}}" onClick="{{next}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button></sc-if>
+<sc-if value="{{sideNav}}" hint-placeholder-val="{{ false }}"><button type="button" class="side-nav side-prev" aria-label="Previous Item" title="Previous Item (← or k)" aria-keyshortcuts="ArrowLeft k" disabled="{{ui.noPrev}}" onClick="{{prev}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5l-7 7 7 7"></path></svg></button><button type="button" class="side-nav side-next" aria-label="Next Item" title="Next Item (→ or j)" aria-keyshortcuts="ArrowRight j" disabled="{{ui.noNext}}" onClick="{{next}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M9 5l7 7-7 7"></path></svg></button></sc-if>
 </div>
 </div>
 </x-dc>

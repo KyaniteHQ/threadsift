@@ -110,9 +110,9 @@ const STUB_TEXTS = {
   "not-kept": "Comment not kept, shown so the replies below make sense.",
   more: "Further replies were not saved.",
 };
-const DIGEST_PENDING = "The summary and key points are not ready yet.";
+const DIGEST_PENDING = "The Summary and Key points are not ready yet.";
 const UNFILTERED_PENDING = "The comments below are not filtered by a Digest yet. One is being made now, and the filter follows when it is ready.";
-const FILL_NOTE = "The thread for this item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
+const FILL_NOTE = "The thread for this Item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
 const SOURCE_MARKS = {
   reddit: '<path d="M5 4v16"/><path d="M5 7h13"/><path d="M9 12h11"/><path d="M9 17h7"/>',
   x: '<path d="M4 5h16v11h-9l-4 4v-4H4z"/>',
@@ -259,8 +259,8 @@ function readerBar(it, mode, seq, from) {
         : `<button class="btn quiet" type="button" data-act="back">${icon("back")}<span class="lbl">${from === "grid" ? "Back to grid" : "Back to list"}</span></button>`;
   const expand = mode === "sheet" ? `<button class="btn quiet icon" type="button" aria-label="Open as a full page" data-act="expand">${icon("expand")}</button>` : "";
   return `<div class="rd-bar">${back}<span class="pos">${i + 1} of ${seq.length}</span>
-    <button class="btn quiet icon" type="button" aria-label="Previous item" data-act="step" data-step="-1">${icon("prev")}</button>
-    <button class="btn quiet icon" type="button" aria-label="Next item" data-act="step" data-step="1">${icon("next")}</button>
+    <button class="btn quiet icon" type="button" aria-label="Previous Item" data-act="step" data-step="-1">${icon("prev")}</button>
+    <button class="btn quiet icon" type="button" aria-label="Next Item" data-act="step" data-step="1">${icon("next")}</button>
     <span class="grow"></span>
     <button class="btn" type="button" data-act="read" data-id="${it.id}">${icon("check")}<span class="lbl">${readLabel(it)}</span></button>
     <a class="btn quiet icon" href="#" aria-label="${OPEN_LABELS[it.source]}" data-act="none">${icon("out")}</a>
@@ -320,8 +320,9 @@ const shownItem = (s) => {
   const vis = visible(s);
   return vis.find((i) => i.id === s.item) ?? vis[0];
 };
-const countText = (vis) =>
-  vis.length === items.length ? `${items.length} Items, ${items.filter((i) => !i.read).length} unread` : `${vis.length} of ${items.length} Items`;
+const isFiltered = (s) => s.readf !== "all" || s.src !== null;
+const countText = (s) =>
+  isFiltered(s) ? `${visible(s).length} of ${items.length} Items` : `${items.length} Items, ${items.filter((i) => !i.read).length} unread`;
 const noResults = () => `<div class="empty" role="status"><p>No Items match</p><button class="btn" type="button" data-act="clear">Clear search and filters</button></div>`;
 
 let uidN = 0;
@@ -334,10 +335,10 @@ const searchBox = () => `<label class="search"><span class="vh">Search Items</sp
 function listScreen(s) {
   const vis = visible(s);
   const open = shownItem(s);
-  const reader = open ? `<div class="rd">${readerBar(open, "pane", vis)}<div class="rd-col">${readerBody(open)}</div></div>` : `<p class="rd-empty">Select an item</p>`;
+  const reader = open ? `<div class="rd">${readerBar(open, "pane", vis)}<div class="rd-col">${readerBody(open)}</div></div>` : `<p class="rd-empty">Select an Item</p>`;
   return `<div class="l-screen">
     <aside class="side"><div class="side-top">${wordmark()}<div class="g-tools"><button class="btn quiet icon" type="button" aria-label="Grid layout" data-act="screen" data-screen="grid">${icon("grid")}</button>${aaBtn()}</div></div>${pasteBox()}${filterRail(s)}</aside>
-    <section class="list-pane" aria-label="Items"><div class="list-head">${searchBox()}<span class="count">${countText(vis)}</span></div>
+    <section class="list-pane" aria-label="Items"><div class="list-head">${searchBox()}<span class="count">${countText(s)}</span></div>
       <div class="rows">${vis.length ? vis.map((i) => row(i, { open: i === open })).join("") : noResults()}</div></section>
     <section class="rd-pane" aria-label="Reader">${reader}</section>
   </div>${panel(s)}`;
@@ -512,7 +513,7 @@ export function boot() {
       } else el.querySelector(".lbl").textContent = readLabel(it);
     }
     for (const el of document.querySelectorAll(`:is(.row, .card, .rd-head)[data-id="${id}"]`)) el.classList.toggle("unread", !it.read);
-    for (const el of document.querySelectorAll(".list-head .count")) el.textContent = countText(visible(s));
+    for (const el of document.querySelectorAll(".list-head .count")) el.textContent = countText(s);
   }
   function focusKey(el) {
     const sel = ["act", "id", "step", "v", "src"].map((k) => (el.dataset[k] === undefined ? "" : `[data-${k}="${el.dataset[k]}"]`)).join("");
@@ -571,7 +572,8 @@ export function boot() {
       return;
     } else if (act === "read") {
       toggleRead(el.dataset.id);
-      return;
+      if (!isFiltered(s)) return;
+      filtered();
     } else if (act === "expand") {
       s.sheetOpen = false;
       go("reader");
@@ -594,7 +596,7 @@ export function boot() {
       filtered();
     } else return;
     render();
-    if (["step", "readf", "src"].includes(act)) refocus(key);
+    if (["step", "readf", "src", "read"].includes(act)) refocus(key);
     else if (act === "clear") main.querySelector(".title a")?.focus();
   });
   document.addEventListener(
