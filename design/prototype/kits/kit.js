@@ -572,8 +572,15 @@ export function boot() {
       return;
     } else if (act === "read") {
       toggleRead(el.dataset.id);
-      if (!isFiltered(s)) return;
+      if (s.readf === "all" || s.screen === "reader") return;
+      const marks = [...main.querySelectorAll('.mark[data-act="read"]')];
+      const at = marks.indexOf(el);
+      if (!visible(s).some((i) => i.id === s.item)) s.sheetOpen = false;
       filtered();
+      render();
+      const left = main.querySelectorAll(at === -1 ? 'button[data-act="read"]:not(.mark)' : '.mark[data-act="read"]');
+      (left[Math.min(Math.max(at, 0), left.length - 1)] ?? main.querySelector('[data-act="clear"]'))?.focus();
+      return;
     } else if (act === "expand") {
       s.sheetOpen = false;
       go("reader");
@@ -596,7 +603,7 @@ export function boot() {
       filtered();
     } else return;
     render();
-    if (["step", "readf", "src", "read"].includes(act)) refocus(key);
+    if (["step", "readf", "src"].includes(act)) refocus(key);
     else if (act === "clear") main.querySelector(".title a")?.focus();
   });
   document.addEventListener(
