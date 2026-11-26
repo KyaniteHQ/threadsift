@@ -123,7 +123,7 @@ Settings page                relay content script            worker
 
 ### Fill when opened
 
-Fill saves the thread of a Link-only Reddit Item when the owner opens it in a tab. It does nothing in the background. The owner opts in once on the settings page (Fill saved Reddit Items), where Turn on asks the browser for `https://*.reddit.com/*`, one of the optional host permissions the manifest lists.
+Fill saves the thread of a Link-only Reddit Item when the owner opens it in a tab. It does nothing in the background. The owner opts in once on the settings page (Fill saved Reddit items), where Turn on asks the browser for `https://*.reddit.com/*`, one of the optional host permissions the manifest lists.
 
 - The opt-in is the grant plus the `fill` flag that the worker stores on Turn on and Turn off. The page reads both through the worker, so a revoke in the browser's own settings turns filling off.
 - The worker registers `fill.js` for every page of `reddit.com` and its subdomains when the Reddit host permission is held and the `fill` flag is on, and removes it when either is missing (at every worker start and on `permissions.onAdded` and `onRemoved`, because registered scripts are cleared when the extension updates). `fill.js` is an unlisted script and not a WXT `registration: "runtime"` content script, because WXT 0.21.5 adds the `matches` of such a script to the manifest's `host_permissions`, which would grant Reddit at install. The match covers the whole site, because a feed does not match a thread pattern and no script would be there to see the navigation.

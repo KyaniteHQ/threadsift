@@ -23,63 +23,64 @@ export const TEXT = {
   unreachable: "Couldn’t reach your Threadsift address. Check the address and your connection.",
   failed: "Couldn’t save this page.",
   tryAgain: "Try again",
-  settingsTitle: "Extension settings",
+  settingsTitle: "Threadsift extension settings",
   addressLabel: "Threadsift address",
-  addressHint:
-    "A remote address must start with https://; http:// works only for localhost and 127.0.0.1.",
+  addressHint: "Use an https:// address, or http:// only for localhost or 127.0.0.1.",
   addressInvalid: "Enter an https:// address, or http:// for localhost or 127.0.0.1.",
   tokenLabel: "Agent token",
   tokenKept:
-    "An agent token is saved. Leave the field empty to keep it, or enter a new token to replace it.",
+    "A token is saved. Leave this field empty to keep it, or enter a new one to replace it.",
   tokenHint:
-    "Create an agent token in Threadsift settings under Agent tokens with the Read and Add scopes. Connecting a Reddit account also needs the Reddit scope.",
+    "Create one in Threadsift Settings under Agent tokens with the Read and Add scopes. Connecting a Reddit account also needs the Reddit scope.",
   tokenMissing: "Enter an agent token.",
   saveSettings: "Save settings",
-  settingsSaved: "Settings saved.",
-  settingsNotSaved: "Couldn’t save the settings, so nothing changed. Try saving again.",
+  settingsSaved: "Settings saved",
+  settingsNotSaved: "Couldn’t save the settings, so nothing changed. Try again.",
   oldAccessKept:
-    "Settings saved. Your browser couldn’t remove access to the old address, so it keeps access until you remove it in the browser’s extension settings.",
+    "Settings saved. The browser couldn’t remove the extension’s access to the previous address. You can remove it in the browser’s extension settings.",
   accessKeptNotSaved:
-    "Couldn’t save the settings. Your browser couldn’t remove access to the address, so it keeps access until you remove it in the browser’s extension settings.",
+    "Couldn’t save the settings. The browser also couldn’t remove the extension’s access to that address. You can remove it in the browser’s extension settings.",
   settingsUnreadable: "Couldn’t load the settings. Reload the page.",
   accessDenied:
-    "Access to the address was denied, so the settings weren’t saved. The Extension can’t save pages without it.",
-  fillTitle: "Fill saved Reddit Items",
+    "Access to the address was denied, so the settings weren’t saved. The extension can’t save pages without it.",
+  fillTitle: "Fill saved Reddit items",
   fillHint:
-    "Opening a Reddit thread in your tab lets the Extension fill a matching saved Item that has no thread yet. Your browser will ask for access to reddit.com when you turn this on.",
+    "When you open a Reddit post or comment in a tab, the extension saves the thread into any matching item that doesn’t have one yet. Nothing runs in the background. The browser will ask for access to reddit.com when you turn this on.",
   fillTurnOn: "Turn on",
   fillTurnOff: "Turn off",
-  fillIsOn: "Filling saved Reddit Items is on.",
-  fillIsOff: "Filling saved Reddit Items is off.",
+  fillIsOn: "Filling is on.",
+  fillIsOff: "Filling is off.",
   fillDenied: "Access to reddit.com was denied, so nothing changed.",
   fillFailed: "Couldn’t change access to reddit.com. Try again.",
   fillUnreadable: "Couldn’t check whether filling is on. Reload the page.",
   redditTitle: "Reddit account",
   redditHint:
-    "Connect the Reddit account this browser is signed in to so Threadsift can read Reddit links, and use a separate account because Reddit’s User Agreement forbids scraping without written consent. Your browser will ask for access to cookies and reddit.com when you connect.",
+    "Connect the Reddit account this browser is signed in to so Threadsift can read Reddit links saved without the extension. Use a separate Reddit account, because Reddit’s User Agreement forbids scraping without written consent and the requests use your own session. The browser will ask for access to cookies and reddit.com when you connect.",
   redditConnect: "Connect Reddit",
   redditReconnect: "Reconnect",
   redditDisconnect: "Disconnect",
-  redditWorking: "Connecting or disconnecting your Reddit account…",
-  redditNone: "No Reddit account is connected to Threadsift.",
-  redditConnected: "Your Reddit account is connected to Threadsift.",
+  redditWorking: "Updating Reddit connection…",
+  redditNone: "No Reddit account is connected.",
+  redditConnected: "Your Reddit account is connected.",
   redditExpired:
-    "Reddit stopped accepting the saved session, so reconnect while signed in to Reddit in this browser.",
-  redditUnreadable: "Threadsift can no longer open the saved session, so reconnect.",
+    "Reddit stopped accepting the saved session. Reconnect while this browser is signed in to Reddit.",
+  redditUnreadable:
+    "Threadsift can no longer open the saved session because its secret key changed.",
   redditMissing:
-    "This Threadsift Instance has no secret key to seal the session, so it can’t connect until the owner sets one.",
+    "This Threadsift instance has no secret key to seal a session. You can’t connect a Reddit account until the instance owner sets one.",
   redditNoAccess:
-    "Your browser didn’t give the Extension access to cookies and reddit.com, so nothing was sent.",
+    "The browser didn’t give the extension access to cookies and reddit.com, so nothing was sent.",
   redditSignedOut:
-    "This browser isn’t signed in to Reddit in a normal window; sign in to Reddit, then press the button again.",
+    "This browser isn’t signed in to Reddit in a normal window. Sign in to Reddit, then try again.",
   redditScopeRefused:
-    "Your agent token lacks the Reddit scope; make one with Read, Add and Reddit under Agent tokens and enter it above.",
-  redditTokenRefused: "Your agent token is wrong or was revoked; check it above.",
+    "The saved agent token lacks the Reddit scope. Create one with the Read, Add and Reddit scopes in Threadsift Settings under Agent tokens. Then enter it in the Agent token field of Threadsift extension settings.",
+  redditTokenRefused:
+    "The saved agent token is wrong or was revoked. Replace it in the Agent token field of Threadsift extension settings.",
   redditUnreachable:
-    "Couldn’t reach your Threadsift address; check the address and your connection.",
-  redditFailed: "Couldn’t connect, reconnect or disconnect the Reddit account, so nothing changed.",
+    "Couldn’t reach your Threadsift address. Check the address and your connection.",
+  redditFailed: "Couldn’t update the Reddit connection, so nothing changed.",
   redditAccessKept:
-    "The Reddit account was removed from Threadsift, but your browser kept the Extension’s access to cookies. Press Disconnect again to give it back.",
+    "Your Reddit account was removed from Threadsift, but the browser kept the extension’s cookie access. Select Disconnect again to remove it.",
   popupExpired:
     "Reddit no longer accepts the saved session. You need to be signed in to Reddit in this browser to reconnect.",
   manifestDescription:
