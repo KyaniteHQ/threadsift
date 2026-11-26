@@ -238,6 +238,9 @@ importers:
       '@fontsource-variable/roboto-mono':
         specifier: 5.3.0
         version: 5.3.0
+      '@fontsource-variable/schibsted-grotesk':
+        specifier: 5.3.0
+        version: 5.3.0
       '@fontsource-variable/source-serif-4':
         specifier: 5.3.1
         version: 5.3.1
@@ -1093,6 +1096,9 @@ packages:
 
   '@fontsource-variable/roboto-mono@5.3.0':
     resolution: {integrity: sha512-h5r+KY/6qy8JEOj33JgcrFO81YAnvrc1EAwMpl/EPJLb2OIvOy0/jmB5M7qs7x/uXk5JUP5Ux4LrkeOK7faHkQ==}
+
+  '@fontsource-variable/schibsted-grotesk@5.3.0':
+    resolution: {integrity: sha512-ndS6H/KICWANchlHF3q4UdZD+xrZ3Ji0rUobIuXlgvDUzDfqZDsVuXPXZb636nJZMHE9zZ9Fmwgqazm8hMB50Q==}
 
   '@fontsource-variable/source-serif-4@5.3.1':
     resolution: {integrity: sha512-4Rtay22SC4lMvw11r/+9kxANB6P3M0X8s1NudBC2v0J1KU2y3DcMoNcT3lBoZ/CqLirzf+StlO6UlJilyrvaUg==}
@@ -4759,6 +4765,8 @@ snapshots:
   '@fontsource-variable/playfair-display@5.3.0': {}
 
   '@fontsource-variable/roboto-mono@5.3.0': {}
+
+  '@fontsource-variable/schibsted-grotesk@5.3.0': {}
 
   '@fontsource-variable/source-serif-4@5.3.1': {}
 

@@ -2,6 +2,7 @@ import { SettingsPanel } from "./SettingsPanel.tsx";
 import { totalName } from "./text.ts";
 import { usePanelState } from "./use-panel.ts";
 import type { Look } from "./use-root.ts";
+import { Wordmark } from "./Wordmark.tsx";
 
 function Total({ count }: Readonly<{ count: number }>) {
   return (
@@ -17,7 +18,9 @@ export function Brand({ look, total }: Readonly<{ look: Look; total: number | nu
 
   return (
     <div className="brand">
-      <h1>Threadsift</h1>
+      <h1 className="wordmark">
+        <Wordmark />
+      </h1>
       {total === null ? null : <Total count={total} />}
       <SettingsPanel look={look} panel={panel} />
     </div>

@@ -21,11 +21,6 @@
 }
 .auth-mark {
   margin: 0;
-  font-family: var(--f-display);
-  font-weight: var(--dw);
-  letter-spacing: var(--dls);
-  font-size: var(--t-display);
-  line-height: var(--lh-display);
 }
 .auth-block {
   padding: var(--s5);

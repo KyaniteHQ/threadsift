@@ -255,6 +255,12 @@ function unusedFaces(
   );
 }
 
+function brandProblems(tokens: string, entry: string): string[] {
+  const [first = ""] = familiesOf(/--f-brand:\s*([^;]+);/u.exec(tokens)?.[1] ?? "");
+  const loaded = [...entry.matchAll(STYLESHEET)].flatMap((hit) => familiesIn(hit[1] ?? "") ?? []);
+  return loaded.includes(first) ? [] : [`tokens.css: main.tsx loads no "${first}" for --f-brand`];
+}
+
 const css = readSource("../design/system/tokens.css").replaceAll(/\/\*[\s\S]*?\*\//gu, "");
 const entryImports = readSource("../web/src/main.tsx");
 const rules = rulesOf(css);
@@ -274,6 +280,7 @@ const problems = [
   ...faces.flatMap(([, { problems: found }]) => found),
   ...unmodeledStacks(css, rules),
   ...styleBeforeFont(rules),
+  ...brandProblems(css, entryImports),
   ...choices.flatMap((choice) => [
     ...missingStacks(choice),
     ...wrongFirstFamilies(choice, declared),
@@ -287,5 +294,5 @@ if (problems.length > 0) {
 }
 
 process.stdout.write(
-  `Font faces: ${choices.length} Styles and Fonts match the stacks in tokens.css\n`,
+  `Font faces: ${choices.length} Styles and Fonts, and the wordmark, match the stacks in tokens.css\n`,
 );

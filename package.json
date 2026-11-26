@@ -6,6 +6,7 @@
   "scripts": {
     "build": "vite build",
     "build:worker": "node tools/check-worker-size.ts",
+    "build:icons": "node tools/build-icons.ts",
     "build:extension": "pnpm --filter threadsift-extension run build && pnpm --filter threadsift-extension run build:firefox",
     "deploy": "node tools/deploy-worker.ts",
     "check": "pnpm run fmt:check && pnpm run check:extension && pnpm run lint && pnpm run check:doc-refs && pnpm run check:core-layout",
@@ -39,6 +40,7 @@
     "@fontsource-variable/nunito": "5.3.0",
     "@fontsource-variable/playfair-display": "5.3.0",
     "@fontsource-variable/roboto-mono": "5.3.0",
+    "@fontsource-variable/schibsted-grotesk": "5.3.0",
     "@fontsource-variable/source-serif-4": "5.3.1",
     "@fontsource-variable/space-grotesk": "5.3.0",
     "@fontsource/cal-sans": "5.3.0",

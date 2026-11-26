@@ -24,6 +24,12 @@ typography:
     fontWeight: 600
     lineHeight: 1.15
     letterSpacing: "-0.01em"
+  wordmark:
+    fontFamily: "'Schibsted Grotesk Variable', system-ui, sans-serif"
+    fontSize: "24px"
+    fontWeight: 600
+    lineHeight: 1.15
+    letterSpacing: "-0.015em"
   headline:
     fontFamily: "'IBM Plex Sans', system-ui, sans-serif"
     fontSize: "20px"
@@ -192,10 +198,11 @@ Dark and Sepia redefine every neutral and the accent's lightness and chroma in `
 
 ## Typography
 
-IBM Plex Sans sets titles, lists, labels and reading text, and IBM Plex Mono sets code. The Font setting swaps in four other pairs.
+IBM Plex Sans sets titles, lists, labels and reading text, and IBM Plex Mono sets code. The Font setting swaps in four other pairs. The wordmark keeps Schibsted Grotesk, the brand's face, under every Font and Style.
 
 ### Hierarchy
-- **Display** (`--t-display`): the wordmark (in the app bar and on the sign-in screen), the reader title, the page headings such as Settings and Import, and the empty-library heading. It scales to 0.85 under 760px, except that the reader title and the page headings never go under `--rd-title-min` (1.1) times Headline, 22px at the default 16px browser font, so the reader title stays the largest heading in the Reader and a page heading stays above the section headings on its page, in every Font and Style. The two wordmarks and the empty-library heading keep the 0.85 scale. These three have no minimum against Headline, because they are not reading headings, so at a very small browser font they can fall under it; only the 12px text floor holds them.
+- **Wordmark** (`--t-brand`): "Thread" in ink and "sift" in the accent ink, in the app bar and on the sign-in screen, in Schibsted Grotesk at weight 600 and -0.015em tracking (`--f-brand`, `--brand-w`, `--brand-ls`). Its size is the Display size of the layout without the Font's display factor, so no Font or Style changes the wordmark.
+- **Display** (`--t-display`): the reader title, the page headings such as Settings and Import, and the empty-library heading. It scales to 0.85 under 760px, except that the reader title and the page headings never go under `--rd-title-min` (1.1) times Headline, 22px at the default 16px browser font, so the reader title stays the largest heading in the Reader and a page heading stays above the section headings on its page, in every Font and Style. The two wordmarks and the empty-library heading keep the 0.85 scale. These three have no minimum against Headline, because they are not reading headings, so at a very small browser font they can fall under it; only the 12px text floor holds them.
 - **Headline** (`--t-h2`): reader section headings such as Original post, Comments and README, and the heading of each sign-in and setup screen. It is never under the 16px reading floor divided by `--post-h-cap`, about 16.84px, so a heading inside a post keeps the floor too.
 - **Title** (`--t-title`): item titles in rows and cards. An unread item's title takes `--dw-strong`, which each Font and Style sets: 700 in the default Plex pair. Instrument Serif and the Cal.com Style have one display weight, so there an unread title keeps the read weight and the unread dot alone marks it, in the Item list, in Grid and on a Topic page. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
 - **Body** (`--t-read`): post and comment text in the reading column, up to 62 average characters a line at Medium text width (56 Narrow, 68 Wide). The reader's summary and key points use the same size at line height 1.5 (`--lh-text`).
@@ -396,6 +403,7 @@ The table below is the Theme's lightness steps at Quarto's neutral hue and chrom
 
 - **Neutral world:** cool limestone, a grey with almost no colour: `--nh` 180, `--nc` 0.005.
 - **Accent:** Moss, hue 145, one of today's five accents, read here as a pine-green ink.
+- **Wordmark and icon:** the wordmark is "Thread" in ink and "sift" in the accent ink, in Schibsted Grotesk at weight 600, as the kit's masthead draws it. The icon is a square of the Moss accent fill with corners of 2 in 64, holding a nested thread in the on-accent colour: three kept rows that step in one level each, with a hairline above each reply for a comment that was dropped. The rows sit 4 in 64 left of centre, so the mark's weight is centred. It reads at 16px as three white rows on green, and stands on Light and Dark surfaces without an edge. The design system's icon source holds the drawing, and `pnpm run build:icons` writes the favicon, the manifest's icons, the Apple touch icon and the Extension's icons from it, with the colours of the Light Theme and the Moss accent in the tokens. The maskable icon scales the mark until its farthest corner touches the circle of radius 40% that every mask keeps.
 - **Faces:** Schibsted Grotesk for display, UI, titles and reading text, and Commit Mono for the kept strip and code. Schibsted Grotesk: SIL OFL 1.1, from [Google Fonts](https://github.com/google/fonts), on Fontsource as a variable font. Commit Mono: SIL OFL 1.1, from [the Commit Mono repository](https://github.com/eigilnikolajsen/commit-mono), on Fontsource in static weights 200 to 700.
 - **Corners:** 2px on controls and small parts. 0 on cards, which are cells of the grid.
 - **Hairlines:** 1px everywhere. Grid cards share their rules, with no gap between cells, so the grid reads as one ruled table.
