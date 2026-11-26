@@ -1,7 +1,7 @@
 packages:
   - extension
 catalog:
-  defuddle: 0.19.6
+  defuddle: 0.19.13
   zod: 4.6.7
 allowBuilds:
   esbuild: true
