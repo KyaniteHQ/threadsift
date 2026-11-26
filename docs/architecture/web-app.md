@@ -76,8 +76,8 @@ The panel is a `<dialog>` inside the app root and never a portal to `body`. The 
 
 The design tokens import no font host. Every face comes from a Fontsource package in the build, so a self-hosted Instance makes no third-party request, and the faces use `font-display: swap`.
 
-- The entry module imports only the faces of the default Font (IBM Plex Sans and Plex Mono, also the settings panel's type pair). Every other family is a dynamic import from the style-faces table, and `useSettings` starts the selected faces in an effect after the first render. A face that fails to load leaves the fallback face in place and does not reload the page.
-- `pnpm run check:faces`, run by the `design:check` task, fails the gate when a font stack starts with a family that the faces of its Style or Font do not provide, or when a row loads a face that no stack names. Either mistake would show the fallback font with no error. The check covers no weights or italics.
+- The entry module imports only the faces of the default Font (IBM Plex Sans and Plex Mono, also the settings panel's type pair) and Schibsted Grotesk, the wordmark's face, which no Font or Style changes. Every other family is a dynamic import from the style-faces table, and `useSettings` starts the selected faces in an effect after the first render. A face that fails to load leaves the fallback face in place and does not reload the page.
+- `pnpm run check:faces`, run by the `design:check` task, fails the gate when a font stack starts with a family that the faces of its Style or Font do not provide, or when a row loads a face that no stack names. It also fails when the wordmark's stack (`--f-brand`) starts with a family that the entry module does not load. Each mistake would show the fallback font with no error. The check covers no weights or italics.
 - Fontsource's variable packages name their family with a `Variable` suffix (Fontsource docs, Variable fonts). Each font token names `'<Family> Variable'` first and the plain family as the fallback, and a family that has only static packages registers the plain name.
 - Imports keep all package subsets, so saved text can use the supported scripts.
 

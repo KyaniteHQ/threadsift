@@ -1,4 +1,5 @@
 import { type Browser, type BrowserContext, type Page, expect } from "@playwright/test";
+import { z } from "zod";
 
 import { DOCUMENT_HEADERS } from "../src/http/web-headers.ts";
 
@@ -16,6 +17,8 @@ const ANSWERS = [
   { address: "/index.html", status: 307 },
   { address: "/share", status: 303 },
 ];
+
+const ManifestIconsSchema = z.object({ icons: z.array(z.object({ src: z.string() })) });
 
 const PROBE_SCRIPT = "https://csp-probe.invalid/probe.js";
 
@@ -75,17 +78,32 @@ export async function expectAnswerHeaders(page: Page): Promise<void> {
       response: await page.request.get(address, { maxRedirects: 0 }),
     })),
   );
-  const document = answers.find(({ address }) => address === "/");
-  const script = /src="(?<asset>\/assets\/[^"]+)"/u.exec((await document?.response.text()) ?? "")
-    ?.groups?.["asset"];
+  const document = (await answers.find(({ address }) => address === "/")?.response.text()) ?? "";
+  const script = /src="(?<asset>\/assets\/[^"]+)"/u.exec(document)?.groups?.["asset"];
 
   if (script === undefined) throw new Error("The page names no script under /assets/");
 
-  answers.push({
-    address: script,
-    status: 200,
-    response: await page.request.get(script, { maxRedirects: 0 }),
-  });
+  const manifest = ManifestIconsSchema.parse(
+    await answers.find(({ address }) => address === "/manifest.webmanifest")?.response.json(),
+  );
+  const icons = [
+    ...[
+      ...document.matchAll(/<link rel="(?:icon|apple-touch-icon)"[^>]* href="(?<icon>[^"]+)"/gu),
+    ].map((link) => link.groups?.["icon"] ?? ""),
+    ...manifest.icons.map((icon) => icon.src),
+  ];
+
+  expect(icons.length, "the page and the manifest name icons").toBeGreaterThan(0);
+
+  answers.push(
+    ...(await Promise.all(
+      [script, ...icons].map(async (address) => ({
+        address,
+        status: 200,
+        response: await page.request.get(address, { maxRedirects: 0 }),
+      })),
+    )),
+  );
 
   for (const { address, status, response } of answers) {
     expect.soft(response.status(), `status of ${address}`).toBe(status);

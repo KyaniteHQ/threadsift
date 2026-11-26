@@ -25,7 +25,7 @@ typography:
     lineHeight: 1.15
     letterSpacing: "-0.01em"
   wordmark:
-    fontFamily: "'Schibsted Grotesk Variable', system-ui, sans-serif"
+    fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif"
     fontSize: "24px"
     fontWeight: 600
     lineHeight: 1.15
@@ -315,7 +315,7 @@ Quarto's neutral hue and chroma, faces, default accent, corners, hairlines, shad
 ### Faces
 
 - Three roles: a UI face for titles, labels and controls; a reading face for post, comment and summary text, which may be the UI face; and a monospaced face for the kept strip and code.
-- Every face is served from the Instance, so its licence must allow self-hosting: each face named in the Brand Brief is under the SIL Open Font License 1.1 and is published on Fontsource, where the app takes today's faces from. `pnpm run check:faces` checks that every Font and Style stack in the tokens starts with a face the app loads.
+- Every face is served from the Instance, so its licence must allow self-hosting: each face named in the Brand Brief is under the SIL Open Font License 1.1 and is published on Fontsource, where the app takes today's faces from. `pnpm run check:faces` checks that every Font and Style stack in the tokens, and the wordmark's, starts with a face the app loads.
 - The Font setting offers four pairs. Three are the pairs of the three Styles, and choosing a Style writes its pair into the setting. The fourth is chosen for legibility: Atkinson Hyperlegible Next for the UI and reading text, and Atkinson Hyperlegible Mono for the kept strip and code. Both are under the SIL OFL 1.1, from [Google Fonts](https://github.com/google/fonts), and on Fontsource as variable fonts with weights 200 to 800 and an italic. The owner can choose any of the four under any Style. The Plain Panel Rule (Typography, above) stays, with the Library pair in place of the Plex pair.
 
 ### Motion
