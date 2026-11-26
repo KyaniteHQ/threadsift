@@ -16,7 +16,6 @@ export const TOPIC_PAGE = {
   notFoundHeading: "Topic not found",
   notFoundLine: "Go back to the library to see the Items.",
   emptyHeading: "No Items in this Topic",
-  emptyLine: "This Topic has no Items in the library.",
   loadMoreFailed: "Couldn’t load more Items.",
   openPage: "Open Topic page",
   disagreementsHeading: "Known disagreements",

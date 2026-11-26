@@ -124,12 +124,12 @@ function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) 
   );
 }
 
-export function EmptyState({ heading, line }: Readonly<{ heading: string; line: string }>) {
+export function EmptyState({ heading, line }: Readonly<{ heading: string; line?: string }>) {
   return (
     <div className="empty">
       <Icon name="tray" className="ic ic-xl" />
       <h2 tabIndex={-1}>{heading}</h2>
-      <p>{line}</p>
+      {line === undefined ? null : <p>{line}</p>}
     </div>
   );
 }

@@ -12,7 +12,7 @@ function ItemList({ state }: Readonly<{ state: TopicReady }>) {
   const listed = state.overview.text !== null;
 
   if (state.items.length === 0) {
-    return <EmptyState heading={TOPIC_PAGE.emptyHeading} line={TOPIC_PAGE.emptyLine} />;
+    return <EmptyState heading={TOPIC_PAGE.emptyHeading} />;
   }
 
   return (
