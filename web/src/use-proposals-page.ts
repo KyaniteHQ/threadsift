@@ -2,9 +2,11 @@ import { useCallback, useState } from "react";
 
 import type { ProposalPage } from "../../src/core/contract/proposal-contract.ts";
 import { fetchProposals } from "./proposals-api.ts";
-import { usePagedRead } from "./use-paged-read.ts";
+import { samePages, usePagedRead } from "./use-paged-read.ts";
 import { usePolling } from "./use-polling.ts";
 import { usePresses } from "./use-proposal-presses.ts";
+
+const PROPOSAL_READS = samePages(fetchProposals);
 
 const SILENT = "";
 
@@ -20,7 +22,7 @@ function withMoreProposals(shown: Readonly<ProposalPage>, added: Readonly<Propos
 }
 
 export function useProposalsPage() {
-  const source = usePagedRead(fetchProposals, withMoreProposals);
+  const source = usePagedRead(PROPOSAL_READS, withMoreProposals);
   const { state, retry, refresh } = source;
   const reload = useCallback(() => refresh(coversLoaded), [refresh]);
   const [focusResult, setFocusResult] = useState(false);

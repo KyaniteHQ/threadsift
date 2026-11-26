@@ -152,6 +152,8 @@ components:
 
 Threadsift is a quiet library room. The saved text leads, and the interface stays in the background. The mood is quiet, bookish and exact. Chrome is drawn in near-white surfaces, cool greys and hairlines, and one accent hue marks state. The reading column holds post and comment text at one size and one line length. The metadata, controls and lists around it are smaller and greyer than that text.
 
+This file describes the app as built. Its last section, Brand Brief, describes the target look, the Quarto direction. Where the two differ, a change to the app follows the earlier sections, and the Quarto kit in the prototype and the build of Quarto follow the Brand Brief.
+
 The look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens; Theme and Layout are attributes on the same root. `design/system/tokens.css` is the source every value is read from, except the literal values its header lists, and `design/system/settings-table.ts` owns the list of settings and which option is the default. The tokens in this file record the default look: Light theme, the Plex font pair, Cobalt accent, Medium text size, Medium text width, Compact density and the List layout.
 
 Density is compact by default, because a library with hundreds of saves needs many rows on screen, but the reading column never gets denser with it. Components are refined and restrained. Two looks are rejected. One is a social feed: Reddit's or X's own chrome, with vote arrows, avatars ahead of the item title, and engagement counts as the loudest thing on a row. The other is a SaaS dashboard: gradient hero cards, number tiles and icons in coloured circles.
@@ -281,3 +283,128 @@ Opening an item grows its card or row into the reader over `--dur-move` with `--
 - **Don't** fill an area larger than a control with the full accent. Use the soft tint.
 - **Don't** scroll the app root, and don't use media queries for width. Read `data-bp`.
 - **Don't** give list rows, panes or reader boxes an elevation shadow.
+
+## Brand Brief
+
+This section describes the target look, not the app as built. The sections before it describe the app as built. [The product brief](PRODUCT.md), Brand Brief, holds the idea, the signature element (the kept strip), the voice and what a Style is. This section holds the visual rules of the brand, the tokens a Style may set, the chosen direction, and the rules of this file and of other docs that the Brand Brief contradicts.
+
+Chosen direction: Quarto. [Brand direction](docs/design/brand-direction.md) gives the reasons.
+
+Quarto's neutral hue and chroma, faces, default accent, corners, hairlines, shadows, button fill and Tag drawing become the Library Style and the brand's components. The Light and Dark Themes keep the lightness steps they have today, and Quarto's table below is built on them. Sepia keeps its own warm paper and ink and its own accent lightness and chroma, so it ignores Quarto's neutral hue and chroma. It takes the rest of Quarto: the faces, the default accent's hue, the corners, the hairlines, the shadows, the button fill and the Tag drawing.
+
+### Shape language
+
+- Controls, fields, cards, boxes and panels are square or nearly square: every corner is 0 to 4px (`--r1` to `--r3`). No control, Tag, mark or swatch is a stadium, a shape whose corner is half its height, so the brand draws no pills. Pills are the common shape of product sites today, so a pill would not mark a screen as Threadsift.
+- Hairlines draw the structure: a row divider, a card edge, the rule above the kept strip. Tone (page, surface, sunk surface) separates regions where a line would be noise.
+- Marks are squares: the unread mark, the Accent swatch and a Tag's colour mark.
+- No row, card or box carries a bar down one side. A selected or open part shows its state through its fill, its text weight or an edge round the whole part.
+
+### Colour world
+
+- The page is cool or neutral. The brand names one neutral hue and chroma (`--nh`, `--nc`), and a Style keeps the chroma at 0.008 or less. Every neutral of Light and Dark is the Theme's lightness step at that hue and chroma, and the Light surface takes half the chroma, the way the tokens derive the neutrals today. Warm paper and cream are a common look of product sites today, so a cream page would not mark a screen as Threadsift. Sepia stays the one warm Theme, as a reading choice.
+- List and Grid share one neutral world, so the Grid's own tilt of the greys goes.
+- The One Accent Rule and the Theme Owns Lightness Rule (Colors, above) stay. The brand names its default accent hue, and the Theme sets the accent's lightness and chroma for every hue.
+
+### Faces
+
+- Three roles: a UI face for titles, labels and controls; a reading face for post, comment and summary text, which may be the UI face; and a monospaced face for the kept strip and code.
+- Every face is served from the Instance, so its licence must allow self-hosting: each face named in the Brand Brief is under the SIL Open Font License 1.1 and is published on Fontsource, where the app takes today's faces from. `pnpm run check:faces` checks that every Font and Style stack in the tokens starts with a face the app loads.
+- The Font setting offers four pairs. Three are the pairs of the three Styles, and choosing a Style writes its pair into the setting. The fourth is chosen for legibility: Atkinson Hyperlegible Next for the UI and reading text, and Atkinson Hyperlegible Mono for the kept strip and code. Both are under the SIL OFL 1.1, from [Google Fonts](https://github.com/google/fonts), and on Fontsource as variable fonts with weights 200 to 800 and an italic. The owner can choose any of the four under any Style. The Plain Panel Rule (Typography, above) stays, with the Library pair in place of the Plex pair.
+
+### Motion
+
+- One orchestrated move: opening an Item grows its row or card into the Reader over `--dur-move` with `--ease-move`, and closing runs it back into the same place. The View Transitions API can carry the card's cover and title into the Reader header.
+- Fades and small turns take `--dur-fade`. A card stays still on hover: its edge darkens instead of lifting. Lists never enter in a staggered cascade. Agent work shows as a status word and a 1px line, never as a glow or a sparkle.
+- Every move has the reduced-motion form the Motion rule above describes.
+
+### Covers
+
+- An Item with no stored picture gets a cover in the Grid card, in the same 16:10 box as a stored picture. The cover holds the Item's own first lines in the reading face, top left, fading out at the bottom, the Topic tint and the Source mark, and nothing else.
+- A cover draws no strip of its own. The kept strip directly above it in the card already names the community or the Source, the handle, the language or the domain, and counts a thread's comments.
+- A repository's stars and an Article's reading time sit on the card's line under the title, with the author and the date.
+- A List row of an Item with no stored picture shows a 40px tile in place of the picture, with the Topic tint and the Source mark and no text, at every Density.
+- A cover never repeats the title and never shows vote arrows or counts of likes, and its text never goes under 12px.
+
+### What no Style may change
+
+This is the one list of what makes the brand. The wordmark and the icon; the kept strip; where a cover sits and how it is drawn, wherever Card images shows one; where every pane, bar and control sits in List, Grid and the Reader; the parts of every component (a List row, a Grid card, the Reader header, the summary box, the comment tree, a button, a field, a Tag); the type scale, the One Reading Size Rule and the 12px floor; the shape language above; the Theme's lightness steps and the contrast floor; the motion; and the voice.
+
+A setting still changes what it names. With Card images Off, a List row and a Grid card draw no cover and load none, and the kept strip stays: it opens the row, and it opens the card above the title.
+
+### Tokens a Style may set
+
+| Token | What it sets | Allowed values |
+|---|---|---|
+| `--nh`, `--nc` | hue and chroma of the neutrals in Light and Dark | chroma 0 to 0.008 |
+| `--r1`, `--r2`, `--r3` | corners of small parts, controls and containers | 0 to 4px |
+| a hairline weight token, added when the brand is built | the weight of row dividers, card edges and rules | 1px or 2px |
+| `--shadow`, `--shadow-lg` | a shadow, or none | the brand's soft shadow, or none with a 1px strong-hairline edge on floating layers |
+| button fill tokens, added when the brand is built | how a neutral button is filled | outline, sunk fill or surface fill |
+| `--tag-dot`, `--tag-mark`, `--tag-gap`, `--tag-pad`, `--tag-pad-y`, `--tag-box`, `--tag-bg`, `--tag-fg`, `--tag-c` | how a Tag is drawn, inside the brand's one Tag | no pill; the Tag's text keeps 4.5:1 on its ground in every Theme |
+
+A Style also writes a Font and an Accent into the settings. These are setting values, not tokens. Every other token belongs to the brand or to a Theme, and the lightness of every neutral and of the accent belongs to the Theme. A Style can still set the colours of a Tag's text and ground, so the contrast check runs for every combination of Style, Theme, Accent and Font.
+
+### Rules of this design system that the Brand Brief contradicts
+
+These rules describe the app as built and stay until Quarto is built. That build changes them.
+
+- Shapes, and Components: `r2` (8px) on controls, chips and fields (`button`, `field` and `filter-chip` in the front matter), a 14px corner (`r3`) on large containers, a full pill (`r4`) for tag dots, the unread dot and swatches, and the Chips Tag style as a pill. Quarto keeps every corner at 2px or less and draws these marks as squares.
+- Shapes, and the literal values the tokens file lists: edges are 1px hairlines, kept as a literal value. Under the Brand Brief a Style sets the hairline weight, 1px or 2px, through a token.
+- Key Characteristics: one accent hue on cool or warm neutrals. Quarto keeps the Light and Dark neutrals neutral, and Sepia is the one warm Theme.
+- Colors, Primary: Cobalt is the default accent. Quarto defaults to Moss, one of the five accents the app has today.
+- Colors, Neutral: Grid tilts the greys toward violet (`--nh`, `--nc`). Quarto keeps one neutral world for List and Grid.
+- Colors, Neutral, and Components, Chips: three Tag styles, with a coloured dot before the name by default. Quarto draws one Tag: a square swatch before the name.
+- Typography: IBM Plex Sans and the Font setting's five pairs. Quarto names its own faces, and the Font setting offers four pairs.
+- Typography, the Plain Panel Rule: the settings panel keeps the Plex pair. Under the Brand Brief it keeps the Library pair, Schibsted Grotesk.
+- Typography, Title: the Cal.com Style, one of the Styles the app has today. Under the Brand Brief the app has three Styles: Library and the two the product brief names.
+- Layout: in Grid an Item opens as a full page or as a sheet, as the owner chooses. Under the Brand Brief, Grid opens a sheet from `--bp-medium` (1080px) up, with a button that expands it to a full page, and a full page below that width.
+- Elevation & Depth, Key Characteristics, and the Lifted Only Rule: Grid cards carry the low shadow, and the settings panel, the reader sheet and the floating paste card carry the high shadow. Quarto draws Grid cards flat.
+- List row, and Do's: the open row takes a 3px accent bar on its left edge as well as its tint. Under the Brand Brief the open row takes the tint and a 1px accent-ink edge round the whole row, because the brand draws no bar down one side of a box. The edge measures 5.3:1 or more against the tint (accent ink on the accent soft tint, in the table below).
+- List row, and Do's: the unread dot sits on the first metadata line. Under the Brand Brief the kept strip is the first line of a List row and a Grid card, and the unread mark sits at its start. In the Reader the strip and the unread mark open the line under the title, before the author and the date.
+
+### Rules of other docs that the Brand Brief contradicts
+
+- [The spec](docs/spec.md), Style, and [the glossary](GLOSSARY.md), Style: Library plus 10 Styles, and a Style other than Library replaces Font and Accent, whose controls are disabled with "Set by the style". Under the Brand Brief the app has three Styles, choosing one writes its Font and Accent into the settings once, the owner can change either, and no control is disabled.
+- The spec, Look settings, and the glossary, Look settings: Tag style (Chips, Text, Dots) and Comment style (Indented lines, Cards, Rail), where Rail draws an avatar beside each comment. The brand draws one Tag and one comment tree, with no avatars, so both settings go.
+- The spec, Look settings: Font offers 5 pairs. Under the Brand Brief it offers four.
+- The spec, Look settings: Density offers Compact, Comfortable and Roomy. Under the Brand Brief it offers Compact and Comfortable.
+- The spec, Layout and reader, Reset look and Storage, and the glossary, Reader style: the "Open items as" setting (Page or Sheet). Under the Brand Brief, Grid opens a sheet from 1080px up and a full page below that, so the setting goes.
+- The product brief, Brand Commitments: interface text has no hand-picked voice. The Brand Brief sets one.
+
+### Quarto
+
+A technical monograph: one grotesque family, a ruled matrix of hairlines, and a green ink.
+
+Quarto is drawn as a whole component kit on synthetic Items in the prototype ([the kits README](design/prototype/kits/README.md)): buttons, fields, chips, the List row, the Grid card with a cover, the Reader header, the summary box, the comment tree and the Settings panel, in List, Grid and the Reader, in every Theme. It also says what the two other Styles set on it; Broadsheet and Workbench are their working names, which the owner may change when they are built. Quarto copies no reference: it takes techniques, and its Sources line names the public page each came from.
+
+The table below is the Theme's lightness steps at Quarto's neutral hue and chroma and default accent hue. Each contrast figure is a WCAG 2 ratio of relative luminance, computed from the OKLCH value converted to sRGB. In Light and Dark, ink measures 10.8:1 or more and muted ink 5.6:1 or more on the page, the surface, the sunk surface and the accent soft tint. Accent ink measures 5.3:1 or more on those four, the control line 3.2:1 or more against them, text on the accent fill 5.4:1 or more, and the accent fill 4.8:1 or more as a mark on the page and both surfaces. Every value in the table lies inside sRGB. The other accents are measured when Quarto is built.
+
+| Token | Light | Dark |
+|---|---|---|
+| Page (`--bg`) | `oklch(0.976 0.005 180)` | `oklch(0.175 0.005 180)` |
+| Surface | `oklch(0.995 0.0025 180)` | `oklch(0.215 0.005 180)` |
+| Sunk surface | `oklch(0.948 0.005 180)` | `oklch(0.25 0.005 180)` |
+| Hairline | `oklch(0.89 0.005 180)` | `oklch(0.31 0.005 180)` |
+| Strong hairline | `oklch(0.80 0.005 180)` | `oklch(0.40 0.005 180)` |
+| Control line | `oklch(0.60 0.005 180)` | `oklch(0.60 0.005 180)` |
+| Ink | `oklch(0.22 0.005 180)` | `oklch(0.94 0.005 180)` |
+| Muted ink | `oklch(0.46 0.005 180)` | `oklch(0.74 0.005 180)` |
+| Accent fill | `oklch(0.50 0.14 145)` | `oklch(0.75 0.12 145)` |
+| Accent ink | `oklch(0.47 0.14 145)` | `oklch(0.79 0.11 145)` |
+| Accent soft | `oklch(0.935 0.035 145)` | `oklch(0.31 0.05 145)` |
+| On accent | `oklch(0.99 0 0)` | `oklch(0.19 0.02 145)` |
+
+- **Neutral world:** cool limestone, a grey with almost no colour: `--nh` 180, `--nc` 0.005.
+- **Accent:** Moss, hue 145, one of today's five accents, read here as a pine-green ink.
+- **Faces:** Schibsted Grotesk for display, UI, titles and reading text, and Commit Mono for the kept strip and code. Schibsted Grotesk: SIL OFL 1.1, from [Google Fonts](https://github.com/google/fonts), on Fontsource as a variable font. Commit Mono: SIL OFL 1.1, from [the Commit Mono repository](https://github.com/eigilnikolajsen/commit-mono), on Fontsource in static weights 200 to 700.
+- **Corners:** 2px on controls and small parts. 0 on cards, which are cells of the grid.
+- **Hairlines:** 1px everywhere. Grid cards share their rules, with no gap between cells, so the grid reads as one ruled table.
+- **Shadows:** none on the page. The settings panel and the reader sheet keep a 1px strong-hairline edge and the brand's soft high shadow.
+- **Buttons:** a neutral button has no fill and a 1px control-line outline, and takes the sunk fill on hover. The main action is a solid accent fill.
+- **Tags:** a 6px square in the Tag's hue before the name, in muted ink.
+- **Unread mark:** an 8px solid accent square at the start of the kept strip. A read Item shows the square as a control-line outline.
+- **Kept strip:** Commit Mono at 12px in muted ink. In a List row and a Grid card it is the first line of the cell, under a top rule that holds a 3px bar. Once a Digest covers the thread, the accent part of the bar is the share of Kept comments among the saved comments, and the rest is hairline. Before that, and on an Item without comments, the rule is all hairline. In the Reader the header opens with the same rule and then the title, and the strip sits under the title, at the start of the line with the author and the date.
+- **Covers:** the cover of the Covers section above, with the Topic tint mixed at 9% into the sunk surface.
+- **Room for the other Styles:** Broadsheet sets 0 corners, the 2px hairline, no shadow on floating layers and a serif reading face, Source Serif 4. Workbench sets Commit Mono for the UI face and chroma 0.
+- **Sources:** the grey 1px line that organizes the whole page comes from [Exhibition Magazine](https://styles.refero.design/style/597355de-6167-4f37-8f14-b3897919a94c). Depth from tonal steps instead of shadows, and small mono metadata, come from [Vercel](https://styles.refero.design/style/f24daf3a-d43f-4dec-85a9-8ac1d5148a03). Small squared buttons with a hairline outline variant come from [Stripe](https://styles.refero.design/style/48e5de76-05d5-4c4e-a269-c7c245b291ec). Cards with no radius and thin borders come from [Nofilter.space](https://styles.refero.design/style/4235ebdc-a070-46ef-abbf-692151449bea).
+- **Risk:** it can read as austere and close to developer tools, and a reader who wants warmth finds none in Light.

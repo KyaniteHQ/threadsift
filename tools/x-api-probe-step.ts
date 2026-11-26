@@ -36,7 +36,11 @@ export async function step(run: Run, index: number, request: PlannedRequest): Pr
         ? { kind: "answer", status: answer.status }
         : { kind: "no-answer", errorClass: answer.errorClass },
     reading,
-    charged: reading?.kind === "counted" ? reading.counts : request.worst,
+    charged:
+      reading?.kind === "counted" &&
+      (request.role === "lookup" || (answer.kind === "answer" && answer.status === 200))
+        ? reading.counts
+        : request.worst,
     balanceMicros:
       answer.kind === "answer" && isBalanceRead(request)
         ? balanceOf(answer.status, answer.text)
