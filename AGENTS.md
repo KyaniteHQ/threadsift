@@ -32,7 +32,7 @@ Use these exact terms in code, docs and issues.
 | Any colour, size, spacing, font or setting value | `design/system/tokens.css`, the one source for every value; `design/system/settings-table.ts` owns each setting's id, label, attribute and default |
 | How a screen behaves (reader bar fitting, comment folds, reading place, settings panel) | `design/prototype/`, served as its `README.md` (Viewing) shows |
 | Style blocks (the 10 Styles) | `design/system/tokens.css`; `docs/design/styles.md` names the faces and visual references |
-| Why a design choice was made | `docs/design/claude-design-prompts.md` and `docs/design/reviews/round-7/` |
+| Why a design choice was made | `docs/design/brand-direction.md` for the brand, `docs/design/claude-design-prompts.md` and `docs/design/reviews/round-7/` |
 
 ## Testing
 
