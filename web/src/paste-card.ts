@@ -4,7 +4,6 @@ import { whereOf } from "../../src/core/contract/link-place.ts";
 import {
   CARD_TITLES,
   NOTICES,
-  READING_NOTE,
   type NoteKey,
   type NoticeKey,
   failureTitleOf,
@@ -124,7 +123,7 @@ function readingFace(item: Readonly<Item>): Face {
     tone: "tone-acc",
     title: wait === null ? CARD_TITLES.reading : waitTitle(wait),
     name: item.title ?? whereOf(item),
-    note: wait === null ? READING_NOTE : waitText(wait, Date.now()),
+    note: wait === null ? null : waitText(wait, Date.now()),
     wait,
     itemTitle: null,
     alert: false,

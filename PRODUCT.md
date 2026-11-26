@@ -61,7 +61,7 @@ These rules hold for every text a person reads in the product: labels, buttons, 
    - Good: "Add", "Clear filters", "Reset look"
 6. **Say each fact once, in the fewest words that keep it.** Do not repeat the heading, the label or the button in the text beside it. Write one idea per sentence.
    - Bad: "Reset look puts the look settings back to their defaults" beside the Reset look button
-   - Good: "Theme and Layout stay as they are."
+   - Good: "Layout, Open items as and Theme stay as they are."
 7. **Threadsift speaks of itself in the third person, and speaks to the owner only when the owner must act.** Write "Threadsift", never "we" or "I". Use "you" only in an instruction.
    - Bad: "We couldn’t reach your website"
    - Good: "Couldn’t reach the website"

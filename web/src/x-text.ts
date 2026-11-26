@@ -17,9 +17,9 @@ export const X_TEXT = {
   noteUnknown:
     "Threadsift could not read the CLI’s sign-in state just now; reloading the page tries again.",
   noteNotInstalled:
-    "The grok CLI is not installed on this server, so it cannot read X links; install it, restart the Instance, and sign in with:",
+    "The grok CLI is not installed on this Instance, so it cannot read X links. Install it, restart the Instance, and sign in with:",
   noteSearch:
-    "A fetch can also read public web pages through xAI’s search, so the owner should use a Grok account kept for this server.",
+    "A fetch can also read public web pages through xAI’s search, so use a Grok account kept only for this Instance.",
   noteWorker: "On this install a pasted X link stays Link-only unless a Grok Bot is set up.",
   loadFailed: "Couldn’t load the X posts settings. Reload the page.",
   installCommand:
@@ -71,11 +71,11 @@ export const X_NOTICES: Readonly<Record<XNoticeKey, string>> = {
   "bot-unavailable":
     "The Grok Bot answered that it cannot read this X post, so the link was saved Link-only.",
   "cli-not-installed":
-    "The grok CLI is not installed on this server, so this link was saved Link-only and any saved copy was kept. Check Settings, X posts.",
+    "The grok CLI is not installed on this Instance, so this link was saved Link-only and any saved copy was kept. Check Settings, X posts.",
   "cli-signed-out":
-    "The grok CLI is signed out on this server, so this post couldn’t be read. Any saved copy was kept. Check Settings, X posts, then paste the link again.",
+    "The grok CLI is signed out on this Instance, so this post couldn’t be read. Any saved copy was kept. Check Settings, X posts, then paste the link again.",
   "cli-not-proven":
-    "This version of the grok CLI is not one Threadsift has checked, so this post couldn’t be read. Any saved copy was kept. Check Settings, X posts.",
+    "This version of the grok CLI, or a tool it offers, is not one Threadsift has checked, so this post couldn’t be read. Any saved copy was kept. Check Settings, X posts.",
   "cli-usage-limit":
     "The grok CLI reached its usage limit, so this post couldn’t be read. Any saved copy was kept. Paste the link again later.",
   "cli-unreachable":

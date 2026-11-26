@@ -8,33 +8,37 @@ export const ITEM_HEAD = {
   many: "{total} Items, {unread} unread",
   matching: "{shown} of {total} Items",
   matchingText: "{shown} of {total} Items matching “{text}”",
+  matchingOne: "{shown} of 1 Item",
+  matchingTextOne: "{shown} of 1 Item matching “{text}”",
 } as const;
 
 export const HIGHLIGHTS_HEAD = {
-  one: "1 highlight or note",
-  many: "{total} highlights and notes",
-  matching: "{shown} of {total} highlights and notes",
-  matchingText: "{shown} of {total} highlights and notes matching “{text}”",
+  one: "1 Highlight or Note",
+  many: "{total} Highlights and Notes",
+  matching: "{shown} of {total} Highlights and Notes",
+  matchingText: "{shown} of {total} Highlights and Notes matching “{text}”",
+  matchingOne: "{shown} of 1 Highlight or Note",
+  matchingTextOne: "{shown} of 1 Highlight or Note matching “{text}”",
 } as const;
 
+type HeadWords = Readonly<Record<keyof typeof ITEM_HEAD, string>>;
+
+function templateOf(words: HeadWords, total: number, shown: number | null, text: string): string {
+  if (shown === null) return total === 1 ? words.one : words.many;
+  if (total === 1) return text === "" ? words.matchingOne : words.matchingTextOne;
+
+  return text === "" ? words.matching : words.matchingText;
+}
+
 export function headLabel(
-  words: Readonly<{ one: string; many: string; matching: string; matchingText: string }>,
+  words: HeadWords,
   counts: Readonly<{ total: number; shown: number | null; unread?: number }>,
   text: string,
 ): string {
   const { total, shown, unread = 0 } = counts;
   const values = { total: String(total), shown: String(shown ?? 0), unread: String(unread), text };
 
-  const template =
-    shown === null
-      ? total === 1
-        ? words.one
-        : words.many
-      : text === ""
-        ? words.matching
-        : words.matchingText;
-
-  return filled(template, values);
+  return filled(templateOf(words, total, shown, text), values);
 }
 
 export function highlightsHeadText(

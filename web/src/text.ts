@@ -33,7 +33,7 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
   restoring:
     "A Restore is running, so this link wasn’t saved. Paste the link again when the Restore has finished.",
   refused:
-    "This link leads to a private network or a loopback address, so it was saved without a title.",
+    "This link leads to an address not reachable from the public internet, so it was saved without a title.",
   unsupported:
     "This link redirected to an address that isn’t a web page, so it was saved without a title.",
   "redirect-limit": "This link redirected too many times, so it was saved without a title.",
@@ -47,7 +47,7 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
     "GitHub rejected the saved token, so this Item wasn’t updated. Replace or remove the token in Settings, then paste the link again.",
   ...X_NOTICES,
   "title-kept": "Couldn’t update the title for this link, so the title saved earlier was kept.",
-  private: "Links to a private network or a loopback address can’t be saved.",
+  private: "Links to an address not reachable from the public internet can’t be saved.",
 };
 
 export const TOKEN_REFUSED = {
@@ -60,17 +60,15 @@ export const DISMISS_LABEL = "Dismiss";
 export const RETRY_LABEL = "Try again";
 
 export const CARD_TITLES = {
-  reading: "Reading the link",
+  reading: "Reading the link…",
   added: "Added",
   refreshed: "Already saved, refreshed",
 } as const;
 
-export const READING_NOTE = "Usually done within a minute";
-
 const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
   timeout: "The website didn’t answer in time",
   network: "Couldn’t reach the website",
-  "gave-up": "Something went wrong while reading the link",
+  "gave-up": "Couldn’t read the link",
   "rate-limited": "The link wasn’t updated because GitHub kept limiting requests",
 };
 
@@ -83,34 +81,34 @@ export function failureTitleOf({
 
 export const WAITING = {
   "github-rate-limit": {
-    title: "Waiting for GitHub",
+    title: "Waiting for GitHub…",
     until: "GitHub is limiting requests, so Threadsift will try again {when}.",
     due: "GitHub is limiting requests, so Threadsift is waiting to retry.",
   },
   "grok-bot": {
-    title: "Waiting for Grok Bot",
+    title: "Waiting for Grok Bot…",
     until: "Grok Bot is reading this Item, so Threadsift will check again {when}.",
     due: "Grok Bot is reading this Item, so Threadsift is waiting to check.",
   },
   "reddit-limit": {
-    title: "Waiting for Reddit",
+    title: "Waiting for Reddit…",
     until:
       "Threadsift reads Reddit threads one at a time within Reddit’s limit and will check this one again {when}.",
     due: "Threadsift reads Reddit threads one at a time within Reddit’s limit and is waiting to check.",
   },
   "x-verify": {
-    title: "Waiting for X",
+    title: "Waiting for X…",
     until: "X isn’t answering or is limiting requests, so Threadsift will try again {when}.",
     due: "X isn’t answering or is limiting requests, so Threadsift is waiting to retry.",
   },
   "x-reread": {
-    title: "Waiting for the grok CLI",
+    title: "Waiting for the grok CLI…",
     until:
       "The grok CLI couldn’t read the post this time, so Threadsift will read it again {when}.",
     due: "The grok CLI couldn’t read the post this time, so Threadsift is waiting to read it again.",
   },
   "topic-busy": {
-    title: "Waiting for Topic",
+    title: "Waiting for Topic…",
     until: "This Topic is updating, so Threadsift will try again {when}.",
     due: "This Topic is updating, so Threadsift is waiting to try again.",
   },
@@ -134,8 +132,7 @@ export const SETTINGS_TITLE = "Settings";
 export const CLOSE_LABEL = "Close";
 export const RESET_LABEL = "Reset look";
 
-export const RESET_NOTE =
-  "Look settings return to their defaults. Layout, Open items as and Theme stay as they are.";
+export const RESET_NOTE = "Layout, Open items as and Theme stay as they are.";
 
 export const MATCH_SYSTEM_NOTES = {
   dark: "Match system · dark now",

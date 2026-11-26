@@ -12,7 +12,8 @@ export const TEXT = {
   scopeRefused:
     "Your agent token is missing a scope the Extension needs. Use a token with the Read and Add scopes in the settings.",
   tooLarge: "The text on this page is too long to save.",
-  privateLink: "This link leads to a private network or your computer, so it wasn’t saved.",
+  privateLink:
+    "This link leads to an address not reachable from the public internet, so it wasn’t saved.",
   unsupportedLink:
     "The Extension can’t save X, GitHub, link-shortener or Reddit pages other than a Reddit post or comment.",
   budgetSpent:
