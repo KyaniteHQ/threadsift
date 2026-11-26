@@ -79,7 +79,7 @@ var LIB = (function () {
   var SETTING_GROUPS = [
     { label: 'View', keys: ['layout', 'openAs'] },
     { label: 'Reading', keys: ['style', 'theme', 'font', 'width', 'density', 'comments'] },
-    { label: 'Cards and Tags', keys: ['accent', 'tags', 'images'] }
+    { label: 'Accent, tags and cards', keys: ['accent', 'tags', 'images'] }
   ];
   // Style comes last, so a preset code saved before it existed (one part shorter) still reads, as Library.
   var SETTING_KEYS = ['layout', 'openAs', 'theme', 'font', 'width', 'density', 'comments', 'accent', 'tags', 'images', 'style'];

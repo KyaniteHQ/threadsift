@@ -5,7 +5,7 @@ import { atPhoneWidth, expectNoSidewaysScroll } from "./screen-checks.ts";
 
 export async function proposalsFlow(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings", exact: true }).click();
   await page.getByRole("link", { name: PROPOSALS_PAGE.masthead, exact: true }).click();
   await expect(page).toHaveURL(/\/proposals$/u);
   await expect(page).toHaveTitle("Proposals, Threadsift");

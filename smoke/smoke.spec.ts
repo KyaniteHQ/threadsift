@@ -89,7 +89,7 @@ async function readSavedPage(page: Page): Promise<void> {
 const importBox = (page: Page) => page.getByLabel(IMPORT.boxLabel, { exact: true });
 
 async function importList(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings", exact: true }).click();
   await page.getByRole("link", { name: IMPORT.settingsLink }).click();
   await expect(page).toHaveTitle("Import, Threadsift");
   await importBox(page).fill(IMPORT_LIST.join("\n"));

@@ -382,7 +382,7 @@ function componentsScreen(s) {
     <section class="c-sec"><h2 class="h2">Fields</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Paste box</span>${pasteBox()}</div>
       <div class="c-demo"><span class="label">Search, focused</span><label class="search"><span class="vh">Search items</span>${icon("search")}<input class="field is-focus" type="search" value="sqlite"></label></div>
-      <div class="c-demo fld"><label class="label" for="c-name">Instance name</label><span class="fld-hint">Shown in the masthead of the sign-in screen.</span><input class="field is-invalid" id="c-name" value="" placeholder="Library" aria-describedby="c-err"><span class="fld-err" id="c-err">Enter a value.</span></div>
+      <div class="c-demo fld"><label class="label" for="c-name">Instance name</label><span class="fld-hint">Shown in the masthead of the sign-in screen.</span><input class="field is-invalid" id="c-name" value="" placeholder="Library" aria-describedby="c-err"><span class="fld-err" id="c-err">This field is required.</span></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">Chips, segments and Tags</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Filter chips</span><div class="c-line"><button class="chip" type="button" aria-pressed="true">All</button><button class="chip" type="button" aria-pressed="false">Unread</button><button class="chip" type="button" aria-pressed="false">Reddit<span class="n">5</span></button></div></div>

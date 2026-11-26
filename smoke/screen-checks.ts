@@ -27,7 +27,7 @@ export async function atPhoneWidth(page: Page, steps: () => Promise<void>): Prom
 
 export async function openSettings(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings", exact: true }).click();
 }
 
 export async function expectNoSidewaysScroll(page: Page): Promise<void> {

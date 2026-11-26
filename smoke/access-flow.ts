@@ -27,7 +27,7 @@ export async function setUp(page: Page): Promise<void> {
 }
 
 export async function signOutAndIn(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings", exact: true }).click();
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await page.getByRole("button", { name: SETTINGS.signOut }).click();
   await expect(page).toHaveTitle("Sign in to Threadsift");

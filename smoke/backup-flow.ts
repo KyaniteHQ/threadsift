@@ -83,7 +83,7 @@ export async function backupFlow(page: Page): Promise<void> {
   expect(itemIds.length).toBeGreaterThan(0);
 
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings", exact: true }).click();
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await expect(page.getByRole("heading", { name: EXPORT_TEXT.sectionTitle })).toBeVisible();
   await expect(page.getByText(EXPORT_TEXT.caution)).toBeVisible();

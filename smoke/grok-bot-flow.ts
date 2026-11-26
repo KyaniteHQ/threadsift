@@ -21,7 +21,7 @@ const keyField = (page: Page) => page.getByLabel(GROK_BOT_TEXT.keyLabel);
 
 async function openSection(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings", exact: true }).click();
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await expect(page.getByRole("heading", { name: GROK_BOT_TEXT.sectionTitle })).toBeVisible();
 }

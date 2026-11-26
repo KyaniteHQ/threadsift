@@ -16,7 +16,7 @@ const sessionField = (page: Page) => page.getByLabel(REDDIT_ACCOUNT_TEXT.fieldLa
 
 export async function redditAccountFlow(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings", exact: true }).click();
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await expect(page.getByRole("heading", { name: REDDIT_ACCOUNT_TEXT.sectionTitle })).toBeVisible();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNone)).toBeVisible();

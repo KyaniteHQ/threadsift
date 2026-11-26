@@ -126,16 +126,16 @@ export const NEWEST_FIRST = "Newest first";
 export const BACK_TO_LIBRARY = "Back to library";
 export const LOAD_FAILED = "Couldn’t load items.";
 
-export const SETTINGS_GEAR_LABEL = "Settings";
-export const SETTINGS_TITLE = "Settings";
+export const SETTINGS_GEAR_LABEL = "Display settings";
+export const SETTINGS_TITLE = "Display settings";
 export const CLOSE_LABEL = "Close";
 export const RESET_LABEL = "Reset look";
 
 export const RESET_NOTE = "Layout, Open items as and Theme stay as they are.";
 
 export const MATCH_SYSTEM_NOTES = {
-  dark: "Match system · dark now",
-  light: "Match system · light now",
+  dark: "Using Dark now",
+  light: "Using Light now",
 } as const;
 
 export const SEARCH_LABEL = "Search items";
@@ -207,13 +207,13 @@ export function starsLabel(count: number): string {
 
 export const SAVED_COMMENT = "Saved comment";
 
-export const STYLE_NOTE = "Set by the Style";
+export const STYLE_NOTE = "Style sets this. Choose Library to change it.";
 export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";
 export const NO_DIGEST = "Digest failed";
 export const DIGEST_NOT_UPDATED = "Digest update failed";
 
 export const FIELD_TEXT = {
-  required: "Enter a value.",
+  required: "This field is required.",
   legend: "Fields marked with * are required.",
   spoken: (label: string): string => `${label}: ${FIELD_TEXT.required}`,
   mark: " *",
