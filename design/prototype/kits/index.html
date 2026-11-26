@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="icon" href="data:,">
+    <title>Threadsift brand kits, side by side</title>
+    <link rel="stylesheet" href="./fonts.css">
+    <style>
+      :root {
+        color-scheme: light; --bg: oklch(0.965 0 0); --surface: oklch(0.995 0 0); --line: oklch(0.86 0 0); --line-2: oklch(0.6 0 0);
+        --text: oklch(0.22 0 0); --muted: oklch(0.45 0 0); --sel: oklch(0.22 0 0); --on-sel: oklch(0.99 0 0);
+        font: 400 0.875rem / 1.4 'Atkinson Hyperlegible Next Variable', system-ui, sans-serif;
+      }
+      * { box-sizing: border-box; }
+      body { margin: 0; background: var(--bg); color: var(--text); }
+      header { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 24px; padding: 12px 20px; border-bottom: 1px solid var(--line); background: var(--surface); position: sticky; top: 0; z-index: 2; }
+      h1 { font-size: 1rem; margin: 0; font-weight: 700; }
+      .grp { display: flex; align-items: center; gap: 8px; }
+      .grp > span { color: var(--muted); }
+      .seg { display: inline-flex; border: 1px solid var(--line-2); padding: 2px; gap: 2px; }
+      .seg label { position: relative; padding: 4px 10px; cursor: pointer; }
+      .seg input { position: absolute; opacity: 0; pointer-events: none; }
+      .seg label:has(:checked) { background: var(--sel); color: var(--on-sel); }
+      .seg label:has(:focus-visible) { outline: 2px solid var(--text); outline-offset: 2px; }
+      main { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; padding: 16px 20px 32px; }
+      .col { display: grid; gap: 8px; align-content: start; min-width: 0; }
+      .col h2 { margin: 0; font-size: 1rem; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; }
+      .col h2 a { font-size: 0.875rem; font-weight: 400; color: var(--text); text-underline-offset: 2px; }
+      .col p { margin: 0; color: var(--muted); min-height: 2.8em; }
+      .frame { position: relative; overflow: hidden; border: 1px solid var(--line-2); background: var(--surface); }
+      .frame iframe { position: absolute; top: 0; left: 0; border: 0; transform-origin: 0 0; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>Threadsift: three brand directions</h1>
+      <div class="grp"><span>Screen</span><div class="seg" role="radiogroup" aria-label="Screen" data-k="screen"></div></div>
+      <div class="grp"><span>Theme</span><div class="seg" role="radiogroup" aria-label="Theme" data-k="theme"></div></div>
+      <div class="grp"><span>Frame</span><div class="seg" role="radiogroup" aria-label="Frame" data-k="frame"></div></div>
+    </header>
+    <main></main>
+    <script type="module">
+      import { DIRECTIONS } from "./kit.js";
+      const OPTS = {
+        screen: [["list", "List"], ["grid", "Grid"], ["reader", "Reader"], ["components", "Components"]],
+        theme: [["light", "Light"], ["dark", "Dark"], ["sepia", "Sepia"]],
+        frame: [["desktop", "Desktop, 1440 px"], ["laptop", "Laptop, 1080 px"], ["phone", "Phone, 390 px"]],
+      };
+      const FRAMES = { desktop: 1440, laptop: 1080, phone: 390 };
+      const q = new URLSearchParams(location.search);
+      const s = Object.fromEntries(Object.entries(OPTS).map(([k, o]) => [k, o.some(([id]) => id === q.get(k)) ? q.get(k) : o[0][0]]));
+      for (const el of document.querySelectorAll(".seg")) {
+        const k = el.dataset.k;
+        el.innerHTML = OPTS[k].map(([id, name]) => `<label><input type="radio" name="${k}" value="${id}" ${s[k] === id ? "checked" : ""}>${name}</label>`).join("");
+      }
+      const main = document.querySelector("main");
+      main.innerHTML = Object.entries(DIRECTIONS)
+        .map(([id, d]) => `<section class="col" data-d="${id}"><h2>${d.name}<a href="#" data-open>Open alone</a></h2><p>${d.idea}</p><div class="frame"><iframe title="${d.name}, kit"></iframe></div></section>`)
+        .join("");
+      const src = (d, alone) => `./kit.html?${new URLSearchParams({ d, screen: s.screen, theme: s.theme, ...(alone ? {} : { embed: "" }) })}`;
+      function load() {
+        history.replaceState(null, "", `?${new URLSearchParams(s)}`);
+        for (const col of main.children) {
+          col.querySelector("iframe").src = src(col.dataset.d);
+          col.querySelector("[data-open]").href = src(col.dataset.d, true);
+        }
+        fit();
+      }
+      function fit() {
+        const w = FRAMES[s.frame];
+        for (const col of main.children) {
+          const k = Math.min(1, col.clientWidth / w);
+          const room = innerHeight - (col.querySelector(".frame").getBoundingClientRect().top + window.scrollY) - 24;
+          const h = Math.max(640, Math.round(room / k));
+          const f = col.querySelector(".frame");
+          const ifr = f.querySelector("iframe");
+          Object.assign(ifr.style, { width: `${w}px`, height: `${h}px`, transform: `scale(${k})` });
+          Object.assign(f.style, { width: `${Math.round(w * k) + 2}px`, height: `${Math.round(h * k) + 2}px` });
+        }
+      }
+      document.addEventListener("change", (e) => {
+        s[e.target.name] = e.target.value;
+        if (e.target.name === "frame") fit();
+        else load();
+        history.replaceState(null, "", `?${new URLSearchParams(s)}`);
+      });
+      new ResizeObserver(fit).observe(main);
+      addEventListener("resize", fit);
+      load();
+    </script>
+  </body>
+</html>
