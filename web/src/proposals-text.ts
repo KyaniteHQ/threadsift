@@ -46,12 +46,12 @@ const ALREADY_DECIDED = "This proposal was already decided or is no longer in th
 const WORDS = {
   "tag-merge": {
     effect: "Merge tag {from} into {into}",
-    acceptNamed: "Accept merging {from} into {into}",
-    acceptRetryNamed: "Try again to accept merging {from} into {into}",
-    accepted: "Accepted merging {from} into {into}.",
-    rejectNamed: "Reject merging {from} into {into}",
-    rejectRetryNamed: "Try again to reject merging {from} into {into}",
-    rejected: "Rejected merging {from} into {into}.",
+    acceptNamed: "Accept merging tag {from} into {into}",
+    acceptRetryNamed: "Try again to accept merging tag {from} into {into}",
+    accepted: "Accepted merging tag {from} into {into}.",
+    rejectNamed: "Reject merging tag {from} into {into}",
+    rejectRetryNamed: "Try again to reject merging tag {from} into {into}",
+    rejected: "Rejected merging tag {from} into {into}.",
   },
   "topic-merge": {
     effect: "Merge topic {from} into {into}",
@@ -83,17 +83,17 @@ const WORDS = {
   "items-disagree": {
     effect: "Keep this disagreement in topic {topic}",
     acceptNamed:
-      "Accept keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+      "Accept keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
     acceptRetryNamed:
-      "Try again to accept keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+      "Try again to accept keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
     accepted:
-      "Accepted keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
+      "Accepted keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”.",
     rejectNamed:
-      "Reject the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+      "Reject keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
     rejectRetryNamed:
-      "Try again to reject the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+      "Try again to reject keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
     rejected:
-      "Rejected the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
+      "Rejected keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”.",
   },
 } as const satisfies Record<ProposalKind, Record<Wording, string>>;
 
