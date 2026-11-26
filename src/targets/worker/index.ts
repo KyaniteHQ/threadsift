@@ -5,6 +5,7 @@ import { tick } from "../../core/compose/tick.ts";
 import type { Ports } from "../../core/kernel/ports.ts";
 import { createApp } from "../../http/app.ts";
 import { isDocumentPath, isServerPath } from "../../http/document-path.ts";
+import { failedRequest } from "../../http/refusals.ts";
 import { NO_INDEX_HEADERS } from "../../http/web-headers.ts";
 import { portsOf } from "../shared/ports.ts";
 import { settingVariablesOf, settingsOf } from "../shared/settings.ts";
@@ -45,9 +46,15 @@ function unindexed(response: Response): Response {
 }
 
 async function answerRequest(request: Request, env: Env): Promise<Response> {
-  return isServerPath(new URL(request.url).pathname)
-    ? createApp(await build(env)).fetch(request)
-    : serveDocument(request, env);
+  const { pathname } = new URL(request.url);
+
+  try {
+    return await (isServerPath(pathname)
+      ? createApp(await build(env)).fetch(request)
+      : serveDocument(request, env));
+  } catch (error) {
+    return failedRequest(pathname, error);
+  }
 }
 
 async function runMessage(env: Env, message: Readonly<JobMessage>): Promise<void> {
