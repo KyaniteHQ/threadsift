@@ -255,7 +255,7 @@ var LIB = (function () {
   var PASTE = {
     processing: { title: 'Reading the link…', sub: '', icon: 'spin', tone: 'acc', actions: [] },
     done: { title: 'Added', icon: 'check', tone: 'ok', actions: ['open', 'dismiss'] },
-    refreshed: { title: 'Already saved, refreshed', icon: 'refresh', tone: 'acc', actions: ['open', 'dismiss'] },
+    refreshed: { title: 'Already saved and refreshed', icon: 'refresh', tone: 'acc', actions: ['open', 'dismiss'] },
     failed: { title: '', icon: 'warn', tone: 'warn', actions: ['retry', 'dismiss'] },
     reasons: { blocked: 'Reddit blocked the request', unreadable: 'Couldn’t read this page', invalid: 'That doesn’t look like a link' }
   };

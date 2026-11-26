@@ -328,7 +328,7 @@ const noResults = () => `<div class="empty" role="status"><p>No Items match</p><
 let uidN = 0;
 function pasteBox() {
   const id = `paste-${++uidN}`;
-  return `<form class="paste" data-act="paste"><label class="vh" for="${id}">Paste a link to save</label><input class="field" id="${id}" type="url" placeholder="Paste a link" required><button class="btn primary" type="submit">Add</button></form>`;
+  return `<form class="paste" data-act="paste"><label class="vh" for="${id}">Link to add</label><input class="field" id="${id}" type="url" placeholder="Paste a link" required><button class="btn primary" type="submit">Add</button></form>`;
 }
 const searchBox = () => `<label class="search"><span class="vh">Search Items</span>${icon("search")}<input class="field" type="search" placeholder="Title, post text, Summary or Tags"></label>`;
 

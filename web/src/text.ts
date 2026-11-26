@@ -6,11 +6,11 @@ import type { XReadNote } from "../../src/core/contract/x-read-note.ts";
 import { filled } from "./filled.ts";
 import { type XNoticeKey, X_NOTICES } from "./x-text.ts";
 
-export const PASTE_LABEL = "Paste a link to save";
+export const PASTE_LABEL = "Link to add";
 export const PASTE_PLACEHOLDER = "Paste a link";
 export const ADD_LABEL = "Add";
 export const SAVING_LABEL = "Saving…";
-export const SAVING_STATUS = "Saving link and fetching page title…";
+export const SAVING_STATUS = "Saving the link and reading the page title…";
 
 export type NoteKey = Exclude<FetchFailure, "timeout" | "network">;
 
@@ -28,31 +28,31 @@ export const INPUT_ERRORS: ReadonlySet<NoticeKey> = new Set(["empty", "invalid",
 
 export const NOTICES: Readonly<Record<NoticeKey, string>> = {
   empty: "Paste a link first.",
-  invalid: "That doesn’t look like a link. Links must start with https:// or http://.",
+  invalid: "Links must start with https:// or http://.",
   failed: "Couldn’t save this link.",
   restoring:
-    "A Restore is running, so this link wasn’t saved. Paste the link again when the Restore has finished.",
+    "Couldn’t save this link while a restore is running. Paste it again after the restore finishes.",
   refused:
-    "This link leads to an address not reachable from the public internet, so it was saved without a title.",
-  unsupported:
-    "This link redirected to an address that isn’t a web page, so it was saved without a title.",
-  "redirect-limit": "This link redirected too many times, so it was saved without a title.",
-  "redirect-stopped": "This link redirected to Reddit or X, so it was saved without a title.",
+    "Saved without a title. This link leads to an address that isn’t reachable from the public internet.",
+  unsupported: "Saved without a title. This link redirected to an address that isn’t a web page.",
+  "redirect-limit": "Saved without a title. This link redirected too many times.",
+  "redirect-stopped":
+    "Saved without a title. This link redirected to Reddit or X, which Threadsift doesn’t follow from another website.",
   unresolved:
-    "Couldn’t find the post or comment this link points to, so it was saved as it is, without a title.",
-  status: "The website answered with an error, so this link was saved without a title.",
-  "no-title": "This page has no title, so the link was saved without one.",
-  unreadable: "Couldn’t read the website’s answer, so this link was saved without a title.",
+    "Saved as pasted, without a title. Couldn’t find the post or comment this link points to.",
+  status: "Saved without a title. The website answered with an error.",
+  "no-title": "Saved without a title because the page has none.",
+  unreadable: "Saved without a title. Couldn’t read the website’s answer.",
   "github-token":
-    "GitHub rejected the saved token, so this Item wasn’t updated. Replace or remove the token in Settings, then paste the link again.",
+    "Couldn’t update this item because GitHub rejected the saved token. Replace or remove the token in Settings, then paste the link again.",
   ...X_NOTICES,
-  "title-kept": "Couldn’t update the title for this link, so the title saved earlier was kept.",
-  private: "Links to an address not reachable from the public internet can’t be saved.",
+  "title-kept": "Couldn’t read a new title. The saved one was kept.",
+  private: "This link can’t be saved. Its address isn’t reachable from the public internet.",
 };
 
 export const TOKEN_REFUSED = {
-  row: "Couldn’t update this Item because GitHub rejected the saved token.",
-  reader: "Threadsift couldn’t update this Item because GitHub rejected the saved token.",
+  row: "Couldn’t update this item because GitHub rejected the saved token.",
+  reader: "Couldn’t update this item because GitHub rejected the saved token.",
   link: "Open Settings",
 } as const;
 
@@ -62,14 +62,14 @@ export const RETRY_LABEL = "Try again";
 export const CARD_TITLES = {
   reading: "Reading the link…",
   added: "Added",
-  refreshed: "Already saved, refreshed",
+  refreshed: "Already saved and refreshed",
 } as const;
 
 const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
   timeout: "The website didn’t answer in time",
   network: "Couldn’t reach the website",
   "gave-up": "Couldn’t read the link",
-  "rate-limited": "The link wasn’t updated because GitHub kept limiting requests",
+  "rate-limited": "Couldn’t update this item because GitHub kept limiting requests",
 };
 
 export function failureTitleOf({
@@ -82,35 +82,34 @@ export function failureTitleOf({
 export const WAITING = {
   "github-rate-limit": {
     title: "Waiting for GitHub…",
-    until: "GitHub is limiting requests, so Threadsift will try again {when}.",
-    due: "GitHub is limiting requests, so Threadsift is waiting to retry.",
+    until: "GitHub is limiting requests. Threadsift will try again {when}.",
+    due: "GitHub is limiting requests. Threadsift will try again.",
   },
   "grok-bot": {
     title: "Waiting for Grok Bot…",
-    until: "Grok Bot is reading this Item, so Threadsift will check again {when}.",
-    due: "Grok Bot is reading this Item, so Threadsift is waiting to check.",
+    until: "Grok Bot is reading this item. Threadsift will check again {when}.",
+    due: "Grok Bot is reading this item. Threadsift will check again.",
   },
   "reddit-limit": {
     title: "Waiting for Reddit…",
     until:
-      "Threadsift reads Reddit threads one at a time within Reddit’s limit and will check this one again {when}.",
-    due: "Threadsift reads Reddit threads one at a time within Reddit’s limit and is waiting to check.",
+      "Threadsift reads one Reddit thread at a time within Reddit’s request limit and will check this one again {when}.",
+    due: "Threadsift reads one Reddit thread at a time within Reddit’s request limit and will check this one again.",
   },
   "x-verify": {
     title: "Waiting for X…",
-    until: "X isn’t answering or is limiting requests, so Threadsift will try again {when}.",
-    due: "X isn’t answering or is limiting requests, so Threadsift is waiting to retry.",
+    until: "X isn’t answering or is limiting requests. Threadsift will try again {when}.",
+    due: "X isn’t answering or is limiting requests. Threadsift will try again.",
   },
   "x-reread": {
     title: "Waiting for the grok CLI…",
-    until:
-      "The grok CLI couldn’t read the post this time, so Threadsift will read it again {when}.",
-    due: "The grok CLI couldn’t read the post this time, so Threadsift is waiting to read it again.",
+    until: "The grok CLI couldn’t read this X post. Threadsift will try again {when}.",
+    due: "The grok CLI couldn’t read this X post. Threadsift will try again.",
   },
   "topic-busy": {
-    title: "Waiting for Topic…",
-    until: "This Topic is updating, so Threadsift will try again {when}.",
-    due: "This Topic is updating, so Threadsift is waiting to try again.",
+    title: "Waiting for the topic…",
+    until: "This item’s topic is updating. Threadsift will try again {when}.",
+    due: "This item’s topic is updating. Threadsift will try again.",
   },
 } as const satisfies Record<WaitReason, Readonly<{ title: string; until: string; due: string }>>;
 
