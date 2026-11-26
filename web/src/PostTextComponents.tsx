@@ -1,6 +1,7 @@
 import { type ReactNode, use } from "react";
 import type { Components } from "react-markdown";
 
+import { TASK_BOX } from "../../src/core/contract/reader-url.ts";
 import { type HastNode, TEXT } from "../../src/core/contract/text-projection.ts";
 import { type CodePart, CodeBlock } from "./CodeBlock.tsx";
 import { Mark } from "./Mark.tsx";
@@ -111,7 +112,11 @@ function Table({ node, children }: Readonly<WithNode & { children?: ReactNode }>
 }
 
 function Task({ checked }: Readonly<{ checked?: boolean | undefined }>) {
-  return <span aria-hidden="true">{checked === true ? "[x] " : "[ ] "}</span>;
+  return (
+    <span aria-hidden="true" {...{ [TASK_BOX]: "" }}>
+      {checked === true ? "[x] " : "[ ] "}
+    </span>
+  );
 }
 
 export const POST_TEXT_COMPONENTS: Components = {

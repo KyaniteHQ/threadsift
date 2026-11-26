@@ -1,6 +1,11 @@
 import { createContext, use, type ReactNode } from "react";
 
-import { FOOTNOTE_LABEL_ID } from "../../src/core/contract/reader-url.ts";
+import {
+  FAILED_PICTURE,
+  FOOTNOTE_BACKREF,
+  FOOTNOTE_LABEL_ID,
+  FOOTNOTE_REF,
+} from "../../src/core/contract/reader-url.ts";
 
 export const FootnoteScope = createContext("");
 
@@ -22,9 +27,9 @@ interface LinkAttributes extends Generated {
   readonly href?: string | undefined;
   readonly "aria-label"?: string | undefined;
   readonly "aria-describedby"?: string | undefined;
-  readonly "data-footnote-ref"?: string | undefined;
-  readonly "data-footnote-backref"?: string | undefined;
-  readonly "data-failed-picture"?: string | undefined;
+  readonly [FOOTNOTE_REF]?: string | undefined;
+  readonly [FOOTNOTE_BACKREF]?: string | undefined;
+  readonly failedPicture?: string | undefined;
 }
 
 export function Link({
@@ -34,9 +39,9 @@ export function Link({
   children,
   "aria-label": label,
   "aria-describedby": describedBy,
-  "data-footnote-ref": footnoteRef,
-  "data-footnote-backref": footnoteBackref,
-  "data-failed-picture": failedPicture,
+  [FOOTNOTE_REF]: footnoteRef,
+  [FOOTNOTE_BACKREF]: footnoteBackref,
+  failedPicture,
 }: Readonly<LinkAttributes>) {
   const scope = use(FootnoteScope);
 
@@ -53,9 +58,11 @@ export function Link({
       rel={inside ? undefined : "noopener noreferrer"}
       aria-label={label}
       aria-describedby={scoped(scope, describedBy)}
-      data-footnote-ref={footnoteRef}
-      data-footnote-backref={footnoteBackref}
-      data-failed-picture={failedPicture}
+      {...{
+        [FOOTNOTE_REF]: footnoteRef,
+        [FOOTNOTE_BACKREF]: footnoteBackref,
+        [FAILED_PICTURE]: failedPicture,
+      }}
     >
       {children}
     </a>
