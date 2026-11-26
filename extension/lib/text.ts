@@ -1,25 +1,25 @@
 export const TEXT = {
   saving: "Saving…",
-  saved: "Page saved.",
-  savedIncomplete: "The thread was saved, but some replies are missing.",
-  savedPage: "Couldn’t read the thread’s comments, so the page was saved instead.",
+  saved: "Saved",
+  savedIncomplete: "The thread was saved. Some replies couldn’t be read.",
+  savedPage: "Couldn’t read the comments. The page text was saved instead.",
   openItem: "Open in Threadsift",
-  notConfigured: "Add your Threadsift address and agent token in the settings to save pages.",
+  notConfigured: "Add your Threadsift address and agent token to save pages.",
   openSettings: "Open settings",
-  accessMissing: "The Extension has no access to your address. Allow access in the settings.",
-  pageBlocked: "Your browser doesn’t let extensions read this page, so it can’t be saved.",
-  tokenRefused: "Your agent token is wrong or was revoked. Check it in the settings.",
+  accessMissing:
+    "The extension doesn’t have permission to reach your Threadsift address. Select Save settings in Threadsift extension settings so your browser asks for access.",
+  pageBlocked:
+    "Couldn’t read this page. Either your browser blocks extensions on it, or the page has no readable text.",
+  tokenRefused: "Threadsift rejected the saved agent token. It is wrong or was revoked.",
   scopeRefused:
-    "Your agent token is missing a scope the Extension needs. Use a token with the Read and Add scopes in the settings.",
+    "The saved agent token needs the Read and Add scopes. Create one under Agent tokens in Threadsift’s Settings, then enter it in Threadsift extension settings.",
   tooLarge: "The text on this page is too long to save.",
-  privateLink:
-    "This link leads to an address not reachable from the public internet, so it wasn’t saved.",
+  privateLink: "Pages at an address not reachable from the public internet can’t be saved.",
   unsupportedLink:
-    "The Extension can’t save X, GitHub, link-shortener or Reddit pages other than a Reddit post or comment.",
+    "The extension can’t save X posts, GitHub pages, short links or Reddit share links. On Reddit, it saves only posts and comments.",
   budgetSpent:
-    "Your agent token’s daily budget of Items is used up, so this page wasn’t saved. Saving works again after 00:00 UTC, or the budget can be raised in the Threadsift settings.",
-  threadKept:
-    "Couldn’t read this Reddit thread from the page. The copy in Threadsift stays as it was.",
+    "The saved agent token reached its daily budget, so this page wasn’t saved. Saving works again after 00:00 UTC. You can also select Change budget under Agent tokens in Threadsift’s Settings.",
+  threadKept: "Couldn’t read this Reddit thread. The saved item in Threadsift stays as it was.",
   unreachable: "Couldn’t reach your Threadsift address. Check the address and your connection.",
   failed: "Couldn’t save this page.",
   tryAgain: "Try again",
@@ -81,8 +81,9 @@ export const TEXT = {
   redditAccessKept:
     "The Reddit account was removed from Threadsift, but your browser kept the Extension’s access to cookies. Press Disconnect again to give it back.",
   popupExpired:
-    "Reddit stopped accepting the connected Reddit account; the button below reconnects it.",
-  manifestDescription: "Save the page in your current tab to your Threadsift reading library.",
+    "Reddit no longer accepts the saved session. You need to be signed in to Reddit in this browser to reconnect.",
+  manifestDescription:
+    "Save the current page, or a Reddit thread with its comments, to your Threadsift reading library.",
   actionTitle: "Save to Threadsift",
   badgeSaved: "✓",
   badgeNotSaved: "!",
