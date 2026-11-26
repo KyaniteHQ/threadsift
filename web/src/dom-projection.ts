@@ -3,6 +3,7 @@ import {
   FAILED_PICTURE,
   FOOTNOTE_BACKREF,
   FOOTNOTE_BACKREF_PROPERTY,
+  FOOTNOTE_LABEL,
   FOOTNOTE_LABEL_ID,
   FOOTNOTE_REF,
   FOOTNOTE_REF_PROPERTY,
@@ -22,7 +23,7 @@ function marker(node: HTMLElement, name: string): string | undefined {
 }
 
 function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
-  const label = node.id.endsWith(FOOTNOTE_LABEL_ID);
+  const label = node.hasAttribute(FOOTNOTE_LABEL);
   const task = node.hasAttribute(TASK_BOX);
   const failedPicture = marker(node, FAILED_PICTURE);
   const picture = failedPicture !== undefined;

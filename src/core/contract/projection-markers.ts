@@ -10,6 +10,8 @@ export const FOOTNOTE_REF = find(html, FOOTNOTE_REF_PROPERTY).attribute;
 
 export const FOOTNOTE_BACKREF = find(html, FOOTNOTE_BACKREF_PROPERTY).attribute;
 
+export const FOOTNOTE_LABEL = "data-footnote-label";
+
 export const FAILED_PICTURE = "data-failed-picture";
 
 export const TASK_BOX = "data-task-box";

@@ -1,7 +1,11 @@
 import { type ReactNode, use } from "react";
 import type { Components } from "react-markdown";
 
-import { TASK_BOX } from "../../src/core/contract/projection-markers.ts";
+import {
+  FOOTNOTE_LABEL,
+  FOOTNOTE_LABEL_ID,
+  TASK_BOX,
+} from "../../src/core/contract/projection-markers.ts";
 import { type HastNode, TEXT } from "../../src/core/contract/text-projection.ts";
 import { type CodePart, CodeBlock } from "./CodeBlock.tsx";
 import { Mark } from "./Mark.tsx";
@@ -49,7 +53,11 @@ function Heading({
   const scope = use(FootnoteScope);
 
   return (
-    <Tag id={scoped(scope, id)} className={classed(base, className)}>
+    <Tag
+      id={scoped(scope, id)}
+      className={classed(base, className)}
+      {...{ [FOOTNOTE_LABEL]: id === FOOTNOTE_LABEL_ID ? "" : undefined }}
+    >
       {children}
     </Tag>
   );
