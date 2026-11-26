@@ -106,12 +106,12 @@ const SOURCE = { reddit: "Reddit", x: "X", github: "GitHub", article: "Article",
 const SOURCES = Object.keys(SOURCE);
 const OPEN_LABELS = { reddit: "Open on Reddit", x: "Open on X", github: "Open on GitHub", article: "Open article", other: "Open link" };
 const STUB_TEXTS = {
-  "not-saved": "The parent was not saved.",
-  "not-kept": "Comment not kept, shown so the replies below make sense.",
-  more: "Further replies were not saved.",
+  "not-saved": "The comment being replied to wasn’t saved.",
+  "not-kept": "The digest didn’t keep this comment.",
+  more: "Further replies weren’t saved.",
 };
 const DIGEST_PENDING = "Writing the summary and key points…";
-const UNFILTERED_PENDING = "The comments below are not filtered by a Digest yet. One is being made now, and the filter follows when it is ready.";
+const UNFILTERED_PENDING = "These comments aren’t filtered by a digest. One is being made now. Only kept comments will show when it’s ready.";
 const FILL_NOTE = "The post and comments aren’t saved yet. Open the post on Reddit in a browser with the Threadsift extension and its filling turned on to save them.";
 const SOURCE_MARKS = {
   reddit: '<path d="M5 4v16"/><path d="M5 7h13"/><path d="M9 12h11"/><path d="M9 17h7"/>',
@@ -242,7 +242,7 @@ function readerBody(it, titleId = "") {
   const parentStub = it.parentStub ? `<div class="stub">${icon("up")}${STUB_TEXTS["not-saved"]}</div>` : "";
   const shown = drawnComments(it.comments);
   const comments = it.comments.length
-    ? `<section class="cm-tree"><h3 class="h2">Comments <span class="meta">${it.digest ? "Kept" : "Showing"} ${shown} of ${it.savedComments} comments</span></h3>${
+    ? `<section class="cm-tree"><h3 class="h2">Comments <span class="meta">${it.digest ? "Kept" : "Showing"} ${shown} of ${it.savedComments}</span></h3>${
         it.digest ? "" : `<p class="note-first">${UNFILTERED_PENDING}</p>`
       }${commentNodes(it.comments, 1)}</section>`
     : "";
