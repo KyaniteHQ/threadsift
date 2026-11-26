@@ -133,20 +133,21 @@ function coverSVG(item) {
 
 const SOURCE = { reddit: "Reddit", x: "X", github: "GitHub", article: "Article", other: "Other" };
 
+const drawnComments = (list) => list.reduce((n, c) => n + (c.a ? 1 : 0) + drawnComments(c.kids ?? []), 0);
+const commentCount = (it) => `${it.digest ? "Kept" : "Showing"} ${drawnComments(it.comments)} of ${it.savedComments}`;
+
 function stripText(it) {
   if (it.linkOnly) return `Reddit · r/${it.community}`;
   if (it.kind === "comment") return `r/${it.community} · Saved comment`;
-  const count = it.counts ? (it.digest ? `Kept ${it.counts.kept} of ${it.counts.saved}` : `Showing ${it.counts.shown} of ${it.counts.saved}`) : "";
-  if (it.source === "reddit") return `r/${it.community} · ${count}`;
-  if (it.source === "x") return `X · @${it.handle} · ${count}`;
+  if (it.source === "reddit") return `r/${it.community} · ${commentCount(it)}`;
+  if (it.source === "x") return `X · @${it.handle} · ${commentCount(it)}`;
   if (it.source === "github") return `GitHub · ${it.language}`;
   return `${SOURCE[it.source]} · ${it.domain}`;
 }
-const keptShare = (it) => (it.digest && it.counts?.kept ? (it.counts.kept / it.counts.saved).toFixed(3) : 0);
+const keptShare = (it) => (it.digest && it.savedComments ? (drawnComments(it.comments) / it.savedComments).toFixed(3) : 0);
 
 function markBtn(it, cls = "") {
-  const label = it.read ? "Read. Mark as unread" : "Unread. Mark as read";
-  return `<button class="mark ${cls}" type="button" aria-pressed="${it.read}" aria-label="${label}" data-act="read" data-id="${it.id}"></button>`;
+  return `<button class="mark ${cls}" type="button" aria-pressed="${it.read}" aria-label="Read" data-act="read" data-id="${it.id}"></button>`;
 }
 function strip(it) {
   return `<div class="share" style="--kept:${keptShare(it)}"></div><div class="strip">${markBtn(it)}<span class="st">${esc(stripText(it))}</span></div>`;
@@ -163,7 +164,7 @@ function row(it, open) {
   return `<article class="row ${it.read ? "" : "unread"}" data-id="${it.id}" ${open ? 'aria-current="true"' : ""}>
     ${strip(it)}
     <div class="row-main"><div class="row-text">
-      <h3 class="title"><a href="#${it.id}" data-act="open" data-id="${it.id}">${esc(it.title)}</a></h3>
+      <h2 class="title"><a href="#${it.id}" data-act="open" data-id="${it.id}">${esc(it.title)}</a></h2>
       <p class="meta">${byline(it)}</p>${tagList(it)}
     </div>${it.cover ? `<div class="cover thumb">${coverSVG(it)}</div>` : ""}</div>
   </article>`;
@@ -174,9 +175,9 @@ function card(it) {
     ${strip(it)}
     ${it.cover ? `<div class="cover">${coverSVG(it)}</div>` : ""}
     <div class="card-body">
-      <h3 class="title"><a href="#${it.id}" data-act="open" data-id="${it.id}">${esc(it.title)}</a></h3>
+      <h2 class="title"><a href="#${it.id}" data-act="open" data-id="${it.id}">${esc(it.title)}</a></h2>
       <p class="meta">${markBtn(it, "mark-meta")}${byline(it, false)}</p>
-      ${it.summary ? `<p class="excerpt">${esc(it.summary)}</p>` : `<p class="excerpt">${it.linkOnly ? "Link only. No content was fetched." : "Waiting for a Digest."}</p>`}
+      ${it.summary ? `<p class="excerpt">${esc(it.summary)}</p>` : `<p class="excerpt">${it.linkOnly ? "Link-only Item. No content was fetched." : "Waiting for a Digest."}</p>`}
       ${tagList(it)}
     </div>
   </article>`;
@@ -196,15 +197,15 @@ function summaryBox(it) {
   if (!it.summary) {
     return `<div class="pending" role="status"><span class="label">Summary</span><span>Waiting for a Digest. The comments below passed the first step of the comment filter.</span><div class="line"></div></div>`;
   }
-  return `<section class="summary" aria-label="Summary"><h2 class="label">Summary</h2><p>${esc(it.summary)}</p>${
-    it.keyPoints.length ? `<h3 class="label">Key points</h3><ul>${it.keyPoints.map((k) => `<li>${esc(k)}</li>`).join("")}</ul>` : ""
+  return `<section class="summary" aria-label="Summary"><h3 class="label">Summary</h3><p>${esc(it.summary)}</p>${
+    it.keyPoints.length ? `<h4 class="label">Key points</h4><ul>${it.keyPoints.map((k) => `<li>${esc(k)}</li>`).join("")}</ul>` : ""
   }</section>`;
 }
 
 function readerHead(it) {
   return `<header class="rd-head banded ruled-strip ${it.read ? "" : "unread"}">
     ${strip(it)}
-    <h1 class="rd-title">${esc(it.title)}</h1>
+    <h2 class="rd-title">${esc(it.title)}</h2>
     <p class="meta">${markBtn(it, "mark-meta")}${byline(it)}</p>
     ${tagList(it)}
     ${it.cover ? `<div class="cover rd-cover">${coverSVG(it)}</div>` : ""}
@@ -213,18 +214,18 @@ function readerHead(it) {
 
 function readerBody(it) {
   if (it.linkOnly) {
-    return `${readerHead(it)}<section class="linkonly"><span class="label">Link only</span><p>Threadsift stores this link with its title and community. No post text or comments were fetched. Save the thread with the Extension from your own tab to keep it.</p><div class="rd-actions"><a class="btn" href="#" data-act="none">${icon("out")}Open on Reddit</a><button class="btn quiet" type="button">Try again</button></div></section>`;
+    return `${readerHead(it)}<section class="linkonly"><span class="label">Link-only Item</span><p>Threadsift stores this link with its title and community. No post text or comments were fetched. Save the thread with the Extension from your own tab to keep it.</p><div class="rd-actions"><a class="btn" href="#" data-act="none">${icon("out")}Open on Reddit</a><button class="btn quiet" type="button">Try again</button></div></section>`;
   }
   const post = it.post.map((p) => `<p>${esc(p)}</p>`).join("") + (it.thread ? it.thread.map((p) => `<p class="thread-part">${esc(p)}</p>`).join("") : "");
   const facts = it.source === "github" ? `<dl class="facts"><div><dt class="label">Stars</dt><dd>${it.stars}</dd></div><div><dt class="label">Language</dt><dd>${it.language}</dd></div><div><dt class="label">Updated</dt><dd>${it.updated}</dd></div></dl>` : "";
   const heading = it.source === "github" ? "README" : it.kind === "comment" ? "Saved comment" : it.source === "article" || it.source === "other" ? "Article" : "Original post";
   const parentStub = it.parentStub ? `<div class="stub">${icon("up")}The post and the comment above this one are not saved</div>` : "";
   const comments = it.comments.length
-    ? `<section class="cm-tree"><h2 class="h2">Comments <span class="meta">${it.digest ? `Kept ${it.counts.kept} of ${it.counts.saved}` : `Showing ${it.counts.shown} of ${it.counts.saved}`}</span></h2>${
+    ? `<section class="cm-tree"><h3 class="h2">Comments <span class="meta">${commentCount(it)}</span></h3>${
         it.digest ? "" : `<p class="note-first">A Digest has not covered this thread yet, so these are the comments that passed the first step.</p>`
       }${commentNodes(it.comments, 1)}</section>`
     : "";
-  return `${readerHead(it)}${summaryBox(it)}${facts}<section class="post"><h2 class="h2">${heading}</h2>${parentStub}${post}</section>${comments}`;
+  return `${readerHead(it)}${summaryBox(it)}${facts}<section class="post"><h3 class="h2">${heading}</h3>${parentStub}${post}</section>${comments}`;
 }
 
 function readerBar(it, mode) {
@@ -246,7 +247,7 @@ function readerBar(it, mode) {
   </div>`;
 }
 const aaBtn = () => `<button class="btn quiet" type="button" popovertarget="look" aria-label="Look settings">Aa</button>`;
-const wordmark = () => `<a class="wordmark" href="#" data-act="none">Thread<span class="wm-sift">sift</span></a>`;
+const wordmark = () => `<h1 class="wm-h"><a class="wordmark" href="#" data-act="none">Thread<span class="wm-sift">sift</span></a></h1>`;
 
 function seg(name, opts, current, extra = "") {
   return `<div class="seg" role="radiogroup" aria-label="${esc(extra || name)}">${opts
@@ -295,7 +296,7 @@ function visible(s) {
   return items.filter((i) => (s.readf === "all" || (s.readf === "read") === i.read) && (!s.src || i.source === s.src));
 }
 
-const pasteBox = () => `<form class="paste" data-act="paste"><label class="vh" for="paste-${uid()}">Paste a link</label><input class="field" id="paste-${uid(true)}" type="url" placeholder="Paste a link to save it" required><button class="btn primary" type="submit">Save</button></form>`;
+const pasteBox = () => `<form class="paste" data-act="paste"><label class="vh" for="paste-${uid()}">Paste a link</label><input class="field" id="paste-${uid(true)}" type="url" placeholder="Paste a link to save it" required><button class="btn primary" type="submit">Add</button></form>`;
 let uidN = 0;
 function uid(same) {
   if (!same) uidN++;
@@ -316,7 +317,6 @@ function listScreen(s, d) {
 
 function gridScreen(s, d) {
   const vis = visible(s);
-  const ruled = getComputedStyle(document.documentElement).getPropertyValue("--grid-gap").trim() === "0px";
   return `<div class="g-screen">
     <header class="g-head">${wordmark()}${searchBox()}${pasteBox()}<div class="g-tools"><button class="btn quiet icon" type="button" aria-label="List layout" data-act="screen" data-screen="list">${icon("list")}</button>${aaBtn()}</div></header>
     <div class="g-scroll"><div class="g-filters" role="toolbar" aria-label="Filters">
@@ -324,32 +324,31 @@ function gridScreen(s, d) {
       <span class="sep" aria-hidden="true"></span>
       ${["reddit", "x", "github", "article"].map((k) => `<button class="chip" type="button" aria-pressed="${s.src === k}" data-act="src" data-src="${k}">${SOURCE[k]}<span class="n">${items.filter((i) => i.source === k).length}</span></button>`).join("")}
     </div>
-    <div class="grid ${ruled ? "ruled" : ""}">${vis.map(card).join("")}</div></div>
+    <div class="grid">${vis.map(card).join("")}</div></div>
   </div>${sheet(s)}${panel(s, d)}`;
 }
 
 function sheet(s) {
-  const it = items.find((i) => i.id === s.sheet);
-  if (!it) return "";
+  const it = items.find((i) => i.id === s.item);
+  if (!s.sheetOpen || !it) return "";
   return `<dialog class="sheet" aria-label="${esc(it.title)}"><div class="rd">${readerBar(it, "sheet")}<div class="rd-col">${readerBody(it)}</div></div></dialog>`;
 }
 
 function readerScreen(s, d) {
   const it = items.find((i) => i.id === s.item) ?? items[0];
-  return `<div class="rd-pane" style="height:100%"><div class="rd">${readerBar(it, "page")}<div class="rd-col">${readerBody(it)}</div></div></div>${panel(s, d)}`;
+  return `<div class="rd-pane" style="height:100%"><h1 class="vh">Threadsift</h1><div class="rd">${readerBar(it, "page")}<div class="rd-col">${readerBody(it)}</div></div></div>${panel(s, d)}`;
 }
 
 function componentsScreen(s, d) {
   const dir = DIRECTIONS[d];
   const sample = items.filter((i) => ["mini-pc", "sqlite-wal", "kerning-comment", "stabilizers", "tidepool", "boring-formats", "local-first"].includes(i.id));
-  const ruled = getComputedStyle(document.documentElement).getPropertyValue("--grid-gap").trim() === "0px";
   const mini = items.find((i) => i.id === "mini-pc");
   return `<div class="c-screen"><div class="c-page">
     <div class="c-intro"><h1>${dir.name}</h1><p>${esc(dir.idea)} Every part below is the same markup in all three directions; only the custom properties of the direction change it.</p></div>
     <section class="c-sec"><h2 class="h2">Buttons</h2><div class="c-cols">
-      <div class="c-demo"><span class="label">Default, primary, quiet</span><div class="c-line"><button class="btn" type="button">Mark as read</button><button class="btn primary" type="button">Save</button><button class="btn quiet" type="button">Reset look</button></div></div>
-      <div class="c-demo"><span class="label">Disabled</span><div class="c-line"><button class="btn" type="button" disabled>Mark as read</button><button class="btn primary" type="button" disabled>Save</button></div></div>
-      <div class="c-demo"><span class="label">Focus</span><div class="c-line"><button class="btn is-focus" type="button">Mark as read</button><button class="btn primary is-focus" type="button">Save</button><button class="btn quiet icon is-focus" type="button" aria-label="Next Item">${icon("next")}</button></div></div>
+      <div class="c-demo"><span class="label">Default, primary, quiet</span><div class="c-line"><button class="btn" type="button">Mark as read</button><button class="btn primary" type="button">Add</button><button class="btn quiet" type="button">Reset look</button></div></div>
+      <div class="c-demo"><span class="label">Disabled</span><div class="c-line"><button class="btn" type="button" disabled>Mark as read</button><button class="btn primary" type="button" disabled>Add</button></div></div>
+      <div class="c-demo"><span class="label">Focus</span><div class="c-line"><button class="btn is-focus" type="button">Mark as read</button><button class="btn primary is-focus" type="button">Add</button><button class="btn quiet icon is-focus" type="button" aria-label="Next Item">${icon("next")}</button></div></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">Fields</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Paste box</span>${pasteBox()}</div>
@@ -366,7 +365,7 @@ function componentsScreen(s, d) {
       <div class="c-demo"><span class="label">Card and Reader header form</span><div class="c-strips">${sample.slice(0, 4).map((i) => `<div class="banded ruled-strip" style="padding:0">${strip(i)}</div>`).join("")}</div></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">List rows</h2><div class="c-cols"><div class="c-rows">${["mini-pc", "rack", "sqlite-wal", "stabilizers"].map((id, n) => row(items.find((i) => i.id === id), n === 1)).join("")}</div></div></section>
-    <section class="c-sec"><h2 class="h2">Grid cards</h2><div class="grid c-grid ${ruled ? "ruled" : ""}">${["local-first", "sqlite-wal", "tidepool"].map((id) => card(items.find((i) => i.id === id))).join("")}</div></section>
+    <section class="c-sec"><h2 class="h2">Grid cards</h2><div class="grid c-grid">${["local-first", "sqlite-wal", "tidepool"].map((id) => card(items.find((i) => i.id === id))).join("")}</div></section>
     <section class="c-sec"><h2 class="h2">Reader header and summary box</h2><div class="c-cols"><div class="c-reader">${readerHead(mini)}${summaryBox(mini)}</div><div class="c-reader">${readerHead(items.find((i) => i.id === "sqlite-wal"))}${summaryBox(items.find((i) => i.id === "sqlite-wal"))}</div></div></section>
     <section class="c-sec"><h2 class="h2">Comment tree with Context stubs</h2><div class="c-reader">${commentNodes(mini.comments, 1)}</div></section>
     <section class="c-sec"><h2 class="h2">Settings panel</h2><div class="c-panel">${panel(s, d, false)}</div></section>
@@ -377,13 +376,13 @@ const sysTheme = () => (matchMedia("(prefers-color-scheme: dark)").matches ? "da
 
 export function boot() {
   const q = new URLSearchParams(location.search);
-  const d = DIRECTIONS[q.get("d")] ? q.get("d") : "quarto";
+  const d = Object.hasOwn(DIRECTIONS, q.get("d")) ? q.get("d") : "quarto";
   const dir = DIRECTIONS[d];
   const s = {
     screen: SCREENS.some((x) => x.id === q.get("screen")) ? q.get("screen") : "list",
     theme: [...THEMES.map((t) => t.id), "system"].includes(q.get("theme")) ? q.get("theme") : "light",
-    item: q.get("item") ?? "mini-pc",
-    sheet: null,
+    item: items.some((i) => i.id === q.get("item")) ? q.get("item") : "mini-pc",
+    sheetOpen: false,
     style: "library",
     font: "library",
     accent: dir.accent,
@@ -394,21 +393,33 @@ export function boot() {
     readf: "all",
     src: null,
   };
+  s.from = s.screen === "grid" ? "grid" : "list";
   const embed = q.has("embed");
   const root = document.documentElement;
   const main = document.querySelector("#screen");
   const bar = document.querySelector(".kitbar");
+  const LOOK = ["style", "font", "accent", "size", "width", "density", "images"];
 
   function apply() {
     root.dataset.direction = d;
     root.dataset.theme = s.theme === "system" ? sysTheme() : s.theme;
-    for (const k of ["style", "font", "accent", "size", "width", "density", "images"]) root.dataset[k] = s[k];
+    for (const k of LOOK) root.dataset[k] = s[k];
   }
   function url() {
     const p = new URLSearchParams({ d, screen: s.screen, theme: s.theme });
     if (s.screen === "reader" || s.screen === "list") p.set("item", s.item);
     if (embed) p.set("embed", "");
     history.replaceState(null, "", `?${p}`);
+  }
+  function check(name, value) {
+    for (const input of document.querySelectorAll(`input[name="${name}"]`)) input.checked = input.value === value;
+  }
+  function sync() {
+    for (const k of [...LOOK, "theme"]) check(k, s[k]);
+    for (const art of document.querySelectorAll(".tile-art[data-style]")) art.dataset.theme = root.dataset.theme;
+    check("kb-screen", s.screen);
+    check("kb-theme", root.dataset.theme);
+    bar.querySelector(".kb-end")?.setAttribute("href", `./index.html?screen=${s.screen}&theme=${root.dataset.theme}`);
   }
   function kitbar() {
     if (embed) {
@@ -418,20 +429,35 @@ export function boot() {
     bar.innerHTML = `<b>Brand kit</b><span class="kb-group"><span class="kb-name">Direction</span>${seg("kb-d", Object.entries(DIRECTIONS).map(([id, v]) => ({ id, name: v.name })), d, "Direction")}</span>
       <span class="kb-group"><span class="kb-name">Screen</span>${seg("kb-screen", SCREENS, s.screen, "Screen")}</span>
       <span class="kb-group"><span class="kb-name">Theme</span>${seg("kb-theme", THEMES, root.dataset.theme, "Theme")}</span>
-      <a class="kb-end" href="./index.html?screen=${s.screen}&theme=${root.dataset.theme}">Side by side</a>`;
+      <a class="kb-end" href="./index.html">Side by side</a>`;
   }
   function render() {
     apply();
     url();
-    kitbar();
     main.dataset.screen = s.screen;
-    const html = { list: listScreen, grid: gridScreen, reader: readerScreen, components: componentsScreen }[s.screen](s, d);
-    main.innerHTML = html;
+    main.innerHTML = { list: listScreen, grid: gridScreen, reader: readerScreen, components: componentsScreen }[s.screen](s, d);
+    sync();
     const dlg = main.querySelector("dialog.sheet");
     if (dlg) {
       dlg.showModal();
-      dlg.addEventListener("close", () => s.sheet && closeSheet(true));
+      dlg.addEventListener("close", () => s.sheetOpen && closeSheet(true));
     }
+  }
+  function look() {
+    apply();
+    url();
+    sync();
+  }
+  function go(screen) {
+    if (screen === "reader" && s.screen !== "reader") s.from = s.screen;
+    s.screen = screen;
+  }
+  function focusKey(el) {
+    const sel = ["act", "id", "step", "v", "src"].map((k) => (el.dataset[k] === undefined ? "" : `[data-${k}="${el.dataset[k]}"]`)).join("");
+    return { sel, n: [...document.querySelectorAll(sel)].indexOf(el) };
+  }
+  function refocus({ sel, n }) {
+    document.querySelectorAll(sel)[n]?.focus();
   }
 
   document.addEventListener("change", (e) => {
@@ -442,20 +468,25 @@ export function boot() {
       const p = new URLSearchParams(location.search);
       p.set("d", t.value);
       location.search = p.toString();
-      return;
-    }
-    if (n === "kb-screen") s.screen = t.value;
-    else if (n === "kb-theme") s.theme = t.value;
-    else if (n === "style") {
+    } else if (n === "kb-screen") {
+      go(t.value);
+      render();
+    } else if (n === "readf") {
+      s.readf = t.value;
+      render();
+      document.querySelector(`[name="readf"][value="${t.value}"]`)?.focus();
+    } else if (n === "kb-theme" || n === "theme") {
+      s.theme = t.value;
+      look();
+    } else if (n === "style") {
       s.style = t.value;
       s.font = dir.styleFont[t.value];
       s.accent = dir.accent;
-    } else if (["theme", "accent", "font", "size", "width", "density", "images", "readf"].includes(n)) s[n] = t.value;
-    else return;
-    const reopen = document.querySelector("#look:popover-open") !== null;
-    render();
-    if (reopen) document.querySelector("#look")?.showPopover();
-    document.querySelector(`[name="${n}"][value="${t.value}"]`)?.focus();
+      look();
+    } else if (LOOK.includes(n)) {
+      s[n] = t.value;
+      look();
+    }
   });
   document.addEventListener("submit", (e) => e.preventDefault());
   document.addEventListener("click", (e) => {
@@ -464,21 +495,26 @@ export function boot() {
     const act = el.dataset.act;
     if (act === "paste") return;
     e.preventDefault();
+    const key = focusKey(el);
     if (act === "open") {
       s.item = el.dataset.id;
       if (s.screen === "grid" && !root.dataset.bp?.includes("medium")) {
         openSheet(el);
         return;
       }
-      if (s.screen === "grid" || root.dataset.bp?.includes("narrow")) s.screen = "reader";
+      if (s.screen === "grid" || root.dataset.bp?.includes("narrow")) go("reader");
     } else if (act === "close-sheet") {
       closeSheet();
       return;
+    } else if (act === "reset") {
+      Object.assign(s, { style: "library", font: "library", accent: dir.accent, size: "medium", width: "medium", density: "compact", images: "on" });
+      look();
+      return;
     } else if (act === "expand") {
-      s.sheet = null;
-      s.screen = "reader";
-    } else if (act === "back") s.screen = "list" === s.from ? "list" : "grid";
-    else if (act === "screen") s.screen = el.dataset.screen;
+      s.sheetOpen = false;
+      go("reader");
+    } else if (act === "back") s.screen = s.from;
+    else if (act === "screen") go(el.dataset.screen);
     else if (act === "read") {
       const it = items.find((i) => i.id === el.dataset.id);
       it.read = !it.read;
@@ -487,42 +523,49 @@ export function boot() {
       s.item = items[(i + Number(el.dataset.step) + items.length) % items.length].id;
     } else if (act === "readf") s.readf = el.dataset.v;
     else if (act === "src") s.src = s.src === el.dataset.src ? null : el.dataset.src;
-    else if (act === "reset") Object.assign(s, { style: "library", font: "library", accent: dir.accent, size: "medium", width: "medium", density: "compact", images: "on" });
     else return;
-    if (s.screen !== "reader") s.from = s.screen;
     render();
+    if (["read", "step", "readf", "src"].includes(act)) refocus(key);
   });
   const still = matchMedia("(prefers-reduced-motion: reduce)");
   function morph(update) {
-    if (!document.startViewTransition || still.matches) return update();
-    return document.startViewTransition(update);
+    if (!document.startViewTransition || still.matches) {
+      update();
+      return Promise.resolve();
+    }
+    return document.startViewTransition(update).finished;
   }
   function openSheet(link) {
     const c = link.closest(".card");
     c?.classList.add("vt-src");
-    s.sheet = s.item;
+    s.sheetOpen = true;
     morph(() => {
       c?.classList.remove("vt-src");
       render();
     });
   }
   function closeSheet(closed) {
-    const id = s.sheet;
-    s.sheet = null;
+    s.sheetOpen = false;
+    const id = s.item;
     const dlg = document.querySelector("dialog.sheet");
     dlg?.classList.add("vt-src");
     morph(() => {
       if (!closed) dlg?.close();
       render();
       document.querySelector(`.card[data-id="${id}"]`)?.classList.add("vt-src");
-    }).finished?.then(() => document.querySelector(".vt-src")?.classList.remove("vt-src"));
+    }).then(() => {
+      document.querySelector(".vt-src")?.classList.remove("vt-src");
+      document.querySelector(`.card[data-id="${id}"] .title a`)?.focus();
+    });
   }
 
-  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => s.theme === "system" && render());
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => s.theme === "system" && look());
   new ResizeObserver(() => {
     const w = root.clientWidth;
     const bp = BANDS.filter(([, max]) => w < max).map(([n]) => n).join(" ");
     if (root.dataset.bp !== bp) root.dataset.bp = bp;
   }).observe(root);
+  apply();
+  kitbar();
   render();
 }
