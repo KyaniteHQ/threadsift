@@ -322,15 +322,15 @@ const shownItem = (s) => {
 };
 const isFiltered = (s) => s.readf !== "all" || s.src !== null;
 const countText = (s) =>
-  isFiltered(s) ? `${visible(s).length} of ${items.length} Items` : `${items.length} Items, ${items.filter((i) => !i.read).length} unread`;
-const noResults = () => `<div class="empty" role="status"><p>No Items match</p><button class="btn" type="button" data-act="clear">Clear search and filters</button></div>`;
+  isFiltered(s) ? `${visible(s).length} of ${items.length} items` : `${items.length} items, ${items.filter((i) => !i.read).length} unread`;
+const noResults = () => `<div class="empty" role="status"><p>No items match</p><button class="btn" type="button" data-act="clear">Clear search and filters</button></div>`;
 
 let uidN = 0;
 function pasteBox() {
   const id = `paste-${++uidN}`;
   return `<form class="paste" data-act="paste"><label class="vh" for="${id}">Link to add</label><input class="field" id="${id}" type="url" placeholder="Paste a link" required><button class="btn primary" type="submit">Add</button></form>`;
 }
-const searchBox = () => `<label class="search"><span class="vh">Search Items</span>${icon("search")}<input class="field" type="search" placeholder="Title, post text, Summary or Tags"></label>`;
+const searchBox = () => `<label class="search"><span class="vh">Search items</span>${icon("search")}<input class="field" type="search" placeholder="Title, post text, summary or tags"></label>`;
 
 function listScreen(s) {
   const vis = visible(s);
@@ -381,7 +381,7 @@ function componentsScreen(s) {
     </div></section>
     <section class="c-sec"><h2 class="h2">Fields</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Paste box</span>${pasteBox()}</div>
-      <div class="c-demo"><span class="label">Search, focused</span><label class="search"><span class="vh">Search Items</span>${icon("search")}<input class="field is-focus" type="search" value="sqlite"></label></div>
+      <div class="c-demo"><span class="label">Search, focused</span><label class="search"><span class="vh">Search items</span>${icon("search")}<input class="field is-focus" type="search" value="sqlite"></label></div>
       <div class="c-demo fld"><label class="label" for="c-name">Instance name</label><span class="fld-hint">Shown in the masthead of the sign-in screen.</span><input class="field is-invalid" id="c-name" value="" placeholder="Library" aria-describedby="c-err"><span class="fld-err" id="c-err">Enter a value.</span></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">Chips, segments and Tags</h2><div class="c-cols">

@@ -118,13 +118,13 @@ export function waitTitle({ reason }: Readonly<{ reason: WaitReason }>): string 
 }
 
 export const SORT_LABEL = "Newest saved first";
-export const LOADING_LABEL = "Loading Items…";
+export const LOADING_LABEL = "Loading items…";
 
 export const LOAD_MORE = "Load more";
 export const LOADING_MORE = "Loading more…";
 export const NEWEST_FIRST = "Newest first";
 export const BACK_TO_LIBRARY = "Back to library";
-export const LOAD_FAILED = "Couldn’t load the Items.";
+export const LOAD_FAILED = "Couldn’t load items.";
 
 export const SETTINGS_GEAR_LABEL = "Settings";
 export const SETTINGS_TITLE = "Settings";
@@ -138,22 +138,22 @@ export const MATCH_SYSTEM_NOTES = {
   light: "Match system · light now",
 } as const;
 
-export const SEARCH_LABEL = "Search Items";
-export const SEARCH_PLACEHOLDER = "Title, post text, Summary or Tags";
-export const SKIP_LABEL = "Skip to Items";
+export const SEARCH_LABEL = "Search items";
+export const SEARCH_PLACEHOLDER = "Title, post text, summary or tags";
+export const SKIP_LABEL = "Skip to items";
 
 export const FILTER_GROUPS = {
   source: "Source",
   read: "Read state",
   topic: "Topic",
-  tag: "Tags",
+  tag: "Tag",
 } as const;
 
 export const ALL_CHOICE = "All";
 
 export const ALL_NAMED = {
-  source: "All {count} from all Sources",
-  read: "All {count} in all Read states",
+  source: "All {count} from any source",
+  read: "All {count} in any read state",
 } as const;
 
 export const READ_LABELS: Readonly<Record<ReadState, string>> = {
@@ -161,33 +161,33 @@ export const READ_LABELS: Readonly<Record<ReadState, string>> = {
   read: "Read",
 };
 
-export const ALL_ROWS = { topic: "All {count} Topics", tag: "All {count} Tags" } as const;
+export const ALL_ROWS = { topic: "Show all {count} topics", tag: "Show all {count} tags" } as const;
 export const SHOW_FEWER = "Show fewer";
 export const FILTERS_BUTTON = "Filters";
-export const FILTERS_BUTTON_ACTIVE = "Filters · {count}";
+export const FILTERS_BUTTON_ACTIVE = "Filters ({count})";
 export const CLEAR_FILTERS = "Clear filters";
-export const ANY_CHOICE = { topic: "Any Topic", tag: "Any Tag" } as const;
+export const ANY_CHOICE = { topic: "Any topic", tag: "Any tag" } as const;
 const NAMED_OPTION = "{name} ({count})";
 
 export function namedOption(name: string, count: number): string {
   return filled(NAMED_OPTION, { name, count: String(count) });
 }
 
-export const NO_ROWS = { topic: "No Topics yet", tag: "No Tags yet" } as const;
+export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
 
-export const NO_RESULTS = "No Items match";
+export const NO_RESULTS = "No items match";
 export const CLEAR_ALL = "Clear search and filters";
 
-const TOTAL_NAME_ONE = "1 Item in library";
-const TOTAL_NAME_MANY = "{count} Items in library";
+const TOTAL_NAME_ONE = "1 item in the library";
+const TOTAL_NAME_MANY = "{count} items in the library";
 
 export function totalName(count: number): string {
   return count === 1 ? TOTAL_NAME_ONE : filled(TOTAL_NAME_MANY, { count: String(count) });
 }
 
 export const EMPTY_LIST = {
-  heading: "No Items yet",
-  line: "Paste a link in the box and press Add.",
+  heading: "No items yet",
+  line: "Paste a link and press Add.",
 } as const;
 
 export const SOURCE_LABELS: Readonly<Record<Source, string>> = {
@@ -209,8 +209,8 @@ export const SAVED_COMMENT = "Saved comment";
 
 export const STYLE_NOTE = "Set by the Style";
 export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";
-export const NO_DIGEST = "No Digest";
-export const DIGEST_NOT_UPDATED = "Digest not updated";
+export const NO_DIGEST = "Digest failed";
+export const DIGEST_NOT_UPDATED = "Digest update failed";
 
 export const FIELD_TEXT = {
   required: "Enter a value.",

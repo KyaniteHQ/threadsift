@@ -32,7 +32,7 @@ The kept strip is the first line of a List row and a Grid card, under the top ru
 
 ## Interface text
 
-Where the app already has a text for the same state, the kit uses the app's text: the paste box and search field labels, the Read state and Source names, the Reader bar's Back, Previous, Next, Mark read and Open labels, the row mark's name, the Summary and Key points labels, the note above comments a Digest has not filtered, the Context stubs, the section headings, the repository facts and a repository's stars, the Link-only note, the empty filter result, the Item count in the List head, such as "13 Items, 7 unread", and the Look setting names. The other texts are mockup text that exists only in the kit; item 4.5 of [the roadmap](../../../roadmap.md) replaces each of them through the copy script:
+Where the app already has a text for the same state, the kit uses the app's text: the paste box and search field labels, the Read state and Source names, the Reader bar's Back, Previous, Next, Mark read and Open labels, the row mark's name, the Summary and Key points labels, the note above comments a Digest has not filtered, the Context stubs, the section headings, the repository facts and a repository's stars, the Link-only note, the empty filter result, the Item count in the List head, such as "13 items, 7 unread", and the Look setting names. The other texts are mockup text that exists only in the kit; item 4.5 of [the roadmap](../../../roadmap.md) replaces each of them through the copy script:
 
 - "Link-only Item. No content was fetched." on a Link-only Grid card with Card images Off, and the "Link-only Item" label in the Reader.
 - "Saved" before the date and an Article's reading time, such as "4 min read", on the line under the title.

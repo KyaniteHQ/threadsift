@@ -4,12 +4,12 @@ import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { matchedCount } from "./list-counts.ts";
 
 export const ITEM_HEAD = {
-  one: "1 Item, {unread} unread",
-  many: "{total} Items, {unread} unread",
-  matching: "{shown} of {total} Items",
-  matchingText: "{shown} of {total} Items matching “{text}”",
-  matchingOne: "{shown} of 1 Item",
-  matchingTextOne: "{shown} of 1 Item matching “{text}”",
+  one: "1 item, {unread} unread",
+  many: "{total} items, {unread} unread",
+  matching: "{shown} of {total} items",
+  matchingText: "{shown} of {total} items matching “{text}”",
+  matchingOne: "{shown} of 1 item",
+  matchingTextOne: "{shown} of 1 item matching “{text}”",
 } as const;
 
 export const HIGHLIGHTS_HEAD = {
