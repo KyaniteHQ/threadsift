@@ -907,6 +907,11 @@
           "name": "highlights_item",
           "columns": ["item_id"],
           "isUnique": false
+        },
+        "highlights_created_at": {
+          "name": "highlights_created_at",
+          "columns": ["created_at"],
+          "isUnique": false
         }
       },
       "foreignKeys": {
@@ -1999,7 +2004,13 @@
           "autoincrement": false
         }
       },
-      "indexes": {},
+      "indexes": {
+        "notes_updated_at": {
+          "name": "notes_updated_at",
+          "columns": ["updated_at"],
+          "isUnique": false
+        }
+      },
       "foreignKeys": {
         "notes_item_id_items_id_fk": {
           "name": "notes_item_id_items_id_fk",
