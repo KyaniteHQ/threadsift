@@ -23,7 +23,7 @@ The [package page](https://github.com/KyaniteHQ/threadsift/pkgs/container/thread
 
 ## Keep the secret key
 
-`THREADSIFT_SECRET_KEY` in `~/threadsift.env` is 32 random bytes written as 64 hex characters. The app encrypts the keys you save in Settings with it: a Provider's API key, the GitHub token and the Grok Bot key. Without it, Settings cannot save an API key.
+`THREADSIFT_SECRET_KEY` in `~/threadsift.env` is 32 random bytes written as 64 hex characters. The app encrypts the secrets you save in Settings with it: a Provider's API key, the GitHub token, the Grok Bot key, the Vault mirror's token and the Reddit session. Without it, Settings cannot save an API key.
 
 Back up the file, and pass it with `--env-file` on every run.
 

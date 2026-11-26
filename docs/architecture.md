@@ -28,6 +28,7 @@ A live run proved part of each behaviour below, and other checks remain open. [O
 | [Fetchers](architecture/fetchers.md) | How a link becomes an Item's content |
 | [AI tasks and Providers](architecture/ai-tasks-and-providers.md) | Every model call and its Providers |
 | [Access: owner login, agent tokens, MCP](architecture/access-owner-login-agent-tokens-mcp.md) | Who may call the Instance |
+| [Security model](architecture/security-model.md) | What an Instance protects, who can reach it, the boundaries |
 | [Web app](architecture/web-app.md) | The single-page app and its build |
 | [Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md) | The two clients of the HTTP API |
 | [Vault mirror](architecture/vault-mirror.md) | The one-way Markdown copy into Obsidian |
