@@ -8,26 +8,26 @@ export const TOPIC_PAGE = {
   overviewNone: "No overview yet.",
   writeOverview: "Write overview",
   noProvider:
-    "No overview is written until a Provider is set in Instance settings. The items still show below.",
-  builtFromOne: "Built from 1 item",
+    "No overview is written until a Provider is set in Instance settings. The Items still show below.",
+  builtFromOne: "Built from 1 Item",
   notInOverview: "Not in overview yet",
-  loading: "Loading topic…",
-  loadFailed: "Couldn’t load this topic.",
+  loading: "Loading Topic…",
+  loadFailed: "Couldn’t load this Topic.",
   notFoundHeading: "Topic not found",
-  notFoundLine: "Go back to the library to see your items.",
-  emptyHeading: "No items in this topic",
-  emptyLine: "This topic has no items in your library.",
-  loadMoreFailed: "Couldn’t load more items.",
+  notFoundLine: "Go back to the library to see the Items.",
+  emptyHeading: "No Items in this Topic",
+  emptyLine: "This Topic has no Items in the library.",
+  loadMoreFailed: "Couldn’t load more Items.",
   openPage: "Open Topic page",
   disagreementsHeading: "Known disagreements",
   disagreementsEntryLabel: "Items in this disagreement",
 } as const;
 
-const BUILT_FROM_SOME = "Built from {built} of {total} items";
-const BUILT_FROM_ALL = "Built from all {total} items";
-const ITEMS_ONE = "1 item";
-const ITEMS_MANY = "{count} items";
-const CITATION_LABEL = "Open item {title}";
+const BUILT_FROM_SOME = "Built from {built} of {total} Items";
+const BUILT_FROM_ALL = "Built from all {total} Items";
+const ITEMS_ONE = "1 Item";
+const ITEMS_MANY = "{count} Items";
+const CITATION_LABEL = "Open Item {title}";
 const TOPIC_LINK = "Open Topic page for {name}";
 
 export function builtFromLabel(built: number, total: number): string {
