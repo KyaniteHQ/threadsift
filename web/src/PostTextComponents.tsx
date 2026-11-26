@@ -1,6 +1,11 @@
 import { type ReactNode, use } from "react";
 import type { Components } from "react-markdown";
 
+import {
+  FOOTNOTE_LABEL,
+  FOOTNOTE_LABEL_ID,
+  TASK_BOX,
+} from "../../src/core/contract/projection-markers.ts";
 import { type HastNode, TEXT } from "../../src/core/contract/text-projection.ts";
 import { type CodePart, CodeBlock } from "./CodeBlock.tsx";
 import { Mark } from "./Mark.tsx";
@@ -48,7 +53,11 @@ function Heading({
   const scope = use(FootnoteScope);
 
   return (
-    <Tag id={scoped(scope, id)} className={classed(base, className)}>
+    <Tag
+      id={scoped(scope, id)}
+      className={classed(base, className)}
+      {...{ [FOOTNOTE_LABEL]: id === FOOTNOTE_LABEL_ID ? "" : undefined }}
+    >
       {children}
     </Tag>
   );
@@ -111,7 +120,11 @@ function Table({ node, children }: Readonly<WithNode & { children?: ReactNode }>
 }
 
 function Task({ checked }: Readonly<{ checked?: boolean | undefined }>) {
-  return <span aria-hidden="true">{checked === true ? "[x] " : "[ ] "}</span>;
+  return (
+    <span aria-hidden="true" {...{ [TASK_BOX]: "" }}>
+      {checked === true ? "[x] " : "[ ] "}
+    </span>
+  );
 }
 
 export const POST_TEXT_COMPONENTS: Components = {

@@ -13,5 +13,3 @@ export function pictureText(alt: string, src: string): string {
 
   return keyOfFileRoute(src) === null ? readerUrl(src) : STORED_PICTURE_TEXT;
 }
-
-export const FOOTNOTE_LABEL_ID = "footnote-label";

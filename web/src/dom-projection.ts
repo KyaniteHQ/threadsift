@@ -1,5 +1,14 @@
 import { codePointCount } from "../../src/core/contract/code-points.ts";
-import { FOOTNOTE_LABEL_ID } from "../../src/core/contract/reader-url.ts";
+import {
+  FAILED_PICTURE,
+  FOOTNOTE_BACKREF,
+  FOOTNOTE_BACKREF_PROPERTY,
+  FOOTNOTE_LABEL,
+  FOOTNOTE_LABEL_ID,
+  FOOTNOTE_REF,
+  FOOTNOTE_REF_PROPERTY,
+  TASK_BOX,
+} from "../../src/core/contract/projection-markers.ts";
 import { type HastNode, projectTree } from "../../src/core/contract/text-projection.ts";
 
 interface DomProjection {
@@ -9,10 +18,14 @@ interface DomProjection {
 
 const CODE_END: HastNode = { type: "text", value: "\n" };
 
+function marker(node: HTMLElement, name: string): string | undefined {
+  return node.getAttribute(name) ?? undefined;
+}
+
 function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
-  const label = node.id.endsWith(FOOTNOTE_LABEL_ID);
-  const task = node.getAttribute("aria-hidden") === "true";
-  const failedPicture = node.dataset["failedPicture"];
+  const label = node.hasAttribute(FOOTNOTE_LABEL);
+  const task = node.hasAttribute(TASK_BOX);
+  const failedPicture = marker(node, FAILED_PICTURE);
   const picture = failedPicture !== undefined;
 
   return {
@@ -20,8 +33,8 @@ function elementOf(node: HTMLElement, children: readonly HastNode[]): HastNode {
     tagName: picture ? "img" : label ? "h2" : task ? "input" : node.localName,
     properties: {
       id: label ? FOOTNOTE_LABEL_ID : node.id,
-      dataFootnoteRef: node.dataset["footnoteRef"],
-      dataFootnoteBackref: node.dataset["footnoteBackref"],
+      [FOOTNOTE_REF_PROPERTY]: marker(node, FOOTNOTE_REF),
+      [FOOTNOTE_BACKREF_PROPERTY]: marker(node, FOOTNOTE_BACKREF),
       alt: node.getAttribute("alt") ?? undefined,
       src: failedPicture ?? node.getAttribute("src") ?? undefined,
     },
