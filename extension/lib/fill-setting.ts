@@ -1,6 +1,6 @@
 import { browser } from "wxt/browser";
 
-import { REDDIT_HOSTS, requestAccess } from "./config.ts";
+import { FILL_PERMISSIONS, requestAccess } from "./config.ts";
 import { askConfigView, requestChange } from "./settings.ts";
 
 export type FillState =
@@ -22,7 +22,7 @@ export function loadFill(): Promise<FillState> {
 export async function turnFill(turnOn: boolean): Promise<FillState> {
   if (turnOn) {
     const granted = await requestAccess(
-      () => browser.permissions.request({ origins: REDDIT_HOSTS }),
+      () => browser.permissions.request(FILL_PERMISSIONS),
       "fill-request-failed",
     );
 
