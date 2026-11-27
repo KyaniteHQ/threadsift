@@ -273,6 +273,36 @@ The `release` concurrency group serializes whole runs, and their order is not gu
 
 Verified on 2026-11-17 with two tag runs ([first](https://github.com/KyaniteHQ/threadsift/actions/runs/44159949236), [second](https://github.com/KyaniteHQ/threadsift/actions/runs/44164286715)): `docker buildx imagetools inspect` showed both platforms and two attestation manifests, the native arm64 start checks answered 200, the fast-forward push advanced `release` to the tagged commit's direct child, and an [ordinary main run](https://github.com/KyaniteHQ/threadsift/actions/runs/44162780681) left it unchanged. No tag has yet run the plan, the moving tags or the GitHub Release steps ([Open items and unverified claims](open-items-and-unverified-claims.md)).
 
+### Versions and the release pull request
+
+Every release carries one version, `X.Y.Z`, or `X.Y.Z-rc.N` for a release candidate, and its tag is `v` followed by the version ([Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)). The first stable release is `v1.0.0`. A patch release holds fixes only and never a migration, so an image tag such as `1.4` is always safe to follow. The version is committed and never passed in at build time, because the Firefox reviewer rebuilds the Extension from the source archive and must get the same files.
+
+`node tools/release.ts v<version> --dry-run` prints each change the release would make, from the files committed at `HEAD` and the `v*` tags on `origin`, and writes nothing, no ref or tag included. Without `--dry-run`, the command fetches `main`, builds the commit `chore(release): v<version>` on the tip of `origin/main` in a temporary index, pushes it as the branch `release-v<version>` and opens the release pull request, whose body holds the notes. It never changes the checkout. A failed step ends with one line that names it, and a second run makes the same commit, skips a push that `origin` already holds and reuses an open pull request. When `main` moved after the push, it names the branch to delete first. After the merge, the owner tags the squash commit and pushes the tag, which starts the release workflow. The branch is not `release/v<version>`, because Git refuses that name beside the `release` branch.
+
+The command writes the version into:
+
+- the app's `version` in the root package manifest, which the other files follow;
+- the image's `org.opencontainers.image.version` label, the last line of the `Containerfile` ([OCI annotations](https://github.com/opencontainers/image-spec/blob/v1.1.1/annotations.md));
+- the Extension's `version` in its package manifest, from which WXT 0.21.5 takes the manifest version and, for Chrome, `version_name`.
+
+The bot keeps its own `bot-v<N>` numbering and its own release ([Extension and Threadsift bot](extension-and-threadsift-bot.md), Release), because an installed bot looks for a new release only among the `bot-v` tags, so a shared tag would never reach it. The dry run says so in one line. The bot joins the shared version once its update procedure follows the Instance: that change adds its version file and skill pin to `RELEASE_FILES`, which the command writes, and `COMPARED_FILES`, which the gate compares.
+
+It refuses, with the reason, and changes nothing when:
+
+- the tag is not `vX.Y.Z` or `vX.Y.Z-rc.N`, or a number in it has more than 15 digits;
+- the version is not above the newest `v*` tag or the version the app already carries;
+- no stable tag exists yet and the version is not `v1.0.0` or one of its candidates;
+- the version, or the candidate of one, has a patch above 0 and the newest stable tag has another major or minor, so there is no release to patch;
+- it is such a patch release and a migration file (a `.sql` file of the migration folder) differs from the newest stable tag. The refusal lists the files and names the next minor. A change to the migration metadata alone does not count, because both targets apply only the `.sql` files;
+- the root changelog does not hold exactly one `## Unreleased`, or, for a stable release, holds no notes under it or already holds the release's section;
+- `--headline` comes with a release candidate or a patch release.
+
+`pnpm run check:versions`, part of `pnpm run check` and so of the gate, fails when the image label carries another version than the app. While the app's version is a patch release that has no tag yet, it also fails when a migration file differs from the newest stable tag, so a migration merged after the release pull request opened cannot reach the tag. Only then does it read `origin`, fetching the tag's commit when the clone lacks it. The gate does not compare the Extension's version yet.
+
+### Changelog
+
+The root changelog holds the release notes, written by hand under `## Unreleased` as each change lands. A release's notes open with two or three plain sentences, then "Before you update" (migrations, the rollback floor, manual steps, the Extension and bot versions this Instance expects), then Added, Changed, Fixed and Security. A release candidate leaves the changelog alone, so `## Unreleased` keeps every change since the last stable release. A stable release turns `## Unreleased` into `## v<version>`, or `## v<version>: <headline>` with `--headline` for a release with patch 0, under a new empty `## Unreleased`. Changes to the bot's files also go into the bot changelog, which the bot's own release cuts.
+
 ## Rollback
 
 The container can run an older image tag. Cloudflare can restore an older Worker version with `wrangler rollback`. Neither undoes a migration.
