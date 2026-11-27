@@ -3,8 +3,8 @@
    in its design system. Every component uses these with no fallback values;
    the app's script only sets attributes on the app's root.
 
-   1. Fixed tokens: type, line heights, spacing, radii, controls, icons,
-      layers, motion.
+   1. Fixed tokens: type, line heights, spacing, controls, icons, layers,
+      motion.
    2. The look: every option of every look setting (Style, Font, Text size, Text
       width, Density, Accent, Comment style, Tag style, Card images), picked
       by an attribute on the app's root.
@@ -13,7 +13,9 @@
    5. Widths: the breakpoints and grid columns, and the values that change at
       each width (data-bp).
    6. Styles: the Style blocks come after the Theme and derived-token rules
-      so their fonts and palettes win by source order.
+      so their fonts and palettes win by source order. A rule before them gives
+      every Style other than Library its pill radius, word spacing and control
+      fills, so the Library's plain values reach only Library.
       --acc is derived only on :root, .app, [data-theme] and [data-accent],
       so the panel's font reset inherits the Style accent.
 
@@ -54,7 +56,7 @@
      panel width under which the settings panel stacks each label above its
      control (a container query's size cannot read a custom property);
    - font weights (400 to 700), SVG stroke widths (1.8, and 1.4 on the large
-     empty-state icons), opacity and brightness steps (0.45, 0.9, 1.07);
+     empty-state icons), opacity and brightness steps (0.45, 0.9);
    - geometry: 100%, 50%, -50%, rotations, grid line numbers, the 85% height
      of the phone settings sheet and the fade-out stops of folded text;
    - text-relative sizes in em: the Markdown rhythm in post text (0.2em to
@@ -127,8 +129,11 @@
 /* plain: library */
 :root, [data-style] {
   --nh: 180; --nc: 0.005;
-  --r1: 2px; --r2: 2px; --r3: 2px; --hw: 1px;
-  --btn-bg: transparent; --btn-edge: var(--ctl-line); --btn-hover: var(--surface-2);
+  --r1: 2px; --r2: 2px; --r3: 2px; --r4: 2px; --hw: 1px;
+  --btn-bg: transparent; --acc-lift: none; --off-edge: dashed;
+  --chip-edge: var(--ctl-line); --chip-hover: var(--surface-2); --chip-w: 500;
+  --seg-bg: var(--surface); --seg-lift: var(--surface-2); --rail-seg-bg: var(--surface);
+  --seg-on: var(--acc); --seg-on-fg: var(--on-acc); --seg-on-press: var(--acc); --seg-on-ring: inset 0 0 0 1px var(--on-acc);
 }
 
 /* Font: the type pair's families (a variable font's family carries the suffix Fontsource gives it,
@@ -253,7 +258,7 @@
 :root, [data-images] { --card-media: block; }
 [data-images="off"] { --card-media: none; }
 
-:root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --press: color-mix(in oklab, var(--text) 4%, var(--surface-2)); --press-soft: color-mix(in oklab, var(--text) 4%, var(--acc-soft)); }
+:root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --press: color-mix(in oklab, var(--text) 4%, var(--surface-2)); --acc-hover: color-mix(in oklab, var(--acc) 90%, var(--text)); --press-soft: color-mix(in oklab, var(--text) 4%, var(--acc-soft)); }
 
 /* Worked out from the inputs above, declared again on every element where an input can
    change: the body, title, reading and display sizes, and the reading column. */
@@ -345,10 +350,17 @@
 .app[data-bp~="phone"] { --cols: var(--cols-phone); --ctl-h: var(--target); --field-h: var(--target); --seg-h: var(--target); --row-h: var(--target); --dot-hit: var(--target); --link-pad: 13px; --ind: 8px; --ind-max: 16px; --av: 22px; }
 
 /* 6. Styles -------------------------------------------------------------- */
+[data-style]:where(:not([data-style="library"])) {
+  --r4: 999px; --dws: 0em;
+  --btn-bg: var(--surface); --acc-hover: var(--acc); --acc-lift: brightness(1.07); --off-edge: solid;
+  --chip-edge: var(--line-2); --chip-hover: var(--surface); --chip-w: 400;
+  --seg-bg: var(--surface-2); --seg-lift: var(--surface); --rail-seg-bg: var(--bg);
+  --seg-on: var(--acc-soft); --seg-on-fg: var(--text); --seg-on-press: var(--press-soft); --seg-on-ring: none;
+}
 [data-style="anthropic"] {
   --f-display: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif; --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; --dw: 400;
-  --dw-soft: 400; --dw-strong: 600; --dz: 1.08; --dls: 0em; --dws: 0em; --rz: 1.06; --cw: 0.41; --ls-label: 0.06em;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1.08; --dls: 0em; --rz: 1.06; --cw: 0.41; --ls-label: 0.06em;
   --r1: 2px; --r2: 8px; --r3: 24px; --tag-c: 0.07;
   &[data-theme="light"] {
     color-scheme: light; --bg: #f0eee6; --surface: #faf9f5; --surface-2: #e3dacc; --line: #cccbc8; --line-2: #b0aea5;
@@ -373,7 +385,7 @@
 [data-style="slash"] {
   --f-display: 'Playfair Display Variable', 'Playfair Display', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; --dw: 400;
-  --dw-soft: 500; --dw-strong: 700; --dz: 1.08; --dls: 0.01em; --dws: 0em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
+  --dw-soft: 500; --dw-strong: 700; --dz: 1.08; --dls: 0.01em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
   --r1: 2px; --r2: 10px; --r3: 10px; --tag-c: 0;
   &[data-theme="light"] {
     color-scheme: light; --bg: #f6f6f7; --surface: #ffffff; --surface-2: #ececef; --line: #e2e3e9; --line-2: #c7c9d1;
@@ -398,7 +410,7 @@
 [data-style="modal"] {
   --f-display: 'Space Grotesk Variable', 'Space Grotesk', system-ui, sans-serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'Fira Mono', ui-monospace, monospace; --dw: 500;
-  --dw-soft: 400; --dw-strong: 600; --dz: 1; --dls: -0.012em; --dws: 0em; --rz: 1; --cw: 0.48; --ls-label: 0.05em;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1; --dls: -0.012em; --rz: 1; --cw: 0.48; --ls-label: 0.05em;
   --r1: 4px; --r2: 12px; --r3: 8px; --tag-c: 0;
   &[data-theme="light"] {
     color-scheme: light; --bg: #f2f8f1; --surface: #fafdf9; --surface-2: #def0dd; --line: #cde0cb; --line-2: #aec4ab;
@@ -423,7 +435,7 @@
 [data-style="mymind"] {
   --f-display: 'Playfair Display Variable', 'Playfair Display', Georgia, serif; --f-ui: 'Nunito Variable', 'Nunito', system-ui, sans-serif;
   --f-read: 'DM Sans Variable', 'DM Sans', system-ui, sans-serif; --f-mono: 'DM Mono', ui-monospace, monospace; --dw: 400;
-  --dw-soft: 400; --dw-strong: 600; --dz: 1.1; --dls: -0.03em; --dws: 0em; --rz: 1.04; --cw: 0.42; --ls-label: 0.1em;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1.1; --dls: -0.03em; --rz: 1.04; --cw: 0.42; --ls-label: 0.1em;
   --r1: 6px; --r2: 12px; --r3: 16px; --tag-c: 0.13;
   &[data-theme="light"] {
     color-scheme: light; --bg: #f9fafc; --surface: #ffffff; --surface-2: #e5eaf2; --line: #e2e2e2; --line-2: #c9ced8;
@@ -450,7 +462,7 @@
 [data-style="monocle"] {
   --f-display: 'Spectral', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Spectral', Georgia, serif; --f-mono: 'IBM Plex Mono', ui-monospace, monospace; --dw: 400;
-  --dw-soft: 400; --dw-strong: 700; --dz: 1.04; --dls: -0.02em; --dws: 0em; --rz: 1.04; --cw: 0.44; --ls-label: 0.075em;
+  --dw-soft: 400; --dw-strong: 700; --dz: 1.04; --dls: -0.02em; --rz: 1.04; --cw: 0.44; --ls-label: 0.075em;
   --r1: 0px; --r2: 0px; --r3: 0px; --tag-c: 0;
   &[data-theme="light"] {
     color-scheme: light; --bg: #fdfcf3; --surface: #ffffff; --surface-2: #e7e7e7; --line: #d9d9d9; --line-2: #b3b3b3;
@@ -475,7 +487,7 @@
 [data-style="linear"] {
   --f-display: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'JetBrains Mono Variable', 'JetBrains Mono', ui-monospace, monospace; --dw: 500;
-  --dw-soft: 400; --dw-strong: 600; --dz: 1; --dls: -0.012em; --dws: 0em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1; --dls: -0.012em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
   --r1: 4px; --r2: 6px; --r3: 12px; --tag-c: 0.12;
   &[data-theme="light"] {
     color-scheme: light; --bg: #f7f8f8; --surface: #ffffff; --surface-2: #eef0f2; --line: #e1e3e6; --line-2: #c8cbd0;
@@ -502,7 +514,7 @@
 [data-style="switch-lit"] {
   --f-display: 'Fraunces Variable', 'Fraunces', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'Space Mono', ui-monospace, monospace; --dw: 300;
-  --dw-soft: 400; --dw-strong: 600; --dz: 1.06; --dls: 0.004em; --dws: 0em; --rz: 1; --cw: 0.48; --ls-label: 0.067em;
+  --dw-soft: 400; --dw-strong: 600; --dz: 1.06; --dls: 0.004em; --rz: 1; --cw: 0.48; --ls-label: 0.067em;
   --r1: 3px; --r2: 6px; --r3: 12px; --tag-c: 0.14;
   &[data-theme="light"] {
     color-scheme: light; --bg: #f9f9f7; --surface: #f9f9f7; --surface-2: #edf0e9; --line: #000000; --line-2: #000000;
@@ -527,7 +539,7 @@
 [data-style="cursor"] {
   --f-display: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'EB Garamond Variable', 'EB Garamond', Georgia, serif; --f-mono: 'IBM Plex Mono', ui-monospace, monospace; --dw: 400;
-  --dw-soft: 400; --dw-strong: 500; --dz: 1; --dls: -0.02em; --dws: 0em; --rz: 1.12; --cw: 0.38; --ls-label: 0.05em;
+  --dw-soft: 400; --dw-strong: 500; --dz: 1; --dls: -0.02em; --rz: 1.12; --cw: 0.38; --ls-label: 0.05em;
   --r1: 2px; --r2: 4px; --r3: 4px; --tag-c: 0.11;
   &[data-theme="light"] {
     color-scheme: light; --bg: #f7f7f4; --surface: #f2f1ed; --surface-2: #e6e5e0; --line: #cdcdc9; --line-2: #a1a19f;
@@ -555,7 +567,7 @@
 [data-style="steep"] {
   --f-display: 'Newsreader Variable', 'Newsreader', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'Roboto Mono Variable', 'Roboto Mono', ui-monospace, monospace; --dw: 400;
-  --dw-soft: 400; --dw-strong: 500; --dz: 1.14; --dls: -0.015em; --dws: 0em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
+  --dw-soft: 400; --dw-strong: 500; --dz: 1.14; --dls: -0.015em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
   --r1: 6px; --r2: 14px; --r3: 24px; --tag-c: 0;
   &[data-theme="light"] {
     color-scheme: light; --bg: #ffffff; --surface: #f2f2f3; --surface-2: #e8e8ea; --line: #ececec; --line-2: #d6d7da;
@@ -583,7 +595,7 @@
 [data-style="cal-com"] {
   --f-display: 'Cal Sans', system-ui, sans-serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;
   --f-read: 'Inter Variable', 'Inter', system-ui, sans-serif; --f-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, monospace; --dw: 400;
-  --dw-soft: 400; --dw-strong: 400; --dz: 1; --dls: 0.01em; --dws: 0em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
+  --dw-soft: 400; --dw-strong: 400; --dz: 1; --dls: 0.01em; --rz: 1; --cw: 0.48; --ls-label: 0.04em;
   --r1: 4px; --r2: 8px; --r3: 12px; --tag-c: 0;
   &[data-theme="light"] {
     color-scheme: light; --bg: #f4f4f4; --surface: #ffffff; --surface-2: #e5e7eb; --line: #e5e7eb; --line-2: #d1d5db;

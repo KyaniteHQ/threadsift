@@ -59,7 +59,7 @@ function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void 
     <div className="st-foot">
       <button
         type="button"
-        className="st-reset"
+        className="btn st-reset"
         data-focus-key="reset"
         aria-describedby={noteId}
         onClick={reset}

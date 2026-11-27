@@ -241,7 +241,7 @@
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Item titles in rows and cards. An unread title takes --dw-strong, 700 in the default Plex pair; Instrument Serif and the Cal.com Style have one display weight, so there the unread dot alone marks it, in the Item list, in Grid and on a Topic page."
+        "purpose": "Item titles in rows and cards. An unread title takes --dw-strong, 700 in the default Library pair; Instrument Serif and the Cal.com Style have one display weight, so there the unread dot alone marks it, in the Item list, in Grid and on a Topic page."
       },
       "body": {
         "displayName": "Body",
@@ -329,7 +329,7 @@
       "refersTo": "button",
       "description": "The neutral button: no fill and a hairline outline in the control line colour, the sunk fill on hover.",
       "html": "<button class=\"ds-btn\">Open original</button>",
-      "css": ".ds-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: var(--hw) solid var(--btn-edge); border-radius: var(--r2); background: var(--btn-bg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; white-space: nowrap; cursor: pointer; } .ds-btn:hover { background: var(--btn-hover); } .ds-btn:disabled { border-color: var(--line-2); border-style: dashed; background: transparent; color: var(--muted); cursor: default; } .ds-btn:active { background: var(--press); } .ds-btn:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
+      "css": ".ds-btn { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: var(--hw) solid var(--ctl-line); border-radius: var(--r2); background: var(--btn-bg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; white-space: nowrap; cursor: pointer; } .ds-btn:hover { background: var(--surface-2); } .ds-btn:disabled { border-color: var(--line-2); border-style: dashed; background: transparent; color: var(--muted); cursor: default; } .ds-btn:active { background: var(--press); } .ds-btn:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
     },
     {
       "name": "Accent button",
@@ -337,7 +337,7 @@
       "refersTo": "button-accent",
       "description": "The save button beside the paste box and the main action in a paste card.",
       "html": "<button class=\"ds-btn-acc\">Save</button>",
-      "css": ".ds-btn-acc { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: var(--hw) solid var(--acc); border-radius: var(--r2); background: var(--acc); color: var(--on-acc); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 600; white-space: nowrap; cursor: pointer; } .ds-btn-acc:hover { border-color: color-mix(in oklab, var(--acc) 90%, var(--text)); background: color-mix(in oklab, var(--acc) 90%, var(--text)); } .ds-btn-acc:active { box-shadow: inset 0 0 0 1px var(--on-acc); } .ds-btn-acc:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
+      "css": ".ds-btn-acc { box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: var(--hw) solid var(--acc); border-radius: var(--r2); background: var(--acc); color: var(--on-acc); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 600; white-space: nowrap; cursor: pointer; } .ds-btn-acc:hover { border-color: var(--acc-hover); background: var(--acc-hover); filter: var(--acc-lift); } .ds-btn-acc:active { box-shadow: inset 0 0 0 1px var(--on-acc); } .ds-btn-acc:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
     },
     {
       "name": "Field",
@@ -353,7 +353,7 @@
       "refersTo": "filter-chip",
       "description": "A Grid filter bar choice with its count, drawn as a neutral button; pressed fills with the accent. In forced colours, selection keeps its system colours while pressed.",
       "html": "<button class=\"ds-chip\" aria-pressed=\"false\">Reddit <span class=\"ds-n\">42</span></button> <button class=\"ds-chip\" aria-pressed=\"true\">X <span class=\"ds-n\">17</span></button>",
-      "css": ".ds-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: var(--hw) solid var(--btn-edge); border-radius: var(--r2); background: var(--btn-bg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; cursor: pointer; } .ds-chip:hover { background: var(--btn-hover); } .ds-chip:active { background: var(--press); } .ds-chip[aria-pressed=\"true\"] { border-color: var(--acc); background: var(--acc); color: var(--on-acc); font-weight: 600; } .ds-chip[aria-pressed=\"true\"]:active { box-shadow: inset 0 0 0 1px var(--on-acc); } .ds-n { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; } .ds-chip[aria-pressed=\"true\"] .ds-n { color: var(--on-acc); } .ds-chip:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
+      "css": ".ds-chip { box-sizing: border-box; display: inline-flex; align-items: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: var(--hw) solid var(--chip-edge); border-radius: var(--r2); background: var(--btn-bg); color: var(--text); font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 500; cursor: pointer; } .ds-chip:hover { background: var(--chip-hover); } .ds-chip:active { background: var(--press); } .ds-chip[aria-pressed=\"true\"] { border-color: var(--acc); background: var(--acc); color: var(--on-acc); font-weight: 600; } .ds-chip[aria-pressed=\"true\"]:active { box-shadow: inset 0 0 0 1px var(--on-acc); } .ds-n { color: var(--muted); font-weight: 400; font-variant-numeric: tabular-nums; } .ds-chip[aria-pressed=\"true\"] .ds-n { color: var(--on-acc); } .ds-chip:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }"
     },
     {
       "name": "Segmented control",

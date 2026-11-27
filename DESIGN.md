@@ -72,6 +72,7 @@ rounded:
   r1: "2px"
   r2: "2px"
   r3: "2px"
+  r4: "2px"
 spacing:
   s1: "4px"
   s2: "8px"
@@ -182,7 +183,7 @@ The palette is near-white surfaces with almost no colour, ink-dark text, and a s
 
 ### Neutral
 - **Page** (`bg`), **Surface** (`surface`) and **Sunk surface** (`surface-2`): the app background; controls, cards and boxes; and hover fills, the List sidebar, code and tag chips.
-- **Press fill** (`press`): the fill of a control while it is pressed, one step past the hover fill. Outside forced colours, a pressed selected filter row, filter segment or List row mixes the same step into the accent tint.
+- **Press fill** (`press`): the fill of a control while it is pressed, one step past the hover fill. Outside forced colours, a pressed selected filter row or List row mixes the same step into the accent tint.
 - **Hairline** (`line`) and **Strong hairline** (`line-2`): row dividers and container edges; the heavier lines (comment indent guides, segmented control frames, the settings panel and the paste card).
 - **Control line** (`ctl-line`): the edge of buttons, fields and selects, and the ring of an empty unread dot.
 - **Ink** (`text`) and **Muted ink** (`muted`): primary text; metadata, counts, labels, hints and placeholders.
@@ -243,12 +244,12 @@ The paste card floats under the paste box in List's sidebar from `--bp-medium` (
 
 ## Shapes
 
-Corners follow size: `r1` for small parts and marks (tag dots, the unread dot, swatches, the sheet's side buttons), `r2` for controls and `r3` for large containers. The Style sets all three, 2px in Library, so no control, mark or swatch is a pill; the Chips Tag style keeps its pill until the Tag is built. Edges are hairlines of the Style's weight (`--hw`, 1px in Library), and dashed hairlines mark placeholders and items still being processed. Pictures crop to their top-left corner, where a screenshot's first line starts.
+Corners follow size: `r1` for small parts, `r4` for marks (tag dots, the unread dot, swatches, the sheet's side buttons, comment avatars), `r2` for controls and `r3` for large containers. The Style sets all four, 2px in Library, so no control, mark or swatch is a pill; the Chips Tag style keeps its pill until the Tag is built. Edges are hairlines of the Style's weight (`--hw`, 1px in Library), and dashed hairlines mark placeholders and items still being processed. Pictures crop to their top-left corner, where a screenshot's first line starts.
 
 ## Components
 
 ### Buttons
-A neutral button has no fill and a hairline outline in the control line colour, and takes the sunk fill on hover; the Style's button tokens (`--btn-bg`, `--btn-edge`, `--btn-hover`) hold those three. The accent button (a full accent fill with on-accent text) is for the save button beside the paste box and the main action in a paste card; on hover it mixes 10% of the ink into its fill. A disabled or busy button draws its outline dashed in the strong hairline colour, with muted text. Fills and edges change over `--dur-fade`, and at once under reduced motion. Focus draws a 2px accent-ink ring 2px outside the button. A press fills a neutral button with the press fill; an accent-filled button, a checked segment and a pressed chip keep their fill and show a 1px inner ring in the text colour of the fill. The danger button and the Read state dot keep the hover fill and show a 1px inner ring, because their marks lose contrast on the press fill. While a List row, Topic page row or open Grid card is pressed, its Read state mark takes the muted colour, or the accent ink when unread, for the same reason. A plain Grid card keeps its mark colours. In forced colours, selected filters keep their system colours and open Grid cards keep their system border while pressed. Disabled buttons show no press. The names ending in pressed in the front matter mean the toggled state, and button-press and list-row-press mean the moment of the press.
+A neutral button has no fill and a hairline outline in the control line colour, and takes the sunk fill on hover; `--btn-bg` holds the fill. The accent button (a full accent fill with on-accent text) is for the save button beside the paste box and the main action in a paste card; on hover it mixes 10% of the ink into its fill (`--acc-hover`). A disabled or busy button draws its outline dashed (`--off-edge`) in the strong hairline colour, with muted text. Fills and edges change over `--dur-fade`, and at once under reduced motion. Focus draws a 2px accent-ink ring 2px outside the button. A press fills a neutral button with the press fill; an accent-filled button, a checked segment and a pressed chip keep their fill and show a 1px inner ring in the text colour of the fill. The danger button and the Read state dot keep the hover fill and show a 1px inner ring, because their marks lose contrast on the press fill. While a List row, Topic page row or open Grid card is pressed, its Read state mark takes the muted colour, or the accent ink when unread, for the same reason. A plain Grid card keeps its mark colours. In forced colours, selected filters keep their system colours and open Grid cards keep their system border while pressed. Disabled buttons show no press. The names ending in pressed in the front matter mean the toggled state, and button-press and list-row-press mean the moment of the press.
 
 ### Chips
 - **Filter chips:** Grid's filter bar draws each choice as a neutral button with its count; a pressed chip takes the full accent fill with on-accent text.
@@ -346,10 +347,12 @@ A setting still changes what it names. With Card images Off, a List row and a Gr
 | Token | What it sets | Allowed values |
 |---|---|---|
 | `--nh`, `--nc` | hue and chroma of the neutrals in Light and Dark | chroma 0 to 0.008 |
-| `--r1`, `--r2`, `--r3` | corners of small parts, controls and containers | 0 to 4px |
+| `--r1`, `--r2`, `--r3`, `--r4` | corners of small parts, controls, containers and marks | 0 to 4px |
 | `--hw` | the weight of row dividers, card edges and rules | 1px or 2px |
 | `--shadow`, `--shadow-lg` | a shadow, or none | the brand's soft shadow, or none with a 1px strong-hairline edge on floating layers |
-| `--btn-bg`, `--btn-edge`, `--btn-hover` | how a neutral button is filled | outline, sunk fill or surface fill |
+| `--btn-bg`, `--chip-edge`, `--chip-hover`, `--chip-w`, `--off-edge` | how a neutral button and a filter chip are drawn | outline, sunk fill or surface fill; a dashed or solid disabled outline |
+| `--acc-hover`, `--acc-lift` | how the accent button answers hover | its fill mixed toward the ink, or a brightness lift; the label keeps 4.5:1 |
+| `--seg-bg`, `--seg-lift`, `--rail-seg-bg`, `--seg-on`, `--seg-on-fg`, `--seg-on-press`, `--seg-on-ring` | the ground, hover fill and selected look of segmented controls | the full accent fill with on-accent text, or the accent tint |
 | `--tag-dot`, `--tag-mark`, `--tag-gap`, `--tag-pad`, `--tag-pad-y`, `--tag-box`, `--tag-bg`, `--tag-fg`, `--tag-c` | how a Tag is drawn, inside the brand's one Tag | no pill; the Tag's text keeps 4.5:1 on its ground in every Theme |
 
 A Style also writes a Font and an Accent into the settings. These are setting values, not tokens. Every other token belongs to the brand or to a Theme, and the lightness of every neutral and of the accent belongs to the Theme. A Style can still set the colours of a Tag's text and ground, so the contrast check runs for every combination of Style, Theme, Accent and Font.
@@ -360,6 +363,7 @@ These rules describe the app as built and stay until Quarto is built. That build
 
 - Shapes, and Components, Chips: the Chips Tag style as a pill, and 2px corners on Grid cards. Quarto draws no pill and gives cards 0 corners, because they are cells of the grid.
 - Colors, Neutral, and Components, Chips: three Tag styles, with a coloured dot before the name by default. Quarto draws one Tag: a square swatch before the name.
+- Shapes, Components and Colors: the ten Styles other than Library keep pill marks, filled neutral buttons and filter chips, solid disabled outlines, the accent tint on a pressed List filter segment, an unchanged accent button hover, no fades, and the browser's own text selection and native control colours. The Library values reach only Library.
 - Typography: the Font setting's six pairs. Under the Brand Brief the Font setting offers four.
 - Typography, Title: the Cal.com Style, one of the Styles the app has today. Under the Brand Brief the app has three Styles: Library and the two the product brief names.
 - Layout: in Grid an Item opens as a full page or as a sheet, as the owner chooses. Under the Brand Brief, Grid opens a sheet from `--bp-medium` (1080px) up, with a button that expands it to a full page, and a full page below that width.

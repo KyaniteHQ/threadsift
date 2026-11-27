@@ -62,7 +62,9 @@ The container sets them in `webRoutes` and compresses with Hono's `compress` mid
 
 All twelve settings are one JSON object in `localStorage` under `STORAGE_KEY`. `readStored` checks each key on its own, so one bad value falls back alone.
 
-`html` carries the same `data-theme`, `data-style` and `data-layout` as the app root (the rows marked `onPage`), so the page canvas resolves the same `--bg` in every Layout and Theme. A blocking classic script (no `defer`, `async` or `type=module`) sets those attributes from the stored object before the first paint, so a stored Dark never draws a Light frame and a stored Grid never draws list greys. The build emits it as the hashed file `/assets/theme-script-<hash>.js`, linked from `index.html`. The Content-Security-Policy then needs no inline-script hash and no `'unsafe-inline'` for scripts. The cost is one request before the first paint, which the immutable cache answers on every later load.
+`html` carries the same `data-theme`, `data-style` and `data-layout` as the app root (the rows marked `onPage`), so the page canvas resolves the same `--bg` in every Layout and Theme. A blocking classic script (no `defer`, `async` or `type=module`) sets those attributes from the stored object before the first paint, so a stored Dark never draws a Light frame. The build emits it as the hashed file `/assets/theme-script-<hash>.js`, linked from `index.html`. The Content-Security-Policy then needs no inline-script hash and no `'unsafe-inline'` for scripts. The cost is one request before the first paint, which the immutable cache answers on every later load.
+
+The browser frame colours are copies of the Library Style's page colour, because a meta tag and the manifest cannot read a custom property. `index.html`'s two `theme-color` tags hold the Light and Dark `--bg` as hex (`#f4f8f7`, `#0e1111`), and the manifest's `theme_color` and `background_color` hold the Light one. A change to the Library neutrals (`--nh`, `--nc`) or to the Light or Dark `--bg` updates these four values in the same change.
 
 ### Settings panel
 
