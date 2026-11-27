@@ -249,7 +249,7 @@ Rules for the Digest:
   - the header: Source, place, author, posted and saved times, title, and for a Reddit link post the address it points at as a link that opens in a new tab, shortened by the width of the column and never by cutting the address, with no "no post text" line beside it. An X Item with an author shows the author's handle and no place, so the handle appears once;
   - the Topic, Tags, Summary and Key points;
   - for a GitHub repository, its block of description, stars, language, license, last push and topics;
-  - the post text (the README for a repository);
+  - the post text, under a heading that names what it holds: the README for a repository, and the comment's own text for a saved Reddit comment;
   - the comments, as the Comment filter describes;
   - the Related Items, with no heading when there are none, each with its Source, title and reason and opening that Item;
   - the Highlights list;
