@@ -63,6 +63,7 @@ export const CARD_TITLES = {
   reading: "Reading the link…",
   added: "Added",
   refreshed: "Already saved and refreshed",
+  unchanged: "Already saved",
 } as const;
 
 const FAILURE_TITLES: Readonly<Record<FailureReason, string>> = {
