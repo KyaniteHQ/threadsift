@@ -93,7 +93,9 @@ function runUnits(
   row: Readonly<MergeRow> | undefined,
   progress: Readonly<Progress>,
 ): Promise<"done" | "accepting" | "unknown"> {
-  if (row?.state !== "accepting") return Promise.resolve(progress.ran ? "done" : "unknown");
+  if (row === undefined) return Promise.resolve("done");
+
+  if (row.state !== "accepting") return Promise.resolve(progress.ran ? "done" : "unknown");
 
   if (progress.units === UNITS_PER_RUN) return Promise.resolve("accepting");
 

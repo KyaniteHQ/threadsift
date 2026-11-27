@@ -67,7 +67,7 @@ Reject is final. There is no undo, and Reject changes no Highlight and no Topic 
 | 409 `not-current` | Lost Highlight, disagreement, overview | The row's subject changed since the row was made, or a concurrent Accept removed the row between the read and the guarded batch. A concurrent Accept that finished before the read gives 404. |
 | 409 `no-provider` | Overview | No Provider is saved. The row stays open. |
 | 409 `merge-busy` | Merge | Another row of either merge kind is `accepting`. |
-| 200 | All except a long merge | The Accept committed. A merge that finished inside the request answers `{ state: "done" }`. |
+| 200 | All except a long merge | The Accept committed. A merge that finished inside the request, by the request's own units or by the `merges` stage, answers `{ state: "done" }`. |
 | 202 `{ state: "accepting" }` | Merge | Units remain. |
 
 A changed subject leaves its row stored but hidden. For most kinds the weekly stage deletes the row, and a disagreement row whose Items sit in two Topics is kept. Every 409 body is `{ error }` with a name from `ACCEPT_REFUSALS`, the one list that the web app reads.
