@@ -62,7 +62,7 @@ const UNFILTERED_LEAD = "These comments aren’t filtered by a digest.";
 export const UNFILTERED_NOTES = {
   pending: `${UNFILTERED_LEAD} One is being made now. Only kept comments will show when it’s ready.`,
   failed: `${UNFILTERED_LEAD} The last digest run failed.`,
-  "no-provider": `${UNFILTERED_LEAD} No provider is saved, so no digest can be made.`,
+  "no-provider": `${UNFILTERED_LEAD} Save a provider so Threadsift can make one.`,
   "not-run": `${UNFILTERED_LEAD} A provider is saved, but this item has no digest yet.`,
   older: `${UNFILTERED_LEAD} This item’s digest was made from earlier text and doesn’t cover them.`,
 } as const satisfies Record<UnfilteredCause, string>;
