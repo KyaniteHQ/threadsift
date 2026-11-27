@@ -35,7 +35,11 @@ async function refusedOutcome<Context, Result, Basis>(
 export function modelAttempt<Context, Result, Basis>(
   declaration: Readonly<AiKindDeclaration<Context, Result, Basis>>,
 ) {
-  return async (ports: JobPorts, job: Readonly<ClaimedJob>, ai: ModelAi): Promise<JobOutcome> => {
+  return async (
+    ports: JobPorts,
+    job: Readonly<ClaimedJob>,
+    ai: ModelAi & Readonly<{ revision: number }>,
+  ): Promise<JobOutcome> => {
     const prepared = await declaration.prepare(ports, job);
 
     if (prepared.kind === "settled") return prepared.outcome;
@@ -52,12 +56,12 @@ export function modelAttempt<Context, Result, Basis>(
         attempts: job.attempts + 1,
         maxOutputTokens: prepared.maxOutputTokens,
       },
-      job,
+      { job, revision: ai.revision },
     );
 
     if (result.kind === "claim-lost") return lostClaim(ports.db);
 
-    if (result.kind === "bot-chosen") {
+    if (result.kind === "run-again") {
       return { deferredUntil: Date.now(), wait: null, countsAttempt: false, writes: [] };
     }
 
