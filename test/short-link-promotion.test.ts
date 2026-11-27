@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { ItemReadResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
 import type { Existing } from "../src/features/item/core/item-rows.ts";
 import { Instance } from "./instance.ts";
@@ -26,6 +27,15 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
 
   after(() => instance.close());
 
+  const foundByUrl = async (url: string) =>
+    (
+      await instance.read(
+        "GET",
+        `/api/items?url=${encodeURIComponent(url)}`,
+        ItemReadResponseSchema,
+      )
+    ).items.map(({ id }) => id);
+
   const failedAt = async (short: string) => {
     const saved = await failedUnder(instance, short);
 
@@ -34,7 +44,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     return saved.item.id;
   };
 
-  it("gives the failed Item the identity, kind and Source of the address the short link resolved to, writes the alias, and makes no second Item", async () => {
+  it("gives the failed Item the identity, kind and Source of the address the short link resolved to, writes the alias, makes no second Item, and still finds it by the short link", async () => {
     const short = "https://t.co/promoteme";
     const target = xLink(901);
     const failed = await failedAt(short);
@@ -51,9 +61,10 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     assert.equal(item.source, "x");
     assert.equal(item.kind, parseLink(target).kind);
     assert.deepEqual(aliasesAt(instance, short), [aliasRow(short, target, failed)]);
+    assert.deepEqual(await foundByUrl(short), [failed]);
   });
 
-  it("reaches the aliased Item when the short link is pasted again", async () => {
+  it("reaches the aliased Item when the short link is pasted again or looked up with `url`", async () => {
     const short = "https://t.co/pastedagain";
     const aliased = await firstResolved(instance, short, xLink(907));
 
@@ -70,6 +81,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     assert.equal(status, 200);
     assert.equal(saved.item.id, aliased.item.id);
     assert.equal(await instance.itemTotal(), total);
+    assert.deepEqual(await foundByUrl(short), [aliased.item.id]);
   });
 
   it("keeps a failed Item that holds an earlier successful fetch under the short link, and saves the resolved address as a new Item", async () => {
@@ -91,7 +103,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
     );
   });
 
-  it("leaves the failed Item for the owner to delete when another Item already holds the resolved identity, and records the alias on that Item", async () => {
+  it("leaves the failed Item for the owner to delete when another Item already holds the resolved identity, records the alias on that Item, and finds that Item by the short link", async () => {
     const short = "https://t.co/rivalheld";
     const target = xLink(902);
     const holder = (await pasteVia(instance, target)).saved.item.id;
@@ -107,6 +119,7 @@ describe("a short link is kept as an alias of the Item it made or reached, and a
       aliasesAt(instance, short).map(({ item_id: id }) => id),
       [holder],
     );
+    assert.deepEqual(await foundByUrl(short), [holder]);
   });
 
   it("gives a second short link to the same target its own alias on the same Item, and keeps the first address of an alias", async () => {
