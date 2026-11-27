@@ -4,7 +4,7 @@ import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { shownUrl } from "../../src/core/contract/link-place.ts";
 import { SUMMARY_LABEL } from "../../src/core/contract/reader-text.ts";
-import { bylineHandle, keptBarStyle, stripParts } from "./ItemRowLines.tsx";
+import { keptBarStyle, readerStrip } from "./kept-strip.ts";
 import { keyed } from "./keyed.ts";
 import { DIGEST_PENDING, READER_LOADING, postedLabel } from "./reader-text.ts";
 import { HeadNote, Note } from "./ReaderNote.tsx";
@@ -17,23 +17,19 @@ function ReaderMeta({
   postedAt,
   now,
 }: Readonly<{ item: Item; postedAt: number | null; now: number }>) {
-  const handle = bylineHandle(item);
+  const { parts, author } = readerStrip(item);
 
   return (
-    <p className="rd-meta">
-      <i
-        className={item.readState === "unread" ? "rd-mark unread" : "rd-mark"}
-        aria-hidden="true"
-      />
-      {keyed(stripParts(item)).map(({ key, text }) => (
+    <p className={item.readState === "unread" ? "rd-meta unread" : "rd-meta"}>
+      {keyed(parts).map(({ key, text }) => (
         <span key={key} className="rd-part rd-st">
           {text}
         </span>
       ))}
-      {handle === "" ? null : (
-        <bdi className="rd-part" dir="auto">
-          {handle}
-        </bdi>
+      {author === "" ? null : (
+        <span className="rd-part">
+          <bdi dir="auto">{author}</bdi>
+        </span>
       )}
       {postedAt === null ? null : <span className="rd-part">{postedLabel(postedAt, now)}</span>}
       <span className="rd-part">{savedLabel(item.savedAt, now)}</span>

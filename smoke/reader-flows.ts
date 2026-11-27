@@ -5,7 +5,13 @@ import { itemDetail, savedItem, savedTopicItem } from "./saved-item.ts";
 
 const THREAD_ID = "3000000000000000001";
 
-const THREAD_LINK = `https://x.com/Someone/status/${THREAD_ID}`;
+const THREAD_LINK = `https://x.com/oldname/status/${THREAD_ID}`;
+
+const STATUS_ID = "3000000000000000002";
+
+const STATUS_LINK = `https://x.com/i/status/${STATUS_ID}`;
+
+const STATUS_TITLE = "A status link that names no handle";
 
 const THREAD_TITLE = "Online backups for a busy database file";
 
@@ -34,6 +40,28 @@ const THREAD = {
     reply("3000000000000000013", THREAD_ID, "carol", "lol"),
   ],
 };
+
+const STATUS_POST = {
+  post: {
+    id: STATUS_ID,
+    author: "someone",
+    text: "Does the online backup command lock the database while it copies?",
+    postedAt: "2026-03-05T09:00:00Z",
+    replies: 0,
+  },
+  replies: [],
+};
+
+async function expectStoredAuthor(page: Page, title: string): Promise<void> {
+  await page.goto("/");
+  await page.locator("article.it").filter({ hasText: title }).getByRole("link").first().click();
+
+  const meta = page.locator(".reader .rd-meta");
+
+  await expect(meta.locator(".rd-part", { hasText: /^@someone$/u })).toHaveCount(1);
+  await expect(meta).not.toContainText("oldname");
+  await expect(meta).not.toContainText("x.com");
+}
 
 interface PastedCase {
   readonly topic: {
@@ -90,10 +118,23 @@ export async function readXThread(page: Page): Promise<void> {
 
   const reader = page.locator(".reader");
 
-  await expect(reader.locator(".rd-meta .rd-part", { hasText: /@someone/iu })).toHaveCount(1);
   await expect(reader).toContainText(FACT);
   await expect(reader).toContainText("Likes: 2");
   await expect(reader.locator(".cm-author", { hasText: "@bob" })).toHaveCount(1);
   await expect(reader.locator(".op")).toHaveText(OP_LABEL);
   await expect(reader).not.toContainText("Arctic Shift");
+  await expectStoredAuthor(page, THREAD_TITLE);
+
+  await savedItem(page.request, {
+    url: STATUS_LINK,
+    content: JSON.stringify(STATUS_POST),
+    digest: {
+      title: STATUS_TITLE,
+      topic: "Databases",
+      tags: ["sqlite"],
+      summary: "The backup command copies pages while the app writes.",
+      keyPoints: ["Writers wait only for the page being copied"],
+    },
+  });
+  await expectStoredAuthor(page, STATUS_TITLE);
 }
