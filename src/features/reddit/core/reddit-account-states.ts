@@ -136,6 +136,7 @@ export async function connectAccount(
 export async function confirmAccount(
   db: Database,
   session: AccountSession,
+  startedAt: number,
   now: number,
 ): Promise<void> {
   await db
@@ -147,7 +148,12 @@ export async function confirmAccount(
       refusedThreads: NO_THREADS,
       refusalsClearedAt: now,
     })
-    .where(ofSession(session));
+    .where(
+      and(
+        ofSession(session),
+        or(eq(redditAccount.state, "connected"), lte(redditAccount.stateAt, startedAt)),
+      ),
+    );
 }
 
 function expiredSession(db: Database, session: AccountSession): SQL {

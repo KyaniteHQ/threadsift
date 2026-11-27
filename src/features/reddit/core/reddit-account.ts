@@ -174,9 +174,11 @@ export async function verifyRedditAccount(
 
   if (session === null) return "unreadable";
 
+  const startedAt = Date.now();
+
   const { verdict, answer } = await checkSession(session, signal);
 
-  await settledVerdict(ports, row, verdict, answer);
+  await settledVerdict(ports, row, startedAt, verdict, answer);
 
   return verdict;
 }
@@ -184,6 +186,7 @@ export async function verifyRedditAccount(
 async function settledVerdict(
   ports: Readonly<ChangePorts>,
   session: AccountSession,
+  startedAt: number,
   verdict: SessionVerdict,
   answer: Readonly<RedditAnswer> | null,
 ): Promise<void> {
@@ -195,5 +198,5 @@ async function settledVerdict(
 
   if (verdict === "logged-out") await expireAccount(ports, session, now);
 
-  if (verdict === "ok") await confirmAccount(ports.db, session, now);
+  if (verdict === "ok") await confirmAccount(ports.db, session, startedAt, now);
 }
