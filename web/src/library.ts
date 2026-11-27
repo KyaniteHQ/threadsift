@@ -40,10 +40,10 @@ interface Upkeep {
   readonly latest: RefObject<ListState>;
 }
 
-function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
+function useOnRead(setList: SetList, upkeep: Readonly<Upkeep>) {
   const { reads, unfiltered, latest } = upkeep;
 
-  const onRead = useCallback(
+  return useCallback(
     (read: Readonly<Item>) => {
       const was = latest.current.known.find((item) => item.id === read.id);
 
@@ -55,6 +55,11 @@ function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonl
     },
     [latest, reads, setList, unfiltered],
   );
+}
+
+function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
+  const { reads } = upkeep;
+  const onRead = useOnRead(setList, upkeep);
 
   const onGone = useCallback(
     (id: number) => {
@@ -91,13 +96,14 @@ function useSave(reads: Reads, setList: SetList) {
   );
 }
 
-function useSetRead(reads: Reads) {
+function useSetRead(setList: SetList, upkeep: Readonly<Upkeep>) {
+  const onRead = useOnRead(setList, upkeep);
+
   return useCallback(
     async (id: number, readState: ReadState): Promise<void> => {
-      await putReadState(id, readState);
-      reads.reload();
+      onRead(await putReadState(id, readState));
     },
-    [reads],
+    [onRead],
   );
 }
 
@@ -131,7 +137,7 @@ export function useLibrary() {
   const unfiltered = useLatest(!isFiltered(filters));
   const upkeep = { reads, unfiltered, latest };
   const save = useSave(reads, setList);
-  const setRead = useSetRead(reads);
+  const setRead = useSetRead(setList, upkeep);
   const remove = useRemove(setList, upkeep);
   usePolling(list, setList, upkeep);
 
