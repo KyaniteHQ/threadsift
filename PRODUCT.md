@@ -42,7 +42,7 @@ Karakeep, the closest open-source tool, has no comment-thread model, so it would
 
 ### Interface voice
 
-These rules hold for every text a person reads in the web app, the browser extension and the Threadsift bot: labels, buttons, messages, empty states, errors and notes. The voice is plain, exact and quiet, like a catalogue note. The copy script puts this section into its prompt, so the section has to read on its own.
+These rules hold for every text a person reads in the web app, the browser extension, the Threadsift bot and the notes of the Vault mirror: labels, buttons, messages, empty states, errors and notes. The voice is plain, exact and quiet, like a catalogue note. The copy script puts this section into its prompt, so the section has to read on its own.
 
 1. **Use the glossary's word in ordinary sentence case, and use the same word every time.** Name each concept with its `GLOSSARY.md` word (`item`, `topic`, `tag`, `digest`, `summary`, `highlight`, `note`, `reader`, `instance`, `provider`, `paste`, `import`), lowercase in the middle of a sentence. Never use a word from a term's Avoid line, and do not surface internal-only terms (such as "context stub" or "short-link alias") when plain words explain the state directly.
    - Bad: "Search saved posts"
@@ -62,7 +62,7 @@ These rules hold for every text a person reads in the web app, the browser exten
 6. **Say each fact once, in the fewest words that keep it.** Do not repeat the heading, the label or the button in the text beside it. Write one idea per sentence.
    - Bad: "Reset look puts the look settings back to their defaults" beside the Reset look button
    - Good: "Layout, Open items as and Theme stay as they are."
-7. **Threadsift speaks of itself in the third person, and uses "you" only for instructions or to clarify ownership.** Write "Threadsift" only when naming the actor adds clarity, and never write "we" or "I". Use "you" or "your" when giving an instruction or distinguishing the person's own input or account (such as a password or an unsaved note), never as filler on ordinary labels.
+7. **Threadsift speaks of itself in the third person, and uses "you" only for instructions or to clarify ownership.** Write "Threadsift" only when naming the actor adds clarity, and never write "we" or "I". The Threadsift bot is the one exception: it speaks in chat as itself, so it may say "I" there. Use "you" or "your" when giving an instruction or distinguishing the person's own input or account (such as a password or an unsaved note), never as filler on ordinary labels.
    - Bad: "We couldn’t reach your website."
    - Good: "Couldn’t reach the website."
 8. **Use ordinary sentence case, and punctuation that marks the kind of text.** Capitalize only the first word, proper nouns (such as Threadsift, Reddit, X, GitHub, Grok Bot and named styles, themes or accents like Library or Sepia) and exact UI labels when pointing to a screen or control (such as Settings, Open items as or Try again). A full sentence ends with a period, or a question mark when asking; a label, button, heading, title, count or short status fragment does not. Use ’ for an apostrophe, … after an action that is still running, and · only between the parts of one inline metadata line.
