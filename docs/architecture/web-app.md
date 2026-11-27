@@ -190,13 +190,13 @@ On the page Reader in Chromium, focus that reaches a control of the sticky Reade
 
 ### Post text renderer
 
-The renderer is `react-markdown` with `GFM_PLUGINS`, loaded as its own chunk (`PostText`) next to a shared chunk that holds the Markdown parser both the renderer and the text projection use. `postTextModule()` starts the import the first time a Reader renders and caches it, so the sign-in screen and an empty library never download it.
+The renderer is `react-markdown` with `GFM_PLUGINS`, loaded as its own chunk (`PostText`) next to a shared chunk that holds the Markdown parser both the renderer and the text projection use. `postTextReady()` starts the import the first time a Reader renders and caches whether it loaded, so the sign-in screen and an empty library never download it.
 
 - It builds React elements and drops raw HTML by default, so the app has no `dangerouslySetInnerHTML` and no sanitizer of its own.
 - `urlTransform` keeps only `http`, `https`, `mailto` and `#` links, and `readerUrl` also lets the file-route paths of stored images through.
 - An image shows as an `img` only for a stored file of the open Article (see Showing images in the [Data model outline](data-model-outline.md)), and as a link otherwise.
 
-`postTextModule()` shares one import promise between the Reader's `use()` and its lazy renderer. A rejection reaches the same `ModuleBoundary` as a screen chunk, and Try again reloads the page, which is what Vite documents for a failed dynamic import ([Vite, Load Error Handling](https://vite.dev/guide/build#load-error-handling)). A retried `import()` is not enough: in headless Chromium (2026-11-09) a second `import()` of a chunk whose first request failed sent no new request, and after a deploy only new HTML names the new chunk. Not verified: Firefox, WebKit, browsers that ship the HTML Standard change that stopped caching HTTP error answers in the module map ([whatwg/html#6768](https://github.com/whatwg/html/issues/6768)), and a chunk that is missing after a deploy.
+The Reader waits for the chunk with `use()` only when `drawsMarkdown` says the Item draws Markdown: post text, or a comment the comment tree shows. An Item with neither, such as a Link-only Item or a thread whose shown comments are all Context stubs, opens without it. The lazy renderer shares the same import promise. When the chunk does not load, the Reader that needs it shows its failed notice, and its Try again reloads the page, which is what Vite documents for a failed dynamic import ([Vite, Load Error Handling](https://vite.dev/guide/build#load-error-handling)). A retried `import()` is not enough: in headless Chromium (2026-11-09) a second `import()` of a chunk whose first request failed sent no new request, and after a deploy only new HTML names the new chunk. Not verified: Firefox, WebKit, browsers that ship the HTML Standard change that stopped caching HTTP error answers in the module map ([whatwg/html#6768](https://github.com/whatwg/html/issues/6768)), and a chunk that is missing after a deploy.
 
 ### Comments
 

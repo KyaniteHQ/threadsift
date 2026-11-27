@@ -1,15 +1,25 @@
 import { type RefObject, use, useEffect } from "react";
 
-import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import { postTextModule } from "./post-text-module.ts";
+import { postTextReady } from "./post-text-module.ts";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { ReaderContent, ReaderNotices } from "./ReaderContent.tsx";
+import { drawsMarkdown } from "./ReaderOriginal.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
 
-function drawsMarkdown(detail: Readonly<ItemDetail>): boolean {
-  return (detail.postText ?? "").trim() !== "" || detail.comments.nodes.length > 0;
+const TEXT_FAILED: DetailState = { status: "failed" };
+
+function reloadPage(): void {
+  window.location.reload();
+}
+
+function useTextReady(state: DetailState): boolean {
+  useEffect(() => {
+    void postTextReady();
+  }, []);
+
+  return state.status === "ready" && drawsMarkdown(state.detail) ? use(postTextReady()) : true;
 }
 
 export function ReaderBody({
@@ -33,15 +43,12 @@ export function ReaderBody({
   focusTitle: boolean;
   tryAgain: (item: Item) => void;
 }>) {
-  useEffect(() => {
-    void postTextModule();
-  }, []);
+  const textReady = useTextReady(state);
+  const shown = textReady ? state : TEXT_FAILED;
 
-  if (state.status === "ready" && drawsMarkdown(state.detail)) use(postTextModule());
+  useReadingPlace(slot, item.id, shown.status === "ready");
 
-  useReadingPlace(slot, item.id, state.status === "ready");
-
-  const loading = state.status === "loading";
+  const loading = shown.status === "loading";
   const content = { item, actions, announce, tryAgain, now };
 
   return (
@@ -55,9 +62,9 @@ export function ReaderBody({
         loading={loading}
         tryAgain={tryAgain}
       />
-      <ReaderNotices state={state} retry={actions.retry} />
+      <ReaderNotices state={shown} retry={textReady ? actions.retry : reloadPage} />
       {loading ? <ReaderLoading /> : null}
-      {state.status === "ready" ? <ReaderContent {...content} state={state} /> : null}
+      {shown.status === "ready" ? <ReaderContent {...content} state={shown} /> : null}
     </>
   );
 }
