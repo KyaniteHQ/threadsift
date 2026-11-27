@@ -2,7 +2,7 @@
 
 [The spec](../spec.md) states what the app does. This page holds the reasons behind its product decisions and the measured or sourced facts the spec leaves out. A fact here carries the command, address or source that shows it. [Open items and unverified claims](open-items-and-unverified-claims.md) holds a fact no run has proven.
 
-Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [X developer terms](#x-developer-terms), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131), [Highlights page order](#highlights-page-order).
+Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [X developer terms](#x-developer-terms), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131), [Highlights page order](#highlights-page-order), [Reading place at a close](#reading-place-at-a-close).
 
 ## Product decisions
 
@@ -280,3 +280,19 @@ Measured on 2026-11-26 on synthetic libraries of 1,000, 10,000 and 100,000 Highl
 
 At 100,000 Highlights the two indexes add 0.9 % to the database file, and 1,000 inserts took the same time with and without them. The page rows are the same with and without them.
 
+## Reading place at a close
+
+Measured on 2026-11-27 on the container target in Chromium 156.0.8078.4, with a Playwright script that the repository does not keep, on one synthetic Item of 90 blocks. The script opened the Item at a width of 390 px, scrolled the Reader slot with 10 wheel steps of 400 px to `scrollTop` 4000, waited for the save while reading, closed the Reader, and read each saved place from `sessionStorage`. It then reopened the Item once from the place saved at the close and once from the place saved while reading, and read the restored `scrollTop`. Every place had offset 0, and the reopen from the place saved while reading restored 4000 in every run.
+
+| Close | Slot height | Saved while reading | Saved at the close | Restored from the close |
+|---|---|---|---|---|
+| Mouse press on the back control | 844 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
+| Touch tap on the back control | 844 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
+| Escape | 844 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
+| `focus()` on the back control, then Enter | 844 px | block 25, fraction 0.898 | block 24, fraction 0.016 | 3578 |
+| Playwright `click()` on the back control | 844 px | block 25, fraction 0.898 | block 24, fraction 0.016 | 3578 |
+| Mouse press on the back control | 700 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
+| Playwright `click()` on the back control | 700 px | block 25, fraction 0.898 | block 24, fraction 0.347 | 3650 |
+| `focus()` then Enter, with the slot's `scroll-padding-top` set to 0 | 844 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
+
+In the runs that moved at a slot height of 844 px, the slot's `scrollTop` was already 3578 when the save at the close ran, and at the `pointerdown` of the Playwright click: 422 px, half the slot's height, above the place saved while reading. At 700 px the move was 350 px. Playwright's pointer actions send the DevTools Protocol command `DOM.scrollIntoViewIfNeeded` for their target before they press (playwright-core 1.64.1).

@@ -182,6 +182,8 @@ A reading place lives in `sessionStorage`, so each tab keeps its own. The tab ke
 
 The place anchors on `.md > *`, so a Kept comment's blocks are anchors like the post's. A block with no visible part, or whose visible part is above the reading edge, is never chosen as the anchor, and a saved anchor whose point is clipped on return scrolls to its comment's fold box.
 
+After the restore, the Reader saves the place `SAVE_DELAY_MS` after the last `scroll` event of the slot, and again when the Reader closes or the page hides. Every save reads the slot with `anchorAt` at the moment it runs, so the save while reading and the save at the close store the same place for the same scroll position. They differ only when the slot moved between the two, and the close then keeps the place the screen showed when it closed. In Chromium, focus that reaches a control of the sticky Reader bar from a script or the keyboard is such a move: the control sits inside the slot's `scroll-padding-top`, so Chromium scrolls the slot up by half its height to show it. Playwright's `click` scrolls its target into view the same way before it presses, while a mouse press, a touch tap or Escape moves nothing ([measurement](decisions-and-evidence.md#reading-place-at-a-close)).
+
 ### Post text renderer
 
 The renderer is `react-markdown` with `GFM_PLUGINS`, loaded as its own chunk (`PostText`) next to a shared chunk that holds the Markdown parser both the renderer and the text projection use. `postTextModule()` starts the import the first time a Reader renders and caches it, so the sign-in screen and an empty library never download it.
