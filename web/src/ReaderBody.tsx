@@ -1,11 +1,16 @@
-import { type RefObject, use } from "react";
+import { type RefObject, use, useEffect } from "react";
 
+import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { postTextModule } from "./post-text-module.ts";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { ReaderContent, ReaderNotices } from "./ReaderContent.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
+
+function drawsMarkdown(detail: Readonly<ItemDetail>): boolean {
+  return (detail.postText ?? "").trim() !== "" || detail.comments.nodes.length > 0;
+}
 
 export function ReaderBody({
   item,
@@ -28,7 +33,12 @@ export function ReaderBody({
   focusTitle: boolean;
   tryAgain: (item: Item) => void;
 }>) {
-  use(postTextModule());
+  useEffect(() => {
+    void postTextModule();
+  }, []);
+
+  if (state.status === "ready" && drawsMarkdown(state.detail)) use(postTextModule());
+
   useReadingPlace(slot, item.id, state.status === "ready");
 
   const loading = state.status === "loading";
