@@ -227,8 +227,8 @@ The bot's script reads the Instance address from `THREADSIFT_URL` and the agent 
 The bot release script, run as `tools/bot-release.sh [refresh|release|check]`, has three modes:
 
 - `refresh` (the default) refreshes `SHA256SUMS` and the hash pinned in `SKILL.md` after an edit of a hashed file.
-- `release` bumps `VERSION`, sets the tag `bot-v<VERSION>`, refreshes, and turns the `## Unreleased` heading of the changelog into `## bot-v<VERSION>` under a new empty one. It works only while `VERSION` holds the bot's own number. The release command of the app writes the shared version there and the tag `v<VERSION>` into the pin ([CI, releases and rollback](ci-releases-and-rollback.md#versions-and-the-release-pull-request)), and from then on `release` refuses and names that command.
-- `check` verifies both, and that the pinned tag is `bot-v<VERSION>` for the bot's own number or `v<VERSION>` for the shared version.
+- `release` bumps `VERSION`, sets the tag `bot-v<VERSION>`, refreshes, and turns the `## Unreleased` heading of the changelog into `## bot-v<VERSION>` under a new empty one.
+- `check` verifies both.
 
 Once the tag in `SKILL.md` exists in the repository (`check` and `refresh` fetch it from `origin` when it is not there), `refresh` refuses to run after a change to a hashed file, and `check` fails when the pinned hash differs from `SHA256SUMS` at that tag, because the bootstrap line fetches `SHA256SUMS` at the tag and could never match. A tag that `git ls-remote --exit-code` reports as missing on `origin` (exit status 2) counts as not released yet. A lookup that fails for another reason, such as no network or no `origin`, makes `check` and `refresh` print the reason and exit with status 1, because neither can tell whether the release exists. A change to a hashed file after a release goes through `release`. The update instructions find the newest release from the tags that start with `bot-v` (`GET /repos/KyaniteHQ/threadsift/git/matching-refs/tags/bot-v`), so no GitHub Release object is needed.
 
