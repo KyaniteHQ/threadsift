@@ -41,8 +41,11 @@ export const SentCommentId = z
   .transform(withoutFullnamePrefix)
   .pipe(CommentId);
 
-export const ModelCommentId = z
-  .string()
-  .max(SENT_ID_MAX)
-  .transform(withoutFullnamePrefix)
-  .pipe(z.string().max(SENT_ID_MAX).toLowerCase());
+function canonicalOrSent(id: string): string {
+  const bare = withoutFullnamePrefix(id);
+  const parsed = CommentId.safeParse(bare);
+
+  return parsed.success ? parsed.data : bare;
+}
+
+export const ModelCommentId = z.string().max(SENT_ID_MAX).transform(canonicalOrSent);
