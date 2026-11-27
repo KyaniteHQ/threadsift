@@ -16,10 +16,12 @@ const button = (page: Page, name: string) =>
 const sessionField = (page: Page) => page.getByLabel(REDDIT_ACCOUNT_TEXT.fieldLabel);
 
 async function pickArchiveFill(page: Page, option: string, note: string): Promise<void> {
-  await page
+  const radio = page
     .getByRole("radiogroup", { name: REDDIT_TEXT.fieldLabel })
-    .getByRole("radio", { name: option, exact: true })
-    .check();
+    .getByRole("radio", { name: option, exact: true });
+
+  await radio.click();
+  await expect(radio).toBeChecked();
   await expect(page.getByText(note, { exact: true })).toBeVisible();
 }
 
