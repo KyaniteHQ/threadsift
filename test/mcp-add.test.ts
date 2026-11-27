@@ -18,7 +18,7 @@ import { DIGEST } from "./mcp-fixtures.ts";
 import { holdLibrary } from "./restore-fixtures.ts";
 
 const RESTORING =
-  "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
+  "The library is being restored and saves nothing new until the restore has finished. Reads and deletes work meanwhile.";
 
 describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
   let instance: Instance;

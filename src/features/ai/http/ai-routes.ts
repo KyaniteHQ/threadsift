@@ -16,7 +16,14 @@ import {
 import { SECOND_MS } from "../../../core/contract/time-units.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { accessNote, accessRefusals, jsonBody, jsonRequest } from "../../../http/openapi.ts";
+import {
+  accessNote,
+  accessRefusals,
+  jsonBody,
+  jsonRequest,
+  restoringResponse,
+} from "../../../http/openapi.ts";
+import { restoring } from "../../../http/refusals.ts";
 import { verifyProvider } from "../../bot/core/bot-verify.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
 
@@ -70,6 +77,7 @@ const verifyRoute = createRoute({
       VerifyResultSchema,
       `The verified Digest or a safe refusal category. With \`grok-bot\` as the Provider the request waits for the bot's answer for up to ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds, then answers \`timeout\` and closes the task.`,
     ),
+    503: restoringResponse("no verification runs."),
   },
 });
 
@@ -98,5 +106,9 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
       }
     }
   });
-  app.openapi(verifyRoute, async (c) => c.json(await verifyProvider(ports, c.req.raw.signal), 200));
+  app.openapi(verifyRoute, async (c) => {
+    const verified = await verifyProvider(ports, c.req.raw.signal);
+
+    return verified.kind === "restoring" ? restoring(c) : c.json(verified, 200);
+  });
 }

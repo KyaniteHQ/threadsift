@@ -11,7 +11,7 @@ import {
 } from "../../../core/contract/topic-overview-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { accessNote, accessRefusals, jsonBody, restoringRefusal } from "../../../http/openapi.ts";
+import { accessNote, accessRefusals, jsonBody, restoringResponse } from "../../../http/openapi.ts";
 import { notFound, restoring } from "../../../http/refusals.ts";
 import { ItemQuerySchema } from "../../../http/route-input.ts";
 import { readTopicPage } from "../core/topic-page.ts";
@@ -63,7 +63,7 @@ const retryOverviewRoute = createRoute({
       ErrorResponseSchema,
       "No overview can run: no Provider is saved, or the Topic has no Item with a Digest.",
     ),
-    ...restoringRefusal("no overview run is queued."),
+    503: restoringResponse("no overview run is queued."),
   },
 });
 

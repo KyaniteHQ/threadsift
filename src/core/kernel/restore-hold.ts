@@ -3,14 +3,7 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { RestoreFailure } from "../contract/restore-contract.ts";
 import type { Database } from "./database.ts";
-import {
-  answeringRefusal,
-  guardedWrites,
-  guards,
-  holdsNoRow,
-  insertGuard,
-  unlessRefused,
-} from "./guards.ts";
+import { answeringRefusal, guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
 import { HOLDING, NOTHING_WRITTEN, type Standing, standingSql } from "./restore-standing.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { STALE } from "./vault-stale.ts";
@@ -100,49 +93,35 @@ export type Closed = { readonly kind: "restoring" };
 
 const CLOSED: Closed = { kind: "restoring" };
 
-export function heldOffWrites<Writes extends readonly BatchItem<"sqlite">[]>(
+const ALWAYS = sql`1`;
+
+export function heldBatch<Writes extends readonly BatchItem<"sqlite">[]>(
   db: Database,
   writes: Writes,
+  condition: Readonly<SQLWrapper> = ALWAYS,
 ) {
-  return [restoreGuard(db), ...writes, db.delete(guards)] as const;
-}
-
-export function heldOffWrite<Write extends BatchItem<"sqlite">>(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  write: Write,
-  rest: readonly BatchItem<"sqlite">[],
-): Promise<Write["_"]["result"] | null> {
   return unlessRefused(async () => {
-    const [, , result] = await db.batch([
+    const [, , ...results] = await db.batch([
       restoreGuard(db),
-      ...guardedWrites(db, condition, [write, ...rest] as const),
+      insertGuard(db, condition),
+      ...writes,
+      db.delete(guards),
     ] as const);
 
-    return result;
+    return results;
   });
 }
 
-export function heldOffBatch(
-  db: Database,
-  condition: Readonly<SQLWrapper>,
-  writes: readonly BatchItem<"sqlite">[],
-): Promise<"written" | "refused" | Closed["kind"]> {
-  return answeringRefusal(
-    "restore",
-    async () => {
-      const written = await unlessRefused(() =>
-        db.batch([restoreGuard(db), ...guardedWrites(db, condition, writes)]),
-      );
-
-      return written === null ? "refused" : "written";
-    },
-    CLOSED.kind,
-  );
-}
-
-export function whileOpen<Result>(write: () => Promise<Result>): Promise<Result | Closed> {
-  return answeringRefusal("restore", write, CLOSED);
+export function whileOpen<Result>(write: () => Promise<Result>): Promise<Result | Closed>;
+export function whileOpen<Result, Answer>(
+  write: () => Promise<Result>,
+  answer: Answer,
+): Promise<Result | Answer>;
+export function whileOpen<Result, Answer>(
+  write: () => Promise<Result>,
+  answer?: Answer,
+): Promise<Result | Answer | Closed> {
+  return answeringRefusal("restore", write, answer ?? CLOSED);
 }
 
 export type Ending =

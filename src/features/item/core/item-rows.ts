@@ -4,17 +4,11 @@ import type { BatchItem } from "drizzle-orm/batch";
 import type { Digest } from "../../../core/contract/digest-schema.ts";
 import type { Link } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import {
-  guardedWrites,
-  guards,
-  holdsNoRow,
-  insertGuard,
-  unlessRefused,
-} from "../../../core/kernel/guards.ts";
+import { guards, holdsNoRow, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
 import { closeItemJobs } from "../../../core/kernel/job-close.ts";
 import { enqueueRows, openingJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import { heldBatch, restoreGuard } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
@@ -69,20 +63,15 @@ export function itemInsert(
   };
 }
 
-export function guardedItemWrite<Insert extends BatchItem<"sqlite">>(
+export async function guardedItemWrite<Insert extends BatchItem<"sqlite">>(
   db: Database,
   condition: Readonly<SQLWrapper>,
-  { heldGuard, insert }: Readonly<{ heldGuard: BatchItem<"sqlite">; insert: Insert }>,
+  { insert }: Readonly<{ insert: Insert }>,
   rest: readonly BatchItem<"sqlite">[],
 ) {
-  return unlessRefused(async () => {
-    const [, , inserted] = await db.batch([
-      heldGuard,
-      ...guardedWrites(db, condition, [insert, ...rest] as const),
-    ] as const);
+  const written = await heldBatch(db, [insert, ...rest] as const, condition);
 
-    return inserted;
-  });
+  return written === null ? null : written[0];
 }
 
 export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {

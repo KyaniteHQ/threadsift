@@ -16,7 +16,7 @@ import {
   jsonBody,
   jsonRequest,
   noContent,
-  restoringRefusal,
+  restoringResponse,
 } from "../../../http/openapi.ts";
 import { notFound, restoring } from "../../../http/refusals.ts";
 import { HighlightParamsSchema, IdParamSchema } from "../../../http/route-input.ts";
@@ -60,7 +60,7 @@ const createHighlightRoute = createRoute({
       ErrorResponseSchema,
       "`revision` is not the revision of the target any more, because a refresh or a new Digest changed the text. Nothing is saved. Read `GET /api/items/{id}`, take `highlights.revisions.post` (or `.comments` for a comment) and the text it shows, and select the passage again.",
     ),
-    ...restoringRefusal("the Highlight is not saved."),
+    503: restoringResponse("the Highlight is not saved."),
   },
 });
 

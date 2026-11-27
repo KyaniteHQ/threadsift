@@ -60,12 +60,7 @@ export async function savePaged(
   const writes = [...closeItemJobs(db, ownerOf(normalizedUrl).id), ...rest];
 
   if (link.source === "reddit") {
-    const inserted = await guardedItemWrite(
-      db,
-      hasNoThread(normalizedUrl),
-      { heldGuard, insert },
-      writes,
-    );
+    const inserted = await guardedItemWrite(db, hasNoThread(normalizedUrl), { insert }, writes);
 
     return inserted === null ? null : savedItem(ports, normalizedUrl, inserted.length > 0);
   }

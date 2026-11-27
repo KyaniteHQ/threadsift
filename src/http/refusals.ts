@@ -6,7 +6,7 @@ import type { JSONParsed } from "hono/utils/types";
 import { NOT_FOUND } from "../core/contract/error-wire.ts";
 import { groupedNumber } from "../core/contract/format.ts";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../core/contract/passwords.ts";
-import { RESTORING_CODE } from "../core/contract/restore-contract.ts";
+import { RESTORING_REFUSAL } from "../core/contract/restore-contract.ts";
 import { logFailure } from "../core/kernel/failure-log.ts";
 import type { LockedOut, RefusalName, Refused } from "../features/access/core/access-refusal.ts";
 import type { AdmissionRefusal, Refusal } from "../features/paste/core/paste-refusal.ts";
@@ -24,14 +24,8 @@ export function notFound(c: Context) {
   return c.json({ error: NOT_FOUND }, 404);
 }
 
-const LIBRARY_RESTORING = {
-  error:
-    "The library is being restored and takes no new record until the restore has finished. Reads and deletes work meanwhile.",
-  code: RESTORING_CODE,
-} as const;
-
 export function restoring(c: Context) {
-  return c.json(LIBRARY_RESTORING, 503);
+  return c.json(RESTORING_REFUSAL, 503);
 }
 
 export function notAllowed(c: Context, methods: readonly string[]) {

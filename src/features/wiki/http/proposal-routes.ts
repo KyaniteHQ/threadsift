@@ -12,7 +12,7 @@ import {
 import { ADDED_READ_LIMIT } from "../../../core/contract/topic-overview-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { accessNote, accessRefusals, jsonBody, restoringRefusal } from "../../../http/openapi.ts";
+import { accessNote, accessRefusals, jsonBody, restoringResponse } from "../../../http/openapi.ts";
 import { notFound, restoring } from "../../../http/refusals.ts";
 import { IdParamSchema, cursorParam } from "../../../http/route-input.ts";
 import { acceptProposal, rejectProposal } from "../core/proposal-decision.ts";
@@ -96,7 +96,7 @@ const acceptProposalRoute = createRoute({
       ErrorResponseSchema,
       "The Proposal is not open (`not-open`); the row is not current (`not-current`: the subject changed, or a concurrent Accept already removed the row), because a concurrent Accept removed a lost-Highlight or disagreement row, the Highlight of a `highlight-lost` row is found in its Item again, the Topic of an `overview-gap` row has no Item left that its overview was not built from or already has an overview run open, or an `items-disagree` row names an Item that has a newer Digest or the two Items no longer sit under one Topic; no Provider is saved for an `overview-gap` row (`no-provider`: the row stays open); another Proposal is accepting (`merge-busy`: one merge runs at a time).",
     ),
-    ...restoringRefusal(
+    503: restoringResponse(
       "the Proposal stays open. A `highlight-lost` row is the removal of a Highlight and is accepted meanwhile.",
     ),
   },

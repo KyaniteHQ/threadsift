@@ -7,7 +7,7 @@ import {
 } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { heldOffWrites, whileOpen } from "../../../core/kernel/restore-hold.ts";
+import { heldBatch, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { proposals } from "../../../core/kernel/schema.ts";
 import { applyUnit } from "./merge-apply.ts";
 import { recordingFailure } from "./merge-failure.ts";
@@ -79,8 +79,10 @@ async function runUnit(
   progress: Readonly<Progress>,
 ): Promise<"done" | "accepting" | "unknown"> {
   const outcome = await recordingFailure(ports.db, { id, revision: row.revision }, () =>
-    applyUnit(ports, id, row),
+    whileOpen(() => applyUnit(ports, id, row), "held"),
   );
+
+  if (outcome === "held") return "accepting";
 
   return runUnits(ports, id, await readRow(ports.db, id, row.kind), {
     units: progress.units + 1,
@@ -107,13 +109,14 @@ export async function acceptMerge(
   kind: MergeKind,
 ): Promise<MergeAcceptance> {
   const { db } = ports;
-  const claimed = await whileOpen(() =>
-    db.batch(heldOffWrites(db, [proposalClaimed(db, id, kind)] as const)),
+  const claimed = await whileOpen(
+    () => heldBatch(db, [proposalClaimed(db, id, kind)] as const),
+    "restoring",
   );
 
-  if ("kind" in claimed) return claimed.kind;
+  if (claimed === "restoring") return claimed;
 
-  const [, [claim]] = claimed;
+  const [claim] = claimed?.[0] ?? [];
   const row = await readRow(db, id, kind);
 
   if (claim !== undefined) return row === undefined ? "done" : runUnit(ports, id, row, NOTHING_RUN);

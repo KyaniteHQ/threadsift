@@ -10,7 +10,7 @@ import type {
 import { projectText } from "../../../core/contract/text-projection.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { type Closed, heldOffWrite, whileOpen } from "../../../core/kernel/restore-hold.ts";
+import { type Closed, heldBatch, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { type HighlightRow, highlights, items, searchParts } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { postTextOf } from "../../thread/core/post-text.ts";
@@ -115,13 +115,16 @@ function saveHighlight(
   const item = eq(items.id, itemId);
 
   return whileOpen(async () => {
-    const [saved] =
-      (await heldOffWrite(
-        db,
-        sql`${revisionHolds(itemId, request.target, request.revision)} and not exists ${existingHighlight(db, itemId, request)}`,
+    const written = await heldBatch(
+      db,
+      [
         highlightInsert(db, itemId, request).returning(),
-        [...highlightPartWrites(db, item), ...STALE.itemChanged(db, item)],
-      )) ?? [];
+        ...highlightPartWrites(db, item),
+        ...STALE.itemChanged(db, item),
+      ] as const,
+      sql`${revisionHolds(itemId, request.target, request.revision)} and not exists ${existingHighlight(db, itemId, request)}`,
+    );
+    const [saved] = written?.[0] ?? [];
 
     return saved ?? null;
   });

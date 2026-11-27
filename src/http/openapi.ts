@@ -69,11 +69,9 @@ export function budgetRefusal(whatIsSaved: string) {
   };
 }
 
-export function restoringRefusal(whatIsSaved: string) {
-  return {
-    503: jsonBody(
-      UnavailableResponseSchema,
-      `A restore holds the library (\`code\` is \`${RESTORING_CODE}\`), so ${whatIsSaved} Reads and deletes work meanwhile. Send the request again when the restore has finished.`,
-    ),
-  };
+export function restoringResponse(whatIsSaved: string) {
+  return jsonBody(
+    UnavailableResponseSchema,
+    `A restore holds the library (\`code\` is \`${RESTORING_CODE}\`), so ${whatIsSaved} Reads and deletes work meanwhile. Send the request again when the restore has finished.`,
+  );
 }

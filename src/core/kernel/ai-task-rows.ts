@@ -1,9 +1,10 @@
-import { type SQLWrapper, and, eq, sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, and, eq, sql } from "drizzle-orm";
 
 import type { AiRefusal } from "../contract/ai-contract.ts";
 import type { Provider } from "../contract/provider-families.ts";
-import { ANSWERED, RUNNING, mayComplete, mayExpire, mayFail } from "./ai-task-state.ts";
+import { ANSWERED, RUNNING, mayComplete, mayExpire, mayFail, refusedAs } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
+import { heldBatch } from "./restore-hold.ts";
 import { aiTasks } from "./schema.ts";
 
 interface NewTask {
@@ -26,7 +27,7 @@ export async function insertTask(
   task: Readonly<NewTask>,
   condition: Readonly<SQLWrapper>,
 ) {
-  const [inserted] = await db
+  const insert = db
     .insert(aiTasks)
     .select(
       db
@@ -56,6 +57,8 @@ export async function insertTask(
         .where(sql`${condition}`),
     )
     .returning({ id: aiTasks.id });
+  const written = await heldBatch(db, [insert] as const);
+  const [inserted] = written?.[0] ?? [];
 
   return inserted ?? null;
 }
@@ -108,4 +111,8 @@ export function supersededTasks(db: Database, tasks: Readonly<SQLWrapper>) {
 
 export function expireAiTasks(db: Database, now: number) {
   return failingAiTask(db, { reason: "timeout", status: null }).where(and(RUNNING, mayExpire(now)));
+}
+
+export function latestDigestRefused(itemId: Readonly<SQLWrapper>, refusal: string): SQL {
+  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.itemId} = ${itemId} and ${aiTasks.kind} = 'digest' and ${refusedAs(refusal)} and ${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.item_id = ${itemId} and latest.kind = 'digest'))`;
 }

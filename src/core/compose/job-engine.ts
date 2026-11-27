@@ -13,7 +13,7 @@ import {
 } from "drizzle-orm";
 import type { SQLiteColumn } from "drizzle-orm/sqlite-core";
 
-import { CLAIM_MARGIN_MS, JOB_KINDS } from "../contract/job-contract.ts";
+import { CLAIM_MARGIN_MS, JOB_KINDS, UNOWNED_JOB_KINDS } from "../contract/job-contract.ts";
 import type { Database } from "../kernel/database.ts";
 import { logFailure } from "../kernel/failure-log.ts";
 import { type ClaimedRow, type JobPorts, claimedRow } from "../kernel/job-outcome.ts";
@@ -21,6 +21,7 @@ import { isSpent, retryDelayMs } from "../kernel/job-retry.ts";
 import { ATTEMPT_FILES, hasOpenJob } from "../kernel/job-rows.ts";
 import type { InputFact, JobSpec, Specs } from "../kernel/job-spec.ts";
 import { jobIs } from "../kernel/job-tables.ts";
+import { holdsNoRestore } from "../kernel/restore-hold.ts";
 import { jobs } from "../kernel/schema.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 
@@ -61,8 +62,9 @@ function fragmentsOf(specs: Specs): Fragments {
   };
 }
 
-function isDue(specs: Specs, now: number) {
+function isDue(specs: Specs, db: Database, now: number) {
   return and(
+    or(inArray(jobs.kind, UNOWNED_JOB_KINDS), holdsNoRestore(db)),
     or(
       and(jobIs("queued"), lte(jobs.nextAttemptAt, now)),
       and(jobIs("running"), lt(jobs.claimExpires, now)),
@@ -84,7 +86,7 @@ function dueIds(specs: Specs, db: Database, now: number, limit: number) {
   return db
     .select({ id: jobs.id })
     .from(jobs)
-    .where(isDue(specs, now))
+    .where(isDue(specs, db, now))
     .orderBy(asc(jobs.nextAttemptAt), asc(jobs.id))
     .limit(limit);
 }
@@ -107,7 +109,7 @@ async function claim(
       attemptPending: pendingInput,
       waitReason: null,
     })
-    .where(and(which(now), isDue(specs, now)))
+    .where(and(which(now), isDue(specs, db, now)))
     .returning({
       ...getTableColumns(jobs),
       attemptKey: sql<string | null>`${ATTEMPT_FILES.postText}`,

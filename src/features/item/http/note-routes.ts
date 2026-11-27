@@ -13,7 +13,7 @@ import {
   accessRefusals,
   jsonBody,
   jsonRequest,
-  restoringRefusal,
+  restoringResponse,
 } from "../../../http/openapi.ts";
 import { notFound, restoring } from "../../../http/refusals.ts";
 import { IdParamSchema } from "../../../http/route-input.ts";
@@ -41,7 +41,7 @@ const saveNoteRoute = createRoute({
       NoteConflictSchema,
       "`revision` is not the Note's revision any more. Nothing is saved. `note` holds the current Note and revision: send the text again with that revision to replace it. A Note that was never saved has revision 0.",
     ),
-    ...restoringRefusal("the Note is not saved."),
+    503: restoringResponse("the Note is not saved."),
   },
 });
 
