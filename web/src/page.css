@@ -83,8 +83,14 @@ fieldset.fl-g {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
-  align-items: start;
-  gap: inherit;
+  align-items: var(--grid-align);
+  gap: var(--grid-gap);
+  border: 0 solid var(--line);
+  border-width: var(--grid-rule) 0 0 var(--grid-rule);
+}
+
+[data-layout="grid"] .items > li {
+  display: grid;
 }
 
 dialog.sheet {
@@ -115,18 +121,6 @@ dialog.sheet::backdrop {
   overflow-wrap: anywhere;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-}
-
-[data-layout="list"] .it:has(.it-open:focus-visible) {
-  outline-offset: calc(var(--s1) / -2);
-}
-
-[data-layout="list"] .it.open:has(.it-open:focus-visible) {
-  outline-offset: calc(var(--s1) * -1.5);
-}
-
-[data-layout="list"] .it-dot {
-  margin-bottom: calc(var(--dot-hit) * -1);
 }
 
 .it-link-only .it-open {
