@@ -112,11 +112,17 @@ else
   latest=true
 fi
 
-[[ -f $changelog ]] || fail "$changelog does not exist; the notes of the GitHub Release come from its section headed \"## $tag\""
-heading_pattern="^## ${tag//./\\.}(: .+)?\$"
+if [[ $candidate == true ]]; then
+  section="## Unreleased"
+  heading_pattern="^## Unreleased\$"
+else
+  section="## $tag"
+  heading_pattern="^## ${tag//./\\.}(: .+)?\$"
+fi
+[[ -f $changelog ]] || fail "$changelog does not exist; the notes of the GitHub Release come from its section \"$section\""
 headings=$(grep -nE "$heading_pattern" "$changelog" || true)
-[[ -n $headings ]] || fail "$changelog has no section headed \"## $tag\" (or \"## $tag: <headline>\"); the notes of the GitHub Release come from it"
-[[ $(wc -l <<< "$headings") -eq 1 ]] || fail "$changelog has more than one section headed \"## $tag\""
+[[ -n $headings ]] || fail "$changelog has no section headed \"$section\"; the notes of the GitHub Release come from it"
+[[ $(wc -l <<< "$headings") -eq 1 ]] || fail "$changelog has more than one section headed \"$section\""
 heading_line=${headings%%:*}
 heading=${headings#*:}
 headline=
@@ -132,13 +138,12 @@ body=$(awk -v start="$heading_line" '
   }
   END { for (line = first; first && line <= last; line++) print lines[line] }
 ' "$changelog")
-[[ -n $body ]] || fail "the section \"## $tag\" of $changelog is empty"
+[[ $candidate == true || -n $body ]] || fail "the section \"$section\" of $changelog is empty"
 
 if [[ $candidate == true || $patch != 0 ]]; then
-  [[ -z $headline ]] || fail "\"## $tag\" has a headline, and only a stable release with patch 0 takes one; remove \": $headline\""
+  [[ -z $headline ]] || fail "\"$heading\" has a headline, and only a stable release with patch 0 takes one; remove \": $headline\""
   title="Threadsift $version"
 else
-  [[ $minor == 0 || -n $headline ]] || fail "\"## $tag\" needs a headline, because a minor release is titled \"Threadsift $major.$minor: <headline>\"; write \"## $tag: <headline>\""
   title="Threadsift $major.$minor${headline:+: $headline}"
 fi
 
@@ -149,7 +154,7 @@ marks=
 since=
 [[ $candidate == true || -z $previous ]] || since=", and the pull requests since $previous"
 printf '%s\n' "${decisions[@]}"
-echo "create   $kind \"$title\"$marks, with the notes of \"## $tag\" in $(basename "$changelog")$since"
+echo "create   $kind \"$title\"$marks, with the notes of \"$section\" in $(basename "$changelog")$since"
 
 if [[ -n $outputs ]]; then
   {
@@ -170,5 +175,8 @@ if [[ -n $notes ]]; then
     also=$(printf ", \`%s\`" "${moved[@]}")
     also=", also tagged ${also#, }"
   fi
-  printf "%s\n\nImage: \`%s:%s\`%s, for \`linux/amd64\` and \`linux/arm64\`.\n" "$body" "$IMAGE" "$version" "$also" > "$notes"
+  {
+    [[ -z $body ]] || printf '%s\n\n' "$body"
+    printf "Image: \`%s:%s\`%s, for \`linux/amd64\` and \`linux/arm64\`.\n" "$IMAGE" "$version" "$also"
+  } > "$notes"
 fi
