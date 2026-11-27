@@ -35,11 +35,13 @@ export const GITHUB_TEXT = {
   wrongToken: "GitHub rejected the token. Check it and save it again.",
   unreachable: "Couldn’t reach GitHub. Check the connection and try again.",
   timeout: "GitHub didn’t respond in time. Try Verify token again.",
-  githubErrorStatus: "GitHub returned an error ({status}). Try Verify token again.",
+  githubErrorStatus: "GitHub responded with an error. Try Verify token again.",
   githubError: "Threadsift couldn’t read GitHub’s response. Try Verify token again.",
   rateLimited: "GitHub is limiting requests. Try Verify token again later.",
   loadFailed: "Couldn’t load the GitHub token settings. Reload the page.",
-  failed: "Couldn’t save, verify or remove the token. Try again.",
+  saveFailed: "Couldn’t save the token. Try again.",
+  verifyFailed: "Couldn’t verify the token. Try again.",
+  removeFailed: "Couldn’t remove the token. It is still saved. Try again.",
 } as const;
 
 export const TOKEN_PLACEHOLDER = "github_pat_…";
@@ -76,9 +78,7 @@ export function refusalText({ reason, status }: Readonly<GithubRefused>): string
     case "timeout":
       return GITHUB_TEXT.timeout;
     case "github-error":
-      return status === null
-        ? GITHUB_TEXT.githubError
-        : filled(GITHUB_TEXT.githubErrorStatus, { status: String(status) });
+      return status === null ? GITHUB_TEXT.githubError : GITHUB_TEXT.githubErrorStatus;
     case "rate-limited":
       return GITHUB_TEXT.rateLimited;
     default: {

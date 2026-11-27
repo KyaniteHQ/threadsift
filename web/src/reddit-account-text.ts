@@ -68,7 +68,9 @@ export const REDDIT_ACCOUNT_TEXT = {
     "The extension couldn’t reach this instance. Check the instance address in the extension’s settings.",
   extensionFailed: "Couldn’t connect with the extension. Try again.",
   loadFailed: "Couldn’t load the Reddit account settings. Reload the page.",
-  failed: "This instance didn’t answer as expected. Try again.",
+  connectFailed: "Couldn’t connect the Reddit account. Try again.",
+  verifyFailed: "Couldn’t verify the saved session. Try again.",
+  disconnectFailed: "Couldn’t disconnect the Reddit account. Try again.",
 } as const;
 
 const STATE_TEXT = {

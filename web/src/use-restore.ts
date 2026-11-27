@@ -50,13 +50,19 @@ function useStatus() {
 
 type Action = "choose" | "cancel" | "resume";
 
+const FAILED = {
+  choose: RESTORE_TEXT.failed,
+  cancel: RESTORE_TEXT.cancelFailed,
+  resume: RESTORE_TEXT.resumeFailed,
+} as const satisfies Record<Action, string>;
+
 function useEnding(
   latest: Readonly<RefObject<RestoreStatus | null>>,
   refresh: () => Promise<RestoreStatus | null>,
   run: RunAction<Action>,
 ) {
   const end = useCallback(
-    (action: "cancel" | "resume", request: (id: number) => Promise<void>, failed: string) => {
+    (action: "cancel" | "resume", request: (id: number) => Promise<void>) => {
       const current = latest.current;
 
       if (current === null || current.state === "none" || current.state === "done") return;
@@ -64,25 +70,21 @@ function useEnding(
       const { id } = current;
 
       void run(action, async () => {
-        try {
-          await request(id);
-          await refresh();
+        await request(id);
+        await refresh();
 
-          return null;
-        } catch {
-          return { kind: "error", text: failed };
-        }
+        return null;
       });
     },
     [latest, refresh, run],
   );
 
   const cancel = useCallback(() => {
-    end("cancel", cancelRestore, RESTORE_TEXT.cancelFailed);
+    end("cancel", cancelRestore);
   }, [end]);
 
   const resume = useCallback(() => {
-    end("resume", resumeRestore, RESTORE_TEXT.resumeFailed);
+    end("resume", resumeRestore);
   }, [end]);
 
   return { cancel, resume };
@@ -91,7 +93,7 @@ function useEnding(
 export function useRestore() {
   const { view, loadFailed, refresh } = useStatus();
   const [progress, setProgress] = useState<Progress | null>(null);
-  const { flow, run } = useActionFlow<Action>(RESTORE_TEXT.failed);
+  const { flow, run } = useActionFlow<Action>(FAILED);
   const latest = useLatest(view);
   const { cancel, resume } = useEnding(latest, refresh, run);
 
