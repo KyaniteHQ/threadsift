@@ -3,7 +3,7 @@ import { useCallback, useId } from "react";
 import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
 import type { ReadState, Source } from "../../src/core/contract/item-contract.ts";
 import { filled } from "./filled.ts";
-import { NamedSelect, RowGroup, Segments, withAll } from "./FilterGroups.tsx";
+import { NamedSelect, RowGroup, Segments, type SegmentsKind, withAll } from "./FilterGroups.tsx";
 import { type Choice, type Filters, chosenCount, isSearching } from "./filters.ts";
 import { Icon } from "./Icon.tsx";
 import {
@@ -27,8 +27,7 @@ const readChoice = (value: ReadState | null): Choice => ({ facet: "read", value 
 
 function FacetSegments<Key extends string>({
   facet,
-  wrap,
-  bar,
+  kind,
   counts,
   labels,
   chosen,
@@ -36,8 +35,7 @@ function FacetSegments<Key extends string>({
   choose,
 }: Readonly<{
   facet: "source" | "read";
-  wrap: boolean;
-  bar: boolean;
+  kind: SegmentsKind;
   counts: readonly { readonly key: Key; readonly count: number }[];
   labels: Readonly<Record<Key, string>>;
   chosen: Key | null;
@@ -54,8 +52,7 @@ function FacetSegments<Key extends string>({
   return (
     <Segments
       name={FILTER_GROUPS[facet]}
-      wrap={wrap}
-      bar={bar}
+      kind={kind}
       chosen={chosen}
       segments={withAll(
         counts.map(({ key, count }) => ({ key, label: labels[key], count })),
@@ -139,21 +136,10 @@ function Panel({
 }>) {
   return (
     <div id={id} className="fl-panel">
-      <FacetSegments
-        facet="source"
-        wrap
-        bar={bar}
-        counts={counts.sources}
-        labels={SOURCE_LABELS}
-        chosen={filters.source}
-        choice={sourceChoice}
-        choose={choose}
-      />
       {counts.reads === undefined ? null : (
         <FacetSegments
           facet="read"
-          wrap={false}
-          bar={bar}
+          kind={bar ? "chips" : "segments"}
           counts={counts.reads}
           labels={READ_LABELS}
           chosen={filters.read}
@@ -161,6 +147,15 @@ function Panel({
           choose={choose}
         />
       )}
+      <FacetSegments
+        facet="source"
+        kind={bar ? "chips" : "rows"}
+        counts={counts.sources}
+        labels={SOURCE_LABELS}
+        chosen={filters.source}
+        choice={sourceChoice}
+        choose={choose}
+      />
       <NamedRows facet="topic" bar={bar} counts={counts} filters={filters} choose={choose} />
       <NamedRows facet="tag" bar={bar} counts={counts} filters={filters} choose={choose} />
       <ClearFilters filters={filters} hasRows={hasRows} clearChosen={clearChosen} />

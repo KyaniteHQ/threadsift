@@ -27,6 +27,10 @@ blockquote.hp-text {
   padding-inline-start: var(--s3);
   border-inline-start: 2px solid var(--line-2);
 }
+.app:is(:not([data-style]), [data-style="library"]) blockquote.hp-text {
+  padding-inline-start: var(--s4);
+  border-inline-start-width: var(--hw);
+}
 .hp-gone {
   margin: 0;
 }

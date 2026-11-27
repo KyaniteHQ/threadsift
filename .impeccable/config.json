@@ -23,6 +23,13 @@
         "files": ["design/system/components.css"],
         "createdAt": "2026-11-04T13:28:56.233Z",
         "reason": "The hit is the .md blockquote rule, the usual quote mark in rendered Markdown, not a coloured card stripe"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": ["http*://**"],
+        "createdAt": "2026-11-27T22:12:17.000Z",
+        "reason": "Sepia is the one warm Theme (DESIGN.md, Colors): its page colour is a reading choice the owner kept on 2026-11-28. The rule has no value to name the colour, so the exception covers only scans of the running app, where the page colour is computed, and never a source file"
       }
     ]
   }

@@ -2,8 +2,14 @@
   font-size: var(--t-title);
 }
 .lg-date {
+  color: var(--muted);
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.lg-sep {
+  color: var(--muted);
 }
 .lg-link {
   color: var(--text);

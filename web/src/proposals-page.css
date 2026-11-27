@@ -26,6 +26,11 @@
 .pr-counts dt {
   color: var(--text);
 }
+.pr-counts dd {
+  color: var(--muted);
+  font-family: var(--f-mono);
+  font-size: var(--t-label);
+}
 .pr-reason {
   font-size: var(--t-title);
   color: var(--text);
@@ -76,6 +81,10 @@
   line-height: var(--lh-text);
   overflow-wrap: anywhere;
   white-space: pre-wrap;
+}
+.app:is(:not([data-style]), [data-style="library"]) .pr-quote {
+  padding-inline-start: var(--s4);
+  border-inline-start-width: var(--hw);
 }
 .pr-gone {
   margin: 0;

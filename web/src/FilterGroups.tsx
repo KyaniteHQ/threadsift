@@ -25,15 +25,23 @@ interface Segment<Key extends string> {
   readonly count: number;
 }
 
+export type SegmentsKind = "chips" | "segments" | "rows";
+
+const BUTTON_CLASS: Readonly<Record<SegmentsKind, string>> = {
+  chips: "fl-chip",
+  segments: "fl-seg-b",
+  rows: "fl-row",
+};
+
 function SegmentButton<Key extends string>({
   segment,
   pressed,
-  bar,
+  kind,
   pick,
 }: Readonly<{
   segment: Segment<Key>;
   pressed: boolean;
-  bar: boolean;
+  kind: SegmentsKind;
   pick: (key: Key | null) => void;
 }>) {
   const press = useCallback(() => {
@@ -43,7 +51,7 @@ function SegmentButton<Key extends string>({
   return (
     <button
       type="button"
-      className={bar ? "fl-chip" : "fl-seg-b"}
+      className={BUTTON_CLASS[kind]}
       aria-pressed={pressed}
       aria-label={segment.name}
       onClick={press}
@@ -58,34 +66,42 @@ export function Segments<Key extends string>({
   name,
   segments,
   chosen,
-  wrap,
-  bar,
+  kind,
   pick,
 }: Readonly<{
   name: string;
   segments: readonly Segment<Key>[];
   chosen: Key | null;
-  wrap: boolean;
-  bar: boolean;
+  kind: SegmentsKind;
   pick: (key: Key | null) => void;
 }>) {
-  return (
-    <fieldset className={bar ? "fl-g" : wrap ? "fl-seg fl-wrap" : "fl-seg"} aria-label={name}>
-      {bar ? (
-        <span className="label" aria-hidden="true">
-          {name}
-        </span>
-      ) : null}
-      {segments.map((segment) => (
-        <SegmentButton
-          key={segment.key ?? ALL_CHOICE}
-          segment={segment}
-          pressed={segment.key === chosen}
-          bar={bar}
-          pick={pick}
-        />
-      ))}
+  const label = (
+    <span className="label" aria-hidden="true">
+      {name}
+    </span>
+  );
+  const buttons = segments.map((segment) => (
+    <SegmentButton
+      key={segment.key ?? ALL_CHOICE}
+      segment={segment}
+      pressed={segment.key === chosen}
+      kind={kind}
+      pick={pick}
+    />
+  ));
+
+  return kind === "chips" ? (
+    <fieldset className="fl-g" aria-label={name}>
+      {label}
+      {buttons}
     </fieldset>
+  ) : (
+    <div className="fl-group">
+      {label}
+      <fieldset className={kind === "rows" ? "fl-rows" : "fl-seg"} aria-label={name}>
+        {buttons}
+      </fieldset>
+    </div>
   );
 }
 
