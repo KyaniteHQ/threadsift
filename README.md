@@ -14,13 +14,13 @@ v1 is not released, so do not use Threadsift for real yet.
 
 ![A Paste of an MDN article on HTTP conditional requests shows its progress. The Reader then displays the Digest with its Summary and Key points.](docs/assets/paste-to-digest.gif)
 
-The recording and the first screenshot use a library of public links, and the other screenshots use made-up Items. The recording skips part of the wait for the Digest.
+The recording skips part of the wait for the Digest. The recording and the screenshot at the top use a library of public links; the screenshots further down show made-up Items.
 
 ## Keep Highlights and Notes
 
 Select a passage of the post text or of a comment in the Reader to keep it as a Highlight. You can also write a Note on the Item. The Highlights page gathers both and links back to the Reader.
 
-![Highlights page with two Highlights and a Note on a made-up article about Hall effect switches](docs/assets/highlights.png)
+![Highlights page with two Highlights and a Note on an article about Hall effect switches](docs/assets/highlights.png)
 
 ## Let the agent keep a wiki of the library
 
