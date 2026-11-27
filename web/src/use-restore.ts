@@ -3,33 +3,37 @@ import { type RefObject, useCallback, useEffect, useState } from "react";
 import type { RestoreStatus } from "../../src/core/contract/restore-contract.ts";
 import { cancelRestore, fetchRestoreStatus, resumeRestore } from "./restore-api.ts";
 import { RESTORE_TEXT } from "./restore-text.ts";
-import { type Progress, uploadZip } from "./restore-upload.ts";
+import { type Progress, type StatusRead, uploadZip } from "./restore-upload.ts";
 import { useLatest } from "./use-latest.ts";
 import { usePolling } from "./use-polling.ts";
 import { type RunAction, outcomeOf, runningAction, useActionFlow } from "./use-settings-action.ts";
 import { useTicket } from "./use-ticket.ts";
+
+const SUPERSEDED: StatusRead = { kind: "superseded" };
 
 function useStatus() {
   const [view, setView] = useState<RestoreStatus | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const ticket = useTicket();
 
-  const refresh = useCallback(async (): Promise<RestoreStatus | null> => {
+  const refresh = useCallback(async (): Promise<StatusRead> => {
     const signal = ticket.take();
 
     try {
       const next = await fetchRestoreStatus(signal);
 
-      if (signal.aborted) return null;
+      if (signal.aborted) return SUPERSEDED;
 
       setView(next);
       setLoadFailed(false);
 
-      return next;
+      return { kind: "read", view: next };
     } catch {
-      if (!signal.aborted) setLoadFailed(true);
+      if (signal.aborted) return SUPERSEDED;
 
-      return null;
+      setLoadFailed(true);
+
+      return { kind: "failed" };
     }
   }, [ticket]);
 
@@ -58,7 +62,7 @@ const FAILED = {
 
 function useEnding(
   latest: Readonly<RefObject<RestoreStatus | null>>,
-  refresh: () => Promise<RestoreStatus | null>,
+  refresh: () => Promise<StatusRead>,
   run: RunAction<Action>,
 ) {
   const end = useCallback(
@@ -71,9 +75,9 @@ function useEnding(
 
       void run(action, async () => {
         await request(id);
-        await refresh();
+        const next = await refresh();
 
-        return null;
+        return next.kind === "failed" ? { kind: "error", text: RESTORE_TEXT.loadFailed } : null;
       });
     },
     [latest, refresh, run],

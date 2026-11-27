@@ -5,6 +5,7 @@ import { itemIdOf } from "../../src/core/contract/item-path.ts";
 import { useScreenState } from "./use-screen-state.ts";
 
 export const SETTINGS_PATH = "/settings";
+export const AI_SETTINGS_PATH = `${SETTINGS_PATH}#ai`;
 
 export const OBSIDIAN_PATH = "/settings/obsidian";
 

@@ -55,7 +55,7 @@ function ArchiveFillRow({
         {view.archiveFill ? REDDIT_TEXT.stateOn : REDDIT_TEXT.stateOff}
       </p>
       <output>{form.busy ? REDDIT_TEXT.saving : null}</output>
-      <Alert text={form.failed ? REDDIT_TEXT.failed : null} />
+      <Alert text={form.error} />
     </div>
   );
 }

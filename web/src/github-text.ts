@@ -41,7 +41,8 @@ export const GITHUB_TEXT = {
   loadFailed: "Couldn’t load the GitHub token settings. Reload the page.",
   saveFailed: "Couldn’t save the token. Try again.",
   verifyFailed: "Couldn’t verify the token. Try again.",
-  removeFailed: "Couldn’t remove the token. It is still saved. Try again.",
+  removeFailed:
+    "Couldn’t confirm whether the token was removed. Reload the page to check, or try again.",
 } as const;
 
 export const TOKEN_PLACEHOLDER = "github_pat_…";

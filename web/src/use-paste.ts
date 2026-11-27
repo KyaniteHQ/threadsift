@@ -50,7 +50,14 @@ async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
 
 function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Shown {
   return outcome.kind === "item"
-    ? { kind: "item", itemId: outcome.itemId, refreshed: outcome.refreshed, url, seq }
+    ? {
+        kind: "item",
+        itemId: outcome.itemId,
+        known: outcome.known,
+        refreshed: outcome.refreshed,
+        url,
+        seq,
+      }
     : { kind: "notice", key: outcome.notice, url, seq };
 }
 

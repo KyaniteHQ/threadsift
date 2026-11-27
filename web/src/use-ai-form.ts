@@ -11,7 +11,8 @@ import {
   keyApplies,
 } from "../../src/core/contract/provider-families.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
-import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT, rejectedSentence, signedOutSentence } from "./ai-text.ts";
+import { filled } from "./filled.ts";
 import { FIELD_TEXT } from "./text.ts";
 import { useAiFields } from "./use-ai-fields.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
@@ -20,14 +21,26 @@ import { useConnect } from "./use-connect.ts";
 function refusalText(refusal: AiRefused, provider: Provider, publicOnly: boolean): string {
   if (refusal.reason === "invalid-effort")
     return refusal.levels !== undefined && refusal.levels.length > 0
-      ? AI_TEXT.invalidEffort.replace("{levels}", refusal.levels.join(", "))
+      ? filled(AI_TEXT.invalidEffort, { levels: refusal.levels.join(", ") })
       : AI_TEXT.noEfforts;
 
-  if (isCliProvider(provider) && refusal.reason === "wrong-key") return CLI_TEXT[provider].rejected;
+  if (isCliProvider(provider) && refusal.reason === "wrong-key") return rejectedSentence(provider);
 
   if (provider === GROK_BOT_PROVIDER && refusal.reason === "timeout") return AI_TEXT.botTimeout;
 
   if (provider === GROK_BOT_PROVIDER && refusal.reason === "provider-busy") return AI_TEXT.botBusy;
+
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "wrong-key") return AI_TEXT.botWrongKey;
+
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "unreachable")
+    return AI_TEXT.botUnreachable;
+
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "refused") return AI_TEXT.botRefused;
+
+  if (refusal.reason === "cli-not-started")
+    return isCliProvider(provider)
+      ? CLI_TEXT[provider].notStarted
+      : AI_TEXT["provider-unavailable"];
 
   if (isCliProvider(provider) && refusal.reason === "not-configured")
     return signedOutSentence(provider);

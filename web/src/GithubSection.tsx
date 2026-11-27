@@ -11,7 +11,7 @@ import {
 } from "./github-text.ts";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
-import { useGithubForm } from "./use-github-form.ts";
+import { useGithubForm, GITHUB_STATE_ID } from "./use-github-form.ts";
 import { runningAction } from "./use-settings-action.ts";
 
 const TOKEN_KIND = {
@@ -60,7 +60,7 @@ function GithubForm({
           kind={TOKEN_KIND}
           help={GITHUB_TEXT.fieldHelp}
         />
-        <p>{TOKEN_STATES[view.token]}</p>
+        <p id={GITHUB_STATE_ID}>{TOKEN_STATES[view.token]}</p>
         {form.secretMissing ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
         <SettingsActions running={runningAction(form.flow)} buttons={form.buttons} />
       </SettingsForm>

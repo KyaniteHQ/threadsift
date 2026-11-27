@@ -1,6 +1,5 @@
+import { AiSettingsLink } from "./AiSettingsLink.tsx";
 import { IMPORT, planNoticeLabel } from "./import-text.ts";
-import { InternalLink } from "./InternalLink.tsx";
-import { SETTINGS_PATH } from "./routing.ts";
 import { useProviderNotice } from "./use-provider-notice.ts";
 
 export function ProviderNotice() {
@@ -11,9 +10,7 @@ export function ProviderNotice() {
   return (
     <div className="sec imp-notice">
       <p>{notice.kind === "plan" ? planNoticeLabel(notice.provider) : IMPORT.noProvider}</p>
-      <InternalLink className="fl-link" to={SETTINGS_PATH}>
-        {IMPORT.aiSettingsLink}
-      </InternalLink>
+      <AiSettingsLink />
     </div>
   );
 }

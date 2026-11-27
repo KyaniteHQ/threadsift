@@ -5,6 +5,7 @@ import {
   overviewLines,
   overviewTokens,
 } from "../../src/core/contract/topic-overview-contract.ts";
+import { AiSettingsLink } from "./AiSettingsLink.tsx";
 import { InternalLink } from "./InternalLink.tsx";
 import { keyed } from "./keyed.ts";
 import { AlertRegion } from "./RetryRegions.tsx";
@@ -74,7 +75,14 @@ function Status({ overview, write }: Readonly<{ overview: Overview; write: () =>
 function Unwritten({ overview, write }: Readonly<{ overview: Overview; write: () => void }>) {
   if (overview.text !== null) return null;
 
-  if (!overview.provider) return <p className="rd-note">{TOPIC_PAGE.noProvider}</p>;
+  if (!overview.provider) {
+    return (
+      <div className="tp-status">
+        <p className="rd-note">{TOPIC_PAGE.noProvider}</p>
+        <AiSettingsLink />
+      </div>
+    );
+  }
 
   return (
     <div className="tp-status">

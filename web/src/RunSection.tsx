@@ -132,28 +132,19 @@ function actionOf(
   };
 }
 
-const IDLE: RunState = { phase: "idle" };
-
-function runOf(state: RunState, check: Check): RunState {
-  if (state.phase === "running") return state;
-
-  return state.phase === "ended" && check.status === "ready" && state.name === check.name
-    ? state
-    : IDLE;
-}
-
 export function RunSection({
   check,
   links,
+  run,
   runner,
   retry,
 }: Readonly<{
   check: Check;
   links: readonly string[];
+  run: RunState;
   runner: ImportRun;
   retry: () => void;
 }>) {
-  const run = runOf(runner.state, check);
   const total = links.length;
   const idle = check.status === "none";
   const action = idle ? null : actionOf(check, run, links, runner, retry);

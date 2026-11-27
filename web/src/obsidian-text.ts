@@ -2,9 +2,9 @@ export const OBSIDIAN_TEXT = {
   backToSettings: "Back to Settings",
   title: "Obsidian",
   intro:
-    "The vault mirror writes item notes and files, topic pages, the index and the log as Markdown to the GitHub repository for your Obsidian vault. Changes flow one way, from Threadsift to the vault. Verify checks the branch without saving settings or writing files. Save queues the current library.",
+    "The vault mirror writes item notes and files, topic pages, the Index and the Log as Markdown to the GitHub repository for your Obsidian vault. Changes go one way, from Threadsift to the vault. Verify checks the branch without saving settings or writing files. Save queues the whole library.",
   containerIntro:
-    "The vault mirror writes item notes and files, topic pages, the index and the log as Markdown to your Obsidian vault. Changes flow one way, from Threadsift to the vault.",
+    "The vault mirror writes item notes and files, topic pages, the Index and the Log as Markdown to your Obsidian vault. Changes go one way, from Threadsift to the vault.",
   modeLabel: "Destination",
   githubMode: "GitHub repository",
   folderMode: "Folder",
@@ -51,7 +51,11 @@ export const OBSIDIAN_TEXT = {
   unreadable:
     "This instance can no longer open the saved token. Save a new token or remove the vault mirror.",
   loadFailed: "Couldn’t load the Obsidian settings. Reload the page.",
-  failed: "Couldn’t reach Threadsift. Check the connection and try again.",
+  saveFailed:
+    "Couldn’t confirm whether the vault mirror settings were saved. Reload the page to check, or try again.",
+  verifyFailed: "Couldn’t verify the vault mirror settings. Try again.",
+  removeFailed:
+    "Couldn’t confirm whether the vault mirror settings were removed. Reload the page to check, or try again.",
   invalid: "The repository, branch or token isn’t valid. Check them and try again.",
   wrongToken: "GitHub rejected the token. Check it and try again.",
   notFound:

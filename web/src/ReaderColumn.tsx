@@ -8,7 +8,7 @@ import { DIGEST_PENDING, READER_LOADING, postedLabel } from "./reader-text.ts";
 import { HeadNote, Note } from "./ReaderNote.tsx";
 import { ReaderSummary } from "./ReaderSummary.tsx";
 import { savedLabel } from "./saved-label.ts";
-import { DIGEST_NOT_UPDATED, NO_DIGEST, SOURCE_LABELS } from "./text.ts";
+import { DIGEST_UPDATE_FAILED, DIGEST_FAILED, SOURCE_LABELS } from "./text.ts";
 
 export function ReaderHead({
   item,
@@ -62,7 +62,7 @@ export function ReaderHead({
 function digestNote(item: Readonly<Item>, hasDigest: boolean): string | null {
   if (item.digestOutcome === "pending") return DIGEST_PENDING;
 
-  if (item.digestOutcome === "failed") return hasDigest ? DIGEST_NOT_UPDATED : NO_DIGEST;
+  if (item.digestOutcome === "failed") return hasDigest ? DIGEST_UPDATE_FAILED : DIGEST_FAILED;
 
   return null;
 }

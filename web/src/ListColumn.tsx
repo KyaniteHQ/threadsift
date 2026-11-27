@@ -1,3 +1,4 @@
+import { type Filters, chosenCount, isSearching } from "./filters.ts";
 import { hasRows } from "./list-state.ts";
 import { ListBody } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
@@ -5,9 +6,15 @@ import { Masthead } from "./Masthead.tsx";
 import { HINT_LIST } from "./reader-text.ts";
 import { RetryNotice } from "./RetryRegions.tsx";
 import { SkipButton } from "./SkipButton.tsx";
-import { LOAD_FAILED } from "./text.ts";
+import { CLEAR_ALL, CLEAR_FILTERS, CLEAR_SEARCH, LOAD_FAILED } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
+
+function clearLabelOf(filters: Readonly<Filters>): string {
+  if (chosenCount(filters) === 0) return CLEAR_SEARCH;
+
+  return isSearching(filters) ? CLEAR_ALL : CLEAR_FILTERS;
+}
 
 function LibraryList({
   view,
@@ -32,6 +39,7 @@ function LibraryList({
         attended={actions.attended}
         tryAgain={actions.tryAgain}
         clearAll={view.clearAll}
+        clearLabel={clearLabelOf(library.filters)}
         open={side.reader.open}
         toggleRead={side.reader.toggleRead}
         more={library.more}

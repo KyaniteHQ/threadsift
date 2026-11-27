@@ -10,8 +10,8 @@ import { SETTINGS_PATH } from "./routing.ts";
 import { SavedTime } from "./SavedTime.tsx";
 import {
   CARD_TITLES,
-  DIGEST_NOT_UPDATED,
-  NO_DIGEST,
+  DIGEST_UPDATE_FAILED,
+  DIGEST_FAILED,
   NOTICES,
   RETRY_LABEL,
   SAVED_COMMENT,
@@ -76,8 +76,8 @@ function Failed({
           : offersFetchRetry(item)
             ? NOTICES[item.xNote]
             : item.digestTitle === null
-              ? NO_DIGEST
-              : DIGEST_NOT_UPDATED}
+              ? DIGEST_FAILED
+              : DIGEST_UPDATE_FAILED}
       </p>
       <button
         type="button"
@@ -97,7 +97,7 @@ function TokenRefused() {
     <div className="it-fail">
       <p>
         <Icon name="warn" className="ic ic-s tone-warn" />
-        {TOKEN_REFUSED.row}
+        {TOKEN_REFUSED.message}
       </p>
       <InternalLink className="btn" to={SETTINGS_PATH}>
         {TOKEN_REFUSED.link}

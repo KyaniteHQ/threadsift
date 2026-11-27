@@ -46,7 +46,11 @@ type Draft =
   | Readonly<{ mode: "github"; repository: string; branch: string; token: string }>
   | Readonly<{ mode: "folder"; folder: string }>;
 
-const FAILED = { save: TEXT.failed, verify: TEXT.failed, remove: TEXT.failed } as const;
+const FAILED = {
+  save: TEXT.saveFailed,
+  verify: TEXT.verifyFailed,
+  remove: TEXT.removeFailed,
+} as const satisfies Record<Action, string>;
 
 const LABELS = {
   save: { label: TEXT.save, busyLabel: TEXT.saving },

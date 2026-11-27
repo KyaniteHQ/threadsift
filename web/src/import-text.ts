@@ -3,6 +3,7 @@ import type { SkipReason } from "../../src/core/contract/import-list.ts";
 import { REDDIT_WINDOW_REQUESTS } from "../../src/core/contract/limits.ts";
 import type { CliProvider } from "../../src/core/contract/provider-families.ts";
 import { filled } from "./filled.ts";
+import { plural } from "./plural.ts";
 import { RETRY_LABEL } from "./text.ts";
 
 export const IMPORT = {
@@ -22,27 +23,23 @@ export const IMPORT = {
   again: "Import again",
   progressLabel: "Import progress",
   countsNote:
-    "Known links are already in the library and stay as they are. Refused links point to private addresses, which the instance won’t fetch.",
+    "Known links are already in the library and stay as they are. Refused links lead to addresses that can’t be reached from the public internet, so the instance won’t fetch them.",
   stop: "Stop",
   stopping: "Stopping…",
   stoppingStatus: "The import stops after the current batch.",
   waiting: "The instance is slow to answer. Waiting to confirm whether the last batch was saved…",
   finished: "Import finished.",
-  aiSettingsLink: "AI settings",
-  noProvider:
-    "No provider is saved yet. Each item is saved now and gets its digest once you save a provider.",
-  redditExpired:
-    "Your Reddit session has expired. Reddit links are filled from the archive until you connect the account again.",
+  noProvider: "Imported links are added now. Save a provider so Threadsift can make their digests.",
   redditUnreadableFilled:
-    "Threadsift can no longer open your Reddit session because this instance’s secret key changed. Reddit links are filled from the archive until you connect the account again.",
+    "Threadsift can no longer open your saved Reddit session. Until you connect the account again, Threadsift tries to fill Reddit links from the Arctic Shift archive. Any link it can’t fill stays a link-only item, saved without its thread.",
   redditUnreadableLinkOnly:
-    "Threadsift can no longer open your Reddit session because this instance’s secret key changed. Reddit links stay link-only items, saved without their threads. Connect the account again, or save the threads with the extension.",
+    "Threadsift can no longer open your saved Reddit session. Reddit links stay link-only items, saved without their threads. Connect the account again, or save threads from your tab with the browser extension.",
   redditSettingsLink: "Reddit account settings",
 } as const;
 
-const REDDIT_WAIT_ONE = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows that link’s wait.`;
+const REDDIT_WAIT_ONE = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes. If a long thread uses them up, Threadsift waits up to 10 minutes, or up to an hour if Reddit reports too many requests. If the link waits, the library shows the time of its next check.`;
 
-const REDDIT_WAIT_MANY = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.`;
+const REDDIT_WAIT_MANY = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes. When those run out, Threadsift waits up to 10 minutes, or up to an hour if Reddit reports too many requests. The library shows each waiting link with the time of its next check.`;
 
 const REDDIT_NOTE_ONE = `1 link is a Reddit post or comment. Threadsift reads it with the connected Reddit account. ${REDDIT_WAIT_ONE}`;
 
@@ -76,8 +73,8 @@ const SKIPPED_MORE = "and {count} more";
 const RESUME_PARTIAL =
   "Threadsift already imported {done} of {total} links from this list. Continue starts at the next link.";
 
-const PROGRESS_ONE = "{done} of {total} link";
-const PROGRESS_MANY = "{done} of {total} links";
+const PROGRESS_ONE = "{done} of {count} link";
+const PROGRESS_MANY = "{done} of {count} links";
 const STOPPED = "Import stopped at {done} of {total}.";
 
 const PLAN_NOTICE =
@@ -112,13 +109,13 @@ const PLAN_NAMES: Readonly<Record<CliProvider, string>> = {
 export type FailedEnding = keyof typeof FAILED;
 
 export function readyLabel(count: number): string {
-  return filled(count === 1 ? READY_SINGULAR : READY_PLURAL, { count: groupedNumber(count) });
+  return plural(count, READY_SINGULAR, READY_PLURAL);
 }
 
 export function skippedLabel(reason: SkipReason, count: number): string {
-  const { singular, plural } = SKIPPED[reason];
+  const { singular, plural: many } = SKIPPED[reason];
 
-  return count === 1 ? singular : filled(plural, { count: groupedNumber(count) });
+  return plural(count, singular, many);
 }
 
 export function skippedLead(reason: SkipReason): string {
@@ -138,10 +135,7 @@ export function resumePartialLabel(done: number, total: number): string {
 }
 
 export function progressLabel(done: number, total: number): string {
-  return filled(total === 1 ? PROGRESS_ONE : PROGRESS_MANY, {
-    done: groupedNumber(done),
-    total: groupedNumber(total),
-  });
+  return plural(total, PROGRESS_ONE, PROGRESS_MANY, { done: groupedNumber(done) });
 }
 
 export function stoppedLabel(done: number, total: number): string {
@@ -153,7 +147,7 @@ export function failedLabel(ending: FailedEnding, done: number, total: number): 
 }
 
 export function uncountedLabel(count: number): string {
-  return filled(count === 1 ? UNCOUNTED_ONE : UNCOUNTED_MANY, { count: groupedNumber(count) });
+  return plural(count, UNCOUNTED_ONE, UNCOUNTED_MANY);
 }
 
 export function countLabel(count: number, kind: keyof typeof COUNTS): string {
@@ -165,11 +159,7 @@ export function planNoticeLabel(provider: CliProvider): string {
 }
 
 export function redditNoteLabel(count: number, finished: boolean): string {
-  if (finished) {
-    return count === 1
-      ? REDDIT_DONE_ONE
-      : filled(REDDIT_DONE_MANY, { count: groupedNumber(count) });
-  }
-
-  return count === 1 ? REDDIT_NOTE_ONE : filled(REDDIT_NOTE_MANY, { count: groupedNumber(count) });
+  return finished
+    ? plural(count, REDDIT_DONE_ONE, REDDIT_DONE_MANY)
+    : plural(count, REDDIT_NOTE_ONE, REDDIT_NOTE_MANY);
 }

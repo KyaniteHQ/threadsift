@@ -5,7 +5,7 @@ import { GROK_BOT_TEXT, KEY_STATES } from "./grok-bot-text.ts";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
 import type { FieldState } from "./use-form.ts";
-import { useGrokBotForm } from "./use-grok-bot-form.ts";
+import { useGrokBotForm, GROK_BOT_STATE_ID } from "./use-grok-bot-form.ts";
 import { runningAction } from "./use-settings-action.ts";
 
 const ADDRESS_KIND = {
@@ -60,7 +60,7 @@ function GrokBotFields({
         marked={marked}
         help={addressChanged ? GROK_BOT_TEXT.keyNewAddress : GROK_BOT_TEXT.keyHelp}
       />
-      <p>{KEY_STATES[view.key]}</p>
+      <p id={GROK_BOT_STATE_ID}>{KEY_STATES[view.key]}</p>
     </>
   );
 }

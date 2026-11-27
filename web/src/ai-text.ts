@@ -1,6 +1,7 @@
 import { GROK_BOT_FIRST, VERIFY_WAIT_MS } from "../../src/core/contract/grok-bot-contract.ts";
 import type { CliProvider } from "../../src/core/contract/provider-families.ts";
 import { SECOND_MS } from "../../src/core/contract/time-units.ts";
+import { filled } from "./filled.ts";
 
 export const AI_TEXT = {
   "key-needed":
@@ -30,6 +31,12 @@ export const AI_TEXT = {
   verifyingBot: "Waiting for Grok Bot…",
   botTimeout: `The Grok Bot didn’t answer within ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds. Check that its routine in Grok is on, then press Verify again.`,
   botBusy: "The Grok Bot is busy or returned an error. Try Verify later.",
+  botWrongKey:
+    "The Grok Bot rejected the saved key or address. Check them in the Grok Bot section with Test, then press Verify again.",
+  botUnreachable:
+    "Couldn’t send the task to the Grok Bot. It didn’t answer, returned an error or has no routine at the saved address. Check the address in the Grok Bot section with Test, then press Verify again.",
+  botRefused:
+    "Threadsift rejected the saved Grok Bot address, so nothing was sent. Change it in the Grok Bot section to a public HTTPS address with no user name, password, query or fragment.",
   workersAiHelp:
     "Workers AI runs on this instance’s Cloudflare account. It needs no URL or API key.",
   claudeCodeKeyNotNeeded:
@@ -40,7 +47,7 @@ export const AI_TEXT = {
     "Claude Code isn’t signed in. Run {command} in this instance’s container, then reload this page.",
   claudeCodeSignInCommand: "claude auth login",
   claudeCodeRejected:
-    "Claude Code rejected its sign-in. Run claude auth login in the container or replace the token in CLAUDE_CODE_OAUTH_TOKEN, then press Verify again.",
+    "Claude Code rejected its sign-in. Run {command} in the container or replace the token in CLAUDE_CODE_OAUTH_TOKEN, then press Verify again.",
   codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in in this container.",
   codexModelHelp:
     "If you enter only an effort, Threadsift uses the first visible model in Codex’s bundled catalog.",
@@ -48,8 +55,12 @@ export const AI_TEXT = {
   codexSignedOut:
     "Codex isn’t signed in. Run {command} in this instance’s container, then reload this page.",
   codexSignInCommand: "codex login --device-auth",
+  claudeCodeNotStarted:
+    "Couldn’t start Claude Code. Check that it’s installed in this instance’s container and can run, then press Verify again.",
+  codexNotStarted:
+    "Couldn’t start Codex. Check that it’s installed in this instance’s container and can run, then press Verify again.",
   codexRejected:
-    "Codex rejected its sign-in. Run codex login --device-auth in the container, then press Verify again.",
+    "Codex rejected its sign-in. Run {command} in the container, then press Verify again.",
   baseUrl: "Base URL",
   cliChoice: "Model and effort",
   customMissing: "Enter a model or effort level.",
@@ -78,17 +89,17 @@ export const AI_TEXT = {
   key: "API key",
   keySet: "An API key is saved on this instance.",
   keyMissing: "No API key is saved yet.",
-  keyChanged: "Enter an API key to save this provider, URL and model.",
+  keyChanged: "Enter an API key to save changes to Provider, Base URL or Model.",
   keyUnreadable:
     "This instance can no longer open the saved API key. Enter the API key again and save to replace it, or restore the original THREADSIFT_SECRET_KEY and reload this page.",
   keyHelp:
-    "Leave blank to keep the saved key for the same provider, URL and model. Enter a key if you change any of them.",
+    "Leave blank to keep the saved key while Provider, Base URL and Model stay the same. Enter a key if you change any of them.",
   connect: "Connect",
   connecting: "Connecting…",
   connectHelp:
     "Connect opens OpenRouter to create a key for this instance and saves it like a key you enter here. Saving a provider starts digests for older items that have none, which uses model calls.",
   connectUnavailable:
-    "Connect needs THREADSIFT_PUBLIC_ORIGIN set to this instance’s public web address. You can still enter an API key.",
+    "To connect with OpenRouter and create a key, set THREADSIFT_PUBLIC_ORIGIN to this instance’s public web address. You can still enter an API key by hand.",
   connectStale:
     "AI settings changed since the page loaded, so Connect didn’t start. Reload the page and press Connect again.",
   connectFailed: "Couldn’t start Connect. Try again.",
@@ -140,6 +151,7 @@ export const CLI_TEXT = {
     signedOut: AI_TEXT.claudeCodeSignedOut,
     signInCommand: AI_TEXT.claudeCodeSignInCommand,
     rejected: AI_TEXT.claudeCodeRejected,
+    notStarted: AI_TEXT.claudeCodeNotStarted,
   },
   codex: {
     keyNotNeeded: AI_TEXT.codexKeyNotNeeded,
@@ -148,6 +160,7 @@ export const CLI_TEXT = {
     signedOut: AI_TEXT.codexSignedOut,
     signInCommand: AI_TEXT.codexSignInCommand,
     rejected: AI_TEXT.codexRejected,
+    notStarted: AI_TEXT.codexNotStarted,
   },
 } as const;
 
@@ -156,6 +169,12 @@ export function signedOutParts(provider: CliProvider) {
   const [before = "", after = ""] = signedOut.split("{command}");
 
   return { before, command: signInCommand, after };
+}
+
+export function rejectedSentence(provider: CliProvider): string {
+  const { rejected, signInCommand } = CLI_TEXT[provider];
+
+  return filled(rejected, { command: signInCommand });
 }
 
 export function signedOutSentence(provider: CliProvider): string {

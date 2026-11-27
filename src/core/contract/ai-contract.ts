@@ -32,6 +32,7 @@ const AiExecutionRefusalSchema = z.enum([
   "refused",
   "provider-busy",
   "not-configured",
+  "cli-not-started",
   "provider-unavailable",
 ]);
 
@@ -95,6 +96,7 @@ export function retriesAi({ reason, status }: Readonly<AiRefused>): boolean {
     case "provider-unavailable":
     case "key-needed":
     case "not-configured":
+    case "cli-not-started":
     case "secret-missing":
       return false;
     default: {

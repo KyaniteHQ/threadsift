@@ -6,6 +6,7 @@ import type {
   RunningPhase,
 } from "../../src/core/contract/restore-contract.ts";
 import { filled } from "./filled.ts";
+import { plural } from "./plural.ts";
 
 export const RESTORE_TEXT = {
   lede: "A restore reads an export zip into this instance and brings back every item and the records around it. It works only while the library is empty.",
@@ -33,10 +34,15 @@ export const RESTORE_TEXT = {
   resumeFailed: "Couldn’t resume the restore. Try again.",
 } as const;
 
-const UPLOADING = "Uploading part {sent} of {parts}…";
+const UPLOADING_ONE = "Uploading: {done} of 1 part sent…";
 
-const INTERRUPTED =
-  "The upload stopped after {received} of {parts} parts. Choose the same zip to send the rest.";
+const UPLOADING_MANY = "Uploading: {done} of {count} parts sent…";
+
+const INTERRUPTED_ONE =
+  "The upload stopped with {done} of 1 part received. Choose the same zip again to send what’s missing.";
+
+const INTERRUPTED_MANY =
+  "The upload stopped with {done} of {count} parts received. Choose the same zip again to send what’s missing.";
 
 const PHASE_TEXT = {
   check: "Checking the zip…",
@@ -49,21 +55,25 @@ const PHASE_TEXT = {
 
 const SO_FAR = "{records} so far";
 
+const DONE_ONE_RECORD = "1 item (1 record total)";
+
 const DONE_ONE = "1 item ({records} records total)";
 
-const DONE_MANY = "{items} items ({records} records total)";
+const DONE_MANY_ONE_RECORD = "{count} items (1 record total)";
+
+const DONE_MANY = "{count} items ({records} records total)";
 
 const DROPPED_ONE =
-  "{dropped} record was left out. It repeated an earlier one or belonged to a record missing from the zip.";
+  "{count} record was left out. It repeated an earlier one or belonged to a record missing from the zip.";
 
 const DROPPED_MANY =
-  "{dropped} records were left out. Each repeated an earlier one or belonged to a record missing from the zip.";
+  "{count} records were left out. Each repeated an earlier one or belonged to a record missing from the zip.";
 
 const MISSING_FILES_ONE =
-  "{missing} file was missing from the zip. The reader links a missing image to its original web address. An item missing its post text file has no post text.";
+  "{count} file was missing from the zip. The reader links a missing image to its original web address. An item missing its post text file has no post text.";
 
 const MISSING_FILES_MANY =
-  "{missing} files were missing from the zip. The reader links missing images to their original web addresses. Items missing their post text file have no post text.";
+  "{count} files were missing from the zip. The reader links missing images to their original web addresses. Items missing their post text file have no post text.";
 
 const REFUSAL_TEXT = {
   "incomplete-upload":
@@ -124,11 +134,11 @@ export function failureLabel(
 }
 
 export function uploadingLabel(sent: number, parts: number): string {
-  return filled(UPLOADING, { sent: groupedNumber(sent), parts: groupedNumber(parts) });
+  return plural(parts, UPLOADING_ONE, UPLOADING_MANY, { done: groupedNumber(sent) });
 }
 
 export function interruptedLabel(received: number, parts: number): string {
-  return filled(INTERRUPTED, { received: groupedNumber(received), parts: groupedNumber(parts) });
+  return plural(parts, INTERRUPTED_ONE, INTERRUPTED_MANY, { done: groupedNumber(received) });
 }
 
 export function phaseLabel(phase: RunningPhase): string {
@@ -140,18 +150,18 @@ export function soFarLabel(records: number): string {
 }
 
 export function doneLabel(items: number, records: number): string {
-  return filled(items === 1 ? DONE_ONE : DONE_MANY, {
-    items: groupedNumber(items),
-    records: groupedNumber(records),
-  });
+  if (records === 1)
+    return items === 1
+      ? DONE_ONE_RECORD
+      : filled(DONE_MANY_ONE_RECORD, { count: groupedNumber(items) });
+
+  return plural(items, DONE_ONE, DONE_MANY, { records: groupedNumber(records) });
 }
 
 export function droppedLabel(dropped: number): string {
-  return filled(dropped === 1 ? DROPPED_ONE : DROPPED_MANY, { dropped: groupedNumber(dropped) });
+  return plural(dropped, DROPPED_ONE, DROPPED_MANY);
 }
 
 export function missingFilesLabel(missing: number): string {
-  return filled(missing === 1 ? MISSING_FILES_ONE : MISSING_FILES_MANY, {
-    missing: groupedNumber(missing),
-  });
+  return plural(missing, MISSING_FILES_ONE, MISSING_FILES_MANY);
 }

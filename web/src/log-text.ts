@@ -33,10 +33,6 @@ export function addedRemoved(added: number, removed: number): string {
   return `${String(added)} added, ${String(removed)} removed`;
 }
 
-export function picksLabel(picks: number): string {
-  return plural(picks, "1 item", "{count} items");
-}
-
 export function mergeLabel(from: string, into: string): string {
   return filled("{from} into {into}", { from, into });
 }
