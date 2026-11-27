@@ -6,10 +6,12 @@ import { delimiter, join, resolve, sep } from "node:path";
 import { z } from "zod";
 
 import { loadInChromium } from "./extension-chrome-check.ts";
+import { checkListing, ManifestPermissionsSchema } from "./extension-listing-check.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const EXTENSION = "extension";
 const WXT_OUTPUT = join(EXTENSION, ".output");
+const LISTING = join(EXTENSION, "store-listing.md");
 const ARCHIVE_MUST_HOLD = ["SOURCE_CODE_REVIEW.md", "README.md"];
 const BUILD_ENV_KEPT = [
   "HOME",
@@ -27,7 +29,7 @@ type Browser = (typeof BROWSERS)[number];
 const BUILD_SCRIPTS: Readonly<Record<Browser, string>> = { chrome: "zip", firefox: "zip:firefox" };
 
 const PackageSchema = z.object({ name: z.string().min(1), version: z.string().min(1) });
-const ManifestSchema = z.object({ version: z.string().min(1) });
+const ManifestSchema = ManifestPermissionsSchema.extend({ version: z.string().min(1) });
 const LintSchema = z.object({
   summary: z.object({ errors: z.number(), warnings: z.number(), notices: z.number() }),
   warnings: z.array(z.object({ code: z.string(), file: z.string().optional() })),
@@ -136,12 +138,16 @@ function builtZips(root: string, into: string, target: Release): Record<Browser,
   };
 }
 
-function manifestVersion(folder: string, target: Release): string {
+type Manifest = z.infer<typeof ManifestSchema>;
+
+function checkedManifest(folder: string, target: Release, browser: Browser): Manifest {
   const manifest = ManifestSchema.safeParse(
     JSON.parse(readFileSync(join(folder, "manifest.json"), "utf8")),
   );
 
-  if (!manifest.success) throw new StepFailed(`${folder}/manifest.json holds no version`);
+  if (!manifest.success) {
+    throw new StepFailed(`${folder}/manifest.json: ${z.prettifyError(manifest.error)}`);
+  }
 
   const { version } = manifest.data;
 
@@ -149,7 +155,21 @@ function manifestVersion(folder: string, target: Release): string {
     throw new StepFailed(`${folder}/manifest.json reads ${version}, the package ${target.version}`);
   }
 
-  return version;
+  process.stdout.write(`${zipName(target, browser)}: manifest version ${version}\n`);
+
+  return manifest.data;
+}
+
+function checkManifests(first: Readonly<Record<Browser, string>>, target: Release): string {
+  const chrome = checkedManifest(first.chrome, target, "chrome");
+  const firefox = checkedManifest(first.firefox, target, "firefox");
+
+  checkListing(join(ROOT, LISTING), [
+    { browser: "chrome", part: "Chrome Web Store, Privacy practices", manifest: chrome },
+    { browser: "firefox", part: "Firefox Add-ons", manifest: firefox },
+  ]);
+
+  return chrome.version;
 }
 
 function lintFirefox(folder: string): void {
@@ -207,11 +227,8 @@ async function packageExtension(work: string): Promise<void> {
   rmSync(join(ROOT, WXT_OUTPUT), { recursive: true, force: true });
 
   const first = builtZips(ROOT, join(work, "first"), target);
-  const chromeVersion = manifestVersion(first.chrome, target);
+  const chromeVersion = checkManifests(first, target);
 
-  process.stdout.write(
-    `${zipName(target, "chrome")}: manifest version ${chromeVersion}\n${zipName(target, "firefox")}: manifest version ${manifestVersion(first.firefox, target)}\n`,
-  );
   lintFirefox(first.firefox);
   await loadInChromium(first.chrome, chromeVersion, work);
 

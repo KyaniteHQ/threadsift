@@ -1,6 +1,6 @@
 # Store listing texts
 
-The texts the owner enters in the Chrome Web Store Developer Dashboard and in the Firefox Add-ons Developer Hub when uploading the Extension. The repository's copy script wrote every text in a `text` block. Copy each block as it is.
+The texts the owner enters in the Chrome Web Store Developer Dashboard and in the Firefox Add-ons Developer Hub when uploading the Extension. The repository's copy script wrote every text in a `text` block. Copy each block as it is. The package command fails when a store's part has no heading for a permission, an optional permission, a data collection permission or the host permissions of that store's built manifest.
 
 Both stores take the name, the summary line and the version from the manifest in the zip, so this page holds none of them. The summary line is `manifestDescription` in the Extension's text module, and the manifest's `description` reads it.
 
@@ -100,14 +100,76 @@ Tick Website content, Web history and Authentication information. Web history co
 
 ## Firefox Add-ons
 
+### Description
+
+Mozilla asks each add-on to give the reason for each permission in its description ([Request the right permissions](https://extensionworkshop.com/documentation/develop/request-the-right-permissions/)), and the Developer Hub has no field per permission. Enter the Detailed description, then the heading line below and the text under each permission heading, in this order, each as its own paragraph. Firefox Add-ons keeps the `description` of an add-on to 15,000 characters ([addons-server add-on model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/addons/models.py#L486)), and the Detailed description with every text below holds 4,860 characters.
+
+```text
+Reasons for each permission
+```
+
+#### `activeTab`
+
+```text
+activeTab: When you press the toolbar button, the extension gets one-time access to the current tab to save that page to your Threadsift instance. It does not hold the tabs permission and cannot access other tabs.
+```
+
+#### `scripting`
+
+```text
+scripting: Saving a page runs the extension’s own script in that tab to read the title, text and image addresses, or in a Reddit tab to request the thread from reddit.com with your Reddit session. On granted hosts, the extension registers two scripts: one on your Threadsift address so Settings can ask to reconnect Reddit, and one on reddit.com only while "Fill saved Reddit items" is on. It runs no code from outside the extension.
+```
+
+#### `storage`
+
+```text
+storage: Local extension storage holds your Threadsift address, your agent token and whether "Fill saved Reddit items" is on, and nothing else. Only the background worker reads the token; the popup and the page script never see it. Removing the extension deletes these values.
+```
+
+#### `webRequest`
+
+```text
+webRequest: When saving cannot reach your Threadsift address, the extension reads the browser’s network error to explain why: address not found, connection refused or timed out, or no secure connection. It inspects only errors from requests it started on hosts you granted, and does not block, change or read the content of any request. Firefox shows no prompt for this permission.
+```
+
+#### `cookies`
+
+```text
+cookies: The extension asks for this optional permission only when you select Connect Reddit for a self-hosted instance. It reads only reddit.com’s reddit_session cookie and sends it to your Threadsift address so your instance can read Reddit threads as you; it never stores the cookie or sends it anywhere else. Disconnect asks your instance to delete the stored session, then removes this permission.
+```
+
+#### Host permissions
+
+```text
+Host permissions: All host permissions are optional and grant nothing at install; they cover any https host for your own Threadsift instance and http only on localhost and 127.0.0.1. At Save settings, the extension asks only for your Threadsift host, which the browser’s prompt names. It asks for reddit.com only when you turn on "Fill saved Reddit items" or select Connect Reddit, and removes every other host it holds.
+```
+
+#### `websiteContent`
+
+```text
+websiteContent: Pressing the toolbar button sends the page’s address, readable text, image, video and embedded media addresses, and the title, author and publication date when the page names them, to your Threadsift address. In a Reddit tab, the extension sends the post and comments as Reddit returns them, with the authors’ user names. It reads no page in the background and sends page content nowhere else.
+```
+
+#### `authenticationInfo`
+
+```text
+authenticationInfo: Each request to your Threadsift address includes the agent token you create in Threadsift’s Settings, and the extension never sends that token to reddit.com. Only when you select Connect Reddit or Reconnect does it read reddit.com’s reddit_session cookie and send it to your Threadsift instance. It does not store the cookie or send either one anywhere else.
+```
+
+#### `browsingActivity`
+
+```text
+browsingActivity: Turning on "Fill saved Reddit items" opens one Firefox prompt for this optional permission and reddit.com access; Deny leaves it off. While on, the extension sends the address of a Reddit post or comment you open to your Threadsift address to ask if the link is saved without its thread, and reads and sends the thread only then. Turning it off removes the permission; while off, the extension sends no unsaved page address.
+```
+
 ### Notes to reviewer
 
-Upload the source archive that the package command writes, with the Firefox zip.
+Upload the source archive that the package command writes, with the Firefox zip. Firefox Add-ons keeps the notes to the reviewer to 3,000 characters ([addons-server version model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/versions/models.py#L311)), and the text holds 1,277 characters.
 
 ```text
 WXT’s production build bundles and minifies the extension’s code without obfuscation. The source upload is a git archive of the repository with the readable code. SOURCE_CODE_REVIEW.md at its root gives the build environment (Node.js 26, pnpm 12.23.0), commands and how to compare the build with the upload. It explains web-ext lint warnings from two libraries: DANGEROUS_EVAL from zod and UNSAFE_VAR_ASSIGNMENT from defuddle.
 
 To use the extension, run a Threadsift instance (the README shows how in a container). Enter its address and an agent token with Read and Add scopes in the extension’s settings, plus the Reddit scope for Connect Reddit.
 
-The webRequest permission reads only network errors of the extension’s own requests to the Threadsift address. It blocks and changes nothing. Only Connect Reddit asks for the optional cookies permission, which reads only reddit.com’s reddit_session cookie. In Firefox, turning on "Fill saved Reddit items" asks for reddit.com access and the optional browsing activity data permission in one prompt. Deny leaves Fill off. All host permissions are optional. The extension asks for the one Threadsift host at Save settings.
+The webRequest permission reads only network errors of the extension’s own requests to the Threadsift address. It blocks and changes nothing. Only Connect Reddit asks for the optional cookies permission, which reads only reddit.com’s reddit_session cookie. In Firefox, turning on "Fill saved Reddit items" asks for reddit.com access and the optional browsing activity data permission in one prompt. Deny leaves Fill off. All host permissions are optional. The extension asks for the one Threadsift host at Save settings. The Description gives the reason for every permission and every data collection permission in the manifest.
 ```
