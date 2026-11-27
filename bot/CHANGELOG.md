@@ -4,7 +4,7 @@
 
 ## bot-v13
 
-- The texts the bot says word for word are rewritten: the not-configured alert, the question for the Instance address and the one asked when the remembered address differs, the address card, which is now labeled "Threadsift instance address", the alerts for a missing X plugin and a spent daily budget, and the message before an import of all bookmarks. The profile and the skill description are rewritten too. The stored address and token stay as they are, and what the bot does does not change.
+- The texts the bot says word for word are rewritten: the not-configured alert, the question for the Instance address and the one asked when the remembered address differs, the address card, which is now labeled "Threadsift instance address", the alert for a missing X plugin, the message before an import of all bookmarks, and the daily budget stop, which now has one alert for a sync and one reply for an import. The budget texts say that the Instance refuses a whole page of bookmarks when its new links would pass the budget left for the UTC day, and the import message says that the Instance's X reader setting decides whether the bot or the grok CLI reads each thread. The profile and the skill description are rewritten too. The stored address and token stay as they are, and what the bot does does not change.
 - The Digest names each kept reply in `keptComments` by its id alone, such as `1000000000000000011`, because the Instance stores comment ids without Reddit's `t1_` prefix. Update the Threadsift Instance first: an Instance from before this release refuses an id without `t1_`, and an Instance of this release still accepts one with it.
 
 ## bot-v12
