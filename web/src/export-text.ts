@@ -2,10 +2,9 @@ import {
   EXPORT_KEEP_MS,
   type ShownExportFailure,
 } from "../../src/core/contract/export-contract.ts";
-import { groupedNumber } from "../../src/core/contract/format.ts";
 import { MAX_ATTEMPTS } from "../../src/core/contract/job-contract.ts";
 import { HOUR_MS } from "../../src/core/contract/time-units.ts";
-import { filled } from "./filled.ts";
+import { plural } from "./plural.ts";
 
 export const EXPORT_TEXT = {
   sectionTitle: "Backup",
@@ -27,9 +26,9 @@ export const EXPORT_TEXT = {
   removeFailed: "Couldn’t delete the export. Try again.",
 } as const;
 
-const PROGRESS = { one: "1 file, {size} so far", many: "{files} files, {size} so far" } as const;
+const PROGRESS = { one: "1 file, {size} so far", many: "{count} files, {size} so far" } as const;
 
-const READY_DETAIL = { one: "1 file, {size}", many: "{files} files, {size}" } as const;
+const READY_DETAIL = { one: "1 file, {size}", many: "{count} files, {size}" } as const;
 
 const FAILURE_TEXT = {
   "gave-up": `The export failed after ${String(MAX_ATTEMPTS)} tries on one step. Start export runs it from the beginning.`,
@@ -61,10 +60,7 @@ function sizedLabel(
   entries: number,
   bytes: number,
 ): string {
-  return filled(entries === 1 ? texts.one : texts.many, {
-    files: groupedNumber(entries),
-    size: byteLabel(bytes),
-  });
+  return plural(entries, texts.one, texts.many, { size: byteLabel(bytes) });
 }
 
 export function progressLabel(entries: number, bytes: number): string {
