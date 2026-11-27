@@ -7,6 +7,7 @@ import {
 } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
+import { heldOffWrites, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { proposals } from "../../../core/kernel/schema.ts";
 import { applyUnit } from "./merge-apply.ts";
 import { recordingFailure } from "./merge-failure.ts";
@@ -106,7 +107,13 @@ export async function acceptMerge(
   kind: MergeKind,
 ): Promise<MergeAcceptance> {
   const { db } = ports;
-  const [claim] = await proposalClaimed(db, id, kind);
+  const claimed = await whileOpen(() =>
+    db.batch(heldOffWrites(db, [proposalClaimed(db, id, kind)] as const)),
+  );
+
+  if ("kind" in claimed) return claimed.kind;
+
+  const [, [claim]] = claimed;
   const row = await readRow(db, id, kind);
 
   if (claim !== undefined) return row === undefined ? "done" : runUnit(ports, id, row, NOTHING_RUN);

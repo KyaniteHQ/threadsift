@@ -8,7 +8,7 @@ import { readTopicOverview } from "./topic-page.ts";
 
 type OverviewRetry =
   | { readonly outcome: "started"; readonly overview: Overview }
-  | { readonly outcome: "unknown-topic" | "no-provider" | "no-items" };
+  | { readonly outcome: "unknown-topic" | "no-provider" | "no-items" | "restoring" };
 
 async function retryingTopic(ports: Ports, topic: Readonly<Side>): Promise<OverviewRetry> {
   const { db } = ports;
@@ -17,6 +17,7 @@ async function retryingTopic(ports: Ports, topic: Readonly<Side>): Promise<Overv
   switch (result.kind) {
     case "no-provider":
     case "no-items":
+    case "restoring":
       return { outcome: result.kind };
     case "stale":
       return retryingTopic(ports, topic);

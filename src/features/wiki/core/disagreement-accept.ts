@@ -2,14 +2,14 @@ import { eq, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
 import { currentDisagreementPin } from "../../../core/kernel/disagreement-sql.ts";
-import { guardedBatch } from "../../../core/kernel/guards.ts";
+import { heldOffBatch } from "../../../core/kernel/restore-hold.ts";
 import { itemsDisagreeProposals, pins, proposals } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { DISAGREEMENT } from "./disagreement-rows.ts";
 import { pairKey } from "./proposal-candidates.ts";
 import { removedOpen } from "./proposal-lifecycle.ts";
 
-type DisagreementAcceptance = "done" | "unknown" | "not-open" | "not-current";
+type DisagreementAcceptance = "done" | "unknown" | "not-open" | "not-current" | "restoring";
 
 interface Side {
   readonly item: number;
@@ -78,11 +78,13 @@ export async function acceptDisagreement(
 
   if (row.current === 0 || reason === null) return "not-current";
 
-  const accepted = await guardedBatch(db, stillCurrent(id), [
+  const accepted = await heldOffBatch(db, stillCurrent(id), [
     keptPair(db, reason, sides),
     ...STALE.disagreementAccepted(db, sides[0].item),
     removedOpen(db, "items-disagree", eq(proposals.id, id)),
   ]);
 
-  return accepted ? "done" : "not-current";
+  if (accepted === "restoring") return accepted;
+
+  return accepted === "written" ? "done" : "not-current";
 }

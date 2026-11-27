@@ -11,8 +11,8 @@ import {
 } from "../../../core/contract/topic-overview-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { accessNote, accessRefusals, jsonBody } from "../../../http/openapi.ts";
-import { notFound } from "../../../http/refusals.ts";
+import { accessNote, accessRefusals, jsonBody, restoringRefusal } from "../../../http/openapi.ts";
+import { notFound, restoring } from "../../../http/refusals.ts";
 import { ItemQuerySchema } from "../../../http/route-input.ts";
 import { readTopicPage } from "../core/topic-page.ts";
 import { retryOverview } from "../core/topic-retry.ts";
@@ -63,6 +63,7 @@ const retryOverviewRoute = createRoute({
       ErrorResponseSchema,
       "No overview can run: no Provider is saved, or the Topic has no Item with a Digest.",
     ),
+    ...restoringRefusal("no overview run is queued."),
   },
 });
 
@@ -89,6 +90,8 @@ export function registerTopicRoutes(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: "The Topic has no Item with a Digest" }, 409);
       case "started":
         return c.json({ overview: result.overview }, 202);
+      case "restoring":
+        return restoring(c);
       default: {
         const exhaustive: never = result;
 

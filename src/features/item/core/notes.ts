@@ -6,14 +6,15 @@ import {
   storedNoteBody,
 } from "../../../core/contract/note-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedBatch } from "../../../core/kernel/guards.ts";
+import { type Closed, heldOffBatch } from "../../../core/kernel/restore-hold.ts";
 import { items, notes } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { notePartWrites } from "./search.ts";
 
 type SavedNote =
   | { readonly kind: "saved" | "stale"; readonly note: NoteView }
-  | { readonly kind: "no-item" };
+  | { readonly kind: "no-item" }
+  | Closed;
 
 const NEVER_SAVED: NoteView = { body: null, revision: 0 };
 
@@ -49,13 +50,15 @@ export async function saveNote(
   const item = eq(items.id, itemId);
   const next: NoteView = { body: storedNoteBody(body), revision: revision + 1 };
   const changed = sql`(select ${notes.body} from ${notes} where ${notes.itemId} = ${itemId}) is not ${next.body}`;
-  const written = await guardedBatch(db, revisionHolds(itemId, revision), [
+  const written = await heldOffBatch(db, revisionHolds(itemId, revision), [
     ...STALE.itemChanged(db, sql`${item} and ${changed}`),
     noteUpsert(db, itemId, next),
     ...notePartWrites(db, item),
   ]);
 
-  if (written) return { kind: "saved", note: next };
+  if (written === "restoring") return { kind: written };
+
+  if (written === "written") return { kind: "saved", note: next };
 
   const [[held], [current]] = await db.batch([
     db.select({ id: items.id }).from(items).where(item),

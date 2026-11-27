@@ -8,8 +8,14 @@ import {
 } from "../../../core/contract/note-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { accessNote, accessRefusals, jsonBody, jsonRequest } from "../../../http/openapi.ts";
-import { notFound } from "../../../http/refusals.ts";
+import {
+  accessNote,
+  accessRefusals,
+  jsonBody,
+  jsonRequest,
+  restoringRefusal,
+} from "../../../http/openapi.ts";
+import { notFound, restoring } from "../../../http/refusals.ts";
 import { IdParamSchema } from "../../../http/route-input.ts";
 import { saveNote } from "../core/notes.ts";
 
@@ -35,6 +41,7 @@ const saveNoteRoute = createRoute({
       NoteConflictSchema,
       "`revision` is not the Note's revision any more. Nothing is saved. `note` holds the current Note and revision: send the text again with that revision to replace it. A Note that was never saved has revision 0.",
     ),
+    ...restoringRefusal("the Note is not saved."),
   },
 });
 
@@ -49,6 +56,8 @@ export function registerNoteRoutes(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: STALE, note: saved.note }, 409);
       case "saved":
         return c.json({ note: saved.note }, 200);
+      case "restoring":
+        return restoring(c);
       default: {
         const exhaustive: never = saved;
 

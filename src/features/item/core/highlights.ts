@@ -9,8 +9,8 @@ import type {
 } from "../../../core/contract/highlight-contract.ts";
 import { projectText } from "../../../core/contract/text-projection.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedWrite } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { type Closed, heldOffWrite, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { type HighlightRow, highlights, items, searchParts } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { postTextOf } from "../../thread/core/post-text.ts";
@@ -20,7 +20,8 @@ import { highlightPartWrites } from "./search.ts";
 
 type CreatedHighlight =
   | { readonly kind: "created" | "existing"; readonly highlight: Highlight }
-  | { readonly kind: "no-item" | "no-comment" | "stale" | "mismatch" };
+  | { readonly kind: "no-item" | "no-comment" | "stale" | "mismatch" }
+  | Closed;
 
 type Revisions = Readonly<{ post: number; comments: number | null }>;
 
@@ -106,21 +107,24 @@ function highlightInsert(
   });
 }
 
-async function saveHighlight(
+function saveHighlight(
   db: Database,
   itemId: number,
   request: Readonly<CreateHighlightRequest>,
-): Promise<HighlightRow | null> {
+): Promise<HighlightRow | null | Closed> {
   const item = eq(items.id, itemId);
-  const [saved] =
-    (await guardedWrite(
-      db,
-      sql`${revisionHolds(itemId, request.target, request.revision)} and not exists ${existingHighlight(db, itemId, request)}`,
-      highlightInsert(db, itemId, request).returning(),
-      [...highlightPartWrites(db, item), ...STALE.itemChanged(db, item)],
-    )) ?? [];
 
-  return saved ?? null;
+  return whileOpen(async () => {
+    const [saved] =
+      (await heldOffWrite(
+        db,
+        sql`${revisionHolds(itemId, request.target, request.revision)} and not exists ${existingHighlight(db, itemId, request)}`,
+        highlightInsert(db, itemId, request).returning(),
+        [...highlightPartWrites(db, item), ...STALE.itemChanged(db, item)],
+      )) ?? [];
+
+    return saved ?? null;
+  });
 }
 
 function readCreateInputs(db: Database, itemId: number, request: Readonly<CreateHighlightRequest>) {
@@ -176,9 +180,9 @@ export async function createHighlight(
 
   const saved = await saveHighlight(db, itemId, request);
 
-  return saved === null
-    ? createHighlight(ports, itemId, request)
-    : { kind: "created", highlight: highlightOf(saved, revisions) };
+  if (saved === null) return createHighlight(ports, itemId, request);
+
+  return "kind" in saved ? saved : { kind: "created", highlight: highlightOf(saved, revisions) };
 }
 
 export function removalWrites(db: Database, itemId: number, highlightId: number) {

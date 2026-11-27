@@ -1,8 +1,16 @@
-import { sql } from "drizzle-orm";
+import { type SQLWrapper, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
 
 import type { RestoreFailure } from "../contract/restore-contract.ts";
 import type { Database } from "./database.ts";
-import { answeringRefusal, holdsNoRow, insertGuard } from "./guards.ts";
+import {
+  answeringRefusal,
+  guardedWrites,
+  guards,
+  holdsNoRow,
+  insertGuard,
+  unlessRefused,
+} from "./guards.ts";
 import { HOLDING, NOTHING_WRITTEN, type Standing, standingSql } from "./restore-standing.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { STALE } from "./vault-stale.ts";
@@ -91,6 +99,47 @@ export function restoreGuard(db: Database) {
 export type Closed = { readonly kind: "restoring" };
 
 const CLOSED: Closed = { kind: "restoring" };
+
+export function heldOffWrites<Writes extends readonly BatchItem<"sqlite">[]>(
+  db: Database,
+  writes: Writes,
+) {
+  return [restoreGuard(db), ...writes, db.delete(guards)] as const;
+}
+
+export function heldOffWrite<Write extends BatchItem<"sqlite">>(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  write: Write,
+  rest: readonly BatchItem<"sqlite">[],
+): Promise<Write["_"]["result"] | null> {
+  return unlessRefused(async () => {
+    const [, , result] = await db.batch([
+      restoreGuard(db),
+      ...guardedWrites(db, condition, [write, ...rest] as const),
+    ] as const);
+
+    return result;
+  });
+}
+
+export function heldOffBatch(
+  db: Database,
+  condition: Readonly<SQLWrapper>,
+  writes: readonly BatchItem<"sqlite">[],
+): Promise<"written" | "refused" | Closed["kind"]> {
+  return answeringRefusal(
+    "restore",
+    async () => {
+      const written = await unlessRefused(() =>
+        db.batch([restoreGuard(db), ...guardedWrites(db, condition, writes)]),
+      );
+
+      return written === null ? "refused" : "written";
+    },
+    CLOSED.kind,
+  );
+}
 
 export function whileOpen<Result>(write: () => Promise<Result>): Promise<Result | Closed> {
   return answeringRefusal("restore", write, CLOSED);
