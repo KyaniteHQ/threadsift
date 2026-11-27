@@ -1,4 +1,6 @@
 import "./zod-jitless.ts";
+import "@fontsource/commit-mono/400.css";
+import "@fontsource/commit-mono/500.css";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "@fontsource/ibm-plex-sans/400.css";

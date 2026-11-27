@@ -13,7 +13,7 @@
   padding: 0 0 var(--s2);
   font-size: var(--t-meta);
   border-inline-end: 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hw) solid var(--line);
 }
 .rl-items .list-head h2 {
   margin: 0;
@@ -39,7 +39,7 @@
   gap: var(--s1);
   min-width: 0;
   padding: var(--s3);
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hw) solid var(--line);
 }
 .rl-row:has(.rl-open):hover,
 .hp-it:hover {
@@ -75,6 +75,7 @@
   font-family: var(--f-display);
   font-weight: var(--dw-soft);
   letter-spacing: var(--dls);
+  word-spacing: var(--dws);
   overflow-wrap: anywhere;
   text-decoration: none;
   cursor: pointer;

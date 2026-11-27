@@ -8,7 +8,7 @@ html {
 }
 
 .list {
-  --row-lead-h: calc(var(--s1) + var(--s2) + 1px + 1lh);
+  --row-lead-h: calc(var(--s1) + var(--s2) + var(--hw) + 1lh);
   scroll-padding-top: var(--row-lead-h);
 }
 
@@ -188,7 +188,7 @@ dialog.dlg {
   width: min(var(--dlg-w), calc(100vw - var(--s4) * 2));
   max-width: none;
   padding: var(--s4);
-  border: 1px solid var(--line-2);
+  border: var(--hw) solid var(--line-2);
   border-radius: var(--r3);
   background: var(--surface);
   box-shadow: var(--shadow-lg);

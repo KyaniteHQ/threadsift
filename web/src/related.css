@@ -18,10 +18,10 @@
   gap: var(--s1);
   min-width: 0;
   padding: var(--s3) 0;
-  border-top: 1px solid var(--line);
+  border-top: var(--hw) solid var(--line);
 }
 .rel-entry:last-child {
-  border-bottom: 1px solid var(--line);
+  border-bottom: var(--hw) solid var(--line);
 }
 .rel-entry:has(.rel-link:focus-visible) {
   outline: 2px solid var(--acc-ink);
@@ -41,6 +41,7 @@
   font-size: var(--t-title);
   font-weight: var(--dw-soft);
   letter-spacing: var(--dls);
+  word-spacing: var(--dws);
   line-height: var(--lh-title);
   overflow-wrap: anywhere;
   text-decoration: none;

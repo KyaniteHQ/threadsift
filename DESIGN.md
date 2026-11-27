@@ -2,28 +2,28 @@
 name: Threadsift
 description: A reading library where saved threads, posts, repos and articles read as their useful part.
 colors:
-  cobalt: "oklch(0.50 0.14 258)"
-  cobalt-ink: "oklch(0.47 0.14 258)"
-  cobalt-soft: "oklch(0.935 0.035 258)"
+  moss: "oklch(0.50 0.14 145)"
+  moss-ink: "oklch(0.47 0.14 145)"
+  moss-soft: "oklch(0.935 0.035 145)"
   on-accent: "oklch(0.99 0 0)"
-  bg: "oklch(0.976 0.008 255)"
-  surface: "oklch(0.995 0.004 255)"
-  surface-2: "oklch(0.948 0.008 255)"
-  press: "oklch(0.919 0.008 255)"
-  line: "oklch(0.89 0.008 255)"
-  line-2: "oklch(0.80 0.008 255)"
-  ctl-line: "oklch(0.60 0.008 255)"
-  text: "oklch(0.22 0.008 255)"
-  muted: "oklch(0.46 0.008 255)"
+  bg: "oklch(0.976 0.005 180)"
+  surface: "oklch(0.995 0.0025 180)"
+  surface-2: "oklch(0.948 0.005 180)"
+  press: "oklch(0.919 0.005 180)"
+  line: "oklch(0.89 0.005 180)"
+  line-2: "oklch(0.80 0.005 180)"
+  ctl-line: "oklch(0.60 0.005 180)"
+  text: "oklch(0.22 0.005 180)"
+  muted: "oklch(0.46 0.005 180)"
   ok: "oklch(0.47 0.12 150)"
   warn: "oklch(0.50 0.16 35)"
 typography:
   display:
-    fontFamily: "'IBM Plex Sans', system-ui, sans-serif"
+    fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif"
     fontSize: "24px"
     fontWeight: 600
     lineHeight: 1.15
-    letterSpacing: "-0.01em"
+    letterSpacing: "-0.015em"
   wordmark:
     fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', 'Schibsted Grotesk Fallback', system-ui, sans-serif"
     fontSize: "24px"
@@ -31,48 +31,48 @@ typography:
     lineHeight: 1.15
     letterSpacing: "-0.015em"
   headline:
-    fontFamily: "'IBM Plex Sans', system-ui, sans-serif"
+    fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif"
     fontSize: "20px"
     fontWeight: 600
     lineHeight: 1.25
-    letterSpacing: "-0.01em"
+    letterSpacing: "-0.015em"
   title:
-    fontFamily: "'IBM Plex Sans', system-ui, sans-serif"
+    fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif"
     fontSize: "15px"
-    fontWeight: 500
+    fontWeight: 560
     lineHeight: 1.25
-    letterSpacing: "-0.01em"
+    letterSpacing: "-0.015em"
   body:
-    fontFamily: "'IBM Plex Sans', system-ui, sans-serif"
+    fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif"
     fontSize: "17px"
     fontWeight: 400
     lineHeight: 1.6
   body-list:
-    fontFamily: "'IBM Plex Sans', system-ui, sans-serif"
+    fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif"
     fontSize: "13.5px"
     fontWeight: 400
     lineHeight: 1.45
   meta:
-    fontFamily: "'IBM Plex Sans', system-ui, sans-serif"
+    fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif"
     fontSize: "13px"
     fontWeight: 400
     lineHeight: 1.45
   label:
-    fontFamily: "'IBM Plex Sans', system-ui, sans-serif"
+    fontFamily: "'Schibsted Grotesk Variable', 'Schibsted Grotesk', system-ui, sans-serif"
     fontSize: "12px"
     fontWeight: 600
     lineHeight: 1.4
     letterSpacing: "0.06em"
   code:
-    fontFamily: "'IBM Plex Mono', ui-monospace, monospace"
+    fontFamily: "'Commit Mono', ui-monospace, monospace"
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
 rounded:
-  r1: "4px"
-  r2: "8px"
-  r3: "14px"
-  r4: "999px"
+  r1: "2px"
+  r2: "2px"
+  r3: "2px"
+  r4: "2px"
 spacing:
   s1: "4px"
   s2: "8px"
@@ -82,7 +82,7 @@ spacing:
   s6: "32px"
 components:
   button:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "transparent"
     textColor: "{colors.text}"
     rounded: "{rounded.r2}"
     padding: "0 12px"
@@ -92,7 +92,7 @@ components:
   button-press:
     backgroundColor: "{colors.press}"
   button-accent:
-    backgroundColor: "{colors.cobalt}"
+    backgroundColor: "{colors.moss}"
     textColor: "{colors.on-accent}"
     rounded: "{rounded.r2}"
     padding: "0 12px"
@@ -109,21 +109,21 @@ components:
     padding: "0 12px"
     height: "40px"
   filter-chip:
-    backgroundColor: "{colors.surface}"
+    backgroundColor: "transparent"
     textColor: "{colors.text}"
     rounded: "{rounded.r2}"
     padding: "0 12px"
     height: "34px"
   filter-chip-pressed:
-    backgroundColor: "{colors.cobalt}"
+    backgroundColor: "{colors.moss}"
     textColor: "{colors.on-accent}"
   segment-pressed:
-    backgroundColor: "{colors.cobalt}"
+    backgroundColor: "{colors.moss}"
     textColor: "{colors.on-accent}"
     rounded: "{rounded.r1}"
     height: "30px"
   filter-row-pressed:
-    backgroundColor: "{colors.cobalt-soft}"
+    backgroundColor: "{colors.moss-soft}"
     textColor: "{colors.text}"
     rounded: "{rounded.r2}"
     height: "32px"
@@ -135,7 +135,7 @@ components:
   list-row-press:
     backgroundColor: "{colors.press}"
   list-row-open:
-    backgroundColor: "{colors.cobalt-soft}"
+    backgroundColor: "{colors.moss-soft}"
   grid-card:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.r3}"
@@ -146,7 +146,7 @@ components:
   tag-chip:
     backgroundColor: "{colors.surface-2}"
     textColor: "{colors.text}"
-    rounded: "{rounded.r4}"
+    rounded: "999px"
     padding: "2px 8px"
 ---
 
@@ -160,12 +160,12 @@ Threadsift is a quiet library room. The saved text leads, and the interface stay
 
 This file describes the app as built. Its last section, Brand Brief, describes the target look, the Quarto direction. Where the two differ, a change to the app follows the earlier sections, and the Quarto kit in the prototype and the build of Quarto follow the Brand Brief.
 
-The look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens; Theme and Layout are attributes on the same root. `design/system/tokens.css` is the source every value is read from, except the literal values its header lists, and `design/system/settings-table.ts` owns the list of settings and which option is the default. The tokens in this file record the default look: Light theme, the Plex font pair, Cobalt accent, Medium text size, Medium text width, Compact density and the List layout.
+The look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens; Theme and Layout are attributes on the same root. `design/system/tokens.css` is the source every value is read from, except the literal values its header lists, and `design/system/settings-table.ts` owns the list of settings and which option is the default. The tokens in this file record the default look: the Library Style, Light theme, the Library font pair (Schibsted Grotesk and Commit Mono), Moss accent, Medium text size, Medium text width, Compact density and the List layout.
 
 Density is compact by default, because a library with hundreds of saves needs many rows on screen, but the reading column never gets denser with it. Components are refined and restrained. Two looks are rejected. One is a social feed: Reddit's or X's own chrome, with vote arrows, avatars ahead of the item title, and engagement counts as the loudest thing on a row. The other is a SaaS dashboard: gradient hero cards, number tiles and icons in coloured circles.
 
 **Key Characteristics:**
-- One accent hue on cool or warm neutrals. The theme sets the accent's lightness and chroma.
+- One accent hue on neutrals with almost no colour, the same in List and Grid; Sepia is the one warm Theme. The theme sets the accent's lightness and chroma.
 - One reading size and one capped line length for post, comment and summary text.
 - Flat hairline structure in List. Soft shadows sit only on Grid cards and floating layers.
 - Every value is a token, except the literal values the `design/system/tokens.css` header lists, and every Look option is a token swap on the app root.
@@ -173,23 +173,23 @@ Density is compact by default, because a library with hundreds of saves needs ma
 
 ## Colors
 
-The palette is near-white surfaces with a faint cool tint, ink-dark text, and a single accent that carries every selected, unread, focused and linked state.
+The palette is near-white surfaces with almost no colour, ink-dark text, and a single accent that carries every selected, unread, focused and linked state.
 
 ### Primary
-- **Cobalt** (`cobalt`): the default accent. Rust, Moss, Iris and Teal are the other four accents. Each changes only the hue (`--ah`).
-- **Cobalt ink** (`cobalt-ink`): the accent as text and outline (links, the focus ring, the focused field's border), because it holds 4.5:1 as text. It is darker than the fill in Light and Sepia and lighter than it in Dark.
-- **Cobalt soft** (`cobalt-soft`): the accent's pale tint, for selected areas such as the open row and the selected filter row. In Sepia this tint is mixed into the paper colour, so it reads as a warm grey, a cream or a faint sage, never a blue block.
+- **Moss** (`moss`): the default accent. Cobalt, Rust, Iris and Teal are the other four accents. Each changes only the hue (`--ah`).
+- **Moss ink** (`moss-ink`): the accent as text and outline (links, the focus ring, the focused field's border), because it holds 4.5:1 as text. It is darker than the fill in Light and Sepia and lighter than it in Dark.
+- **Moss soft** (`moss-soft`): the accent's pale tint, for selected areas such as the open row and the selected filter row. In Sepia this tint is mixed into the paper colour, so it reads as a warm grey, a cream or a faint sage, never a blue block.
 - **On accent** (`on-accent`): text and icons on a full accent fill.
 
 ### Neutral
 - **Page** (`bg`), **Surface** (`surface`) and **Sunk surface** (`surface-2`): the app background; controls, cards and boxes; and hover fills, the List sidebar, code and tag chips.
-- **Press fill** (`press`): the fill of a control while it is pressed, one step past the hover fill. Outside forced colours, a pressed selected filter row, filter segment or List row mixes the same step into the accent tint.
+- **Press fill** (`press`): the fill of a control while it is pressed, one step past the hover fill. Outside forced colours, a pressed selected filter row or List row mixes the same step into the accent tint.
 - **Hairline** (`line`) and **Strong hairline** (`line-2`): row dividers and container edges; the heavier lines (comment indent guides, segmented control frames, the settings panel and the paste card).
 - **Control line** (`ctl-line`): the edge of buttons, fields and selects, and the ring of an empty unread dot.
 - **Ink** (`text`) and **Muted ink** (`muted`): primary text; metadata, counts, labels, hints and placeholders.
 - **Status** (`ok`, `warn`): the paste card's done and failed tones, used as text colour only. A saved Item that carries a note, such as a missing title, uses the warn tone and icon instead of the done check.
 
-Dark and Sepia redefine every neutral and the accent's lightness and chroma in `design/system/tokens.css`. Grid tilts the greys toward violet (`--nh`, `--nc`), and Sepia ignores that tilt. Tags take one of eight hues at a fixed chroma (`--tag-c`), shown only as a dot before the name in the default Tag style.
+Dark and Sepia redefine every neutral and the accent's lightness and chroma in `design/system/tokens.css`. The Style sets the hue and chroma of the Light and Dark neutrals (`--nh`, `--nc`; 180 and 0.005 in Library), so List and Grid share one neutral world, and Sepia ignores them. Tags take one of eight hues at a fixed chroma (`--tag-c`), shown only as a dot before the name in the default Tag style.
 
 ### Named Rules
 **The One Accent Rule.** The accent is the one colour that marks selection, action and state. The tag hues, the paste card's status tones, the `warn` colour of field errors, delete buttons and the failure mark on an Item row, and the accent swatches in the settings panel are the only other colours in the chrome. A full accent fill covers nothing larger than a control, a dot or a bar. A larger selected area, such as the open row, takes the soft tint.
@@ -198,13 +198,13 @@ Dark and Sepia redefine every neutral and the accent's lightness and chroma in `
 
 ## Typography
 
-IBM Plex Sans sets titles, lists, labels and reading text, and IBM Plex Mono sets code. The Font setting swaps in four other pairs. The wordmark keeps Schibsted Grotesk, the brand's face, under every Font and Style.
+Schibsted Grotesk sets titles, lists, labels and reading text, and Commit Mono sets code. The Font setting swaps in five other pairs. The wordmark keeps Schibsted Grotesk, the brand's face, under every Font and Style.
 
 ### Hierarchy
 - **Wordmark** (`--t-brand`): "Thread" in ink and "sift" in the accent ink, in the app bar and on the sign-in screen, in Schibsted Grotesk at weight 600 and -0.015em tracking (`--f-brand`, `--brand-w`, `--brand-ls`). Its size is the Display size of the layout with the 0.85 scale under 760px (`--display-x`) and without the Font's display factor, so no Font or Style changes the wordmark. It has no minimum against Headline; only the 12px text floor holds it. Until Schibsted Grotesk loads, a local Arial Bold, scaled to the same width, stands in (`Schibsted Grotesk Fallback`).
 - **Display** (`--t-display`): the reader title, the page headings such as Settings and Import, and the empty-library heading. It scales to 0.85 under 760px, except that the reader title and the page headings never go under `--rd-title-min` (1.1) times Headline, 22px at the default 16px browser font, so the reader title stays the largest heading in the Reader and a page heading stays above the section headings on its page, in every Font and Style. The empty-library heading keeps the 0.85 scale and has no minimum against Headline, because it is not a reading heading, so at a very small browser font it can fall under it; only the 12px text floor holds it.
 - **Headline** (`--t-h2`): reader section headings such as Original post, Comments and README, and the heading of each sign-in and setup screen. It is never under the 16px reading floor divided by `--post-h-cap`, about 16.84px, so a heading inside a post keeps the floor too.
-- **Title** (`--t-title`): item titles in rows and cards. An unread item's title takes `--dw-strong`, which each Font and Style sets: 700 in the default Plex pair. Instrument Serif and the Cal.com Style have one display weight, so there an unread title keeps the read weight and the unread dot alone marks it, in the Item list, in Grid and on a Topic page. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
+- **Title** (`--t-title`): item titles in rows and cards. An item's title takes `--dw-soft` (560 in the default Library pair), and an unread item's title takes `--dw-strong`, which each Font and Style sets: 700 in the default Library pair. Instrument Serif and the Cal.com Style have one display weight, so there an unread title keeps the read weight and the unread dot alone marks it, in the Item list, in Grid and on a Topic page. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
 - **Body** (`--t-read`): post and comment text in the reading column, up to 62 average characters a line at Medium text width (56 Narrow, 68 Wide). The reader's summary and key points use the same size at line height 1.5 (`--lh-text`).
 - **Body list**: the interface text of fields, dialogs, page sections and the Highlights and Proposals lists. Comfortable and Roomy density raise it.
 - **Meta** (`--t-meta`): the app's default UI size, for metadata, buttons, filters and bylines.
@@ -216,7 +216,9 @@ Type sizes are in rem, so the browser's own font size scales them, and the pixel
 ### Named Rules
 **The One Reading Size Rule.** Post, comment and summary text share one size (`--t-read`). Headings inside a post render at that same size, but never over `--post-h-cap` (0.95) times Headline, so the reader's section headings (`--t-h2`) always outrank them, at a Large Text size too, and the page reads in outline order.
 
-**The Plain Panel Rule.** The settings panel keeps the Plex pair whatever the Font setting is, so the controls that change the font never move.
+**The Plain Panel Rule.** The settings panel keeps the Library pair whatever the Font setting is, so the controls that change the font never move.
+
+**The Open Word Rule.** Display, page and section headings and item titles take the Font's display letter and word spacing (`--dls`, `--dws`). The Library pair tightens the letters by 0.015em and opens each word space by 0.05em, so a tight grotesque title still reads as separate words.
 
 ## Layout
 
@@ -242,14 +244,15 @@ The paste card floats under the paste box in List's sidebar from `--bp-medium` (
 
 ## Shapes
 
-Corners follow size: `r1` for small inline parts, `r2` for controls, `r3` for large containers, and a full pill (`r4`) for round things such as tag dots, the unread dot and swatches. Edges are 1px hairlines, and dashed hairlines mark placeholders and items still being processed. Pictures crop to their top-left corner, where a screenshot's first line starts.
+Corners follow size: `r1` for small parts, `r4` for marks (tag dots, the unread dot, swatches, the sheet's side buttons, comment avatars), `r2` for controls and `r3` for large containers. The Style sets all four, 2px in Library, so no control, mark or swatch is a pill; the Chips Tag style keeps its pill until the Tag is built. Edges are hairlines of the Style's weight (`--hw`, 1px in Library), and dashed hairlines mark placeholders and items still being processed. Pictures crop to their top-left corner, where a screenshot's first line starts.
 
 ## Components
 
 ### Buttons
-Quiet framed buttons that sit on the surface like the rest of the page. The accent button (a full Cobalt fill with on-accent text) is for the save button beside the paste box and the main action in a paste card. Focus draws a 2px accent-ink ring 2px outside the button. A press fills a neutral button with the press fill; an accent-filled button, a checked segment and a pressed chip keep their fill and show a 1px inner ring in the text colour of the fill. The danger button and the Read state dot keep the hover fill and show a 1px inner ring, because their marks lose contrast on the press fill. While a List row, Topic page row or open Grid card is pressed, its Read state mark takes the muted colour, or the accent ink when unread, for the same reason. A plain Grid card keeps its mark colours. In forced colours, selected filters keep their system colours and open Grid cards keep their system border while pressed. Disabled buttons show no press. The names ending in pressed in the front matter mean the toggled state, and button-press and list-row-press mean the moment of the press.
+A neutral button has no fill and a hairline outline in the control line colour, and takes the sunk fill on hover; `--btn-bg` holds the fill. The accent button (a full accent fill with on-accent text) is for the save button beside the paste box and the main action in a paste card; on hover it mixes 10% of the ink into its fill (`--acc-hover`). A disabled or busy button draws its outline dashed (`--off-edge`) in the strong hairline colour, with muted text. Fills and edges change over `--dur-fade`, and at once under reduced motion. Focus draws a 2px accent-ink ring 2px outside the button. A press fills a neutral button with the press fill; an accent-filled button, a checked segment and a pressed chip keep their fill and show a 1px inner ring in the text colour of the fill. The danger button and the Read state dot keep the hover fill and show a 1px inner ring, because their marks lose contrast on the press fill. While a List row, Topic page row or open Grid card is pressed, its Read state mark takes the muted colour, or the accent ink when unread, for the same reason. A plain Grid card keeps its mark colours. In forced colours, selected filters keep their system colours and open Grid cards keep their system border while pressed. Disabled buttons show no press. The names ending in pressed in the front matter mean the toggled state, and button-press and list-row-press mean the moment of the press.
 
 ### Chips
+- **Filter chips:** Grid's filter bar draws each choice as a neutral button with its count; a pressed chip takes the full accent fill with on-accent text.
 - **Tag chips:** a pill on the sunk surface, used only when Tag style is Chips. The default Tag style is a coloured dot before the name, and Text style writes "#name". A name too long for its row wraps inside its own box in the Reader, in every Tag style, with the dot or the "#" beside the first line, and a Chips pill keeps its corner at half the height of one line so a wrapped name stays inside it. A name in a filter row of the rail wraps the same way and the count stays at the row's end. The Grid filter bar uses a native select instead, which stays inside the bar and clips a long name, both in the closed control and in the open list.
 
 ### Inputs / Fields
@@ -259,7 +262,8 @@ Quiet framed buttons that sit on the surface like the rest of the page. The acce
 - **Invalid:** once a person has used a field and the browser holds its value invalid, the field's edge thickens with a 1px ring in the control line colour. An empty required field also gets a line in the `warn` tone that says it is required, and a screen reader hears that line with the field's label when the field is left empty. The edge never turns `warn`.
 
 ### Navigation
-- **Filter rail (List):** a selected row or segment takes the soft accent tint and weight 600. The tint measures under 3:1 against the rail, so the change to weight 600 is what shows the state.
+- **Filter rail (List):** a selected row takes the soft accent tint and weight 600. The tint measures under 3:1 against the rail, so the change to weight 600 is what shows the state. The Source and Read state rows are segmented controls: like every segmented control, the selected segment takes the full accent fill with on-accent text.
+- **Segmented controls:** a hairline frame in the strong hairline colour on the surface; a segment takes the sunk fill on hover, and the checked one the full accent fill with on-accent text.
 - **Reader bar:** one row that sticks to the top of the reader. As it narrows it drops, in order, the key hint, the button labels, the comments total and the word on Back. A 2px accent line along its bottom edge shows reading progress.
 
 ### List row (signature)
@@ -316,7 +320,7 @@ Quarto's neutral hue and chroma, faces, default accent, corners, hairlines, shad
 
 - Three roles: a UI face for titles, labels and controls; a reading face for post, comment and summary text, which may be the UI face; and a monospaced face for the kept strip and code.
 - Every face is served from the Instance, so its licence must allow self-hosting: each face named in the Brand Brief is under the SIL Open Font License 1.1 and is published on Fontsource, where the app takes today's faces from. `pnpm run check:faces` checks that every Font and Style stack in the tokens, and the wordmark's, starts with a face the app loads.
-- The Font setting offers four pairs. Three are the pairs of the three Styles, and choosing a Style writes its pair into the setting. The fourth is chosen for legibility: Atkinson Hyperlegible Next for the UI and reading text, and Atkinson Hyperlegible Mono for the kept strip and code. Both are under the SIL OFL 1.1, from [Google Fonts](https://github.com/google/fonts), and on Fontsource as variable fonts with weights 200 to 800 and an italic. The owner can choose any of the four under any Style. The Plain Panel Rule (Typography, above) stays, with the Library pair in place of the Plex pair.
+- The Font setting offers four pairs. Three are the pairs of the three Styles, and choosing a Style writes its pair into the setting. The fourth is chosen for legibility: Atkinson Hyperlegible Next for the UI and reading text, and Atkinson Hyperlegible Mono for the kept strip and code. Both are under the SIL OFL 1.1, from [Google Fonts](https://github.com/google/fonts), and on Fontsource as variable fonts with weights 200 to 800 and an italic. The owner can choose any of the four under any Style. The Plain Panel Rule (Typography, above) stays.
 
 ### Motion
 
@@ -343,10 +347,12 @@ A setting still changes what it names. With Card images Off, a List row and a Gr
 | Token | What it sets | Allowed values |
 |---|---|---|
 | `--nh`, `--nc` | hue and chroma of the neutrals in Light and Dark | chroma 0 to 0.008 |
-| `--r1`, `--r2`, `--r3` | corners of small parts, controls and containers | 0 to 4px |
-| a hairline weight token, added when the brand is built | the weight of row dividers, card edges and rules | 1px or 2px |
+| `--r1`, `--r2`, `--r3`, `--r4` | corners of small parts, controls, containers and marks | 0 to 4px |
+| `--hw` | the weight of row dividers, card edges and rules | 1px or 2px |
 | `--shadow`, `--shadow-lg` | a shadow, or none | the brand's soft shadow, or none with a 1px strong-hairline edge on floating layers |
-| button fill tokens, added when the brand is built | how a neutral button is filled | outline, sunk fill or surface fill |
+| `--btn-bg`, `--chip-edge`, `--chip-hover`, `--chip-w`, `--off-edge` | how a neutral button and a filter chip are drawn | outline, sunk fill or surface fill; a dashed or solid disabled outline |
+| `--acc-hover`, `--acc-lift` | how the accent button answers hover | its fill mixed toward the ink, or a brightness lift; the label keeps 4.5:1 |
+| `--seg-bg`, `--seg-lift`, `--rail-seg-bg`, `--seg-on`, `--seg-on-fg`, `--seg-on-press`, `--seg-on-ring` | the ground, hover fill and selected look of segmented controls | the full accent fill with on-accent text, or the accent tint |
 | `--tag-dot`, `--tag-mark`, `--tag-gap`, `--tag-pad`, `--tag-pad-y`, `--tag-box`, `--tag-bg`, `--tag-fg`, `--tag-c` | how a Tag is drawn, inside the brand's one Tag | no pill; the Tag's text keeps 4.5:1 on its ground in every Theme |
 
 A Style also writes a Font and an Accent into the settings. These are setting values, not tokens. Every other token belongs to the brand or to a Theme, and the lightness of every neutral and of the accent belongs to the Theme. A Style can still set the colours of a Tag's text and ground, so the contrast check runs for every combination of Style, Theme, Accent and Font.
@@ -355,14 +361,10 @@ A Style also writes a Font and an Accent into the settings. These are setting va
 
 These rules describe the app as built and stay until Quarto is built. That build changes them.
 
-- Shapes, and Components: `r2` (8px) on controls, chips and fields (`button`, `field` and `filter-chip` in the front matter), a 14px corner (`r3`) on large containers, a full pill (`r4`) for tag dots, the unread dot and swatches, and the Chips Tag style as a pill. Quarto keeps every corner at 2px or less and draws these marks as squares.
-- Shapes, and the literal values the tokens file lists: edges are 1px hairlines, kept as a literal value. Under the Brand Brief a Style sets the hairline weight, 1px or 2px, through a token.
-- Key Characteristics: one accent hue on cool or warm neutrals. Quarto keeps the Light and Dark neutrals neutral, and Sepia is the one warm Theme.
-- Colors, Primary: Cobalt is the default accent. Quarto defaults to Moss, one of the five accents the app has today.
-- Colors, Neutral: Grid tilts the greys toward violet (`--nh`, `--nc`). Quarto keeps one neutral world for List and Grid.
+- Shapes, and Components, Chips: the Chips Tag style as a pill, and 2px corners on Grid cards. Quarto draws no pill and gives cards 0 corners, because they are cells of the grid.
 - Colors, Neutral, and Components, Chips: three Tag styles, with a coloured dot before the name by default. Quarto draws one Tag: a square swatch before the name.
-- Typography: IBM Plex Sans and the Font setting's five pairs. Quarto names its own faces, and the Font setting offers four pairs.
-- Typography, the Plain Panel Rule: the settings panel keeps the Plex pair. Under the Brand Brief it keeps the Library pair, Schibsted Grotesk.
+- Shapes, Components and Colors: the ten Styles other than Library keep pill marks, filled neutral buttons and filter chips, solid disabled outlines, the accent tint on a pressed List filter segment, an unchanged accent button hover, no fades, and the browser's own text selection and native control colours. The Library values reach only Library.
+- Typography: the Font setting's six pairs. Under the Brand Brief the Font setting offers four.
 - Typography, Title: the Cal.com Style, one of the Styles the app has today. Under the Brand Brief the app has three Styles: Library and the two the product brief names.
 - Layout: in Grid an Item opens as a full page or as a sheet, as the owner chooses. Under the Brand Brief, Grid opens a sheet from `--bp-medium` (1080px) up, with a button that expands it to a full page, and a full page below that width.
 - Elevation & Depth, Key Characteristics, and the Lifted Only Rule: Grid cards carry the low shadow, and the settings panel, the reader sheet and the floating paste card carry the high shadow. Quarto draws Grid cards flat.
@@ -373,7 +375,7 @@ These rules describe the app as built and stay until Quarto is built. That build
 
 - [The spec](docs/spec.md), Style, and [the glossary](GLOSSARY.md), Style: Library plus 10 Styles, and a Style other than Library replaces Font and Accent, whose controls are disabled, with the note "{style} sets Font and Accent. Choose Library to change them." under Style Under the Brand Brief the app has three Styles, choosing one writes its Font and Accent into the settings once, the owner can change either, and no control is disabled.
 - The spec, Look settings, and the glossary, Look settings: Tag style (Chips, Text, Dots) and Comment style (Indented lines, Cards, Rail), where Rail draws an avatar beside each comment. The brand draws one Tag and one comment tree, with no avatars, so both settings go.
-- The spec, Look settings: Font offers 5 pairs. Under the Brand Brief it offers four.
+- The spec, Look settings: Font offers 6 pairs. Under the Brand Brief it offers four.
 - The spec, Look settings: Density offers Compact, Comfortable and Roomy. Under the Brand Brief it offers Compact and Comfortable.
 - The spec, Layout and reader, Reset look and Storage, and the glossary, Reader style: the "Open items as" setting (Page or Sheet). Under the Brand Brief, Grid opens a sheet from 1080px up and a full page below that, so the setting goes.
 
