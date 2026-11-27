@@ -33,18 +33,15 @@ type Spawn = (
   stdoutCap: number,
 ) => Promise<ProcessEnd>;
 
-function spawnerOf(binary: string, authFile: string): Spawn {
+const QUIET = { GROK_DISABLE_AUTOUPDATER: "1" } as const;
+
+function spawnerOf(binary: string, envOf: (folders: RunFolders) => Record<string, string>): Spawn {
   return (folders, args, signal, stdoutCap) =>
     runProcess(
       {
         binary,
         args,
-        extraEnv: {
-          HOME: folders.home,
-          GROK_HOME: folders.grokHome,
-          GROK_AUTH_PATH: authFile,
-          GROK_DISABLE_AUTOUPDATER: "1",
-        },
+        extraEnv: envOf(folders),
         cwd: folders.cwd,
         stdin: "",
         stdoutCap,
@@ -94,12 +91,43 @@ async function runWith(
 }
 
 export function grokCli(binary: string, authFile: string): GrokCli {
-  const spawn = spawnerOf(binary, authFile);
+  const spawn = spawnerOf(binary, ({ home, grokHome }) => ({
+    HOME: home,
+    GROK_HOME: grokHome,
+    GROK_AUTH_PATH: authFile,
+    ...QUIET,
+  }));
 
   return {
     path: binary,
     version: (folders, signal) => versionWith(spawn, folders, signal),
     signIn: (folders, signal) => signInWith(spawn, folders, signal),
     run: (folders, prompt, signal) => runWith(spawn, folders, prompt, signal),
+  };
+}
+
+export interface GrokUpdateCommands {
+  readonly check: (folders: RunFolders, signal: AbortSignal) => Promise<ProcessEnd>;
+  readonly update: (
+    folders: RunFolders,
+    version: string,
+    into: string,
+    signal: AbortSignal,
+  ) => Promise<ProcessEnd>;
+}
+
+export function grokUpdateCommands(binary: string): GrokUpdateCommands {
+  const spawnInto = (into: string | null) =>
+    spawnerOf(binary, ({ home, grokHome }) => ({
+      HOME: home,
+      GROK_HOME: into ?? grokHome,
+      ...QUIET,
+    }));
+
+  return {
+    check: (folders, signal) =>
+      spawnInto(null)(folders, ["update", "--check", "--json"], signal, LINE_CAP),
+    update: (folders, version, into, signal) =>
+      spawnInto(into)(folders, ["update", "--version", version], signal, LINE_CAP),
   };
 }

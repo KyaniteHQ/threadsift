@@ -150,12 +150,6 @@ export function refusalOf(end: Readonly<ProcessEnd>): Refused {
   return outcome.kind === "refused" ? outcome : SURFACE_REFUSAL;
 }
 
-export function versionRefusal(end: Readonly<ProcessEnd>): Refused {
-  return end.kind === "exited"
-    ? refused({ status: "unreadable", category: "cli-error" }, end.code)
-    : unfinishedRefusal(end);
-}
-
 export function internal(cause: unknown): Refused {
   report("x-fetch-error", { error: errorClassOf(cause), code: errnoCodeOf(cause) });
 

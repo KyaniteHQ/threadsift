@@ -152,12 +152,25 @@ The run reaches the two X tools and the CLI backend's `web_search` and `open_pag
 
 #### The check at run time
 
-The proven surface is one constant: the exact `grok --version` string (`PROVEN_VERSION`), the argument list and the local tool names the run exposes, which are none. `tool_definitions.json` under the run's `GROK_HOME` (not a documented interface) lists local tools only, so a change of the backend tools on xAI's side goes undetected.
+The proven surface is the argument list and the local tool names a run exposes, which are none. No code compares the version string. `tool_definitions.json` under the run's `GROK_HOME` (not a documented interface) lists local tools only, so a change of the backend tools on xAI's side goes undetected.
 
-- A preflight run with the same arguments and a prompt that holds no external text reads that file before the first real fetch after start, and whenever the binary's path, size or modification time changes.
-- Every real run, a failed one too, is checked after it ends. A list with any tool refuses the fetch and bars the binary (`extra-tools`). A list that cannot be read discards the answer and proves again on the next fetch. A different version bars the binary (`version-changed`). A later result never replaces a bar (`keptBar`), because a run that started before a bar can end after it.
-- A bar lasts until the process restarts or the binary changes ([Providers](../guides/providers.md) says how the owner clears one). The binary can still be replaced between the preflight and the process start, and only the check after the run covers that window.
-- A refused fetch logs `x-fetch-refused` with the category `surface-unproven`, and Settings shows `not-proven` with the version. The constant changes only through a code change that records a new probe.
+- Before the first real fetch after start, and whenever the binary's path, size or modification time changes, `trialOf` makes two runs with the fetch's arguments and prompts that hold no outside text. The test run asks for an empty answer. The probe run (`probePrompt`) asks for a file write in the run folder and in its home, a read of a marker file that holds a random value, and a `touch` through the shell.
+- The binary is proven when both runs list no local tool, none of the asked files exists after the probe and the marker's value is not in the probe's record (its output and tool list). A tool in either list bars the binary (`extra-tools`). A file or the marker bars it too (`probe-acted`). An unreadable list, or a probe that did not exit, proves nothing, and the next fetch tries again. Each trial logs `grok-trial` with its verdict.
+- Every real run, a failed one too, is checked after it ends. A list with any tool refuses the fetch and bars the binary (`extra-tools`). A list that cannot be read discards the answer and proves again on the next fetch. A later result never replaces a bar (`keptBar`), because a run that started before a bar can end after it.
+- A bar lasts until the process restarts or the binary changes ([Providers](../guides/providers.md) says how the owner clears one). The binary can still be replaced between the trial and the process start, and only the check after the run covers that window.
+- A refused fetch logs `x-fetch-refused` with the category `surface-unproven`, and Settings shows `not-proven` with the version.
+- Run on 2026-11-27 with grok 1.0.92 through the app's own run code: the test run listed no tool and exited 0, and a probe prompt that asked for a file write, a read of a marker file, a shell command and a page fetch left no file and no marker text in the run record. In the container the same day, the trial proved 1.0.92 and 1.0.88.
+
+#### The update
+
+The container updates the grok CLI itself (`grokUpdates`). With `THREADSIFT_GROK_AUTO_UPDATE=false` it never starts the update command. A fetch run cannot update the CLI: it sets `GROK_DISABLE_AUTOUPDATER=1` and passes `--no-auto-update`, which the CLI's own headless guide names. grok 1.0.92 still accepts `--no-auto-update`, though its `--help` no longer lists it.
+
+- Once right after start and then every hour, the app checks whether a day has passed since the last check (`checkedAt` in `grok-update.json` in the data folder) and whether no fetch and no trial runs. A due check records its time first, so a crash or a failed check waits a day.
+- It runs `grok update --check --json` and, when `updateAvailable` is true, `grok update --version <latestVersion>`, both with the empty environment of a fetch. `grok update` writes the new binary under `$GROK_HOME/downloads` and links it from `$GROK_HOME/bin/grok` (grok 1.0.88 updating to 1.0.92, 2026-11-27), so the app points `GROK_HOME` at a staging folder, `.threadsift-update`, beside the file the installed `grok` resolves to. The binary in use stays where it is, and X links are read with it the whole time.
+- The staged binary gets the trial above. When it passes, a `rename` moves it over the file in use, which is atomic on one file system, and the proof carries over when the size and modification time match. When it fails, `grok-update.json` records the version and the verdict, Settings names them, and that version is not tried again; the next newer one is. An inconclusive trial, a failed download or a failed check changes nothing and waits a day. The staging folder is removed after every attempt and before the next.
+- The only write to the file in use is that `rename`, so a crash at any step leaves the old binary or the proved one, never a half-written file. A leftover staging folder is removed by the next attempt, and a leftover state file is written again by it.
+- A binary in a folder the app cannot write, such as a Nix store path, is not updated (`not-writable`), and the app downloads nothing. The check waits 60 s, and the download 10 minutes, a guess: the update from 1.0.88 to 1.0.92, with its trial, took 24 s in the container on 2026-11-27.
+- Each attempt logs `grok-update` with its outcome and the version the check named.
 
 ### The check against X
 
@@ -255,7 +268,7 @@ Outcomes map to existing fetch results only. When `structuredOutput` is null, th
 | Answer the schema refuses | Wait `x-reread`, read again | Ask oEmbed once: absent gives `status` with `x-post-absent`, otherwise `unreadable` with `cli-failed` |
 | `found: false` | Ask oEmbed once: absent gives `status` with `x-post-absent`, otherwise wait `x-reread` | Same, but otherwise `unreadable` with `cli-failed` |
 
-- `outcomeOf` and `versionRefusal` map the run's end to a result and a category. `internal` marks an error of our own code, logged as `x-fetch-error` with the error's class and errno code and no message. `x-fetch-refused` names every category and the exit code and holds no output.
+- `outcomeOf` maps the run's end to a result and a category. `internal` marks an error of our own code, logged as `x-fetch-error` with the error's class and errno code and no message. `x-fetch-refused` names every category and the exit code and holds no output.
 - The Item stores the cause of an `unreadable` result, or `x-post-absent`, in `items.x_note`. Every write of a fetch result sets it in the same statement, so a later successful fetch clears it.
 - A Link-only Item with `x-unconfirmed` or `cli-failed` offers Try again. Every other `unreadable` and `status` result leaves no retry button, so the owner pastes the link again after signing in.
 

@@ -1,11 +1,12 @@
 import type { FetchFailure } from "../contract/fetch-results.ts";
 import type { XReadNote } from "../contract/x-read-note.ts";
-import type { XFetcherState } from "../contract/x-settings-contract.ts";
+import type { RefusedUpdate, XFetcherState } from "../contract/x-settings-contract.ts";
 import type { XCliThreadValue } from "../contract/x-wire.ts";
 
 export interface XFetcherStatus {
   readonly state: XFetcherState;
   readonly version: string | null;
+  readonly refusedUpdate: RefusedUpdate | null;
 }
 
 export type XFetchFailure = Extract<FetchFailure, "unreadable" | "timeout" | "network" | "status">;

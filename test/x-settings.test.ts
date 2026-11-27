@@ -42,6 +42,7 @@ describe("the X settings report the reader of X links and let the owner choose i
       fetcher: null,
       state: "not-installed",
       version: null,
+      refusedUpdate: null,
     });
   });
 

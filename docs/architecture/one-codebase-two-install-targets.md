@@ -102,10 +102,10 @@ A variable that Threadsift reads (`SETTING_NAMES` and the ones `nodeEnvironment`
 
 | Variables | Step | Effect |
 |---|---|---|
-| The variables that `nodeEnvironment` reads (container) | `nodeEnvironment` drops every empty entry of `process.env` | an empty `PORT` is `8080`. An empty `DATA_DIR` is the `.data` folder in the repository root (in the image, a link to `/data`). An empty `GROK_HOME` or `THREADSIFT_FETCHERS` is absent. |
+| The variables that `nodeEnvironment` reads (container) | `nodeEnvironment` drops every empty entry of `process.env` | an empty `PORT` is `8080`. An empty `DATA_DIR` is the `.data` folder in the repository root (in the image, a link to `/data`). An empty `GROK_HOME` or `THREADSIFT_FETCHERS` is absent. An empty `THREADSIFT_GROK_AUTO_UPDATE` is `true`. |
 | The five shared variables (both targets) | `settingVariablesOf` applies `unsetWhenEmpty` | the container passes them through it from `process.env`. The Worker reads them, `PASSWORD_RESET_CODE` included, only through it. |
 
-The provider comparison tool calls `unsetWhenEmpty` for the Claude Code and Codex variables it reads. A nonempty `THREADSIFT_PUBLIC_ORIGIN` of spaces, or a nonempty `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` other than `true` or `false`, is still an error (a `ZodError` for the second).
+The provider comparison tool calls `unsetWhenEmpty` for the Claude Code and Codex variables it reads. A nonempty `THREADSIFT_PUBLIC_ORIGIN` of spaces, or a nonempty `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` or `THREADSIFT_GROK_AUTO_UPDATE` other than `true` or `false`, is still an error (a `ZodError` for the last two).
 
 ## Why Hono
 

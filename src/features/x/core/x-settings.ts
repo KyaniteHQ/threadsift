@@ -60,12 +60,13 @@ async function cliView({ xFetcher, ai }: Readonly<Pick<Ports, "xFetcher" | "ai">
       fetcher: null,
       state: ai.publicOnly ? STATE_WORKER : STATE_NOT_INSTALLED,
       version: null,
+      refusedUpdate: null,
     } as const;
   }
 
-  const { state, version } = await xFetcher.status();
+  const { state, version, refusedUpdate } = await xFetcher.status();
 
-  return { fetcher: xFetcher.id, state, version };
+  return { fetcher: xFetcher.id, state, version, refusedUpdate };
 }
 
 export async function readXSettings(ports: Readonly<SettingsPorts>): Promise<XSettingsView> {

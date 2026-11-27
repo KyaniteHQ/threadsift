@@ -8,7 +8,14 @@ import { RadioChoice } from "./RadioChoice.tsx";
 import type { Loaded } from "./settings-load-types.ts";
 import { useSaveOnPick } from "./use-save-on-pick.ts";
 import { fetchXSettings, saveXReader } from "./x-api.ts";
-import { BOT_STATES, READER_HELP, READER_LABELS, X_STATES, X_TEXT } from "./x-text.ts";
+import {
+  BOT_STATES,
+  READER_HELP,
+  READER_LABELS,
+  REFUSED_REASONS,
+  X_STATES,
+  X_TEXT,
+} from "./x-text.ts";
 
 const LABEL_ID = "x-reader-label";
 
@@ -103,6 +110,14 @@ function CliRows({ view }: Readonly<{ view: XSettingsView }>) {
         <p>
           {X_TEXT.versionLabel}: {view.version}
         </p>
+      )}
+      {view.refusedUpdate === null ? null : (
+        <>
+          <p>
+            {X_TEXT.refusedLabel}: {view.refusedUpdate.version}
+          </p>
+          <p className="fld-help">{REFUSED_REASONS[view.refusedUpdate.reason]}</p>
+        </>
       )}
       <Note view={view} />
       {view.fetcher === null ? null : <p className="fld-help">{X_TEXT.noteSearch}</p>}
