@@ -152,7 +152,7 @@ components:
   summary-box:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.r3}"
-    padding: "16px"
+    padding: "16px 24px"
   tag-chip:
     backgroundColor: "{colors.surface-2}"
     textColor: "{colors.text}"
@@ -245,7 +245,7 @@ The app measures its own width and writes every band it is under to `data-bp` (`
 
 ## Elevation & Depth
 
-The system is flat with tonal layering, plus soft ambient shadows on things that sit above the page. List rows, Library Grid cards, panes, the summary box and the repository block are flat and separated by hairlines and the sunk surface; a Grid card answers hover by darkening its edge, never by lifting. The sheet's side buttons and the focused skip button carry the low shadow (`--shadow`), and the Grid cards of the Styles other than Library carry their Style's own shadow (`--card-shadow`). The settings panel, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page. In Dark, the sheet adds a strong hairline edge so it shows against the scrim.
+The system is flat with tonal layering, plus soft ambient shadows on things that sit above the page. List rows, Library Grid cards, panes, the summary box and the repository block are flat and separated by hairlines and the sunk surface; a Grid card answers hover by darkening its edge, never by lifting. The sheet's side buttons and the focused skip button carry the low shadow (`--shadow`), and the Grid cards of the Styles other than Library carry their Style's own shadow (`--card-shadow`). The settings panel, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page. In the Library Style the reader sheet has a 1px strong-hairline edge in every Theme; in the other Styles only Dark adds it, so the sheet shows against the scrim.
 
 The paste card floats under the paste box in List's sidebar from `--bp-medium` (1080px) up, and under the Grid header from 760px up. Below those widths it sits in the page flow between the paste box and the list, with no shadow, so the list moves down while it shows and no row is ever under it. In the sidebar it adds to the sidebar's scroll height, so a window shorter than the card scrolls the sidebar.
 
@@ -274,7 +274,7 @@ A neutral button has no fill and a hairline outline in the control line colour, 
 ### Navigation
 - **Filter rail (List):** a selected row takes the soft accent tint and weight 600. The tint measures under 3:1 against the rail, so the change to weight 600 is what shows the state. The Source and Read state rows are segmented controls: like every segmented control, the selected segment takes the full accent fill with on-accent text.
 - **Segmented controls:** a hairline frame in the strong hairline colour on the surface; a segment takes the sunk fill on hover, and the checked one the full accent fill with on-accent text.
-- **Reader bar:** one row that sticks to the top of the reader. As it narrows it drops, in order, the key hint, the button labels, the comments total and the word on Back. A 2px accent line along its bottom edge shows reading progress.
+- **Reader bar:** one row that sticks to the top of the reader. As it narrows it drops, in order, the key hint, the button labels, the comments total and the word on Back. A 2px accent line along its bottom edge shows reading progress. Mark read is the one outlined button in the bar; Comments, Open and Delete are plain buttons that take the sunk fill on hover.
 
 ### List row (signature)
 A List row opens with the kept bar and the kept strip. The kept bar is a 3px line of accent along the row's top edge, as wide as the ratio the kept strip's count reads once a Digest covers the thread (`--kept`; Kept 5 of 100 draws a 5% bar), and empty before that or on an Item without comments. The kept strip follows: the Read state mark, then the Source, the place (a community, a handle, a repository or a domain) and the comment count, in the mono face at the label size in muted ink, parted by small squares. A Reddit Item whose community is known names the community without the Source. The strip wraps between its parts and is never cut, and no wrapped line of the strip or the byline starts with a square: each square sits in the gap before its part, out of the text flow, and the line's start edge clips it (`overflow-x: clip`). The title follows, then the byline: the author (not when the strip already names it: an X post whose link names its author, or a GitHub repository), the saved time, the Topic and a repository's stars. Beside the title and byline sits the 40px stored picture, or, with no stored picture and Card images On, a tile of the Topic tint (`--tint` of the Topic's hue in the sunk surface; the hue comes from the Tag hues, hashed from the Topic's name, at the Style's Tag chroma, so a Style whose Tags carry no colour, such as Cal.com, draws an untinted tile) with the Source mark and no text, at every Density.
@@ -284,8 +284,13 @@ The Read state mark is an 8px square (`--mark`) at the start of the strip, fille
 ### Grid card
 A Grid card holds the same parts as a List row in a column: the kept bar and the kept strip, the stored picture in a 16:10 box, the title and the byline. A card with no stored picture draws no picture box. On hover its edge darkens to the control line; the open card takes the soft accent tint and the 1px accent-ink edge, like the open row, and keyboard focus draws the 2px ring inside the card.
 
+### Reader (signature)
+The Reader header opens with the kept bar's rule: a hairline as wide as the column, holding the 3px accent part as wide as the share the kept strip reads (`--kept`), so the List row and the Reader draw the same ratio. The title follows. Under it one meta line holds the Read state mark (an 8px square, filled with the accent when unread and outlined in the control line when read; in the Reader it is a mark with no hit area, because the bar's Mark read sets the state), the kept strip's parts in the mono face at the label size, then the author, the posted time and the saved time in the UI face, all in muted ink and parted by the strip's small squares, with the same clipped start edge so no wrapped line starts with a square. The Topic link and the Tags sit on their own line under it, and the link a Reddit link post points at follows in the mono face in accent ink.
+
+The summary box is a flat surface box with a hairline edge and the large corner, padded 16px by 24px. "Summary" and "Key points" label its two parts in the label style, and each key point opens with a 6px accent square (`--bullet`). While the Digest is being written, the box is dashed and holds the "Summary" label, the waiting line and a 1px hairline with a 30% accent part that sweeps across it; it stays still under reduced motion. In the sheet both boxes lose their edge and keep a rule below. A thread that no Digest covers opens its comments with the note that says so in a hairline box on the surface. Section counts such as "Kept 5 of 64" are muted and regular weight beside the heading. Reader notes are upright, never italic. In the Library Style a quote in post text has a 1px rule at its start and upright text.
+
 ### Comment tree (signature)
-Kept comments nest with an indent per level that is capped, so deep threads stay readable. Context stubs, dropped parent comments shown as one line so a kept reply under them still reads correctly, are muted, one line, and dashed when they have a box.
+Kept comments nest with an indent per level that is capped, so deep threads stay readable. Context stubs, dropped parent comments shown as one line so a kept reply under them still reads correctly, are muted, one line, and dashed when they have a box; the stub's label, such as "Not shown", is in the mono face, and its preview text is upright. A long unbroken commenter name wraps inside the comment's head.
 
 ### Motion
 Opening an item grows its card or row into the reader over `--dur-move` with `--ease-move`. Fades and small turns take `--dur-fade`. Under reduced motion the app skips the grow, the spinner and shimmer stop, and the filter chevron stops turning.
@@ -382,8 +387,7 @@ These rules describe the app as built and stay until Quarto is built. That build
 - Typography: the Font setting's six pairs. Under the Brand Brief the Font setting offers four.
 - Typography, Title: the Cal.com Style, one of the Styles the app has today. Under the Brand Brief the app has three Styles: Library and the two the product brief names.
 - Layout: in Grid an Item opens as a full page or as a sheet, as the owner chooses. Under the Brand Brief, Grid opens a sheet from `--bp-medium` (1080px) up, with a button that expands it to a full page, and a full page below that width.
-- Elevation & Depth: the settings panel, the reader sheet and the floating paste card carry the high shadow with no edge in Light. Quarto gives the settings panel and the reader sheet a 1px strong-hairline edge as well.
-- The Reader header: the source line opens the header above the title. Under the Brand Brief the strip and the unread mark open the line under the title, before the author and the date.
+- Elevation & Depth: the settings panel and the floating paste card carry the high shadow with no edge in Light. Quarto gives the settings panel a 1px strong-hairline edge as well, as the Library reader sheet already has.
 
 ### Rules of other docs that the Brand Brief contradicts
 

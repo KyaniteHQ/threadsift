@@ -90,7 +90,7 @@ export async function readXThread(page: Page): Promise<void> {
 
   const reader = page.locator(".reader");
 
-  await expect(reader.locator(".rd-src span", { hasText: /@someone/iu })).toHaveCount(1);
+  await expect(reader.locator(".rd-meta .rd-part", { hasText: /@someone/iu })).toHaveCount(1);
   await expect(reader).toContainText(FACT);
   await expect(reader).toContainText("Likes: 2");
   await expect(reader.locator(".cm-author", { hasText: "@bob" })).toHaveCount(1);

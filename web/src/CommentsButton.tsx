@@ -13,7 +13,12 @@ export function CommentsButton({ counts }: Readonly<{ counts: CommentCount }>) {
   }, []);
 
   return (
-    <button type="button" className="btn rd-cm full" aria-label={labels.full} onClick={jump}>
+    <button
+      type="button"
+      className="btn btn-plain rd-cm full"
+      aria-label={labels.full}
+      onClick={jump}
+    >
       <Icon name="comment" className="ic rd-cm-ic" />
       <span className="rd-cm-full">{labels.full}</span>
       <span className="rd-cm-short" hidden>
