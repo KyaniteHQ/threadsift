@@ -400,7 +400,7 @@ C. Intake webhook
 ## Access
 
 - **Owner password.** Signed in, the owner changes the password in Settings with the current one. Every other session ends, the owner's own session gets a new id, and agent tokens keep working.
-- **A lost password.** An owner who lost the password sets `PASSWORD_RESET_CODE` on the server (a container environment variable read at start, or a Worker secret), opens "Lost your password?" on the sign-in screen and enters the code with a new password. The code is an operator credential of at least 32 characters, works once, ends every session and keeps the agent tokens. With no code on the server nobody can reset anything ([Access](architecture/access-owner-login-agent-tokens-mcp.md)).
+- **A lost password.** An owner who lost the password sets `PASSWORD_RESET_CODE` on the server (a container environment variable read at start, or a Worker secret), opens "Reset password" on the sign-in screen and enters the code with a new password. The code is an operator credential of at least 32 characters, works once, ends every session and keeps the agent tokens. With no code on the server nobody can reset anything ([Access](architecture/access-owner-login-agent-tokens-mcp.md)).
 - **A wrong secret.** A wrong setup code, password, current password or reset code answers 403 with its own `code`: `wrong-setup-code`, `wrong-password`, `wrong-current-password` or `wrong-reset-code`.
 - **Agent access.** Besides the HTTP API, the app serves an MCP endpoint whose tools search Items, read one Item with its Digest, Highlights and Note, and add a link. Each tool runs the same code as the matching HTTP call.
 
