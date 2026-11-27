@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import type { ProcessEnd } from "../src/targets/node/cli-process.ts";
-import { outcomeOf, versionRefusal } from "../src/targets/node/grok-answer.ts";
+import { outcomeOf } from "../src/targets/node/grok-answer.ts";
 import { signInOf } from "../src/targets/node/grok-sign-in.ts";
 import { fetchPrompt } from "../src/targets/node/grok-surface.ts";
 import type { Json } from "./instance.ts";
@@ -20,13 +20,6 @@ const envelope = (fields: Readonly<Record<string, Json>>) =>
 
 const errorOf = (message: string, code: number) =>
   exited(JSON.stringify({ type: "error", message }), code);
-
-const ENDS_OF_A_VERSION_RUN: readonly ProcessEnd[] = [
-  { kind: "aborted" },
-  { kind: "spawn-failed" },
-  { kind: "over-cap" },
-  { kind: "exited", code: 0, stdout: "", stderr: "" },
-];
 
 const SIGNED_OUT_MESSAGE =
   "Not signed in. To authenticate without a browser, run:\n  grok login --device-code\n\nAlternatively, set the XAI_API_KEY environment variable or run `grok login` on a machine with a browser.";
@@ -182,18 +175,6 @@ describe("the grok CLI answer is read into a fetched thread or a named refusal",
       { status: "unreadable", category: "over-size" },
       { status: "unreadable", category: "spawn-failed" },
     ]);
-  });
-
-  it("maps a version run that was aborted to timeout and any other failure to unreadable", () => {
-    assert.deepEqual(
-      ENDS_OF_A_VERSION_RUN.map((end) => versionRefusal(end).refusal),
-      [
-        { status: "timeout", category: "deadline" },
-        { status: "unreadable", category: "spawn-failed" },
-        { status: "unreadable", category: "over-size" },
-        { status: "unreadable", category: "cli-error" },
-      ],
-    );
   });
 });
 

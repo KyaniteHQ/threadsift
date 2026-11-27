@@ -1,92 +1,69 @@
-import { join } from "node:path";
-
 import type { XFetch, XFetcher, XFetcherStatus } from "../../core/kernel/x-fetcher-port.ts";
 import { findBinary } from "./cli-process.ts";
+import { GrokAccess } from "./grok-access.ts";
 import {
   type Outcome,
-  type Refused,
   SURFACE_REFUSAL,
+  SURFACE_UNCONFIRMED,
   internal,
   logged,
   outcomeOf,
-  refusalOf,
   refused,
-  versionRefusal,
 } from "./grok-answer.ts";
-import { type BinaryIdentity, identityOf, inRunFolders } from "./grok-folders.ts";
+import { type BinaryIdentity, authFileOf, identityOf, inRunFolders } from "./grok-folders.ts";
 import { type GrokCli, grokCli } from "./grok-process.ts";
-import {
-  type PreflightResult,
-  type Proof,
-  UNPROVEN,
-  afterPreflight,
-  afterRun,
-  checkedRun,
-  exitedCleanly,
-  keptBar,
-  permission,
-  preflightResultOf,
-  sameBinary,
-} from "./grok-proof.ts";
-import { GrokSlots } from "./grok-slots.ts";
+import { UNPROVEN, checkedRun, sameBinary } from "./grok-proof.ts";
 import { sharedReading } from "./grok-status.ts";
-import { PREFLIGHT_PROMPT, PROVEN_VERSION, fetchPrompt, isProvenVersion } from "./grok-surface.ts";
+import { fetchPrompt } from "./grok-surface.ts";
+import { NO_UPDATES, type Updates, grokUpdates } from "./grok-update.ts";
 
 const BINARY = "grok";
-const PREFLIGHT_MS = 60_000;
 
 export interface GrokEnvironment {
   readonly path: string;
   readonly home: string | undefined;
   readonly dataDir: string;
+  readonly autoUpdate: boolean;
 }
 
 export interface StoppableXFetcher extends XFetcher {
   readonly stop: () => void;
 }
 
-interface Preflight {
-  readonly result: PreflightResult;
-  readonly failure: Refused | null;
-}
-
 const NO_BINARY = refused({ status: "unreadable", category: "spawn-failed" }, null);
 
 const OUT_OF_TIME = refused({ status: "timeout", category: "deadline" }, null);
 
-function inconclusive(failure: Refused): Preflight {
-  return { result: { kind: "inconclusive" }, failure };
-}
-
 class GrokXFetcher implements StoppableXFetcher {
   readonly id = "grok-cli";
   private readonly cli: GrokCli;
+  private readonly access: Readonly<GrokAccess>;
+  private readonly updates: Updates;
   private readonly shutdown = new AbortController();
-  private readonly slots = new GrokSlots();
-  private proof: Proof = UNPROVEN;
-  private proving: Promise<Refused | null> | null = null;
   private readonly read: ReturnType<typeof sharedReading>;
 
-  constructor(cli: GrokCli) {
+  constructor(cli: GrokCli, access: Readonly<GrokAccess>, updates: Readonly<Updates>) {
     this.cli = cli;
+    this.access = access;
+    this.updates = updates;
     this.read = sharedReading(cli, this.shutdown.signal);
   }
 
   stop(): void {
+    this.updates.stop();
     this.shutdown.abort();
   }
 
   readonly status = async (): Promise<XFetcherStatus> => {
     const { version, signedIn } = await this.read();
+    const refusedUpdate = this.updates.refusedUpdate();
 
-    if (version === null) return { state: "unknown", version };
+    if (version === null) return { state: "unknown", version, refusedUpdate };
 
     const identity = await identityOf(this.cli.path);
-    const barred = identity !== null && permission(this.proof, identity) === "refused";
+    const barred = identity !== null && this.access.barred(identity);
 
-    if (barred || !isProvenVersion(version)) return { state: "not-proven", version };
-
-    return { state: signedIn, version };
+    return { state: barred ? "not-proven" : signedIn, version, refusedUpdate };
   };
 
   readonly fetch = async (statusId: string, signal: AbortSignal): Promise<XFetch> => {
@@ -94,7 +71,9 @@ class GrokXFetcher implements StoppableXFetcher {
     const prompt = fetchPrompt(statusId);
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 
-    const outcome = await this.slots.run(stop, (run) => this.attempt(prompt, run).catch(internal));
+    const outcome = await this.access.forFetch(stop, (run) =>
+      this.attempt(prompt, run).catch(internal),
+    );
 
     return logged(outcome ?? OUT_OF_TIME, Date.now() - started);
   };
@@ -104,85 +83,13 @@ class GrokXFetcher implements StoppableXFetcher {
 
     if (identity === null) return NO_BINARY;
 
-    const barred = await this.gate(identity, signal);
+    const barred = await this.access.gate(identity, signal);
 
     if (barred !== null) return barred;
 
-    if (!sameBinary(identity, await identityOf(this.cli.path))) return SURFACE_REFUSAL;
+    if (!sameBinary(identity, await identityOf(this.cli.path))) return SURFACE_UNCONFIRMED;
 
     return this.fetched(identity, prompt, signal);
-  }
-
-  private async gate(
-    identity: Readonly<BinaryIdentity>,
-    signal: AbortSignal,
-  ): Promise<Refused | null> {
-    if (this.proving !== null) {
-      await this.proving;
-
-      return this.gate(identity, signal);
-    }
-
-    const decision = permission(this.proof, identity);
-
-    switch (decision) {
-      case "allowed":
-        return null;
-      case "refused":
-        return SURFACE_REFUSAL;
-      case "preflight":
-        return (await this.proveOnce(identity, signal)) ?? this.gate(identity, signal);
-      default: {
-        const exhaustive: never = decision;
-
-        return exhaustive;
-      }
-    }
-  }
-
-  private async proveOnce(
-    identity: Readonly<BinaryIdentity>,
-    signal: AbortSignal,
-  ): Promise<Refused | null> {
-    const run = this.preflight(signal).then(({ result, failure }) => {
-      this.proof = keptBar(this.proof, identity, afterPreflight(identity, result));
-
-      return failure;
-    }, internal);
-
-    this.proving = run;
-
-    try {
-      return await run;
-    } finally {
-      this.proving = null;
-    }
-  }
-
-  private preflight(signal: AbortSignal) {
-    return inRunFolders(async (folders): Promise<Preflight> => {
-      const stop = AbortSignal.any([signal, AbortSignal.timeout(PREFLIGHT_MS)]);
-      const { end, version } = await this.cli.version(folders, stop);
-
-      if (version === null) return inconclusive(versionRefusal(end));
-
-      if (!isProvenVersion(version)) {
-        return { result: preflightResultOf("version-changed", version), failure: null };
-      }
-
-      const run = await this.cli.run(folders, PREFLIGHT_PROMPT, stop);
-      const check = checkedRun(run);
-
-      if (check.kind === "barred") {
-        return { result: preflightResultOf(check.verdict, version), failure: null };
-      }
-
-      if (check.kind === "surface-held" && exitedCleanly(run)) {
-        return { result: preflightResultOf("proven", version), failure: null };
-      }
-
-      return inconclusive(check.kind === "surface-held" ? refusalOf(run.end) : check.refusal);
-    });
   }
 
   private async fetched(
@@ -197,17 +104,16 @@ class GrokXFetcher implements StoppableXFetcher {
       case "surface-held":
         return outcomeOf(run.end);
       case "barred":
-        this.proof = afterRun(this.proof, identity, {
+        this.access.ranWith(identity, {
           kind: "refused",
           binary: identity,
           verdict: check.verdict,
-          version: PROVEN_VERSION,
         });
 
         return SURFACE_REFUSAL;
       case "discard":
       case "reprove":
-        this.proof = afterRun(this.proof, identity, UNPROVEN);
+        this.access.ranWith(identity, UNPROVEN);
 
         return check.refusal;
       case "keep":
@@ -225,10 +131,18 @@ export async function grokXFetcher({
   path,
   home,
   dataDir,
+  autoUpdate,
 }: Readonly<GrokEnvironment>): Promise<StoppableXFetcher | null> {
   const binary = await findBinary(path, BINARY);
 
   if (binary === null) return null;
 
-  return new GrokXFetcher(grokCli(binary, join(home ?? join(dataDir, "grok"), "auth.json")));
+  const authFile = authFileOf(home, dataDir);
+  const cli = grokCli(binary, authFile);
+  const access = new GrokAccess(cli);
+  const updates = autoUpdate
+    ? await grokUpdates({ binary, authFile, dataDir }, access)
+    : NO_UPDATES;
+
+  return new GrokXFetcher(cli, access, updates);
 }

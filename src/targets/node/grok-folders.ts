@@ -17,6 +17,10 @@ export interface BinaryIdentity {
   readonly modifiedMs: number;
 }
 
+export function authFileOf(grokHome: string | undefined, dataDir: string): string {
+  return join(grokHome ?? join(dataDir, "grok"), "auth.json");
+}
+
 export function inRunFolders<Result>(work: (folders: RunFolders) => Promise<Result>) {
   return inChildFolders(async (folders) => {
     const grokFolders = {

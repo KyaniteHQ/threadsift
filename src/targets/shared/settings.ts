@@ -24,7 +24,7 @@ export interface Settings {
   readonly zeroOpenRouterPrice: boolean;
 }
 
-export const PriceFlagSchema = z.enum(["true", "false"]);
+export const FlagSchema = z.enum(["true", "false"]);
 
 export function unsetWhenEmpty(value: string | undefined): string | undefined {
   return value === "" ? undefined : value;
@@ -32,8 +32,7 @@ export function unsetWhenEmpty(value: string | undefined): string | undefined {
 
 export function settingsOf(variables: SettingVariables): Settings {
   const zeroOpenRouterPrice =
-    PriceFlagSchema.default("false").parse(variables.THREADSIFT_OPENROUTER_MAX_PRICE_ZERO) ===
-    "true";
+    FlagSchema.default("false").parse(variables.THREADSIFT_OPENROUTER_MAX_PRICE_ZERO) === "true";
 
   return {
     setupCode: variables.SETUP_CODE,

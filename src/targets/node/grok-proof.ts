@@ -1,26 +1,16 @@
-import { type Refused, SURFACE_REFUSAL, refusalOf } from "./grok-answer.ts";
+import type { XCliBar } from "../../core/contract/x-settings-contract.ts";
+import { type Refused, SURFACE_UNCONFIRMED, refusalOf } from "./grok-answer.ts";
 import type { BinaryIdentity } from "./grok-folders.ts";
 import type { RunRecord } from "./grok-process.ts";
 import { type ToolsVerdict, toolsVerdict } from "./grok-surface.ts";
 
-type Barred = "extra-tools" | "version-changed";
-
 export type Proof =
   | { readonly kind: "unproven" }
   | { readonly kind: "proven"; readonly binary: BinaryIdentity }
-  | {
-      readonly kind: "refused";
-      readonly binary: BinaryIdentity;
-      readonly verdict: Barred;
-      readonly version: string | null;
-    };
+  | { readonly kind: "refused"; readonly binary: BinaryIdentity; readonly verdict: XCliBar };
 
 export type PreflightResult =
-  | {
-      readonly kind: "judged";
-      readonly verdict: "proven" | Barred;
-      readonly version: string | null;
-    }
+  | { readonly kind: "judged"; readonly verdict: "proven" | XCliBar }
   | { readonly kind: "inconclusive" };
 
 type Permission = "allowed" | "preflight" | "refused";
@@ -63,7 +53,7 @@ export function afterPreflight(
 
   if (result.verdict === "proven") return { kind: "proven", binary };
 
-  return { kind: "refused", binary, verdict: result.verdict, version: result.version };
+  return { kind: "refused", binary, verdict: result.verdict };
 }
 
 export function keptBar(
@@ -84,13 +74,8 @@ export function afterRun(
   return ofAnotherBinary ? current : keptBar(current, binary, next);
 }
 
-export function preflightResultOf(
-  verdict: ToolsVerdict | "version-changed",
-  version: string | null,
-): PreflightResult {
-  return verdict === "tools-unreadable"
-    ? { kind: "inconclusive" }
-    : { kind: "judged", verdict, version };
+export function preflightResultOf(verdict: ToolsVerdict | "probe-acted"): PreflightResult {
+  return verdict === "tools-unreadable" ? { kind: "inconclusive" } : { kind: "judged", verdict };
 }
 
 type RunCheck =
@@ -109,7 +94,7 @@ export function checkedRun(run: Readonly<RunRecord>): RunCheck {
 
   if (verdict === "extra-tools") return { kind: "barred", verdict };
 
-  if (exitedCleanly(run)) return { kind: "discard", refusal: SURFACE_REFUSAL };
+  if (exitedCleanly(run)) return { kind: "discard", refusal: SURFACE_UNCONFIRMED };
 
   const refusal = refusalOf(run.end);
 

@@ -136,17 +136,23 @@ When no usable Grok Bot is saved, or when you choose the grok CLI in the X posts
 
 4. Open Settings. The "X posts" section shows the grok CLI as signed in. Paste an X link. The Item shows the post and its replies like a Reddit thread.
 
-Installing, updating or removing the CLI needs a restart. A signed-out CLI leaves a Link-only Item with no Try again button. Sign in, then paste the link again.
+Installing or removing the CLI needs a restart. Threadsift updates it on its own, as [How Threadsift updates the grok CLI](#how-threadsift-updates-the-grok-cli) says. A signed-out CLI leaves a Link-only Item with no Try again button. Sign in, then paste the link again.
 
 ### Cost and risk
 
-Every fetch is one run on the owner's Grok plan and counts against its usage. At most 2 fetches run at once.
+Every fetch is one run on the owner's Grok plan and counts against its usage. At most 2 fetches run at once. Each check of a new or changed binary adds 2 runs.
 
 A fetch run can reach xAI's web search and page-open tools, which grok 1.0.77 cannot turn off without losing the X tools. A hostile reply could make the run open a public web page, which sends public post text and the Grok account's saved rules to that page. Use a Grok account kept for this server, with no private rules saved in it. The run reaches no tool of the server, and the app never reads or copies the login file. [Fetchers](../architecture/fetchers.md) holds the isolation rule.
 
 ### When the app refuses the grok CLI
 
-The app makes one test run before the first fetch after it starts, and again whenever the installed binary changes. It refuses the CLI unless it is the checked version, 1.0.77. While it refuses, X links stay Link-only Items and Settings shows "grok CLI: not supported" with the version. Install the checked version, or update Threadsift to a release that checks the newer one. Restarting the Instance only repeats the test run.
+The app checks the grok CLI before the first fetch after it starts, and again whenever the installed binary changes. It makes a test run and a probe run that asks the CLI to write a file, read a file and run a shell command. It refuses the CLI when a run lists a local tool, a file appears, or the probe's answer holds the content of the file it asked to read. While it refuses, X links stay Link-only Items and Settings shows "grok CLI: not supported" with the version. Replace the CLI, or restart the Instance, to run the check again.
+
+### How Threadsift updates the grok CLI
+
+Once a day, when no X link is being read, the app asks the grok CLI for a newer version with the CLI's own `grok update` command. It downloads the newer version next to the one in use, checks it as above, and switches to it only when the check passes. X links are read with the version in use the whole time. A version that fails the check is not used: Settings shows it as "Skipped version" with the reason, and the app tries again when a newer version comes out.
+
+The container image sets `THREADSIFT_GROK_AUTO_UPDATE=true`. To turn the update off, add `THREADSIFT_GROK_AUTO_UPDATE=false` to `~/threadsift.env` as one more line and recreate the container. The app then never starts the update command, and you update the CLI yourself with the install command of step 1. Outside the image, for example a Node target started with `pnpm dev`, the variable defaults to `false`, so the app never replaces the grok CLI of a developer's machine.
 
 When X cannot be reached or limits requests, Threadsift tries again a little later, up to two more times, and then leaves a Link-only Item. A reply that fails the check against X is left out, and the Item says that further replies were not saved.
 

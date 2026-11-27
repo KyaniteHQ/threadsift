@@ -25,7 +25,7 @@ RUN pnpm exec vite build
 
 FROM node
 LABEL org.opencontainers.image.source=https://github.com/KyaniteHQ/threadsift
-ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NPM_CONFIG_PREFIX=/data/cli CLAUDE_CONFIG_DIR=/data/claude CODEX_HOME=/data/codex GROK_HOME=/data/grok
+ENV NODE_ENV=production DATA_DIR=/data PORT=8080 NPM_CONFIG_PREFIX=/data/cli CLAUDE_CONFIG_DIR=/data/claude CODEX_HOME=/data/codex GROK_HOME=/data/grok THREADSIFT_GROK_AUTO_UPDATE=true
 ENV PATH=/data/cli/bin:/data/grok/bin:$PATH
 RUN apt-get update && apt-get install --yes --no-install-recommends ca-certificates curl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app

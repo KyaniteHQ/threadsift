@@ -1,5 +1,9 @@
 import { writeFile } from "node:fs/promises";
 
+import { z } from "zod";
+
+import { CliVersionSchema } from "../../core/contract/x-settings-contract.ts";
+import { parsedJson } from "../../core/kernel/parsed-json.ts";
 import { type ProcessEnd, runProcess } from "./cli-process.ts";
 import { type SignIn, signInFrom } from "./cli-sign-in.ts";
 import { type RunFolders, sweepGrokTemp, toolListOf } from "./grok-folders.ts";
@@ -33,18 +37,15 @@ type Spawn = (
   stdoutCap: number,
 ) => Promise<ProcessEnd>;
 
-function spawnerOf(binary: string, authFile: string): Spawn {
+const QUIET = { GROK_DISABLE_AUTOUPDATER: "1" } as const;
+
+function spawnerOf(binary: string, envOf: (folders: RunFolders) => Record<string, string>): Spawn {
   return (folders, args, signal, stdoutCap) =>
     runProcess(
       {
         binary,
         args,
-        extraEnv: {
-          HOME: folders.home,
-          GROK_HOME: folders.grokHome,
-          GROK_AUTH_PATH: authFile,
-          GROK_DISABLE_AUTOUPDATER: "1",
-        },
+        extraEnv: envOf(folders),
         cwd: folders.cwd,
         stdin: "",
         stdoutCap,
@@ -94,7 +95,12 @@ async function runWith(
 }
 
 export function grokCli(binary: string, authFile: string): GrokCli {
-  const spawn = spawnerOf(binary, authFile);
+  const spawn = spawnerOf(binary, ({ home, grokHome }) => ({
+    HOME: home,
+    GROK_HOME: grokHome,
+    GROK_AUTH_PATH: authFile,
+    ...QUIET,
+  }));
 
   return {
     path: binary,
@@ -102,4 +108,37 @@ export function grokCli(binary: string, authFile: string): GrokCli {
     signIn: (folders, signal) => signInWith(spawn, folders, signal),
     run: (folders, prompt, signal) => runWith(spawn, folders, prompt, signal),
   };
+}
+
+const UpdateCheckSchema = z.object({
+  latestVersion: CliVersionSchema,
+  updateAvailable: z.boolean(),
+});
+
+type UpdateCheck = z.output<typeof UpdateCheckSchema>;
+
+function succeeded(end: Readonly<ProcessEnd>): end is Extract<ProcessEnd, { kind: "exited" }> {
+  return end.kind === "exited" && end.code === 0;
+}
+
+export async function checkForUpdate(
+  binary: string,
+  folders: RunFolders,
+  signal: AbortSignal,
+): Promise<UpdateCheck | null> {
+  const spawn = spawnerOf(binary, ({ home, grokHome }) => ({ HOME: home, GROK_HOME: grokHome }));
+  const end = await spawn(folders, ["update", "--check", "--json"], signal, LINE_CAP);
+
+  return succeeded(end) ? parsedJson(UpdateCheckSchema, end.stdout) : null;
+}
+
+export async function updateInto(
+  binary: string,
+  folders: RunFolders,
+  { version, into }: Readonly<{ version: string; into: string }>,
+  signal: AbortSignal,
+): Promise<boolean> {
+  const spawn = spawnerOf(binary, ({ home }) => ({ HOME: home, GROK_HOME: into }));
+
+  return succeeded(await spawn(folders, ["update", "--version", version], signal, LINE_CAP));
 }

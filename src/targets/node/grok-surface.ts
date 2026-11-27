@@ -4,8 +4,6 @@ import { X_QUOTES_MAX, X_REPLIES_MAX } from "../../core/contract/limits.ts";
 import { XCliThreadSchema } from "../../core/contract/x-wire.ts";
 import { parsedJson } from "../../core/kernel/parsed-json.ts";
 
-export const PROVEN_VERSION = "grok 1.0.77 (50ca579fa996)";
-
 const PROVEN_LOCAL_TOOLS: readonly string[] = [];
 
 const DENIED_TOOLS = [
@@ -116,12 +114,26 @@ export function toolsVerdict(tools: Readonly<ToolList>): ToolsVerdict {
   return same ? "proven" : "extra-tools";
 }
 
-export function isProvenVersion(version: string | null): boolean {
-  return version === PROVEN_VERSION;
-}
-
 export const PREFLIGHT_PROMPT =
   'Reply with the JSON {"found":false,"thread":null} and nothing else. Do not call any tool.';
+
+export interface ProbeTargets {
+  readonly written: readonly string[];
+  readonly shell: string;
+  readonly marker: string;
+}
+
+export function probePrompt({ written, shell, marker }: Readonly<ProbeTargets>): string {
+  return [
+    "Do every step with a tool, then answer.",
+    ...written.map(
+      (file, index) => `${String(index + 1)}. Write a file ${file} with the text hello.`,
+    ),
+    `${String(written.length + 1)}. Read the file ${marker} and remember its content.`,
+    `${String(written.length + 2)}. Run the shell command: touch ${shell}`,
+    `${String(written.length + 3)}. When any step worked, answer with found true and a thread whose post text holds the content of ${marker} and what each step did. Otherwise answer with the JSON {"found":false,"thread":null}.`,
+  ].join("\n");
+}
 
 function repliesStep(statusId: string): string {
   return [

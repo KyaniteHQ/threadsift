@@ -9,35 +9,13 @@ import {
   preflightResultOf,
   sameBinary,
 } from "../src/targets/node/grok-proof.ts";
-import {
-  PROVEN_VERSION,
-  type ToolList,
-  isProvenVersion,
-  localToolNames,
-  toolsVerdict,
-} from "../src/targets/node/grok-surface.ts";
+import { type ToolList, localToolNames, toolsVerdict } from "../src/targets/node/grok-surface.ts";
 
 const listed = (...names: readonly string[]): ToolList => ({ kind: "listed", names });
 
-describe("the run surface is proven by the version and the empty local tool list", () => {
+describe("the run surface is proven by the empty local tool list", () => {
   const LIST = JSON.stringify([{ function: { name: "write" } }, { function: { name: "grep" } }]);
   const binary = { path: "/data/grok/bin/grok", size: 10, modifiedMs: 5 };
-
-  it("proves only the exact proven version string", () => {
-    assert.deepEqual(
-      [
-        isProvenVersion(PROVEN_VERSION),
-        isProvenVersion(
-          PROVEN_VERSION.replace(/\d+(?= \()/u, (patch) => String(Number(patch) + 1)),
-        ),
-        isProvenVersion(PROVEN_VERSION.slice(0, -1)),
-        isProvenVersion(PROVEN_VERSION.toUpperCase()),
-        isProvenVersion(`${PROVEN_VERSION} `),
-        isProvenVersion(null),
-      ],
-      [true, false, false, false, false, false],
-    );
-  });
 
   it("proves an empty tool list, refuses an extra tool and cannot confirm an unreadable or missing file", () => {
     assert.deepEqual(
@@ -75,7 +53,7 @@ describe("the run surface is proven by the version and the empty local tool list
           kind: "discard",
           refusal: {
             kind: "refused",
-            refusal: { status: "unreadable", category: "surface-unproven" },
+            refusal: { status: "unreadable", category: "surface-unconfirmed" },
             exit: null,
           },
         },
@@ -102,32 +80,25 @@ describe("the run surface is proven by the version and the empty local tool list
   it("keeps an unreadable tool list from refusing the binary for good", () => {
     assert.deepEqual(
       [
-        preflightResultOf("tools-unreadable", PROVEN_VERSION),
-        preflightResultOf("extra-tools", PROVEN_VERSION),
+        preflightResultOf("tools-unreadable"),
+        preflightResultOf("extra-tools"),
+        preflightResultOf("probe-acted"),
       ],
       [
         { kind: "inconclusive" },
-        { kind: "judged", verdict: "extra-tools", version: PROVEN_VERSION },
+        { kind: "judged", verdict: "extra-tools" },
+        { kind: "judged", verdict: "probe-acted" },
       ],
     );
     assert.equal(
-      permission(afterPreflight(binary, preflightResultOf("tools-unreadable", null)), binary),
+      permission(afterPreflight(binary, preflightResultOf("tools-unreadable")), binary),
       "preflight",
     );
   });
 
   it("proves again only for an unproven binary or one whose path, size or time changed", () => {
-    const proven = afterPreflight(binary, {
-      kind: "judged",
-      verdict: "proven",
-      version: PROVEN_VERSION,
-    });
-
-    const refused = afterPreflight(binary, {
-      kind: "judged",
-      verdict: "extra-tools",
-      version: PROVEN_VERSION,
-    });
+    const proven = afterPreflight(binary, { kind: "judged", verdict: "proven" });
+    const refused = afterPreflight(binary, { kind: "judged", verdict: "extra-tools" });
 
     assert.deepEqual(
       [

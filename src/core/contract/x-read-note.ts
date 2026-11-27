@@ -12,6 +12,7 @@ export const X_READ_NOTES = [
   "cli-not-installed",
   "cli-signed-out",
   "cli-not-proven",
+  "cli-unconfirmed",
   "cli-usage-limit",
   "cli-unreachable",
   ...X_FETCH_RETRY_NOTES,

@@ -1,5 +1,9 @@
 import type { XReadNote } from "../../src/core/contract/x-read-note.ts";
-import type { XReaderChoice, XBotState } from "../../src/core/contract/x-settings-contract.ts";
+import type {
+  XBotState,
+  XCliBar,
+  XReaderChoice,
+} from "../../src/core/contract/x-settings-contract.ts";
 
 export const X_TEXT = {
   sectionTitle: "X posts",
@@ -13,7 +17,8 @@ export const X_TEXT = {
   failed: "Couldn’t save the setting. Try again.",
   noteSignedOut: "Run this command to sign in so the grok CLI can read X links.",
   noteNotProven:
-    "Threadsift doesn’t use this grok CLI to read X posts. It isn’t the tested version, or it has tools Threadsift doesn’t allow. After installing another version or replacing the CLI, restart the instance to run the check again:",
+    "Threadsift doesn’t use this grok CLI to read X posts. It has local tools Threadsift doesn’t allow, or it wrote or read a file during the check. Replace the grok CLI to run the check again, or restart the instance:",
+  refusedLabel: "Skipped version",
   noteUnknown: "Couldn’t read the grok CLI’s sign-in state. Reload the page to check again.",
   noteNotInstalled:
     "To read X links with the grok CLI, install it, restart the instance, then sign in:",
@@ -56,6 +61,13 @@ export const X_STATES = {
   "not-installed": "not installed",
 } as const;
 
+export const REFUSED_REASONS = {
+  "extra-tools":
+    "It has local tools Threadsift doesn’t allow, so the version in use stays. Threadsift tries again when a newer version comes out.",
+  "probe-acted":
+    "It wrote or read a file during the check, so the version in use stays. Threadsift tries again when a newer version comes out.",
+} as const satisfies Readonly<Record<XCliBar, string>>;
+
 export type XNoticeKey = XReadNote | "x-unreadable" | "x-kept";
 
 export const X_NOTICES: Readonly<Record<XNoticeKey, string>> = {
@@ -73,7 +85,9 @@ export const X_NOTICES: Readonly<Record<XNoticeKey, string>> = {
   "cli-signed-out":
     "The grok CLI is signed out, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts, then paste the link again.",
   "cli-not-proven":
-    "The grok CLI isn’t the tested version or has tools Threadsift doesn’t allow, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts, then paste the link again.",
+    "The grok CLI has local tools Threadsift doesn’t allow, or wrote or read a file during the check, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts, then paste the link again.",
+  "cli-unconfirmed":
+    "Threadsift couldn’t confirm which local tools the grok CLI had, or that the same program file was checked and run, so this post couldn’t be read. Any earlier copy was kept. Paste the link again.",
   "cli-usage-limit":
     "The grok CLI reached its usage limit, so this post couldn’t be read. Any earlier copy was kept. Paste the link again later.",
   "cli-unreachable":

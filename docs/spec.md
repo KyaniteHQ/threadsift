@@ -146,6 +146,8 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 - A post X does not show ends the Item `status`, and the Reader says X does not show the post. A Link-only X Item offers Try again when its note is `cli-failed` or `x-unconfirmed`. Every note names the cause, and the other notes say what to do instead ([Fetchers](architecture/fetchers.md), Outcomes and notes).
 - A refresh that fails keeps the saved thread.
 - A Paste can carry the thread: `POST /api/items` with `{url, content}` for an X link takes one JSON text of the post and its replies (`XThreadSchema`), keeps every supplied reply, is not checked against X and stores it like a Reddit thread.
+- The container checks the grok CLI before it reads X posts with it, and again whenever the binary changes: a test run, and a probe run that asks for a file write, a file read and a shell command. A CLI that lists a local tool or acts on a file is not used, whatever its version.
+- Once a day the container updates the grok CLI with the CLI's own update command, checks the new version the same way, and switches to it only when it passes. X links are read with the version in use meanwhile. The X posts section of Settings shows the version in use, and a skipped newer version with the reason. The image sets `THREADSIFT_GROK_AUTO_UPDATE=true`, `false` turns the update off, and a Node target started outside the image leaves it off ([Fetchers](architecture/fetchers.md), The update).
 - The Cloudflare build has no CLI and does not offer `grok-cli`, so there X needs the webhook.
 
 ### Reddit post or comment
