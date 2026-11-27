@@ -62,6 +62,8 @@ The container sets them in `webRoutes` and compresses with Hono's `compress` mid
 
 All twelve settings are one JSON object in `localStorage` under `STORAGE_KEY`. `readStored` checks each key on its own, so one bad value falls back alone.
 
+The two List pane widths are not settings: they have no row in the settings table, so Reset look and the theme script never touch them. `savedWidths` reads them from their own `localStorage` entry and parses each width on its own, so a missing or bad width falls back to its default alone. The [List pane handles](#list-pane-handles) write them.
+
 `html` carries the same `data-theme`, `data-style` and `data-layout` as the app root (the rows marked `onPage`), so the page canvas resolves the same `--bg` in every Layout and Theme. A blocking classic script (no `defer`, `async` or `type=module`) sets those attributes from the stored object before the first paint, so a stored Dark never draws a Light frame. The build emits it as the hashed file `/assets/theme-script-<hash>.js`, linked from `index.html`. The Content-Security-Policy then needs no inline-script hash and no `'unsafe-inline'` for scripts. The cost is one request before the first paint, which the immutable cache answers on every later load.
 
 The browser frame colours are copies of the Library Style's page colour, because a meta tag and the manifest cannot read a custom property. `index.html`'s two `theme-color` tags hold the Light and Dark `--bg` as hex (`#f4f8f7`, `#0e1111`), and the manifest's `theme_color` and `background_color` hold the Light one. A change to the Library neutrals (`--nh`, `--nc`) or to the Light or Dark `--bg` updates these four values in the same change.
@@ -161,6 +163,15 @@ The library reads `GET /api/items/:id/status` for each `processing` Item (`useIt
 - Read state writes go one after another for each Item. A press computes its wanted state from the last wanted state still in flight, so two presses of `m` before the first answer send `read` and then `unread`, and the older answer cannot be the last one applied. `PUT /api/items/:id/read-state` changes no other column, and a Paste refresh and the Digest job never write it.
 - Attention never steals focus: an attention that asks for focus waits for its row only while the rows on screen were read for other filters than the ones in use, and once the rows match the filters and none is the row, it is dropped, so a row that appears later never takes focus from the owner (`useOpenItem`).
 
+### List pane handles
+
+The rail and the item list each have a handle, a focusable `hr` with the WAI-ARIA window splitter attributes ([Window Splitter Pattern](https://www.w3.org/WAI/ARIA/apg/patterns/windowsplitter/)). Each sits in the DOM right after the pane it sizes, so Tab reaches it after that pane's controls. It is absolutely positioned in the grid column after its pane, so it lands on the hairline whatever width the pane draws.
+
+- `PaneSplits` owns the widths. It reads the bounds and defaults from the tokens once, and writes the drawn widths into `--rail-w` and `--list-w` on the app root, with the ARIA values on each handle. A drag writes at most once per animation frame, and nothing goes through React state, so the list and the Reader do not render again while a pane moves.
+- The drag is one value, `Drag`: idle, or dragging with the pane, the pointer id, and where the drag started. Moves of any other pointer are ignored. `pointerup`, `pointercancel`, `lostpointercapture` and a window `blur` end the drag and keep the width; Escape ends it and puts the pane back. Escape is caught on `window` in the capture phase and stopped there, so the library's Escape does not also close the open Item.
+- `drawnWidths` clamps on every resize of the library: the rail first against the list's minimum, then the list against the rail it drew, each so the Reader keeps `--reader-min`. Only a drag, a key or a reset changes the saved widths, so a narrow window never overwrites them.
+- `usePaneSplits` runs in `Library`, not inside the library's root element, because React attaches a parent element's ref after the layout effects of its children run.
+
 ### Cold load
 
 Rows and the Reader appear when their data arrives, and the page accepts reflow when a font face arrives so the saved text does not wait for fonts. Every visit starts with the list-loading layout, and an empty library switches to the empty layout after the read, because no previous list state is stored. The Reader head stays inert, out of flow and at opacity 0 while Item data or its Markdown chunk is pending, and `useFocusMoved` keeps a late Reader response from taking focus after the owner chooses another control.
@@ -176,6 +187,14 @@ Rows and the Reader appear when their data arrives, and the page accepts reflow 
 - Layout change. A change of Layout from the Layout toggle clears the open Item in the same event (`onLayoutChange`), because List opens its first unread Item on its own and, in Grid, that Item would cover the grid the owner just switched to.
 - Paste card in Grid. From 760 px the card floats under the header, as [the design system](../../DESIGN.md) (Elevation & Depth) says. A card in the page flow would move every card down and back up on each Paste.
 
+### The margin column
+
+A Reader wider than the reading column, `--s6`, `--margin-w` and its side padding together draws the margin column beside the reading column (`data-margin="beside"` on `.rd-col`). `useMarginColumn` measures the Reader's slot against that sum: the reading column's measure comes from the computed `max-width` of `.rd-main`, which holds `--measure` in pixels. A container query cannot decide it, because a query's size cannot read a custom property, and `--measure` changes with the Font, the Text size and the Text width.
+
+The DOM differs between the forms, because the summary box sits under the header in one column and first in the margin column beside it, and the reading order follows the DOM. `.rd-main` and `.rd-margin` are always rendered, and both are `display: contents` in one column. The Related Items, the Highlights list and the Note box render through a portal into `.rd-margin` in both forms, so a change of form never mounts them again and the Note box keeps its text and focus. Only the summary box moves, and it holds no state. `.rd-margin` has no children while the Item loads or after a failed read, and `:empty` then keeps one column.
+
+The reading place skips anchors inside a margin column that sits beside the reading column, because that column sticks in place and does not move with the reading position.
+
 ### Loading and staleness
 
 When `useItemDetail` fails to read `GET /api/items/:id` again and the Reader still holds an answer for the same Item, it keeps the body and marks it `stale`. The Reader then shows `READER_STALE` and Try again above the Summary, so the header (from the list) and a body from an earlier read are never shown as one current Item.
@@ -186,7 +205,7 @@ The Reader restores its reading place once, after its text and `document.fonts.r
 
 A reading place lives in `sessionStorage`, so each tab keeps its own. The tab keeps the last `PLACES_MAX` places it saved (a chosen bound), ordered by their last save, and drops the oldest first. The stored value is a list of pairs of Item id and place. The read also accepts an object keyed by Item id, the form an earlier build wrote, so a tab that is still open keeps its places across an update. Those converted places have no save order and sit ordered by Item id until the next save. It holds the block index, the fraction and the offset, and the first 80 characters of the block's text with white space collapsed. Restoring uses the block at that index only when its text still starts with the saved text. Otherwise it scrolls to the first block that does, and when none does the Reader stays at the top. A refresh, a new Digest or a different comment selection that adds or removes blocks therefore never lands the owner on unrelated text.
 
-The place anchors on `.md > *`, so a Kept comment's blocks are anchors like the post's. A block with no visible part, or whose visible part is above the reading edge, is never chosen as the anchor, and a saved anchor whose point is clipped on return scrolls to its comment's fold box.
+The place anchors on `.md > *`, so a Kept comment's blocks are anchors like the post's, outside a margin column beside the reading column ([The margin column](#the-margin-column)). A block with no visible part, or whose visible part is above the reading edge, is never chosen as the anchor, and a saved anchor whose point is clipped on return scrolls to its comment's fold box.
 
 Once the Reader watches the slot, it saves the place `SAVE_DELAY_MS` after the last `scroll` event of the slot. It watches after the restore, or at once when the address points at a Highlight or the Note of the Item. It also saves on `pagehide`, when the Reader closes and when another Item opens. Every save measures the slot with `anchorAt` at the moment it runs. The save while reading and the save at the close therefore store the same place for the same scroll position. They differ when the slot or its layout changed between them, and the close then keeps the place the screen showed when it closed.
 

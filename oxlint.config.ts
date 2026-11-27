@@ -126,7 +126,7 @@ export default defineConfig({
           { from: "lib", name: "Document" },
           {
             from: "file",
-            name: ["Database", "Look", "InputKind", "Slots", "GrokCli"],
+            name: ["Database", "Look", "InputKind", "Slots", "GrokCli", "PaneSplits"],
           },
           { from: "package", name: ["ZodError", "ZodObject", "ZodType"], package: "zod" },
           {
@@ -146,6 +146,7 @@ export default defineConfig({
               "Selection",
               "DOMRect",
               "KeyboardEvent",
+              "PointerEvent",
               "EventTarget",
               "AbortSignal",
               "URL",

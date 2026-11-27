@@ -159,6 +159,8 @@ export const MATCH_SYSTEM_NOTES = {
 export const SEARCH_LABEL = "Search items";
 export const SEARCH_PLACEHOLDER = "Title, post text, summary or tags";
 export const SKIP_LABEL = "Skip to items";
+export const RESIZE_RAIL_LABEL = "Resize filters";
+export const RESIZE_LIST_LABEL = "Resize item list";
 
 export const FILTER_GROUPS = {
   source: "Source",

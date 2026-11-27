@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { collapsed } from "../../src/core/contract/format.ts";
 import { WholeCount } from "../../src/core/contract/whole-count.ts";
+import { BESIDE_MARGIN } from "./margin-column.ts";
 
 const STORAGE_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
@@ -74,6 +75,12 @@ function shownBottom(block: Element): number | null {
   return box.top < foldBottom ? Math.min(box.bottom, foldBottom) : null;
 }
 
+function anchorsIn(slot: HTMLElement): Element[] {
+  return [...slot.querySelectorAll(ANCHORS)].filter(
+    (block) => block.closest(BESIDE_MARGIN) === null,
+  );
+}
+
 function passageOf(block: Element): string {
   return collapsed(block.textContent ?? "").slice(0, PASSAGE_LENGTH);
 }
@@ -83,7 +90,7 @@ export function anchorAt(slot: HTMLElement): Anchor | null {
 
   const top = topOf(slot);
 
-  for (const [index, block] of slot.querySelectorAll(ANCHORS).entries()) {
+  for (const [index, block] of anchorsIn(slot).entries()) {
     const box = block.getBoundingClientRect();
     const bottom = shownBottom(block);
 
@@ -103,7 +110,7 @@ export function anchorAt(slot: HTMLElement): Anchor | null {
 }
 
 export function scrollToAnchor(slot: HTMLElement, anchor: Readonly<Anchor>): boolean {
-  const blocks = [...slot.querySelectorAll(ANCHORS)];
+  const blocks = anchorsIn(slot);
   const saved = blocks[anchor.index];
 
   const block =

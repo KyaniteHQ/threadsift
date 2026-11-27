@@ -1,6 +1,7 @@
 import { type RefObject, use } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
+import type { MarginSlot } from "./margin-column.ts";
 import { postTextModule } from "./post-text-module.ts";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { ReaderContent, ReaderNotices } from "./ReaderContent.tsx";
@@ -17,6 +18,7 @@ export function ReaderBody({
   titleId,
   focusTitle,
   tryAgain,
+  margin,
 }: Readonly<{
   item: Item;
   slot: RefObject<HTMLElement | null>;
@@ -27,12 +29,13 @@ export function ReaderBody({
   titleId: string;
   focusTitle: boolean;
   tryAgain: (item: Item) => void;
+  margin: MarginSlot;
 }>) {
   use(postTextModule());
   useReadingPlace(slot, item.id, state.status === "ready");
 
   const loading = state.status === "loading";
-  const content = { item, actions, announce, tryAgain, now };
+  const content = { item, actions, announce, tryAgain, now, margin };
 
   return (
     <>
