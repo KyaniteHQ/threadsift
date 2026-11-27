@@ -33,6 +33,7 @@ function sharedCard(arrival: SavedArrival | null, items: readonly Item[]): Shown
     : {
         kind: "item",
         itemId: item.id,
+        known: arrival.refreshed,
         refreshed: arrival.refreshed,
         url: item.originalUrl,
         seq: 0,
