@@ -106,7 +106,6 @@
     "vault": ["vault-failure.ts", "vault-mirror.ts", "vault-paths.ts", "vault-state.ts"],
     "x": [
       "x-api-publish.ts",
-      "x-api-read.ts",
       "x-api-usage.ts",
       "x-fetcher.ts",
       "x-intake-answer.ts",
@@ -114,8 +113,7 @@
       "x-intake.ts",
       "x-reader.ts",
       "x-thread.ts",
-      "x-verify-job.ts",
-      "x-verify-store.ts"
+      "x-verify-job.ts"
     ],
     "reddit": ["oembed-details.ts", "reddit-account-queue.ts", "reddit-fetch.ts", "reddit-json.ts"],
     "fetch": ["fetch-job.ts", "fetch-link.ts", "page-answer.ts"],
@@ -157,7 +155,8 @@
       "x-api-plan.ts",
       "x-api-spend.ts",
       "x-oembed.ts",
-      "x-verify-state.ts"
+      "x-verify-state.ts",
+      "x-verify-store.ts"
     ],
     "reddit": ["archive-thread.ts", "reddit-account-states.ts"],
     "fetch": ["plugin-fetch.ts"],
