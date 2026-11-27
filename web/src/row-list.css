@@ -19,6 +19,11 @@
   margin: 0;
   font-weight: inherit;
 }
+.rl-intro {
+  margin: 0;
+  font-size: var(--t-meta);
+  color: var(--muted);
+}
 
 .rl-list,
 .hp-list {

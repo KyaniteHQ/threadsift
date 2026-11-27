@@ -89,22 +89,31 @@ export function noteOf(item: Readonly<Item>): NoticeKey | null {
   return noteOfResult(item.fetch);
 }
 
-function savedLook(note: NoticeKey | null, refreshed: boolean) {
+type SavedOutcome = "added" | "refreshed" | "unchanged";
+
+function savedOutcomeOf(item: Readonly<Item>, refreshed: boolean): SavedOutcome {
+  if (!refreshed) return "added";
+
+  return item.fetch === "ok" ? "refreshed" : "unchanged";
+}
+
+function savedLook(note: NoticeKey | null, outcome: SavedOutcome) {
   if (note !== null) {
     return { icon: "warn", tone: "tone-warn" } as const;
   }
 
-  return refreshed
+  return outcome === "refreshed"
     ? ({ icon: "refresh", tone: "tone-acc" } as const)
     : ({ icon: "check", tone: "tone-ok" } as const);
 }
 
 function savedFace(item: Readonly<Item>, refreshed: boolean): Face {
   const note = noteOf(item);
+  const outcome = savedOutcomeOf(item, refreshed);
 
   return {
-    ...savedLook(note, refreshed),
-    title: CARD_TITLES[refreshed ? "refreshed" : "added"],
+    ...savedLook(note, outcome),
+    title: CARD_TITLES[outcome],
     name: item.title ?? whereOf(item),
     note: note === null ? null : NOTICES[note],
     wait: null,

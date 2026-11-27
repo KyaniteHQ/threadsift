@@ -13,6 +13,7 @@ const LISTING: Listing<ProposalPage, Proposal> = {
   text: PROPOSALS_PAGE,
   focus: REJECT_SELECTOR,
   head: () => PROPOSALS_PAGE.head,
+  intro: PROPOSALS_PAGE.intro,
   emptyLine: ({ provider, checkedAt }) =>
     proposalsEmptyLine(provider, checkedAt === null ? null : localDate(checkedAt)),
   rows: ({ proposals }) => proposals,

@@ -214,7 +214,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 4. X replies follow the same rules.
 
 - The agent makes step 2 in the same call that writes the Digest, over the eligible comments that fit the Digest's input budget ([AI tasks and Providers](architecture/ai-tasks-and-providers.md), Measured Digest input budget). A comment that does not fit is not Kept, and as a parent it shows as the same stub as a comment the agent dropped. The app drops any id the agent returns that it was not shown. A caller-sent Digest names its own Kept comments, and the agent makes no choice for it.
-- Until a Digest covers the thread, the Reader shows every comment that passes step 1, as the thread, under a line that says the comments are not filtered by a Digest yet and why. The reasons are: a Digest is being made, the last Digest run failed, no Provider is saved (a Grok Bot chosen as the Provider counts as saved), a Provider is saved and the Item has no Digest yet, or the stored Digest was made from earlier text and does not cover the thread.
+- Until a Digest covers the thread, the Reader shows every comment that passes step 1, as the thread, under a line that says the comments are not filtered by a Digest yet and why. The reasons are: a Digest is being made, the last Digest run failed, no Provider is saved (a Grok Bot chosen as the Provider counts as saved), a Provider is saved and the Item has no Digest yet, or the stored Digest was made from earlier text and does not cover the thread. When no Provider is saved, a link to the Settings page sits under the line.
 - Once a Digest covers the thread, the Kept comments, and any comment that holds an attached Highlight, show and the line goes.
 - A thread whose Digest kept none says that none of the comments added anything.
 - A thread whose stored comments all fail step 1 and that no Digest covers shows the comments heading, one line that says its comments were removed, written by bots or empty, and no thread.
@@ -242,14 +242,14 @@ Rules for the Digest:
 
 ## The library page and the Reader
 
-- **Paste card.** A Paste shows a card under the paste box that says what is happening: reading the link, added, already saved and refreshed, or a failure note with Try again. The Added and refreshed cards have Open and Dismiss. The Added, refreshed and failure cards close themselves after 6 seconds, held while the pointer or focus is inside. Try again on a row pastes the link again for an Item with no stored text, and queues a Digest over the stored text for one with a failed Digest.
+- **Paste card.** A Paste shows a card under the paste box that says what is happening: reading the link, added, already saved and refreshed, already saved with the saved copy unchanged (a refresh whose read failed or that Threadsift does not fetch), or a failure note with Try again. The cards of a saved Item have Open and Dismiss. They and the failure cards close themselves after 6 seconds, held while the pointer or focus is inside. Try again on a row pastes the link again for an Item with no stored text, and queues a Digest over the stored text for one with a failed Digest.
 - **Search and filters.** The list head says how many Items match. When none do, one button, Clear search and filters, resets both; the filter pane's own Clear filters link, which keeps the search, is hidden while no Item matches. The API behind the counts is under Interfaces.
 - **Read state.** An Item is unread until the owner marks it read, from the Reader bar, the dot on its row or the `m` key. The agent, a refresh and a Digest never change it. In the List Layout at 760px wide and over, the first load opens the first unread Item once and leaves it unread; an Item named in the address wins, and under 760px nothing opens.
 - **What the Reader shows,** top to bottom:
   - the header: Source, place, author, posted and saved times, title, and for a Reddit link post the address it points at as a link that opens in a new tab, shortened by the width of the column and never by cutting the address, with no "no post text" line beside it. An X Item with an author shows the author's handle and no place, so the handle appears once;
   - the Topic, Tags, Summary and Key points;
   - for a GitHub repository, its block of description, stars, language, license, last push and topics;
-  - the post text (the README for a repository);
+  - the post text, under a heading that names what it holds: the README for a repository, and the comment's own text for a saved Reddit comment;
   - the comments, as the Comment filter describes;
   - the Related Items, with no heading when there are none, each with its Source, title and reason and opening that Item;
   - the Highlights list;
@@ -329,6 +329,7 @@ All five kinds are built, each with its weekly check, Reject and Accept. [Propos
 - Plain checks find the candidates, and the agent judges only those.
 - The owner accepts or rejects each one, and the app applies the accepted ones. Reject is final for the pair or row it names. An accepted Tag merge, Topic merge or disagreement is kept as a Pin, so the next regeneration cannot undo it.
 - Once a week, while a Provider is saved and at least one Item has a Digest, the app runs the checks for Tags, Topics and Items. A failed check shows nothing on the page.
+- The line under the list head, shown above the empty state too, holds the rule every kind shares: Reject is final. Each row says what its own Accept does, above its buttons.
 - **Tag and Topic merges:** Accept merges the first into the second with no confirmation and cannot be undone in this release. The row shows both Item counts. A Topic merge also deletes the merged-away Topic, and its address opens the survivor.
 - **Lost Highlights:** Accept removes the Highlight and cannot be undone. Reject keeps it.
 - **Overview gaps:** Accept starts the same overview run as Try again on the Topic page.

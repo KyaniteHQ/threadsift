@@ -17,11 +17,11 @@ export const NOT_FOUND = "The item’s text changed and no longer includes this 
 
 export const SECTION_TITLES: Readonly<Record<Kind, string>> = {
   "reddit-post": "Original post",
-  "reddit-comment": "Original post",
+  "reddit-comment": "Saved comment",
   "x-post": "Original post",
   "github-repo": "README",
   article: "Article",
-  link: "Original post",
+  link: "Page text",
 };
 
 export function handleOf(source: Source, author: string | null): string {

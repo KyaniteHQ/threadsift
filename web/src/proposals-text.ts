@@ -19,7 +19,9 @@ export const PROPOSALS_PAGE = {
   emptyHeading: "No open proposals",
   loadMoreFailed: "Couldn’t load more proposals.",
   sort: NEWEST_FIRST,
-  head: "Tag and topic merges can’t be undone in this release. Accepting a lost-highlight proposal removes that highlight for good. Overview updates start a provider run for the topic once accepted. An accepted disagreement keeps the pair on the topic page. Rejecting is final: the tag pair, topic pair, item pair, highlight or topic stays as it is, and the weekly check never proposes it again.",
+  head: "Open proposals",
+  intro:
+    "Rejecting a proposal can’t be undone. The weekly check never proposes it again, and the library stays as it is.",
 } as const;
 
 const EMPTY_NO_PROVIDER = "Save a provider in Instance settings so the weekly check can run.";
@@ -119,6 +121,10 @@ export const PROPOSAL_WORDS = {
   overviewCost: `Accept writes the topic’s overview again. Each call to the provider covers up to ${String(ADDED_READ_LIMIT)} items, so a topic with many items can take several calls. The run stops if a call fails.`,
   noProvider:
     "Save a provider in Instance settings to update the overview. This row stays, and Accept works once a provider is saved.",
+  mergeFinal: "Accept starts the merge at once. This can’t be undone in this release.",
+  topicMergeFinal:
+    "Accept starts the merge at once. This can’t be undone in this release. The merge moves the first topic’s items into the second and deletes the first topic. Its page address then opens the second topic’s page.",
+  highlightRemoved: "Accept removes this highlight at once. This can’t be undone. Reject keeps it.",
   disagreementKept:
     "Accept keeps this pair on the topic page under Known disagreements. Neither item changes.",
   reasonLabel: "Reason",

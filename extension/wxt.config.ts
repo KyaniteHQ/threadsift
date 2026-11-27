@@ -1,3 +1,6 @@
+import { basename, dirname } from "node:path";
+
+import type { Plugin } from "vite";
 import { defineConfig } from "wxt";
 
 import { LOOPBACK_HOSTS } from "./lib/loopback-hosts.ts";
@@ -10,7 +13,28 @@ const GECKO = {
   data_collection_permissions: { required: ["websiteContent", "authenticationInfo"] },
 };
 
+const PAGE_TITLES = new Map([
+  ["popup", TEXT.actionTitle],
+  ["options", TEXT.settingsTitle],
+]);
+
+function escapedText(text: string): string {
+  return text.replaceAll("&", "&amp;").replaceAll("<", "&lt;");
+}
+
+const pageTitles: Plugin = {
+  name: "threadsift-page-titles",
+  transformIndexHtml: (_html, { filename }) => {
+    const title = PAGE_TITLES.get(basename(dirname(filename)));
+
+    if (title === undefined) throw new Error(`no page title for ${filename}`);
+
+    return [{ tag: "title", children: escapedText(title), injectTo: "head" }];
+  },
+};
+
 export default defineConfig({
+  vite: () => ({ plugins: [pageTitles] }),
   manifest: ({ browser }) => {
     const manifest = {
       name: "Threadsift",

@@ -46,7 +46,8 @@
   min-inline-size: var(--target);
 }
 .pr-overview,
-.pr-keeps {
+.pr-keeps,
+.pr-final {
   margin: 0;
   font-size: var(--t-meta);
   color: var(--muted);

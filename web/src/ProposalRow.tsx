@@ -59,6 +59,11 @@ function MergeBody({
         <span className="vh">{PROPOSAL_WORDS.reasonLabel}: </span>
         {reason}
       </p>
+      <p className="rl-sum pr-final">
+        {proposal.kind === "topic-merge"
+          ? PROPOSAL_WORDS.topicMergeFinal
+          : PROPOSAL_WORDS.mergeFinal}
+      </p>
       {proposal.kind === "topic-merge" && overviewFollows && (
         <p className="rl-sum pr-overview">{PROPOSAL_WORDS.topicOverviewEffect}</p>
       )}

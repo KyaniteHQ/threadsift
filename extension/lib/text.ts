@@ -9,14 +9,14 @@ export const TEXT = {
   accessMissing:
     "The extension doesn’t have permission to reach your Threadsift address. Select Save settings in Threadsift extension settings so your browser asks for access.",
   pageBlocked:
-    "Couldn’t read this page. Either your browser blocks extensions on it, or the page has no readable text.",
+    "Couldn’t read this page. It may not be a web page, or the browser may block extensions on it.",
   tokenRefused: "Threadsift rejected the saved agent token. It is wrong or was revoked.",
   scopeRefused:
     "The saved agent token needs the Read and Add scopes. Create one under Agent tokens in Threadsift’s Settings, then enter it in Threadsift extension settings.",
   tooLarge: "The text on this page is too long to save.",
-  privateLink: "Pages at an address not reachable from the public internet can’t be saved.",
+  privateLink: "This page can’t be saved. Its address isn’t reachable from the public internet.",
   unsupportedLink:
-    "The extension can’t save X posts, GitHub pages, short links or Reddit share links. On Reddit, it saves only posts and comments.",
+    "The extension can’t save this page. It doesn’t save X posts, GitHub pages, short links or Reddit share links. On Reddit, it saves only posts and comments.",
   budgetSpent:
     "The saved agent token reached its daily budget, so this page wasn’t saved. Saving works again after 00:00 UTC. You can also select Change budget under Agent tokens in Threadsift’s Settings.",
   threadKept: "Couldn’t read this Reddit thread. The saved item in Threadsift stays as it was.",

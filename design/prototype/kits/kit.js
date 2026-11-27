@@ -230,7 +230,7 @@ function readerHead(it, level = 2, titleId = "") {
   return `<header class="rd-head ${it.read ? "" : "unread"}" data-id="${it.id}"><div class="share" style="--kept:${keptShare(it)}"></div><h${level} class="rd-title"${titleId ? ` id="${titleId}"` : ""}>${esc(it.title)}</h${level}>${readerMeta(it)}${desc}${tagList(it)}${it.picture ? pictureBox(it, "rd-cover") : ""}</header>`;
 }
 
-const SECTION_TITLES = { reddit: "Original post", x: "Original post", github: "README", article: "Article", other: "Original post" };
+const SECTION_TITLES = { reddit: "Original post", x: "Original post", github: "README", article: "Article", other: "Page text" };
 
 function readerBody(it, titleId = "") {
   if (it.linkOnly) {
