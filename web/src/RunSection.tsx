@@ -1,4 +1,4 @@
-import type { Resume } from "../../src/core/contract/import-list.ts";
+import { type Resume, resumeOf } from "../../src/core/contract/import-list.ts";
 import { Alert } from "./Alert.tsx";
 import type { Outcome, Progress } from "./import-run.ts";
 import {
@@ -12,6 +12,8 @@ import {
 } from "./import-text.ts";
 import type { Check } from "./use-import-list.ts";
 import { NOT_STARTED, type ImportRun, type RunState } from "./use-import-run.ts";
+
+const COMPLETE: Resume = { kind: "complete" };
 
 interface Action {
   readonly label: string;
@@ -116,7 +118,13 @@ function actionOf(
       label: finished ? IMPORT.again : IMPORT.resume,
       accent: true,
       press: () => {
-        runner.start(links, name, finished ? NOT_STARTED : run.outcome);
+        runner.start(
+          links,
+          name,
+          finished
+            ? { progress: NOT_STARTED, seen: COMPLETE }
+            : { progress: run.outcome, seen: resumeOf(String(run.outcome.done), links.length) },
+        );
       },
     };
   }
@@ -127,7 +135,7 @@ function actionOf(
     label: startLabel(resume),
     accent: true,
     press: () => {
-      runner.start(links, name, from);
+      runner.start(links, name, { progress: from, seen: resume });
     },
   };
 }

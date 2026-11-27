@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { NO_COUNTS } from "./import-api.ts";
-import { type Outcome, type Progress, runImport } from "./import-run.ts";
+import { type Outcome, type Position, type Progress, runImport } from "./import-run.ts";
 import type { Check } from "./use-import-list.ts";
 
 type RunningState = {
@@ -29,6 +29,10 @@ export function shownRun(state: RunState, check: Check): RunState {
     : IDLE;
 }
 
+function started(name: string, progress: Progress): RunningState {
+  return { phase: "running", name, progress, stopping: false, waiting: false };
+}
+
 export function useImportRun(seal: () => void) {
   const [state, setState] = useState<RunState>({ phase: "idle" });
   const controller = useRef(new AbortController());
@@ -41,7 +45,7 @@ export function useImportRun(seal: () => void) {
   );
 
   const start = useCallback(
-    (links: readonly string[], name: string, from: Progress) => {
+    (links: readonly string[], name: string, from: Position) => {
       controller.current = new AbortController();
       const { signal } = controller.current;
 
@@ -64,7 +68,7 @@ export function useImportRun(seal: () => void) {
       };
 
       seal();
-      setState({ phase: "running", name, progress: from, stopping: false, waiting: false });
+      setState(started(name, from.progress));
       void run();
     },
     [seal],
