@@ -127,7 +127,8 @@ uploading --start--> running (check, tables, files, search, highlights, finish) 
     |                   |
     | Cancel            +-- the check refuses the zip ------> failed (refusal code)
     v                   +-- a unit fails 3 times -----------> failed (gave-up) --Resume--> running
- cancelled              +-- Cancel past the check ----------> running (undoing) --> cancelled
+ cancelled              +-- a newer migration past check ---> failed (other-release) --Cancel--> running (undoing)
+                        +-- Cancel past the check ----------> running (undoing) --> cancelled
 ```
 
 ### Upload
@@ -160,7 +161,7 @@ The zip reader imports nothing from Restore. It throws `ZipRefused` with its own
 Restore accepts only an Export of the running migration, because older Export zips are not supported. The manifest's `format` names the zip layout (`EXPORT_FORMAT`) and stays 1 while that layout holds. A migration that changes the columns of a record changes `migration` instead, so Restore refuses an older zip with `other-release` before it reads a record.
 
 - The check validates the manifest before any library record is written.
-- `phaseUnit` compares the manifest's `migration` with the running one again before every unit of the `tables`, `files` and `finish` phases (`verifiedRelease`). The check reads the zip directory and the manifest once, and the unit uses those two reads, so a unit reads each of them once. A Restore that a deploy or a restart moved to a newer migration between two units therefore ends `failed` with `other-release` (and the same log line) before that unit writes, and not `done` with the rows of the changed tables counted as dropped. The rows written before that stay until the owner cancels the Restore.
+- `phaseUnit` compares the manifest's `migration` with the running one again before every unit of the `tables`, `files` and `finish` phases (`verifiedRelease`). The check reads the zip directory and the manifest once, and the unit uses those two reads, so a unit reads each of them once. A Restore that a deploy or a restart moved to a newer migration between two units therefore ends `failed` with `other-release` (and the same log line) before that unit writes, and not `done` with the rows of the changed tables counted as dropped. The rows written before that stay until the owner cancels the Restore, and the library stays held until then (While it runs).
 - Each record must carry exactly the exported columns of its table. A column deliberately left out of backups takes its default from the schema, and the registry fails to build when such a column has none.
 
 ### Values
@@ -225,7 +226,7 @@ A write that would store an Item, or save the Import cursor, answers 503 with `c
 - The guard does not rely on a check that a write can outrun. `itemInsert` is the one door for an insert into `items`, and it puts `restoreGuard` in front of the insert, so a batch that a Restore holds off rolls back whole, as every guarded batch does ([Database and search](database-and-search.md), Guarded batches). `restoreGuard` fails with its own refusal (`guards_restore`), and `whileOpen` answers `restoring` when a write fails with it and rethrows every other failure, without reading the predicate again.
 - Every batch that holds `restoreGuard` starts with it, before the guards of its own condition, so a write that lost a race for another reason, such as an Item that already exists, does not hide the hold, and a batch of known links is refused too.
 - The Restore's own inserts (`insertRows`) take no guard, because they are not a Paste.
-- `sweep` runs only the `enqueue` and `restores` stages while the newest Restore is `running` or `failed` with `gave-up` (`HOLDS_LIBRARY`, the one predicate that the Item guard, the Import cursor, the sweep and the file cleanup use). No other stage writes a half-restored library, and the stages wait and run after the owner resumes or cancels it. A Restore that failed with `gave-up` therefore keeps the library closed to Paste the way a running one does, and a Restore that a refusal of the check ended does not.
+- `sweep` runs only the `enqueue` and `restores` stages while the newest Restore is `running`, `failed` with `gave-up`, or `failed` after it wrote a library record (`HOLDS_LIBRARY`, the one predicate that the Item guard, the Import cursor, the sweep and the file cleanup use). No other stage writes a half-restored library, and the stages wait and run after the owner resumes or cancels it. A Restore that failed with `gave-up`, or with `other-release` after its first `tables` slice committed, therefore keeps the library closed to Paste the way a running one does, and a Restore that a refusal of the check ended does not, because it wrote nothing (`restores.restored` is `{}`). `HOLDING` names these standings; the index `restores_one_open` reads `OPEN_RUNS`, which leaves the written failure out, so the hold changes no index.
 - The batch saves the Import cursor in one statement guarded by the same predicate (`saveImport`), because the Item guard covers only inserts into `items`. A batch whose links were all refused hosts adds no Item, so a Restore can start while it runs, and an unguarded cursor write would land in the restored library, where nothing in the zip accounts for it. The batch then answers 503 `restoring` and keeps the old cursor.
 - A Restore that a deploy or a crash interrupts resumes on the container at the next start and on the Worker when the sweep takes over the expired claim. A slice that fails 3 times marks the Restore `failed` with `gave-up` and leaves the rows written so far. The owner then resumes or cancels it (next section), and a new Restore can start only after that, because it needs an empty library.
 
@@ -242,7 +243,7 @@ A write that would store an Item, or save the Import cursor, answers 503 with `c
 
 **The undo.** Any other `running` or `failed` Restore past `check` moves, in one guarded batch, to state `running` with phase `undoing` (`cancelRestore`; `GET /api/restore` shows it as `cancelling`). The same batch closes the open `restore` jobs of that Restore and opens a new one, so the unit in flight finds its cursor changed and writes nothing, and the third failure of an older job cannot end the undo.
 
-Each undo unit deletes up to 500 rows of the first table that still has rows. It deletes by table, not by Restore, so an Item the owner saved after a failure that freed the library (`other-release`) is deleted too; cancel such a Restore before saving Items. The order is:
+Each undo unit deletes up to 500 rows of the first table that still has rows. It deletes by table, not by Restore. No Item of the owner's sits among the restored rows, because a Restore that wrote a record holds the library until its undo ends. The order is:
 
 1. The tables that `items` is rebuilt into, which is `search_parts`. Their foreign keys point at `highlights` and `topics` without a cascade, so rows that a sweep wrote before the failure would make the delete of those tables fail.
 2. The restored tables in the reverse of `RESTORE_ORDER`, one query per table, because D1 refuses a compound `SELECT` of more than a few terms. A unit looks again at every table, so a row that appears in an earlier table is still found.

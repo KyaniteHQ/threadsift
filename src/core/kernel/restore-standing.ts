@@ -15,12 +15,11 @@ type Columns = Readonly<Record<"state" | "phase" | "failure" | "restored", Reado
 
 export const NOTHING_WRITTEN = "{}";
 
-export const HOLDING: readonly Standing[] = [
-  { state: "running" },
-  { state: "failed", gaveUp: true },
-];
+const UNSETTLED: readonly Standing[] = [{ state: "running" }, { state: "failed", gaveUp: true }];
 
-export const OPEN_RUNS: readonly Standing[] = [{ state: "uploading" }, ...HOLDING];
+export const HOLDING: readonly Standing[] = [...UNSETTLED, { state: "failed", wrote: true }];
+
+export const OPEN_RUNS: readonly Standing[] = [{ state: "uploading" }, ...UNSETTLED];
 
 function conditionsOf(
   columns: Columns,
