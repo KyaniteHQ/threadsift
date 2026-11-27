@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
-import { access, writeFile } from "node:fs/promises";
+import { lstat, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-import { report } from "../../core/kernel/failure-log.ts";
+import { errnoCodeOf, report } from "../../core/kernel/failure-log.ts";
+import { within } from "./cli-process.ts";
 import { type Refused, refusalOf } from "./grok-answer.ts";
 import { type RunFolders, inRunFolders } from "./grok-folders.ts";
 import type { GrokCli } from "./grok-process.ts";
@@ -30,10 +31,6 @@ function judged(verdict: Parameters<typeof preflightResultOf>[0]): Trial {
   return { result: preflightResultOf(verdict), failure: null };
 }
 
-export function within(signal: AbortSignal, ms: number): AbortSignal {
-  return AbortSignal.any([signal, AbortSignal.timeout(ms)]);
-}
-
 function testRun(cli: GrokCli, signal: AbortSignal): Promise<Trial | null> {
   return inRunFolders(async (folders) => {
     const run = await cli.run(folders, PREFLIGHT_PROMPT, within(signal, TEST_RUN_MS));
@@ -55,17 +52,30 @@ function probeTargets({ root, home }: Readonly<RunFolders>): ProbeTargets {
   };
 }
 
-async function anyExists(paths: readonly string[]): Promise<boolean> {
-  const found = await Promise.all(
-    paths.map((path) =>
-      access(path).then(
-        () => true,
-        () => false,
-      ),
-    ),
-  );
+type Seen = "acted" | "nothing" | "unknown";
 
-  return found.includes(true);
+async function presence(path: string): Promise<Seen> {
+  try {
+    await lstat(path);
+
+    return "acted";
+  } catch (cause) {
+    return errnoCodeOf(cause) === "ENOENT" ? "nothing" : "unknown";
+  }
+}
+
+async function seenOf(
+  targets: Readonly<ProbeTargets>,
+  record: string,
+  marker: string,
+): Promise<Seen> {
+  if (record.includes(marker)) return "acted";
+
+  const seen = await Promise.all([...targets.written, targets.shell].map((path) => presence(path)));
+
+  if (seen.includes("acted")) return "acted";
+
+  return seen.includes("unknown") ? "unknown" : "nothing";
 }
 
 function probeRun(cli: GrokCli, signal: AbortSignal): Promise<Trial> {
@@ -80,15 +90,15 @@ function probeRun(cli: GrokCli, signal: AbortSignal): Promise<Trial> {
 
     if (verdict === "extra-tools") return judged(verdict);
 
-    if (verdict === "tools-unreadable" || run.end.kind !== "exited") {
+    const seen = await seenOf(targets, JSON.stringify(run), marker);
+
+    if (seen === "acted") return judged("probe-acted");
+
+    if (seen === "unknown" || verdict === "tools-unreadable" || !exitedCleanly(run)) {
       return inconclusive(refusalOf(run.end));
     }
 
-    const acted =
-      (await anyExists([...targets.written, targets.shell])) ||
-      JSON.stringify(run).includes(marker);
-
-    return judged(acted ? "probe-acted" : "proven");
+    return judged("proven");
   });
 }
 

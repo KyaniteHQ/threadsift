@@ -152,7 +152,7 @@ The app checks the grok CLI before the first fetch after it starts, and again wh
 
 Once a day, when no X link is being read, the app asks the grok CLI for a newer version with the CLI's own `grok update` command. It downloads the newer version next to the one in use, checks it as above, and switches to it only when the check passes. X links are read with the version in use the whole time. A version that fails the check is not used: Settings shows it as "Skipped version" with the reason, and the app tries again when a newer version comes out.
 
-To turn the update off, add `THREADSIFT_GROK_AUTO_UPDATE=false` to `~/threadsift.env` as one more line and recreate the container. The app then never starts the update command, and you update the CLI yourself with the install command of step 1.
+The container image sets `THREADSIFT_GROK_AUTO_UPDATE=true`. To turn the update off, add `THREADSIFT_GROK_AUTO_UPDATE=false` to `~/threadsift.env` as one more line and recreate the container. The app then never starts the update command, and you update the CLI yourself with the install command of step 1. Outside the image, for example a Node target started with `pnpm dev`, the variable defaults to `false`, so the app never replaces the grok CLI of a developer's machine.
 
 When X cannot be reached or limits requests, Threadsift tries again a little later, up to two more times, and then leaves a Link-only Item. A reply that fails the check against X is left out, and the Item says that further replies were not saved.
 

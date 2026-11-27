@@ -86,6 +86,8 @@ export const X_NOTICES: Readonly<Record<XNoticeKey, string>> = {
     "The grok CLI is signed out, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts, then paste the link again.",
   "cli-not-proven":
     "The grok CLI has local tools Threadsift doesn’t allow, or wrote or read a file during the check, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts, then paste the link again.",
+  "cli-unconfirmed":
+    "Threadsift couldn’t confirm which local tools the grok CLI had, or that the same program file was checked and run, so this post couldn’t be read. Any earlier copy was kept. Paste the link again.",
   "cli-usage-limit":
     "The grok CLI reached its usage limit, so this post couldn’t be read. Any earlier copy was kept. Paste the link again later.",
   "cli-unreachable":

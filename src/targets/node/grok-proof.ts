@@ -1,5 +1,5 @@
 import type { XCliBar } from "../../core/contract/x-settings-contract.ts";
-import { type Refused, SURFACE_REFUSAL, refusalOf } from "./grok-answer.ts";
+import { type Refused, SURFACE_UNCONFIRMED, refusalOf } from "./grok-answer.ts";
 import type { BinaryIdentity } from "./grok-folders.ts";
 import type { RunRecord } from "./grok-process.ts";
 import { type ToolsVerdict, toolsVerdict } from "./grok-surface.ts";
@@ -94,7 +94,7 @@ export function checkedRun(run: Readonly<RunRecord>): RunCheck {
 
   if (verdict === "extra-tools") return { kind: "barred", verdict };
 
-  if (exitedCleanly(run)) return { kind: "discard", refusal: SURFACE_REFUSAL };
+  if (exitedCleanly(run)) return { kind: "discard", refusal: SURFACE_UNCONFIRMED };
 
   const refusal = refusalOf(run.end);
 

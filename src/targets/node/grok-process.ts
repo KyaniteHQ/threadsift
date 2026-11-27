@@ -1,5 +1,9 @@
 import { writeFile } from "node:fs/promises";
 
+import { z } from "zod";
+
+import { CliVersionSchema } from "../../core/contract/x-settings-contract.ts";
+import { parsedJson } from "../../core/kernel/parsed-json.ts";
 import { type ProcessEnd, runProcess } from "./cli-process.ts";
 import { type SignIn, signInFrom } from "./cli-sign-in.ts";
 import { type RunFolders, sweepGrokTemp, toolListOf } from "./grok-folders.ts";
@@ -106,28 +110,35 @@ export function grokCli(binary: string, authFile: string): GrokCli {
   };
 }
 
-export interface GrokUpdateCommands {
-  readonly check: (folders: RunFolders, signal: AbortSignal) => Promise<ProcessEnd>;
-  readonly update: (
-    folders: RunFolders,
-    version: string,
-    into: string,
-    signal: AbortSignal,
-  ) => Promise<ProcessEnd>;
+const UpdateCheckSchema = z.object({
+  latestVersion: CliVersionSchema,
+  updateAvailable: z.boolean(),
+});
+
+type UpdateCheck = z.output<typeof UpdateCheckSchema>;
+
+function succeeded(end: Readonly<ProcessEnd>): end is Extract<ProcessEnd, { kind: "exited" }> {
+  return end.kind === "exited" && end.code === 0;
 }
 
-export function grokUpdateCommands(binary: string): GrokUpdateCommands {
-  const spawnInto = (into: string | null) =>
-    spawnerOf(binary, ({ home, grokHome }) => ({
-      HOME: home,
-      GROK_HOME: into ?? grokHome,
-      ...QUIET,
-    }));
+export async function checkForUpdate(
+  binary: string,
+  folders: RunFolders,
+  signal: AbortSignal,
+): Promise<UpdateCheck | null> {
+  const spawn = spawnerOf(binary, ({ home, grokHome }) => ({ HOME: home, GROK_HOME: grokHome }));
+  const end = await spawn(folders, ["update", "--check", "--json"], signal, LINE_CAP);
 
-  return {
-    check: (folders, signal) =>
-      spawnInto(null)(folders, ["update", "--check", "--json"], signal, LINE_CAP),
-    update: (folders, version, into, signal) =>
-      spawnInto(into)(folders, ["update", "--version", version], signal, LINE_CAP),
-  };
+  return succeeded(end) ? parsedJson(UpdateCheckSchema, end.stdout) : null;
+}
+
+export async function updateInto(
+  binary: string,
+  folders: RunFolders,
+  { version, into }: Readonly<{ version: string; into: string }>,
+  signal: AbortSignal,
+): Promise<boolean> {
+  const spawn = spawnerOf(binary, ({ home }) => ({ HOME: home, GROK_HOME: into }));
+
+  return succeeded(await spawn(folders, ["update", "--version", version], signal, LINE_CAP));
 }

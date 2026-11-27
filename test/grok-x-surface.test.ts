@@ -53,7 +53,7 @@ describe("the run surface is proven by the empty local tool list", () => {
           kind: "discard",
           refusal: {
             kind: "refused",
-            refusal: { status: "unreadable", category: "surface-unproven" },
+            refusal: { status: "unreadable", category: "surface-unconfirmed" },
             exit: null,
           },
         },

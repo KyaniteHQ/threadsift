@@ -1,58 +1,46 @@
-import {
-  access,
-  constants,
-  mkdir,
-  readFile,
-  realpath,
-  rename,
-  rm,
-  writeFile,
-} from "node:fs/promises";
-import { dirname, isAbsolute, join, relative } from "node:path";
+import { mkdtemp, realpath, rm } from "node:fs/promises";
+import { dirname, join } from "node:path";
 
-import { z } from "zod";
-
-import {
-  type RefusedUpdate,
-  RefusedUpdateSchema,
-} from "../../core/contract/x-settings-contract.ts";
+import type { RefusedUpdate } from "../../core/contract/x-settings-contract.ts";
 import { errnoCodeOf, errorClassOf, report, withCleanup } from "../../core/kernel/failure-log.ts";
-import { parsedJson } from "../../core/kernel/parsed-json.ts";
-import type { ProcessEnd } from "./cli-process.ts";
-import { type BinaryIdentity, identityOf, inRunFolders } from "./grok-folders.ts";
-import { type GrokUpdateCommands, grokCli, grokUpdateCommands } from "./grok-process.ts";
-import { type Trial, trialOf, within } from "./grok-trial.ts";
+import { within } from "./cli-process.ts";
+import type { GrokAccess } from "./grok-access.ts";
+import { inRunFolders } from "./grok-folders.ts";
+import { checkForUpdate, grokCli, updateInto } from "./grok-process.ts";
+import { type Trial, trialOf } from "./grok-trial.ts";
+import {
+  ATTEMPT_MS,
+  type Fingerprint,
+  STAGING_PREFIX,
+  type UpdateState,
+  candidateIn,
+  claimed,
+  fingerprintOf,
+  swapped,
+  readState,
+  sweptStaging,
+  writable,
+  writeState,
+} from "./grok-update-files.ts";
 
 const DAY_MS = 24 * 60 * 60 * 1000;
+const TICK_MS = 60 * 60 * 1000;
 const CHECK_MS = 60_000;
 const DOWNLOAD_MS = 10 * 60_000;
-const TICK_MS = 60 * 60 * 1000;
-const STAGING_FOLDER = ".threadsift-update";
 const STATE_FILE = "grok-update.json";
+const LOCK_FILE = "grok-update.lock";
 
-const StateSchema = z.object({
-  checkedAt: z.number(),
-  refused: RefusedUpdateSchema.nullable(),
-});
-
-type UpdateState = z.output<typeof StateSchema>;
-
-const CheckSchema = z.object({ latestVersion: z.string().min(1), updateAvailable: z.boolean() });
-
-type Outcome =
+type UpdateOutcome =
   | "current"
   | "not-writable"
+  | "no-slot"
   | "check-failed"
   | "already-refused"
   | "download-failed"
   | "inconclusive"
   | "refused"
+  | "changed-during-trial"
   | "installed";
-
-export interface UpdateHost {
-  readonly idle: () => boolean;
-  readonly installed: (binary: Readonly<BinaryIdentity> | null) => void;
-}
 
 export interface UpdateSource {
   readonly binary: string;
@@ -65,64 +53,24 @@ export interface Updates {
   readonly stop: () => void;
 }
 
-interface UpdatePlan {
-  readonly binary: string;
-  readonly stateFile: string;
-  readonly commands: GrokUpdateCommands;
-  readonly prove: (candidate: string, signal: AbortSignal) => Promise<Trial>;
-  readonly host: UpdateHost;
-}
+export const NO_UPDATES: Updates = { refusedUpdate: () => null, stop: () => {} };
 
-function succeeded(end: Readonly<ProcessEnd>): end is Extract<ProcessEnd, { kind: "exited" }> {
-  return end.kind === "exited" && end.code === 0;
-}
-
-async function readState(file: string): Promise<UpdateState | null> {
-  return parsedJson(StateSchema, await readFile(file, "utf8").catch(() => ""));
-}
-
-async function writeState(file: string, state: Readonly<UpdateState>): Promise<void> {
-  const temporary = `${file}.${String(process.pid)}.tmp`;
-
-  await writeFile(temporary, JSON.stringify(state));
-  await rename(temporary, file);
-}
-
-function writable(folder: string): Promise<boolean> {
-  return access(folder, constants.W_OK).then(
-    () => true,
-    () => false,
-  );
-}
-
-async function candidateIn(staging: string): Promise<string | null> {
-  const candidate = await realpath(join(staging, "bin", "grok")).catch(() => null);
-
-  if (candidate === null) return null;
-
-  const inside = relative(staging, candidate);
-
-  return inside.startsWith("..") || isAbsolute(inside) ? null : candidate;
-}
-
-function sameContent(proved: Readonly<BinaryIdentity> | null, installed: BinaryIdentity | null) {
-  return (
-    proved !== null &&
-    installed !== null &&
-    proved.size === installed.size &&
-    proved.modifiedMs === installed.modifiedMs
-  );
+interface UpdatePlan extends UpdateSource {
+  readonly access: Readonly<GrokAccess>;
 }
 
 class GrokUpdates implements Updates {
   private readonly plan: UpdatePlan;
+  private readonly stateFile: string;
   private readonly shutdown = new AbortController();
   private readonly timers: NodeJS.Timeout[] = [];
   private refused: RefusedUpdate | null = null;
+  private attemptedAt: number | null = null;
   private updating = false;
 
   constructor(plan: Readonly<UpdatePlan>) {
     this.plan = plan;
+    this.stateFile = join(plan.dataDir, STATE_FILE);
   }
 
   readonly refusedUpdate = (): RefusedUpdate | null => this.refused;
@@ -134,7 +82,7 @@ class GrokUpdates implements Updates {
   };
 
   async load(): Promise<void> {
-    this.refused = (await readState(this.plan.stateFile))?.refused ?? null;
+    await this.state();
   }
 
   start(): void {
@@ -145,13 +93,35 @@ class GrokUpdates implements Updates {
     this.timers.push(setTimeout(tick, 0), setInterval(tick, TICK_MS));
   }
 
+  private async state(): Promise<UpdateState | null> {
+    const state = await readState(this.stateFile);
+
+    if (state !== null) this.refused = state.refused;
+
+    return state;
+  }
+
+  private due(state: Readonly<UpdateState> | null, now: number): boolean {
+    if (this.attemptedAt !== null && now - this.attemptedAt < DAY_MS) return false;
+
+    if (state === null) return true;
+
+    if (state.checkedAt > now) {
+      report("grok-update-clock", { aheadMs: state.checkedAt - now });
+
+      return true;
+    }
+
+    return now - state.checkedAt >= DAY_MS;
+  }
+
   private async tick(): Promise<void> {
-    if (this.updating || !this.plan.host.idle()) return;
+    if (this.updating || !this.plan.access.idle()) return;
 
     this.updating = true;
 
     try {
-      await this.runIfDue(Date.now(), this.shutdown.signal);
+      await this.claimedAttempt(Date.now());
     } catch (cause) {
       report("grok-update-error", { error: errorClassOf(cause), code: errnoCodeOf(cause) });
     } finally {
@@ -159,38 +129,54 @@ class GrokUpdates implements Updates {
     }
   }
 
-  private async runIfDue(now: number, signal: AbortSignal): Promise<void> {
-    const state = await readState(this.plan.stateFile);
+  private async claimedAttempt(now: number): Promise<void> {
+    if (!this.due(await this.state(), now)) return;
 
-    this.refused = state?.refused ?? null;
+    const lock = join(this.plan.dataDir, LOCK_FILE);
 
-    if (state !== null && now - state.checkedAt < DAY_MS) return;
+    if (!(await claimed(lock, now))) return;
 
-    await this.save(now);
+    await withCleanup(
+      { event: "grok-update-lock-not-removed", fields: {} },
+      async () => {
+        if (!this.due(await this.state(), now)) return;
 
-    const { outcome, version } = await this.attempt(now, signal);
+        this.attemptedAt = now;
+        await this.save(now);
 
-    report("grok-update", { outcome, version });
+        const signal = within(this.shutdown.signal, ATTEMPT_MS);
+        const { outcome, version } = await this.attempt(now, signal);
+
+        report("grok-update", { outcome, version });
+      },
+      () => rm(lock, { force: true }),
+    );
   }
 
   private async save(checkedAt: number): Promise<void> {
-    await writeState(this.plan.stateFile, { checkedAt, refused: this.refused });
+    await writeState(this.stateFile, { checkedAt, refused: this.refused });
   }
 
   private async attempt(
     now: number,
     signal: AbortSignal,
-  ): Promise<{ outcome: Outcome; version: string }> {
+  ): Promise<{ outcome: UpdateOutcome; version: string }> {
     const target = await realpath(this.plan.binary);
     const folder = dirname(target);
 
     if (!(await writable(folder))) return { outcome: "not-writable", version: "none" };
 
-    const end = await inRunFolders((folders) =>
-      this.plan.commands.check(folders, within(signal, CHECK_MS)),
-    );
+    await sweptStaging(folder, now);
 
-    const answer = succeeded(end) ? parsedJson(CheckSchema, end.stdout) : null;
+    const checked = await this.plan.access.forUpdate(signal, async () => ({
+      answer: await inRunFolders((folders) =>
+        checkForUpdate(this.plan.binary, folders, within(signal, CHECK_MS)),
+      ),
+    }));
+
+    if (checked === null) return { outcome: "no-slot", version: "none" };
+
+    const { answer } = checked;
 
     if (answer === null) return { outcome: "check-failed", version: "none" };
 
@@ -205,38 +191,45 @@ class GrokUpdates implements Updates {
 
     if (this.refused?.version === version) return { outcome: "already-refused", version };
 
-    const staging = join(folder, STAGING_FOLDER);
-
-    const removed = () => rm(staging, { recursive: true, force: true });
-
-    await removed();
-    await mkdir(staging);
+    const staging = await mkdtemp(join(folder, STAGING_PREFIX));
 
     const outcome = await withCleanup(
       { event: "grok-update-staging-not-removed", fields: {} },
-      () => this.tried(staging, target, version, now, signal),
-      removed,
+      () => this.tried({ staging, target, version }, now, signal),
+      () => rm(staging, { recursive: true, force: true }),
     );
 
     return { outcome, version };
   }
 
   private async tried(
-    staging: string,
-    target: string,
-    version: string,
+    { staging, target, version }: Readonly<{ staging: string; target: string; version: string }>,
     now: number,
     signal: AbortSignal,
-  ): Promise<Outcome> {
-    const end = await inRunFolders((folders) =>
-      this.plan.commands.update(folders, version, staging, within(signal, DOWNLOAD_MS)),
+  ): Promise<UpdateOutcome> {
+    const downloaded = await this.plan.access.forUpdate(signal, () =>
+      inRunFolders((folders) =>
+        updateInto(
+          this.plan.binary,
+          folders,
+          { version, into: staging },
+          within(signal, DOWNLOAD_MS),
+        ),
+      ),
     );
 
-    const candidate = succeeded(end) ? await candidateIn(staging) : null;
+    if (downloaded === null) return "no-slot";
 
-    if (candidate === null) return "download-failed";
+    const candidate = downloaded ? await candidateIn(staging) : null;
+    const proved = candidate === null ? null : await fingerprintOf(candidate);
 
-    const { result } = await this.plan.prove(candidate, signal);
+    if (candidate === null || proved === null) return "download-failed";
+
+    const trial = await this.plan.access.forUpdate(signal, () => this.prove(candidate, signal));
+
+    if (trial === null) return "no-slot";
+
+    const { result } = trial;
 
     if (result.kind === "inconclusive") return "inconclusive";
 
@@ -247,13 +240,33 @@ class GrokUpdates implements Updates {
       return "refused";
     }
 
-    const proved = await identityOf(candidate);
+    const placed = await this.plan.access.alone(signal, () =>
+      this.installed({ candidate, target, proved }, now, signal),
+    );
 
-    await rename(candidate, target);
+    return placed ?? "no-slot";
+  }
 
-    const installed = await identityOf(this.plan.binary);
+  private prove(candidate: string, signal: AbortSignal): Promise<Trial> {
+    return trialOf(grokCli(candidate, this.plan.authFile), signal);
+  }
 
-    this.plan.host.installed(sameContent(proved, installed) ? installed : null);
+  private async installed(
+    {
+      candidate,
+      target,
+      proved,
+    }: Readonly<{ candidate: string; target: string; proved: Fingerprint }>,
+    now: number,
+    signal: AbortSignal,
+  ): Promise<UpdateOutcome> {
+    signal.throwIfAborted();
+
+    const swap = await swapped({ binary: this.plan.binary, candidate, target, proved });
+
+    if (swap.kind === "changed") return "changed-during-trial";
+
+    this.plan.access.installed(swap.binary);
     this.refused = null;
     await this.save(now);
 
@@ -262,16 +275,10 @@ class GrokUpdates implements Updates {
 }
 
 export async function grokUpdates(
-  { binary, authFile, dataDir }: Readonly<UpdateSource>,
-  host: Readonly<UpdateHost>,
+  source: Readonly<UpdateSource>,
+  access: Readonly<GrokAccess>,
 ): Promise<Updates> {
-  const updates = new GrokUpdates({
-    binary,
-    stateFile: join(dataDir, STATE_FILE),
-    commands: grokUpdateCommands(binary),
-    prove: (candidate, signal) => trialOf(grokCli(candidate, authFile), signal),
-    host,
-  });
+  const updates = new GrokUpdates({ ...source, access });
 
   await updates.load();
   updates.start();

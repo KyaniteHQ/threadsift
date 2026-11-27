@@ -119,9 +119,9 @@ The Grok CLI (grok 1.0.77) read X links on the owner's container Instance (2026-
 Not verified:
 
 - That the trial's tool list file is the list the real run uses. It is not a documented interface, and each real run is also checked after it ends.
-- That the probe run catches every local action. It asks for three named actions and checks for those files and the marker only, so a CLI that acts only on another prompt passes it. The tool list check stays the bound.
+- That the probe run catches every local action. It asks for three named actions and checks for those paths and the marker only, so a CLI that acts only on another prompt passes it. [Fetchers](fetchers.md#the-check-at-run-time), What the trial does not show, lists what it leaves out.
 - That a later grok release still writes `grok update`'s binary under `$GROK_HOME` ([Fetchers](fetchers.md), The update). It did from 1.0.88 to 1.0.92 on 2026-11-27. If a release writes elsewhere, the app finds no staged binary, logs `download-failed` and keeps the binary in use.
-- A refused update of a real release. The run of 2026-11-27 refused 1.0.92 only because a wrapper in front of 1.0.88 replaced the staged binary with one that drops `--disallowed-tools`; no real release has failed the trial.
+- A refused update of a real release. The container runs of 2026-11-27 refused staged binaries only through stand-ins: a wrapper that drops `--disallowed-tools` from the real 1.0.92 (`extra-tools`), and scripts that write an asked file or print the marker without calling xAI (`probe-acted`). No real release has failed the trial.
 - The refusal texts and exit codes for a rejected login, a usage limit and a declined answer.
 - Whether renewal during an X fetch writes back through `GROK_AUTH_PATH`, and whether two grok processes that renew the same login at once both keep a working login.
 - The process-group behaviour of grok on `SIGTERM`, whether a signed-in `grok -p` takes the daemon route (which names tools differently), xAI's remote settings, and whether session history syncs to code.grok.com.
@@ -152,7 +152,8 @@ An Item's `xNote` has 16 values (`X_READ_NOTES`). The container checks observed 
 
 | Cause note | Live condition |
 |---|---|
-| `cli-not-proven` | A CLI whose trial or run lists a local tool or acts on a file, or a binary change during the check |
+| `cli-not-proven` | A CLI whose trial or run lists a local tool or acts on a file |
+| `cli-unconfirmed` | A run whose tool list is missing, a binary change between the trial and the run, or an inconclusive trial |
 | `cli-usage-limit` | The CLI exits with an `error` answer whose message matches the usage-limit pattern |
 | `cli-unreachable` | The CLI exits before the deadline with an `error` answer whose message matches the network pattern |
 | `bot-key-unopened` | The explicit Grok Bot choice with an unavailable secrets store or a saved key the Instance cannot open |

@@ -20,6 +20,7 @@ export type XRefusalCategory =
   | "over-size"
   | "spawn-failed"
   | "surface-unproven"
+  | "surface-unconfirmed"
   | "answer-refused"
   | "fewer-replies"
   | "internal";
@@ -34,6 +35,7 @@ export const NOTE_OF_REFUSAL = {
   "over-size": "cli-failed",
   "spawn-failed": "cli-not-installed",
   "surface-unproven": "cli-not-proven",
+  "surface-unconfirmed": "cli-unconfirmed",
   "answer-refused": "x-answer-refused",
   "fewer-replies": "x-fewer-replies",
   internal: "cli-failed",

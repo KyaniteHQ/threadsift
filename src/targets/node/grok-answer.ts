@@ -53,6 +53,11 @@ export const SURFACE_REFUSAL = refused(
   null,
 );
 
+export const SURFACE_UNCONFIRMED = refused(
+  { status: "unreadable", category: "surface-unconfirmed" },
+  null,
+);
+
 function withoutRepeats(thread: Readonly<XCliThreadValue>): XCliThreadValue {
   const seen = new Set<string>();
 
@@ -147,7 +152,7 @@ export function outcomeOf(end: Readonly<ProcessEnd>): Outcome {
 export function refusalOf(end: Readonly<ProcessEnd>): Refused {
   const outcome = outcomeOf(end);
 
-  return outcome.kind === "refused" ? outcome : SURFACE_REFUSAL;
+  return outcome.kind === "refused" ? outcome : SURFACE_UNCONFIRMED;
 }
 
 export function internal(cause: unknown): Refused {

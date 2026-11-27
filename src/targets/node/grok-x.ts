@@ -1,9 +1,10 @@
 import type { XFetch, XFetcher, XFetcherStatus } from "../../core/kernel/x-fetcher-port.ts";
 import { findBinary } from "./cli-process.ts";
+import { GrokAccess } from "./grok-access.ts";
 import {
   type Outcome,
-  type Refused,
   SURFACE_REFUSAL,
+  SURFACE_UNCONFIRMED,
   internal,
   logged,
   outcomeOf,
@@ -11,21 +12,10 @@ import {
 } from "./grok-answer.ts";
 import { type BinaryIdentity, authFileOf, identityOf, inRunFolders } from "./grok-folders.ts";
 import { type GrokCli, grokCli } from "./grok-process.ts";
-import {
-  type Proof,
-  UNPROVEN,
-  afterPreflight,
-  afterRun,
-  checkedRun,
-  keptBar,
-  permission,
-  sameBinary,
-} from "./grok-proof.ts";
-import { GrokSlots } from "./grok-slots.ts";
+import { UNPROVEN, checkedRun, sameBinary } from "./grok-proof.ts";
 import { sharedReading } from "./grok-status.ts";
 import { fetchPrompt } from "./grok-surface.ts";
-import { trialOf } from "./grok-trial.ts";
-import { type UpdateHost, type Updates, grokUpdates } from "./grok-update.ts";
+import { NO_UPDATES, type Updates, grokUpdates } from "./grok-update.ts";
 
 const BINARY = "grok";
 
@@ -44,45 +34,34 @@ const NO_BINARY = refused({ status: "unreadable", category: "spawn-failed" }, nu
 
 const OUT_OF_TIME = refused({ status: "timeout", category: "deadline" }, null);
 
-class GrokXFetcher implements StoppableXFetcher, UpdateHost {
+class GrokXFetcher implements StoppableXFetcher {
   readonly id = "grok-cli";
   private readonly cli: GrokCli;
+  private readonly access: Readonly<GrokAccess>;
+  private readonly updates: Updates;
   private readonly shutdown = new AbortController();
-  private readonly slots = new GrokSlots();
-  private proof: Proof = UNPROVEN;
-  private proving: Promise<Refused | null> | null = null;
-  private fetches = 0;
-  private updates: Updates | null = null;
   private readonly read: ReturnType<typeof sharedReading>;
 
-  constructor(cli: GrokCli) {
+  constructor(cli: GrokCli, access: Readonly<GrokAccess>, updates: Readonly<Updates>) {
     this.cli = cli;
+    this.access = access;
+    this.updates = updates;
     this.read = sharedReading(cli, this.shutdown.signal);
   }
 
   stop(): void {
-    this.updates?.stop();
+    this.updates.stop();
     this.shutdown.abort();
   }
 
-  follow(updates: Readonly<Updates>): void {
-    this.updates = updates;
-  }
-
-  readonly idle = (): boolean => this.fetches === 0 && this.proving === null;
-
-  readonly installed = (binary: Readonly<BinaryIdentity> | null): void => {
-    this.proof = binary === null ? UNPROVEN : { kind: "proven", binary };
-  };
-
   readonly status = async (): Promise<XFetcherStatus> => {
     const { version, signedIn } = await this.read();
-    const refusedUpdate = this.updates?.refusedUpdate() ?? null;
+    const refusedUpdate = this.updates.refusedUpdate();
 
     if (version === null) return { state: "unknown", version, refusedUpdate };
 
     const identity = await identityOf(this.cli.path);
-    const barred = identity !== null && permission(this.proof, identity) === "refused";
+    const barred = identity !== null && this.access.barred(identity);
 
     return { state: barred ? "not-proven" : signedIn, version, refusedUpdate };
   };
@@ -92,15 +71,9 @@ class GrokXFetcher implements StoppableXFetcher, UpdateHost {
     const prompt = fetchPrompt(statusId);
     const stop = AbortSignal.any([signal, this.shutdown.signal]);
 
-    const outcome = await this.slots.run(stop, async (run) => {
-      this.fetches += 1;
-
-      try {
-        return await this.attempt(prompt, run).catch(internal);
-      } finally {
-        this.fetches -= 1;
-      }
-    });
+    const outcome = await this.access.forFetch(stop, (run) =>
+      this.attempt(prompt, run).catch(internal),
+    );
 
     return logged(outcome ?? OUT_OF_TIME, Date.now() - started);
   };
@@ -110,59 +83,13 @@ class GrokXFetcher implements StoppableXFetcher, UpdateHost {
 
     if (identity === null) return NO_BINARY;
 
-    const barred = await this.gate(identity, signal);
+    const barred = await this.access.gate(identity, signal);
 
     if (barred !== null) return barred;
 
-    if (!sameBinary(identity, await identityOf(this.cli.path))) return SURFACE_REFUSAL;
+    if (!sameBinary(identity, await identityOf(this.cli.path))) return SURFACE_UNCONFIRMED;
 
     return this.fetched(identity, prompt, signal);
-  }
-
-  private async gate(
-    identity: Readonly<BinaryIdentity>,
-    signal: AbortSignal,
-  ): Promise<Refused | null> {
-    if (this.proving !== null) {
-      await this.proving;
-
-      return this.gate(identity, signal);
-    }
-
-    const decision = permission(this.proof, identity);
-
-    switch (decision) {
-      case "allowed":
-        return null;
-      case "refused":
-        return SURFACE_REFUSAL;
-      case "preflight":
-        return (await this.proveOnce(identity, signal)) ?? this.gate(identity, signal);
-      default: {
-        const exhaustive: never = decision;
-
-        return exhaustive;
-      }
-    }
-  }
-
-  private async proveOnce(
-    identity: Readonly<BinaryIdentity>,
-    signal: AbortSignal,
-  ): Promise<Refused | null> {
-    const run = trialOf(this.cli, signal).then(({ result, failure }) => {
-      this.proof = keptBar(this.proof, identity, afterPreflight(identity, result));
-
-      return failure;
-    }, internal);
-
-    this.proving = run;
-
-    try {
-      return await run;
-    } finally {
-      this.proving = null;
-    }
   }
 
   private async fetched(
@@ -177,7 +104,7 @@ class GrokXFetcher implements StoppableXFetcher, UpdateHost {
       case "surface-held":
         return outcomeOf(run.end);
       case "barred":
-        this.proof = afterRun(this.proof, identity, {
+        this.access.ranWith(identity, {
           kind: "refused",
           binary: identity,
           verdict: check.verdict,
@@ -186,7 +113,7 @@ class GrokXFetcher implements StoppableXFetcher, UpdateHost {
         return SURFACE_REFUSAL;
       case "discard":
       case "reprove":
-        this.proof = afterRun(this.proof, identity, UNPROVEN);
+        this.access.ranWith(identity, UNPROVEN);
 
         return check.refusal;
       case "keep":
@@ -211,9 +138,11 @@ export async function grokXFetcher({
   if (binary === null) return null;
 
   const authFile = authFileOf(home, dataDir);
-  const fetcher = new GrokXFetcher(grokCli(binary, authFile));
+  const cli = grokCli(binary, authFile);
+  const access = new GrokAccess(cli);
+  const updates = autoUpdate
+    ? await grokUpdates({ binary, authFile, dataDir }, access)
+    : NO_UPDATES;
 
-  if (autoUpdate) fetcher.follow(await grokUpdates({ binary, authFile, dataDir }, fetcher));
-
-  return fetcher;
+  return new GrokXFetcher(cli, access, updates);
 }

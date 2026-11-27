@@ -16,7 +16,12 @@ export const X_CLI_BARS = ["extra-tools", "probe-acted"] as const;
 
 export type XCliBar = (typeof X_CLI_BARS)[number];
 
-export const RefusedUpdateSchema = z.object({ version: z.string(), reason: z.enum(X_CLI_BARS) });
+export const CliVersionSchema = z.string().regex(/^[0-9][0-9A-Za-z.+-]{0,63}$/u);
+
+export const RefusedUpdateSchema = z.object({
+  version: CliVersionSchema,
+  reason: z.enum(X_CLI_BARS),
+});
 
 export type RefusedUpdate = z.output<typeof RefusedUpdateSchema>;
 

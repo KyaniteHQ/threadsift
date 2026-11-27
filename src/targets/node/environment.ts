@@ -11,7 +11,7 @@ const ProcessSchema = z.object({
   PORT: z.coerce.number().int().min(0).max(65_535).default(8080),
   DATA_DIR: z.string().default(join(REPOSITORY_ROOT, ".data")),
   PATH: z.string().default(""),
-  THREADSIFT_GROK_AUTO_UPDATE: FlagSchema.default("true"),
+  THREADSIFT_GROK_AUTO_UPDATE: FlagSchema.default("false"),
 });
 
 export interface NodeEnvironment {

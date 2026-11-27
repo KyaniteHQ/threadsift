@@ -231,6 +231,10 @@ export function inChildFolders<Result>(work: (folders: ChildFolders) => Promise<
   });
 }
 
+export function within(signal: AbortSignal, ms: number): AbortSignal {
+  return AbortSignal.any([signal, AbortSignal.timeout(ms)]);
+}
+
 export function answerWithin<Answer>(
   shutdown: AbortSignal,
   probe: (signal: AbortSignal) => Promise<Answer>,
