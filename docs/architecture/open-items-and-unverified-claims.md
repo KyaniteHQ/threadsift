@@ -315,4 +315,4 @@ Each entry names the doc that makes the claim and how to check it.
 
 ## Product
 
-The spec's open items stay open: a read of X's developer terms before the hosted product stores X content, and hosted pricing and whether it includes AI ([the spec](../spec.md), Later).
+The spec's open items stay open: hosted pricing and whether it includes AI ([the spec](../spec.md), Later). Three points of X's developer terms have no published answer: whether a Digest and a Topic page overview must go when their post is deleted on X, whether a shown X post needs a lookup first, and whether a public demo of other authors' posts fits pay-per-use ([Decisions and evidence](decisions-and-evidence.md#x-developer-terms)).

@@ -460,7 +460,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 
 - AI comes from API keys, OpenRouter's Connect, Workers AI or the user's Grok Bot. There is no Claude plan login. Sign in with ChatGPT and an xAI plan login come only after the vendor says they are allowed.
 - Reddit Items are Link-only, plus what the user's Extension sends, with no archive fill and no account option, until Reddit gives written consent for a paid service.
-- Storing X content in a paid service needs a read of X's developer terms first.
+- X Items are Link-only Items. X has published no answer on whether a Digest must go when its post is deleted, whether a shown post needs a lookup first, or how many end users pay-per-use allows ([Decisions and evidence](architecture/decisions-and-evidence.md#x-developer-terms)).
 - The price is not decided ([Decisions and evidence](architecture/decisions-and-evidence.md), The hosted product).
 
 ## Later (not in the first release)
