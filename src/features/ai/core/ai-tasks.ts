@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQLWrapper, and, not, sql } from "drizzle-orm";
 
 import {
   type AiConnection,
@@ -13,8 +13,10 @@ import { within } from "../../../core/contract/deadline.ts";
 import type { Provider } from "../../../core/contract/provider-families.ts";
 import { failedAiTask, insertTask } from "../../../core/kernel/ai-task-rows.ts";
 import { bestEffort, logFailure } from "../../../core/kernel/failure-log.ts";
+import { guardHolds } from "../../../core/kernel/guards.ts";
 import { holding } from "../../../core/kernel/job-rows.ts";
 import type { AiPorts } from "../../../core/kernel/ports.ts";
+import { grokBotChosen } from "../../../core/kernel/provider-saved.ts";
 import type { JobRow } from "../../../core/kernel/schema.ts";
 import { allowsUrl, providersOf, resolveCli, runAi } from "./ai-run.ts";
 
@@ -28,11 +30,11 @@ interface DoneTask<Result> {
 
 type TaskResult<Result> = DoneTask<Result> | (AiRefused & { readonly taskId: number | null });
 
-interface ClaimLost {
-  readonly kind: "claim-lost";
-}
+type NotStarted = { readonly kind: "claim-lost" } | { readonly kind: "bot-chosen" };
 
-const CLAIM_LOST: ClaimLost = { kind: "claim-lost" };
+const CLAIM_LOST: NotStarted = { kind: "claim-lost" };
+
+const BOT_CHOSEN: NotStarted = { kind: "bot-chosen" };
 
 type TaskOwner = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration" | "itemId">>;
 
@@ -66,7 +68,7 @@ function startTask(
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
   origin: Readonly<TaskOrigin>,
-  owner: TaskOwner | null,
+  { owner, holds }: Readonly<{ owner: TaskOwner | null; holds: Readonly<SQLWrapper> }>,
 ) {
   return insertTask(
     ports.db,
@@ -82,8 +84,16 @@ function startTask(
       callbackHash: null,
       context: null,
     },
-    owner === null ? sql`1` : holding(owner),
+    holds,
   );
+}
+
+function modelTaskHolds(owner: TaskOwner | null): SQLWrapper {
+  return owner === null ? sql`1` : (and(holding(owner), not(grokBotChosen())) ?? sql`0`);
+}
+
+async function notStarted(ports: AiPorts, owner: TaskOwner | null): Promise<NotStarted> {
+  return owner !== null && (await guardHolds(ports.db, holding(owner))) ? BOT_CHOSEN : CLAIM_LOST;
 }
 
 interface TaskInput {
@@ -108,7 +118,7 @@ export function runAiTask<Result>(
   input: Readonly<TaskInput>,
   owner: TaskOwner,
   attempt?: AbortSignal,
-): Promise<TaskResult<Result> | ClaimLost>;
+): Promise<TaskResult<Result> | NotStarted>;
 export async function runAiTask<Result>(
   ports: AiPorts,
   ai: ModelAi,
@@ -116,7 +126,7 @@ export async function runAiTask<Result>(
   input: Readonly<TaskInput>,
   owner: TaskOwner | null,
   attempt?: AbortSignal,
-): Promise<TaskResult<Result> | ClaimLost> {
+): Promise<TaskResult<Result> | NotStarted> {
   if (ai.state !== "ready") return { ...refusedAi(ai.state), taskId: null };
 
   const config = executionConfig(ports, ai.config);
@@ -127,9 +137,12 @@ export async function runAiTask<Result>(
   const text = definition.prepareInput(input.text);
 
   const origin = config === null ? unavailableOriginOf(ai.config) : originOf(config);
-  const task = await startTask(ports, definition.kind, text, input, origin, owner);
+  const task = await startTask(ports, definition.kind, text, input, origin, {
+    owner,
+    holds: modelTaskHolds(owner),
+  });
 
-  if (task === null) return CLAIM_LOST;
+  if (task === null) return notStarted(ports, owner);
 
   if (config === null) return failTask(ports, task.id, "provider-unavailable");
 
@@ -210,5 +223,10 @@ export async function startCallerTask(
   input: Readonly<{ inputRevision: number; attempts: number }>,
   owner: TaskOwner,
 ) {
-  return (await startTask(ports, kind, text, input, CALLER_ORIGIN, owner))?.id ?? null;
+  const task = await startTask(ports, kind, text, input, CALLER_ORIGIN, {
+    owner,
+    holds: holding(owner),
+  });
+
+  return task?.id ?? null;
 }

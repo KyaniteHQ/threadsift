@@ -57,6 +57,10 @@ export function modelAttempt<Context, Result, Basis>(
 
     if (result.kind === "claim-lost") return lostClaim(ports.db);
 
+    if (result.kind === "bot-chosen") {
+      return { deferredUntil: Date.now(), wait: null, countsAttempt: false, writes: [] };
+    }
+
     if (result.taskId !== null) prepared.started?.(result.taskId);
 
     if (result.kind !== "done") {
