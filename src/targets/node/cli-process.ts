@@ -52,6 +52,8 @@ export function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
 
 type Phase = "running" | "stopping" | "exited" | "done";
 
+type Ending = Exclude<UnfinishedEnd["kind"], "spawn-failed">;
+
 class Execution {
   private readonly child;
   private readonly out: Capture;
@@ -59,10 +61,13 @@ class Execution {
   private readonly signal: AbortSignal;
   private readonly finish: (end: ProcessEnd) => void;
   private phase: Phase = "running";
-  private overCap = false;
+  private ending: Ending | null = null;
   private exitCode: number | null = null;
   private timer: NodeJS.Timeout | null = null;
   private readonly onAbort = (): void => {
+    if (this.phase === "exited") return;
+
+    this.ending ??= "aborted";
     this.stop();
   };
 
@@ -108,7 +113,7 @@ class Execution {
   }
 
   private overflowed(): void {
-    this.overCap = true;
+    this.ending ??= "over-cap";
     this.stop();
   }
 
@@ -159,10 +164,11 @@ class Execution {
   }
 
   private settle(code: number | null): void {
-    if (this.signal.aborted) this.settleWith({ kind: "aborted" });
-    else if (this.overCap) this.settleWith({ kind: "over-cap" });
-    else
-      this.settleWith({ kind: "exited", code, stdout: this.out.text(), stderr: this.err.text() });
+    this.settleWith(
+      this.ending === null
+        ? { kind: "exited", code, stdout: this.out.text(), stderr: this.err.text() }
+        : { kind: this.ending },
+    );
   }
 
   private settleWith(end: ProcessEnd): void {
