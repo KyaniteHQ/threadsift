@@ -111,7 +111,7 @@ It refuses a path, a link, a symbol paired with a path, or a line number that th
 
 ### `pnpm run check:versions`
 
-The release command's `check` fails when the files that carry the release version disagree ([CI, releases and rollback](ci-releases-and-rollback.md#versions-and-the-release-pull-request)).
+The release command's `check` fails when the image label carries another version than the app, and while the app's version is an untagged patch release, when a migration file changed since the newest stable tag ([CI, releases and rollback](ci-releases-and-rollback.md#versions-and-the-release-pull-request)).
 
 ### `pnpm docs:impact [base]`
 
