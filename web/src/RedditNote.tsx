@@ -6,15 +6,15 @@ import { SETTINGS_PATH } from "./routing.ts";
 import { redditLinkCount, useRedditNote } from "./use-reddit-note.ts";
 
 const ARCHIVE_FILLED = {
-  none: REDDIT_ACCOUNT_TEXT.stateNone,
+  none: REDDIT_ACCOUNT_TEXT.stateNoneFilled,
   expired: IMPORT.redditExpired,
-  unreadable: REDDIT_ACCOUNT_TEXT.stateUnreadable,
+  unreadable: IMPORT.redditUnreadableFilled,
 } as const;
 
 function notConnectedText(state: keyof typeof ARCHIVE_FILLED, archiveFill: boolean): string {
-  if (state === "unreadable" || archiveFill) return ARCHIVE_FILLED[state];
+  if (archiveFill) return ARCHIVE_FILLED[state];
 
-  return REDDIT_TEXT.stateOff;
+  return state === "unreadable" ? IMPORT.redditUnreadableLinkOnly : REDDIT_TEXT.stateOff;
 }
 
 export function RedditNote({

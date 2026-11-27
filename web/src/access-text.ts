@@ -108,8 +108,14 @@ export const SETTINGS = {
   scopeDigest: "Digest",
   scopeDelete: "Delete",
   scopeReddit: "Reddit",
-  scopesHint:
-    "Read searches and opens items, topic pages, the Index, the Log, Proposals, the Highlights page and stored images. Add saves one link or a batch. Digest queues a digest or topic page overview again, and with Add lets a token send its own digest with a link. Delete removes an item. Reddit connects and disconnects your Reddit account for the browser extension, and never lets a token read the session back.",
+  scopeHintRead:
+    "Read searches and opens items, topic pages, the Index, the Log, the Proposals page, the Highlights page and stored images.",
+  scopeHintAdd: "Add saves one link or a batch of links.",
+  scopeHintDigest:
+    "Digest queues a digest or topic page overview again. With Add, a token can also send its own digest with a link.",
+  scopeHintDelete: "Delete removes an item.",
+  scopeHintReddit:
+    "Reddit connects and disconnects your Reddit account for the browser extension. A token can never read the session back.",
   scopesRequired: "Select at least one scope.",
   scopeNameRead: "read",
   scopeNameAdd: "add",
@@ -140,7 +146,7 @@ export const SETTINGS = {
   revokeAsk: "Revoke {name}?",
   revokeConfirm: "Revoke token",
   cancel: "Cancel",
-  revokeFailed: "Couldn’t revoke the token. It still works. Try again.",
+  revokeFailed: "Couldn’t revoke {name}. The token still works. Try again.",
   budgetLabel: "Daily budget",
   budgetHint:
     "New items per day, counted from 00:00 UTC. Links already in the library don’t count. Leave empty for no budget.",

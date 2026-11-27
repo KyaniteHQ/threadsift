@@ -9,7 +9,7 @@ export const GROK_BOT_TEXT = {
   sectionTitle: "Grok Bot",
   intro: "Connect your Grok Bot once. Saving sends nothing to the bot.",
   xLinks:
-    "When the X posts section allows it, Threadsift sends pasted X links to the saved Grok Bot so each item gets the post text, replies and a digest. Without a way to read X links, each becomes a link-only item, saved without the post’s content.",
+    "When the X posts section allows it, Threadsift sends pasted X links to the saved Grok Bot so each item gets the post text, replies and a digest. Without a way to read X links, each becomes a link-only item, saved without the post’s content. You can also choose Grok Bot as the provider in the AI section to run every AI task in the library.",
   tokenPointer:
     "The bot’s chat skills need an agent token with the Read and Add scopes. Make one in the Agent tokens section and give it to the bot to keep.",
   addressLabel: "Webhook address",
@@ -51,7 +51,10 @@ export const GROK_BOT_TEXT = {
     "Threadsift won’t send to this address. It must be a public https address. Save a different one.",
   resultNotConfigured: "Save an address and key first.",
   loadFailed: "Couldn’t load the Grok Bot settings. Reload the page.",
-  failed: "Couldn’t reach this instance or read its reply. Try again.",
+  saveFailed: "Couldn’t save the Grok Bot. Try again.",
+  testFailed:
+    "Couldn’t finish the test. Threadsift doesn’t know whether a ping reached the Grok Bot. Try again.",
+  removeFailed: "Couldn’t remove the Grok Bot. Try again.",
 } as const;
 
 export const KEY_STATES = {

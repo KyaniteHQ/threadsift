@@ -26,6 +26,13 @@ import {
 
 type Action = "save" | "verify" | "remove" | "reconnect";
 
+const FAILED = {
+  save: REDDIT_ACCOUNT_TEXT.connectFailed,
+  verify: REDDIT_ACCOUNT_TEXT.verifyFailed,
+  remove: REDDIT_ACCOUNT_TEXT.disconnectFailed,
+  reconnect: REDDIT_ACCOUNT_TEXT.extensionFailed,
+} as const satisfies Record<Action, string>;
+
 type Changed = (view: RedditAccountView) => void;
 
 const RECONNECTABLE: ReadonlySet<RedditAccountView["state"]> = new Set([
@@ -182,7 +189,7 @@ function useExtensionButton(
 
 export function useRedditAccountForm(view: RedditAccountView, changed: Changed) {
   const session = useField();
-  const { flow, run } = useActionFlow<Action>(REDDIT_ACCOUNT_TEXT.failed);
+  const { flow, run } = useActionFlow<Action>(FAILED);
   const saved = view.state !== "none" && view.state !== "missing";
 
   const unavailable = unavailableOf(view);

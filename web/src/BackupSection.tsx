@@ -16,9 +16,13 @@ const STATUS_TEXT = {
   failed: null,
 } as const satisfies Record<ExportStatus["state"], string | null>;
 
-const STOP = { label: EXPORT_TEXT.stop, busyLabel: EXPORT_TEXT.stopping } as const;
+const STOP = { action: "stop", label: EXPORT_TEXT.stop, busyLabel: EXPORT_TEXT.stopping } as const;
 
-const DELETE = { label: EXPORT_TEXT.remove, busyLabel: EXPORT_TEXT.removing } as const;
+const DELETE = {
+  action: "remove",
+  label: EXPORT_TEXT.remove,
+  busyLabel: EXPORT_TEXT.removing,
+} as const;
 
 function detailOf(view: ExportStatus): string | null {
   switch (view.state) {
@@ -53,11 +57,12 @@ function BackupForm({
   view,
   changed,
 }: Readonly<{ view: ExportStatus; changed: (view: ExportStatus) => void }>) {
-  const { busy, result, start, remove } = useBackup(view, changed);
+  const { busy, result, start, stop, remove } = useBackup(view, changed);
   const blocked = busy !== null;
   const startable = view.state === "none" || view.state === "failed";
   const removable = view.state === "ready" || view.state === "failed";
-  const labels = view.state === "running" ? STOP : DELETE;
+  const ending = view.state === "running" ? STOP : DELETE;
+  const presses = { stop, remove } as const;
 
   return (
     <>
@@ -80,11 +85,12 @@ function BackupForm({
         ) : null}
         {view.state === "running" || removable ? (
           <SwapButton
-            {...labels}
-            busy={busy === "remove"}
+            label={ending.label}
+            busyLabel={ending.busyLabel}
+            busy={busy === ending.action}
             blocked={blocked}
             type="button"
-            onClick={remove}
+            onClick={presses[ending.action]}
             secondary
           />
         ) : null}

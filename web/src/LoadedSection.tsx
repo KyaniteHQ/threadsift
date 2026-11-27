@@ -24,13 +24,13 @@ export function LoadedSection<View>({
   initial,
   after,
   Form,
-}: Readonly<SectionSpec<View> & { initial: Loaded<View>; after?: () => void }>) {
+}: Readonly<SectionSpec<View> & { initial: Loaded<View>; after?: (view: View) => void }>) {
   const { loaded, ready } = useLoaded(initial);
 
   const changed = useCallback(
     (view: View) => {
       ready(view);
-      after?.();
+      after?.(view);
     },
     [ready, after],
   );

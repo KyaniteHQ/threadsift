@@ -32,13 +32,12 @@ export const AI_TEXT = {
   botBusy: "The Grok Bot is busy or returned an error. Try Verify later.",
   workersAiHelp:
     "Workers AI runs on this instance’s Cloudflare account. It needs no URL or API key.",
-  keyNotNeeded: "No API key is needed.",
   claudeCodeKeyNotNeeded:
     "No API key is needed. Claude Code uses its own sign-in in this container.",
   claudeCodeModelHelp: "If you enter only an effort, Claude Code chooses the model.",
   recommendedModelHelp: "If you enter only an effort, Threadsift uses {model}.",
   claudeCodeSignedOut:
-    "In this container, Claude Code isn’t signed in. Reload this page after signing in with",
+    "Claude Code isn’t signed in. Run {command} in this instance’s container, then reload this page.",
   claudeCodeSignInCommand: "claude auth login",
   claudeCodeRejected:
     "Claude Code rejected its sign-in. Run claude auth login in the container or replace the token in CLAUDE_CODE_OAUTH_TOKEN, then press Verify again.",
@@ -47,7 +46,7 @@ export const AI_TEXT = {
     "If you enter only an effort, Threadsift uses the first visible model in Codex’s bundled catalog.",
   codexCatalogHelp: "Any model you enter must be listed by codex debug models --bundled.",
   codexSignedOut:
-    "In this container, Codex isn’t signed in. Reload this page after signing in with",
+    "Codex isn’t signed in. Run {command} in this instance’s container, then reload this page.",
   codexSignInCommand: "codex login --device-auth",
   codexRejected:
     "Codex rejected its sign-in. Run codex login --device-auth in the container, then press Verify again.",
@@ -110,7 +109,8 @@ export const AI_TEXT = {
   verifying: "Verifying…",
   verified: "Digest received",
   loadFailed: "Couldn’t load AI settings. Reload the page to try again.",
-  failed: "Couldn’t save, verify or connect. Try again.",
+  saveFailed: "Couldn’t save provider settings. Try again.",
+  verifyFailed: "Couldn’t verify the provider. Try again.",
   "secret-missing":
     "THREADSIFT_SECRET_KEY is missing, invalid or changed on this instance. Set it in the container environment or as a Worker secret to 32 random bytes (64 hex characters). If keys were already saved with an earlier secret key, restore that key instead. Then reload the page.",
   "wrong-key": "The provider rejected the API key. Check the key and save again.",
@@ -124,9 +124,10 @@ export const AI_TEXT = {
   unreachable: "Couldn’t reach the provider. Check the Base URL and the network connection.",
   timeout: "The provider took too long to answer. Try Verify again.",
   refused:
-    "Threadsift rejected this Base URL. Redirects aren’t allowed, and on Cloudflare it must be a public HTTPS address.",
-  "not-configured":
-    "Save provider settings first. Claude Code and Codex also need to be signed in inside the container.",
+    "Threadsift rejected this Base URL. Enter an HTTP or HTTPS address that doesn’t redirect and has no user name, password, query or fragment, then save again.",
+  refusedPublic:
+    "Threadsift rejected this Base URL. Enter a public HTTPS address that doesn’t redirect and has no user name, password, query or fragment, then save again.",
+  "not-configured": "Save a provider first.",
   "provider-unavailable":
     "This provider isn’t available on this instance. Choose another provider.",
 } as const;
@@ -150,8 +151,15 @@ export const CLI_TEXT = {
   },
 } as const;
 
-export function signedOutSentence(provider: CliProvider): string {
+export function signedOutParts(provider: CliProvider) {
   const { signedOut, signInCommand } = CLI_TEXT[provider];
+  const [before = "", after = ""] = signedOut.split("{command}");
 
-  return `${signedOut} ${signInCommand}.`;
+  return { before, command: signInCommand, after };
+}
+
+export function signedOutSentence(provider: CliProvider): string {
+  const { before, command, after } = signedOutParts(provider);
+
+  return `${before}${command}${after}`;
 }

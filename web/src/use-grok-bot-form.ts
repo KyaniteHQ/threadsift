@@ -18,6 +18,12 @@ import {
 
 type Action = "save" | "test" | "remove";
 
+const FAILED = {
+  save: GROK_BOT_TEXT.saveFailed,
+  test: GROK_BOT_TEXT.testFailed,
+  remove: GROK_BOT_TEXT.removeFailed,
+} as const satisfies Record<Action, string>;
+
 const LABELS = {
   save: { label: GROK_BOT_TEXT.save, busyLabel: GROK_BOT_TEXT.saving },
   test: { label: GROK_BOT_TEXT.test, busyLabel: GROK_BOT_TEXT.testing },
@@ -120,7 +126,7 @@ function testUnavailable({ key }: Readonly<GrokBotView>): string | null {
 export function useGrokBotForm(view: GrokBotView, changed: Changed) {
   const address = useField(null, view.webhookUrl ?? "");
   const key = useField();
-  const { flow, run } = useActionFlow<Action>(GROK_BOT_TEXT.failed);
+  const { flow, run } = useActionFlow<Action>(FAILED);
   const fields = { address, key };
 
   const unavailable = {

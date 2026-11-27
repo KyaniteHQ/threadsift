@@ -78,7 +78,7 @@ function endedLine({ ending, done }: Readonly<Outcome>, total: number): string |
 
 function lineOf(check: Check, run: RunState, total: number): string | null {
   if (run.phase === "running") {
-    if (run.stopping) return IMPORT.stopping;
+    if (run.stopping) return IMPORT.stoppingStatus;
 
     return run.waiting ? IMPORT.waiting : progressLabel(run.progress.done, total);
   }

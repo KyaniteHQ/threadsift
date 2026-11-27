@@ -53,11 +53,17 @@ const DONE_ONE = "1 item ({records} records total)";
 
 const DONE_MANY = "{items} items ({records} records total)";
 
-const DROPPED =
-  "Records left out: {dropped}. Each belonged to a record missing from the zip or used the same key as an earlier one.";
+const DROPPED_ONE =
+  "{dropped} record was left out. It repeated an earlier one or belonged to a record missing from the zip.";
 
-const MISSING_FILES_TEXT =
-  "Files missing from the zip: {missing}. The reader links a missing image to its original web address. An item whose post text file is missing has no post text.";
+const DROPPED_MANY =
+  "{dropped} records were left out. Each repeated an earlier one or belonged to a record missing from the zip.";
+
+const MISSING_FILES_ONE =
+  "{missing} file was missing from the zip. The reader links a missing image to its original web address. An item missing its post text file has no post text.";
+
+const MISSING_FILES_MANY =
+  "{missing} files were missing from the zip. The reader links missing images to their original web addresses. Items missing their post text file have no post text.";
 
 const REFUSAL_TEXT = {
   "incomplete-upload":
@@ -141,9 +147,11 @@ export function doneLabel(items: number, records: number): string {
 }
 
 export function droppedLabel(dropped: number): string {
-  return filled(DROPPED, { dropped: groupedNumber(dropped) });
+  return filled(dropped === 1 ? DROPPED_ONE : DROPPED_MANY, { dropped: groupedNumber(dropped) });
 }
 
 export function missingFilesLabel(missing: number): string {
-  return filled(MISSING_FILES_TEXT, { missing: groupedNumber(missing) });
+  return filled(missing === 1 ? MISSING_FILES_ONE : MISSING_FILES_MANY, {
+    missing: groupedNumber(missing),
+  });
 }

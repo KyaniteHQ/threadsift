@@ -20,6 +20,13 @@ type Working = Exclude<Phase, "idle" | "leaving">;
 
 export const LEAVING = "leaving";
 
+const FAILED = {
+  saving: AI_TEXT.saveFailed,
+  verifying: AI_TEXT.verifyFailed,
+  waiting: AI_TEXT.verifyFailed,
+  connecting: AI_TEXT.connectFailed,
+} as const satisfies Record<Working, string>;
+
 interface FormState {
   readonly phase: Phase;
   readonly outcome: Outcome | null;
@@ -123,7 +130,7 @@ export function useAiPhase() {
             });
           } else dispatch({ kind: "settle", outcome: done });
         } catch {
-          dispatch({ kind: "settle", outcome: { kind: "error", text: AI_TEXT.failed } });
+          dispatch({ kind: "settle", outcome: { kind: "error", text: FAILED[next] } });
         }
       });
     },

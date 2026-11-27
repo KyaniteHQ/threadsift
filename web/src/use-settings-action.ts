@@ -70,7 +70,9 @@ export function outcomeOf<Action extends string>(flow: Readonly<ActionFlow<Actio
   return flow.kind === "done" ? flow.outcome : null;
 }
 
-export function useActionFlow<Action extends string>(failedText: string) {
+export function useActionFlow<Action extends string>(
+  failedTexts: Readonly<Record<Action, string>>,
+) {
   const [flow, send] = useFlow<ActionFlow<Action>, ActionEvent<Action>>(reduceFlow, {
     kind: "idle",
   });
@@ -88,10 +90,10 @@ export function useActionFlow<Action extends string>(failedText: string) {
       try {
         send({ kind: "settle", outcome: await task() });
       } catch {
-        send({ kind: "settle", outcome: { kind: "error", text: failedText } });
+        send({ kind: "settle", outcome: { kind: "error", text: failedTexts[action] } });
       }
     },
-    [failedText, send],
+    [failedTexts, send],
   );
 
   return { flow, run };

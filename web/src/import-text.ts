@@ -24,7 +24,8 @@ export const IMPORT = {
   countsNote:
     "Known links are already in the library and stay as they are. Refused links point to private addresses, which the instance won’t fetch.",
   stop: "Stop",
-  stopping: "Stopping after this batch…",
+  stopping: "Stopping…",
+  stoppingStatus: "The import stops after the current batch.",
   waiting: "The instance is slow to answer. Waiting to confirm whether the last batch was saved…",
   finished: "Import finished.",
   aiSettingsLink: "AI settings",
@@ -32,14 +33,20 @@ export const IMPORT = {
     "No provider is saved yet. Each item is saved now and gets its digest once you save a provider.",
   redditExpired:
     "Your Reddit session has expired. Reddit links are filled from the archive until you connect the account again.",
+  redditUnreadableFilled:
+    "Threadsift can no longer open your Reddit session because this instance’s secret key changed. Reddit links are filled from the archive until you connect the account again.",
+  redditUnreadableLinkOnly:
+    "Threadsift can no longer open your Reddit session because this instance’s secret key changed. Reddit links stay link-only items, saved without their threads. Connect the account again, or save the threads with the extension.",
   redditSettingsLink: "Reddit account settings",
 } as const;
 
-const REDDIT_WAIT = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.`;
+const REDDIT_WAIT_ONE = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows that link’s wait.`;
 
-const REDDIT_NOTE_ONE = `1 link is a Reddit post or comment. Threadsift reads it with the connected Reddit account. ${REDDIT_WAIT}`;
+const REDDIT_WAIT_MANY = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.`;
 
-const REDDIT_NOTE_MANY = `{count} links are Reddit posts or comments. Threadsift reads them one at a time with the connected Reddit account. ${REDDIT_WAIT}`;
+const REDDIT_NOTE_ONE = `1 link is a Reddit post or comment. Threadsift reads it with the connected Reddit account. ${REDDIT_WAIT_ONE}`;
+
+const REDDIT_NOTE_MANY = `{count} links are Reddit posts or comments. Threadsift reads them one at a time with the connected Reddit account. ${REDDIT_WAIT_MANY}`;
 
 const REDDIT_DONE_ONE =
   "1 Reddit link is saved. Threadsift continues reading it in the background, and the library shows the link’s wait.";
@@ -69,7 +76,8 @@ const SKIPPED_MORE = "and {count} more";
 const RESUME_PARTIAL =
   "Threadsift already imported {done} of {total} links from this list. Continue starts at the next link.";
 
-const PROGRESS = "{done} of {total} links";
+const PROGRESS_ONE = "{done} of {total} link";
+const PROGRESS_MANY = "{done} of {total} links";
 const STOPPED = "Import stopped at {done} of {total}.";
 
 const PLAN_NOTICE =
@@ -130,7 +138,10 @@ export function resumePartialLabel(done: number, total: number): string {
 }
 
 export function progressLabel(done: number, total: number): string {
-  return filled(PROGRESS, { done: groupedNumber(done), total: groupedNumber(total) });
+  return filled(total === 1 ? PROGRESS_ONE : PROGRESS_MANY, {
+    done: groupedNumber(done),
+    total: groupedNumber(total),
+  });
 }
 
 export function stoppedLabel(done: number, total: number): string {

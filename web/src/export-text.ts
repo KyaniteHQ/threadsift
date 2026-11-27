@@ -22,7 +22,9 @@ export const EXPORT_TEXT = {
   download: "Download",
   running: "Exporting…",
   ready: "Export ready",
-  failed: "Couldn’t start, stop or delete the export. Try again.",
+  startFailed: "Couldn’t start the export. Try again.",
+  stopFailed: "Couldn’t stop the export. It may still be running. Try again.",
+  removeFailed: "Couldn’t delete the export. Try again.",
 } as const;
 
 const PROGRESS = { one: "1 file, {size} so far", many: "{files} files, {size} so far" } as const;
