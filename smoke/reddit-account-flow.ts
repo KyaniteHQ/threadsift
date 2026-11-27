@@ -36,14 +36,14 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await expect(section(page).getByText(REDDIT_ACCOUNT_TEXT.stateNoneFilled)).toBeVisible();
   await expect(button(page, REDDIT_ACCOUNT_TEXT.verify)).toHaveAttribute("aria-disabled", "true");
   await expect(button(page, REDDIT_ACCOUNT_TEXT.verify)).toHaveAccessibleDescription(
-    REDDIT_ACCOUNT_TEXT.resultNotConfigured,
+    REDDIT_ACCOUNT_TEXT.stateNoneFilled,
   );
   await expect(button(page, REDDIT_ACCOUNT_TEXT.disconnect)).toHaveAccessibleDescription(
-    REDDIT_ACCOUNT_TEXT.removeNothing,
+    REDDIT_ACCOUNT_TEXT.stateNoneFilled,
   );
   await expect(
     section(page).getByText(REDDIT_ACCOUNT_TEXT.removeNothing, { exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 
   await button(page, REDDIT_ACCOUNT_TEXT.connect).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.valueNeeded)).toBeVisible();

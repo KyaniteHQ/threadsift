@@ -30,12 +30,14 @@ export async function grokBotFlow(page: Page): Promise<void> {
   await expect(page.getByText(GROK_BOT_TEXT.stateNone)).toBeVisible();
   await expect(button(page, GROK_BOT_TEXT.test)).toHaveAttribute("aria-disabled", "true");
   await expect(button(page, GROK_BOT_TEXT.test)).toHaveAccessibleDescription(
-    GROK_BOT_TEXT.resultNotConfigured,
+    GROK_BOT_TEXT.stateNone,
   );
   await expect(button(page, GROK_BOT_TEXT.remove)).toHaveAccessibleDescription(
-    GROK_BOT_TEXT.removeNothing,
+    GROK_BOT_TEXT.stateNone,
   );
-  await expect(section(page).getByText(GROK_BOT_TEXT.removeNothing, { exact: true })).toBeVisible();
+  await expect(section(page).getByText(GROK_BOT_TEXT.removeNothing, { exact: true })).toHaveCount(
+    0,
+  );
 
   await addressField(page).fill(ADDRESS);
   await button(page, GROK_BOT_TEXT.save).click();
