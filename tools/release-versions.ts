@@ -156,7 +156,7 @@ export function checkVersions(): string {
   );
   if (differences.length > 0) {
     throw new ReleaseError(
-      `every artifact carries the version of ${APP.path}; set them all with the release command\n${differences.join("\n")}`,
+      `every artifact carries the version of ${APP.path}; run node tools/release.ts v<version> to set them all\n${differences.join("\n")}`,
     );
   }
   return `versions agree: ${compared.map((file) => file.path).join(", ")}`;
