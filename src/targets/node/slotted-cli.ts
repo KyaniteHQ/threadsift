@@ -55,6 +55,7 @@ export interface Attempt<Result> {
 export abstract class SlottedCli implements CliRunner {
   abstract readonly provider: CliProvider;
   abstract readonly recommendation: CliRunner["recommendation"];
+  abstract readonly models: CliRunner["models"];
   private readonly shutdown = new AbortController();
   private readonly slots: Slots;
 

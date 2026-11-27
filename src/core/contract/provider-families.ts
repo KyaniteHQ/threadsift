@@ -6,7 +6,7 @@ export const AI_URL_MAX = 2048;
 export const AI_MODEL_MAX = 240;
 
 const Model = z.string().trim().min(1).max(AI_MODEL_MAX);
-const Key = z.string().min(1).max(SECRET_INPUT_MAX).optional();
+export const KeyInputSchema = z.string().min(1).max(SECRET_INPUT_MAX).optional();
 const CliModel = z.string().trim().max(AI_MODEL_MAX);
 const CliEffort = z
   .string()
@@ -86,7 +86,7 @@ function keyedFamily<const Id extends string, const Url extends string>(id: Id, 
     id,
     label: id,
     url,
-    fields: { model: Model, key: Key },
+    fields: { model: Model, key: KeyInputSchema },
   });
 }
 
@@ -135,7 +135,7 @@ export const PROVIDERS = described({
     id: "openai-compatible",
     label: "compatible",
     url: null,
-    fields: { baseUrl: z.url().max(AI_URL_MAX), model: Model, key: Key },
+    fields: { baseUrl: z.url().max(AI_URL_MAX), model: Model, key: KeyInputSchema },
   }),
   openrouter: keyedFamily("openrouter", "https://openrouter.ai/api/v1"),
   anthropic: keyedFamily("anthropic", "https://api.anthropic.com/v1"),
@@ -208,13 +208,11 @@ export function withoutTrailingSlashes(url: string): string {
 interface KeyScope {
   readonly provider: Provider;
   readonly baseUrl: string | null;
-  readonly model: string;
 }
 
 export function keyApplies(saved: Readonly<KeyScope>, next: Readonly<KeyScope>): boolean {
   return (
     saved.provider === next.provider &&
-    saved.baseUrl === (next.baseUrl === null ? null : withoutTrailingSlashes(next.baseUrl)) &&
-    saved.model === next.model.trim()
+    saved.baseUrl === (next.baseUrl === null ? null : withoutTrailingSlashes(next.baseUrl))
   );
 }

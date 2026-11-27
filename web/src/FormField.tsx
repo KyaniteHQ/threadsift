@@ -74,6 +74,7 @@ function Input({
   described,
   browser,
   voice,
+  left,
 }: Readonly<{
   field: FieldState;
   id: string;
@@ -81,9 +82,10 @@ function Input({
   described: string | undefined;
   browser: BrowserCheck;
   voice: ReturnType<typeof useRequiredVoice>;
+  left: ((value: string) => void) | undefined;
 }>) {
   const { ref, value, error, change } = field;
-  const { edit, blur } = useFieldEvents(browser, voice, change);
+  const { edit, blur } = useFieldEvents(browser, voice, change, left);
 
   return (
     <input
@@ -118,6 +120,7 @@ export function FormField({
   kind,
   children,
   marked,
+  left,
 }: Readonly<{
   field: FieldState;
   label: string;
@@ -125,6 +128,7 @@ export function FormField({
   kind: InputKind;
   children?: ReactNode;
   marked?: boolean;
+  left?: ((value: string) => void) | undefined;
 }>) {
   const id = useId();
   const spoken = field.error === null ? FIELD_TEXT.spoken(label) : null;
@@ -151,6 +155,7 @@ export function FormField({
           id={id}
           kind={kind}
           described={describedBy(helpId, failed ? errorId : null, needId)}
+          left={left}
         />
         {children}
       </div>
@@ -205,22 +210,31 @@ function useFieldEvents(
   browser: BrowserCheck,
   voice: ReturnType<typeof useRequiredVoice>,
   change: FieldState["change"],
+  left: ((value: string) => void) | undefined,
 ) {
   const { sync } = browser;
 
-  const blur = useCallback(
+  const check = useCallback(
     (event: SyntheticEvent<HTMLInputElement>) => {
       voice(sync(event));
     },
     [sync, voice],
   );
 
+  const blur = useCallback(
+    (event: SyntheticEvent<HTMLInputElement>) => {
+      check(event);
+      left?.(event.currentTarget.value);
+    },
+    [check, left],
+  );
+
   const edit = useCallback(
     (event: ChangeEvent<HTMLInputElement>) => {
-      blur(event);
+      check(event);
       change(event);
     },
-    [blur, change],
+    [check, change],
   );
 
   return { edit, blur } as const;

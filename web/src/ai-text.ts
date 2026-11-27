@@ -5,7 +5,7 @@ import { filled } from "./filled.ts";
 
 export const AI_TEXT = {
   "key-needed":
-    "An API key is needed on the first save or after changing Provider, Base URL or Model. Enter a key and save again.",
+    "An API key is needed on the first save or after changing Provider or Base URL. Enter a key and save again.",
   "provider-busy": "The provider is busy or failing. Try Verify later.",
 
   publicUrlHelp:
@@ -41,8 +41,8 @@ export const AI_TEXT = {
     "Workers AI runs on this instance’s Cloudflare account. It needs no URL or API key.",
   claudeCodeKeyNotNeeded:
     "No API key is needed. Claude Code uses its own sign-in in this container.",
-  claudeCodeModelHelp: "If you enter only an effort, Claude Code chooses the model.",
-  recommendedModelHelp: "If you enter only an effort, Threadsift uses {model}.",
+  claudeCodeModelHelp: "If you set only an effort, Claude Code chooses the model.",
+  recommendedModelHelp: "If you set only an effort, Threadsift uses {model}.",
   claudeCodeSignedOut:
     "Claude Code isn’t signed in. Run {command} in this instance’s container, then reload this page.",
   claudeCodeSignInCommand: "claude auth login",
@@ -50,7 +50,7 @@ export const AI_TEXT = {
     "Claude Code rejected its sign-in. Run {command} in the container or replace the token in CLAUDE_CODE_OAUTH_TOKEN, then press Verify again.",
   codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in in this container.",
   codexModelHelp:
-    "If you enter only an effort, Threadsift uses the first visible model in Codex’s bundled catalog.",
+    "If you set only an effort, Threadsift uses the first visible model in Codex’s bundled catalog.",
   codexCatalogHelp: "Any model you enter must be listed by codex debug models --bundled.",
   codexSignedOut:
     "Codex isn’t signed in. Run {command} in this instance’s container, then reload this page.",
@@ -77,23 +77,38 @@ export const AI_TEXT = {
     },
     custom: {
       label: "Custom",
-      help: "Enter a model, an effort or both.",
+      help: "Set a model, an effort or both.",
     },
   },
   model: "Model",
+  modelsLoading: "Loading the model list…",
+  modelsKeyNeeded:
+    "Enter an API key to see the provider’s models. You can type the model name instead.",
+  modelsWrongKey:
+    "The provider rejected the API key, so Threadsift couldn’t list models. Check the key or type the model name.",
+  modelsUnreachable:
+    "Couldn’t reach the provider to list its models. Type the model name or check the Base URL.",
+  modelsNoList: "This server doesn’t list its models. Type the model name.",
+  modelsRefused:
+    "Threadsift won’t contact this Base URL, so it can’t list models. Change the address or type the model name.",
+  modelsFailed: "Couldn’t load the model list. Type the model name or reload the page.",
+  chooseModel: "Choose a model",
+  otherModel: "Other…",
+  otherModelLabel: "Model name",
+  defaultModel: "Default",
+  defaultEffort: "Model’s default",
   effort: "Effort",
-  effortHelp: "If you enter only a model, the CLI uses that model’s default effort.",
+  effortHelp: "If you set only a model, the CLI uses that model’s default effort.",
   invalidEffort:
     "This model rejected that effort level. Accepted levels: {levels}. Enter one or clear Effort, then save again.",
   noEfforts: "This model doesn’t accept effort levels. Clear Effort and save again.",
   key: "API key",
   keySet: "An API key is saved on this instance.",
   keyMissing: "No API key is saved yet.",
-  keyChanged: "Enter an API key to save changes to Provider, Base URL or Model.",
+  keyChanged: "Enter an API key to save changes to Provider or Base URL.",
   keyUnreadable:
     "This instance can no longer open the saved API key. Enter the API key again and save to replace it, or restore the original THREADSIFT_SECRET_KEY and reload this page.",
-  keyHelp:
-    "Leave blank to keep the saved key while Provider, Base URL and Model stay the same. Enter a key if you change any of them.",
+  keyHelp: "Leave blank to keep the saved key. Enter a key if you change Provider or Base URL.",
   connect: "Connect",
   connecting: "Connecting…",
   connectHelp:

@@ -109,7 +109,7 @@ The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 
 
 The settings routes for the Reddit account, the Grok Bot, the X reader and the Provider are closed to agent tokens (403), and none returns a stored secret. The Extension's Connect Reddit button uses `GET`, `PUT` and `DELETE /api/reddit-account` instead. `GET` needs the `read` scope and the others need the `reddit` scope.
 
-The Test and Verify calls of these sections answer every outcome inside HTTP 200, so the bot's or Reddit's own 401 never signs the owner out. Verify with Grok Bot as the Provider holds the request for up to 60 seconds (`VERIFY_WAIT_MS`) while the bot answers, then answers `refused` with `timeout` and closes the task, so a late answer is 409.
+The Test and Verify calls of these sections answer every outcome inside HTTP 200, so the bot's or Reddit's own 401 never signs the owner out. So does `POST /api/settings/ai/models`, which answers a Provider's model list, or why there is none, for the AI settings. It takes the typed API key in the JSON body and never in the address, because an address can reach a log. It never returns the key, answers `Cache-Control: no-store` and keeps no list on the server. [AI tasks and Providers](ai-tasks-and-providers.md), Model lists, holds its sources and limits. Verify with Grok Bot as the Provider holds the request for up to 60 seconds (`VERIFY_WAIT_MS`) while the bot answers, then answers `refused` with `timeout` and closes the task, so a late answer is 409.
 
 ## The Grok Bot task routes
 

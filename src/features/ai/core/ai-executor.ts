@@ -18,6 +18,7 @@ import {
   type HttpAiConnection,
   apiRefusal,
   refusedAi,
+  rejectsKeyWith400,
 } from "../../../core/contract/ai-contract.ts";
 import { AiAddressRefused } from "../../../core/contract/ai-url.ts";
 import type { RunnerTask } from "../../../core/kernel/ai-runtime.ts";
@@ -59,14 +60,6 @@ function languageModel(config: Readonly<HttpAiConnection>, request: typeof fetch
       return exhaustive;
     }
   }
-}
-
-function rejectsKeyWith400(
-  provider: HttpAiConnection["provider"],
-  status: number | undefined,
-  message: string,
-) {
-  return provider === "xai" && status === 400 && message.includes("Incorrect API key provided");
 }
 
 export async function runHttp<Result>(

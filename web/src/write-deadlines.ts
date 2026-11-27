@@ -1,4 +1,5 @@
 import { AI_DEADLINE_MS } from "../../src/core/contract/ai-contract.ts";
+import { MODEL_LIST_PAGES } from "../../src/core/contract/ai-settings-contract.ts";
 import { VERIFY_DEADLINE_MS } from "../../src/core/contract/grok-bot-contract.ts";
 import {
   FETCH_DEADLINE_MS,
@@ -39,3 +40,5 @@ export const PROBED_WRITE_DEADLINE_MS = withMargin(PROBE_MS);
 export const AI_SAVE_DEADLINE_MS = withMargin(2 * PROBE_MS);
 
 export const AI_VERIFY_DEADLINE_MS = withMargin(Math.max(AI_DEADLINE_MS, VERIFY_DEADLINE_MS));
+
+export const MODEL_LIST_DEADLINE_MS = withMargin(MODEL_LIST_PAGES * HOP_DEADLINE_MS);
