@@ -323,7 +323,7 @@ const shownItem = (s) => {
 const isFiltered = (s) => s.readf !== "all" || s.src !== null;
 const countText = (s) =>
   isFiltered(s) ? `${visible(s).length} of ${items.length} items` : `${items.length} items, ${items.filter((i) => !i.read).length} unread`;
-const noResults = () => `<div class="empty" role="status"><p>No items match</p><button class="btn" type="button" data-act="clear">Clear search and filters</button></div>`;
+const noResults = () => `<div class="empty"><button class="btn" type="button" data-act="clear">Clear filters</button></div>`;
 
 let uidN = 0;
 function pasteBox() {

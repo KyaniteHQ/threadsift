@@ -245,7 +245,7 @@ body { margin: 0; }
 <p class="it-foot"><span class="it-topic">{{it.topic}}</span><span class="tags"><sc-for list="{{it.tags}}" as="t" hint-placeholder-count="3"><span class="tag" style="--tag-h: {{t.hue}}"><i class="tag-dot"></i>{{t.name}}</span></sc-for></span><span>{{it.keptShort}}</span></p>
 </article>
 </sc-for>
-<sc-if value="{{noResults}}" hint-placeholder-val="{{ false }}"><div class="noresults"><p>No items match</p><button type="button" class="btn" onClick="{{clearAll}}">Clear search and filters</button></div></sc-if>
+<sc-if value="{{noResults}}" hint-placeholder-val="{{ false }}"><div class="noresults"><button type="button" class="btn" onClick="{{clearAll}}">{{clearLabel}}</button></div></sc-if>
 <sc-if value="{{isEmpty}}" hint-placeholder-val="{{ false }}"><div class="empty"><svg class="ic ic-xl" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 13l2.5-7h11l2.5 7"></path><path d="M4 13v5h16v-5h-5a3 3 0 0 1-6 0z"></path></svg><h2>No items yet</h2><p>Paste a link and press Add.</p></div></sc-if>
 </div>
 </div>
@@ -862,6 +862,7 @@ class Component extends DCLogic {
         return self.rowView(x, { read: self.isRead(x), open: o, tokens: tokens, badge: badgeKey === x.key ? (p.mode === 'done' ? 'New' : 'Refreshed') : '', back: st.highlight === x.key, vt: st.vt === x.key && !o });
       }),
       noResults: !!data && !empty && shown.length === 0, isEmpty: empty, clearAll: this.clearAll,
+      clearLabel: !any ? 'Clear search' : tokens.length ? 'Clear search and filters' : 'Clear filters',
       placeholder: !!data && R.placeholder && !isOpen && !empty, scrim: modal, close: this.close,
       hasReader: isOpen, openItem: it, openRead: isOpen && this.isRead(it), toggleOpenRead: this.toggleOpenRead,
       cut: !!this.props.cut, asOf: data ? data.asOf : '',
