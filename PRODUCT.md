@@ -61,7 +61,7 @@ These rules hold for every text a person reads in the web app, the browser exten
    - Good: "Add", "Clear filters", "Open on Reddit"
 6. **Say each fact once, in the fewest words that keep it.** Do not repeat the heading, the label or the button in the text beside it. Write one idea per sentence.
    - Bad: "Reset look puts the look settings back to their defaults" beside the Reset look button
-   - Good: "Layout, Open items as and Theme stay as they are."
+   - Good: "Layout, Theme and how Grid opens items stay as they are."
 7. **Threadsift speaks of itself in the third person, and uses "you" only for instructions or to clarify ownership.** Write "Threadsift" only when naming the actor adds clarity, and never write "we" or "I". The Threadsift bot is the one exception: it speaks in chat as itself, so it may say "I" there. Use "you" or "your" when giving an instruction or distinguishing the person's own input or account (such as a password or an unsaved note), never as filler on ordinary labels.
    - Bad: "We couldn’t reach your website."
    - Good: "Couldn’t reach the website."
