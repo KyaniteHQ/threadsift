@@ -50,7 +50,7 @@ The 400, 403, 413 and 415 of each route in `GET /api/openapi.json` come from the
 
 - With no `cursor` it also answers the counts the filter pane shows. Each group's counts apply the search and the other groups' filters but not its own group, so a count equals what choosing that value leaves.
 - Search splits `q` into runs of letters and digits. Each run is a prefix match, and every run must match.
-- The `url` filter finds the one Item a link names: the Item that the alias of a short link or Reddit share link names, and otherwise the Item whose normalized URL is the link's (`namedBy`), so a lookup of a short link finds the Item its Paste reaches. The Extension uses it, with the `fillable` flag, to fill a Link-only Reddit Item.
+- The `url` filter finds the Item a link names, by the rule a Paste reads too. For a short link or a Reddit share link, that is the Item its stored alias names, or the Item under the link itself when it has no alias. For any other link, it is the Item whose normalized URL is the link's. The filter reads only what is stored: a Paste of a short link whose alias ends at a Reddit share link resolves the link again and can reach another Item, which the filter finds only after that Paste. The Extension uses it, with the `fillable` flag, to fill a Link-only Reddit Item.
 - Each Item carries `commentCount`, which counts the comments the Reader shows ([the spec](../spec.md), Comment filter).
 
 ## A Paste
