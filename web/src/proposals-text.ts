@@ -122,6 +122,8 @@ export const PROPOSAL_WORDS = {
   noProvider:
     "Save a provider in Instance settings to update the overview. This row stays, and Accept works once a provider is saved.",
   mergeFinal: "Accept starts the merge at once. This can’t be undone in this release.",
+  topicMergeFinal:
+    "Accept starts the merge at once. This can’t be undone in this release. The merge moves the first topic’s items into the second and deletes the first topic. Its page address then opens the second topic’s page.",
   highlightRemoved: "Accept removes this highlight at once. This can’t be undone. Reject keeps it.",
   disagreementKept:
     "Accept keeps this pair on the topic page under Known disagreements. Neither item changes.",
