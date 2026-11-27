@@ -12,7 +12,7 @@ The template address:
 https://x.ai/bot/oQiF1E7zmx2VTHQTOlyei
 ```
 
-To update, say "update threadsift" in the bot's chat. The bot tells you what changed and asks first. Nothing is pushed to an installed bot. Each update installs a tagged release; the template itself does not change.
+The bot updates itself to the release your Threadsift Instance expects, at its next webhook task or bookmark sync, and saves its new skill at your next message to it. Threadsift Settings shows the bot's version beside the expected one, and its Threadsift bot section turns automatic install off; then say "update threadsift" in the bot's chat to install that release. Each update installs a tagged release after its hashes match the ones the Instance names; the template itself does not change, and an update never changes a routine.
 
 The bot's computer is shared by all your bots, so other bots can see the token and files in `~/threadsift/`.
 

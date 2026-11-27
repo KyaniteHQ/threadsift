@@ -1,15 +1,12 @@
 # Threadsift update
-Never auto-apply. Only release tags, never a branch.
+Install only the release the Threadsift Instance expects, never a branch or another tag. The owner's request is the yes, so this also installs when automatic install is off.
 1. Installed version: `~/threadsift/VERSION`. Then check your memories: when none holds the Instance URL, or the memory is a note that says where the address is stored, ask the owner once in plain text: "What is the public web address of your Threadsift instance? It isn’t a secret, so type it in chat. Start with https:// and include only the host, plus a port if it has one, with no slash or path after it. The instance must be reachable from the internet because the bot runs in Grok’s cloud." When the answer is not an address that starts with https and holds only the host, and a port when it has one, with nothing after it, no slash included, ask again in the same turn. Save the answer as the Instance URL memory, in place of the note and never as a second memory. When the owner does not answer, go on with step 2; the skill asks again at the next link it saves.
-2. Latest tag: read the tags that start with `bot-v` with this call. Every `ref` looks like `refs/tags/bot-v<N>`; the latest is the one with the highest number `N`, compared as numbers. No GitHub Release is needed.
-   ```bash
-   curl -fsSL https://api.github.com/repos/KyaniteHQ/threadsift/git/matching-refs/tags/bot-v
-   ```
-3. If it matches, say it is up to date and stop.
-4. Fetch `bot/CHANGELOG.md` at the new tag from raw.githubusercontent.com. Tell the owner in plain words what changed since their version, then ask yes or no with a question card.
-5. On yes, fetch into a temp folder at the new tag, each saved under its bare file name: `bot/SHA256SUMS`, `bot/setup.md`, `bot/update.md`, `bot/scripts/threadsift.sh`, `bot/skills/threadsift/SKILL.md`. Verify them with `sha256sum` against `SHA256SUMS`, which covers `setup.md`, `update.md` and `threadsift.sh`. `SKILL.md` has no hash in that file, so require that it starts with `---` and has `name: threadsift`. On any failure change nothing, say so, stop.
-6. Replace `setup.md`, `update.md`, and `threadsift.sh` in `~/threadsift/` (keep `chmod 700` on the script). Delete `~/threadsift/state/bookmarks.json` if it exists: a bot-v2 install left it, and the bot has not read it since bot-v3, because the Threadsift Instance keeps the bookmark cursor.
-7. Rewrite the live `threadsift` skill with the skill tool from the fetched `SKILL.md`: its frontmatter name and description, its body unchanged.
-8. If `bot/routines/threadsift-webhook.md` or `bot/routines/threadsift-bookmarks.md` at the tag differs from the live routine's prompt (read the live one first), update the prompt only. Keep the trigger, schedule, and paused state: an update never changes the schedule of a routine the owner already has, and only a new install gets the 3-hour schedule from `setup.md`.
-9. Write the tag to `~/threadsift/VERSION` and update the version memory.
-10. Reply in one line: updated to <tag>, or what failed.
+2. Run `~/threadsift/threadsift.sh update`. It asks the Instance which release it expects, fetches only that release from raw.githubusercontent.com, checks the hashes the Instance names and installs the script, `setup.md` and `update.md`.
+   - `current <tag>` or `installed <tag>`: go on with step 3.
+   - `refused <tag>`: the files of that release did not match the hashes the Instance expects, and nothing changed. Say so in one line and stop.
+   - Any other word: say which and stop. `failed` also means the release could not be fetched; nothing changed.
+3. Run `~/threadsift/threadsift.sh skill-staged`. On `staged <tag>`, rewrite the live `threadsift` skill with the skill tool from `~/threadsift/skill/SKILL.md`, read in pages when large: its frontmatter name and description, its body unchanged. Then run `~/threadsift/threadsift.sh skill-saved <tag>` with the tag it printed.
+4. Read the live prompt of each routine, then compare it with the text after `Prompt:` in `~/threadsift/routines/threadsift-webhook.md` and `~/threadsift/routines/threadsift-bookmarks.md`, when the script installed them. When one differs, update that routine's prompt only. Keep the trigger, schedule, and paused state: an update never changes the schedule of a routine the owner already has, and only a new install gets the 3-hour schedule from `setup.md`.
+5. Delete `~/threadsift/state/bookmarks.json` if it exists: a bot-v2 install left it, and the bot has not read it since bot-v3, because the Threadsift Instance keeps the bookmark cursor.
+6. When the tag differs from the version memory, fetch `bot/CHANGELOG.md` at the tag from raw.githubusercontent.com and tell the owner in plain words what changed since the version in the memory. Then write the tag to the version memory.
+7. Reply in one line: updated to <tag>, up to date, or what failed.

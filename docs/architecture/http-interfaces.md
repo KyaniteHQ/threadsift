@@ -107,9 +107,13 @@ The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 
 
 ## Settings routes
 
-The settings routes for the Reddit account, the Grok Bot, the X reader and the Provider are closed to agent tokens (403), and none returns a stored secret. The Extension's Connect Reddit button uses `GET`, `PUT` and `DELETE /api/reddit-account` instead. `GET` needs the `read` scope and the others need the `reddit` scope.
+The settings routes for the Reddit account, the Grok Bot, the Threadsift bot's updates, the X reader and the Provider are closed to agent tokens (403), and none returns a stored secret. The Extension's Connect Reddit button uses `GET`, `PUT` and `DELETE /api/reddit-account` instead. `GET` needs the `read` scope and the others need the `reddit` scope.
 
 The Test and Verify calls of these sections answer every outcome inside HTTP 200, so the bot's or Reddit's own 401 never signs the owner out. Verify with Grok Bot as the Provider holds the request for up to 60 seconds (`VERIFY_WAIT_MS`) while the bot answers, then answers `refused` with `timeout` and closes the task, so a late answer is 409.
+
+## The bot install route
+
+`PUT /api/bot/install` needs the `add` scope, which the Threadsift bot's token has. The bot sends the release of its files, of its skill and the release it refused, and the answer names the release this Instance expects with the hashes of its `SHA256SUMS` and `SKILL.md`, and the owner's automatic install choice ([Extension and Threadsift bot](extension-and-threadsift-bot.md#self-update)). Each report replaces the last one, so a repeated report changes nothing.
 
 ## The Grok Bot task routes
 

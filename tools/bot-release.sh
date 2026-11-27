@@ -5,6 +5,7 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 bot="$root/bot"
 skill="$bot/skills/threadsift/SKILL.md"
 sums="$bot/SHA256SUMS"
+expected="$root/src/features/bot/core/expected-bot-release.ts"
 mode="${1:-refresh}"
 
 computed_sums() {
@@ -47,6 +48,16 @@ released_tag() {
   echo "$tag"
 }
 
+expected_module() {
+  printf 'export const EXPECTED_BOT_RELEASE = {\n  tag: "%s",\n  sumsSha256: "%s",\n  skillSha256: "%s",\n} as const;\n' \
+    "$(pinned TAG)" "$(sums_hash)" "$(sha256sum "$skill" | cut -d' ' -f1)"
+}
+
+expected_written() {
+  mkdir -p "$(dirname "$expected")"
+  expected_module > "$expected"
+}
+
 pin() {
   local tag="$1" hash="$2"
   sed -E -i "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/" "$skill"
@@ -61,12 +72,14 @@ case "$mode" in
     fi
     computed_sums > "$sums"
     pin "$(pinned TAG)" "$(sums_hash)"
+    expected_written
     ;;
   release)
     version=$(( $(< "$bot/VERSION") + 1 ))
     echo "$version" > "$bot/VERSION"
     computed_sums > "$sums"
     pin "bot-v$version" "$(sums_hash)"
+    expected_written
     sed -E -i "s/^## Unreleased$/## Unreleased\n\n## bot-v$version/" "$bot/CHANGELOG.md"
     echo "bot-v$version"
     ;;
@@ -80,6 +93,7 @@ case "$mode" in
     if [[ -n "$tag" ]]; then
       [[ "$(sums_at "$tag" | sha256sum | cut -d' ' -f1)" == "$(pinned SUMS_SHA256)" ]] || { echo "a hashed file changed after $tag, so the bootstrap line cannot install it; run tools/bot-release.sh release" >&2; exit 1; }
     fi
+    [[ -f "$expected" && "$(expected_module)" == "$(< "$expected")" ]] || { echo "the bot release the Instance expects is not the tag and hashes of bot/; run tools/bot-release.sh" >&2; exit 1; }
     ;;
   *)
     echo "usage: tools/bot-release.sh [refresh|release|check]" >&2

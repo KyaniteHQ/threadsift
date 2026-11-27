@@ -6,6 +6,7 @@ import { registerAiRoutes } from "../features/ai/http/ai-routes.ts";
 import { registerAiTaskRoutes } from "../features/ai/http/ai-task-routes.ts";
 import { registerGrokBotRoutes } from "../features/ai/http/grok-bot-routes.ts";
 import { registerOpenRouterRoutes } from "../features/ai/http/openrouter-routes.ts";
+import { registerBotInstallRoutes } from "../features/bot/http/bot-install-routes.ts";
 import { registerExportRoutes } from "../features/export/http/export-routes.ts";
 import { registerGithubRoutes } from "../features/github/http/github-routes.ts";
 import { registerDeleteItemRoute } from "../features/item/http/delete-item-route.ts";
@@ -54,6 +55,7 @@ export function registerRoutes(app: OpenAPIHono, ports: Ports): void {
     registerGithubRoutes,
     registerAiTaskRoutes,
     registerGrokBotRoutes,
+    registerBotInstallRoutes,
     registerRedditRoutes,
     registerRedditAccountRoutes,
     registerXRoutes,

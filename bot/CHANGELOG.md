@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## bot-v14
+
+- The bot updates itself to the release the Threadsift Instance expects. At each webhook task and bookmark sync, the script reports the bot's version to the Instance and asks which release it expects. When automatic install is on in Threadsift Settings, which it is by default, the script fetches only that release, checks the hashes the Instance names for its `SHA256SUMS` and its skill, and installs the script, `setup.md` and `update.md`. A routine run may not rewrite a skill, so the new skill waits in `~/threadsift/skill/` and the bot saves it at your next message, then says so once. A release whose hashes do not match installs nothing, and the bot tells you once. The update never changes a routine; a release that changes a routine's text tells you, and "update threadsift" applies it. "update threadsift" now installs the release the Instance expects, not the newest tag, and no longer asks first. Update the Threadsift Instance first: an Instance from before this release has no bot release to name, and the bot then stays on its version.
+
 ## bot-v13
 
 - The texts the bot says word for word are rewritten: the not-configured alert, the question for the Instance address and the one asked when the remembered address differs, the address card, which is now labeled "Threadsift instance address", the alert for a missing X plugin, the message before an import of all bookmarks, and the daily budget stop, which now has one alert for a sync and one reply for an import. The budget texts say that the Instance refuses a whole page of bookmarks when its new links would pass the budget left for the UTC day, and the import message says that the Instance's X reader setting decides whether the bot or the grok CLI reads each thread. The profile and the skill description are rewritten too. The stored address and token stay as they are, and what the bot does does not change.

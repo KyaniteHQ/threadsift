@@ -14,6 +14,12 @@ third="${4:-}"
 WRITE_CAP=8388608
 NAME='^[a-z][a-z0-9-]{0,31}-([0-9a-f]{32})\.(json|txt)$'
 ORIGIN='^(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\.0\.0\.1|localhost):[0-9]{1,5})$'
+TAG='^(bot-v(0|[1-9][0-9]{0,8})|v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})(-rc\.[1-9][0-9]{0,8})?)$'
+SHA='^[0-9a-f]{64}$'
+RAW=https://raw.githubusercontent.com/KyaniteHQ/threadsift
+FETCH_CAP=1048576
+SUMMED='setup.md threadsift.sh update.md '
+ROUTINES=(threadsift-webhook threadsift-bookmarks)
 
 route_of() {
   case "$1" in
@@ -27,13 +33,14 @@ route_of() {
     task-answer) method=POST; template="/api/ai-tasks/{id}/result"; credential=task ;;
     task-intake) method=POST; template="/api/ai-tasks/{id}/intake"; credential=task ;;
     task-error) method=POST; template="/api/ai-tasks/{id}/result"; credential=task ;;
+    update) method=PUT; template="/api/bot/install"; credential=agent ;;
     *) return 1 ;;
   esac
 }
 
 word_of() {
   case "$command:$1" in
-    check:200|topics:200|search:200|task-open:200|bookmarks-cursor:200|bookmarks-send:200) echo ok ;;
+    check:200|topics:200|search:200|task-open:200|bookmarks-cursor:200|bookmarks-send:200|update:200) echo ok ;;
     task-answer:204|task-intake:204|task-error:204|save:201) echo ok ;;
     save:200) echo duplicate ;;
     bookmarks-cursor:404) echo none ;;
@@ -59,12 +66,14 @@ reason_of() {
 
 work=""
 part=""
+stage=""
 joined=""
 inputs=()
 
 cleanup() {
   [[ -z "$work" ]] || rm -rf -- "${work:?}"
   [[ -z "$part" ]] || rm -f -- "${part:?}"
+  [[ -z "$stage" ]] || rm -rf -- "${stage:?}"
   [[ -z "$joined" ]] || rm -f -- "${joined:?}"
   [[ ${#inputs[@]} -eq 0 ]] || rm -f -- "${inputs[@]}"
 }
@@ -159,11 +168,63 @@ same_address() {
 pruned_tasks() {
   local tasks="$HERE/tasks"
   find "$HERE/tmp" -maxdepth 1 -type f -mmin +1440 -delete 2> /dev/null || true
+  find "$HERE" -mindepth 1 -maxdepth 1 -type d -name '.release-*' -mmin +1440 -exec rm -rf -- {} + 2> /dev/null || true
   find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[1-9][0-9]{0,15}/done' -mmin +10080 \
     -exec sh -c 'for each; do rm -rf -- "${each%/*}"; done' _ {} + 2> /dev/null || true
   find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[1-9][0-9]{0,15}/task\.json' -mmin +1440 \
     -exec sh -c 'for each; do [ -e "${each%/*}/done" ] || rm -rf -- "${each%/*}"; done' _ {} + 2> /dev/null || true
   find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[1-9][0-9]{0,15}/token' -mmin +1440 -delete 2> /dev/null || true
+}
+
+tag_in() {
+  local found
+  [[ -f "$1" ]] || return 1
+  found="$(head -c 64 -- "$1")"
+  found="${found%$'\n'}"
+  [[ "$found" =~ $TAG ]] || return 1
+  printf '%s' "$found"
+}
+
+kept() { printf '%s\n' "$2" > "$1.part" && mv -T -- "$1.part" "$1"; }
+
+staged_tag() {
+  local found
+  [[ -f "$HERE/skill/SKILL.md" ]] || return 1
+  found="$(grep -o -m 1 'TAG=[^ ;]*' -- "$HERE/skill/SKILL.md" | head -n 1)" || return 1
+  found="${found#TAG=}"
+  [[ "$found" =~ $TAG ]] || return 1
+  printf '%s' "$found"
+}
+
+again() { bash "$HERE/threadsift.sh" update "$1" > /dev/null 2>&1 || true; }
+
+noticed() {
+  local found
+  if found="$(tag_in "$HERE/state/notice-refused")"; then
+    mv -T -- "$HERE/state/notice-refused" "$HERE/state/told-refused"
+    echo "refused $found"
+  elif found="$(tag_in "$HERE/state/notice-routines")"; then
+    rm -f -- "$HERE/state/notice-routines"
+    echo "routines $found"
+  else
+    rm -f -- "$HERE/state/notice-refused" "$HERE/state/notice-routines"
+    echo none
+  fi
+}
+
+skill_staged() {
+  local found
+  if found="$(staged_tag)"; then echo "staged $found"; else echo none; fi
+}
+
+skill_saved() {
+  local found
+  [[ "$1" =~ $TAG ]] || stop bad-input "skill-saved takes the tag skill-staged printed"
+  found="$(staged_tag)" || { echo none; return 0; }
+  [[ "$found" == "$1" ]] || stop bad-input "another skill is staged; run skill-staged again"
+  rm -f -- "$HERE/skill/SKILL.md" "$HERE/state/skill-version"
+  again report
+  echo ok
 }
 
 [[ "$command" != mark ]] || { mark_word; exit 0; }
@@ -176,6 +237,9 @@ case "$command" in
   same-address) same_address "$first"; exit 0 ;;
   write) written write "$first"; exit 0 ;;
   append) written append "$first"; exit 0 ;;
+  notice) noticed; exit 0 ;;
+  skill-staged) skill_staged; exit 0 ;;
+  skill-saved) skill_saved "$first"; exit 0 ;;
 esac
 
 [[ "$command" != task-intake ]] && route_of "$command" || stop bad-input "unknown command"
@@ -196,6 +260,17 @@ case "$command" in
   search) take "$first" "the query file"; query_file="$taken" ;;
   bookmarks-send) take "$first" "the id file"; ids_file="$taken" ;;
   task-answer) take "$second" "the answer file"; answer_file="$taken" ;;
+  bookmarks-cursor) again auto ;;
+  update)
+    case "$first" in
+      ""|auto|report) ;;
+      *) stop bad-input "update takes no word, auto or report" ;;
+    esac
+    installed="$(tag_in "$HERE/VERSION")" || stop bad-input "~/threadsift/VERSION holds no release tag"
+    skill_tag="$installed"
+    if staged_tag > /dev/null; then skill_tag="$(tag_in "$HERE/state/skill-version")" || skill_tag="$installed"; fi
+    refused_tag="$(tag_in "$HERE/state/refused")" || refused_tag=""
+    ;;
 esac
 
 if [[ "$command" == task-open ]]; then
@@ -228,6 +303,7 @@ except Exception:
 PY
   )" || stop bad-input "the event is not a task of this Instance"
   [[ "$parsed" != ping ]] || { echo ping; exit 0; }
+  again auto
   read -r id token _ <<< "$parsed"
   folder_of "$id"
   if [[ -f "$folder/done" && "$(< "$folder/done")" == "$(hash_of "$token")" ]]; then
@@ -278,6 +354,11 @@ fi
 
 case "$command" in
   check) options=(--get --data-urlencode "url=https://example.com/") ;;
+  update)
+    if [[ -n "$refused_tag" ]]; then refused_json="\"$refused_tag\""; else refused_json=null; fi
+    printf '{"version":"%s","skill":"%s","refused":%s}' "$installed" "$skill_tag" "$refused_json" > "$request"
+    options=(--header "Content-Type: application/json" --data-binary "@$request")
+    ;;
   topics)
     [[ "$first" =~ ^[0-9a-f]{32}$ ]] || stop bad-input "topics takes the hex of a fresh mark"
     out="$HERE/tmp/topics-$first.json"
@@ -396,6 +477,11 @@ elif mode == "bookmarks-send":
     ok = isinstance(body.get("results"), list) and len(body["results"]) == sent and all(isinstance(each, dict) and each.get("outcome") in ("added", "known", "refused") for each in body["results"])
 elif mode == "topics":
     ok = isinstance(body.get("topics"), list)
+elif mode == "update":
+    expected = body.get("expected")
+    ok = isinstance(expected, dict) and isinstance(body.get("autoInstall"), bool) and all(
+        isinstance(expected.get(key), str) for key in ("tag", "sumsSha256", "skillSha256")
+    )
 else:
     ok = (
         isinstance(body.get("taskId"), int)
@@ -409,7 +495,86 @@ sys.exit(0 if ok else 1)
 ' "$response" "$command" "$request" 2> /dev/null
 }
 
-if [[ "$word" == ok && ( "$method" == GET || "$command" == bookmarks-send ) ]] && ! shaped; then word=failed; fi
+if [[ "$word" == ok && ( "$method" == GET || "$command" == bookmarks-send || "$command" == update ) ]] && ! shaped; then word=failed; fi
+
+fetched() {
+  curl --disable --silent --fail --proto =https --max-redirs 0 --max-time 30 --max-filesize "$FETCH_CAP" \
+    --output "$2" "$RAW/$1" 2> /dev/null
+}
+
+sha_of() { sha256sum < "$1" | cut -d' ' -f1; }
+
+released() {
+  local tag="$1" sums="$2" skill="$3" old="$4" name
+  routines_changed=no
+  stage="$(mktemp -d "$HERE/.release-XXXXXXXX")" || return 1
+  fetched "$tag/bot/SHA256SUMS" "$stage/SHA256SUMS" || return 1
+  [[ "$(sha_of "$stage/SHA256SUMS")" == "$sums" ]] || return 3
+  [[ "$(cut -d' ' -f3- "$stage/SHA256SUMS" | LC_ALL=C sort | tr '\n' ' ')" == "$SUMMED" ]] || return 3
+  for name in setup.md update.md; do fetched "$tag/bot/$name" "$stage/$name" || return 1; done
+  fetched "$tag/bot/scripts/threadsift.sh" "$stage/threadsift.sh" || return 1
+  (cd "$stage" && sha256sum --check --strict --status SHA256SUMS) || return 3
+  fetched "$tag/bot/skills/threadsift/SKILL.md" "$stage/SKILL.md" || return 1
+  [[ "$(sha_of "$stage/SKILL.md")" == "$skill" ]] || return 3
+  mkdir -- "$stage/routines" "$stage/before" || return 1
+  for name in "${ROUTINES[@]}"; do
+    fetched "$tag/bot/routines/$name.md" "$stage/routines/$name.md" || return 1
+    if [[ -f "$HERE/routines/$name.md" ]]; then
+      cp -- "$HERE/routines/$name.md" "$stage/before/$name.md" || continue
+    else
+      fetched "$old/bot/routines/$name.md" "$stage/before/$name.md" || continue
+    fi
+    cmp -s -- "$stage/before/$name.md" "$stage/routines/$name.md" || routines_changed=yes
+  done
+  chmod 700 "$stage/threadsift.sh" || return 1
+  mkdir -p -- "$HERE/routines" "$HERE/skill" || return 1
+  for name in setup.md update.md threadsift.sh; do mv -T -- "$stage/$name" "$HERE/$name" || return 1; done
+  for name in "${ROUTINES[@]}"; do mv -T -- "$stage/routines/$name.md" "$HERE/routines/$name.md" || return 1; done
+  staged_tag > /dev/null || kept "$HERE/state/skill-version" "$old" || return 1
+  mv -T -- "$stage/SKILL.md" "$HERE/skill/SKILL.md" || return 1
+  kept "$HERE/VERSION" "$tag" || return 1
+  rm -f -- "$HERE/state/refused"
+}
+
+refused_release() {
+  local tag="$1"
+  kept "$HERE/state/refused" "$tag" || true
+  if [[ "$first" == auto ]]; then
+    [[ "$(tag_in "$HERE/state/told-refused" || true)" == "$tag" || "$(tag_in "$HERE/state/notice-refused" || true)" == "$tag" ]] ||
+      kept "$HERE/state/notice-refused" "$tag" || true
+  else
+    kept "$HERE/state/told-refused" "$tag" || true
+    rm -f -- "$HERE/state/notice-refused"
+  fi
+}
+
+followed() {
+  local tag sums skill auto outcome=0
+  word=failed
+  read -r tag sums skill auto <<< "$(python3 -I -c '
+import json, sys
+
+body = json.load(open(sys.argv[1]))
+expected = body["expected"]
+print(expected["tag"], expected["sumsSha256"], expected["skillSha256"], "on" if body["autoInstall"] else "off")
+' "$response" 2> /dev/null)" || return 0
+  [[ "$tag" =~ $TAG && "$sums" =~ $SHA && "$skill" =~ $SHA ]] || return 0
+  if [[ "$tag" == "$installed" ]]; then word="current $tag"; return 0; fi
+  if [[ "$first" == report || ( "$first" == auto && "$auto" != on ) ]]; then word="waits $tag"; return 0; fi
+  released "$tag" "$sums" "$skill" "$installed" || outcome=$?
+  case "$outcome" in
+    0)
+      [[ "$first" != auto || "$routines_changed" != yes ]] || kept "$HERE/state/notice-routines" "$tag" || true
+      again report
+      word="installed $tag"
+      ;;
+    3)
+      refused_release "$tag"
+      again report
+      word="refused $tag"
+      ;;
+  esac
+}
 
 if [[ "$command" == save && ( "$word" == ok || "$word" == duplicate ) ]]; then
   saved_id="$(python3 -I -c '
@@ -437,6 +602,7 @@ if [[ "$word" == ok ]]; then
     bookmarks-send)
       word="ok $(python3 -I -c 'import json,sys; r=[each["outcome"] for each in json.load(open(sys.argv[1]))["results"]]; print(r.count("added"), r.count("known"), r.count("refused"))' "$response")"
       ;;
+    update) followed ;;
     task-open)
       kind="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["kind"])' "$response")"
       mkdir -p "$folder"
