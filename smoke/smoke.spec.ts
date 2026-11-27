@@ -1,6 +1,6 @@
-import { type Page, expect, test } from "@playwright/test";
+import { type Locator, type Page, expect, test } from "@playwright/test";
 
-import { ADD_LABEL, PASTE_LABEL } from "../web/src/text.ts";
+import { ADD_LABEL, CARD_TITLES, PASTE_LABEL } from "../web/src/text.ts";
 import { setUp, signOutAndIn } from "./access-flow.ts";
 import { expectAnswerHeaders, watchContext } from "./document-checks.ts";
 import { importList, importListAgain } from "./import-flow.ts";
@@ -57,14 +57,26 @@ const INDEXED_TOPIC: TopicCase = {
 
 const SMOKE_TIMEOUT_MS = 240_000;
 
+function cardTitle(page: Page, title: string): Locator {
+  return page.locator(".ps-title").and(page.getByText(title, { exact: true }));
+}
+
+async function paste(page: Page, link: string): Promise<void> {
+  await page.getByRole("textbox", { name: PASTE_LABEL }).fill(link);
+  await page.getByRole("button", { name: ADD_LABEL }).click();
+}
+
 async function pasteXLink(page: Page): Promise<void> {
   const row = page.locator("article.it.it-link-only");
 
-  await page.getByRole("textbox", { name: PASTE_LABEL }).fill(X_LINK);
-  await page.getByRole("button", { name: ADD_LABEL }).click();
+  await paste(page, X_LINK);
   await expect(row).toContainText(X_ROW);
   await page.reload();
   await expect(row).toContainText(X_ROW);
+  await paste(page, X_LINK);
+  await expect(
+    cardTitle(page, CARD_TITLES.unchanged).or(cardTitle(page, CARD_TITLES.refreshed)),
+  ).toBeVisible();
 }
 
 async function readSavedPage(page: Page): Promise<void> {
@@ -82,7 +94,7 @@ async function readSavedPage(page: Page): Promise<void> {
   await expect(page.locator(".reader")).toContainText(SENTENCE);
 }
 
-test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, lists the Digests it published on the Log, and shows no Related Items without a Provider", async ({
+test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload and calls it already saved when pasted again, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, lists the Digests it published on the Log, and shows no Related Items without a Provider", async ({
   page,
   browser,
 }) => {
@@ -94,7 +106,8 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     expectAnswerHeaders(page));
   await test.step("set up the owner with the setup code", () => setUp(page));
   await test.step("sign out and sign in again", () => signOutAndIn(page));
-  await test.step("paste an X link, find its Link-only row after a reload", () => pasteXLink(page));
+  await test.step("paste an X link, find its Link-only row after a reload, and paste it again to see an already-saved card", () =>
+    pasteXLink(page));
   await test.step("save an X thread and read its Kept replies", () => readXThread(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
     readSavedPage(page));
