@@ -7,6 +7,7 @@ import { z } from "zod";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { parseLink } from "../src/core/contract/links.ts";
 import type { Database } from "../src/core/kernel/database.ts";
+import { type AliasedItem, aliasedItem } from "../src/core/kernel/link-naming.ts";
 import { restoreGuard } from "../src/core/kernel/restore-hold.ts";
 import type { ShortLinkResolution } from "../src/features/fetch/core/fetch-link.ts";
 import type { Existing } from "../src/features/item/core/item-rows.ts";
@@ -15,7 +16,6 @@ import {
   saveResolved,
   saveUnresolved,
 } from "../src/features/paste/core/item-save.ts";
-import { type AliasedItem, aliasedItem } from "../src/features/paste/core/short-link-aliases.ts";
 import type { Instance } from "./instance.ts";
 import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 

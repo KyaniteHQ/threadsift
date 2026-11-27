@@ -20,7 +20,25 @@ defaults:
     shell: bash
 
 jobs:
+  plan:
+    if: github.repository == 'KyaniteHQ/threadsift'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - name: Decide what the tag moves
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          tools/release-plan.sh "$TAG" > "$RUNNER_TEMP/plan.txt"
+          cat "$RUNNER_TEMP/plan.txt"
+          printf '~~~text\n%s\n~~~\n' "$(cat "$RUNNER_TEMP/plan.txt")" >> "$GITHUB_STEP_SUMMARY"
+
   build:
+    needs: plan
     if: github.repository == 'KyaniteHQ/threadsift'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
@@ -36,10 +54,6 @@ jobs:
           - arch: arm64
             runner: ubuntu-26.04-arm
     steps:
-      - name: Validate the image tag
-        env:
-          VERSION: ${{ github.ref_name }}
-        run: '[[ "$VERSION" =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]'
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
@@ -115,7 +129,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - name: Check the release branch can advance
+      - id: plan
+        name: Decide what the tag moves
+        env:
+          TAG: ${{ github.ref_name }}
+        run: tools/release-plan.sh "$TAG" --outputs "$GITHUB_OUTPUT" --notes "$RUNNER_TEMP/notes.md"
+      - if: steps.plan.outputs.move_release == 'true'
+        name: Check the release branch can advance
         run: |
           if git show-ref --verify --quiet refs/remotes/origin/release; then
             git merge-base --is-ancestor origin/release "$GITHUB_SHA"
@@ -130,20 +150,92 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: printf %s "$GITHUB_TOKEN" | docker login ghcr.io --username "$GITHUB_ACTOR" --password-stdin
-      - name: Validate the index before publishing the version tag
+      - name: Validate the index, then publish the version tag and the moving tags
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ steps.plan.outputs.version }}
+          IMAGE_TAGS: ${{ steps.plan.outputs.image_tags }}
         run: |
           amd64=$(cat "$RUNNER_TEMP/digests/amd64")
           arm64=$(cat "$RUNNER_TEMP/digests/arm64")
-          docker buildx imagetools create --dry-run --tag "$IMAGE:$VERSION" "$IMAGE@$amd64" "$IMAGE@$arm64" > "$RUNNER_TEMP/release-manifest.json"
+          read -r -a names <<< "$IMAGE_TAGS"
+          if published=$(docker buildx imagetools inspect "$IMAGE:$VERSION" --format '{{json .Manifest}}' 2> "$RUNNER_TEMP/version-tag.err"); then
+            jq --exit-status --arg amd64 "$amd64" --arg arm64 "$arm64" '
+              ([.manifests[] | select(.platform.os == "linux") | .digest] | sort) == ([$amd64, $arm64] | sort)
+            ' <<< "$published" > /dev/null || {
+              echo "$IMAGE:$VERSION already names other images than this run built; rerun only the failed publish job, which reuses the recorded digests" >&2
+              exit 1
+            }
+          elif ! grep --quiet --line-regexp --fixed-strings "ERROR: $IMAGE:$VERSION: not found" "$RUNNER_TEMP/version-tag.err"; then
+            cat "$RUNNER_TEMP/version-tag.err" >&2
+            exit 1
+          fi
+          tags=()
+          for name in "${names[@]}"; do
+            tags+=(--tag "$IMAGE:$name")
+          done
+          docker buildx imagetools create --dry-run "${tags[@]}" "$IMAGE@$amd64" "$IMAGE@$arm64" > "$RUNNER_TEMP/release-manifest.json"
           jq --exit-status '
             ([.manifests[].platform | select(.os == "linux") | .architecture] | sort) == ["amd64", "arm64"] and
             ([.manifests[] | select(.annotations["vnd.docker.reference.type"] == "attestation-manifest")] | length) == 2
           ' "$RUNNER_TEMP/release-manifest.json"
-          docker buildx imagetools create --tag "$IMAGE:$VERSION" "$IMAGE@$amd64" "$IMAGE@$arm64"
+          docker buildx imagetools create "${tags[@]}" "$IMAGE@$amd64" "$IMAGE@$arm64"
+          index_digest() {
+            docker buildx imagetools inspect "$IMAGE:$1" --format '{{json .Manifest}}' | jq --raw-output .digest
+          }
+          index=$(index_digest "$VERSION")
+          for name in "${names[@]}"; do
+            [ "$(index_digest "$name")" = "$index" ]
+          done
           docker buildx imagetools inspect "$IMAGE:$VERSION"
-      - name: Move the release branch to the tagged commit
+      - if: steps.plan.outputs.move_release == 'true'
+        name: Move the release branch to the tagged commit
         run: |
           git push origin "$GITHUB_SHA:refs/heads/release"
           [ "$(git ls-remote origin refs/heads/release | cut -f1)" = "$GITHUB_SHA" ]
+      - name: Create the GitHub Release as a draft, attach its files, then publish it
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.ref_name }}
+          TITLE: ${{ steps.plan.outputs.title }}
+          PRERELEASE: ${{ steps.plan.outputs.prerelease }}
+          MOVE_RELEASE: ${{ steps.plan.outputs.move_release }}
+          RELEASE_FILES: ${{ steps.plan.outputs.release_files }}
+          NOTES_START_TAG: ${{ steps.plan.outputs.notes_start_tag }}
+        run: |
+          read -r -a names <<< "$RELEASE_FILES"
+          expected=$(printf '%s\n' "${names[@]}" | sed '/^$/d' | sort)
+          uploaded() {
+            gh release view "$TAG" --json assets --jq '.assets[] | select(.state == "uploaded") | .name' | sort
+          }
+          mkdir -p "$RUNNER_TEMP/release-files"
+          [ "$(find "$RUNNER_TEMP/release-files" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)" = "$expected" ] || {
+            echo "The release files folder does not hold exactly the files the plan names: ${RELEASE_FILES:-none}" >&2
+            exit 1
+          }
+          files=()
+          for name in "${names[@]}"; do
+            files+=("$RUNNER_TEMP/release-files/$name")
+          done
+          if draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2> "$RUNNER_TEMP/release-view.err"); then
+            if [ "$draft" = false ]; then
+              [ "$(uploaded)" = "$expected" ] || {
+                echo "The published GitHub Release $TAG does not carry exactly the files the plan names: ${RELEASE_FILES:-none}" >&2
+                exit 1
+              }
+              echo "The GitHub Release $TAG is already published with the files the plan names"
+              exit 0
+            fi
+            gh release delete "$TAG" --yes
+          elif ! grep --quiet --line-regexp 'release not found' "$RUNNER_TEMP/release-view.err"; then
+            cat "$RUNNER_TEMP/release-view.err" >&2
+            exit 1
+          fi
+          options=(--draft --verify-tag --title "$TITLE" --notes-file "$RUNNER_TEMP/notes.md" --generate-notes --prerelease="$PRERELEASE")
+          [ -z "$NOTES_START_TAG" ] || options+=(--notes-start-tag "$NOTES_START_TAG")
+          gh release create "$TAG" "${options[@]}" "${files[@]}"
+          [ "$(uploaded)" = "$expected" ] || {
+            echo "The draft of $TAG does not list every file the plan names as uploaded, so it stays a draft: ${RELEASE_FILES:-none}" >&2
+            exit 1
+          }
+          gh release edit "$TAG" --draft=false --latest="$MOVE_RELEASE"
