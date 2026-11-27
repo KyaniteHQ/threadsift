@@ -1,14 +1,9 @@
 import { browser } from "wxt/browser";
 import { z } from "zod";
 
-import {
-  FILL_DATA,
-  REDDIT_HOSTS,
-  holdsRedditConnect,
-  hostPattern,
-  instanceOrigin,
-} from "./config.ts";
+import { REDDIT_HOSTS, holdsRedditConnect, hostPattern, instanceOrigin } from "./config.ts";
 import { settleFill, stored } from "./credentials.ts";
+import { FILL_DATA } from "./fill-access.ts";
 import { logFailure } from "./log.ts";
 import { oneAtATime } from "./one-at-a-time.ts";
 

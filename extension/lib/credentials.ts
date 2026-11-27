@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 
-import { type Config, holdsFillAccess, instanceOrigin } from "./config.ts";
+import { type Config, instanceOrigin } from "./config.ts";
+import { holdsFillAccess } from "./fill-access.ts";
 import { logFailure } from "./log.ts";
 import type { ConfigView } from "./state.ts";
 import { type Stored, StoredSchema } from "./stored-keys.ts";

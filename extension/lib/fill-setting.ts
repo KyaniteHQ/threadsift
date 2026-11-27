@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 
-import { FILL_PERMISSIONS, requestAccess } from "./config.ts";
+import { requestAccess } from "./config.ts";
+import { FILL_PERMISSIONS } from "./fill-access.ts";
 import { askConfigView, requestChange } from "./settings.ts";
 
 export type FillState =
