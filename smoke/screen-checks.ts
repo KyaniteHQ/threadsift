@@ -1,5 +1,7 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
+import { SETTINGS_GEAR_LABEL } from "../web/src/text.ts";
+
 const PHONE = { width: 390, height: 844 };
 
 const TARGET_PX = 44;
@@ -25,9 +27,13 @@ export async function atPhoneWidth(page: Page, steps: () => Promise<void>): Prom
   }
 }
 
+export async function openPanel(page: Page): Promise<void> {
+  await page.getByRole("button", { name: SETTINGS_GEAR_LABEL, exact: true }).click();
+}
+
 export async function openSettings(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: "Display settings", exact: true }).click();
+  await openPanel(page);
 }
 
 export async function expectNoSidewaysScroll(page: Page): Promise<void> {

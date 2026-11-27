@@ -2,7 +2,7 @@ import { type Page, expect } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { GROK_BOT_TEXT } from "../web/src/grok-bot-text.ts";
-import { expectFitsPhone } from "./screen-checks.ts";
+import { expectFitsPhone, openSettings } from "./screen-checks.ts";
 
 const ADDRESS = "https://api2.cursor.sh/automations/webhook/00000000-0000-4000-8000-000000000000";
 
@@ -20,8 +20,7 @@ const addressField = (page: Page) => page.getByLabel(GROK_BOT_TEXT.addressLabel)
 const keyField = (page: Page) => page.getByLabel(GROK_BOT_TEXT.keyLabel);
 
 async function openSection(page: Page): Promise<void> {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Display settings", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await expect(page.getByRole("heading", { name: GROK_BOT_TEXT.sectionTitle })).toBeVisible();
 }

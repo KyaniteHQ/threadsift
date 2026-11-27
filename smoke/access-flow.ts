@@ -2,6 +2,7 @@ import { type Page, expect } from "@playwright/test";
 import { z } from "zod";
 
 import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
+import { openPanel } from "./screen-checks.ts";
 
 const PASSWORD = "a smoke password of fifteen or more";
 
@@ -27,7 +28,7 @@ export async function setUp(page: Page): Promise<void> {
 }
 
 export async function signOutAndIn(page: Page): Promise<void> {
-  await page.getByRole("button", { name: "Display settings", exact: true }).click();
+  await openPanel(page);
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await page.getByRole("button", { name: SETTINGS.signOut }).click();
   await expect(page).toHaveTitle("Sign in to Threadsift");
