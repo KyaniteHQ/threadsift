@@ -60,7 +60,7 @@ The container sets them in `webRoutes` and compresses with Hono's `compress` mid
 
 ### Storage and the root
 
-All twelve settings are one JSON object in `localStorage` under `STORAGE_KEY`. `readStored` checks each key on its own, so one bad value falls back alone.
+All twelve settings are one JSON object in `localStorage` under `STORAGE_KEY`. `readStored` checks each key on its own, so one bad value falls back alone. Each tab writes the whole object, so `useSettings` takes the stored object again on every `storage` event for that key from another tab. A tab therefore never writes back a value that another tab replaced, and a Layout change from another tab closes the open Item as one from the panel does.
 
 `html` carries the same `data-theme`, `data-style` and `data-layout` as the app root (the rows marked `onPage`), so the page canvas resolves the same `--bg` in every Layout and Theme. A blocking classic script (no `defer`, `async` or `type=module`) sets those attributes from the stored object before the first paint, so a stored Dark never draws a Light frame. The build emits it as the hashed file `/assets/theme-script-<hash>.js`, linked from `index.html`. The Content-Security-Policy then needs no inline-script hash and no `'unsafe-inline'` for scripts. The cost is one request before the first paint, which the immutable cache answers on every later load.
 

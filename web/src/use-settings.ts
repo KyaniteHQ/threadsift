@@ -21,6 +21,7 @@ import {
 } from "../../design/system/settings.ts";
 import { facesOf, loadFaces } from "../../design/system/style-faces.ts";
 import { MATCH_SYSTEM_NOTES } from "./text.ts";
+import { useLatest } from "./use-latest.ts";
 
 function readStorage(): string | null {
   try {
@@ -65,6 +66,20 @@ function usePageAttributes(attributes: Readonly<Record<string, string>>): void {
   }, [attributes]);
 }
 
+function useStoredElsewhere(adopt: (next: Settings) => void): void {
+  useEffect(() => {
+    const onStorage = ({ key }: Readonly<Pick<StorageEvent, "key">>): void => {
+      if (key === STORAGE_KEY || key === null) adopt(storedSettings());
+    };
+
+    window.addEventListener("storage", onStorage);
+
+    return () => {
+      window.removeEventListener("storage", onStorage);
+    };
+  }, [adopt]);
+}
+
 export function useSettings(onLayoutChange: () => void, initial: Settings) {
   const [settings, setSettings] = useState(initial);
   const isDark = useSyncExternalStore(subscribeToDeviceScheme, deviceIsDark);
@@ -75,20 +90,32 @@ export function useSettings(onLayoutChange: () => void, initial: Settings) {
 
   usePageAttributes(attributes);
 
-  const apply = useCallback((next: Settings) => {
-    setSettings(next);
-    writeStorage(serialize(next));
-  }, []);
+  const latest = useLatest(settings);
+
+  const adopt = useCallback(
+    (next: Settings) => {
+      if (next.layout !== latest.current.layout) onLayoutChange();
+
+      setSettings(next);
+    },
+    [latest, onLayoutChange],
+  );
+
+  useStoredElsewhere(adopt);
+
+  const apply = useCallback(
+    (next: Settings) => {
+      adopt(next);
+      writeStorage(serialize(next));
+    },
+    [adopt],
+  );
 
   const pick = useCallback(
     (key: SettingKey, id: string) => {
-      const next = choose(settings, key, id);
-
-      if (next.layout !== settings.layout) onLayoutChange();
-
-      apply(next);
+      apply(choose(settings, key, id));
     },
-    [apply, onLayoutChange, settings],
+    [apply, settings],
   );
 
   const reset = useCallback(() => {
