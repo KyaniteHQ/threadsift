@@ -161,7 +161,7 @@ A library change writes its Log entry in the guarded batch that commits the chan
 
 Rows come newest first by `id`, so a clock that steps back cannot reorder them. The route does not check that an entry with the cursor's `id` exists, so a cursor stays valid after its entry is deleted with an Item.
 
-A line starts with the browser's local date as `YYYY-MM-DD` and the time of day as 24-hour `HH:MM`. Both are text in a `<time>` element whose `datetime` is the UTC ISO time. The line has no `title`, because a tooltip cannot be opened by keyboard or touch.
+The page is one table. Its rows sit under a heading for each local day, written as `YYYY-MM-DD`, and each row shows the time of day as 24-hour `HH:MM` in a `<time>` element whose `datetime` is the UTC ISO time. A day that Load more continues stays under its first heading, because rows group by consecutive local date. The row has no `title`, because a tooltip cannot be opened by keyboard or touch. The Change column shows the words of `LOG_CHANGES`, and the Vault mirror's Markdown keeps the stored action name.
 
 ### Identity
 

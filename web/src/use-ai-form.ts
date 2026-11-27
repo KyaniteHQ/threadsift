@@ -115,11 +115,7 @@ function useVerify(view: AiView, { run, refuse }: Readonly<Pick<AiPhase, "run" |
     });
   }, [unavailable, provider, view.publicOnly, run, refuse]);
 
-  return {
-    verifyNow,
-    verifyBlocked: unavailable !== null,
-    verifyHint: view.settings === null ? (unavailable ?? undefined) : undefined,
-  };
+  return { verifyNow, verifyReason: unavailable };
 }
 
 export type SavedKey = "applies" | "changed" | "unreadable" | "none";
@@ -219,7 +215,7 @@ function useSave(
     });
   }, [unavailable, refuse, clear, run, fields, provider, view.publicOnly, clearKey, saved]);
 
-  return { submit, saveBlocked: unavailable !== null };
+  return { submit, saveReason: unavailable };
 }
 
 export function useAiForm(view: AiView, saved: (value: AiView) => void) {
@@ -227,8 +223,8 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
   const { provider, baseUrl } = fields;
   const flow = useAiPhase();
 
-  const { verifyNow, verifyBlocked, verifyHint } = useVerify(view, flow);
-  const { submit, saveBlocked } = useSave(view, fields, flow, saved);
+  const { verifyNow, verifyReason } = useVerify(view, flow);
+  const { submit, saveReason } = useSave(view, fields, flow, saved);
   const connect = useConnect(view, fields, flow);
   const savedKey = savedKeyOf(view, { provider, baseUrl: baseUrl.value });
 
@@ -240,9 +236,9 @@ export function useAiForm(view: AiView, saved: (value: AiView) => void) {
     savedKey,
     submit,
     verifyNow,
-    saveBlocked,
-    verifyBlocked,
-    verifyHint,
+    saveReason,
+    saveBlocked: saveReason !== null,
+    verifyReason,
     connect,
   };
 }

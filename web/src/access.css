@@ -98,9 +98,6 @@
   word-spacing: var(--dws);
   line-height: var(--lh-title);
 }
-.app .pg-title:focus {
-  outline: none;
-}
 .pg-col {
   flex: 1 0 auto;
   display: flex;
@@ -112,7 +109,6 @@
 .pg-col > p,
 .pg-col .sec > p,
 .pg-col .sec-body > p,
-.pg-col .imp-notice p,
 .rl-intro,
 .sec-head p {
   max-inline-size: var(--measure);
@@ -196,6 +192,24 @@
 .sec h2 {
   margin: 0;
 }
+.st-states {
+  margin: 0;
+  border-block-start: var(--hw) solid var(--line);
+  font-size: var(--t-meta);
+}
+.st-states > div {
+  display: grid;
+  grid-template-columns: minmax(0, var(--sec-name-w)) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--s3);
+  padding-block: var(--s2);
+  border-block-end: var(--hw) solid var(--line);
+}
+.st-states dd {
+  margin: 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
 .pg :is(p, li, legend, label) {
   text-wrap: pretty;
 }
@@ -262,6 +276,53 @@
 }
 .tok-create {
   display: flex;
+}
+.tok-scopes {
+  min-inline-size: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+.tok-scopes legend {
+  margin-block-end: var(--s2);
+  padding: 0;
+}
+.tok-scopes ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-block-start: var(--hw) solid var(--line);
+}
+.tok-scope {
+  display: grid;
+  grid-template-columns: minmax(0, var(--sec-name-w)) minmax(0, 1fr);
+  align-items: baseline;
+  gap: var(--s1) var(--s3);
+  padding-block: var(--s2);
+  border-block-end: var(--hw) solid var(--line);
+}
+.tok-scope-name {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s2);
+  justify-self: start;
+  font-weight: 600;
+  cursor: pointer;
+}
+.tok-scope-name input {
+  flex: none;
+  inline-size: var(--s4);
+  block-size: var(--s4);
+  margin: 0;
+}
+.app[data-bp~="narrow"] .tok-scope {
+  grid-template-columns: minmax(0, 1fr);
+}
+.app[data-bp~="narrow"] .tok-scope .fld-help {
+  padding-inline-start: calc(var(--s4) + var(--s2));
+}
+.app[data-bp~="phone"] .tok-scope-name {
+  min-block-size: var(--target);
 }
 .app[data-bp~="phone"] .tok-create .btn {
   flex: 1;

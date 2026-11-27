@@ -51,7 +51,8 @@ export const AI_TEXT = {
   codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in in this container.",
   codexModelHelp:
     "If you set only an effort, Threadsift uses the first visible model in Codex’s bundled catalog.",
-  codexCatalogHelp: "Any model you enter must be listed by codex debug models --bundled.",
+  codexCatalogHelp:
+    "Codex runs only models in its bundled catalog; codex debug models --bundled prints that catalog.",
   codexSignedOut:
     "Codex isn’t signed in. Run {command} in this instance’s container, then reload this page.",
   codexSignInCommand: "codex login --device-auth",
@@ -63,7 +64,7 @@ export const AI_TEXT = {
     "Codex rejected its sign-in. Run {command} in the container, then press Verify again.",
   baseUrl: "Base URL",
   cliChoice: "Model and effort",
-  customMissing: "Enter a model or effort level.",
+  customMissing: "Choose a model or effort.",
   recommendationFallback:
     "The installed CLI doesn’t support the recommended model and effort. It uses its defaults until it does.",
   cliChoices: {
@@ -108,7 +109,8 @@ export const AI_TEXT = {
   keyChanged: "Enter an API key to save changes to Provider or Base URL.",
   keyUnreadable:
     "This instance can no longer open the saved API key. Enter the API key again and save to replace it, or restore the original THREADSIFT_SECRET_KEY and reload this page.",
-  keyHelp: "Leave blank to keep the saved key. Enter a key if you change Provider or Base URL.",
+  keyHelpUrl: "Leave blank to keep the saved key. Enter a key if you change Provider or Base URL.",
+  keyHelp: "Leave blank to keep the saved key. Enter a key if you change Provider.",
   connect: "Connect",
   connecting: "Connecting…",
   connectHelp:

@@ -98,26 +98,45 @@ function ReaderChoice({
   );
 }
 
-function CliRows({ view }: Readonly<{ view: XSettingsView }>) {
+function State({ name, children }: Readonly<{ name: string; children: string }>) {
+  return (
+    <div>
+      <dt className="label">{name}</dt>
+      <dd>{children}</dd>
+    </div>
+  );
+}
+
+function CliStates({ view }: Readonly<{ view: XSettingsView }>) {
+  if (view.state === "worker") return null;
+
+  return (
+    <>
+      <State name={X_TEXT.cliLabel}>{X_STATES[view.state]}</State>
+      {view.version === null ? null : <State name={X_TEXT.versionLabel}>{view.version}</State>}
+      {view.refusedUpdate === null ? null : (
+        <State name={X_TEXT.refusedLabel}>{view.refusedUpdate.version}</State>
+      )}
+    </>
+  );
+}
+
+function States({ view }: Readonly<{ view: XSettingsView }>) {
+  return (
+    <dl className="st-states">
+      <State name={X_TEXT.botLabel}>{BOT_STATES[view.bot]}</State>
+      <CliStates view={view} />
+    </dl>
+  );
+}
+
+function CliNotes({ view }: Readonly<{ view: XSettingsView }>) {
   if (view.state === "worker") return <p>{X_TEXT.noteWorker}</p>;
 
   return (
     <>
-      <p>
-        {X_TEXT.cliLabel}: {X_STATES[view.state]}
-      </p>
-      {view.version === null ? null : (
-        <p>
-          {X_TEXT.versionLabel}: {view.version}
-        </p>
-      )}
       {view.refusedUpdate === null ? null : (
-        <>
-          <p>
-            {X_TEXT.refusedLabel}: {view.refusedUpdate.version}
-          </p>
-          <p className="fld-help">{REFUSED_REASONS[view.refusedUpdate.reason]}</p>
-        </>
+        <p className="fld-help">{REFUSED_REASONS[view.refusedUpdate.reason]}</p>
       )}
       <Note view={view} />
       {view.fetcher === null ? null : <p className="fld-help">{X_TEXT.noteSearch}</p>}
@@ -132,10 +151,8 @@ function XRows({
   return (
     <>
       <ReaderChoice view={view} changed={changed} />
-      <p>
-        {X_TEXT.botLabel}: {BOT_STATES[view.bot]}
-      </p>
-      <CliRows view={view} />
+      <States view={view} />
+      <CliNotes view={view} />
     </>
   );
 }

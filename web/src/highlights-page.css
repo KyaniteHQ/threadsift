@@ -23,10 +23,6 @@
   overflow-wrap: anywhere;
   white-space: pre-wrap;
 }
-blockquote.hp-text {
-  padding-inline-start: var(--s3);
-  border-inline-start: 2px solid var(--line-2);
-}
 .hp-gone {
   margin: 0;
 }

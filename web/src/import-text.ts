@@ -9,8 +9,11 @@ import { RETRY_LABEL } from "./text.ts";
 export const IMPORT = {
   settingsLink: "Import",
   title: "Import",
-  lede: "Paste one link per line, or choose a .csv or .txt file. A Reddit saved_posts.csv works as it is, and other CSV files can use a permalink or url column.",
   boxLabel: "Links",
+  boxHint: "Paste one link per line.",
+  fileLabel: "From a file",
+  fileHint:
+    "Threadsift reads links from a .csv or .txt file into the Links field. A Reddit saved_posts.csv works as it is. Other CSV files need a permalink or url column.",
   fileButton: "Choose file",
   fileFailed: "Couldn’t read the file.",
   noLinks: "No links found",

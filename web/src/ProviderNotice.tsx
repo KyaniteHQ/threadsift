@@ -8,7 +8,7 @@ export function ProviderNotice() {
   if (notice.kind === "none") return null;
 
   return (
-    <div className="sec imp-notice">
+    <div className="flat-note imp-notice">
       <p>{notice.kind === "plan" ? planNoticeLabel(notice.provider) : IMPORT.noProvider}</p>
       <AiSettingsLink />
     </div>

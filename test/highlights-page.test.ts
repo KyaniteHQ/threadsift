@@ -62,7 +62,7 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
 
   after(() => instance.close());
 
-  it("lists each Highlight and each Note newest first with its Item's Source, title and saved date, and no entry for a cleared Note", async () => {
+  it("lists each Highlight and each Note newest first with its Item's Source, title and saved date, counts each kind, and has no entry for a cleared Note", async () => {
     const page = await pageOf(instance);
 
     assert.deepEqual(entryLines(page), [
@@ -74,6 +74,8 @@ describe("the Highlights page lists every Highlight and every Item Note newest f
     ]);
     assert.equal(page.next, null);
     assert.equal(page.counts.total, 5);
+    assert.equal(page.counts.highlights, 3);
+    assert.equal(page.counts.notes, 2);
 
     const items = await Promise.all([alpha, beta, thread].map((id) => instance.detail(id)));
 

@@ -1,11 +1,12 @@
 import { type MouseEvent, type ReactNode, useCallback, useRef } from "react";
 
-import { EmptyState, Skeleton } from "./ListBody.tsx";
+import { Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
+import { PageEmpty } from "./PageEmpty.tsx";
 import { PageFrame } from "./PageFrame.tsx";
 import type { PagedPage } from "./read-through.ts";
 import { RetryNotice } from "./RetryRegions.tsx";
-import { useFocusNewRows } from "./use-focus-new-rows.ts";
+import { type LoadedRows, useFocusNewRows } from "./use-focus-new-rows.ts";
 import type { Paged, PagedReady } from "./use-paged-read.ts";
 
 interface ListText {
@@ -20,6 +21,7 @@ interface ListText {
 export interface Listing<Page extends PagedPage, Row> {
   readonly text: ListText;
   readonly focus: string;
+  readonly rowSelector?: string;
   readonly head: (ready: PagedReady<Page>) => string;
   readonly intro?: string;
   readonly emptyLine: (ready: PagedReady<Page>) => string;
@@ -33,9 +35,44 @@ interface Source<Page extends PagedPage> {
   readonly loadMore: () => void;
 }
 
-interface Shown<Page extends PagedPage, Row> {
-  readonly listing: Listing<Page, Row>;
-  readonly draw: (row: Row) => ReactNode;
+export interface FrameProps<Row> {
+  readonly rows: readonly Row[];
+  readonly listRef: (node: HTMLElement | null) => void;
+}
+
+type Drawn<Row> =
+  | { readonly draw: (row: Row) => ReactNode; readonly Frame?: never }
+  | { readonly Frame: (props: Readonly<FrameProps<Row>>) => ReactNode; readonly draw?: never };
+
+type Shown<Page extends PagedPage, Row> = { readonly listing: Listing<Page, Row> } & Drawn<Row>;
+
+function RowList<Row>({
+  rows,
+  listRef,
+  draw,
+}: Readonly<FrameProps<Row> & { draw: (row: Row) => ReactNode }>) {
+  return (
+    <ol ref={listRef} role="list" className="rl-list">
+      {rows.map((row) => draw(row))}
+    </ol>
+  );
+}
+
+function useRowFocus<Page extends PagedPage, Row>(
+  listing: Listing<Page, Row>,
+  loaded: Readonly<LoadedRows>,
+) {
+  const list = useRef<HTMLElement>(null);
+  const expectFocus = useFocusNewRows(list, loaded, {
+    link: listing.focus,
+    row: listing.rowSelector,
+  });
+
+  const listRef = useCallback((node: HTMLElement | null) => {
+    list.current = node;
+  }, []);
+
+  return { listRef, expectFocus };
 }
 
 function Rows<Page extends PagedPage, Row>({
@@ -43,10 +80,11 @@ function Rows<Page extends PagedPage, Row>({
   loadMore,
   listing,
   draw,
+  Frame,
 }: Readonly<{ ready: PagedReady<Page>; loadMore: () => void } & Shown<Page, Row>>) {
-  const list = useRef<HTMLOListElement>(null);
-  const { length } = listing.rows(ready);
-  const expectFocus = useFocusNewRows(list, { count: length, more: ready.more }, listing.focus);
+  const rows = listing.rows(ready);
+  const { length } = rows;
+  const { listRef, expectFocus } = useRowFocus(listing, { count: length, more: ready.more });
 
   const more = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
@@ -65,9 +103,11 @@ function Rows<Page extends PagedPage, Row>({
         <p className="label">{listing.text.sort}</p>
       </header>
       {listing.intro === undefined ? null : <p className="rl-intro">{listing.intro}</p>}
-      <ol ref={list} role="list" className="rl-list">
-        {listing.rows(ready).map((row) => draw(row))}
-      </ol>
+      {Frame === undefined ? (
+        <RowList rows={rows} listRef={listRef} draw={draw} />
+      ) : (
+        <Frame rows={rows} listRef={listRef} />
+      )}
       {ready.next === null ? null : (
         <LoadMore
           more={ready.more}
@@ -83,9 +123,10 @@ function Rows<Page extends PagedPage, Row>({
 function Body<Page extends PagedPage, Row>({
   state,
   loadMore,
-  listing,
-  draw,
+  ...shown
 }: Readonly<{ state: Paged<Page>; loadMore: () => void } & Shown<Page, Row>>) {
+  const { listing } = shown;
+
   switch (state.status) {
     case "loading":
       return <Skeleton label={listing.text.loading} row="rl-row" title="rl-title" />;
@@ -93,14 +134,11 @@ function Body<Page extends PagedPage, Row>({
       return null;
     case "ready":
       return listing.rows(state).length === 0 ? (
-        <>
-          {listing.intro === undefined ? null : <p className="rl-intro">{listing.intro}</p>}
-          <EmptyState heading={listing.text.emptyHeading} line={listing.emptyLine(state)}>
-            {listing.emptyFoot?.(state)}
-          </EmptyState>
-        </>
+        <PageEmpty heading={listing.text.emptyHeading} line={listing.emptyLine(state)}>
+          {listing.emptyFoot?.(state)}
+        </PageEmpty>
       ) : (
-        <Rows ready={state} loadMore={loadMore} listing={listing} draw={draw} />
+        <Rows ready={state} loadMore={loadMore} {...shown} />
       );
     default:
       return state satisfies never;
@@ -109,11 +147,11 @@ function Body<Page extends PagedPage, Row>({
 
 export function ListPage<Page extends PagedPage, Row>({
   source,
-  listing,
-  draw,
   notice = null,
+  ...shown
 }: Readonly<{ source: Source<Page>; notice?: string | null } & Shown<Page, Row>>) {
   const { state, retry, loadMore } = source;
+  const { listing } = shown;
   const loading = state.status === "loading";
 
   const retryLoad = useCallback(() => {
@@ -129,7 +167,7 @@ export function ListPage<Page extends PagedPage, Row>({
           text={listing.text.loadFailed}
           action={retryLoad}
         />
-        <Body state={state} loadMore={loadMore} listing={listing} draw={draw} />
+        <Body state={state} loadMore={loadMore} {...shown} />
       </main>
     </PageFrame>
   );

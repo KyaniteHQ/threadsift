@@ -6,7 +6,7 @@ export const REDDIT_TEXT = {
   optionOn: "On",
   optionOff: "Off",
   stateOn:
-    "For a Reddit link added without the extension, Threadsift asks the public Arctic Shift archive for the post and comments unless a connected Reddit account reads it. If that fails, the link stays a link-only item.",
+    "A connected Reddit account reads the link first. Without one, or if the account fails, Threadsift asks the archive. If that fails, the link stays a link-only item.",
   stateOff:
     "A Reddit link added without the extension stays a link-only item unless a connected Reddit account reads it. Use the extension to save the thread.",
   loadFailed: "Couldn’t load the Reddit archive fill setting. Reload the page.",

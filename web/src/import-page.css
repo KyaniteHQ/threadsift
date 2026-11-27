@@ -1,9 +1,33 @@
 .imp-col {
   gap: var(--s5);
 }
-.imp-list,
+.imp-form {
+  display: flex;
+  flex-direction: column;
+  max-inline-size: var(--import-form-w);
+}
+.imp-part {
+  display: flex;
+  flex-direction: column;
+  gap: var(--s2);
+}
+.imp-part + .imp-part {
+  margin-block-start: var(--s5);
+  padding-block-start: var(--s5);
+  border-block-start: var(--hw) solid var(--line);
+}
+.imp-part p {
+  margin: 0;
+}
+.imp-part .imp-box,
+.imp-part .imp-actions {
+  margin-block-start: var(--s1);
+}
 .imp-run {
   gap: var(--s3);
+}
+.imp-notice {
+  max-inline-size: var(--import-form-w);
 }
 .imp-run[data-idle="true"] {
   margin-block-start: calc(var(--s5) * -1);
@@ -15,9 +39,6 @@
 }
 .imp-status p {
   margin: 0;
-}
-.imp-lede {
-  color: var(--text);
 }
 .imp-box {
   display: block;
@@ -50,7 +71,6 @@
 .app[data-bp~="phone"] .imp-box {
   font-size: max(var(--t-floor), var(--t-body));
 }
-.imp-file,
 .imp-actions {
   display: flex;
   flex-wrap: wrap;
@@ -65,17 +85,7 @@
   display: flex;
   flex-direction: column;
   gap: var(--s3);
-}
-.imp-skipped,
-.imp-notice {
-  display: flex;
-  flex-direction: column;
-  gap: var(--s2);
-  padding-inline-start: var(--s3);
-  border-inline-start: 2px solid var(--line-2);
-}
-.imp-notice .fl-link {
-  padding-inline: 0;
+  font-size: var(--t-body);
 }
 .imp-lines {
   display: flex;
@@ -120,7 +130,6 @@
 .imp-bar::-moz-progress-bar {
   background: var(--acc);
 }
-.imp-progress,
 .imp-counts {
   font-variant-numeric: tabular-nums;
 }

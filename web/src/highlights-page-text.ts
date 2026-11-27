@@ -10,7 +10,7 @@ export const HIGHLIGHTS_PAGE = {
   loadFailed: "Couldn’t load highlights and notes.",
   emptyHeading: "No highlights or notes yet",
   emptyLine:
-    "In the reader, select a passage and choose Keep to add a highlight, or write in the Note box.",
+    "Highlights and notes from the reader appear here; select a passage and choose Keep, or write in the Note box.",
   sort: NEWEST_FIRST,
   noResults: "No highlights or notes match",
   kindHighlight: "Highlight",

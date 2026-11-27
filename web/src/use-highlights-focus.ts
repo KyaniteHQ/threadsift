@@ -29,5 +29,5 @@ export function useFocusNewEntries(
   list: RefObject<HTMLOListElement | null>,
   rows: Readonly<LoadedRows>,
 ): (from: number | null) => void {
-  return useFocusNewRows(list, rows, ENTRIES.links);
+  return useFocusNewRows(list, rows, { link: ENTRIES.links });
 }

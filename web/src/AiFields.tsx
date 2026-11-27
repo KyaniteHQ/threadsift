@@ -83,6 +83,10 @@ function modelHelp({ provider, recommendation }: Fields): string | undefined {
   return provider === "workers-ai" ? AI_TEXT.workersAiHelp : undefined;
 }
 
+function keyHelp(provider: Provider): string {
+  return "baseUrl" in PROVIDERS[provider].fields ? AI_TEXT.keyHelpUrl : AI_TEXT.keyHelp;
+}
+
 function helpFor(
   name: keyof typeof FIELD_KINDS,
   fields: Fields,
@@ -90,7 +94,7 @@ function helpFor(
 ) {
   if (name === "effort") return AI_TEXT.effortHelp;
 
-  if (name === "key") return savedKey === "unreadable" ? undefined : AI_TEXT.keyHelp;
+  if (name === "key") return savedKey === "applies" ? keyHelp(fields.provider) : undefined;
 
   if (name === "model") return modelHelp(fields);
 

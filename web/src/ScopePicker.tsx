@@ -23,28 +23,32 @@ function ScopeOption({
   scope,
   checked,
   toggle,
-  hintId,
-}: Readonly<{ scope: Scope; checked: boolean; toggle: (scope: Scope) => void; hintId: string }>) {
+}: Readonly<{ scope: Scope; checked: boolean; toggle: (scope: Scope) => void }>) {
   const id = useId();
+  const hintId = useId();
 
   const change = useCallback(() => {
     toggle(scope);
   }, [toggle, scope]);
 
   return (
-    <label className="st-b" htmlFor={id}>
-      <input
-        id={id}
-        type="checkbox"
-        className="st-in"
-        name="token-scope"
-        value={scope}
-        checked={checked}
-        aria-describedby={hintId}
-        onChange={change}
-      />
-      {SCOPE_LABELS[scope]}
-    </label>
+    <li className="tok-scope">
+      <label className="tok-scope-name" htmlFor={id}>
+        <input
+          id={id}
+          type="checkbox"
+          name="token-scope"
+          value={scope}
+          checked={checked}
+          aria-describedby={hintId}
+          onChange={change}
+        />
+        {SCOPE_LABELS[scope]}
+      </label>
+      <p id={hintId} className="fld-help">
+        {SCOPE_HINTS[scope]}
+      </p>
+    </li>
   );
 }
 
@@ -53,35 +57,23 @@ export function ScopePicker({
   toggle,
   error,
 }: Readonly<{ selected: readonly Scope[]; toggle: (scope: Scope) => void; error: string | null }>) {
-  const labelId = useId();
-  const hintId = useId();
   const errorId = useId();
 
   return (
     <div className="fld">
-      <span id={labelId} className="label">
-        {SETTINGS.scopesLabel}
-      </span>
-      <fieldset
-        className="st-seg"
-        aria-labelledby={labelId}
-        aria-describedby={error === null ? undefined : errorId}
-      >
-        {SCOPES.map((scope) => (
-          <ScopeOption
-            key={scope}
-            scope={scope}
-            checked={selected.includes(scope)}
-            toggle={toggle}
-            hintId={`${hintId}-${scope}`}
-          />
-        ))}
+      <fieldset className="tok-scopes" aria-describedby={error === null ? undefined : errorId}>
+        <legend className="label">{SETTINGS.scopesLabel}</legend>
+        <ul role="list">
+          {SCOPES.map((scope) => (
+            <ScopeOption
+              key={scope}
+              scope={scope}
+              checked={selected.includes(scope)}
+              toggle={toggle}
+            />
+          ))}
+        </ul>
       </fieldset>
-      {SCOPES.map((scope) => (
-        <p key={scope} id={`${hintId}-${scope}`} className="fld-help">
-          {SCOPE_HINTS[scope]}
-        </p>
-      ))}
       <p id={errorId} className="fld-err" role="alert">
         {error}
       </p>

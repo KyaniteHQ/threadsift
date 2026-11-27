@@ -23,7 +23,7 @@ export function LostHighlightBody({ proposal }: Readonly<{ proposal: LostHighlig
           {item.title === null ? HIGHLIGHTS_PAGE.untitled : <bdi dir="auto">{item.title}</bdi>}
         </InternalLink>
       </p>
-      <blockquote id={quoteId} className="pr-quote" dir="auto">
+      <blockquote id={quoteId} className="pr-quote flat-note" dir="auto">
         <QuoteText text={highlight.quote} />
       </blockquote>
       <p className="rd-note pr-gone">{NOT_FOUND}</p>

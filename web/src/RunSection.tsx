@@ -132,7 +132,7 @@ function actionOf(
   };
 }
 
-export function RunSection({
+export function RunAction({
   check,
   links,
   run,
@@ -145,27 +145,35 @@ export function RunSection({
   runner: ImportRun;
   retry: () => void;
 }>) {
-  const total = links.length;
-  const idle = check.status === "none";
-  const action = idle ? null : actionOf(check, run, links, runner, retry);
+  if (check.status === "none") return null;
+
+  const action = actionOf(check, run, links, runner, retry);
+
+  return (
+    <div className="imp-actions">
+      <button
+        type="button"
+        className={action.accent ? "btn btn-acc" : "btn"}
+        aria-disabled={action.press === null}
+        onClick={action.press ?? undefined}
+      >
+        {action.label}
+      </button>
+    </div>
+  );
+}
+
+export function RunStatus({
+  check,
+  run,
+  total,
+}: Readonly<{ check: Check; run: RunState; total: number }>) {
   const progress = progressOf(run);
   const alert = alertOf(check, run, total);
   const line = lineOf(check, run, total);
 
   return (
-    <div className="sec imp-run" data-idle={idle}>
-      {action === null ? null : (
-        <div className="imp-actions">
-          <button
-            type="button"
-            className={action.accent ? "btn btn-acc" : "btn"}
-            aria-disabled={action.press === null}
-            onClick={action.press ?? undefined}
-          >
-            {action.label}
-          </button>
-        </div>
-      )}
+    <div className="sec imp-run" data-idle={progress === null && alert === null && line === null}>
       {progress === null ? null : <Meter progress={progress} total={total} />}
       <Alert text={alert} />
       <output className="imp-status">
