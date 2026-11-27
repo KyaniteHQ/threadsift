@@ -174,7 +174,7 @@ Rows and the Reader appear when their data arrives, and the page accepts reflow 
 
 ### Loading and staleness
 
-When `useItemDetail` fails to read `GET /api/items/:id` again and the Reader still holds an answer for the same Item, it keeps the body and marks it `stale`. The Reader then shows `READER_STALE` and Try again above the Summary, so the header (from the list) and a body from an earlier read are never shown as one current Item.
+When `useItemDetail` fails to read `GET /api/items/:id` again and the Reader still holds an answer for the same Item, it keeps the body and marks it `stale`. The Reader then shows `READER_STALE` and Try again above the Summary, so the header (from the list) and a body from an earlier read are never shown as one current Item. Try again on that line keeps the body while it reads, so a read that fails again leaves the Reader stale with the body, and only Try again on the failed line, which holds no body, shows the loading state.
 
 ### Reading place
 

@@ -55,7 +55,7 @@ function useActions(
   noteEdit: () => void,
 ): DetailActions {
   const retry = useCallback(() => {
-    setAnswer(null);
+    setAnswer((was) => (was?.state.status === "ready" ? was : null));
     setAttempt((now) => now + 1);
   }, [setAnswer, setAttempt]);
 
