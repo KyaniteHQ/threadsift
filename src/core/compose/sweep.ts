@@ -43,7 +43,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
   ];
 }
 
-const WHILE_RESTORING: ReadonlySet<string> = new Set(["enqueue", "restores"]);
+const WHILE_RESTORING: ReadonlySet<string> = new Set(["enqueue", "exports", "restores"]);
 
 export async function sweep(ports: JobPorts): Promise<void> {
   let first: { readonly error: unknown } | undefined;

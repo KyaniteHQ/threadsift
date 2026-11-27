@@ -255,7 +255,7 @@ The sweep runs its stages one after another. The re-queue of due jobs comes firs
 | `restores` | cleans Restore parts |
 | `files` | runs one page of the file cleanup (`cleanFiles`; [Files](files.md)) |
 
-While a Restore runs or has failed with `gave-up`, only `enqueue` and `restores` run.
+While a Restore holds the library (`HOLDS_LIBRARY`; [Export, backup and restore](export-backup-and-restore.md), While it runs), only `enqueue`, `exports` and `restores` run, because they write no library record.
 
 ## Container restart
 
