@@ -13,11 +13,10 @@ import {
   STUB_TEXTS,
   handleOf,
 } from "../../src/core/contract/reader-text.ts";
-import { SETTINGS } from "./access-text.ts";
+import { AiSettingsLink } from "./AiSettingsLink.tsx";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
 import { useOpenOnReveal } from "./highlights-context.ts";
-import { InternalLink } from "./InternalLink.tsx";
 import { PostTextView } from "./post-text-module.ts";
 import {
   ALL_REMOVED,
@@ -30,7 +29,6 @@ import {
   isSameHandle,
   scoreLabel,
 } from "./reader-text.ts";
-import { SETTINGS_PATH } from "./routing.ts";
 
 function depthStyle(depth: number): CSSProperties {
   return Object.fromEntries([["--d", depth]]);
@@ -145,7 +143,7 @@ function Stub({ kind }: Readonly<{ kind: keyof typeof STUB_TEXTS }>) {
   return (
     <div className="cm-stub">
       <span className="cm-av" aria-hidden="true" />
-      <span className="cm-ctx">{CONTEXT_LABEL}</span>
+      {kind === "more" ? null : <span className="cm-ctx">{CONTEXT_LABEL}</span>}
       <span className="cm-prev" title={text}>
         {text}
       </span>
@@ -260,11 +258,7 @@ function CommentTree({
         {counts === null ? null : <p className="rd-count">{countLabel(counts, "heading")}</p>}
       </div>
       {note === null ? null : <p className="rd-note">{note}</p>}
-      {needsProvider ? (
-        <InternalLink className="fl-link" to={SETTINGS_PATH}>
-          {SETTINGS.instanceSettings}
-        </InternalLink>
-      ) : null}
+      {needsProvider ? <AiSettingsLink /> : null}
       {branches.length === 0 ? null : <Branches branches={branches} owner={item} first />}
     </section>
   );

@@ -8,8 +8,9 @@ export const TOPIC_PAGE = {
   overviewNone: "No overview yet",
   writeOverview: "Write overview",
   noProvider:
-    "Set a provider in Instance settings so Threadsift can write an overview. This topic’s items still appear on this page.",
+    "Save a provider so Threadsift can write an overview. This topic’s items still show on this page.",
   builtFromOne: "Built from 1 item",
+  builtFromNoneOfOne: "Built from 0 of 1 item",
   notInOverview: "Not in overview yet",
   loading: "Loading topic…",
   loadFailed: "Couldn’t load this topic.",
@@ -30,7 +31,7 @@ const CITATION_LABEL = "Open item: {title}";
 const TOPIC_LINK = "{name}, topic page";
 
 export function builtFromLabel(built: number, total: number): string {
-  if (total === 1) return TOPIC_PAGE.builtFromOne;
+  if (total === 1) return built === 1 ? TOPIC_PAGE.builtFromOne : TOPIC_PAGE.builtFromNoneOfOne;
 
   const values = { built: String(built), total: String(total) };
 
