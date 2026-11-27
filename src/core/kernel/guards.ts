@@ -4,7 +4,7 @@ import { type SQLiteTable, check, integer, sqliteTable } from "drizzle-orm/sqlit
 
 import type { Database } from "./database.ts";
 
-const REFUSED_AS = { write: 0, restore: 2, outcome: 3 } as const;
+const REFUSED_AS = { write: 0, restore: 2, outcome: 3, budget: 4 } as const;
 
 export type Refusal = keyof typeof REFUSED_AS;
 
@@ -19,6 +19,7 @@ export const guards = sqliteTable(
     check("guards_write", sql`${table.ok} <> ${refusedAs("write")}`),
     check("guards_restore", sql`${table.ok} <> ${refusedAs("restore")}`),
     check("guards_outcome", sql`${table.ok} <> ${refusedAs("outcome")}`),
+    check("guards_budget", sql`${table.ok} <> ${refusedAs("budget")}`),
   ],
 );
 
@@ -33,6 +34,7 @@ const REFUSALS = {
   write: failedCheck("write"),
   restore: failedCheck("restore"),
   outcome: failedCheck("outcome"),
+  budget: failedCheck("budget"),
 };
 
 export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<SQLWrapper>) {
@@ -44,19 +46,31 @@ export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<
   );
 }
 
+export interface GuardCheck {
+  readonly holds: Readonly<SQLWrapper>;
+  readonly refusal: Refusal;
+}
+
+export function orderedGuard(db: Database, checks: readonly Readonly<GuardCheck>[]) {
+  const refused = checks.map(
+    ({ holds, refusal }) => sql`when (${holds}) is not true then ${refusedAs(refusal)}`,
+  );
+
+  return db
+    .insert(guards)
+    .select(
+      db
+        .select({ ok: sql<number>`case ${sql.join(refused, sql` `)} else 1 end`.as("ok") })
+        .from(sql`(select 1)`),
+    );
+}
+
 export function insertGuard(
   db: Database,
   condition: Readonly<SQLWrapper>,
   refusal: Refusal = "write",
 ) {
-  return db.insert(guards).select(
-    db
-      .select({
-        ok: sql<number>`case count(*) when 1 then 1 else ${refusedAs(refusal)} end`.as("ok"),
-      })
-      .from(sql`(select 1)`)
-      .where(sql`${condition}`),
-  );
+  return orderedGuard(db, [{ holds: condition, refusal }]);
 }
 
 export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>): Promise<boolean> {
@@ -90,6 +104,8 @@ function refusalOf(cause: unknown): Refusal | null {
   if (refusedBy(cause, REFUSALS.write)) return "write";
 
   if (refusedBy(cause, REFUSALS.restore)) return "restore";
+
+  if (refusedBy(cause, REFUSALS.budget)) return "budget";
 
   return refusedBy(cause, REFUSALS.outcome) ? "outcome" : null;
 }

@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { RestoreFailure } from "../contract/restore-contract.ts";
 import type { Database } from "./database.ts";
-import { answeringRefusal, holdsNoRow, insertGuard } from "./guards.ts";
+import { type GuardCheck, answeringRefusal, holdsNoRow, orderedGuard } from "./guards.ts";
 import { HOLDING, NOTHING_WRITTEN, type Standing, standingSql } from "./restore-standing.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { STALE } from "./vault-stale.ts";
@@ -84,8 +84,12 @@ export function holdsNoRestore(db: Database) {
   return holdsNoRow(db, restoreRuns, HOLDS_LIBRARY);
 }
 
+export function restoreCheck(db: Database): GuardCheck {
+  return { holds: holdsNoRestore(db), refusal: "restore" };
+}
+
 export function restoreGuard(db: Database) {
-  return insertGuard(db, holdsNoRestore(db), "restore");
+  return orderedGuard(db, [restoreCheck(db)]);
 }
 
 export type Closed = { readonly kind: "restoring" };

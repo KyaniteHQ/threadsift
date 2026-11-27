@@ -1,4 +1,4 @@
-import { and, eq, gte, lt } from "drizzle-orm";
+import { and, eq, exists, gte, lt, sql } from "drizzle-orm";
 
 import {
   BUDGET_SPENT,
@@ -8,6 +8,7 @@ import {
 import { aliasAnswers, isRefusedLink, parseLink } from "../../../core/contract/links.ts";
 import { DAY_MS } from "../../../core/contract/time-units.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { type GuardCheck, answeringRefusal } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { agentTokens, itemAliases, items } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
@@ -56,6 +57,32 @@ export function tokenItemsToday(
   );
 }
 
+export function dailyBudgetCheck(
+  db: Database,
+  {
+    addedByToken,
+    normalizedUrl,
+    savedAt,
+  }: Readonly<{ addedByToken: number; normalizedUrl: string; savedAt: number }>,
+): GuardCheck {
+  const limit = db
+    .select({ limit: agentTokens.dailyBudget })
+    .from(agentTokens)
+    .where(eq(agentTokens.id, addedByToken));
+
+  const held = exists(
+    db
+      .select({ one: sql`1` })
+      .from(items)
+      .where(eq(items.normalizedUrl, normalizedUrl)),
+  );
+
+  return {
+    holds: sql`${held} or (${limit}) is null or ${tokenItemsToday(db, addedByToken, savedAt)} < (${limit})`,
+    refusal: "budget",
+  };
+}
+
 async function possiblyNew(db: Database, urls: readonly string[]): Promise<number> {
   const links = new Set<string>();
 
@@ -100,14 +127,16 @@ export async function withinBudget<Saved>(
 
   if (token === undefined) return { kind: "unknown-token" };
 
-  if (token.limit === null) return run();
-
   const now = Date.now();
 
-  const [added, newItems] = await Promise.all([
-    tokenItemsToday(db, caller.id, now),
-    possiblyNew(db, urls),
-  ]);
+  if (token.limit !== null) {
+    const [added, newItems] = await Promise.all([
+      tokenItemsToday(db, caller.id, now),
+      possiblyNew(db, urls),
+    ]);
 
-  return newItems > 0 && added + newItems > token.limit ? spentUntilMidnight(now) : run();
+    if (newItems > 0 && added + newItems > token.limit) return spentUntilMidnight(now);
+  }
+
+  return answeringRefusal("budget", run, spentUntilMidnight(now));
 }

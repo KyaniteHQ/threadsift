@@ -9,14 +9,16 @@ import {
   guards,
   holdsNoRow,
   insertGuard,
+  orderedGuard,
   unlessRefused,
 } from "../../../core/kernel/guards.ts";
 import { closeItemJobs } from "../../../core/kernel/job-close.ts";
 import { enqueueRows, openingJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import { restoreCheck } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
+import { dailyBudgetCheck } from "../../access/core/agent-token-budget.ts";
 import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
 import { type Settled, reopenedFetch } from "./settle.ts";
 
@@ -59,8 +61,15 @@ export function itemInsert(
     fetched?: Readonly<Settled> | undefined;
   }>,
 ) {
+  const restore = restoreCheck(db);
+
   return {
-    heldGuard: restoreGuard(db),
+    heldGuard: orderedGuard(
+      db,
+      addedByToken === null
+        ? [restore]
+        : [restore, dailyBudgetCheck(db, { addedByToken, normalizedUrl, savedAt })],
+    ),
     insert: db
       .insert(items)
       .values({ source, kind, normalizedUrl, originalUrl, savedAt, addedByToken, ...fetched })

@@ -39,7 +39,7 @@ const batchRoute = createRoute({
   responses: {
     ...accessRefusals(BATCH, BATCH_DIGEST_SCOPE),
     ...budgetRefusal(
-      "The count is checked once before the first save. If the token lacks budget for every possibly new link, nothing is saved and the import cursor stays. The batch is not checked again when a held link is deleted or midnight passes. Two concurrent requests can both pass the check and exceed the limit by one request's links.",
+      "The count is checked once before the first save. If the token lacks budget for every possibly new link, nothing is saved and the import cursor stays. Each new Item is checked again as it is saved, so concurrent requests of one token never pass the limit together: when another request used the budget first, the links saved before the refused one stay saved and the import cursor stays.",
     ),
     200: jsonBody(
       BatchResponseSchema,
