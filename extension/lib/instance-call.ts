@@ -20,14 +20,14 @@ const FIREFOX_ERRORS: ErrorTable = [
   [/^(?!NS_)\S/u, "secure-connection-failed"],
 ];
 
-const BROWSER_ERRORS = import.meta.env.FIREFOX ? FIREFOX_ERRORS : CHROMIUM_ERRORS;
-
 const ErrorTextSchema = z.string().min(1);
 
 function failureOf(error: string | null): CallFailure {
   if (error === null) return "unknown";
 
-  return BROWSER_ERRORS.find(([pattern]) => pattern.test(error))?.[1] ?? "unknown";
+  const table = import.meta.env.FIREFOX ? FIREFOX_ERRORS : CHROMIUM_ERRORS;
+
+  return table.find(([pattern]) => pattern.test(error))?.[1] ?? "unknown";
 }
 
 export type CallOutcome =
