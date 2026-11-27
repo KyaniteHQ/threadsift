@@ -416,7 +416,7 @@ Each agent token carries scopes that limit what it calls:
 | `delete` | Delete an Item. |
 | `reddit` | Connect and disconnect the Reddit account through `/api/reddit-account` (reading it there needs `read`). |
 
-- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. A call outside the token's scopes answers 403.
+- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. Each scope's checkbox has its own line under the group that says what the scope allows. A call outside the token's scopes answers 403.
 
 ### Token budget
 
