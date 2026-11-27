@@ -57,7 +57,7 @@ async function call(
     event: "reddit-account-request-failed",
   });
 
-  return reply.kind === "unreached" ? "unreachable" : stateOf(reply.response);
+  return reply.kind === "failed" ? "unreachable" : stateOf(reply.response);
 }
 
 type Cookie = { readonly value: string } | { readonly state: "signed-out" | "failed" };
@@ -120,6 +120,7 @@ export function connectReddit(config: Readonly<Config> | null): Promise<RedditCo
 export function disconnectReddit(config: Readonly<Config> | null): Promise<RedditConnectState> {
   return accountWrites(() => disconnectNow(config));
 }
+
 const REDDIT_CALLS = {
   read: readRedditState,
   connect: connectReddit,

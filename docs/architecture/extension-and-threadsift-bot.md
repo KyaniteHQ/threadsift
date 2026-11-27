@@ -39,10 +39,10 @@ For an unattended load (the only written procedure for it), run these steps from
 
 ### Permissions
 
-The manifest asks for `activeTab`, `scripting` and `storage`. It lists `https` sites, and `http` on `localhost` and `127.0.0.1`, as optional host permissions, which grant nothing until the Extension asks. `cookies` and `webRequest` are optional too. The Extension holds no `tabs` or all-sites permission. `activeTab` gives a press access to the current tab only.
+The manifest asks for `activeTab`, `scripting`, `storage` and `webRequest`. It lists `https` sites, and `http` on `localhost` and `127.0.0.1`, as optional host permissions, which grant nothing until the Extension asks. `cookies` is optional too. The Extension holds no `tabs` or all-sites permission. `activeTab` gives a press access to the current tab only.
 
-- The settings page asks for the Instance's host and `webRequest` in one request when the owner saves the settings, so the browser's own prompt names the Instance. The page calls `permissions.request` from the click, with nothing awaited before it, because only that call needs a user gesture. It then sends the settings to the background worker, which outlives the page.
-- `webRequest` lets the worker read why its own call to the Instance failed ([Why a call failed](#why-a-call-failed)). The browser shows its events only for hosts the Extension holds, which is the Instance's host and, with Fill or Connect Reddit, the Reddit hosts, and the worker listens only to its own calls to the Instance. Chrome shows no permission warning for it ([Chrome permissions list](https://developer.chrome.com/docs/extensions/reference/permissions-list)). The reason for a store reviewer: "Reads the browser's network error for the extension's own requests to the user's Threadsift address, so the extension can say why a save could not reach it: the address was not found, the connection was refused or timed out, or the certificate was refused. It is requested with access to that one address when the user saves the settings, and the extension reads no other traffic."
+- The settings page asks for the Instance's host when the owner saves it, so the browser's own prompt names the Instance. The page calls `permissions.request` from the click, with nothing awaited before it, because only that call needs a user gesture. It then sends the settings to the background worker, which outlives the page.
+- `webRequest` lets the worker read why its own call to the Instance failed ([Why a call failed](#why-a-call-failed)). The browser shows its events only for hosts the Extension holds, which is the Instance's host and, with Fill or Connect Reddit, the Reddit hosts, and the worker reads only the events of requests its own call started. It sits in the fixed list, not among the optional permissions, because Chromium 156 delivered no `webRequest` event to a worker that was already running when the permission was granted, nor to the settings page, until the worker started again, so the check right after the grant had no cause (headed run on 2026-11-27, the grant clicked with `xdotool`). Neither browser prompts for it: Chrome lists no warning for it ([Chrome permissions list](https://developer.chrome.com/docs/extensions/reference/permissions-list)), and Firefox has no permission message for it ([`extensionPermissions.ftl`](https://github.com/mozilla-firefox/firefox/blob/7e1febaf8b087ea08a5099e86ab66dce697d01f3/toolkit/locales/en-US/toolkit/global/extensionPermissions.ftl)), so an update that adds it asks nothing. The reason for a store reviewer: "Reads the browser's network error for the extension's own requests to the user's Threadsift address, so the extension can say why a save could not reach it: the address was not found, the connection was refused or timed out, or no secure connection could be made. The browser shows the extension only requests to the hosts the user granted, which is the Threadsift address and, when the user connects Reddit, reddit.com, and the extension reads only the errors of its own requests to the Threadsift address."
 - After it writes the settings, the worker removes every optional host except the Instance's host and, when Fill is on or `cookies` is held, the Reddit hosts. It never removes a host the manifest requires. The same reconcile runs after a failed write, after a Fill change and on `runtime.onStartup` and `runtime.onInstalled`. A Save cut short between the grant and the page's message leaves its new host granted until the next browser start or extension update.
 - A worker start only settles Fill and syncs the content scripts, and `permissions.onAdded` only syncs the scripts. A reconcile there would remove a host just granted, because the grant wakes a stopped worker before the page's message arrives.
 - Saves and Fill changes from several tabs run one after the other in the worker, each from the settings read at that moment. A match pattern holds no port, so a grant covers every port on the Instance's host.
@@ -50,35 +50,45 @@ The manifest asks for `activeTab`, `scripting` and `storage`. It lists `https` s
 
 ### Token and calls
 
-The address and the agent token sit in `storage.local`. Only the background worker reads and sends the token (`credentials`). The popup and the capture script never see it, and the settings page gets only the address and whether a token exists, so a save without a typed token keeps the stored one. The address must be `https:`, or `http:` on `localhost` or `127.0.0.1`. Every call refuses redirects and ends after 25 s (`INSTANCE_CALL_DEADLINE_MS`), under the 30 s after which Chrome may stop a worker whose `fetch()` has no response yet. The address check follows no redirect either, and reads one as an answer that is not from an Instance.
+The address and the agent token sit in `storage.local`. Only the background worker reads and sends the token (`credentials`). The popup and the capture script never see it, and the settings page gets only the address and whether a token exists. A save without a typed token keeps the stored one only for the same address: for another address both the page and the worker's write refuse it and ask for that address's token, so the stored token never reaches a new host. The address must be `https:`, or `http:` on `localhost` or `127.0.0.1`. Every call refuses redirects and ends after 25 s (`INSTANCE_CALL_DEADLINE_MS`), under the 30 s after which Chrome may stop a worker whose `fetch()` has no response yet. The address check follows no redirect either, and reads one as an answer that is not from an Instance.
 
 ### Check the address at Save settings
 
-After the worker writes the settings, the settings page asks it to check them, and the worker sends one `GET /api/scopes` with the stored address and agent token. The check runs outside the queue that settings changes use. The page shows "Settings saved" with one result, and the fields keep what the owner typed unless the check found that everything works.
+The worker answers a Save with the result of a check. After it writes the settings, it reads the address and agent token it just stored, leaves the queue that settings changes use, and sends one `GET /api/scopes` with them. Until the answer arrives, up to 26 s later (`INSTANCE_CALL_DEADLINE_MS` plus `ERROR_EVENT_WAIT_MS`), the page shows "Saving…". It then shows "Settings saved" with one result.
 
 | Answer | Result |
 |---|---|
 | 200 with `scopes` that hold `read` and `add` | The address and the token work |
-| 200 with fewer scopes, or 403 with Threadsift's `{error}` body | The token lacks the Read and Add scopes |
-| 401 with Threadsift's `{error}` body | The token was refused |
-| A redirect, another status, or a body Threadsift does not send | The address is not a Threadsift Instance |
-| 500 or above, or no answer from the worker | The check did not finish |
-| No answer from the address | The cause from [Why a call failed](#why-a-call-failed) |
+| 200 with fewer scopes, or 403 with the text of `lacksScope("read")` | The token lacks the Read and Add scopes |
+| 401 with `UNKNOWN_TOKEN` as its `error` | The token was refused |
+| 404 with `NOT_FOUND` as its `error` | An Instance older than the route answered; update it |
+| A redirect, another status or body, or a body that is not JSON | The address is not a Threadsift Instance |
+| 500 or above, a body read that fails, or no answer from the worker | The check did not finish |
+| A body read that runs past the 25 s deadline | The address did not answer in time |
+| No answer from the address | The cause from [Why a call failed](#why-a-call-failed), or "couldn't connect" without one |
 
-When the browser could not remove the access to the previous address, the result is followed by a sentence that says so. A write that failed shows the existing not-saved texts and runs no check.
+- The fields keep what the owner typed unless the check found that everything works. When the owner edits a field while the check runs, the page says the result no longer matches the fields and changes neither field.
+- The page reads the Reddit account state again only after a result of works or scope-refused. After any other result it hides the Reddit section, because the read would fail the same way and show a second, general text.
+- When the browser could not remove the access to the previous address, the result is followed by a sentence that says so. A write that failed shows the existing not-saved texts and runs no check.
+- Focus returns to the control that had it when the page lost it during the save.
 
 ### Why a call failed
 
-`fetch` throws the same `TypeError: Failed to fetch` for every network failure, so the worker reads the cause from `webRequest.onErrorOccurred` ([Chrome `webRequest`](https://developer.chrome.com/docs/extensions/reference/api/webRequest), [MDN `webRequest.onErrorOccurred`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/onErrorOccurred)). During each call it listens to the Instance's host and keeps the event whose address and method match the call. Chromium 156 sends the event after the `fetch` rejection, a fraction of a millisecond later in a run on 2026-11-27, so the worker waits for it at most 1 s (`ERROR_EVENT_WAIT_MS`).
+`fetch` throws the same `TypeError: Failed to fetch` for every network failure, so the worker reads the cause from `webRequest` events ([Chrome `webRequest`](https://developer.chrome.com/docs/extensions/reference/api/webRequest), [MDN `webRequest.onErrorOccurred`](https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/webRequest/onErrorOccurred)). During each call it listens to the Instance's host. `onBeforeRequest` records each request with the call's address and method and no tab (`tabId` -1, the worker's own requests), and `onErrorOccurred` counts only an event with one of those request ids, so an aborted request of an earlier call is not read. When two such requests start during one call, the cause is unknown. Chromium 156 sends the error event after the `fetch` rejection, a fraction of a millisecond later in a run on 2026-11-27, so the worker waits for it at most 1 s (`ERROR_EVENT_WAIT_MS`). A listener the browser refuses leaves the call without a cause.
 
-| Browser error | Cause |
-|---|---|
-| `net::ERR_NAME_NOT_RESOLVED`, `net::ERR_NAME_RESOLUTION_FAILED`, `NS_ERROR_UNKNOWN_HOST` | The name was not found |
-| `net::ERR_CONNECTION_REFUSED`, `NS_ERROR_CONNECTION_REFUSED` | The connection was refused |
-| `net::ERR_TIMED_OUT`, `net::ERR_CONNECTION_TIMED_OUT`, `NS_ERROR_NET_TIMEOUT`, or the 25 s deadline | The call timed out |
-| `net::ERR_CERT_*`, or in Firefox any text that is not an `NS_` name | The certificate was refused |
+| Browser | Error text | Cause |
+|---|---|---|
+| Chromium | `net::ERR_NAME_NOT_RESOLVED`, `net::ERR_NAME_RESOLUTION_FAILED` | The name was not found |
+| Chromium | `net::ERR_CONNECTION_REFUSED` | The connection was refused |
+| Chromium | `net::ERR_TIMED_OUT`, `net::ERR_CONNECTION_TIMED_OUT` | The call timed out |
+| Chromium | `net::ERR_CERT_*`, `net::ERR_SSL_*` | No secure connection |
+| Firefox | `NS_ERROR_UNKNOWN_HOST` | The name was not found |
+| Firefox | `NS_ERROR_CONNECTION_REFUSED` | The connection was refused |
+| Firefox | `NS_ERROR_NET_TIMEOUT` | The call timed out |
+| Firefox | Any other text that does not start with `NS_` | No secure connection |
+| Both | The 25 s deadline | The call timed out |
 
-Firefox reports a TLS or certificate failure with the localized message of its security library, such as "The certificate is not trusted because it is self-signed.", and every other failure with an `NS_` error name ([`ChannelWrapper::GetErrorString`](https://github.com/mozilla-firefox/firefox/blob/7e1febaf8b087ea08a5099e86ab66dce697d01f3/toolkit/components/extensions/webrequest/ChannelWrapper.cpp#L1164)). Both browsers' docs say the error text can change between releases. Any other text, no event, or no `webRequest` grant gives the cause `unreachable`, which keeps the general text. The popup names the cause after a failed save, and the settings page after a failed check.
+Firefox reports every failure of its security library, a refused certificate and a TLS handshake that fails alike, with that library's localized message, such as "The certificate is not trusted because it is self-signed." or "SSL received a record that exceeded the maximum permissible length.", and every other failure with an `NS_` error name ([`ChannelWrapper::GetErrorString`](https://github.com/mozilla-firefox/firefox/blob/7e1febaf8b087ea08a5099e86ab66dce697d01f3/toolkit/components/extensions/webrequest/ChannelWrapper.cpp#L1164)), so the texts for that cause name a secure connection and not only the certificate. The build picks the table of its browser (`import.meta.env.FIREFOX`). Both browsers' docs say the error text can change between releases. Any other text, an empty one, or no event gives no cause, and the general text stays. The popup names the cause after a failed save, and the settings page after a failed check.
 
 ### Save a page
 

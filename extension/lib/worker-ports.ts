@@ -1,12 +1,11 @@
 import { type Browser, browser } from "wxt/browser";
 
 import { WORKER_WORKING } from "../../src/core/contract/reddit-relay-contract.ts";
-import { changeSettings, checkSettings } from "./change.ts";
+import { changeSettings } from "./change.ts";
 import { loadConfig, loadConfigView } from "./credentials.ts";
 import { fillOpenedThread } from "./fill.ts";
 import { logFailure } from "./log.ts";
 import {
-  CHECK_PORT,
   CONFIG_PORT,
   FILL_PORT,
   REDDIT_PORT,
@@ -18,14 +17,13 @@ import { answerReddit, connectReddit } from "./reddit-account.ts";
 import { serveSave } from "./save-port.ts";
 import {
   type ChangeAnswer,
-  type CheckAnswer,
   type ConfigView,
   type RedditAnswer,
   RedditRequestSchema,
   SettingsRequestSchema,
 } from "./state.ts";
 
-type Answer = ConfigView | ChangeAnswer | CheckAnswer | RedditAnswer;
+type Answer = ConfigView | ChangeAnswer | RedditAnswer;
 
 type Port = Browser.runtime.Port;
 
@@ -84,9 +82,6 @@ export function servePort(port: Port): void {
       break;
     case CONFIG_PORT:
       void serve(port, loadConfigView);
-      break;
-    case CHECK_PORT:
-      void serve(port, checkSettings);
       break;
     case SETTINGS_PORT:
       port.onMessage.addListener((message) => {

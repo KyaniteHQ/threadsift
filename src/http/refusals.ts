@@ -3,6 +3,7 @@ import { HTTPException } from "hono/http-exception";
 import type { HTTPResponseError } from "hono/types";
 import type { JSONParsed } from "hono/utils/types";
 
+import { NOT_FOUND } from "../core/contract/error-wire.ts";
 import { groupedNumber } from "../core/contract/format.ts";
 import { PASSWORD_MAX, PASSWORD_MIN } from "../core/contract/passwords.ts";
 import { logFailure } from "../core/kernel/failure-log.ts";
@@ -11,8 +12,6 @@ import type { AdmissionRefusal, Refusal } from "../features/paste/core/paste-ref
 import { challengeOf } from "./bearer.ts";
 
 type AccessRefusal = Refused<RefusalName> | LockedOut;
-
-export const NOT_FOUND = "Not found";
 
 export const INTERNAL_ERROR = "Internal error";
 

@@ -184,7 +184,7 @@ export const callerScopesRoute = createRoute({
     ...accessRefusals(READER),
     200: jsonBody(
       CallerScopesResponseSchema,
-      "The `scopes` the caller holds: those of the agent token it sends, or every scope for the owner's session. A client calls it once to check its address and token before it saves anything.",
+      "The `scopes` the caller holds: those of the agent token it sends, or every scope for the owner's session. It changes no library data, so a client can call it to check its address and token.",
     ),
   },
 });

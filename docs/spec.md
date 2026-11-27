@@ -68,9 +68,10 @@ Threadsift has two aims:
 - With "Fill saved Reddit items" on, opening a Link-only Reddit Item's thread fills that Item.
 - In the self-hosted builds, the Extension's Connect Reddit button connects the owner's Reddit account ([Connect a Reddit account](guides/reddit-account.md)).
 - The owner enters the Instance's address and an agent token on the Extension's settings page, and the browser asks permission for that one host when the address is saved.
-- After it saves them, the settings page sends one request with that address and token and says what came back: the address and the token work, the name was not found, the connection was refused or timed out, the certificate was refused, the address is not a Threadsift Instance, the token was refused, or the token lacks the Read and Add scopes ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Check the address at Save settings). When the check fails, the fields keep what the owner typed.
-- When a save cannot reach the Instance, the popup names the cause the browser reports: the name was not found, the connection was refused or timed out, or the certificate was refused. Without a reported cause it says it could not reach the address.
-- The Extension holds only the `activeTab`, `scripting` and `storage` permissions. It asks for `webRequest` with the Instance's host at Save settings, to read why a call to the Instance failed, and for more only for the two Reddit features ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Permissions). It saves one page per click and never crawls.
+- After it saves them, the settings page sends one request with that address and token and says what came back: the address and the token work, the name was not found, the connection was refused or timed out, no secure connection could be made, the browser could not connect, the address is not a Threadsift Instance, the Instance is older than the Extension, the token was refused, the token lacks the Read and Add scopes, or the check did not finish ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Check the address at Save settings). When the check fails, the fields keep what the owner typed.
+- A changed address needs its agent token: the settings page does not keep the saved token for another address and saves nothing until the owner enters one.
+- When a save cannot reach the Instance, the popup names the cause the browser reports: the name was not found, the connection was refused or timed out, or no secure connection could be made. Without a reported cause it says it could not reach the address.
+- The Extension holds only the `activeTab`, `scripting`, `storage` and `webRequest` permissions, the last to read why its own call to the Instance failed. It asks for the Instance's host at Save settings, and for more only for the two Reddit features ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Permissions). It saves one page per click and never crawls.
 
 ## Settings, look and layout
 
@@ -413,7 +414,7 @@ Each agent token carries scopes that limit what it calls:
 
 | Scope | What it allows |
 |---|---|
-| `read` | Search and read Items, Topic pages, the Index, the Log, the Proposals, the Highlights page and stored images. |
+| `read` | Search and read Items, Topic pages, the Index, the Log, the Proposals, the Highlights page and stored images, and list the token's own scopes (`GET /api/scopes`). |
 | `add` | A Paste and a batch of links. |
 | `digest` | Queue a Digest or a Topic page overview again, and send a Digest with a Paste. |
 | `delete` | Delete an Item. |

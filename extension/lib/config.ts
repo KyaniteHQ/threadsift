@@ -2,9 +2,9 @@ import { type Browser, browser } from "wxt/browser";
 import type { z } from "zod";
 
 import { INSTANCE_CALL_DEADLINE_MS } from "../../src/core/contract/reddit-relay-contract.ts";
+import { type CallOutcome, callInstance } from "./instance-call.ts";
 import { logFailure } from "./log.ts";
 import { LOOPBACK_HOSTS } from "./loopback-hosts.ts";
-import { type Reached, reach } from "./unreached.ts";
 
 const LOOPBACK_SET: ReadonlySet<string> = new Set(LOOPBACK_HOSTS);
 
@@ -56,10 +56,10 @@ export function instanceRequest(
   { origin, token }: Readonly<Config>,
   path: string,
   { method, body, event, redirect = "error" }: Readonly<InstanceCall>,
-): Promise<Reached> {
+): Promise<CallOutcome> {
   const authorization = `Bearer ${token}`;
 
-  return reach({
+  return callInstance({
     url: new URL(path, origin),
     hostMatch: hostPattern(origin),
     method,

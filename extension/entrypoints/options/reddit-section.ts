@@ -52,9 +52,7 @@ function press(action: RedditAction): void {
   );
 }
 
-function render(view: Readonly<RedditView>): void {
-  const hidden = view.kind === "unavailable" && !view.access;
-
+function hideSection(hidden: boolean): void {
   if (hidden && redditSection.contains(document.activeElement)) {
     const pageHeading = document.querySelector("h1");
 
@@ -63,6 +61,10 @@ function render(view: Readonly<RedditView>): void {
   }
 
   redditSection.hidden = hidden;
+}
+
+function render(view: Readonly<RedditView>): void {
+  hideSection(view.kind === "unavailable" && !view.access);
   say(status, redditStatusText(view), redditTone(view));
   replaceControls(
     buttons,
@@ -95,4 +97,11 @@ export async function refreshReddit(): Promise<void> {
 
 export function refreshRedditUnlessPressing(): void {
   if (current.kind !== "working") void refreshReddit();
+}
+
+export function withdrawReddit(): void {
+  if (current.kind === "working") return;
+
+  begin();
+  hideSection(true);
 }

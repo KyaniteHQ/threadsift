@@ -4,6 +4,8 @@ import { REFUSAL_CODES } from "./access-contract.ts";
 import { BUDGET_SPENT } from "./agent-token-contract.ts";
 import { RESTORING_CODE } from "./restore-contract.ts";
 
+export const NOT_FOUND = "Not found";
+
 export const ErrorResponseSchema = z.object({
   error: z.string(),
   fetch: z.literal("refused").optional(),

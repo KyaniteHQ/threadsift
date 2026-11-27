@@ -39,8 +39,8 @@ export default defineConfig({
     const manifest = {
       name: "Threadsift",
       description: TEXT.manifestDescription,
-      permissions: ["activeTab", "scripting", "storage"],
-      optional_permissions: ["cookies", "webRequest"],
+      permissions: ["activeTab", "scripting", "storage", "webRequest"],
+      optional_permissions: ["cookies"],
       optional_host_permissions: HOSTS,
       action: { default_title: TEXT.actionTitle },
     };

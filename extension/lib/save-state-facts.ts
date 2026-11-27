@@ -76,7 +76,7 @@ export const SAVE_STATE_FACTS = {
   "name-not-found": notSaved(TEXT.nameNotFound, "retry", { leavesRedditUnknown: false }),
   "connection-refused": notSaved(TEXT.connectionRefused, "retry", { leavesRedditUnknown: false }),
   "timed-out": notSaved(TEXT.timedOut, "retry", { leavesRedditUnknown: false }),
-  "certificate-refused": notSaved(TEXT.certificateRefused, "retry", {
+  "secure-connection-failed": notSaved(TEXT.secureConnection, "retry", {
     leavesRedditUnknown: false,
   }),
   unreachable: notSaved(TEXT.unreachable, "retry", { leavesRedditUnknown: false }),

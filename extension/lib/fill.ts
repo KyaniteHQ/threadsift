@@ -21,7 +21,7 @@ async function isWaiting(config: Readonly<Config>, url: string): Promise<boolean
     event: "fill-lookup-failed",
   });
 
-  if (reply.kind === "unreached" || !reply.response.ok) return false;
+  if (reply.kind === "failed" || !reply.response.ok) return false;
 
   const listed = await instanceAnswer(reply.response, ListedSchema);
 

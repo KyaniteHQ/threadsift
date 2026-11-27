@@ -3,7 +3,7 @@ import { after, before, describe, it } from "node:test";
 
 import { z } from "zod";
 
-import { NOT_FOUND } from "../src/http/refusals.ts";
+import { NOT_FOUND } from "../src/core/contract/error-wire.ts";
 import { storedBytes } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { paste } from "./library-fixtures.ts";

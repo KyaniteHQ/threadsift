@@ -91,7 +91,7 @@ export async function send(
     event: "save-request-failed",
   });
 
-  return reply.kind === "unreached"
-    ? { kind: reply.cause }
-    : stateOf(reply.response, config.origin, completeness);
+  if (reply.kind === "answered") return stateOf(reply.response, config.origin, completeness);
+
+  return { kind: reply.failure === "unknown" ? "unreachable" : reply.failure };
 }

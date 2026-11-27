@@ -4,18 +4,18 @@ import {
   type Failure,
   type Refusal,
   type SettingsState,
-  checkSaved,
   loadSettings,
   saveSettings,
-  tokenMissing,
+  tokenRefusal,
 } from "../../lib/settings.ts";
-import type { ConfigView, Reach } from "../../lib/state.ts";
+import type { AddressCheck, ConfigView } from "../../lib/state.ts";
 import { TEXT } from "../../lib/text.ts";
-import { refreshReddit } from "./reddit-section.ts";
+import { refreshReddit, withdrawReddit } from "./reddit-section.ts";
 
 const REFUSAL_TEXT: Readonly<Record<Refusal, string>> = {
   address: TEXT.addressInvalid,
   token: TEXT.tokenMissing,
+  "new-address-token": TEXT.tokenForNewAddress,
   access: TEXT.accessDenied,
 };
 
@@ -24,14 +24,15 @@ const FAILURE_TEXT: Readonly<Record<Failure, string>> = {
   "not-saved-access-kept": TEXT.accessKeptNotSaved,
 };
 
-const REACH_TEXT: Readonly<Record<Reach, string>> = {
+const CHECK_TEXT: Readonly<Record<AddressCheck, string>> = {
   works: TEXT.checkWorks,
   "name-not-found": TEXT.checkNameNotFound,
   "connection-refused": TEXT.checkConnectionRefused,
   "timed-out": TEXT.checkTimedOut,
-  "certificate-refused": TEXT.checkCertificateRefused,
+  "secure-connection-failed": TEXT.checkSecureConnection,
   unreachable: TEXT.checkUnreachable,
   "not-instance": TEXT.checkNotInstance,
+  "instance-outdated": TEXT.checkInstanceOutdated,
   "token-refused": TEXT.checkTokenRefused,
   "scope-refused": TEXT.checkScopeRefused,
   "check-failed": TEXT.checkFailed,
@@ -43,6 +44,8 @@ const addressHint = element("p", { id: "address-hint", class: "ext-hint" }, TEXT
 const tokenHint = element("p", { id: "token-hint", class: "ext-hint" }, TEXT.tokenHint);
 const result = element("p", { id: "settings-result", class: "ext-status", role: "status" });
 
+type Saved = Extract<SettingsState, { kind: "saved" }>;
+
 type SettingsField = Readonly<Record<"input" | "hint", HTMLElement>>;
 
 const fields: Readonly<Record<"address" | "token", SettingsField>> = {
@@ -53,6 +56,12 @@ const fields: Readonly<Record<"address" | "token", SettingsField>> = {
 const saveButton = element("button", { type: "submit", class: "btn btn-acc" }, TEXT.saveSettings);
 
 let settings: SettingsState = { kind: "loading" };
+let revision = 0;
+let submittedRevision = 0;
+
+function changedSinceSubmit(): boolean {
+  return revision !== submittedRevision;
+}
 
 function field(label: string, input: HTMLElement, hint: HTMLElement): HTMLDivElement {
   return element(
@@ -74,21 +83,37 @@ function showStored(stored: Readonly<ConfigView>): void {
   showTokenHint(stored);
 }
 
-function showChecked({
-  stored,
-  reach,
-  accessKept,
-}: Readonly<Extract<SettingsState, { kind: "checked" }>>): void {
-  if (reach === "works") showStored(stored);
-  else showTokenHint(stored);
+const READS_REDDIT: ReadonlySet<AddressCheck> = new Set(["works", "scope-refused"]);
 
-  const text = accessKept ? `${REACH_TEXT[reach]} ${TEXT.accessNotRemoved}` : REACH_TEXT[reach];
+function checkText({ check, accessKept }: Readonly<Saved>): string {
+  if (changedSinceSubmit()) return TEXT.checkStale;
 
-  say(result, text, reach === "works" && !accessKept ? "ok" : "warn");
+  return accessKept ? `${CHECK_TEXT[check]} ${TEXT.accessNotRemoved}` : CHECK_TEXT[check];
+}
+
+function showSaved(state: Readonly<Saved>): void {
+  const settled = state.check === "works" && !changedSinceSubmit();
+
+  if (settled) showStored(state.stored);
+  else showTokenHint(state.stored);
+
+  say(result, checkText(state), settled && !state.accessKept ? "ok" : "warn");
 }
 
 function refusedField(state: Readonly<SettingsState>): SettingsField | null {
-  return state.kind === "refused" && state.reason !== "access" ? fields[state.reason] : null;
+  if (state.kind !== "refused") return null;
+
+  switch (state.reason) {
+    case "address":
+      return fields.address;
+    case "token":
+    case "new-address-token":
+      return fields.token;
+    case "access":
+      return null;
+    default:
+      return state.reason satisfies never;
+  }
 }
 
 function markRefused({ input, hint }: SettingsField, refused: boolean): void {
@@ -103,7 +128,9 @@ function markRefused({ input, hint }: SettingsField, refused: boolean): void {
 
 function markFields(state: Readonly<SettingsState>): void {
   const refused = refusedField(state);
-  const missingToken = state.kind === "refused" && tokenMissing(state.stored, token.value);
+  const missingToken =
+    state.kind === "refused" &&
+    tokenRefusal(state.stored, instanceOrigin(address.value), token.value) !== null;
 
   markRefused(fields.address, refused === fields.address && instanceOrigin(address.value) === null);
   markRefused(fields.token, refused === fields.token && missingToken);
@@ -134,12 +161,8 @@ function renderSettings(state: Readonly<SettingsState>): void {
     case "saving":
       say(result, TEXT.saving, "plain");
       break;
-    case "checking":
-      showTokenHint(state.stored);
-      say(result, TEXT.settingsChecking, "plain");
-      break;
-    case "checked":
-      showChecked(state);
+    case "saved":
+      showSaved(state);
       break;
     case "refused":
       say(result, REFUSAL_TEXT[state.reason], "warn");
@@ -147,7 +170,7 @@ function renderSettings(state: Readonly<SettingsState>): void {
       if (refusedInput !== null) refusedInput.focus();
       break;
     case "failed":
-      showStored(state.stored);
+      if (!changedSinceSubmit()) showStored(state.stored);
       say(result, FAILURE_TEXT[state.step], "warn");
       break;
     default: {
@@ -158,15 +181,10 @@ function renderSettings(state: Readonly<SettingsState>): void {
   }
 }
 
-type Busy = Extract<SettingsState, { kind: "loading" | "unreadable" | "saving" | "checking" }>;
+type Busy = Extract<SettingsState, { kind: "loading" | "unreadable" | "saving" }>;
 
 function isBusy(state: Readonly<SettingsState>): state is Readonly<Busy> {
-  return (
-    state.kind === "loading" ||
-    state.kind === "unreadable" ||
-    state.kind === "saving" ||
-    state.kind === "checking"
-  );
+  return state.kind === "loading" || state.kind === "unreadable" || state.kind === "saving";
 }
 
 function moveSettings(next: SettingsState): void {
@@ -174,13 +192,26 @@ function moveSettings(next: SettingsState): void {
   renderSettings(next);
 }
 
+function followReddit(state: Readonly<SettingsState>): void {
+  if (state.kind !== "saved") return;
+
+  if (READS_REDDIT.has(state.check)) void refreshReddit();
+  else withdrawReddit();
+}
+
+function restoreFocus(focused: Element | null): void {
+  const lost = document.activeElement === null || document.activeElement === document.body;
+
+  if (lost && focused instanceof HTMLElement && focused.isConnected) focused.focus();
+}
+
 async function saveAndCheck(stored: Readonly<ConfigView>): Promise<void> {
-  const saved = await saveSettings(stored, { address: address.value, token: token.value });
+  const focused = document.activeElement;
+  const next = await saveSettings(stored, { address: address.value, token: token.value });
 
-  moveSettings(saved);
-  void refreshReddit();
-
-  if (saved.kind === "checking") moveSettings(await checkSaved(saved));
+  moveSettings(next);
+  followReddit(next);
+  restoreFocus(focused);
 }
 
 function submitSettings(): void {
@@ -188,18 +219,20 @@ function submitSettings(): void {
 
   if (isBusy(current)) return;
 
+  submittedRevision = revision;
   moveSettings({ kind: "saving", stored: current.stored });
 
   void saveAndCheck(current.stored);
 }
 
-address.addEventListener("input", () => {
+function fieldChanged(): void {
+  revision += 1;
   markFields(settings);
-});
+}
 
-token.addEventListener("input", () => {
-  markFields(settings);
-});
+address.addEventListener("input", fieldChanged);
+
+token.addEventListener("input", fieldChanged);
 
 const form = element(
   "form",
