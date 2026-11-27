@@ -8,11 +8,11 @@ import {
   READ_STATES,
   SOURCES,
 } from "../../../core/contract/item-contract.ts";
-import { parseLink } from "../../../core/contract/links.ts";
 import { searchTerms } from "../../../core/contract/search-terms.ts";
 import { TAG_USES, TOPIC_USES } from "../../../core/kernel/catalog-uses.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { itemAliases, itemTags, items, tags, topics } from "../../../core/kernel/schema.ts";
+import { type Naming, namedItem, namingOf } from "../../../core/kernel/link-naming.ts";
+import { itemTags, items, tags, topics } from "../../../core/kernel/schema.ts";
 import { matching } from "./search.ts";
 
 export interface ItemFilters {
@@ -21,7 +21,7 @@ export interface ItemFilters {
   readonly read: ReadState | undefined;
   readonly topic: string | undefined;
   readonly tag: string | undefined;
-  readonly normalizedUrl: string | undefined;
+  readonly link: Naming | undefined;
 }
 
 interface TypedFilters {
@@ -48,7 +48,7 @@ export function itemFilters(typed: Readonly<TypedFilters>): ItemFilters {
     read: typed.read,
     topic: keyOf(typed.topic),
     tag: keyOf(typed.tag),
-    normalizedUrl: typed.url === undefined ? undefined : parseLink(typed.url).normalizedUrl,
+    link: typed.url === undefined ? undefined : namingOf(typed.url),
   };
 }
 
@@ -69,13 +69,6 @@ function facetConditions(filters: Readonly<ItemFilters>): Readonly<Record<Facet,
   };
 }
 
-function namedBy(normalizedUrl: string): SQL {
-  const aliased = sql`(select ${itemAliases.itemId} from ${itemAliases} where ${itemAliases.normalizedUrl} = ${normalizedUrl})`;
-  const holder = sql`(select held.id from ${items} as held where held.normalized_url = ${normalizedUrl})`;
-
-  return sql`${items.id} = coalesce(${aliased}, ${holder})`;
-}
-
 export function itemConditions(filters: Readonly<ItemFilters>, skipping?: Facet): SQL | undefined {
   const chosen = Object.entries(facetConditions(filters))
     .filter(([facet]) => facet !== skipping)
@@ -83,7 +76,7 @@ export function itemConditions(filters: Readonly<ItemFilters>, skipping?: Facet)
 
   return and(
     filters.terms.length === 0 ? undefined : matching(filters.terms),
-    filters.normalizedUrl === undefined ? undefined : namedBy(filters.normalizedUrl),
+    filters.link === undefined ? undefined : namedItem(filters.link),
     ...chosen,
   );
 }
