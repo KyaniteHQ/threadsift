@@ -87,7 +87,7 @@ Installing, updating or removing Codex needs a restart, because the app reads Co
 
 ### When the app refuses Codex
 
-Before every task, the app checks what Codex would load. The Provider shows "This Provider is not available on this Instance", and the log names the extra tools, when the machine has either of these:
+Before every task, the app checks what Codex would load. The Provider shows "This provider isn’t available on this instance. Choose another provider.", and the log names the extra tools, when the machine has either of these:
 
 - a Codex config file in `/etc/codex` with extra tools or instructions
 - an administrator requirement

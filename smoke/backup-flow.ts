@@ -5,7 +5,7 @@ import { z } from "zod";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { EXPORT_TEXT } from "../web/src/export-text.ts";
-import { expectFitsPhone } from "./screen-checks.ts";
+import { expectFitsPhone, openSettings } from "./screen-checks.ts";
 import { readStoredZip } from "./zip-read.ts";
 
 const EXPORT_WAIT_MS = 90_000;
@@ -82,8 +82,7 @@ export async function backupFlow(page: Page): Promise<void> {
 
   expect(itemIds.length).toBeGreaterThan(0);
 
-  await page.goto("/");
-  await page.getByRole("button", { name: "Display settings", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await expect(page.getByRole("heading", { name: EXPORT_TEXT.sectionTitle })).toBeVisible();
   await expect(page.getByText(EXPORT_TEXT.caution)).toBeVisible();

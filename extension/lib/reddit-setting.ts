@@ -12,7 +12,7 @@ import { RedditAnswerSchema, type RedditRequest, ask } from "./state.ts";
 import { TEXT } from "./text.ts";
 
 export interface RedditView {
-  readonly kind: "loading" | "working" | RedditConnectState;
+  readonly kind: "loading" | "working" | "read-failed" | RedditConnectState;
   readonly access: boolean;
 }
 
@@ -39,6 +39,7 @@ const LOOKS = {
   "token-refused": { text: TEXT.redditTokenRefused, actions: ["reconnect"], tone: "warn" },
   unreachable: { text: TEXT.redditUnreachable, actions: ["reconnect"], tone: "warn" },
   failed: { text: TEXT.redditFailed, actions: ["reconnect"], tone: "warn" },
+  "read-failed": { text: TEXT.redditReadFailed, actions: [], tone: "warn" },
   "access-kept": { text: TEXT.redditAccessKept, actions: [], tone: "warn" },
 } as const satisfies Record<RedditView["kind"], Look>;
 
@@ -85,8 +86,10 @@ async function askReddit(request: Readonly<RedditRequest>): Promise<RedditView> 
   }
 }
 
-export function loadReddit(): Promise<RedditView> {
-  return askReddit({ kind: "read" });
+export async function loadReddit(): Promise<RedditView> {
+  const view = await askReddit({ kind: "read" });
+
+  return view.kind === "failed" ? { ...view, kind: "read-failed" } : view;
 }
 
 export async function connectRedditFromPage(): Promise<RedditView> {

@@ -87,8 +87,7 @@ var LIB = (function () {
   var LOOK_KEYS = ['style', 'font', 'width', 'density', 'comments', 'accent', 'tags', 'images'];
   // What a style other than Library sets itself, so these rows are shown off while one is on.
   var STYLE_SETS = ['font', 'accent'];
-  // The defaults: the List look (the plain values in tokens.css), List, Page and System.
-  var SETTINGS_DEFAULT = { layout: 'list', openAs: 'page', theme: 'system', font: 'plex', width: 'medium', density: 'compact', comments: 'lines', accent: 'cobalt', tags: 'dots', images: true, style: 'library' };
+  var SETTINGS_DEFAULT = { layout: 'list', openAs: 'page', theme: 'light', font: 'plex', width: 'medium', density: 'compact', comments: 'lines', accent: 'cobalt', tags: 'dots', images: true, style: 'library' };
   // Built-in presets for the Tweaks panel: the defaults, and the old Grid draft's look.
   var PRESETS = [
     { name: 'Defaults', set: SETTINGS_DEFAULT },
@@ -179,7 +178,7 @@ var LIB = (function () {
     'reddit-post': { source: 'reddit', label: 'Reddit', screen: 'reddit', noun: 'comments', orig: 'Original post', open: 'Open on Reddit', verb: 'posted' },
     'reddit-comment': { source: 'reddit', label: 'Reddit', screen: 'reddit', noun: '', orig: 'Saved comment', open: 'Open on Reddit', verb: 'posted' },
     'x-post': { source: 'x', label: 'X', screen: 'x', noun: 'replies', orig: 'Original post', open: 'Open on X', verb: 'posted' },
-    'github-repo': { source: 'github', label: 'GitHub', screen: 'github', noun: '', orig: 'Repository', open: 'Open on GitHub', verb: 'pushed' }
+    'github-repo': { source: 'github', label: 'GitHub', screen: 'github', noun: '', orig: 'README', open: 'Open on GitHub', verb: 'pushed' }
   };
   var SOURCES = [{ id: 'reddit', label: 'Reddit' }, { id: 'x', label: 'X' }, { id: 'github', label: 'GitHub' }, { id: 'article', label: 'Article' }];
   function prepare(data) {

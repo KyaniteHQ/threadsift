@@ -1,8 +1,8 @@
 export const TEXT = {
   saving: "Saving…",
   saved: "Saved",
-  savedIncomplete: "The thread was saved. Some replies couldn’t be read.",
-  savedPage: "Couldn’t read the comments. The page text was saved instead.",
+  savedIncomplete: "The thread was saved. Some replies weren’t included.",
+  savedPage: "Couldn’t read the thread. The item was saved without comments.",
   openItem: "Open in Threadsift",
   notConfigured: "Add your Threadsift address and agent token to save pages.",
   openSettings: "Open settings",
@@ -12,13 +12,13 @@ export const TEXT = {
     "Couldn’t read this page. It may not be a web page, or the browser may block extensions on it.",
   tokenRefused: "Threadsift rejected the saved agent token. It is wrong or was revoked.",
   scopeRefused:
-    "The saved agent token needs the Read and Add scopes. Create one under Agent tokens in Threadsift’s Settings, then enter it in Threadsift extension settings.",
+    "Couldn’t save this page. The saved agent token needs the Read and Add scopes. Create a token with them under Agent tokens in Threadsift’s Settings, then enter it in Threadsift extension settings.",
   tooLarge: "The text on this page is too long to save.",
   privateLink: "This page can’t be saved. Its address isn’t reachable from the public internet.",
   unsupportedLink:
-    "The extension can’t save this page. It doesn’t save X posts, GitHub pages, short links or Reddit share links. On Reddit, it saves only posts and comments.",
+    "The extension can’t save this page. It doesn’t save X pages, GitHub pages, short links or Reddit share links. On Reddit, it saves only posts and comments.",
   budgetSpent:
-    "The saved agent token reached its daily budget, so this page wasn’t saved. Saving works again after 00:00 UTC. You can also select Change budget under Agent tokens in Threadsift’s Settings.",
+    "Couldn’t save this page. The saved agent token reached its daily budget. You can raise it with Change budget under Agent tokens in Threadsift’s Settings. Otherwise, saving works again after 00:00 UTC.",
   threadKept: "Couldn’t read this Reddit thread. The saved item in Threadsift stays as it was.",
   unreachable: "Couldn’t reach your Threadsift address. Check the address and your connection.",
   failed: "Couldn’t save this page.",
@@ -31,7 +31,7 @@ export const TEXT = {
   tokenKept:
     "A token is saved. Leave this field empty to keep it, or enter a new one to replace it.",
   tokenHint:
-    "Create one in Threadsift Settings under Agent tokens with the Read and Add scopes. Connecting a Reddit account also needs the Reddit scope.",
+    "Create one with the Read and Add scopes under Agent tokens in Threadsift’s Settings. Include the Reddit scope to connect a Reddit account.",
   tokenMissing: "Enter an agent token.",
   saveSettings: "Save settings",
   settingsSaved: "Settings saved",
@@ -64,21 +64,22 @@ export const TEXT = {
   redditConnected: "Your Reddit account is connected.",
   redditExpired:
     "Reddit stopped accepting the saved session. Reconnect while this browser is signed in to Reddit.",
-  redditUnreadable:
-    "Threadsift can no longer open the saved session because its secret key changed.",
+  redditUnreadable: "Threadsift can’t open the saved Reddit session.",
   redditMissing:
     "This Threadsift instance has no secret key to seal a session. You can’t connect a Reddit account until the instance owner sets one.",
   redditNoAccess:
-    "The browser didn’t give the extension access to cookies and reddit.com, so nothing was sent.",
+    "The extension doesn’t have the browser permissions it needs, so nothing was sent. Connect Reddit asks for access to cookies and reddit.com. Save settings asks for access to your Threadsift address.",
   redditSignedOut:
     "This browser isn’t signed in to Reddit in a normal window. Sign in to Reddit, then try again.",
   redditScopeRefused:
-    "The saved agent token lacks the Reddit scope. Create one with the Read, Add and Reddit scopes in Threadsift Settings under Agent tokens. Then enter it in the Agent token field of Threadsift extension settings.",
+    "The saved agent token is missing the Read or Reddit scope. Create a token with the Read, Add and Reddit scopes under Agent tokens in Threadsift’s Settings. Then enter it in the Agent token field of Threadsift extension settings.",
   redditTokenRefused:
     "The saved agent token is wrong or was revoked. Replace it in the Agent token field of Threadsift extension settings.",
   redditUnreachable:
     "Couldn’t reach your Threadsift address. Check the address and your connection.",
-  redditFailed: "Couldn’t update the Reddit connection, so nothing changed.",
+  redditFailed:
+    "Couldn’t finish updating the Reddit connection. Reload the page to check whether it changed.",
+  redditReadFailed: "Couldn’t check whether a Reddit account is connected. Reload the page.",
   redditAccessKept:
     "Your Reddit account was removed from Threadsift, but the browser kept the extension’s cookie access. Select Disconnect again to remove it.",
   popupExpired:
