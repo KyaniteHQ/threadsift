@@ -161,7 +161,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 
 ### The owner's Reddit account (self-hosted builds)
 
-- An optional setting connects the owner's own Reddit account ([Connect a Reddit account](guides/reddit-account.md)). When connected, it is the first server source for a Reddit link without Extension content, before Arctic Shift, and it fetches the thread the way the Extension does, so a thread is complete and current. The setting shows when the session stops working and asks the owner to connect again.
+- An optional setting connects the owner's own Reddit account ([Connect a Reddit account](guides/reddit-account.md)). When connected, it is the first server source for a Reddit link without Extension content, before Arctic Shift, and it fetches the thread the way the Extension does, so a thread is complete and current. The setting shows when the session stops working and asks the owner to connect again. Its status line says what happens meanwhile to a Reddit link without Extension content, by the archive fill choice: filled from the archive, or kept Link-only.
 - Every Reddit link without Extension content uses the account: the paste box, Share, Import, a batch call, an agent token's add and the MCP `add` tool alike. An Import of many links is read one thread at a time, oldest first, and each waiting link shows the wait reason `reddit-limit` in the library.
 - A 429 or an exhausted request window makes the job wait, and after three limited attempts the fetch uses the archive fill.
 - Design: [Fetchers](architecture/fetchers.md), Reddit. Queue: [Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md).

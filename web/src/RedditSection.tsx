@@ -1,10 +1,12 @@
+import { useCallback, useState } from "react";
+
 import type { RedditSettings } from "../../src/core/contract/reddit-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { LoadedSection, type SectionSpec } from "./LoadedSection.tsx";
 import { RadioChoice } from "./RadioChoice.tsx";
 import { saveRedditSettings } from "./reddit-api.ts";
 import { REDDIT_TEXT } from "./reddit-text.ts";
-import { REDDIT_ACCOUNT_SECTION } from "./RedditAccountSection.tsx";
+import { ArchiveFillContext, REDDIT_ACCOUNT_SECTION } from "./RedditAccountSection.tsx";
 import type { SettingsLoad } from "./settings-load-types.ts";
 import { useSaveOnPick } from "./use-save-on-pick.ts";
 
@@ -67,10 +69,21 @@ const REDDIT_SECTION: SectionSpec<RedditSettings> = {
 };
 
 export function RedditSections({ loaded }: Readonly<{ loaded: SettingsLoad }>) {
+  const { reddit } = loaded;
+  const [archiveFill, setArchiveFill] = useState(
+    reddit.kind === "ready" ? reddit.view.archiveFill : null,
+  );
+
+  const picked = useCallback((view: RedditSettings) => {
+    setArchiveFill(view.archiveFill);
+  }, []);
+
   return (
     <>
-      <LoadedSection {...REDDIT_SECTION} initial={loaded.reddit} />
-      <LoadedSection {...REDDIT_ACCOUNT_SECTION} initial={loaded.redditAccount} />
+      <LoadedSection {...REDDIT_SECTION} initial={reddit} after={picked} />
+      <ArchiveFillContext value={archiveFill}>
+        <LoadedSection {...REDDIT_ACCOUNT_SECTION} initial={loaded.redditAccount} />
+      </ArchiveFillContext>
     </>
   );
 }

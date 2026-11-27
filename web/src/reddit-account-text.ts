@@ -23,10 +23,18 @@ export const REDDIT_ACCOUNT_TEXT = {
   fieldPlaceholder: "Session saved",
   stateNone:
     "No Reddit account is connected. Links added without the extension are filled from the archive when Reddit archive fill is On.",
+  stateNoneFilled:
+    "No Reddit account is connected. Reddit links added without the extension are filled from the Arctic Shift archive.",
+  stateNoneLinkOnly:
+    "No Reddit account is connected. Reddit links added without the extension stay link-only items. Connect an account or turn Reddit archive fill On to fill them. You can also use the extension to save threads from your tab.",
   stateConnected:
     "A Reddit account is connected. Threadsift uses it to read every Reddit link added without the extension, imports included, one at a time.",
   stateExpired:
     "Reddit stopped accepting the saved session. Connect again. Until then, links added without the extension are filled from the archive when Reddit archive fill is On.",
+  stateExpiredFilled:
+    "Reddit stopped accepting the saved session. Connect again. Until then, Reddit links added without the extension are filled from the Arctic Shift archive.",
+  stateExpiredLinkOnly:
+    "Reddit stopped accepting the saved session. Connect again. Until then, Reddit links added without the extension stay link-only items.",
   stateUnreadable:
     "This instance can no longer open the saved session because its secret key changed. Connect again.",
   connect: "Connect",
@@ -113,6 +121,27 @@ export function relayText(state: RedditConnectState): string {
   return RELAY_TEXT[state];
 }
 
-export function stateText(state: RedditAccountView["state"]): string {
-  return STATE_TEXT[state];
+const ARCHIVE_STATE_TEXT = {
+  none: {
+    on: REDDIT_ACCOUNT_TEXT.stateNoneFilled,
+    off: REDDIT_ACCOUNT_TEXT.stateNoneLinkOnly,
+    unknown: REDDIT_ACCOUNT_TEXT.stateNone,
+  },
+  expired: {
+    on: REDDIT_ACCOUNT_TEXT.stateExpiredFilled,
+    off: REDDIT_ACCOUNT_TEXT.stateExpiredLinkOnly,
+    unknown: REDDIT_ACCOUNT_TEXT.stateExpired,
+  },
+} as const;
+
+function archiveFillKey(archiveFill: boolean | null): "on" | "off" | "unknown" {
+  if (archiveFill === null) return "unknown";
+
+  return archiveFill ? "on" : "off";
+}
+
+export function stateText(state: RedditAccountView["state"], archiveFill: boolean | null): string {
+  return state === "none" || state === "expired"
+    ? ARCHIVE_STATE_TEXT[state][archiveFillKey(archiveFill)]
+    : STATE_TEXT[state];
 }
