@@ -5,7 +5,7 @@ import { NOT_FOUND } from "../../src/core/contract/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { InternalLink } from "./InternalLink.tsx";
 import { placePath } from "./place.ts";
-import { LOST_HIGHLIGHT_EFFECT } from "./proposals-text.ts";
+import { LOST_HIGHLIGHT_EFFECT, PROPOSAL_WORDS } from "./proposals-text.ts";
 import { QuoteText } from "./QuoteText.tsx";
 
 export function LostHighlightBody({ proposal }: Readonly<{ proposal: LostHighlightProposal }>) {
@@ -26,6 +26,7 @@ export function LostHighlightBody({ proposal }: Readonly<{ proposal: LostHighlig
         <QuoteText text={highlight.quote} />
       </blockquote>
       <p className="rd-note pr-gone">{NOT_FOUND}</p>
+      <p className="rl-sum pr-final">{PROPOSAL_WORDS.highlightRemoved}</p>
     </>
   );
 }

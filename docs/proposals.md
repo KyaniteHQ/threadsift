@@ -228,7 +228,7 @@ A `merge` entry holds the two Tag names as written when the merge finishes and t
 
 `/proposals` lists the Proposals, with the words of each kind in one table. The page makes these decisions:
 
-- **No confirmation.** The row's sentence states the effect before the press. An Accept of a merge cannot be undone, an Accept of a lost-Highlight row removes the Highlight for good, an Accept of an overview row starts a model run, an Accept of a disagreement row keeps the pair on the Topic page, and a Reject is final.
+- **No confirmation.** Each row states its effect before the press, on a line above its buttons: an Accept of a merge cannot be undone, an Accept of a lost-Highlight row removes the Highlight for good, an Accept of an overview row starts a model run, and an Accept of a disagreement row keeps the pair on the Topic page. The line under the list head holds only the rule every kind shares, that a Reject is final, and it shows above the empty state too.
 - **Accessible names.** Each name begins with the visible label and names the subject. The names of a disagreement row also carry the first 40 characters of each Summary, because Items often share a title and two rows would otherwise read the same.
 - **The failed-merge note.** The note ("Applying this merge failed once…") has no live role, because the count rises about once a minute and each rise would be announced again. Polling updates the count silently.
 - **Empty state.** The date is the most recent claim time of the weekly runs. A claim time does not say that a check finished, so the last line says no more than the page knows. The list is empty because the check found nothing, is still running, or failed, or because the owner rejected every row. The page shows no failure of the weekly run.

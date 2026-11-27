@@ -329,6 +329,7 @@ All five kinds are built, each with its weekly check, Reject and Accept. [Propos
 - Plain checks find the candidates, and the agent judges only those.
 - The owner accepts or rejects each one, and the app applies the accepted ones. Reject is final for the pair or row it names. An accepted Tag merge, Topic merge or disagreement is kept as a Pin, so the next regeneration cannot undo it.
 - Once a week, while a Provider is saved and at least one Item has a Digest, the app runs the checks for Tags, Topics and Items. A failed check shows nothing on the page.
+- The line under the list head, shown above the empty state too, holds the rule every kind shares: Reject is final. Each row says what its own Accept does, above its buttons.
 - **Tag and Topic merges:** Accept merges the first into the second with no confirmation and cannot be undone in this release. The row shows both Item counts. A Topic merge also deletes the merged-away Topic, and its address opens the survivor.
 - **Lost Highlights:** Accept removes the Highlight and cannot be undone. Reject keeps it.
 - **Overview gaps:** Accept starts the same overview run as Try again on the Topic page.

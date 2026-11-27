@@ -12,6 +12,7 @@ export async function proposalsFlow(page: Page): Promise<void> {
   await expect(page.getByRole("heading", { level: 1, name: PROPOSALS_PAGE.title })).toBeVisible();
   await expect(page.getByRole("heading", { name: PROPOSALS_PAGE.emptyHeading })).toBeVisible();
   await expect(page.getByText(proposalsEmptyLine(false, null))).toBeVisible();
+  await expect(page.getByText(PROPOSALS_PAGE.intro)).toBeVisible();
   await expect(page.getByRole("button", { name: /^(Accept|Reject)/u })).toHaveCount(0);
 
   await page.reload();
