@@ -104,13 +104,7 @@ class GrokUpdates implements Updates {
   private due(state: Readonly<UpdateState> | null, now: number): boolean {
     if (this.attemptedAt !== null && now - this.attemptedAt < DAY_MS) return false;
 
-    if (state === null) return true;
-
-    if (state.checkedAt > now) {
-      report("grok-update-clock", { aheadMs: state.checkedAt - now });
-
-      return true;
-    }
+    if (state === null || state.checkedAt > now) return true;
 
     return now - state.checkedAt >= DAY_MS;
   }
@@ -139,7 +133,12 @@ class GrokUpdates implements Updates {
     await withCleanup(
       { event: "grok-update-lock-not-removed", fields: {} },
       async () => {
-        if (!this.due(await this.state(), now)) return;
+        const state = await this.state();
+
+        if (!this.due(state, now)) return;
+
+        if (state !== null && state.checkedAt > now)
+          report("grok-update-clock", { aheadMs: state.checkedAt - now });
 
         this.attemptedAt = now;
         await this.save(now);
