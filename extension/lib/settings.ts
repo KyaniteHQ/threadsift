@@ -1,28 +1,38 @@
 import { browser } from "wxt/browser";
 
+import { INSTANCE_CALL_DEADLINE_MS } from "../../src/core/contract/reddit-relay-contract.ts";
 import { hostPattern, instanceOrigin, requestAccess } from "./config.ts";
 import { logFailure } from "./log.ts";
 import { CONFIG_PORT, SETTINGS_PORT } from "./ports.ts";
 import {
   ANSWER_DEADLINE_MS,
+  type AddressCheck,
   type ChangeAnswer,
   ChangeAnswerSchema,
   type ConfigView,
   ConfigViewSchema,
+  ERROR_EVENT_WAIT_MS,
   type SettingsRequest,
   ask,
 } from "./state.ts";
 
-export type Refusal = "address" | "token" | "access";
+const SAVE_DEADLINE_MS = ANSWER_DEADLINE_MS + INSTANCE_CALL_DEADLINE_MS + ERROR_EVENT_WAIT_MS;
 
-export type Failure = "not-saved" | "old-access-kept" | "not-saved-access-kept";
+export type Refusal = "address" | "token" | "new-address-token" | "access";
+
+export type Failure = "not-saved" | "not-saved-access-kept";
 
 export type SettingsState =
   | { readonly kind: "loading" }
   | { readonly kind: "unreadable" }
   | { readonly kind: "idle"; readonly stored: ConfigView }
   | { readonly kind: "saving"; readonly stored: ConfigView }
-  | { readonly kind: "saved"; readonly stored: ConfigView }
+  | {
+      readonly kind: "saved";
+      readonly stored: ConfigView;
+      readonly check: AddressCheck;
+      readonly accessKept: boolean;
+    }
   | { readonly kind: "refused"; readonly stored: ConfigView; readonly reason: Refusal }
   | { readonly kind: "failed"; readonly stored: ConfigView; readonly step: Failure };
 
@@ -44,7 +54,7 @@ export async function askConfigView(): Promise<ConfigView | null> {
 export async function requestChange(request: SettingsRequest): Promise<ChangeAnswer | null> {
   try {
     return await ask(SETTINGS_PORT, ChangeAnswerSchema, {
-      deadlineMs: ANSWER_DEADLINE_MS,
+      deadlineMs: request.kind === "save" ? SAVE_DEADLINE_MS : ANSWER_DEADLINE_MS,
       request,
     });
   } catch (cause) {
@@ -66,26 +76,36 @@ export function loadSettings(): Promise<SettingsState> {
   return readState((stored) => ({ kind: "idle", stored }));
 }
 
-function failureOf({ write, access }: Readonly<ChangeAnswer>): Failure | null {
-  if (write === "done") return access === "kept" ? "old-access-kept" : null;
-
-  return access === "kept" ? "not-saved-access-kept" : "not-saved";
-}
-
 function stateOf(answer: Readonly<ChangeAnswer>): SettingsState {
-  const step = failureOf(answer);
+  const { stored } = answer;
+  const accessKept = answer.access === "kept";
 
-  return step === null
-    ? { kind: "saved", stored: answer.stored }
-    : { kind: "failed", stored: answer.stored, step };
+  switch (answer.write) {
+    case "done":
+      return { kind: "saved", stored, check: answer.check ?? "check-failed", accessKept };
+    case "token-needed":
+      return { kind: "refused", stored, reason: "new-address-token" };
+    case "failed":
+      return { kind: "failed", stored, step: accessKept ? "not-saved-access-kept" : "not-saved" };
+    default:
+      return answer satisfies never;
+  }
 }
 
 function notSaved(): Promise<SettingsState> {
   return readState((stored) => ({ kind: "failed", stored, step: "not-saved" }));
 }
 
-export function tokenMissing(stored: Readonly<ConfigView>, token: string): boolean {
-  return token.trim() === "" && !stored.hasToken;
+export function tokenRefusal(
+  stored: Readonly<ConfigView>,
+  origin: string | null,
+  token: string,
+): Extract<Refusal, "token" | "new-address-token"> | null {
+  if (token.trim() !== "") return null;
+
+  if (!stored.hasToken) return "token";
+
+  return origin === stored.origin ? null : "new-address-token";
 }
 
 export async function saveSettings(
@@ -97,7 +117,9 @@ export async function saveSettings(
 
   if (origin === null) return { kind: "refused", stored, reason: "address" };
 
-  if (tokenMissing(stored, token)) return { kind: "refused", stored, reason: "token" };
+  const missing = tokenRefusal(stored, origin, token);
+
+  if (missing !== null) return { kind: "refused", stored, reason: missing };
 
   const granted = await requestAccess(
     () => browser.permissions.request({ origins: [hostPattern(origin)] }),

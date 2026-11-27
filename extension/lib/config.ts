@@ -2,7 +2,8 @@ import { type Browser, browser } from "wxt/browser";
 import type { z } from "zod";
 
 import { INSTANCE_CALL_DEADLINE_MS } from "../../src/core/contract/reddit-relay-contract.ts";
-import { logFailure, logFailureClass } from "./log.ts";
+import { type CallOutcome, callInstance } from "./instance-call.ts";
+import { logFailure } from "./log.ts";
 import { LOOPBACK_HOSTS } from "./loopback-hosts.ts";
 
 const LOOPBACK_SET: ReadonlySet<string> = new Set(LOOPBACK_HOSTS);
@@ -44,28 +45,33 @@ export interface Config {
   readonly token: string;
 }
 
-export async function instanceRequest(
+interface InstanceCall {
+  readonly method: string;
+  readonly body?: unknown;
+  readonly event: string;
+  readonly redirect?: "error" | "manual";
+}
+
+export function instanceRequest(
   { origin, token }: Readonly<Config>,
   path: string,
-  { method, body, event }: Readonly<{ method: string; body?: unknown; event: string }>,
-): Promise<Response | null> {
-  try {
-    const headers = new Headers({ authorization: `Bearer ${token}` });
+  { method, body, event, redirect = "error" }: Readonly<InstanceCall>,
+): Promise<CallOutcome> {
+  const authorization = `Bearer ${token}`;
 
-    if (body !== undefined) headers.set("content-type", "application/json");
-
-    return await fetch(new URL(path, origin), {
-      method,
-      headers,
-      body: body === undefined ? null : JSON.stringify(body),
-      redirect: "error",
-      signal: AbortSignal.timeout(INSTANCE_CALL_DEADLINE_MS),
-    });
-  } catch (cause) {
-    logFailureClass(event, cause);
-
-    return null;
-  }
+  return callInstance({
+    url: new URL(path, origin),
+    hostMatch: hostPattern(origin),
+    method,
+    headers:
+      body === undefined
+        ? { authorization }
+        : { authorization, "content-type": "application/json" },
+    body: body === undefined ? null : JSON.stringify(body),
+    redirect,
+    deadlineMs: INSTANCE_CALL_DEADLINE_MS,
+    event,
+  });
 }
 
 export async function instanceAnswer<Schema extends z.ZodType>(

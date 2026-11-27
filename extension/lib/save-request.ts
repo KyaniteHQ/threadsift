@@ -85,13 +85,13 @@ export async function send(
   config: Readonly<Config>,
   { body, completeness }: Readonly<Saving>,
 ): Promise<SaveState> {
-  const response = await instanceRequest(config, "/api/items", {
+  const reply = await instanceRequest(config, "/api/items", {
     method: "POST",
     body,
     event: "save-request-failed",
   });
 
-  return response === null
-    ? { kind: "unreachable" }
-    : stateOf(response, config.origin, completeness);
+  if (reply.kind === "answered") return stateOf(reply.response, config.origin, completeness);
+
+  return { kind: reply.failure === "unknown" ? "unreachable" : reply.failure };
 }

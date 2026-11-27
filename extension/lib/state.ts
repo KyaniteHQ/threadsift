@@ -3,6 +3,19 @@ import { z } from "zod";
 
 import { REDDIT_CONNECT_STATES } from "../../src/core/contract/reddit-relay-contract.ts";
 
+export const NAMED_FAILURES = [
+  "name-not-found",
+  "connection-refused",
+  "timed-out",
+  "secure-connection-failed",
+] as const;
+
+export type NamedFailure = (typeof NAMED_FAILURES)[number];
+
+export type CallFailure = NamedFailure | "unknown";
+
+export const ERROR_EVENT_WAIT_MS = 1_000;
+
 export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("saving") }),
   z.object({ kind: z.literal("saved"), itemUrl: z.string() }),
@@ -18,6 +31,7 @@ export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unsupported-link") }),
   z.object({ kind: z.literal("thread-kept") }),
   z.object({ kind: z.literal("budget-spent") }),
+  z.object({ kind: z.enum(NAMED_FAILURES) }),
   z.object({ kind: z.literal("unreachable") }),
   z.object({ kind: z.literal("failed") }),
 ]);
@@ -41,11 +55,34 @@ export const SettingsRequestSchema = z.discriminatedUnion("kind", [
 
 export type SettingsRequest = z.infer<typeof SettingsRequestSchema>;
 
-export const ChangeAnswerSchema = z.object({
-  stored: ConfigViewSchema,
-  write: z.enum(["done", "failed"]),
-  access: z.enum(["reconciled", "kept"]),
-});
+export const ADDRESS_CHECKS = [
+  "works",
+  ...NAMED_FAILURES,
+  "unreachable",
+  "not-instance",
+  "instance-outdated",
+  "token-refused",
+  "scope-refused",
+  "check-failed",
+] as const;
+
+export type AddressCheck = (typeof ADDRESS_CHECKS)[number];
+
+const AccessResultSchema = z.enum(["reconciled", "kept"]);
+
+export const ChangeAnswerSchema = z.discriminatedUnion("write", [
+  z.object({
+    write: z.literal("done"),
+    stored: ConfigViewSchema,
+    access: AccessResultSchema,
+    check: z.enum(ADDRESS_CHECKS).nullable(),
+  }),
+  z.object({
+    write: z.enum(["failed", "token-needed"]),
+    stored: ConfigViewSchema,
+    access: AccessResultSchema,
+  }),
+]);
 
 export type ChangeAnswer = z.infer<typeof ChangeAnswerSchema>;
 

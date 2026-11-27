@@ -2,6 +2,7 @@ import type { Context } from "hono";
 import { HTTPException } from "hono/http-exception";
 
 import {
+  SCOPES,
   type Scope,
   type NeededScopes,
   lacksScope,
@@ -36,6 +37,19 @@ export function requireScopes(c: Context, needed: NeededScopes): void {
       return;
     }
 
+    default:
+      return principal satisfies never;
+  }
+}
+
+export function heldScopes(c: Context): readonly Scope[] {
+  const principal = c.get("principal");
+
+  switch (principal.kind) {
+    case "owner":
+      return SCOPES;
+    case "token":
+      return principal.scopes;
     default:
       return principal satisfies never;
   }

@@ -2,6 +2,7 @@ import { type McpServer, requireScopes } from "@modelcontextprotocol/server";
 import { z } from "zod";
 
 import { CanonicalNumberSchema } from "../core/contract/canonical-number.ts";
+import { NOT_FOUND } from "../core/contract/error-wire.ts";
 import {
   ItemDetailResponseSchema,
   ItemReadResponseSchema,
@@ -10,7 +11,6 @@ import { PAGE_SIZE } from "../core/contract/paging.ts";
 import type { Ports } from "../core/kernel/ports.ts";
 import { readItem, readItemPage } from "./item-read.ts";
 import { answered, guarded, refused } from "./mcp-results.ts";
-import { NOT_FOUND } from "./refusals.ts";
 import { ItemQuerySchema } from "./route-input.ts";
 
 const READ_ONLY = requireScopes("read");

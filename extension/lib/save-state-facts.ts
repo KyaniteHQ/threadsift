@@ -6,6 +6,12 @@ type SaveAction = "open-item" | "settings" | "retry" | "none";
 
 type SavedState = Extract<SaveState, { readonly itemUrl: string }>;
 
+type StateOf<State, Kind> = State extends { readonly kind: infer Of }
+  ? Kind extends Of
+    ? State
+    : never
+  : never;
+
 type ActionOf<State extends SaveState> = State extends SavedState
   ? "open-item"
   : Exclude<SaveAction, "open-item">;
@@ -19,9 +25,7 @@ interface SaveStateFacts<Action extends SaveAction> {
 }
 
 type SaveStateTable = {
-  readonly [Kind in SaveState["kind"]]: SaveStateFacts<
-    ActionOf<Extract<SaveState, { kind: Kind }>>
-  >;
+  readonly [Kind in SaveState["kind"]]: SaveStateFacts<ActionOf<StateOf<SaveState, Kind>>>;
 };
 
 function notSaved<Action extends Exclude<SaveAction, "open-item">>(
@@ -69,6 +73,12 @@ export const SAVE_STATE_FACTS = {
   "unsupported-link": notSaved(TEXT.unsupportedLink, "none", { leavesRedditUnknown: true }),
   "thread-kept": notSaved(TEXT.threadKept, "none", { leavesRedditUnknown: true }),
   "budget-spent": notSaved(TEXT.budgetSpent, "none", { leavesRedditUnknown: true }),
+  "name-not-found": notSaved(TEXT.nameNotFound, "retry", { leavesRedditUnknown: false }),
+  "connection-refused": notSaved(TEXT.connectionRefused, "retry", { leavesRedditUnknown: false }),
+  "timed-out": notSaved(TEXT.timedOut, "retry", { leavesRedditUnknown: false }),
+  "secure-connection-failed": notSaved(TEXT.secureConnection, "retry", {
+    leavesRedditUnknown: false,
+  }),
   unreachable: notSaved(TEXT.unreachable, "retry", { leavesRedditUnknown: false }),
   failed: notSaved(TEXT.failed, "retry", { leavesRedditUnknown: true }),
 } satisfies SaveStateTable;

@@ -18,6 +18,8 @@ The paste box, the Extension and agents use the same HTTP API. An agent needs fi
 
 A key that no Topic has but a merged-away Topic had answers the page of the Topic it was merged into, with that Topic's key in `topic.key`, and Try again acts on that Topic. Any other unknown key answers 404.
 
+`GET /api/scopes` answers the `scopes` of the agent token it carries, or every scope for the owner's session, and changes no library data; like every authenticated call it can record the token's last use or renew the owner's session. A client calls it to check its address and token; the Extension calls it at Save settings.
+
 ### Who may call
 
 Each route declares who may call it, how large its body may be and how its answer is cached with `access(...)`, and `createApp` stops at start-up when a route has no statement. [Access](access-owner-login-agent-tokens-mcp.md) (Route access) holds the classes, the order of checks, the 401, 403, 404 and 405 answers, and the daily budget refusal (429 `budget-spent`). The routes below name only what sets them apart.

@@ -17,10 +17,6 @@ function write(change: Readonly<Stored>): Promise<void> {
   return browser.storage.local.set(change);
 }
 
-export function storeOrigin(origin: string): Promise<void> {
-  return write({ instance: origin });
-}
-
 export function storeConfig({ origin, token }: Readonly<Config>): Promise<void> {
   return write({ instance: origin, token });
 }

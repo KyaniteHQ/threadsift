@@ -106,6 +106,7 @@ Not verified:
 - The browsers' own Reddit permission prompts on Turn on and Connect Reddit, and the physical toolbar click. The runs pressed keys through `xdotool` in Chrome and turned `extensions.webextOptionalPermissionPrompts` off in Firefox.
 - Cancelling a Fill and framed Instance pages in Firefox. The `frameId` check on the relay port cannot be reached from a page.
 - A signed Firefox update through the store.
+- The causes the Extension names for a failed call ([Extension and Threadsift bot](extension-and-threadsift-bot.md), Why a call failed): the popup's texts in Firefox, two calls to the same address and method at once (both get no cause), and a browser that refuses the `webRequest` listener. Runs on 2026-11-27 covered the settings page in Chromium 156 and Firefox 160 and the popup in Chromium 156.
 - Not run by the gate: the Extension's `budget-spent` state. No check saves through the Extension, in a browser or by calling its save code, against an Instance whose agent token has spent its Daily budget.
 - Not verified: how the Threadsift bot script handles a 429 from a real Instance (it maps `save:429` to `budget-spent`); no live run checked it. Outside clients' handling of 429 and `Retry-After` is not checked.
 - That a Reddit post page's `<title>` ends in the community name, which is why the Extension takes the title from Defuddle's Reddit extractor. Save a Reddit post page with the built Extension in Chromium and compare the stored title with `document.title`.

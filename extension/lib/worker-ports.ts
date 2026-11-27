@@ -2,7 +2,6 @@ import { type Browser, browser } from "wxt/browser";
 
 import { WORKER_WORKING } from "../../src/core/contract/reddit-relay-contract.ts";
 import { changeSettings } from "./change.ts";
-import type { Config } from "./config.ts";
 import { loadConfig, loadConfigView } from "./credentials.ts";
 import { fillOpenedThread } from "./fill.ts";
 import { logFailure } from "./log.ts";
@@ -14,13 +13,12 @@ import {
   SAVE_PORT,
   SETTINGS_PORT,
 } from "./ports.ts";
-import { connectReddit, disconnectReddit, readRedditState } from "./reddit-account.ts";
+import { answerReddit, connectReddit } from "./reddit-account.ts";
 import { serveSave } from "./save-port.ts";
 import {
   type ChangeAnswer,
   type ConfigView,
   type RedditAnswer,
-  type RedditRequest,
   RedditRequestSchema,
   SettingsRequestSchema,
 } from "./state.ts";
@@ -37,19 +35,6 @@ async function serve(port: Port, compute: () => Promise<Answer>): Promise<void> 
     logFailure(`${port.name}-answer-failed`, cause);
     port.disconnect();
   }
-}
-
-const REDDIT_CALLS = {
-  read: readRedditState,
-  connect: connectReddit,
-  disconnect: disconnectReddit,
-} as const satisfies Record<
-  RedditRequest["kind"],
-  (config: Config | null) => Promise<RedditAnswer["state"]>
->;
-
-async function reddit({ kind }: Readonly<RedditRequest>): Promise<RedditAnswer> {
-  return { state: await REDDIT_CALLS[kind](await loadConfig()) };
 }
 
 async function relayed(
@@ -105,7 +90,7 @@ export function servePort(port: Port): void {
       break;
     case REDDIT_PORT:
       port.onMessage.addListener((message) => {
-        void serve(port, () => reddit(RedditRequestSchema.parse(message)));
+        void serve(port, () => answerReddit(RedditRequestSchema.parse(message)));
       });
       break;
     case FILL_PORT:

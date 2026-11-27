@@ -55,6 +55,8 @@ export const TokenSummaryResponseSchema = z.object({ token: TokenSchema });
 
 export const TokenListResponseSchema = z.object({ tokens: z.array(TokenSchema) });
 
+export const CallerScopesResponseSchema = z.object({ scopes: ScopeListSchema.readonly() });
+
 export type Token = z.infer<typeof TokenSchema>;
 
 export type CreateTokenRequest = z.input<typeof CreateTokenRequestSchema>;

@@ -8,10 +8,12 @@ import {
   sessionIdOf,
   startedSession,
 } from "../../../http/session-cookie.ts";
+import { heldScopes } from "../../../http/token-scopes.ts";
 import { anonymousState, checkSetupCode, login, setUpOwner } from "../core/owner.ts";
 import { endSession } from "../core/sessions.ts";
 import { changeBudget, createToken, listTokens, revokeToken } from "../core/tokens.ts";
 import {
+  callerScopesRoute,
   changeBudgetRoute,
   createTokenRoute,
   listTokensRoute,
@@ -83,6 +85,8 @@ function registerTokenRoutes(app: OpenAPIHono, ports: Ports): void {
   });
 
   app.openapi(listTokensRoute, async (c) => c.json({ tokens: await listTokens(ports) }, 200));
+
+  app.openapi(callerScopesRoute, (c) => c.json({ scopes: heldScopes(c) }, 200));
 
   app.openapi(revokeTokenRoute, async (c) =>
     (await revokeToken(ports, c.req.valid("param").id))
