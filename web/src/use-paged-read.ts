@@ -167,7 +167,12 @@ export function usePagedRead<Page extends PagedPage, Added extends PagedPage>(
   const loadMore = useCallback((): boolean => {
     const current = latest.current;
 
-    if (current.status !== "ready" || current.next === null || current.more === "loading") {
+    if (
+      current.status !== "ready" ||
+      current.next === null ||
+      current.more === "loading" ||
+      reloading.current > 0
+    ) {
       return false;
     }
 
@@ -176,7 +181,7 @@ export function usePagedRead<Page extends PagedPage, Added extends PagedPage>(
     appendNext({ after: reads.after, cursor: current.next, signal, joined, setState });
 
     return true;
-  }, [joined, latest, reads, ticket]);
+  }, [joined, latest, reads, reloading, ticket]);
 
   return { state, retry, refresh, loadMore };
 }
