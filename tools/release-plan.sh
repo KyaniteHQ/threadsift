@@ -38,20 +38,21 @@ if [[ -n $notes ]]; then
   : "${IMAGE:?set IMAGE to the image name, as the release workflow does, to write the notes}"
 fi
 
-number='(0|[1-9][0-9]*)'
+number='(0|[1-9][0-9]{0,8})'
 identifier='(0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)'
 stable_pattern="^v$number\\.$number\\.$number\$"
 [[ $tag =~ ^v$number\.$number\.$number(-$identifier(\.$identifier)*)?$ ]] ||
-  fail "$tag is not a version tag: write v<major>.<minor>.<patch>, add -<pre-release> for a release candidate, and leave out +<build>"
+  fail "$tag is not a version tag: write v<major>.<minor>.<patch>, each number at most 9 digits, add -<pre-release> for a release candidate, and leave out +<build>"
 major=${BASH_REMATCH[1]}
 minor=${BASH_REMATCH[2]}
 patch=${BASH_REMATCH[3]}
 version=${tag#v}
+((${#version} <= 128)) || fail "$tag is too long: an image tag holds at most 128 characters, and $version has ${#version}"
 candidate=true
 [[ ! $tag =~ $stable_pattern ]] || candidate=false
 
 key() {
-  printf '%010d%010d%010d' "$1" "$2" "$3"
+  printf '%09d%09d%09d' "$1" "$2" "$3"
 }
 own_key=$(key "$major" "$minor" "$patch")
 newer_any=
@@ -59,6 +60,7 @@ newer_in_major=
 newer_in_minor=
 previous=
 previous_key=
+tags=$(git -C "$root" tag --list 'v*')
 while IFS= read -r other; do
   [[ -n $other && $other != "$tag" ]] || continue
   IFS=. read -r other_major other_minor other_patch <<< "${other#v}"
@@ -75,11 +77,11 @@ while IFS= read -r other; do
     previous=$other
     previous_key=$other_key
   fi
-done < <(git -C "$root" tag --list 'v*' | grep -E "$stable_pattern" || true)
+done < <(grep -E "$stable_pattern" <<< "$tags" || true)
 
 image_tags=$version
 move_release=false
-latest=false
+release_files=()
 decisions=()
 moving() {
   local name=$1 newer=$2
@@ -109,7 +111,6 @@ elif [[ -n $newer_any ]]; then
 else
   decisions+=("move     branch release to the commit of $tag")
   move_release=true
-  latest=true
 fi
 
 if [[ $candidate == true ]]; then
@@ -150,11 +151,16 @@ fi
 kind="GitHub Release"
 [[ $candidate == false ]] || kind="GitHub prerelease"
 marks=
-[[ $latest == false ]] || marks=", marked latest"
+[[ $move_release == false ]] || marks=", marked latest"
 since=
 [[ $candidate == true || -z $previous ]] || since=", and the pull requests since $previous"
 printf '%s\n' "${decisions[@]}"
 echo "create   $kind \"$title\"$marks, with the notes of \"$section\" in $(basename "$changelog")$since"
+if ((${#release_files[@]} == 0)); then
+  echo "attach   no file"
+else
+  echo "attach   ${release_files[*]}"
+fi
 
 if [[ -n $outputs ]]; then
   {
@@ -162,7 +168,7 @@ if [[ -n $outputs ]]; then
     echo "image_tags=$image_tags"
     echo "move_release=$move_release"
     echo "prerelease=$candidate"
-    echo "latest=$latest"
+    echo "release_files=${release_files[*]}"
     echo "title=$title"
     echo "notes_start_tag=${since:+$previous}"
   } >> "$outputs"
