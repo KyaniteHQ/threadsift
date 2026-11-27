@@ -16,6 +16,8 @@ import {
   useActionFlow,
 } from "./use-settings-action.ts";
 
+export const GITHUB_STATE_ID = "github-state";
+
 type Action = "save" | "verify" | "remove";
 
 const FAILED = {
@@ -118,7 +120,7 @@ export function useGithubForm(view: GithubSettingsView, changed: Changed) {
     check: "verify",
     labels: LABELS,
     unavailable,
-    showReason: view.token === "none",
+    explainedBy: view.token === "none" ? GITHUB_STATE_ID : undefined,
     press: { check: verifyNow, remove: removeNow },
   });
 

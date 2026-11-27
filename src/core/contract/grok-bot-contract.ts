@@ -106,7 +106,7 @@ export const GrokBotUnreadySchema = z.object({
 });
 
 export const GrokBotInUseSchema = z.object({
-  error: z.literal(GROK_BOT_IN_USE),
+  error: z.string(),
   code: z.literal("in-use"),
 });
 

@@ -16,6 +16,8 @@ import {
   useActionFlow,
 } from "./use-settings-action.ts";
 
+export const GROK_BOT_STATE_ID = "grok-bot-state";
+
 type Action = "save" | "test" | "remove";
 
 const FAILED = {
@@ -155,7 +157,7 @@ export function useGrokBotForm(view: GrokBotView, changed: Changed) {
     check: "test",
     labels: LABELS,
     unavailable,
-    showReason: view.key === "none",
+    explainedBy: view.key === "none" ? GROK_BOT_STATE_ID : undefined,
     press: { check: testNow, remove: removeNow },
   });
 
