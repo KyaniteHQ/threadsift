@@ -76,7 +76,8 @@
      row's name, the revealed token);
    - 1lh, the height of one line of text: a ghost row's line, the list
      header's height, the margin that centres the read mark on the kept
-     strip and the room the strip keeps for it, the padding that centres
+     strip and the room the strip keeps for it, the offset that centres the
+     square before a strip or byline part on the part's first line, the padding that centres
      the revealed token in a field-high box, the margin that centres a tag's dot on the first line
      of its name, and a tag's corner radius (half a line plus its padding
      and hairline border, so a wrapped Chips name stays inside the pill);
