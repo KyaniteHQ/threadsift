@@ -3,7 +3,7 @@ import { useCallback, useId } from "react";
 import { SCOPES, type Scope } from "../../src/core/contract/agent-token-contract.ts";
 import { SETTINGS } from "./access-text.ts";
 
-const SCOPE_LABELS = {
+export const SCOPE_LABELS = {
   read: SETTINGS.scopeRead,
   add: SETTINGS.scopeAdd,
   digest: SETTINGS.scopeDigest,
@@ -17,14 +17,6 @@ const SCOPE_HINTS = {
   digest: SETTINGS.scopeHintDigest,
   delete: SETTINGS.scopeHintDelete,
   reddit: SETTINGS.scopeHintReddit,
-} as const satisfies Readonly<Record<Scope, string>>;
-
-export const SCOPE_NAMES = {
-  read: SETTINGS.scopeNameRead,
-  add: SETTINGS.scopeNameAdd,
-  digest: SETTINGS.scopeNameDigest,
-  delete: SETTINGS.scopeNameDelete,
-  reddit: SETTINGS.scopeNameReddit,
 } as const satisfies Readonly<Record<Scope, string>>;
 
 function ScopeOption({

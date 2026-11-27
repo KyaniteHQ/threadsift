@@ -19,7 +19,7 @@ export const SETUP = {
   shortHelp: `The setup code must be at least ${SETUP_CODE_MIN} characters. Set a longer one, then reload this page.`,
   passwordTitle: "Step 2 of 3: choose a password",
   passwordHelp: `Use at least ${PASSWORD_MIN} characters. Any character is allowed.`,
-  passwordTooShort: `Your password must be at least ${PASSWORD_MIN} characters.`,
+  passwordTooShort: `This password is under ${PASSWORD_MIN} characters.`,
   passwordTooLong: `Your password must be ${groupedNumber(PASSWORD_MAX)} characters or fewer.`,
   passwordMismatch: "The two passwords don’t match.",
   create: "Create password",
@@ -117,11 +117,6 @@ export const SETTINGS = {
   scopeHintReddit:
     "Reddit connects and disconnects your Reddit account for the browser extension. A token can never read the session back.",
   scopesRequired: "Select at least one scope.",
-  scopeNameRead: "read",
-  scopeNameAdd: "add",
-  scopeNameDigest: "digest",
-  scopeNameDelete: "delete",
-  scopeNameReddit: "Reddit",
   scopesNone: "unreadable (no access)",
   scopesMeta: "scopes: {scopes}",
   createToken: "Create token",
@@ -146,22 +141,25 @@ export const SETTINGS = {
   revokeAsk: "Revoke {name}?",
   revokeConfirm: "Revoke token",
   cancel: "Cancel",
-  revokeFailed: "Couldn’t revoke {name}. The token still works. Try again.",
+  revokeFailed:
+    "Couldn’t confirm whether {name} was revoked. Reload the page to check, or try Revoke again.",
   budgetLabel: "Daily budget",
   budgetHint:
     "New items per day, counted from 00:00 UTC. Links already in the library don’t count. Leave empty for no budget.",
   budgetInvalid: "Enter a whole number above 0, or leave the field empty.",
-  budgetUsed: "items added today: {added} of {limit}",
-  budgetUsedUnlimited: "items added today: {added}",
+  budgetUsed: "Items added today (UTC): {added} of {limit}",
+  budgetUsedUnlimited: "Items added today (UTC): {added}",
   budgetSpent: "This token has spent its daily budget. It can’t add new links until 00:00 UTC.",
   budgetChange: "Change budget",
   budgetChangeNamed: "Change budget for {name}",
   budgetSave: "Save budget",
-  budgetSaveFailed: "Couldn’t save the budget. Nothing changed.",
+  budgetSaveFailed:
+    "Couldn’t confirm whether the new daily budget was saved. Reload the page to check, or try again.",
   signOutTitle: "Sign out",
   signOutNote: "Other browsers stay signed in. Agent tokens keep working.",
   signOut: "Sign out",
-  signOutFailed: "Couldn’t sign out. You’re still signed in. Try again.",
+  signOutFailed:
+    "Couldn’t confirm whether you’re signed out. Reload the page to check, or try again.",
 } as const;
 
 export function waitLabel(seconds: number): string {

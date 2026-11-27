@@ -153,7 +153,7 @@
   gap: var(--s2);
 }
 .reveal-value {
-  flex: 1 1 14em;
+  flex: 1 1 100%;
   box-sizing: border-box;
   min-width: 0;
   min-height: var(--field-h);
