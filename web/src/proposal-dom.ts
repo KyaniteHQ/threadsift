@@ -18,8 +18,15 @@ export function reasonId(id: number): string {
   return `${rowId(id)}-reason`;
 }
 
+export function finalId(id: number): string {
+  return `${rowId(id)}-final`;
+}
+
 export function rowDescription(proposal: Readonly<Proposal>): string | undefined {
-  return proposal.kind === "items-disagree"
-    ? `${sidesId(proposal.id)} ${reasonId(proposal.id)}`
-    : undefined;
+  const ids = [
+    ...(proposal.kind === "items-disagree" ? [sidesId(proposal.id), reasonId(proposal.id)] : []),
+    ...(proposal.state === "open" ? [finalId(proposal.id)] : []),
+  ];
+
+  return ids.length === 0 ? undefined : ids.join(" ");
 }

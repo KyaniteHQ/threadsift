@@ -1,5 +1,6 @@
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { ItemsDisagreeProposal } from "../../src/core/contract/proposal-contract.ts";
+import { FinalLine } from "./FinalLine.tsx";
 import { InternalLink } from "./InternalLink.tsx";
 import { reasonId, sidesId } from "./proposal-dom.ts";
 import { ITEMS_DISAGREE_EFFECT, PROPOSAL_WORDS, sideNamedWords } from "./proposals-text.ts";
@@ -36,7 +37,7 @@ export function ItemsDisagreeBody({ proposal }: Readonly<{ proposal: ItemsDisagr
         <span className="vh">{PROPOSAL_WORDS.reasonLabel}: </span>
         {reason}
       </p>
-      <p className="rl-sum pr-keeps">{PROPOSAL_WORDS.disagreementKept}</p>
+      <FinalLine proposal={proposal} className="pr-keeps" text={PROPOSAL_WORDS.disagreementKept} />
     </>
   );
 }

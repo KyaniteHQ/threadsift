@@ -23,6 +23,7 @@ export interface Listing<Page extends PagedPage, Row> {
   readonly head: (ready: PagedReady<Page>) => string;
   readonly intro?: string;
   readonly emptyLine: (ready: PagedReady<Page>) => string;
+  readonly emptyFoot?: (ready: PagedReady<Page>) => ReactNode;
   readonly rows: (ready: PagedReady<Page>) => readonly Row[];
 }
 
@@ -35,12 +36,6 @@ interface Source<Page extends PagedPage> {
 interface Shown<Page extends PagedPage, Row> {
   readonly listing: Listing<Page, Row>;
   readonly draw: (row: Row) => ReactNode;
-}
-
-function Intro<Page extends PagedPage, Row>({
-  listing,
-}: Readonly<{ listing: Listing<Page, Row> }>) {
-  return listing.intro === undefined ? null : <p className="rl-intro">{listing.intro}</p>;
 }
 
 function Rows<Page extends PagedPage, Row>({
@@ -69,7 +64,7 @@ function Rows<Page extends PagedPage, Row>({
         </h2>
         <p className="label">{listing.text.sort}</p>
       </header>
-      <Intro listing={listing} />
+      {listing.intro === undefined ? null : <p className="rl-intro">{listing.intro}</p>}
       <ol ref={list} role="list" className="rl-list">
         {listing.rows(ready).map((row) => draw(row))}
       </ol>
@@ -99,8 +94,10 @@ function Body<Page extends PagedPage, Row>({
     case "ready":
       return listing.rows(state).length === 0 ? (
         <>
-          <Intro listing={listing} />
-          <EmptyState heading={listing.text.emptyHeading} line={listing.emptyLine(state)} />
+          {listing.intro === undefined ? null : <p className="rl-intro">{listing.intro}</p>}
+          <EmptyState heading={listing.text.emptyHeading} line={listing.emptyLine(state)}>
+            {listing.emptyFoot?.(state)}
+          </EmptyState>
         </>
       ) : (
         <Rows ready={state} loadMore={loadMore} listing={listing} draw={draw} />

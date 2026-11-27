@@ -24,7 +24,7 @@ export const PROPOSALS_PAGE = {
     "Rejecting a proposal can’t be undone. The weekly check never proposes it again, and the library stays as it is.",
 } as const;
 
-const EMPTY_NO_PROVIDER = "Save a provider in Instance settings so the weekly check can run.";
+const EMPTY_NO_PROVIDER = "Proposals come from a weekly check. Save a provider so it can run.";
 const EMPTY_NOT_CHECKED = "Proposals appear here once the weekly check runs.";
 const EMPTY_CHECKED = "The last weekly check started on {date}.";
 
@@ -50,37 +50,37 @@ const WORDS = {
     effect: "Merge tag {from} into {into}",
     acceptNamed: "Accept merging tag {from} into {into}",
     acceptRetryNamed: "Try again to accept merging tag {from} into {into}",
-    accepted: "Accepted merging tag {from} into {into}.",
+    accepted: "Accepted: merge tag “{from}” into “{into}”.",
     rejectNamed: "Reject merging tag {from} into {into}",
     rejectRetryNamed: "Try again to reject merging tag {from} into {into}",
-    rejected: "Rejected merging tag {from} into {into}.",
+    rejected: "Rejected: merge tag “{from}” into “{into}”.",
   },
   "topic-merge": {
     effect: "Merge topic {from} into {into}",
     acceptNamed: "Accept merging topic {from} into {into}",
     acceptRetryNamed: "Try again to accept merging topic {from} into {into}",
-    accepted: "Accepted merging topic {from} into {into}.",
+    accepted: "Accepted: merge topic “{from}” into “{into}”.",
     rejectNamed: "Reject merging topic {from} into {into}",
     rejectRetryNamed: "Try again to reject merging topic {from} into {into}",
-    rejected: "Rejected merging topic {from} into {into}.",
+    rejected: "Rejected: merge topic “{from}” into “{into}”.",
   },
   "highlight-lost": {
     effect: "Remove this highlight",
     acceptNamed: "Accept removing highlight “{quote}” from {title}",
     acceptRetryNamed: "Try again to accept removing highlight “{quote}” from {title}",
-    accepted: "Accepted removing highlight “{quote}” from {title}.",
+    accepted: "Accepted: remove highlight “{quote}” from “{title}”.",
     rejectNamed: "Reject removing highlight “{quote}” from {title}",
     rejectRetryNamed: "Try again to reject removing highlight “{quote}” from {title}",
-    rejected: "Rejected removing highlight “{quote}” from {title}.",
+    rejected: "Rejected: remove highlight “{quote}” from “{title}”.",
   },
   "overview-gap": {
     effect: "Update the overview of topic {topic}",
     acceptNamed: "Accept updating the overview of topic {topic}",
     acceptRetryNamed: "Try again to accept updating the overview of topic {topic}",
-    accepted: "Accepted updating the overview of topic {topic}.",
+    accepted: "Accepted: update the overview of topic “{topic}”.",
     rejectNamed: "Reject updating the overview of topic {topic}",
     rejectRetryNamed: "Try again to reject updating the overview of topic {topic}",
-    rejected: "Rejected updating the overview of topic {topic}.",
+    rejected: "Rejected: update the overview of topic “{topic}”.",
   },
   "items-disagree": {
     effect: "Keep this disagreement in topic {topic}",
@@ -88,14 +88,12 @@ const WORDS = {
       "Accept keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
     acceptRetryNamed:
       "Try again to accept keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
-    accepted:
-      "Accepted keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”.",
+    accepted: "Accepted: keep the disagreement between “{first}” and “{second}”.",
     rejectNamed:
       "Reject keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
     rejectRetryNamed:
       "Try again to reject keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
-    rejected:
-      "Rejected keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”.",
+    rejected: "Rejected: keep the disagreement between “{first}” and “{second}”.",
   },
 } as const satisfies Record<ProposalKind, Record<Wording, string>>;
 
@@ -120,7 +118,7 @@ export const PROPOSAL_WORDS = {
   overviewCounts: "Items not in the overview: {uncovered} of {items}",
   overviewCost: `Accept writes the topic’s overview again. Each call to the provider covers up to ${String(ADDED_READ_LIMIT)} items, so a topic with many items can take several calls. The run stops if a call fails.`,
   noProvider:
-    "Save a provider in Instance settings to update the overview. This row stays, and Accept works once a provider is saved.",
+    "Nothing changed. This proposal stays in the list, and Accept works once you save a provider.",
   mergeFinal: "Accept starts the merge at once. This can’t be undone in this release.",
   topicMergeFinal:
     "Accept starts the merge at once. This can’t be undone in this release. The merge moves the first topic’s items into the second and deletes the first topic. Its page address then opens the second topic’s page.",
@@ -159,9 +157,12 @@ const TEXT_CUT = 40;
 function textCut(text: string): string {
   const letters = Array.from(collapsed(text));
 
-  return letters.length > TEXT_CUT
-    ? `${letters.slice(0, TEXT_CUT).join("").trimEnd()}…`
-    : letters.join("");
+  if (letters.length <= TEXT_CUT) return letters.join("");
+
+  const cut = letters.slice(0, TEXT_CUT).join("");
+  const wordEnd = letters[TEXT_CUT] === " " ? cut.length : cut.lastIndexOf(" ");
+
+  return `${cut.slice(0, wordEnd > 0 ? wordEnd : cut.length).trimEnd()}…`;
 }
 
 function slotsOf(proposal: Readonly<Proposal>) {

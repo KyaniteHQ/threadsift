@@ -2,6 +2,7 @@ import { useId } from "react";
 
 import type { LostHighlightProposal } from "../../src/core/contract/proposal-contract.ts";
 import { NOT_FOUND } from "../../src/core/contract/reader-text.ts";
+import { FinalLine } from "./FinalLine.tsx";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { InternalLink } from "./InternalLink.tsx";
 import { placePath } from "./place.ts";
@@ -26,7 +27,7 @@ export function LostHighlightBody({ proposal }: Readonly<{ proposal: LostHighlig
         <QuoteText text={highlight.quote} />
       </blockquote>
       <p className="rd-note pr-gone">{NOT_FOUND}</p>
-      <p className="rl-sum pr-final">{PROPOSAL_WORDS.highlightRemoved}</p>
+      <FinalLine proposal={proposal} className="pr-final" text={PROPOSAL_WORDS.highlightRemoved} />
     </>
   );
 }
