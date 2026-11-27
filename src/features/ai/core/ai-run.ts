@@ -14,7 +14,10 @@ import {
 } from "../../../core/contract/provider-families.ts";
 import type { AiRuntime, CliRunner } from "../../../core/kernel/ai-runtime.ts";
 
-function runnerFor({ cli }: Readonly<AiRuntime>, provider: CliProvider): CliRunner | undefined {
+export function runnerFor(
+  { cli }: Readonly<AiRuntime>,
+  provider: CliProvider,
+): CliRunner | undefined {
   return cli.find((runner) => runner.provider === provider);
 }
 

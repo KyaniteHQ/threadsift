@@ -1,6 +1,6 @@
 # Set up a Provider
 
-An API Provider needs only the fields Settings shows. Fill them in, press **Save**, then press **Verify**. This guide covers the Providers that need more setup: Claude Code and Codex, which run as command-line tools inside the container, and Grok Bot. It also covers the grok CLI that fetches X posts, and the tool that compares Providers.
+An API Provider needs only the fields Settings shows. Fill them in, press **Save**, then press **Verify**. Settings asks the Provider for its models and offers them in **Model**; pick **Other…** to type a model the list does not hold. This guide covers the Providers that need more setup: Claude Code and Codex, which run as command-line tools inside the container, and Grok Bot. It also covers the grok CLI that fetches X posts, and the tool that compares Providers.
 
 - [Choose a model and effort](#choose-a-model-and-effort)
 - [Use Claude Code on the container](#use-claude-code-on-the-container)
@@ -23,7 +23,10 @@ For Claude Code and Codex, use **Model and effort** in Settings to choose what r
 
 With Custom, a model alone uses the CLI's default effort, and an effort alone uses the recommended model. When there is no recommendation, Claude Code chooses its model and Codex uses the first visible model of its bundled catalog.
 
-Claude Code accepts the levels that `podman exec <container> claude --help` lists. Codex lists its levels and defaults under `supported_reasoning_levels` and `default_reasoning_level` in the output of `podman exec <container> codex debug models --bundled`.
+Under Custom, **Model** lists the models Threadsift knows for the CLI, and **Effort** lists the levels of the chosen model. **Default** leaves the model unset, and **Model’s default** leaves the effort unset. Pick **Other…** to type any other model name; Effort is then a text box, because Threadsift does not know that model's levels.
+
+- Codex lists the visible models of its bundled catalog, each with its own levels. Run `podman exec <container> codex debug models --bundled` to see them, with `supported_reasoning_levels` and `default_reasoning_level`.
+- Claude Code has no command that lists models, so Threadsift offers the recommended model and the aliases `fable`, `opus`, `sonnet` and `haiku`, each with the levels that `podman exec <container> claude --help` names for `--effort`. Claude Code moves a level a model does not support to the nearest lower one ([Model configuration](https://code.claude.com/docs/en/model-config)).
 
 ## Use Claude Code on the container
 

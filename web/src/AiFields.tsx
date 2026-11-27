@@ -1,5 +1,3 @@
-import { type ChangeEvent, type ReactNode, useId } from "react";
-
 import {
   AI_URL_MAX,
   AI_MODEL_MAX,
@@ -10,6 +8,8 @@ import {
 } from "../../src/core/contract/provider-families.ts";
 import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
 import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
+import { EffortPicker, ModelPicker } from "./AiModelFields.tsx";
+import { AiSelect } from "./AiSelect.tsx";
 import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
 import type { SavedKey, useAiForm } from "./use-ai-form.ts";
 
@@ -41,51 +41,6 @@ const FIELD_KINDS = {
 const OPTIONAL_MODEL_KIND = { ...FIELD_KINDS.model, required: false } as const;
 
 const REQUIRED_KEY_KIND = { ...FIELD_KINDS.key, required: true } as const;
-
-function AiSelect({
-  name,
-  label,
-  value,
-  children,
-  help,
-  disabled,
-  change,
-}: Readonly<{
-  name: string;
-  label: string;
-  value: string;
-  children: ReactNode;
-  help?: string | undefined;
-  disabled: boolean;
-  change: (event: ChangeEvent<HTMLSelectElement>) => void;
-}>) {
-  const id = useId();
-  const helpId = help === undefined ? undefined : `${id}-help`;
-
-  return (
-    <div className="fld">
-      <label className="label" htmlFor={id}>
-        {label}
-      </label>
-      {help === undefined ? null : (
-        <p className="fld-help" id={helpId}>
-          {help}
-        </p>
-      )}
-      <select
-        id={id}
-        name={name}
-        className="st-sel"
-        value={value}
-        aria-describedby={helpId}
-        aria-disabled={disabled || undefined}
-        onChange={disabled ? undefined : change}
-      >
-        {children}
-      </select>
-    </div>
-  );
-}
 
 function CliChoicePicker({ fields, disabled }: Readonly<{ fields: Fields; disabled: boolean }>) {
   const { cliChoice, fallsBack, recommendation } = fields;
@@ -175,6 +130,40 @@ function AiProviderPicker({ fields, disabled }: Readonly<{ fields: Fields; disab
   );
 }
 
+function AiField({
+  name,
+  kind,
+  fields,
+  marked,
+  disabled,
+  help,
+}: Readonly<{
+  name: keyof typeof FIELD_KINDS;
+  kind: ReturnType<typeof kindFor>;
+  fields: Fields;
+  marked: boolean;
+  disabled: boolean;
+  help: string | undefined;
+}>) {
+  const { models } = fields;
+  const picker = { fields, list: models, kind, marked, disabled, help };
+
+  if (name === "model") return <ModelPicker {...picker} />;
+
+  if (name === "effort") return <EffortPicker {...picker} />;
+
+  return (
+    <FormField
+      field={fields[name]}
+      label={AI_TEXT[name]}
+      kind={kind}
+      marked={marked}
+      help={help}
+      left={name === "key" ? models.keyLeft : models.baseUrlLeft}
+    />
+  );
+}
+
 export function AiFields({
   fields,
   disabled,
@@ -201,12 +190,13 @@ export function AiFields({
       {cli ? <CliChoicePicker fields={fields} disabled={disabled} /> : null}
       {marked ? <RequiredLegend /> : null}
       {kinds.map(({ name, kind }) => (
-        <FormField
+        <AiField
           key={name}
-          field={fields[name]}
-          label={AI_TEXT[name]}
+          name={name}
           kind={kind}
+          fields={fields}
           marked={marked}
+          disabled={disabled}
           help={helpFor(name, fields, { publicOnly, savedKey })}
         />
       ))}

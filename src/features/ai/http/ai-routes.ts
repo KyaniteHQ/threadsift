@@ -5,6 +5,9 @@ import {
   AiSettingsInputSchema,
   AiSettingsViewSchema,
   AiSaveResponseSchema,
+  MODEL_LIST_PAGES,
+  ModelListRequestSchema,
+  ModelListSchema,
   VerifyResultSchema,
 } from "../../../core/contract/ai-settings-contract.ts";
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
@@ -13,14 +16,18 @@ import {
   GROK_BOT_FIRST,
   GrokBotUnreadySchema,
 } from "../../../core/contract/grok-bot-contract.ts";
+import { HOP_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import { SECOND_MS } from "../../../core/contract/time-units.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
 import { accessNote, accessRefusals, jsonBody, jsonRequest } from "../../../http/openapi.ts";
 import { verifyProvider } from "../../bot/core/bot-verify.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
+import { listModels } from "../core/provider-models.ts";
 
 const OWNER = access("owner");
+
+const OWNER_UNCACHED = access("owner", { cache: "no-store" });
 
 const readRoute = createRoute({
   method: "get",
@@ -73,6 +80,25 @@ const verifyRoute = createRoute({
   },
 });
 
+const modelsRoute = createRoute({
+  method: "post",
+  path: "/api/settings/ai/models",
+  middleware: OWNER_UNCACHED,
+  description: `${accessNote(OWNER_UNCACHED)} Lists the models a Provider offers, for the AI settings. A Provider that answers over HTTP is asked with the \`key\` in the body, or else with the saved key when \`provider\` and \`baseUrl\` equal the saved ones. The key is never returned. Each outbound request waits at most ${String(HOP_DEADLINE_MS / SECOND_MS)} seconds, and Anthropic's list is read over at most ${String(MODEL_LIST_PAGES)} pages.`,
+  request: { body: jsonRequest(ModelListRequestSchema) },
+  responses: {
+    ...accessRefusals(OWNER_UNCACHED),
+    200: jsonBody(
+      ModelListSchema,
+      "The models (`listed`) or why none are listed (`unlisted`). A Provider's own 401 or 403 answers `unlisted` with `wrong-key`, or `key-needed` when no key was sent.",
+    ),
+    400: jsonBody(
+      ErrorResponseSchema,
+      "The Provider is not in `providers` of `GET /api/settings/ai`.",
+    ),
+  },
+});
+
 export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(readRoute, async (c) => c.json(await readAiSettings(ports), 200));
   app.openapi(saveRoute, async (c) => {
@@ -97,6 +123,13 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
         return exhaustive;
       }
     }
+  });
+  app.openapi(modelsRoute, async (c) => {
+    const listed = await listModels(ports, c.req.valid("json"), c.req.raw.signal);
+
+    return listed.kind === "not-offered"
+      ? c.json({ error: "This Instance does not offer that Provider" }, 400)
+      : c.json(listed, 200);
   });
   app.openapi(verifyRoute, async (c) => c.json(await verifyProvider(ports, c.req.raw.signal), 200));
 }
