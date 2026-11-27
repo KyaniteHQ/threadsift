@@ -68,6 +68,11 @@ typography:
     fontSize: "14px"
     fontWeight: 400
     lineHeight: 1.5
+  strip:
+    fontFamily: "'Commit Mono', ui-monospace, monospace"
+    fontSize: "12px"
+    fontWeight: 400
+    lineHeight: 1.4
 rounded:
   r1: "2px"
   r2: "2px"
@@ -129,7 +134,7 @@ components:
     height: "32px"
   list-row:
     textColor: "{colors.text}"
-    padding: "9px 16px 9px 12px"
+    padding: "0 16px 9px"
   list-row-hover:
     backgroundColor: "{colors.surface-2}"
   list-row-press:
@@ -138,7 +143,12 @@ components:
     backgroundColor: "{colors.moss-soft}"
   grid-card:
     backgroundColor: "{colors.surface}"
-    rounded: "{rounded.r3}"
+    rounded: "0px"
+  grid-card-open:
+    backgroundColor: "{colors.moss-soft}"
+  kept-strip:
+    textColor: "{colors.muted}"
+    typography: "{typography.strip}"
   summary-box:
     backgroundColor: "{colors.surface}"
     rounded: "{rounded.r3}"
@@ -167,7 +177,7 @@ Density is compact by default, because a library with hundreds of saves needs ma
 **Key Characteristics:**
 - One accent hue on neutrals with almost no colour, the same in List and Grid; Sepia is the one warm Theme. The theme sets the accent's lightness and chroma.
 - One reading size and one capped line length for post, comment and summary text.
-- Flat hairline structure in List. Soft shadows sit only on Grid cards and floating layers.
+- Flat hairline structure in List and Grid: a Grid card is a cell of one ruled table. Soft shadows sit only on floating layers.
 - Every value is a token, except the literal values the `design/system/tokens.css` header lists, and every Look option is a token swap on the app root.
 - The app answers to its own width, through `data-bp`, in five bands.
 
@@ -185,7 +195,7 @@ The palette is near-white surfaces with almost no colour, ink-dark text, and a s
 - **Page** (`bg`), **Surface** (`surface`) and **Sunk surface** (`surface-2`): the app background; controls, cards and boxes; and hover fills, the List sidebar, code and tag chips.
 - **Press fill** (`press`): the fill of a control while it is pressed, one step past the hover fill. Outside forced colours, a pressed selected filter row or List row mixes the same step into the accent tint.
 - **Hairline** (`line`) and **Strong hairline** (`line-2`): row dividers and container edges; the heavier lines (comment indent guides, segmented control frames, the settings panel and the paste card).
-- **Control line** (`ctl-line`): the edge of buttons, fields and selects, and the ring of an empty unread dot.
+- **Control line** (`ctl-line`): the edge of buttons, fields and selects, and the outline of a read Item's Read state mark.
 - **Ink** (`text`) and **Muted ink** (`muted`): primary text; metadata, counts, labels, hints and placeholders.
 - **Status** (`ok`, `warn`): the paste card's done and failed tones, used as text colour only. A saved Item that carries a note, such as a missing title, uses the warn tone and icon instead of the done check.
 
@@ -204,7 +214,7 @@ Schibsted Grotesk sets titles, lists, labels and reading text, and Commit Mono s
 - **Wordmark** (`--t-brand`): "Thread" in ink and "sift" in the accent ink, in the app bar and on the sign-in screen, in Schibsted Grotesk at weight 600 and -0.015em tracking (`--f-brand`, `--brand-w`, `--brand-ls`). Its size is the Display size of the layout with the 0.85 scale under 760px (`--display-x`) and without the Font's display factor, so no Font or Style changes the wordmark. It has no minimum against Headline; only the 12px text floor holds it. Until Schibsted Grotesk loads, a local Arial Bold, scaled to the same width, stands in (`Schibsted Grotesk Fallback`).
 - **Display** (`--t-display`): the reader title, the page headings such as Settings and Import, and the empty-library heading. It scales to 0.85 under 760px, except that the reader title and the page headings never go under `--rd-title-min` (1.1) times Headline, 22px at the default 16px browser font, so the reader title stays the largest heading in the Reader and a page heading stays above the section headings on its page, in every Font and Style. The empty-library heading keeps the 0.85 scale and has no minimum against Headline, because it is not a reading heading, so at a very small browser font it can fall under it; only the 12px text floor holds it.
 - **Headline** (`--t-h2`): reader section headings such as Original post, Comments and README, and the heading of each sign-in and setup screen. It is never under the 16px reading floor divided by `--post-h-cap`, about 16.84px, so a heading inside a post keeps the floor too.
-- **Title** (`--t-title`): item titles in rows and cards. An item's title takes `--dw-soft` (560 in the default Library pair), and an unread item's title takes `--dw-strong`, which each Font and Style sets: 700 in the default Library pair. Instrument Serif and the Cal.com Style have one display weight, so there an unread title keeps the read weight and the unread dot alone marks it, in the Item list, in Grid and on a Topic page. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
+- **Title** (`--t-title`): item titles in rows and cards. An item's title takes `--dw-soft` (560 in the default Library pair), and an unread item's title takes `--dw-strong`, which each Font and Style sets: 700 in the default Library pair. Instrument Serif and the Cal.com Style have one display weight, so there an unread title keeps the read weight and the Read state mark alone marks it, in the Item list, in Grid and on a Topic page. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped.
 - **Body** (`--t-read`): post and comment text in the reading column, up to 62 average characters a line at Medium text width (56 Narrow, 68 Wide). The reader's summary and key points use the same size at line height 1.5 (`--lh-text`).
 - **Body list**: the interface text of fields, dialogs, page sections and the Highlights and Proposals lists. Comfortable and Roomy density raise it.
 - **Meta** (`--t-meta`): the app's default UI size, for metadata, buttons, filters and bylines.
@@ -224,7 +234,7 @@ Type sizes are in rem, so the browser's own font size scales them, and the pixel
 
 Spacing runs on six steps (`s1` to `s6`). Density multiplies the vertical spacing of list rows and cards (`--k`) and changes list text size. It never changes the Reader's post, comment and summary text (`--t-read`). The Highlights list and the Note box in the Reader, and the Highlights page, follow it.
 
-List is three panes: the sidebar (wordmark, paste box and filter rail), the item list and the reader pane. Under `--bp-medium` the sidebar becomes a header above the list. Under `--bp-narrow` everything stacks into one column and items open full page. Grid is a header row (wordmark, search, paste box), a filter bar, then a card grid centred at most `--page-max` wide. In Grid, an item opens as a full page or as a sheet over the dimmed grid, with Previous and Next buttons outside the sheet.
+List is three panes: the sidebar (wordmark, paste box and filter rail), the item list and the reader pane. Under `--bp-medium` the sidebar becomes a header above the list. Under `--bp-narrow` everything stacks into one column and items open full page. Grid is a header row (wordmark, search, paste box), a filter bar, then a card grid centred at most `--page-max` wide. In the Library Style the grid is one ruled table: the cards share their hairlines, with no gap and no corner (`--grid-gap`, `--grid-rule`, `--card-hw`, `--card-r`), and the cards of a row stretch to one height (`--grid-align`). The other Styles keep separate cards with the Style's own radius and shadow, and a gap. In Grid, an item opens as a full page or as a sheet over the dimmed grid, with Previous and Next buttons outside the sheet.
 
 The app measures its own width and writes every band it is under to `data-bp` (`--bp-phone`, `--bp-narrow`, `--bp-medium` and `--bp-wide`). Components read that attribute instead of media queries, so a preview can draw the phone form inside a wide window. Under 480px every control grows to the 44px target (`--target`), with the exceptions the target rule under Do's and Don'ts lists.
 
@@ -235,21 +245,21 @@ The app measures its own width and writes every band it is under to `data-bp` (`
 
 ## Elevation & Depth
 
-The system is flat with tonal layering, plus soft ambient shadows on things that sit above the page. List rows, panes, the summary box and the repository block are flat and separated by hairlines and the sunk surface. Grid cards, the sheet's side buttons and the focused skip button carry the low shadow (`--shadow`). The settings panel, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page. In Dark, the sheet adds a strong hairline edge so it shows against the scrim.
+The system is flat with tonal layering, plus soft ambient shadows on things that sit above the page. List rows, Library Grid cards, panes, the summary box and the repository block are flat and separated by hairlines and the sunk surface; a Grid card answers hover by darkening its edge, never by lifting. The sheet's side buttons and the focused skip button carry the low shadow (`--shadow`), and the Grid cards of the Styles other than Library carry their Style's own shadow (`--card-shadow`). The settings panel, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page. In Dark, the sheet adds a strong hairline edge so it shows against the scrim.
 
 The paste card floats under the paste box in List's sidebar from `--bp-medium` (1080px) up, and under the Grid header from 760px up. Below those widths it sits in the page flow between the paste box and the list, with no shadow, so the list moves down while it shows and no row is ever under it. In the sidebar it adds to the sidebar's scroll height, so a window shorter than the card scrolls the sidebar.
 
 ### Named Rules
-**The Lifted Only Rule.** A shadow means the element sits above the page: a card in the grid or a floating layer. Rows, panes and boxes inside the reader stay flat.
+**The Lifted Only Rule.** A shadow means the element sits above the page: a floating layer. Rows, Library Grid cards, panes and boxes inside the reader stay flat.
 
 ## Shapes
 
-Corners follow size: `r1` for small parts, `r4` for marks (tag dots, the unread dot, swatches, the sheet's side buttons, comment avatars), `r2` for controls and `r3` for large containers. The Style sets all four, 2px in Library, so no control, mark or swatch is a pill; the Chips Tag style keeps its pill until the Tag is built. Edges are hairlines of the Style's weight (`--hw`, 1px in Library), and dashed hairlines mark placeholders and items still being processed. Pictures crop to their top-left corner, where a screenshot's first line starts.
+Corners follow size: `r1` for small parts, `r4` for marks (tag dots, the Read state mark, swatches, the sheet's side buttons, comment avatars), `r2` for controls and `r3` for large containers. The Style sets all four, 2px in Library, so no control, mark or swatch is a pill; a Library Grid card has no corner, because it is a cell of the grid; the Chips Tag style keeps its pill until the Tag is built. Edges are hairlines of the Style's weight (`--hw`, 1px in Library), and dashed hairlines mark placeholders and items still being processed. Pictures crop to their top-left corner, where a screenshot's first line starts.
 
 ## Components
 
 ### Buttons
-A neutral button has no fill and a hairline outline in the control line colour, and takes the sunk fill on hover; `--btn-bg` holds the fill. The accent button (a full accent fill with on-accent text) is for the save button beside the paste box and the main action in a paste card; on hover it mixes 10% of the ink into its fill (`--acc-hover`). A disabled or busy button draws its outline dashed (`--off-edge`) in the strong hairline colour, with muted text. Fills and edges change over `--dur-fade`, and at once under reduced motion. Focus draws a 2px accent-ink ring 2px outside the button. A press fills a neutral button with the press fill; an accent-filled button, a checked segment and a pressed chip keep their fill and show a 1px inner ring in the text colour of the fill. The danger button and the Read state dot keep the hover fill and show a 1px inner ring, because their marks lose contrast on the press fill. While a List row, Topic page row or open Grid card is pressed, its Read state mark takes the muted colour, or the accent ink when unread, for the same reason. A plain Grid card keeps its mark colours. In forced colours, selected filters keep their system colours and open Grid cards keep their system border while pressed. Disabled buttons show no press. The names ending in pressed in the front matter mean the toggled state, and button-press and list-row-press mean the moment of the press.
+A neutral button has no fill and a hairline outline in the control line colour, and takes the sunk fill on hover; `--btn-bg` holds the fill. The accent button (a full accent fill with on-accent text) is for the save button beside the paste box and the main action in a paste card; on hover it mixes 10% of the ink into its fill (`--acc-hover`). A disabled or busy button draws its outline dashed (`--off-edge`) in the strong hairline colour, with muted text. Fills and edges change over `--dur-fade`, and at once under reduced motion. Focus draws a 2px accent-ink ring 2px outside the button. A press fills a neutral button with the press fill; an accent-filled button, a checked segment and a pressed chip keep their fill and show a 1px inner ring in the text colour of the fill. The danger button keeps the hover fill and shows a 1px inner ring, because its mark loses contrast on the press fill; the Read state mark of an item instead takes a ring in the text colour round its square while pressed. While a List row, Topic page row or open Grid card is pressed, its Read state mark takes the muted colour, or the accent ink when unread, for the same reason. A plain Grid card keeps its mark colours. In forced colours, selected filters keep their system colours and open Grid cards keep their system border while pressed. Disabled buttons show no press. The names ending in pressed in the front matter mean the toggled state, and button-press and list-row-press mean the moment of the press.
 
 ### Chips
 - **Filter chips:** Grid's filter bar draws each choice as a neutral button with its count; a pressed chip takes the full accent fill with on-accent text.
@@ -267,7 +277,12 @@ A neutral button has no fill and a hairline outline in the control line colour, 
 - **Reader bar:** one row that sticks to the top of the reader. As it narrows it drops, in order, the key hint, the button labels, the comments total and the word on Back. A 2px accent line along its bottom edge shows reading progress.
 
 ### List row (signature)
-The unread dot sits on the first metadata line with a `--dot-hit` hit area, filled with the accent when unread and drawn as a control-line ring when read. A Topic page row draws the same dot at the start of its metadata line as a mark with no hit area, because that page sets no read state. The open row takes the soft accent tint and a 3px accent bar on its left edge, so shape tells it apart from hover. A focused row draws its 2px accent-ink ring inside its own edge, because the pane that scrolls the list clips anything drawn outside a row. On the open row the ring sits just in from the bar, so both stay visible.
+A List row opens with the kept bar and the kept strip. The kept bar is a 3px line of accent along the row's top edge, as wide as the ratio the kept strip's count reads once a Digest covers the thread (`--kept`; Kept 5 of 100 draws a 5% bar), and empty before that or on an Item without comments. The kept strip follows: the Read state mark, then the Source, the place (a community, a handle, a repository or a domain) and the comment count, in the mono face at the label size in muted ink, parted by small squares. A Reddit Item whose community is known names the community without the Source. The strip wraps between its parts and is never cut, and no wrapped line of the strip or the byline starts with a square: each square sits in the gap before its part, out of the text flow, and the line's start edge clips it (`overflow-x: clip`). The title follows, then the byline: the author (not when the strip already names it: an X post whose link names its author, or a GitHub repository), the saved time, the Topic and a repository's stars. Beside the title and byline sits the 40px stored picture, or, with no stored picture and Card images On, a tile of the Topic tint (`--tint` of the Topic's hue in the sunk surface; the hue comes from the Tag hues, hashed from the Topic's name, at the Style's Tag chroma, so a Style whose Tags carry no colour, such as Cal.com, draws an untinted tile) with the Source mark and no text, at every Density.
+
+The Read state mark is an 8px square (`--mark`) at the start of the strip, filled with the accent when unread and drawn as a control-line outline when read, with a `--dot-hit` hit area. The strip keeps room above and below its line for that hit area (44px on a phone), so a tap on the title or on the row above never flips Read state. Hover rings it in the control line, and keyboard focus rings it in accent ink. A Topic page row draws its own round-cornered dot at the start of its metadata line as a mark with no hit area, because that page sets no read state. The open row takes the soft accent tint and a 1px accent-ink edge round the whole row, so shape tells it apart from hover. A focused row draws its 2px accent-ink ring inside its own edge, because the pane that scrolls the list clips anything drawn outside a row; on the open row the ring sits just in from the edge, so both stay visible. Under forced colours the open row keeps a 1px Highlight edge and its focus ring sits inside that edge, and the open Grid card takes a 3px Highlight border.
+
+### Grid card
+A Grid card holds the same parts as a List row in a column: the kept bar and the kept strip, the stored picture in a 16:10 box, the title and the byline. A card with no stored picture draws no picture box. On hover its edge darkens to the control line; the open card takes the soft accent tint and the 1px accent-ink edge, like the open row, and keyboard focus draws the 2px ring inside the card.
 
 ### Comment tree (signature)
 Kept comments nest with an indent per level that is capped, so deep threads stay readable. Context stubs, dropped parent comments shown as one line so a kept reply under them still reads correctly, are muted, one line, and dashed when they have a box.
@@ -281,11 +296,11 @@ Opening an item grows its card or row into the reader over `--dur-move` with `--
 - **Do** take every value from a token in `design/system/tokens.css`. The only literals are the ones the header of that file lists.
 - **Do** add a new Look option as a `data-*` rule on the app root that lists only the tokens it changes, and add the option to the settings table in `design/system/settings-table.ts`.
 - **Do** keep every text and background pair at 4.5:1 or more, and every mark, icon and border a person needs to see a control or its state at 3:1 or more, in every theme with every accent and Style.
-- **Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or an empty unread dot. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.
+- **Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or a read Item's Read state mark. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.
 - **Do** make every target at least 44px under 480px, except the width of a link or a Highlight mark in the text of a rendered post or comment (`.md`), a code block included. Each keeps the width of its text, so two marks side by side never share a tap area, and `--link-pad` sets its height. A mark that wraps a picture has the picture's size (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).
-- **Do** mark the open row with its 3px bar as well as its tint.
+- **Do** mark the open row and the open Grid card with their accent-ink edge as well as their tint.
 - **Do** give every animation a reduced-motion form.
-- **Do** keep the reading column at the Text width setting's measure, and keep the unread dot on the first metadata line, never on a picture.
+- **Do** keep the reading column at the Text width setting's measure, and keep the Read state mark at the start of the kept strip, never on a picture.
 
 ### Don't:
 - **Don't** set any text under 12px.
@@ -293,7 +308,7 @@ Opening an item grows its card or row into the reader over `--dur-move` with `--
 - **Don't** build a SaaS dashboard: gradient hero cards, number tiles, or icons in coloured circles.
 - **Don't** fill an area larger than a control with the full accent. Use the soft tint.
 - **Don't** scroll the app root, and don't use media queries for width. Read `data-bp`.
-- **Don't** give list rows, panes or reader boxes an elevation shadow.
+- **Don't** give List rows, Library Grid cards, panes or reader boxes an elevation shadow.
 
 ## Brand Brief
 
@@ -361,15 +376,14 @@ A Style also writes a Font and an Accent into the settings. These are setting va
 
 These rules describe the app as built and stay until Quarto is built. That build changes them.
 
-- Shapes, and Components, Chips: the Chips Tag style as a pill, and 2px corners on Grid cards. Quarto draws no pill and gives cards 0 corners, because they are cells of the grid.
+- Shapes, and Components, Chips: the Chips Tag style as a pill. Quarto draws no pill.
 - Colors, Neutral, and Components, Chips: three Tag styles, with a coloured dot before the name by default. Quarto draws one Tag: a square swatch before the name.
 - Shapes, Components and Colors: the ten Styles other than Library keep pill marks, filled neutral buttons and filter chips, solid disabled outlines, the accent tint on a pressed List filter segment, an unchanged accent button hover, no fades, and the browser's own text selection and native control colours. The Library values reach only Library.
 - Typography: the Font setting's six pairs. Under the Brand Brief the Font setting offers four.
 - Typography, Title: the Cal.com Style, one of the Styles the app has today. Under the Brand Brief the app has three Styles: Library and the two the product brief names.
 - Layout: in Grid an Item opens as a full page or as a sheet, as the owner chooses. Under the Brand Brief, Grid opens a sheet from `--bp-medium` (1080px) up, with a button that expands it to a full page, and a full page below that width.
-- Elevation & Depth, Key Characteristics, and the Lifted Only Rule: Grid cards carry the low shadow, and the settings panel, the reader sheet and the floating paste card carry the high shadow. Quarto draws Grid cards flat.
-- List row, and Do's: the open row takes a 3px accent bar on its left edge as well as its tint. Under the Brand Brief the open row takes the tint and a 1px accent-ink edge round the whole row, because the brand draws no bar down one side of a box. The edge measures 5.3:1 or more against the tint (accent ink on the accent soft tint, in the table below).
-- List row, and Do's: the unread dot sits on the first metadata line. Under the Brand Brief the kept strip is the first line of a List row and a Grid card, and the unread mark sits at its start. In the Reader the strip and the unread mark open the line under the title, before the author and the date.
+- Elevation & Depth: the settings panel, the reader sheet and the floating paste card carry the high shadow with no edge in Light. Quarto gives the settings panel and the reader sheet a 1px strong-hairline edge as well.
+- The Reader header: the source line opens the header above the title. Under the Brand Brief the strip and the unread mark open the line under the title, before the author and the date.
 
 ### Rules of other docs that the Brand Brief contradicts
 
@@ -412,7 +426,7 @@ The table below is the Theme's lightness steps at Quarto's neutral hue and chrom
 - **Buttons:** a neutral button has no fill and a 1px control-line outline, and takes the sunk fill on hover. The main action is a solid accent fill.
 - **Tags:** a 6px square in the Tag's hue before the name, in muted ink.
 - **Unread mark:** an 8px solid accent square at the start of the kept strip. A read Item shows the square as a control-line outline.
-- **Kept strip:** Commit Mono at 12px in muted ink. In a List row and a Grid card it is the first line of the cell, under a top rule that holds a 3px bar. Once a Digest covers the thread, the accent part of the bar is the share of Kept comments among the saved comments, and the rest is hairline. Before that, and on an Item without comments, the rule is all hairline. In the Reader the header opens with the same rule and then the title, and the strip sits under the title, at the start of the line with the author and the date.
+- **Kept strip:** Commit Mono at 12px in muted ink. In a List row and a Grid card it is the first line of the cell, under a top rule that holds a 3px bar. Once a Digest covers the thread, the accent part of the bar is the ratio the strip's count reads (shown over total, where total is the larger of the count the source reports and the comments saved), and the rest is hairline. Before that, and on an Item without comments, the rule is all hairline. In the Reader the header opens with the same rule and then the title, and the strip sits under the title, at the start of the line with the author and the date.
 - **Covers:** the cover of the Covers section above, with the Topic tint mixed at 9% into the sunk surface.
 - **Room for the other Styles:** Broadsheet sets 0 corners, the 2px hairline, no shadow on floating layers and a serif reading face, Source Serif 4. Workbench sets Commit Mono for the UI face and chroma 0.
 - **Sources:** the grey 1px line that organizes the whole page comes from [Exhibition Magazine](https://styles.refero.design/style/597355de-6167-4f37-8f14-b3897919a94c). Depth from tonal steps instead of shadows, and small mono metadata, come from [Vercel](https://styles.refero.design/style/f24daf3a-d43f-4dec-85a9-8ac1d5148a03). Small squared buttons with a hairline outline variant come from [Stripe](https://styles.refero.design/style/48e5de76-05d5-4c4e-a269-c7c245b291ec). Cards with no radius and thin borders come from [Nofilter.space](https://styles.refero.design/style/4235ebdc-a070-46ef-abbf-692151449bea).

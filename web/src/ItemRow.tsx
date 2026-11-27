@@ -1,12 +1,24 @@
-import { type RefObject, memo, useCallback, useEffect, useId, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  type RefObject,
+  memo,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { shownUrl } from "../../src/core/contract/link-place.ts";
-import { Meta, type RowIds, Status, controlName, linkName, rowIds } from "./ItemRowParts.tsx";
+import { Icon } from "./Icon.tsx";
+import { KeptStrip, keptShare } from "./ItemRowLines.tsx";
+import { type RowIds, Status, controlName, linkName, rowIds } from "./ItemRowParts.tsx";
 import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";
 import { useInternalLink } from "./routing.ts";
+import { tagHue } from "./tag-hue.ts";
 
 function rowClasses(item: Readonly<Item>, isOpen: boolean): string {
   return [
@@ -45,6 +57,22 @@ function CardImage({
       />
     </div>
   );
+}
+
+function Tile({ item }: Readonly<{ item: Item }>) {
+  return (
+    <div
+      className="it-media it-tile"
+      data-tag={item.digestTopic === null ? undefined : tagHue(item.digestTopic)}
+      aria-hidden="true"
+    >
+      <Icon name={`source-${item.source}`} className="ic" />
+    </div>
+  );
+}
+
+function shareStyle(item: Readonly<Item>): CSSProperties {
+  return Object.fromEntries([["--kept", keptShare(item)]]);
 }
 
 export type Attention = Readonly<{ id: number; focus: boolean }> | null;
@@ -172,11 +200,18 @@ export const ItemRow = memo(function ItemRow({
 
   return (
     <article ref={row} className={rowClasses(item, isOpen)} data-key={item.id}>
-      <ReadDot item={item} ids={ids} toggleRead={toggleRead} />
-      <Meta item={item} now={now} id={ids.meta} />
+      <span className="it-share" style={shareStyle(item)} aria-hidden="true" />
+      <div className="it-strip">
+        <ReadDot item={item} ids={ids} toggleRead={toggleRead} />
+        <KeptStrip item={item} id={ids.meta} />
+      </div>
       <RowTitle item={item} ids={ids} link={link} isOpen={isOpen} open={open} />
-      {image === null ? null : <CardImage image={image} eager={eager} broke={setBroken} />}
-      <Status item={item} ids={ids} tryAgain={tryAgain} />
+      {image === null ? (
+        cardImages && <Tile item={item} />
+      ) : (
+        <CardImage image={image} eager={eager} broke={setBroken} />
+      )}
+      <Status item={item} now={now} ids={ids} tryAgain={tryAgain} />
     </article>
   );
 });

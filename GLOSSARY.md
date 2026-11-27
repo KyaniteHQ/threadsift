@@ -135,7 +135,7 @@ The view that shows one Item in full: header, Summary, Key points, post text, th
 _Avoid_: Detail view, article view
 
 **Kept strip**:
-The one line of monospaced text that opens a List row and a Grid card and starts the line under the Reader's title: it names where the Item came from and, for a thread, counts the comments the Reader shows out of the saved ones.
+The one line of monospaced text that opens a List row and a Grid card and starts the line under the Reader's title: it names where the Item came from and, for a thread, counts the comments the Reader shows out of the thread's comments: the number its Source reports, or the number saved when that is larger.
 _Avoid_: Meta line, badge, header
 
 **Cover**:

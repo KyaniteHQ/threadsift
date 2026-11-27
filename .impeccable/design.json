@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-27T13:34:51Z",
+  "generatedAt": "2026-11-27T19:15:19Z",
   "title": "Design System: Threadsift",
   "extensions": {
     "colorMeta": {
@@ -241,7 +241,7 @@
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Item titles in rows and cards. An unread title takes --dw-strong, 700 in the default Library pair; Instrument Serif and the Cal.com Style have one display weight, so there the unread dot alone marks it, in the Item list, in Grid and on a Topic page."
+        "purpose": "Item titles in rows and cards. An unread title takes --dw-strong, 700 in the default Library pair; Instrument Serif and the Cal.com Style have one display weight, so there the Read state mark alone marks it, in the Item list, in Grid and on a Topic page."
       },
       "body": {
         "displayName": "Body",
@@ -268,7 +268,7 @@
       {
         "name": "shadow",
         "value": "0 1px 2px oklch(0.2 0 0 / 0.05), 0 6px 20px oklch(0.2 0 0 / 0.06)",
-        "purpose": "Low: Grid cards and the sheet's side buttons (Light theme)."
+        "purpose": "Low: the sheet's side buttons, the focused skip button and the Grid cards of the Styles other than Library (Light theme)."
       },
       {
         "name": "shadow-lg",
@@ -367,17 +367,17 @@
       "name": "List row",
       "kind": "custom",
       "refersTo": "list-row-open",
-      "description": "List rows: the unread dot on the first metadata line and the ring of a read row; the open row has a tint and a 3px bar, and a focused row an accent-ink ring inside its edge. A Topic page row draws the same dot as a mark with no hit area. Outside forced colours, its Read state mark uses muted ink while pressed, or accent ink when unread.",
-      "html": "<div class=\"ds-row ds-row-open ds-row-unread\"><i class=\"ds-row-dot\"></i><p class=\"ds-row-meta\">r/selfhosted &middot; 3 days ago</p><p class=\"ds-row-title\">A title of a saved thread</p></div><div class=\"ds-row\" tabindex=\"0\"><i class=\"ds-row-dot\"></i><p class=\"ds-row-meta\">example.com &middot; 2 weeks ago</p><p class=\"ds-row-title\">A read article</p></div>",
-      "css": ".ds-row { box-sizing: border-box; display: grid; grid-template-columns: var(--s4) minmax(0, 1fr); grid-template-areas: \"dot meta\" \"dot title\"; column-gap: var(--s3); padding: calc(var(--s3) * var(--k)) var(--s4) calc(var(--s3) * var(--k)) var(--s3); border-bottom: var(--hw) solid var(--line); background: var(--bg); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); cursor: pointer; } .ds-row:hover { background: var(--surface-2); } .ds-row:active { background: var(--press); } .ds-row.ds-row-open { background: var(--acc-soft); box-shadow: inset 3px 0 0 var(--acc); } .ds-row.ds-row-open:active { background: var(--press-soft); } .ds-row-dot { grid-area: dot; align-self: start; justify-self: center; margin-top: calc(var(--lh-ui) * 0.5em - var(--dot) / 2); width: var(--dot); height: var(--dot); border: 1.5px solid var(--ctl-line); border-radius: var(--r1); } .ds-row-unread .ds-row-dot { border-color: var(--acc); background: var(--acc); } .ds-row:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: calc(var(--s1) / -2); } .ds-row-meta { grid-area: meta; margin: 0; color: var(--muted); } .ds-row-title { grid-area: title; margin: calc(var(--s1) * var(--k)) 0 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-soft); letter-spacing: var(--dls); line-height: var(--lh-title); } .ds-row-unread .ds-row-title { font-weight: var(--dw-strong); }"
+      "description": "A List row opens with the kept bar (3px of accent, as wide as the ratio the kept strip's count reads once a Digest covers the thread) and the kept strip: the square Read state mark, then the Source, the place and the comment count in the mono face. The title follows, then the byline (author, saved time, Topic, stars), with the 40px picture or, with no stored picture, a tile of the Topic tint and the Source mark beside them. The open row takes the soft tint and a 1px accent-ink edge all round; a focused row draws its accent-ink ring inside its edge. A Topic page row still draws its round-cornered dot as a mark with no hit area.",
+      "html": "<div class=\"ds-row ds-row-open ds-row-unread\" tabindex=\"0\" style=\"--kept: 0.33\"><i class=\"ds-share\"></i><p class=\"ds-strip\"><i class=\"ds-mark\"></i>r/selfhosted &middot; Kept 3 of 9</p><p class=\"ds-row-title\">A title of a saved thread</p><p class=\"ds-byline\">u/someone &middot; saved today &middot; Home servers</p><i class=\"ds-tile\"></i></div><div class=\"ds-row\" tabindex=\"0\" style=\"--kept: 0\"><i class=\"ds-share\"></i><p class=\"ds-strip\"><i class=\"ds-mark\"></i>Article &middot; example.com</p><p class=\"ds-row-title\">A read article</p><p class=\"ds-byline\">saved 2 weeks ago</p><i class=\"ds-tile\"></i></div>",
+      "css": ".ds-row { box-sizing: border-box; display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: \"share share\" \"strip strip\" \"title media\" \"foot media\"; column-gap: var(--s3); padding: 0 var(--s4) calc(var(--s3) * var(--k)); border-bottom: var(--hw) solid var(--line); background: var(--bg); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); cursor: pointer; } .ds-row:hover { background: var(--surface-2); } .ds-row:active { background: var(--press); } .ds-row.ds-row-open { background: var(--acc-soft); box-shadow: inset 0 0 0 1px var(--acc-ink); } .ds-row.ds-row-open:active { background: var(--press-soft); } .ds-row:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: calc(var(--s1) / -2); } .ds-row.ds-row-open:focus-visible { outline-offset: calc(var(--s1) * -1); } .ds-share { grid-area: share; height: 3px; margin-inline: calc(var(--s4) * -1); background: linear-gradient(var(--acc), var(--acc)) 0 0 / calc(var(--kept) * 100%) 100% no-repeat; } .ds-strip { grid-area: strip; display: flex; align-items: center; gap: var(--s2); margin: 0; padding-top: calc(var(--s2) * var(--k)); color: var(--muted); font-family: var(--f-mono); font-size: var(--t-label); line-height: var(--lh-label); font-variant-numeric: tabular-nums; } .ds-mark { flex: none; width: var(--mark); height: var(--mark); border: var(--hw) solid var(--ctl-line); border-radius: var(--r4); } .ds-row-unread .ds-mark { border-color: var(--acc); background: var(--acc); } .ds-row-title { grid-area: title; margin: calc(var(--s1) * var(--k)) 0 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-soft); letter-spacing: var(--dls); word-spacing: var(--dws); line-height: var(--lh-title); text-wrap: balance; } .ds-row-unread .ds-row-title { font-weight: var(--dw-strong); } .ds-byline { grid-area: foot; margin: calc(var(--s1) * var(--k) * 1.5) 0 0; color: var(--muted); } .ds-tile { grid-area: media; align-self: start; width: var(--thumb); height: var(--thumb); margin-top: calc(var(--s1) * var(--k)); border-radius: var(--r1); background: color-mix(in oklab, oklch(var(--tag-l) var(--tag-c) 20) var(--tint), var(--surface-2)); }"
     },
     {
       "name": "Grid card",
       "kind": "card",
       "refersTo": "grid-card",
-      "description": "A Grid card: picture, metadata and title on the surface with the low shadow. Only an open card changes its fill and Read state mark while pressed. In forced colours, its open border keeps the system colour while pressed.",
-      "html": "<article class=\"ds-card\"><div class=\"ds-card-pic\"></div><div class=\"ds-card-in\"><p class=\"ds-card-meta\">github.com</p><p class=\"ds-card-title\">owner/repository</p></div></article>",
-      "css": ".ds-card { box-sizing: border-box; overflow: hidden; border: var(--hw) solid var(--line); border-radius: var(--r3); background: var(--surface); box-shadow: var(--shadow); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); --img-ratio: 16 / 10; } .ds-card:hover { border-color: var(--line-2); } .ds-card:active { border-color: var(--ctl-line); } .ds-card-pic { aspect-ratio: var(--img-ratio); background: var(--surface-2); border-bottom: var(--hw) solid var(--line); } .ds-card-in { padding: 0 var(--s4) var(--s4); } .ds-card-meta { margin: var(--s4) 0 0; color: var(--muted); } .ds-card-title { margin: calc(var(--s1) * var(--k)) 0 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-soft); letter-spacing: var(--dls); line-height: var(--lh-title); }"
+      "description": "A Grid card is a cell of one ruled table in the Library Style: flat, with no corner and no shadow, sharing its hairlines with its neighbours. The kept bar and the kept strip open it above the stored picture, then the title and the byline. On hover its edge darkens to the control line and it never lifts; the open card takes the soft tint and the accent-ink edge. Every other Style keeps separate cards with the Style's own radius and shadow, and a gap.",
+      "html": "<article class=\"ds-card\" style=\"--kept: 0.5\"><i class=\"ds-card-share\"></i><p class=\"ds-card-strip\"><i class=\"ds-card-mark\"></i>X &middot; @someone &middot; Kept 2 of 4</p><div class=\"ds-card-pic\"></div><p class=\"ds-card-title\">A saved post with a stored picture</p><p class=\"ds-card-byline\">saved today &middot; Databases</p></article>",
+      "css": ".ds-card { box-sizing: border-box; display: grid; overflow: hidden; border: 0 solid var(--line); border-width: var(--card-hw); border-radius: var(--card-r); background: var(--surface); box-shadow: var(--card-shadow); padding-bottom: var(--s4); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); --img-ratio: 16 / 10; } .ds-card:hover { outline: var(--hw) solid var(--ctl-line); outline-offset: calc(var(--hw) * -1); } .ds-card:active { background: var(--press); } .ds-card-share { height: 3px; background: linear-gradient(var(--acc), var(--acc)) 0 0 / calc(var(--kept) * 100%) 100% no-repeat; } .ds-card-strip { display: flex; align-items: center; gap: var(--s2); margin: 0; padding: var(--s2) var(--s4); color: var(--muted); font-family: var(--f-mono); font-size: var(--t-label); line-height: var(--lh-label); } .ds-card-mark { width: var(--mark); height: var(--mark); border: var(--hw) solid var(--acc); border-radius: var(--r4); background: var(--acc); } .ds-card-pic { aspect-ratio: var(--img-ratio); background: var(--surface-2); } .ds-card-title { margin: var(--s3) var(--s4) 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-strong); letter-spacing: var(--dls); word-spacing: var(--dws); line-height: var(--lh-title); text-wrap: balance; } .ds-card-byline { margin: calc(var(--s1) * var(--k) * 1.5) var(--s4) 0; color: var(--muted); }"
     },
     {
       "name": "Summary box",
@@ -394,7 +394,7 @@
     "keyCharacteristics": [
       "One accent hue on neutrals with almost no colour, the same in List and Grid; Sepia is the one warm Theme. The theme sets the accent's lightness and chroma.",
       "One reading size and one capped line length for post, comment and summary text.",
-      "Flat hairline structure in List. Soft shadows sit only on Grid cards and floating layers.",
+      "Flat hairline structure in List and Grid: a Grid card is a cell of one ruled table. Soft shadows sit only on floating layers.",
       "Every value is a token, except the literal values the `design/system/tokens.css` header lists, and every Look option is a token swap on the app root.",
       "The app answers to its own width, through `data-bp`, in five bands."
     ],
@@ -436,7 +436,7 @@
       },
       {
         "name": "The Lifted Only Rule",
-        "body": "A shadow means the element sits above the page: a card in the grid or a floating layer. Rows, panes and boxes inside the reader stay flat.",
+        "body": "A shadow means the element sits above the page: a floating layer. Rows, Library Grid cards, panes and boxes inside the reader stay flat.",
         "section": "elevation"
       }
     ],
@@ -444,11 +444,11 @@
       "**Do** take every value from a token in `design/system/tokens.css`. The only literals are the ones the header of that file lists.",
       "**Do** add a new Look option as a `data-*` rule on the app root that lists only the tokens it changes, and add the option to the settings table in `design/system/settings-table.ts`.",
       "**Do** keep every text and background pair at 4.5:1 or more, and every mark, icon and border a person needs to see a control or its state at 3:1 or more, in every theme with every accent and Style.",
-      "**Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or an empty unread dot. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.",
+      "**Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or a read Item's Read state mark. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.",
       "**Do** make every target at least 44px under 480px, except the width of a link or a Highlight mark in the text of a rendered post or comment (`.md`), a code block included. Each keeps the width of its text, so two marks side by side never share a tap area, and `--link-pad` sets its height. A mark that wraps a picture has the picture's size (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).",
-      "**Do** mark the open row with its 3px bar as well as its tint.",
+      "**Do** mark the open row and the open Grid card with an edge as well as a tint.",
       "**Do** give every animation a reduced-motion form.",
-      "**Do** keep the reading column at the Text width setting's measure, and keep the unread dot on the first metadata line, never on a picture."
+      "**Do** keep the reading column at the Text width setting's measure, and keep the Read state mark at the start of the kept strip, never on a picture."
     ],
     "donts": [
       "**Don't** set any text under 12px.",
@@ -456,7 +456,7 @@
       "**Don't** build a SaaS dashboard: gradient hero cards, number tiles, or icons in coloured circles.",
       "**Don't** fill an area larger than a control with the full accent. Use the soft tint.",
       "**Don't** scroll the app root, and don't use media queries for width. Read `data-bp`.",
-      "**Don't** give list rows, panes or reader boxes an elevation shadow."
+      "**Don't** give List rows, Library Grid cards, panes or reader boxes an elevation shadow."
     ]
   }
 }

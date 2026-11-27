@@ -14,8 +14,9 @@
       each width (data-bp).
    6. Styles: the Style blocks come after the Theme and derived-token rules
       so their fonts and palettes win by source order. A rule before them gives
-      every Style other than Library its pill radius, word spacing and control
-      fills, so the Library's plain values reach only Library.
+      every Style other than Library its pill radius, word spacing, control
+      fills and its Grid of separate, rounded, shadowed cards, so the
+      Library's plain values reach only Library.
       --acc is derived only on :root, .app, [data-theme] and [data-accent],
       so the panel's font reset inherits the Style accent.
 
@@ -35,22 +36,30 @@
 
    Per-element variables, set by a component on one element, never on the
    root: --d (a comment's depth, inline style on .cm), --tag-h (a tag's hue,
-   from the tag's data-tag), --progress (how far the reader has scrolled,
-   0 to 1, set on .rd-bar by script), --fade-to (the colour a sideways-
-   scrolling box fades into, set on its wrapper) and --pop-room (the height
-   a Highlight popover may take, set on .hl-pop by script).
+   from the data-tag of a tag or of a List row's Topic tile), --progress
+   (how far the reader has scrolled, 0 to 1, set on .rd-bar by script),
+   --kept (the ratio the kept strip's count reads, shown over total, 0 to 1,
+   inline style on .it-share), --dot-room (the room a row's kept strip
+   keeps above and below its line for the read mark's hit area, set on
+   .it-strip), --fade-to (the colour a sideways-scrolling box fades into,
+   set on its wrapper) and --pop-room (the height a Highlight popover may
+   take, set on .hl-pop by script).
 
    --vh is the app's visible height: 100dvh unless a host that draws the app
    inside a frame or scaled sets it.
 
    Literal values that stay in the component styles, on purpose:
    - the 1px rings (a box-shadow) of a focused, invalid, pressed or
-     disabled control and of an open Grid card,
+     disabled control and of an open List row and Grid card, the 1px
+     forced-colours outline of an open List row,
      the 1px comment indent guides and phone reply rail, the gaps between
-     filter segments and rows, the 1.5px unread-dot ring, the 3px swatch inner
-     ring, blockquote bar and open-row bar, the 3px forced-colours borders
-     of an open Grid card and of a phone reply rail, and the 2px focus ring,
-     its offset, the progress line and the segmented controls' inset;
+     filter segments and rows, the 1.5px Topic page unread-dot ring, the 3px
+     swatch inner ring and blockquote bar, the 3px forced-colours borders of
+     an open Grid card and of a phone reply rail, and the 2px focus ring,
+     its offset, the 2px and 3px offsets of the read mark's hover and focus
+     rings, the progress line and the segmented controls' inset;
+   - the 1.5 step between a row's title and its byline (one and a half
+     --s1, times --k);
    - the swatch's 2px border and the 2px overlay that covers it, the 2px
      outline that marks the chosen swatch under forced colours, and the 24rem
      panel width under which the settings panel stacks each label above its
@@ -64,11 +73,12 @@
      the settings label column (7.5em), the empty-state width (34em), the
      filter rail's column minimum (15em), the 14em flex basis of a text
      block that wraps under its neighbour (the settings footnote, a token
-     row's name, the revealed token), and the 0.5em that centres a list row's
-     unread dot on its first line;
+     row's name, the revealed token);
    - 1lh, the height of one line of text: a ghost row's line, the list
-     header's height, the padding that centres the revealed token in a
-     field-high box, the margin that centres a tag's dot on the first line
+     header's height, the margin that centres the read mark on the kept
+     strip and the room the strip keeps for it, the offset that centres the
+     square before a strip or byline part on the part's first line, the padding that centres
+     the revealed token in a field-high box, the margin that centres a tag's dot on the first line
      of its name, and a tag's corner radius (half a line plus its padding
      and hairline border, so a wrapped Chips name stays inside the pill);
    - 100vw in the maximum width of the settings popover and of a confirmation
@@ -99,7 +109,7 @@
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --target: 44px;                     /* the smallest touch target: phone controls, the settings gear, the sheet's side buttons */
   --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px; --link-pad: 0px;
-  --dot: 10px; --av: 26px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
+  --dot: 10px; --mark: 8px; --kept-h: 3px; --sep: 2px; --tint: 9%; --av: 26px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
   --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
   --pop-w: 25rem;                     /* the settings panel under the gear, and the widest Highlight popover */
   --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */
@@ -134,6 +144,7 @@
   --chip-edge: var(--ctl-line); --chip-hover: var(--surface-2); --chip-w: 500;
   --seg-bg: var(--surface); --seg-lift: var(--surface-2); --rail-seg-bg: var(--surface);
   --seg-on: var(--acc); --seg-on-fg: var(--on-acc); --seg-on-press: var(--acc); --seg-on-ring: inset 0 0 0 1px var(--on-acc);
+  --grid-gap: 0px; --grid-align: stretch; --grid-rule: var(--hw); --card-hw: 0 var(--hw) var(--hw) 0; --card-r: 0px; --card-shadow: 0 0 0 0 transparent;
 }
 
 /* Font: the type pair's families (a variable font's family carries the suffix Fontsource gives it,
@@ -241,7 +252,9 @@
 [data-tags="text"] { --tag-dot: none; --tag-mark: '#'; --tag-gap: 0px; }
 [data-tags="chips"] { --tag-dot: none; --tag-pad: var(--s2); --tag-pad-y: calc(var(--s1) / 2); --tag-box: var(--hw) solid var(--line); --tag-bg: var(--surface-2); --tag-fg: var(--text); }
 /* A tag's hue: one of eight, picked by data-tag on the tag (the app hashes the tag's name to
-   0 to 7, so a tag keeps its colour everywhere). */
+   0 to 7, so a tag keeps its colour everywhere). A List row's Topic tile takes the same hues,
+   hashed from the Topic's name, and the Style's tag chroma (--tag-c), so a Style whose tags
+   carry no colour draws an untinted tile. */
 [data-tag="0"] { --tag-h: 20; }
 [data-tag="1"] { --tag-h: 60; }
 [data-tag="2"] { --tag-h: 105; }
@@ -356,6 +369,7 @@
   --chip-edge: var(--line-2); --chip-hover: var(--surface); --chip-w: 400;
   --seg-bg: var(--surface-2); --seg-lift: var(--surface); --rail-seg-bg: var(--bg);
   --seg-on: var(--acc-soft); --seg-on-fg: var(--text); --seg-on-press: var(--press-soft); --seg-on-ring: none;
+  --grid-gap: var(--s5); --grid-align: start; --grid-rule: 0px; --card-hw: var(--hw); --card-r: var(--r3); --card-shadow: var(--shadow);
 }
 [data-style="anthropic"] {
   --f-display: 'Source Serif 4 Variable', 'Source Serif 4', Georgia, serif; --f-ui: 'Inter Variable', 'Inter', system-ui, sans-serif;

@@ -1,31 +1,26 @@
 import { useCallback } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import { whereOf } from "../../src/core/contract/link-place.ts";
 import { Icon } from "./Icon.tsx";
 import { InternalLink } from "./InternalLink.tsx";
+import { Byline } from "./ItemRowLines.tsx";
 import { offersFetchRetry, rejectsToken } from "./paste-card.ts";
-import { countLabel } from "./reader-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
-import { SavedTime } from "./SavedTime.tsx";
 import {
   CARD_TITLES,
   DIGEST_UPDATE_FAILED,
   DIGEST_FAILED,
   NOTICES,
   RETRY_LABEL,
-  SAVED_COMMENT,
-  SOURCE_LABELS,
   TOKEN_REFUSED,
   failureTitleOf,
-  starsLabel,
 } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";
 
 export type RowIds = Readonly<{
   title: string;
   meta: string;
-  foot: string;
+  byline: string;
   open: string;
   read: string;
   retry: string;
@@ -35,7 +30,7 @@ export function rowIds(base: string): RowIds {
   return {
     title: `${base}-title`,
     meta: `${base}-meta`,
-    foot: `${base}-foot`,
+    byline: `${base}-byline`,
     open: `${base}-open`,
     read: `${base}-read`,
     retry: `${base}-retry`,
@@ -43,11 +38,11 @@ export function rowIds(base: string): RowIds {
 }
 
 export function controlName(own: string, ids: RowIds): string {
-  return [own, ids.title, ids.meta, ids.foot].join(" ");
+  return [own, ids.title, ids.meta, ids.byline].join(" ");
 }
 
 export function linkName(ids: RowIds): string {
-  return [ids.open, ids.meta, ids.foot].join(" ");
+  return [ids.open, ids.meta, ids.byline].join(" ");
 }
 
 function showsSkeleton(item: Readonly<Item>): boolean {
@@ -128,60 +123,29 @@ function Skeleton() {
   );
 }
 
-function commentNote(item: Readonly<Item>): string | null {
-  if (item.kind === "reddit-comment") return SAVED_COMMENT;
-
-  const counts = item.commentCount;
-
-  return counts === null ? null : countLabel(counts, "row");
-}
-
-function Foot({ item, id }: Readonly<{ item: Item; id: string }>) {
-  const note = commentNote(item);
-
-  if (item.digestTopic === null && item.stars === null && note === null) {
-    return null;
-  }
-
-  return (
-    <p id={id} className="it-foot">
-      {item.digestTopic === null ? null : (
-        <bdi className="it-topic" dir="auto">
-          {item.digestTopic}
-        </bdi>
-      )}
-      {item.stars === null ? null : <span>{starsLabel(item.stars)}</span>}
-      {note === null ? null : <span>{note}</span>}
-    </p>
-  );
-}
-
 export function Status({
   item,
+  now,
   ids,
   tryAgain,
-}: Readonly<{ item: Item; ids: RowIds; tryAgain: (item: Item) => void }>) {
+}: Readonly<{ item: Item; now: number; ids: RowIds; tryAgain: (item: Item) => void }>) {
+  const byline = <Byline item={item} now={now} id={ids.byline} />;
+
   if (showsSkeleton(item)) {
-    return <Skeleton />;
+    return (
+      <>
+        <div className="it-end">{byline}</div>
+        <Skeleton />
+      </>
+    );
   }
 
   return (
     <div className="it-end">
-      <Foot item={item} id={ids.foot} />
+      {byline}
       {rejectsToken(item) ? <TokenRefused /> : null}
       {item.wait === null ? null : <Waiting wait={item.wait} />}
       {item.retry === null ? null : <Failed item={item} ids={ids} tryAgain={tryAgain} />}
     </div>
-  );
-}
-
-export function Meta({ item, now, id }: Readonly<{ item: Item; now: number; id: string }>) {
-  return (
-    <p id={id} className="it-meta">
-      {item.status === "processing" ? <Icon name="spin" className="ic ic-s proc-ic spin" /> : null}
-      <span className="src">{SOURCE_LABELS[item.source]}</span>
-      <span>{whereOf(item)}</span>
-      <SavedTime savedAt={item.savedAt} now={now} />
-    </p>
   );
 }
