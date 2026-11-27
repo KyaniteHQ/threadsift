@@ -93,7 +93,10 @@ function modelTaskHolds(owner: TaskOwner | null): SQLWrapper {
 }
 
 async function notStarted(ports: AiPorts, owner: TaskOwner | null): Promise<NotStarted> {
-  return owner !== null && (await guardHolds(ports.db, holding(owner))) ? BOT_CHOSEN : CLAIM_LOST;
+  const chosen =
+    owner !== null && (await guardHolds(ports.db, and(holding(owner), grokBotChosen()) ?? sql`0`));
+
+  return chosen ? BOT_CHOSEN : CLAIM_LOST;
 }
 
 interface TaskInput {
