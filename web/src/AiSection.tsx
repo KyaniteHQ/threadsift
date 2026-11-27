@@ -6,7 +6,7 @@ import {
   isCliProvider,
 } from "../../src/core/contract/provider-families.ts";
 import type { AiView } from "./ai-api.ts";
-import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT, signedOutParts } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
 import { ConnectNotes, ConnectNotice } from "./ConnectControls.tsx";
 import { keyed } from "./keyed.ts";
@@ -86,10 +86,10 @@ const KEY_STATUS = {
   none: AI_TEXT.keyMissing,
 } as const;
 
-function keyStatus(provider: Provider, savedKey: SavedKey): string {
+function keyStatus(provider: Provider, savedKey: SavedKey): string | null {
   const { kind } = PROVIDERS[provider];
 
-  if (kind === "binding") return AI_TEXT.keyNotNeeded;
+  if (kind === "binding") return null;
 
   if (kind === "bot") return AI_TEXT.grokBotKey;
 
@@ -120,18 +120,23 @@ function ProviderNotes({
   savedKey: SavedKey;
   saveBlocked: boolean;
 }>) {
-  const signedOut = isSignedOut(view, provider);
-  const cli = isCliProvider(provider) ? CLI_TEXT[provider] : null;
+  const signedOut =
+    isCliProvider(provider) && isSignedOut(view, provider) ? signedOutParts(provider) : null;
+  const status = keyStatus(provider, savedKey);
 
   return (
     <>
-      <p>{keyStatus(provider, savedKey)}</p>
-      {signedOut && cli !== null ? (
+      {status === null ? null : <p>{status}</p>}
+      {signedOut === null ? null : (
         <p className="fld-help">
-          {cli.signedOut} <code>{cli.signInCommand}</code>.
+          {signedOut.before}
+          <code>{signedOut.command}</code>
+          {signedOut.after}
         </p>
+      )}
+      {saveBlocked && signedOut === null ? (
+        <p className="fld-help">{AI_TEXT["secret-missing"]}</p>
       ) : null}
-      {saveBlocked && !signedOut ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
       {provider === GROK_BOT_PROVIDER ? (
         <>
           <p className="fld-help">{AI_TEXT.grokBotHelp}</p>
