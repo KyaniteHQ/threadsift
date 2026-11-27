@@ -1,9 +1,64 @@
-.lg-line {
-  font-size: var(--t-title);
+.lg-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--t-body);
+  line-height: var(--lh-ui);
 }
-.lg-date {
+.lg-table th,
+.lg-table td {
+  padding: var(--s2) var(--s3);
+  text-align: start;
+  vertical-align: baseline;
+}
+.lg-table thead th {
+  padding-block: 0 var(--s2);
+  border-bottom: var(--hw) solid var(--line);
+  white-space: nowrap;
+}
+.lg-day th {
+  padding-block: var(--s5) var(--s2);
+  border-bottom: var(--hw) solid var(--line);
+}
+.lg-day h3 {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--f-mono);
+  font-size: var(--t-meta);
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+.lg-row td {
+  border-bottom: var(--hw) solid var(--line);
+}
+.lg-time {
+  width: 1%;
+  color: var(--muted);
+  font-family: var(--f-mono);
+  font-size: var(--t-meta);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+}
+.lg-change {
+  width: 1%;
+  white-space: nowrap;
+}
+.lg-subject {
+  width: 50%;
+  overflow-wrap: anywhere;
+}
+.lg-details {
+  color: var(--muted);
+}
+.lg-filed {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s1) var(--s3);
+}
+.lg-path {
+  font-family: var(--f-mono);
+  font-size: var(--t-meta);
+  overflow-wrap: anywhere;
 }
 .lg-link {
   color: var(--text);
@@ -20,24 +75,41 @@
   outline-offset: 2px;
   border-radius: var(--r1);
 }
+.app[data-bp~="narrow"] .lg-table thead {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.app[data-bp~="narrow"] .lg-day th {
+  display: block;
+  padding-inline: 0;
+}
+.app[data-bp~="narrow"] .lg-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--s1) var(--s3);
+  padding-block: var(--s3);
+  border-bottom: var(--hw) solid var(--line);
+}
+.app[data-bp~="narrow"] .lg-row td {
+  display: block;
+  width: auto;
+  padding: 0;
+  border-bottom: 0;
+}
+.app[data-bp~="narrow"] .lg-subject,
+.app[data-bp~="narrow"] .lg-details {
+  grid-column: 1 / -1;
+}
+.app[data-bp~="narrow"] .lg-details:empty {
+  display: none;
+}
 .app[data-bp~="phone"] .lg-link {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
   min-block-size: var(--target);
   min-inline-size: var(--target);
-}
-.app[data-bp~="phone"] .lg-line {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: baseline;
-  column-gap: var(--s2);
-}
-.app[data-bp~="phone"] .lg-date {
-  flex-basis: 100%;
-  color: var(--muted);
-  font-size: var(--t-meta);
-}
-.app[data-bp~="phone"] .lg-sep {
-  display: none;
 }

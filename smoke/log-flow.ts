@@ -2,7 +2,7 @@ import { type Locator, type Page, expect } from "@playwright/test";
 
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import { PAGE_SIZE } from "../src/core/contract/paging.ts";
-import { LOG_PAGE } from "../web/src/log-text.ts";
+import { LOG_CHANGES, LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";
 import { topicLinkLabel } from "../web/src/topic-text.ts";
@@ -18,7 +18,7 @@ const LINES_PER_FILLER = 2;
 
 const FILLERS = Math.ceil((PAGE_SIZE + 1) / LINES_PER_FILLER);
 
-const STAMP_PATTERN = "\\d{4}-\\d{2}-\\d{2} \\d{2}:\\d{2}";
+const TIME = /^\d{2}:\d{2}$/u;
 
 const MARKDOWN = Array.from(
   { length: 6 },
@@ -49,7 +49,17 @@ const save = (
     digest: { ...digest, summary: "A short summary.", keyPoints: ["One point"] },
   });
 
-const rows = (page: Page) => page.locator(".lg-line");
+const rows = (page: Page) => page.locator("tr.lg-row");
+
+async function expectCells(
+  row: Locator,
+  cells: Readonly<{ change: string; subject: string; details: readonly string[] }>,
+): Promise<void> {
+  await expect(row.locator(".lg-time")).toHaveText(TIME);
+  await expect(row.locator(".lg-change")).toHaveText(cells.change);
+  await expect(row.locator(".lg-subject")).toHaveText(cells.subject);
+  await expect(row.locator(".lg-details")).toHaveText(cells.details.join(""));
+}
 
 async function openLogFromPanel(page: Page): Promise<void> {
   await openFromMasthead(page, LOG_PAGE.masthead);
@@ -72,19 +82,20 @@ export async function logFlow(page: Page): Promise<void> {
   });
 
   await openLogFromPanel(page);
-  await expect(rows(page).first()).toContainText(
-    new RegExp(
-      `^\\[${STAMP_PATTERN}\\] ingest \\| ${LONG_TITLE} \\| topic: ${LOGGED.topic} \\| tags: ${LOGGED.tags.join(", ")}$`,
-      "u",
-    ),
-  );
-  await expect(rows(page).nth(1)).toContainText(
-    new RegExp(`^\\[${STAMP_PATTERN}\\] topic \\| ${LOGGED.topic}$`, "u"),
-  );
+  await expectCells(rows(page).first(), {
+    change: LOG_CHANGES.ingest,
+    subject: LONG_TITLE,
+    details: [LOGGED.topic, ...LOGGED.tags],
+  });
+  await expectCells(rows(page).nth(1), {
+    change: LOG_CHANGES.topic,
+    subject: LOGGED.topic,
+    details: [],
+  });
 
   await page.reload();
   await expect(page.getByRole("heading", { level: 1, name: LOG_PAGE.title })).toBeVisible();
-  await expect(rows(page).first()).toContainText("ingest");
+  await expect(rows(page).first().locator(".lg-change")).toHaveText(LOG_CHANGES.ingest);
 
   await rows(page).first().getByRole("link", { name: LONG_TITLE }).click();
   await expect(page).toHaveURL(new RegExp(`/items/${String(id)}$`, "u"));
@@ -98,13 +109,17 @@ export async function logFlow(page: Page): Promise<void> {
 
   await atPhoneWidth(page, async () => {
     await page.goto("/log");
-    await expect(rows(page).first()).toContainText("ingest");
+    await expect(rows(page).first().locator(".lg-change")).toHaveText(LOG_CHANGES.ingest);
     await expectNoSidewaysScroll(page);
     await expectTargets(rows(page).first());
 
     await save(page, SHORT.link, { title: SHORT.name, topic: SHORT.name, tags: [] });
     await page.goto("/log");
-    await expect(rows(page).first()).toContainText(`ingest | ${SHORT.name} | topic: ${SHORT.name}`);
+    await expectCells(rows(page).first(), {
+      change: LOG_CHANGES.ingest,
+      subject: SHORT.name,
+      details: [SHORT.name],
+    });
     await expectTargets(rows(page).first());
   });
 
@@ -128,8 +143,10 @@ async function deleteAndReload(page: Page, id: number): Promise<void> {
   await page.getByRole("button", { name: DELETE_CONFIRM }).click();
   await expect(page).not.toHaveURL(new RegExp(`/items/${String(id)}$`, "u"));
   await page.goto("/log");
-  await expect(page.locator(".lg-line", { hasText: `topic | ${LOGGED.topic}` })).toHaveCount(1);
-  await expect(page.locator(".lg-line", { hasText: LONG_TITLE })).toHaveCount(0);
+  await expect(
+    rows(page).filter({ hasText: LOG_CHANGES.topic }).filter({ hasText: LOGGED.topic }),
+  ).toHaveCount(1);
+  await expect(rows(page).filter({ hasText: LONG_TITLE })).toHaveCount(0);
 }
 
 export async function failedLoadMore(page: Page): Promise<void> {

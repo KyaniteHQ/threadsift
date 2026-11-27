@@ -7,7 +7,11 @@ const HighlightCountsSchema = FilterCountsSchema.pick({
   sources: true,
   topics: true,
   tags: true,
-}).extend({ total: z.number().int() });
+}).extend({
+  total: z.number().int(),
+  highlights: z.number().int().min(0),
+  notes: z.number().int().min(0),
+});
 
 export const HighlightsPageResponseSchema = z.object({
   entries: z.array(EntrySchema).readonly(),

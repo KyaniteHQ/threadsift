@@ -86,7 +86,7 @@ function keyedFamily<const Id extends string, const Url extends string>(id: Id, 
     id,
     label: id,
     url,
-    fields: { model: Model, key: KeyInputSchema },
+    fields: { key: KeyInputSchema, model: Model },
   });
 }
 
@@ -135,7 +135,7 @@ export const PROVIDERS = described({
     id: "openai-compatible",
     label: "compatible",
     url: null,
-    fields: { baseUrl: z.url().max(AI_URL_MAX), model: Model, key: KeyInputSchema },
+    fields: { baseUrl: z.url().max(AI_URL_MAX), key: KeyInputSchema, model: Model },
   }),
   openrouter: keyedFamily("openrouter", "https://openrouter.ai/api/v1"),
   anthropic: keyedFamily("anthropic", "https://api.anthropic.com/v1"),

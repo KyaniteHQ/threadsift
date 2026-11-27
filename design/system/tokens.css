@@ -121,7 +121,9 @@
   --mast-h: 48px;                     /* the masthead over every signed-in screen, its bottom line included */
   --host-max: 22ch;                   /* the Instance host on the owner menu button, cut with an end ellipsis */
   --page-col: 880px; --page-settings: 1120px;   /* the column of a page under the masthead, and of the Settings page */
+  --import-form-w: 640px;
   --settings-rail: 200px; --sec-head-w: 280px; --sec-body-w: 560px;   /* the Settings page: its section links, and a section's heading and fields */
+  --sec-name-w: 140px;
   --fold-show: 6;                     /* lines a folded comment shows */
   --code-show: 14;                    /* lines a folded code block shows */
   /* motion: an item growing out of its card and back, and every fade or small turn */

@@ -32,6 +32,7 @@
 @keyframes shimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 1; } }
 :where(.app) button, :where(.app) input, :where(.app) select { font: inherit; color: inherit; }
 .app :focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; }
+.app :is(h1, h2, h3, h4, h5, h6)[tabindex="-1"]:focus { outline: none; }
 .label { margin: 0; color: var(--muted); font-family: var(--f-ui); font-size: var(--t-label); font-weight: 600; letter-spacing: var(--ls-label); line-height: var(--lh-label); text-transform: uppercase; }
 .btn { display: inline-flex; align-items: center; justify-content: center; gap: var(--s2); min-width: var(--ctl-h); min-height: var(--ctl-h); padding: 0 var(--s3); border: var(--hw) solid var(--ctl-line); border-radius: var(--r2); background: var(--btn-bg); color: var(--text); cursor: pointer; font-size: var(--t-meta); font-weight: 500; text-decoration: none; white-space: nowrap; }
 @media (prefers-reduced-motion: no-preference) { .app:is(:not([data-style]), [data-style="library"]) .btn { transition: background-color var(--dur-fade), border-color var(--dur-fade); } }
@@ -441,10 +442,8 @@ a.btn { text-decoration: none; }
 .rd-src { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .rd-src span:empty { display: none; }
 .rd-title { font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); word-spacing: var(--dws); font-size: max(var(--t-display), var(--t-h2) * var(--rd-title-min)); line-height: var(--lh-display); overflow-wrap: anywhere; text-wrap: balance; }
-.rd-title:focus:not(:focus-visible) { outline: none; }
 .rd-link { display: block; width: fit-content; max-width: 100%; overflow: clip; text-overflow: ellipsis; white-space: nowrap; color: var(--acc-ink); font-family: var(--f-ui); font-size: var(--t-meta); text-underline-offset: 2px; padding-block: var(--link-pad); }
 .rd-h { color: var(--text); font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); letter-spacing: var(--dls); word-spacing: var(--dws); line-height: var(--lh-title); text-wrap: balance; }
-.rd-h:focus:not(:focus-visible) { outline: none; }
 
 /* the summary: topic, tags, the 2-line summary and the key points. A box on the page; flat
    inside the sheet, which is a box already. */
@@ -590,3 +589,10 @@ button.hl-quote:active { background: var(--press); }
 .noresults { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); padding: var(--s5) var(--s4); color: var(--muted); }
 .noresults p { margin: 0; }
 .loading { margin: 0; padding: var(--s6); color: var(--muted); }
+.pg-empty { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); color: var(--muted); font-size: var(--t-body); }
+.pg-empty h2 { margin: 0; color: var(--text); font-family: var(--f-display); font-weight: var(--dw); letter-spacing: var(--dls); word-spacing: var(--dws); font-size: var(--t-h2); line-height: var(--lh-title); text-wrap: balance; }
+.pg-empty p { margin: 0; max-inline-size: var(--measure); }
+.pg-empty .fl-link { padding-inline: 0; }
+.flat-note { display: flex; flex-direction: column; align-items: flex-start; gap: var(--s2); margin: 0; padding: var(--s3) var(--s4); border: var(--hw) solid var(--line); border-radius: var(--r3); background: var(--surface); font-size: var(--t-body); }
+.flat-note p { margin: 0; }
+.flat-note .fl-link { padding-inline: 0; }

@@ -1,4 +1,4 @@
-import { type ChangeEvent, useCallback, useId } from "react";
+import { type ChangeEvent, type ReactNode, useCallback, useId } from "react";
 
 import {
   type ImportList,
@@ -22,7 +22,7 @@ function Skipped({ reason, skipped }: Readonly<{ reason: SkipReason; skipped: Sk
   const more = skipped.count - skipped.first.length;
 
   return (
-    <div className="imp-skipped">
+    <div className="flat-note imp-skipped">
       <p>{skippedLabel(reason, skipped.count)}</p>
       <p className="label">{skippedLead(reason)}</p>
       <ul role="list" className="imp-lines">
@@ -60,16 +60,32 @@ function Summary({ list, ran }: Readonly<{ list: ImportList; ran: boolean }>) {
   );
 }
 
-function FileButton({ locked, input }: Readonly<{ locked: boolean; input: ImportInput }>) {
+function FilePart({ locked, input }: Readonly<{ locked: boolean; input: ImportInput }>) {
   const { choose, fileFailed } = input;
+  const labelId = useId();
+  const hintId = useId();
 
   const { picker, open, read } = useFilePicker(choose, !locked);
 
   return (
-    <div className="imp-file">
-      <button type="button" className="btn" aria-disabled={locked} onClick={open}>
-        {IMPORT.fileButton}
-      </button>
+    <div className="imp-part imp-file">
+      <span id={labelId} className="label">
+        {IMPORT.fileLabel}
+      </span>
+      <p id={hintId} className="fld-help">
+        {IMPORT.fileHint}
+      </p>
+      <div>
+        <button
+          type="button"
+          className="btn"
+          aria-disabled={locked}
+          aria-describedby={`${labelId} ${hintId}`}
+          onClick={open}
+        >
+          {IMPORT.fileButton}
+        </button>
+      </div>
       <input
         ref={picker}
         type="file"
@@ -83,13 +99,21 @@ function FileButton({ locked, input }: Readonly<{ locked: boolean; input: Import
   );
 }
 
-export function ListSection({
+function PastePart({
   input,
   list,
   locked,
   ran,
-}: Readonly<{ input: ImportInput; list: ImportList; locked: boolean; ran: boolean }>) {
+  children,
+}: Readonly<{
+  input: ImportInput;
+  list: ImportList;
+  locked: boolean;
+  ran: boolean;
+  children: ReactNode;
+}>) {
   const id = useId();
+  const hintId = useId();
   const { text, type } = input;
 
   const change = useCallback(
@@ -100,24 +124,46 @@ export function ListSection({
   );
 
   return (
-    <div className="sec imp-list">
-      <p className="imp-lede">{IMPORT.lede}</p>
+    <div className="imp-part">
       <label className="label" htmlFor={id}>
         {IMPORT.boxLabel}
       </label>
+      <p id={hintId} className="fld-help">
+        {IMPORT.boxHint}
+      </p>
       <textarea
         id={id}
         className="imp-box"
         value={text}
         readOnly={locked}
         rows={8}
+        aria-describedby={hintId}
         spellCheck={false}
         autoCorrect="off"
         autoCapitalize="none"
         onChange={change}
       />
-      <FileButton locked={locked} input={input} />
       <Summary list={list} ran={ran} />
+      {children}
+    </div>
+  );
+}
+
+export function ListSection({
+  input,
+  locked,
+  ...paste
+}: Readonly<{
+  input: ImportInput;
+  list: ImportList;
+  locked: boolean;
+  ran: boolean;
+  children: ReactNode;
+}>) {
+  return (
+    <div className="imp-form">
+      <PastePart input={input} locked={locked} {...paste} />
+      <FilePart locked={locked} input={input} />
     </div>
   );
 }

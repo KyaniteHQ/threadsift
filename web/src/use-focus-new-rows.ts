@@ -16,7 +16,7 @@ interface Waiting {
 export function useFocusNewRows(
   list: RefObject<HTMLElement | null>,
   { count, more }: Readonly<LoadedRows>,
-  link: string,
+  { link, row = ":scope > *" }: Readonly<{ link: string; row?: string | undefined }>,
 ): (from: number | null) => void {
   const waiting = useRef<Waiting | null>(null);
 
@@ -38,9 +38,9 @@ export function useFocusNewRows(
     wait.focus.stop();
 
     if (wait.focus.unmoved()) {
-      list.current?.children[wait.from]?.querySelector<HTMLElement>(link)?.focus();
+      list.current?.querySelectorAll(row)[wait.from]?.querySelector<HTMLElement>(link)?.focus();
     }
-  }, [count, link, list, more]);
+  }, [count, link, list, more, row]);
 
   useEffect(() => () => waiting.current?.focus.stop(), []);
 

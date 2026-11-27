@@ -6,7 +6,8 @@ export const INDEX_PAGE = {
   loading: "Loading topics…",
   loadFailed: "Couldn’t load topics.",
   emptyHeading: "No topics yet",
-  emptyLine: "Each saved item gets a topic when Threadsift makes its digest.",
+  emptyLine:
+    "Topics appear here when Threadsift makes an item’s digest, which needs a saved provider.",
   loadMoreFailed: "Couldn’t load more topics.",
   sort: "Alphabetical",
 } as const;

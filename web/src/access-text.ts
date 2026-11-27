@@ -109,13 +109,13 @@ export const SETTINGS = {
   scopeDelete: "Delete",
   scopeReddit: "Reddit",
   scopeHintRead:
-    "Read searches and opens items, topic pages, the Index, the Log, the Proposals page, the Highlights page and stored images.",
-  scopeHintAdd: "Add saves one link or a batch of links.",
+    "Searches and opens items, topic pages, the Index, the Log, the Proposals page, the Highlights page and stored images.",
+  scopeHintAdd: "Saves one link or a batch of links.",
   scopeHintDigest:
-    "Digest queues a digest or topic page overview again. With Add, a token can also send its own digest with a link.",
-  scopeHintDelete: "Delete removes an item.",
+    "Queues a digest or topic page overview again. With Add, a token can also send its own digest with a link.",
+  scopeHintDelete: "Removes an item.",
   scopeHintReddit:
-    "Reddit connects and disconnects your Reddit account for the browser extension. A token can never read the session back.",
+    "Connects and disconnects your Reddit account for the browser extension. A token can never read the session back.",
   scopesRequired: "Select at least one scope.",
   scopesNone: "unreadable (no access)",
   scopesMeta: "scopes: {scopes}",
