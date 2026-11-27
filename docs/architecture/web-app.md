@@ -4,7 +4,7 @@ The web app is a React 19 single-page app built by Vite. One static build serves
 
 Two rules shape the code:
 
-- Behaviour that needs the DOM (reader bar fitting, folding by measured height, the reading place, the keys) lives in plain TypeScript modules that take an element.
+- Behaviour that needs the DOM (Reader bar fitting, folding by measured height, the reading place, the keys) lives in plain TypeScript modules that take an element.
 - The design tokens, the component styles and the settings table are the one source of values and settings. The settings module builds the defaults, the stored-settings reader and the root attributes from the table's rows. The [spec](../spec.md) owns what each setting does.
 
 ## Contents
@@ -181,6 +181,10 @@ The Reader restores its reading place once, after its text and `document.fonts.r
 A reading place lives in `sessionStorage`, so each tab keeps its own. The tab keeps the last `PLACES_MAX` places it saved (a chosen bound), ordered by their last save, and drops the oldest first. The stored value is a list of pairs of Item id and place. The read also accepts an object keyed by Item id, the form an earlier build wrote, so a tab that is still open keeps its places across an update. Those converted places have no save order and sit ordered by Item id until the next save. It holds the block index, the fraction and the offset, and the first 80 characters of the block's text with white space collapsed. Restoring uses the block at that index only when its text still starts with the saved text. Otherwise it scrolls to the first block that does, and when none does the Reader stays at the top. A refresh, a new Digest or a different comment selection that adds or removes blocks therefore never lands the owner on unrelated text.
 
 The place anchors on `.md > *`, so a Kept comment's blocks are anchors like the post's. A block with no visible part, or whose visible part is above the reading edge, is never chosen as the anchor, and a saved anchor whose point is clipped on return scrolls to its comment's fold box.
+
+Once the Reader watches the slot, it saves the place `SAVE_DELAY_MS` after the last `scroll` event of the slot. It watches after the restore, or at once when the address points at a Highlight or the Note of the Item. It also saves on `pagehide`, when the Reader closes and when another Item opens. Every save measures the slot with `anchorAt` at the moment it runs. The save while reading and the save at the close therefore store the same place for the same scroll position. They differ when the slot or its layout changed between them, and the close then keeps the place the screen showed when it closed.
+
+On the page Reader in Chromium, focus that reaches a control of the sticky Reader bar scrolls the slot up by half its height. The measured cases are `focus()` on the back control, Shift+Tab from the Reader's title, and the return of focus to the gear after Escape closes Look settings. The control sits inside the slot's `scroll-padding-top`: with that padding at 0, nothing moves. Playwright's `click` moves the slot the same way, because its first attempt scrolls the target into view before it presses. A mouse press, a touch tap and an Escape that closes the Reader move nothing ([measurement](decisions-and-evidence.md#reading-place-at-a-close)).
 
 ### Post text renderer
 
