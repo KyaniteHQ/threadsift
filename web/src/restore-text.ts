@@ -8,33 +8,32 @@ import type {
 import { filled } from "./filled.ts";
 
 export const RESTORE_TEXT = {
-  lede: "A Restore reads an Export zip into this Instance and brings every Item and the records around it back. It works only while the library is empty.",
-  choose: "Choose Export zip",
+  lede: "A restore reads an export zip into this instance and brings back every item and the records around it. It works only while the library is empty.",
+  choose: "Choose export zip",
   uploadingButton: "Uploading…",
   uploadProgress: "Upload progress",
   wrongFile: "This isn’t the zip that was being uploaded. Choose the same file.",
   uploadFailed: "Couldn’t send a part of the zip. Choose the same zip to carry on.",
-  checking: "Checking the Export zip…",
-  running: "Restore running.",
-  done: "Restore finished.",
+  checking: "Checking the export zip…",
+  running: "Restoring…",
+  done: "Restore finished",
   enterAgain:
-    "The zip holds no Provider key, password or agent tokens. Set the Provider and make agent tokens again in Settings.",
+    "The zip holds no provider key, password or agent tokens. This instance keeps its current password. Set the provider and make new agent tokens in Settings.",
   loadFailed: "Couldn’t read the Restore state. Reload the page.",
   failed: "Couldn’t send the part or start the Restore. Try again.",
-  cancel: "Cancel Restore",
+  cancel: "Cancel restore",
   cancelling: "Cancelling…",
   cancellingStatus: "Removing restored records and files…",
-  cancelled:
-    "The Restore is cancelled and the library is empty again, so you can start a new Restore.",
+  cancelled: "Restore cancelled. The library is empty again and ready for a new restore.",
   cancelledKept:
-    "The Restore is cancelled and the library is left as it is. A new Restore needs an empty library, so none can start here.",
-  resume: "Resume Restore",
+    "Restore cancelled. The library is not empty, so it stays as it is. A new restore can’t start until the library is empty.",
+  resume: "Resume restore",
   resuming: "Resuming…",
   cancelFailed: "Couldn’t cancel the Restore. Try again.",
   resumeFailed: "Couldn’t resume the Restore. Try again.",
 } as const;
 
-const UPLOADING = "Uploading part {sent} of {parts}.";
+const UPLOADING = "Uploading part {sent} of {parts}…";
 
 const INTERRUPTED =
   "The upload stopped after {received} of {parts} parts. Choose the same zip to send the rest.";
@@ -44,21 +43,21 @@ const PHASE_TEXT = {
   tables: "Restoring records…",
   files: "Restoring files…",
   search: "Rebuilding search…",
-  highlights: "Checking Highlights…",
-  finish: "Finishing Restore…",
+  highlights: "Checking highlights…",
+  finish: "Finishing…",
 } as const satisfies Record<RunningPhase, string>;
 
-const SO_FAR = "Records restored so far: {records}.";
+const SO_FAR = "{records} so far";
 
-const DONE_ONE = "Restored 1 Item ({records} records in all).";
+const DONE_ONE = "1 item ({records} records total)";
 
-const DONE_MANY = "Restored {items} Items ({records} records in all).";
+const DONE_MANY = "{items} items ({records} records total)";
 
 const DROPPED =
-  "Records left out because the record they belong to wasn’t in the zip or an earlier record in the zip already holds the same key: {dropped}.";
+  "Records left out: {dropped}. Each belonged to a record missing from the zip or used the same key as an earlier one.";
 
 const MISSING_FILES_TEXT =
-  "Files missing from the zip: {missing}; the Reader links a missing image to its original web address, and a missing post text file leaves the Item without its text.";
+  "Files missing from the zip: {missing}. The reader links a missing image to its original web address. An item whose post text file is missing has no post text.";
 
 const REFUSAL_TEXT = {
   "incomplete-upload":
