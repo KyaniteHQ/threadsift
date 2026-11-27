@@ -18,6 +18,7 @@ import type { Ports } from "../../../core/kernel/ports.ts";
 import type { AccountRow } from "../../../core/kernel/reddit-account-tables.ts";
 import {
   type AccountSession,
+  type AnswerOf,
   accountRow,
   confirmAccount,
   connectAccount,
@@ -174,21 +175,31 @@ export async function verifyRedditAccount(
 
   if (session === null) return "unreadable";
 
-  const startedAt = Date.now();
+  const request = { startedAt: Date.now() };
 
-  const { verdict, answer } = await checkSession(session, signal);
+  const check = await checkSession(session, signal);
 
-  await settledVerdict(ports, row, startedAt, verdict, answer);
+  await settledVerdict(ports, row, request, check);
 
-  return verdict;
+  return storedVerdict(check.verdict, await accountRow(db));
+}
+
+function storedVerdict(
+  verdict: SessionVerdict,
+  stored: Readonly<AccountRow> | null,
+): RedditVerifyResult {
+  if (verdict !== "ok" && verdict !== "logged-out") return verdict;
+
+  if (stored === null) return "not-configured";
+
+  return stored.state === "connected" ? "ok" : "logged-out";
 }
 
 async function settledVerdict(
   ports: Readonly<ChangePorts>,
   session: AccountSession,
-  startedAt: number,
-  verdict: SessionVerdict,
-  answer: Readonly<RedditAnswer> | null,
+  request: Readonly<AnswerOf>,
+  { verdict, answer }: Readonly<SessionCheck>,
 ): Promise<void> {
   const now = Date.now();
 
@@ -196,7 +207,7 @@ async function settledVerdict(
     await recordWindow(ports.db, session, windowRecordOf(answer), now);
   }
 
-  if (verdict === "logged-out") await expireAccount(ports, session, now);
+  if (verdict === "logged-out") await expireAccount(ports, session, request, now);
 
-  if (verdict === "ok") await confirmAccount(ports.db, session, startedAt, now);
+  if (verdict === "ok") await confirmAccount(ports.db, session, request, now);
 }
