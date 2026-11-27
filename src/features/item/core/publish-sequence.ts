@@ -8,6 +8,7 @@ import type {
   JobFiles,
   SettledOutcome,
 } from "../../../core/kernel/job-outcome.ts";
+import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
 import { type ItemRow, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import type { StoredThread } from "../../thread/core/stored-thread.ts";
@@ -56,7 +57,12 @@ function sequenced(
       ...beforeParts,
       ...(title === undefined ? [] : fetchedPartWrites(db, where, postText)),
       ...afterParts,
-      ...(replaces ? digestAfterFetch(db, { itemId: owner.id, address }) : []),
+      ...(replaces
+        ? [
+            ...digestAfterFetch(db, { itemId: owner.id, address }),
+            wokenBotWaits(db, "digest", owner.id, Date.now()),
+          ]
+        : []),
       ...(fields.fetch === "ok" ? STALE.itemChanged(db, where) : []),
     ],
     files,

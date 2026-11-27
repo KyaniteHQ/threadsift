@@ -1,7 +1,12 @@
 import { type SQL, type SQLWrapper, and, asc, eq, lte, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { INTAKE_JOB_KINDS, type WaitReason } from "../contract/job-contract.ts";
+import {
+  GROK_BOT_WAIT,
+  INTAKE_JOB_KINDS,
+  type OwnedJobKind,
+  type WaitReason,
+} from "../contract/job-contract.ts";
 import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -42,6 +47,21 @@ export function wokenJobs(
 
 export function wokenJob(db: Database, jobId: number, now: number, when?: Readonly<SQLWrapper>) {
   return wokenJobs(db, now, eq(jobs.id, jobId), jobOpen(), when && sql`${when}`);
+}
+
+export function wokenBotWaits(
+  db: Database,
+  kind: OwnedJobKind,
+  itemId: number | Readonly<SQLWrapper>,
+  now: number,
+) {
+  return wokenJobs(
+    db,
+    now,
+    waitingFor(GROK_BOT_WAIT),
+    eq(jobs.kind, kind),
+    eq(jobs.itemId, itemId),
+  );
 }
 
 export async function enqueueWoken(
