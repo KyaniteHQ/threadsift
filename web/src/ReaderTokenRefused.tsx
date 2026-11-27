@@ -9,7 +9,7 @@ export function ReaderTokenRefused({ item }: Readonly<{ item: Item }>) {
 
   return (
     <>
-      <p className="rd-note">{TOKEN_REFUSED.reader}</p>
+      <p className="rd-note">{TOKEN_REFUSED.message}</p>
       <InternalLink className="btn" to={SETTINGS_PATH}>
         {TOKEN_REFUSED.link}
       </InternalLink>

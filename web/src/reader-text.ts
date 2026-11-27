@@ -22,7 +22,7 @@ export const DELETE_LABEL = "Delete";
 export const DELETE_TITLE = "Delete this item?";
 
 export const DELETE_DESCRIPTION =
-  "The item, its summary, key points, saved text and kept comments will be removed from the library. This can’t be undone.";
+  "Its highlights, note, digest, saved content, images and log entries will be removed. This can’t be undone.";
 
 export const CANCEL_LABEL = "Cancel";
 export const DELETE_CONFIRM = "Delete item";
@@ -67,7 +67,8 @@ export const UNFILTERED_NOTES = {
   older: `${UNFILTERED_LEAD} This item’s digest was made from earlier text and doesn’t cover them.`,
 } as const satisfies Record<UnfilteredCause, string>;
 
-export const ALL_REMOVED = "Every comment in this thread was removed, empty or written by a bot.";
+export const ALL_REMOVED =
+  "Every saved comment in this thread was removed, empty, from a bot or only a short agreement.";
 
 export const OP_LABEL = "OP";
 export const SHOW_FULL_COMMENT = "Show full comment";
@@ -141,7 +142,8 @@ const COUNT_TEXTS = {
 const COMMENTS_BUTTON = "Comments {shown} of {total}";
 const COMMENTS_BUTTON_SHORT = "{shown} of {total}";
 const COMMENTS_BUTTON_COUNT = "{shown}";
-const SCORE = "{score} pts";
+const SCORE_ONE = "{count} point";
+const SCORE_MANY = "{count} points";
 const LIKES = "Likes: {count}";
 
 export function footnoteBackLabel(referenceIndex: number, rereferenceIndex: number): string {
@@ -237,7 +239,7 @@ export function commentsButtonLabels(counts: Readonly<Pick<CommentCount, "shown"
 export function scoreLabel(score: number, source: Source): string {
   return source === "x"
     ? filled(LIKES, { count: groupedNumber(score) })
-    : filled(SCORE, { score: groupedNumber(score) });
+    : plural(score, SCORE_ONE, SCORE_MANY);
 }
 
 export function isSameHandle(first: string | null, second: string | null): boolean {

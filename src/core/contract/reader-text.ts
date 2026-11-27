@@ -8,12 +8,13 @@ export const NOTE_TITLE = "Note";
 export const UNTITLED = "Untitled";
 export const CONTEXT_LABEL = "Not shown";
 export const STUB_TEXTS = {
-  dropped: "This comment was removed, empty or written by a bot.",
+  dropped: "This comment was removed, empty, from a bot or only a short agreement.",
   "not-saved": "The comment being replied to wasn’t saved.",
   "not-kept": "The digest didn’t keep this comment.",
   more: "Further replies weren’t saved.",
 } as const;
-export const NOT_FOUND = "The item’s text changed and no longer includes this passage.";
+export const NOT_FOUND =
+  "The item’s text changed. This passage is missing or appears more than once.";
 
 export const SECTION_TITLES: Readonly<Record<Kind, string>> = {
   "reddit-post": "Original post",
