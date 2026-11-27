@@ -6,7 +6,7 @@ Contents: [Setup](#setup), [Owner login and sessions](#owner-login-and-sessions)
 
 ## Setup
 
-A new Instance shows a setup page. It asks for the one-time `SETUP_CODE`, then for a new password, then offers Start with an empty library or Restore a backup. The choice shows once, right after the password is created, because the page keeps that step in its own state. A reload signs the owner in to the library. Restore a backup opens `/settings#backup`, where the Restore is offered while the library is empty ([Export, backup and restore](export-backup-and-restore.md)).
+A new Instance shows a setup page. It asks for the one-time `SETUP_CODE`, then for a new password, then offers Start with an empty library or Restore from an export. The choice shows once, right after the password is created, because the page keeps that step in its own state. A reload signs the owner in to the library. Restore from an export opens `/settings#backup`, where the Restore is offered while the library is empty ([Export, backup and restore](export-backup-and-restore.md)).
 
 The setup code keeps a stranger from claiming a fresh public Instance.
 
