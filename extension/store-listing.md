@@ -11,19 +11,19 @@ Both stores take the name, the summary line and the version from the manifest in
 Chrome: Store listing, Detailed description. Firefox: Description.
 
 ```text
-This extension saves the page in the current tab to your own Threadsift instance when you press its toolbar button. Because it reads the page in your tab, a page you are signed in to saves what you see. Each press saves one page, and the extension never crawls.
+This extension saves the page in your current tab to your Threadsift instance when you press its toolbar button. It reads from your tab, so a page you are signed in to saves what you see. In a Reddit tab, it saves the post with its visible comments and, as far as Reddit’s request limit allows, the replies behind its "more" links.
 
-In a Reddit tab, it saves the post with its visible comments and, as far as Reddit’s request limit allows, the replies behind its "more" links.
+The extension needs a running Threadsift instance and does nothing on its own. Threadsift is an open source reading library you run as one instance: in a container on your own server, or on your Cloudflare account.
 
-Optional settings for Reddit:
-- Fill saved Reddit items (off by default) saves the thread of a Reddit link already saved without its comments, when you open that thread in a tab. It never reads Reddit in the background.
-- Connect Reddit (self-hosted instances only) sends your Reddit session to your own instance, so the instance can read Reddit threads for you.
+In the extension’s settings, enter your instance address (https, or http only for localhost or 127.0.0.1) and an agent token. Create it under Agent tokens in Threadsift’s Settings with the Read and Add scopes.
 
-The extension needs a running Threadsift instance and does nothing on its own. In the extension’s settings, enter the instance address (https, or http only for localhost or 127.0.0.1) and an agent token. Create the token under Agent tokens in Threadsift’s Settings with the Read and Add scopes.
+Optional features:
+- Fill saved Reddit items (off by default) saves the thread of a Reddit link already saved without comments when you open it in a tab. It never reads Reddit in the background.
+- Connect Reddit (self-hosted instances only) sends your Reddit session to your instance so it can read Reddit threads for you. It also needs the Reddit scope on the agent token.
 
-Saved pages go only to the address you entered. The extension has no account with the developer, no analytics and no ads.
+The extension saves one page per press and never crawls. It sends saved pages only to the address you entered. To read a Reddit thread, it asks reddit.com from your tab with your Reddit session. It has no account with the developer, no analytics and no ads.
 
-Threadsift is an open source reading library under the AGPL-3.0 licence. You run one instance yourself, in a container on your own server or on your own Cloudflare account.
+Licence: AGPL-3.0
 Source: https://github.com/KyaniteHQ/threadsift
 ```
 
@@ -32,18 +32,14 @@ Source: https://github.com/KyaniteHQ/threadsift
 The privacy text of the Extension. Chrome asks for a privacy policy link on the Privacy practices tab, and Firefox takes a privacy policy on the listing.
 
 ```text
-The extension sends data only to the Threadsift address you enter in its settings: your own Threadsift instance, on your own server or Cloudflare account. The developer runs no server for the extension and receives nothing. There are no analytics, ads or third parties. Nothing is sold or used for anything except saving to your library.
+The extension sends data to the Threadsift address you enter in settings: your own instance on your server or Cloudflare account. To read a Reddit thread, it makes requests to reddit.com from your Reddit tab with your browser’s Reddit session, as the page would. Those requests only read the thread and send nothing from Threadsift. The developer runs no server and receives nothing. It has no analytics, ads or third parties. Nothing is sold or used except to save to your library.
 
-What the extension sends:
-- Website content: When you press the toolbar button, the extension sends the page’s address, readable text and image addresses. In a Reddit tab, it sends the thread: the post and its comments as Reddit returns them, including the authors’ user names.
-- Web browsing activity: While Fill saved Reddit items is on, each time you open a Reddit post or comment page, the extension sends its address to ask whether it is a saved link whose thread is missing. It reads and sends the thread only for such a link. With that setting off, it sends no address of a page you did not save.
-- Authentication information: Each request includes the agent token you entered. With Connect Reddit, the extension sends the reddit_session cookie of reddit.com each time you connect or reconnect Reddit, and does not store it.
+The extension reads nothing in the background:
+- Website content: it reads a page only when you press the toolbar button, sending its address, readable text, image, video and embedded media addresses, and title, author and publication date when named. In a Reddit tab, it sends the post and comments as Reddit returns them, with authors’ user names.
+- Web browsing activity: opening a Reddit post or comment page sends its address only while Fill saved Reddit items is on (Firefox asks consent when you turn it on). It asks your instance if that link is saved without its thread, and reads and sends the thread only then. With the setting off, it sends no address of unsaved pages.
+- Authentication information: your agent token goes with each request to your instance, never to reddit.com. It reads reddit.com’s reddit_session cookie only when you select Connect Reddit or Reconnect, sends it to your instance and does not store it.
 
-The extension reads nothing in the background. Outside a toolbar button press, it reads only a saved Reddit thread you open with Fill saved Reddit items on.
-
-The extension stores the Threadsift address, agent token and Fill saved Reddit items setting in local extension storage in your browser. Removing the extension removes them.
-
-What your instance does with saved data is under your own control. The instance is open source (https://github.com/KyaniteHQ/threadsift).
+Settings pages ask your instance for the Reddit account’s state when they open. Local extension storage holds your Threadsift address, agent token and Fill saved Reddit items setting. Removing the extension removes them. You control what your instance does with saved data. The instance is open source at https://github.com/KyaniteHQ/threadsift.
 ```
 
 ## Chrome Web Store, Privacy practices
@@ -85,13 +81,13 @@ The extension reads the browser’s network error for its own requests to the Th
 #### `cookies`
 
 ```text
-The extension requests this optional permission only when the user selects Connect Reddit. Once granted, it reads only the reddit_session cookie on reddit.com and sends it to the user’s Threadsift address so their instance can read Reddit threads as them. It does not store the cookie or send it anywhere else, and selecting Disconnect removes the permission.
+The extension asks for this optional permission only when the person selects Connect Reddit, then reads only reddit.com’s reddit_session cookie and sends it to their Threadsift address so their instance can read Reddit threads as them. It does not store the cookie or send it anywhere else. Disconnect asks the instance to delete the stored session; once it reports no session, the extension removes the permission, or keeps it and says so on the settings page if the instance can’t be reached.
 ```
 
 #### Host permissions
 
 ```text
-All host permissions (https hosts, and http only on localhost and 127.0.0.1) are optional and grant no access at install. Because the user runs Threadsift on their own host, the Threadsift address can be any https host; when the user saves settings, the extension requests only that one host, and the browser’s prompt names it. It requests reddit.com only when the user connects Reddit or turns on "Fill saved Reddit items", and it removes every other host it holds.
+All host permissions are optional and grant nothing at install: any https host, since the person runs Threadsift on their own host, and http only on localhost and 127.0.0.1. When they save settings, the extension asks only for the one host of their Threadsift address, named in the browser’s prompt, and for reddit.com only when they turn on Fill or connect Reddit. It asks the browser to remove every other host it holds; if the browser refuses, that host stays granted and the extension logs it.
 ```
 
 ### Remote code
@@ -100,7 +96,7 @@ Select "No, I am not using remote code". The Extension runs only the scripts in 
 
 ### Data usage
 
-Tick Website content, Web history and Authentication information. Web history covers the addresses of the Reddit threads the owner opens while Fill is on; the Firefox manifest declares only the first and the last in `data_collection_permissions`. Tick the three certifications: no sale or transfer of the data to third parties outside the approved uses, no use or transfer for purposes unrelated to the single purpose, and no use or transfer to determine creditworthiness or for lending.
+Tick Website content, Web history and Authentication information. Web history covers the addresses of the Reddit threads the owner opens while Fill is on. The Firefox manifest declares the same three in `data_collection_permissions`: Website content and Authentication information as required, and browsing activity as optional, which Firefox asks for when the owner turns Fill on. Tick the three certifications: no sale or transfer of the data to third parties outside the approved uses, no use or transfer for purposes unrelated to the single purpose, and no use or transfer to determine creditworthiness or for lending.
 
 ## Firefox Add-ons
 
@@ -109,9 +105,9 @@ Tick Website content, Web history and Authentication information. Web history co
 Upload the source archive that the package command writes, with the Firefox zip.
 
 ```text
-WXT bundles the extension’s code without minifying or obfuscating it. The source upload is a git archive of the repository. SOURCE_CODE_REVIEW.md at its root gives the build environment (Node.js 26, pnpm 12.23.0), the commands and how to compare the build with the upload. It also explains the web-ext lint warnings from two libraries: DANGEROUS_EVAL from zod and UNSAFE_VAR_ASSIGNMENT from defuddle.
+WXT’s production build bundles and minifies the extension’s code without obfuscation. The source upload is a git archive of the repository with the readable code. SOURCE_CODE_REVIEW.md at its root gives the build environment (Node.js 26, pnpm 12.23.0), commands and how to compare the build with the upload. It explains web-ext lint warnings from two libraries: DANGEROUS_EVAL from zod and UNSAFE_VAR_ASSIGNMENT from defuddle.
 
-The extension needs a running Threadsift instance. The repository’s README shows how to run one in a container. Enter the instance’s address and an agent token with the Read and Add scopes in the extension’s settings.
+To use the extension, run a Threadsift instance (the README shows how in a container). Enter its address and an agent token with Read and Add scopes in the extension’s settings, plus the Reddit scope for Connect Reddit.
 
-The webRequest permission reads only network errors of the extension’s own requests to the Threadsift address. It blocks and changes nothing. The cookies permission is optional; only Connect Reddit asks for it. With it, the extension reads only reddit.com’s reddit_session cookie. All host permissions are optional. At Save settings, the extension asks for the one Threadsift host.
+The webRequest permission reads only network errors of the extension’s own requests to the Threadsift address. It blocks and changes nothing. Only Connect Reddit asks for the optional cookies permission, which reads only reddit.com’s reddit_session cookie. In Firefox, turning on "Fill saved Reddit items" asks for reddit.com access and the optional browsing activity data permission in one prompt. Deny leaves Fill off. All host permissions are optional. The extension asks for the one Threadsift host at Save settings.
 ```

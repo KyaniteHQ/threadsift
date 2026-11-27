@@ -2,7 +2,7 @@
 
 This archive is a `git archive` of the Threadsift repository at the commit the extension was built from. The extension's own code is in `extension/`. It also imports modules from `src/core/contract/`, and its dependency versions come from the workspace catalog in `pnpm-workspace.yaml`, so you build it from the archive root.
 
-The build bundles the code with WXT and does not minify or obfuscate it. `pnpm-lock.yaml` pins every package the build installs, including the two libraries the bundle holds: `defuddle`, which extracts a page's readable text, and `zod`, which checks messages and answers.
+WXT's production build bundles and minifies the code, so the built files are hard to read; this archive holds the readable source. Nothing is obfuscated. `pnpm-lock.yaml` pins every package the build installs, including the two libraries the bundle holds: `defuddle`, which extracts a page's readable text, and `zod`, which checks messages and answers.
 
 ## Build environment
 
