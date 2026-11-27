@@ -4,7 +4,7 @@ import type { XReaderChoice, XBotState } from "../../src/core/contract/x-setting
 export const X_TEXT = {
   sectionTitle: "X posts",
   intro:
-    "The chosen reader fetches each pasted X link. The items it makes show the post and its replies like a Reddit thread.",
+    "The chosen reader fetches each pasted link to an X post. The item it makes shows the post and its replies like a Reddit thread. Links to X profiles and other X pages are saved as link-only items.",
   readerLabel: "Read X links with",
   botLabel: "Grok Bot",
   cliLabel: "grok CLI",
@@ -13,7 +13,7 @@ export const X_TEXT = {
   failed: "Couldn’t save the setting. Try again.",
   noteSignedOut: "Run this command to sign in so the grok CLI can read X links.",
   noteNotProven:
-    "Threadsift hasn’t checked this grok CLI version or one of its tools, so it doesn’t use the CLI to read X links. After updating or replacing the CLI, restart the instance to run the check again:",
+    "Threadsift doesn’t use this grok CLI to read X posts. It isn’t the tested version, or it has tools Threadsift doesn’t allow. After installing another version or replacing the CLI, restart the instance to run the check again:",
   noteUnknown: "Couldn’t read the grok CLI’s sign-in state. Reload the page to check again.",
   noteNotInstalled:
     "To read X links with the grok CLI, install it, restart the instance, then sign in:",
@@ -51,8 +51,8 @@ export const BOT_STATES = {
 export const X_STATES = {
   "signed-in": "Signed in",
   "signed-out": "Signed out",
-  "not-proven": "Not checked",
-  unknown: "Unknown",
+  "not-proven": "Not supported",
+  unknown: "Sign-in state unknown",
   "not-installed": "Not installed",
 } as const;
 
@@ -60,26 +60,26 @@ export type XNoticeKey = XReadNote | "x-unreadable" | "x-kept";
 
 export const X_NOTICES: Readonly<Record<XNoticeKey, string>> = {
   "bot-not-set-up":
-    "No Grok Bot is set up, so this link was saved as a link-only item without trying the grok CLI. Any earlier copy was kept. Check Settings, X posts.",
+    "No Grok Bot is set up, so this post couldn’t be read. The grok CLI wasn’t tried. Any earlier copy was kept. Set up the Grok Bot or change the reader in Settings, X posts, then paste the link again.",
   "bot-key-unopened":
-    "The Grok Bot’s saved key can’t be opened, so this link was saved as a link-only item without trying the grok CLI. Any earlier copy was kept. Check Settings, X posts.",
+    "The Grok Bot’s saved key can’t be opened, so this post couldn’t be read. The grok CLI wasn’t tried. Any earlier copy was kept. Replace the key or change the reader in Settings, X posts, then paste the link again.",
   "bot-address-refused":
-    "The Grok Bot’s saved address isn’t allowed, so this link was saved as a link-only item without trying the grok CLI. Any earlier copy was kept. Check Settings, X posts.",
+    "The Grok Bot’s saved address isn’t a public https address, so this post couldn’t be read. The grok CLI wasn’t tried. Any earlier copy was kept. Change the address or the reader in Settings, X posts, then paste the link again.",
   "bot-timed-out": "The Grok Bot didn’t answer in time while reading this X post.",
   "bot-failed": "The Grok Bot couldn’t read this X post.",
-  "bot-unavailable":
-    "The Grok Bot said it can’t read this X post, so the link was saved as a link-only item.",
+  "bot-unavailable": "The Grok Bot said it can’t read this post. Any earlier copy was kept.",
   "cli-not-installed":
-    "The grok CLI isn’t installed on this instance, so this link was saved as a link-only item. Any earlier copy was kept. Check Settings, X posts.",
+    "The grok CLI isn’t installed on this instance, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts for how to install it, then paste the link again.",
   "cli-signed-out":
     "The grok CLI is signed out, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts, then paste the link again.",
   "cli-not-proven":
-    "Threadsift hasn’t checked this grok CLI version or one of its tools, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts.",
+    "The grok CLI isn’t the tested version or has tools Threadsift doesn’t allow, so this post couldn’t be read. Any earlier copy was kept. Check Settings, X posts, then paste the link again.",
   "cli-usage-limit":
     "The grok CLI reached its usage limit, so this post couldn’t be read. Any earlier copy was kept. Paste the link again later.",
   "cli-unreachable":
     "The grok CLI couldn’t reach xAI’s service to read this post. Any earlier copy was kept. Paste the link again later.",
-  "cli-failed": "The grok CLI gave an answer Threadsift couldn’t use. Any earlier copy was kept.",
+  "cli-failed":
+    "Threadsift didn’t get a usable answer from the grok CLI, so this post couldn’t be read. Any earlier copy was kept. Try pasting the link again.",
   "x-unconfirmed":
     "Threadsift couldn’t check this post on X, or the fetched post didn’t match what X shows. Nothing new was saved, and any earlier copy was kept.",
   "x-answer-refused":

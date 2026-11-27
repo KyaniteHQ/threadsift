@@ -20,5 +20,11 @@ export function useSaveOnPick<Value, View>(
     [changed, run, save],
   );
 
-  return { busy: flow.kind === "running", failed: outcomeOf(flow)?.kind === "error", pick };
+  const outcome = outcomeOf(flow);
+
+  return {
+    busy: flow.kind === "running",
+    error: outcome?.kind === "error" ? outcome.text : null,
+    pick,
+  };
 }

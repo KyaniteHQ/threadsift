@@ -22,21 +22,21 @@ export const REDDIT_ACCOUNT_TEXT = {
     "Paste the value of the reddit_session cookie, with or without the reddit_session= prefix. Threadsift stores it encrypted on this instance, sends it only to reddit.com and never shows it again.",
   fieldPlaceholder: "Session saved",
   stateNone:
-    "No Reddit account is connected. Links added without the extension are filled from the archive when Reddit archive fill is On.",
+    "No Reddit account is connected. Threadsift tries to fill Reddit links added without the extension from the Arctic Shift archive when Reddit archive fill is On. When it’s Off, or if that fails, they stay link-only items.",
   stateNoneFilled:
-    "No Reddit account is connected. Reddit links added without the extension are filled from the Arctic Shift archive.",
+    "No Reddit account is connected. Threadsift tries to fill Reddit links added without the extension from the Arctic Shift archive. If that fails, they stay link-only items.",
   stateNoneLinkOnly:
     "No Reddit account is connected. Reddit links added without the extension stay link-only items. Connect an account or turn Reddit archive fill On to fill them. You can also use the extension to save threads from your tab.",
   stateConnected:
     "A Reddit account is connected. Threadsift uses it to read every Reddit link added without the extension, imports included, one at a time.",
   stateExpired:
-    "Reddit stopped accepting the saved session. Connect again. Until then, links added without the extension are filled from the archive when Reddit archive fill is On.",
+    "Reddit stopped accepting the saved session. Connect again. Until then, Threadsift tries to fill Reddit links added without the extension from the Arctic Shift archive when Reddit archive fill is On. When it’s Off, or if that fails, they stay link-only items.",
   stateExpiredFilled:
-    "Reddit stopped accepting the saved session. Connect again. Until then, Reddit links added without the extension are filled from the Arctic Shift archive.",
+    "Reddit stopped accepting the saved session. Connect again. Until then, Threadsift tries to fill Reddit links added without the extension from the Arctic Shift archive. If that fails, they stay link-only items.",
   stateExpiredLinkOnly:
     "Reddit stopped accepting the saved session. Connect again. Until then, Reddit links added without the extension stay link-only items.",
   stateUnreadable:
-    "This instance can no longer open the saved session because its secret key changed. Connect again.",
+    "This instance can no longer open the saved session. Either its secret key changed or the stored session is damaged. Connect again.",
   connect: "Connect",
   connecting: "Connecting…",
   verify: "Verify",
@@ -64,16 +64,16 @@ export const REDDIT_ACCOUNT_TEXT = {
   reconnectExtension: "Reconnect with the extension",
   reconnectingExtension: "Reconnecting with the extension…",
   extensionMissing:
-    "The extension didn’t answer. Use Connect Reddit in the extension, or paste the cookie value into the Session cookie field.",
+    "The extension didn’t answer. It may not be installed, or it may be turned off. Use Connect Reddit in Threadsift extension settings, or paste the cookie value into the Session cookie field.",
   extensionNoAccess:
-    "The extension doesn’t have permission for cookies and reddit.com. Use Connect Reddit once in the extension’s settings to grant it.",
+    "The extension is missing a browser permission, so nothing was sent. In Threadsift extension settings, use Connect Reddit to allow access to cookies and reddit.com, or Save settings to allow access to the Threadsift address.",
   extensionSignedOut: "This browser isn’t signed in to Reddit. Sign in and try again.",
   extensionScopeRefused:
-    "The extension’s agent token doesn’t have the Reddit scope. Create a new token with that scope in the Agent tokens section and enter it in the extension’s settings.",
+    "The extension’s agent token is missing the Read or Reddit scope. Create a token with the Read, Add and Reddit scopes in the Agent tokens section and enter it in Threadsift extension settings.",
   extensionTokenRefused:
-    "The extension’s agent token isn’t valid or was revoked. Check it in the extension’s settings.",
+    "The extension’s agent token isn’t valid or was revoked. Check or replace it in Threadsift extension settings.",
   extensionUnreachable:
-    "The extension couldn’t reach this instance. Check the instance address in the extension’s settings.",
+    "The extension couldn’t reach this instance. Check the Threadsift address in Threadsift extension settings.",
   extensionFailed: "Couldn’t connect with the extension. Try again.",
   loadFailed: "Couldn’t load the Reddit account settings. Reload the page.",
   connectFailed: "Couldn’t connect the Reddit account. Try again.",

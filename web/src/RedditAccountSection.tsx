@@ -5,7 +5,7 @@ import { FormField } from "./FormField.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { REDDIT_ACCOUNT_GUIDE_URL, REDDIT_ACCOUNT_TEXT, stateText } from "./reddit-account-text.ts";
 import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
-import { useRedditAccountForm } from "./use-reddit-account-form.ts";
+import { useRedditAccountForm, REDDIT_ACCOUNT_STATE_ID } from "./use-reddit-account-form.ts";
 import { runningAction } from "./use-settings-action.ts";
 
 export const ArchiveFillContext = createContext<boolean | null>(null);
@@ -49,7 +49,7 @@ function RedditAccountForm({
           kind={form.saved ? SESSION_SAVED_KIND : SESSION_KIND}
           help={REDDIT_ACCOUNT_TEXT.fieldHelp}
         />
-        <p>{stateText(view.state, archiveFill)}</p>
+        <p id={REDDIT_ACCOUNT_STATE_ID}>{stateText(view.state, archiveFill)}</p>
         <SettingsActions running={runningAction(form.flow)} buttons={form.buttons} />
       </SettingsForm>
       <SettingsResult outcome={form.result} />

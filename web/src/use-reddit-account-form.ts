@@ -4,6 +4,7 @@ import {
   type RedditAccountView,
   redditSessionOf,
 } from "../../src/core/contract/reddit-account-contract.ts";
+import type { RedditConnectState } from "../../src/core/contract/reddit-relay-contract.ts";
 import {
   fetchRedditAccount,
   removeRedditAccount,
@@ -15,6 +16,7 @@ import { askExtension } from "./reddit-relay.ts";
 import { type FieldState, useField } from "./use-form.ts";
 import {
   type ActionButton,
+  type Outcome,
   type RunAction,
   type Task,
   outcomeOf,
@@ -23,6 +25,8 @@ import {
   useActionFlow,
   type Unavailable,
 } from "./use-settings-action.ts";
+
+export const REDDIT_ACCOUNT_STATE_ID = "reddit-account-state";
 
 type Action = "save" | "verify" | "remove" | "reconnect";
 
@@ -88,13 +92,30 @@ function useConnect(session: FieldState, changed: Changed): Task {
   }, [fail, clear, value, changed]);
 }
 
+async function refreshed(changed: Changed, outcome: Outcome): Promise<Outcome> {
+  try {
+    changed(await fetchRedditAccount());
+
+    return outcome;
+  } catch {
+    return { kind: "error", text: `${outcome.text} ${REDDIT_ACCOUNT_TEXT.loadFailed}` };
+  }
+}
+
+function relayOutcome(state: RedditConnectState | null): Outcome {
+  if (state === null) return { kind: "error", text: REDDIT_ACCOUNT_TEXT.extensionMissing };
+
+  return { kind: state === "connected" ? "ok" : "error", text: relayText(state) };
+}
+
 function useVerify(changed: Changed): Task {
   return useCallback(async () => {
     const result = await verifyRedditAccount();
 
-    changed(await fetchRedditAccount());
-
-    return { kind: result === "ok" ? "ok" : "error", text: RESULT_TEXT[result] };
+    return refreshed(changed, {
+      kind: result === "ok" ? "ok" : "error",
+      text: RESULT_TEXT[result],
+    });
   }, [changed]);
 }
 
@@ -102,13 +123,7 @@ function useReconnect(changed: Changed): Task {
   return useCallback(async () => {
     const state = await askExtension();
 
-    changed(await fetchRedditAccount());
-
-    if (state === null) return { kind: "error", text: REDDIT_ACCOUNT_TEXT.extensionMissing };
-
-    if (state !== "connected") return { kind: "error", text: relayText(state) };
-
-    return { kind: "ok", text: relayText(state) };
+    return refreshed(changed, relayOutcome(state));
   }, [changed]);
 }
 
@@ -221,7 +236,7 @@ export function useRedditAccountForm(view: RedditAccountView, changed: Changed) 
     check: "verify",
     labels: LABELS,
     unavailable,
-    showReason: view.state === "none",
+    explainedBy: view.state === "none" ? REDDIT_ACCOUNT_STATE_ID : undefined,
     press: { check: verifyNow, remove: disconnectNow },
     saveSecondary: extension.length > 0,
   });
