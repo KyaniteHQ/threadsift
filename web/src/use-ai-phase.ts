@@ -8,7 +8,7 @@ import {
   type ConnectNotice,
 } from "../../src/core/contract/openrouter-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
-import { useGuard } from "./use-form.ts";
+import { useAfter, useGuard } from "./use-form.ts";
 
 export type Outcome =
   | { readonly kind: "ok"; readonly text: string; readonly digest?: Digest }
@@ -19,6 +19,8 @@ export type Phase = "idle" | "saving" | "verifying" | "waiting" | "connecting" |
 type Working = Exclude<Phase, "idle" | "leaving">;
 
 export const LEAVING = "leaving";
+
+const LEAVE_WAIT_MS = 2000;
 
 const FAILED = {
   saving: AI_TEXT.saveFailed,
@@ -92,6 +94,26 @@ function useRefusals(dispatch: Dispatch<Event>) {
   return { refuse, clear };
 }
 
+function useLeaveExit(leaving: boolean, dispatch: Dispatch<Event>): void {
+  const restore = useCallback(() => {
+    dispatch({ kind: "restore" });
+  }, [dispatch]);
+
+  useAfter(leaving, LEAVE_WAIT_MS, restore);
+
+  useEffect(() => {
+    const onPageShow = (event: Readonly<PageTransitionEvent>): void => {
+      if (event.persisted) restore();
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [restore]);
+}
+
 export function useAiPhase() {
   const [state, dispatch] = useReducer(reduce, undefined, start);
   const { phase, notice } = state;
@@ -102,17 +124,7 @@ export function useAiPhase() {
     if (noticed) window.history.replaceState(null, "", window.location.pathname);
   }, [noticed]);
 
-  useEffect(() => {
-    const onPageShow = (event: Readonly<PageTransitionEvent>): void => {
-      if (event.persisted) dispatch({ kind: "restore" });
-    };
-
-    window.addEventListener("pageshow", onPageShow);
-
-    return () => {
-      window.removeEventListener("pageshow", onPageShow);
-    };
-  }, []);
+  useLeaveExit(phase === LEAVING, dispatch);
 
   const { refuse, clear } = useRefusals(dispatch);
 
