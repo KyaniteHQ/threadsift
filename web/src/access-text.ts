@@ -52,14 +52,14 @@ export const LOGIN = {
 
 export const PASSWORD = {
   title: "Password",
-  note: "Changing your password ends every other browser’s session, and agent tokens keep working.",
+  note: "Changing your password signs out all other browsers. This browser stays signed in. Agent tokens keep working.",
   current: "Current password",
   new: "New password",
   change: "Change password",
   changing: "Changing…",
-  changed: "Your password is changed.",
-  currentWrong: "That current password is wrong.",
-  failed: "Couldn’t change your password, so try again.",
+  changed: "Password changed",
+  currentWrong: "That password is wrong.",
+  failed: "Couldn’t change your password. Try again.",
 } as const;
 
 export const RESET = {
@@ -99,9 +99,9 @@ export const SETTINGS = {
   instanceSettings: "Instance settings",
   tokensTitle: "Agent tokens",
   tokensIntro:
-    "Give the Extension, Grok Bot and each MCP client their own token to save links, and pick what each token can do.",
+    "Create a separate token for each program, such as the browser extension, Grok Bot or an MCP client. Tokens let programs use the library without your password, within the scopes you pick.",
   tokenName: "Token name",
-  tokenNameRequired: "Enter a token name first.",
+  tokenNameRequired: "Enter a token name.",
   scopesLabel: "Scopes",
   scopeRead: "Read",
   scopeAdd: "Add",
@@ -109,8 +109,8 @@ export const SETTINGS = {
   scopeDelete: "Delete",
   scopeReddit: "Reddit",
   scopesHint:
-    "Read searches and opens Items, Topic pages, the Index, the Log, the Proposals, the Highlights page and stored images. Add saves a link or a batch. Digest queues a Digest or Topic page overview again, or sends a Digest with a link. Delete deletes an Item. Reddit connects and disconnects your Reddit account for the Extension, and can never read the session back.",
-  scopesRequired: "Select at least one scope first.",
+    "Read searches and opens items, topic pages, the Index, the Log, Proposals, the Highlights page and stored images. Add saves one link or a batch. Digest queues a digest or topic page overview again, and with Add lets a token send its own digest with a link. Delete removes an item. Reddit connects and disconnects your Reddit account for the browser extension, and never lets a token read the session back.",
+  scopesRequired: "Select at least one scope.",
   scopeNameRead: "read",
   scopeNameAdd: "add",
   scopeNameDigest: "digest",
@@ -120,8 +120,8 @@ export const SETTINGS = {
   scopesMeta: "scopes: {scopes}",
   createToken: "Create token",
   creatingToken: "Creating…",
-  tokenCreateFailed: "Couldn’t create the token, so try again.",
-  tokensLoadFailed: "Couldn’t load agent tokens.",
+  tokenCreateFailed: "Couldn’t create the token. Try again.",
+  tokensLoadFailed: "Couldn’t load agent tokens. Reload the page to try again.",
   revealTitleNamed: "New token for {name}",
   revealPaste: "This token is shown once, so copy it now and paste it into that agent’s settings.",
   tokenValue: "Token value",
@@ -150,9 +150,9 @@ export const SETTINGS = {
   budgetSave: "Save budget",
   budgetSaveFailed: "Couldn’t save the budget, so try again.",
   signOutTitle: "Sign out",
-  signOutNote: "Signing out ends only this browser’s session, and agent tokens keep working.",
+  signOutNote: "Other browsers stay signed in. Agent tokens keep working.",
   signOut: "Sign out",
-  signOutFailed: "Couldn’t sign out and you’re still signed in, so try again.",
+  signOutFailed: "Couldn’t sign out. You’re still signed in. Try again.",
 } as const;
 
 export function waitLabel(seconds: number): string {
