@@ -19,7 +19,7 @@ export async function redditAccountFlow(page: Page): Promise<void> {
   await page.getByRole("button", { name: "Display settings", exact: true }).click();
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await expect(page.getByRole("heading", { name: REDDIT_ACCOUNT_TEXT.sectionTitle })).toBeVisible();
-  await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNone)).toBeVisible();
+  await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNoneFilled)).toBeVisible();
   await expect(button(page, REDDIT_ACCOUNT_TEXT.verify)).toHaveAttribute("aria-disabled", "true");
   await expect(button(page, REDDIT_ACCOUNT_TEXT.verify)).toHaveAccessibleDescription(
     REDDIT_ACCOUNT_TEXT.resultNotConfigured,
@@ -53,7 +53,7 @@ export async function redditAccountFlow(page: Page): Promise<void> {
 
   await button(page, REDDIT_ACCOUNT_TEXT.disconnect).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.disconnected)).toBeVisible();
-  await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNone)).toBeVisible();
+  await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNoneFilled)).toBeVisible();
 
   await button(page, REDDIT_ACCOUNT_TEXT.connectExtension).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.extensionMissing)).toBeVisible();
