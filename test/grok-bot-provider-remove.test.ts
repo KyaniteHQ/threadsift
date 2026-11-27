@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { GrokBotViewSchema } from "../src/core/contract/grok-bot-contract.ts";
+import { GrokBotInUseSchema, GrokBotViewSchema } from "../src/core/contract/grok-bot-contract.ts";
 import { botInstance, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { PATH } from "./grok-bot-fixtures.ts";
 import { usedAsProvider } from "./grok-bot-provider-fixtures.ts";
@@ -18,14 +18,11 @@ describe("removing the Grok Bot settings is refused while Grok Bot is the Provid
 
   after(() => instance.close());
 
-  it("answers 409 in-use with the text to show, and keeps the settings and the choice", async () => {
+  it("answers 409 in-use, and keeps the settings and the choice", async () => {
     const answer = await instance.send("DELETE", PATH);
 
     assert.equal(answer.status, 409);
-    assert.deepEqual(JSON.parse(answer.body), {
-      error: "Grok Bot is the Provider, so pick and save another Provider in the AI section first.",
-      code: "in-use",
-    });
+    assert.equal(GrokBotInUseSchema.parse(JSON.parse(answer.body)).code, "in-use");
     assert.equal(usedAsProvider(instance), true);
     assert.equal((await instance.read("GET", PATH, GrokBotViewSchema)).configured, true);
   });

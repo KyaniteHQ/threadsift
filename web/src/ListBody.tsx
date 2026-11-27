@@ -1,4 +1,4 @@
-import { type RefObject, memo, useEffect, useRef } from "react";
+import { type ReactNode, type RefObject, memo, useEffect, useRef } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { isEmptyResult } from "./filters.ts";
@@ -7,7 +7,7 @@ import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { More } from "./list-paging.ts";
 import type { ListState } from "./list-state.ts";
 import { LoadMore } from "./LoadMore.tsx";
-import { CLEAR_ALL, EMPTY_LIST, LOADING_LABEL, LOAD_FAILED, NO_RESULTS } from "./text.ts";
+import { EMPTY_LIST, LOADING_LABEL, LOAD_FAILED } from "./text.ts";
 import { useNearEnd } from "./use-near-end.ts";
 
 const SKELETON_ROWS = [0, 1, 2] as const;
@@ -44,10 +44,10 @@ export function Notice({
   text,
   action,
   label,
-}: Readonly<{ text: string; action: () => void; label: string }>) {
+}: Readonly<{ text: string | null; action: () => void; label: string }>) {
   return (
     <div className="noresults">
-      <p>{text}</p>
+      {text === null ? null : <p>{text}</p>}
       <button type="button" className="btn" onClick={action}>
         {label}
       </button>
@@ -124,12 +124,17 @@ function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) 
   );
 }
 
-export function EmptyState({ heading, line }: Readonly<{ heading: string; line: string }>) {
+export function EmptyState({
+  heading,
+  line,
+  children,
+}: Readonly<{ heading: string; line?: string; children?: ReactNode }>) {
   return (
     <div className="empty">
       <Icon name="tray" className="ic ic-xl" />
       <h2 tabIndex={-1}>{heading}</h2>
-      <p>{line}</p>
+      {line === undefined ? null : <p>{line}</p>}
+      {children}
     </div>
   );
 }
@@ -137,6 +142,7 @@ export function EmptyState({ heading, line }: Readonly<{ heading: string; line: 
 interface ListBodyProps extends RowProps {
   readonly list: ListState;
   readonly clearAll: () => void;
+  readonly clearLabel: string;
   readonly more: () => void;
 }
 
@@ -173,6 +179,7 @@ function LoadedList({
 export const ListBody = memo(function ListBody({
   list,
   clearAll,
+  clearLabel,
   more,
   ...shared
 }: Readonly<ListBodyProps>) {
@@ -183,7 +190,7 @@ export const ListBody = memo(function ListBody({
   const exhausted = isEmptyResult(list.items.length, list.next);
 
   if (exhausted && list.counts.total > 0) {
-    return <Notice text={NO_RESULTS} action={clearAll} label={CLEAR_ALL} />;
+    return <Notice text={null} action={clearAll} label={clearLabel} />;
   }
 
   if (exhausted) {

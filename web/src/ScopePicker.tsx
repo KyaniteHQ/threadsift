@@ -3,7 +3,7 @@ import { useCallback, useId } from "react";
 import { SCOPES, type Scope } from "../../src/core/contract/agent-token-contract.ts";
 import { SETTINGS } from "./access-text.ts";
 
-const SCOPE_LABELS = {
+export const SCOPE_LABELS = {
   read: SETTINGS.scopeRead,
   add: SETTINGS.scopeAdd,
   digest: SETTINGS.scopeDigest,
@@ -11,19 +11,20 @@ const SCOPE_LABELS = {
   reddit: SETTINGS.scopeReddit,
 } as const satisfies Readonly<Record<Scope, string>>;
 
-export const SCOPE_NAMES = {
-  read: SETTINGS.scopeNameRead,
-  add: SETTINGS.scopeNameAdd,
-  digest: SETTINGS.scopeNameDigest,
-  delete: SETTINGS.scopeNameDelete,
-  reddit: SETTINGS.scopeNameReddit,
+const SCOPE_HINTS = {
+  read: SETTINGS.scopeHintRead,
+  add: SETTINGS.scopeHintAdd,
+  digest: SETTINGS.scopeHintDigest,
+  delete: SETTINGS.scopeHintDelete,
+  reddit: SETTINGS.scopeHintReddit,
 } as const satisfies Readonly<Record<Scope, string>>;
 
 function ScopeOption({
   scope,
   checked,
   toggle,
-}: Readonly<{ scope: Scope; checked: boolean; toggle: (scope: Scope) => void }>) {
+  hintId,
+}: Readonly<{ scope: Scope; checked: boolean; toggle: (scope: Scope) => void; hintId: string }>) {
   const id = useId();
 
   const change = useCallback(() => {
@@ -39,6 +40,7 @@ function ScopeOption({
         name="token-scope"
         value={scope}
         checked={checked}
+        aria-describedby={hintId}
         onChange={change}
       />
       {SCOPE_LABELS[scope]}
@@ -63,7 +65,7 @@ export function ScopePicker({
       <fieldset
         className="st-seg"
         aria-labelledby={labelId}
-        aria-describedby={error === null ? hintId : `${hintId} ${errorId}`}
+        aria-describedby={error === null ? undefined : errorId}
       >
         {SCOPES.map((scope) => (
           <ScopeOption
@@ -71,12 +73,15 @@ export function ScopePicker({
             scope={scope}
             checked={selected.includes(scope)}
             toggle={toggle}
+            hintId={`${hintId}-${scope}`}
           />
         ))}
       </fieldset>
-      <p id={hintId} className="fld-help">
-        {SETTINGS.scopesHint}
-      </p>
+      {SCOPES.map((scope) => (
+        <p key={scope} id={`${hintId}-${scope}`} className="fld-help">
+          {SCOPE_HINTS[scope]}
+        </p>
+      ))}
       <p id={errorId} className="fld-err" role="alert">
         {error}
       </p>

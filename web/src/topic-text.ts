@@ -5,18 +5,18 @@ export const TOPIC_PAGE = {
   overviewHeading: "Overview",
   overviewPending: "Writing overview…",
   overviewFailed: "Couldn’t write the overview.",
-  overviewNone: "No overview yet.",
+  overviewNone: "No overview yet",
   writeOverview: "Write overview",
   noProvider:
-    "No overview is written until a Provider is set in Instance settings. The items still show below.",
+    "Save a provider so Threadsift can write an overview. This topic’s items still show on this page.",
   builtFromOne: "Built from 1 item",
+  builtFromNoneOfOne: "Built from 0 of 1 item",
   notInOverview: "Not in overview yet",
   loading: "Loading topic…",
   loadFailed: "Couldn’t load this topic.",
   notFoundHeading: "Topic not found",
-  notFoundLine: "Go back to the library to see your items.",
+  notFoundLine: "No topic has this address. Open Index to see all topics.",
   emptyHeading: "No items in this topic",
-  emptyLine: "This topic has no items in your library.",
   loadMoreFailed: "Couldn’t load more items.",
   openPage: "Open topic page",
   disagreementsHeading: "Known disagreements",
@@ -27,11 +27,11 @@ const BUILT_FROM_SOME = "Built from {built} of {total} items";
 const BUILT_FROM_ALL = "Built from all {total} items";
 const ITEMS_ONE = "1 item";
 const ITEMS_MANY = "{count} items";
-const CITATION_LABEL = "Open item {title}";
-const TOPIC_LINK = "Open topic page for {name}";
+const CITATION_LABEL = "Open item: {title}";
+const TOPIC_LINK = "{name}, topic page";
 
 export function builtFromLabel(built: number, total: number): string {
-  if (total === 1) return TOPIC_PAGE.builtFromOne;
+  if (total === 1) return built === 1 ? TOPIC_PAGE.builtFromOne : TOPIC_PAGE.builtFromNoneOfOne;
 
   const values = { built: String(built), total: String(total) };
 

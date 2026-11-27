@@ -1,3 +1,5 @@
+import { useId } from "react";
+
 import type { Digest } from "../../src/core/contract/digest-schema.ts";
 import {
   type Provider,
@@ -6,7 +8,7 @@ import {
   isCliProvider,
 } from "../../src/core/contract/provider-families.ts";
 import type { AiView } from "./ai-api.ts";
-import { AI_TEXT, CLI_TEXT } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT, signedOutParts } from "./ai-text.ts";
 import { AiFields } from "./AiFields.tsx";
 import { ConnectNotes, ConnectNotice } from "./ConnectControls.tsx";
 import { keyed } from "./keyed.ts";
@@ -43,13 +45,18 @@ const RUNNING = {
   leaving: "connect",
 } as const satisfies Record<Form["phase"], AiAction | null>;
 
-function aiButtons(view: AiView, form: Form): readonly ActionButton<AiAction>[] {
+function aiButtons(
+  view: AiView,
+  form: Form,
+  saveReasonId: string,
+): readonly ActionButton<AiAction>[] {
   const buttons: readonly ActionButton<AiAction>[] = [
     {
       action: "save",
       label: AI_TEXT.save,
       busyLabel: AI_TEXT.saving,
       blocked: form.saveBlocked,
+      reasonId: form.saveBlocked ? saveReasonId : undefined,
       secondary: false,
     },
     {
@@ -86,10 +93,10 @@ const KEY_STATUS = {
   none: AI_TEXT.keyMissing,
 } as const;
 
-function keyStatus(provider: Provider, savedKey: SavedKey): string {
+function keyStatus(provider: Provider, savedKey: SavedKey): string | null {
   const { kind } = PROVIDERS[provider];
 
-  if (kind === "binding") return AI_TEXT.keyNotNeeded;
+  if (kind === "binding") return null;
 
   if (kind === "bot") return AI_TEXT.grokBotKey;
 
@@ -114,29 +121,40 @@ function ProviderNotes({
   provider,
   savedKey,
   saveBlocked,
+  saveReasonId,
 }: Readonly<{
   view: AiView;
   provider: Provider;
   savedKey: SavedKey;
   saveBlocked: boolean;
+  saveReasonId: string;
 }>) {
-  const signedOut = isSignedOut(view, provider);
-  const cli = isCliProvider(provider) ? CLI_TEXT[provider] : null;
+  const signedOut =
+    isCliProvider(provider) && isSignedOut(view, provider) ? signedOutParts(provider) : null;
+  const status = keyStatus(provider, savedKey);
 
   return (
     <>
-      <p>{keyStatus(provider, savedKey)}</p>
-      {signedOut && cli !== null ? (
-        <p className="fld-help">
-          {cli.signedOut} <code>{cli.signInCommand}</code>.
+      {status === null ? null : <p>{status}</p>}
+      {signedOut === null ? null : (
+        <p id={saveReasonId} className="fld-help">
+          {signedOut.before}
+          <code>{signedOut.command}</code>
+          {signedOut.after}
+        </p>
+      )}
+      {saveBlocked && signedOut === null ? (
+        <p id={saveReasonId} className="fld-help">
+          {AI_TEXT["secret-missing"]}
         </p>
       ) : null}
-      {saveBlocked && !signedOut ? <p className="fld-help">{AI_TEXT["secret-missing"]}</p> : null}
       {provider === GROK_BOT_PROVIDER ? (
         <>
           <p className="fld-help">{AI_TEXT.grokBotHelp}</p>
           <p className="fld-help">
-            <a href="#grok-bot">{AI_TEXT.grokBotLink}</a>
+            <a className="fl-link" href="#grok-bot">
+              {AI_TEXT.grokBotLink}
+            </a>
           </p>
         </>
       ) : null}
@@ -145,7 +163,11 @@ function ProviderNotes({
   );
 }
 
-function AiControls({ view, form }: Readonly<{ view: AiView; form: Form }>) {
+function AiControls({
+  view,
+  form,
+  saveReasonId,
+}: Readonly<{ view: AiView; form: Form; saveReasonId: string }>) {
   const { fields, phase, savedKey, saveBlocked } = form;
 
   return (
@@ -161,6 +183,7 @@ function AiControls({ view, form }: Readonly<{ view: AiView; form: Form }>) {
         provider={fields.provider}
         savedKey={savedKey}
         saveBlocked={saveBlocked}
+        saveReasonId={saveReasonId}
       />
     </>
   );
@@ -169,12 +192,13 @@ function AiControls({ view, form }: Readonly<{ view: AiView; form: Form }>) {
 function AiForm({ view, changed }: Readonly<{ view: AiView; changed: (value: AiView) => void }>) {
   const form = useAiForm(view, changed);
   const { phase, submit } = form;
+  const saveReasonId = useId();
 
   return (
     <>
       <SettingsForm action="/api/settings/ai" busy={phase !== "idle"} submit={submit}>
-        <AiControls view={view} form={form} />
-        <SettingsActions running={RUNNING[phase]} buttons={aiButtons(view, form)} />
+        <AiControls view={view} form={form} saveReasonId={saveReasonId} />
+        <SettingsActions running={RUNNING[phase]} buttons={aiButtons(view, form, saveReasonId)} />
       </SettingsForm>
       <ConnectNotice view={view} notice={form.notice} />
       <AiOutcome outcome={form.outcome} />

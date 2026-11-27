@@ -232,3 +232,6 @@ dialog.dlg::backdrop {
 [data-bp~="phone"] .dlg-acts .btn {
   flex: 1;
 }
+.rd-comments .fl-link {
+  padding-inline: 0;
+}

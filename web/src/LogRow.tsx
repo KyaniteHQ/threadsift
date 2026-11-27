@@ -6,11 +6,15 @@ import type { LogEntry } from "../../src/core/contract/log-contract.ts";
 import { topicPath } from "../../src/core/contract/topic-path.ts";
 import { InternalLink } from "./InternalLink.tsx";
 import { localStamp } from "./log-date.ts";
-import { LOG_WORDS, addedRemoved, logItemsLabel, mergeLabel, picksLabel } from "./log-text.ts";
+import { LOG_WORDS, addedRemoved, logItemsLabel, mergeLabel } from "./log-text.ts";
 import { topicLinkLabel } from "./topic-text.ts";
 
 function Separator() {
-  return <span aria-hidden="true">{" | "}</span>;
+  return (
+    <span className="lg-sep" aria-hidden="true">
+      {" | "}
+    </span>
+  );
 }
 
 interface Part {
@@ -111,7 +115,7 @@ function body(entry: Readonly<LogEntry>): readonly Part[] {
         { key: "counts", node: addedRemoved(entry.added, entry.removed) },
       ];
     case "related":
-      return [action, itemPart(entry.item), { key: "picks", node: picksLabel(entry.picks) }];
+      return [action, itemPart(entry.item), { key: "picks", node: logItemsLabel(entry.picks) }];
     case "merge":
       return mergeParts(LOG_WORDS.tag, entry);
     case "merge-topic":

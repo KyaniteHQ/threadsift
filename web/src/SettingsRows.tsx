@@ -8,9 +8,9 @@ import {
   type Settings,
   THEME,
 } from "../../design/system/settings-table.ts";
-import { isSetByStyle } from "../../design/system/settings.ts";
+import { DEFAULTS, isSetByStyle } from "../../design/system/settings.ts";
 import { RadioChoice } from "./RadioChoice.tsx";
-import { OPEN_AS_NARROW_NOTE, STYLE_NOTE } from "./text.ts";
+import { OPEN_AS_NARROW_NOTE, styleNote } from "./text.ts";
 
 function appliesTo(row: SettingRow, settings: Readonly<Settings>): boolean {
   return row.key !== "openAs" || settings.layout === "grid";
@@ -43,10 +43,27 @@ function whyOff(row: SettingRow, settings: Readonly<Settings>, narrow: boolean):
   return row.key === "openAs" && narrow ? "narrow" : null;
 }
 
-function noteOf(row: SettingRow, themeNote: string | null, why: Why): string | null {
-  if (why === "style") return STYLE_NOTE;
+function styleLabel(settings: Readonly<Settings>): string | null {
+  if (settings.style === DEFAULTS.style) return null;
 
+  const style = SETTINGS.find((row) => row.key === "style");
+
+  return style?.options.find((option) => option.id === settings.style)?.label ?? null;
+}
+
+function noteOf(
+  row: SettingRow,
+  settings: Readonly<Settings>,
+  themeNote: string | null,
+  why: Why,
+): string | null {
   if (why === "narrow") return OPEN_AS_NARROW_NOTE;
+
+  if (row.key === "style") {
+    const label = styleLabel(settings);
+
+    return label === null ? null : styleNote(label);
+  }
 
   return row === THEME ? themeNote : null;
 }
@@ -214,7 +231,8 @@ function Row({
   const noteId = `${labelId}-note`;
   const why = whyOff(row, settings, narrow);
   const disabled = why !== null;
-  const note = noteOf(row, themeNote, why);
+  const note = noteOf(row, settings, themeNote, why);
+  const describedBy = why === "style" ? `${idBase}-style-note` : noteId;
   const Control = row.kind === "select" ? SelectControl : ButtonsControl;
 
   return (
@@ -225,7 +243,7 @@ function Row({
         value={settings[row.key]}
         labelId={labelId}
         controlId={controlId}
-        noteId={note === null ? undefined : noteId}
+        noteId={note === null && why !== "style" ? undefined : describedBy}
         disabled={disabled}
         choose={choose}
       />

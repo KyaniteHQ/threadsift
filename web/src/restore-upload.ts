@@ -14,9 +14,14 @@ export type Progress =
   | Readonly<{ kind: "sending"; sent: number; parts: number }>
   | Readonly<{ kind: "checking" }>;
 
+export type StatusRead =
+  | Readonly<{ kind: "read"; view: RestoreStatus }>
+  | Readonly<{ kind: "failed" }>
+  | Readonly<{ kind: "superseded" }>;
+
 interface UploadSteps {
   readonly progress: (progress: Progress) => void;
-  readonly refresh: () => Promise<RestoreStatus | null>;
+  readonly refresh: () => Promise<StatusRead>;
 }
 
 type Chosen = Readonly<Pick<File, "name" | "size" | "lastModified" | "slice">>;
@@ -109,7 +114,9 @@ async function startedFrom({ id }: Target, { refresh }: UploadSteps): Promise<Ou
   const started = await startRestore(id);
   const next = await refresh();
 
-  if (started.kind === "started" || next?.state === "failed") return null;
+  if (started.kind === "started" || (next.kind === "read" && next.view.state === "failed")) {
+    return null;
+  }
 
   return failure(refusalLabel(started.code));
 }

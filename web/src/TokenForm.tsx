@@ -97,11 +97,23 @@ export function TokenForm({
 }>) {
   const scopes = useScopes();
   const budget = useBudgetField(DEFAULT_BUDGET_TEXT);
-  const { busy, onSubmit } = useSubmit(useCreate(name, scopes, budget, { created, reread }));
+  const [round, setRound] = useState(0);
+
+  const finished = useCallback(
+    (token: Token, value: string) => {
+      setRound((current) => current + 1);
+      created(token, value);
+    },
+    [created],
+  );
+
+  const { busy, onSubmit } = useSubmit(
+    useCreate(name, scopes, budget, { created: finished, reread }),
+  );
 
   return (
     <form noValidate className="tok-form" onSubmit={onSubmit}>
-      <FormField field={name} label={SETTINGS.tokenName} kind={NAME_INPUT} />
+      <FormField key={round} field={name} label={SETTINGS.tokenName} kind={NAME_INPUT} />
       <ScopePicker selected={scopes.selected} toggle={scopes.toggle} error={scopes.error} />
       <BudgetField field={budget.field} />
       <div className="tok-create">

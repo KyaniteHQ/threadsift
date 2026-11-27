@@ -27,3 +27,17 @@
   min-block-size: var(--target);
   min-inline-size: var(--target);
 }
+.app[data-bp~="phone"] .lg-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--s2);
+}
+.app[data-bp~="phone"] .lg-date {
+  flex-basis: 100%;
+  color: var(--muted);
+  font-size: var(--t-meta);
+}
+.app[data-bp~="phone"] .lg-sep {
+  display: none;
+}

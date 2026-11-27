@@ -46,6 +46,12 @@ type Draft =
   | Readonly<{ mode: "github"; repository: string; branch: string; token: string }>
   | Readonly<{ mode: "folder"; folder: string }>;
 
+const FAILED = {
+  save: TEXT.saveFailed,
+  verify: TEXT.verifyFailed,
+  remove: TEXT.removeFailed,
+} as const satisfies Record<Action, string>;
+
 const LABELS = {
   save: { label: TEXT.save, busyLabel: TEXT.saving },
   verify: { label: TEXT.verify, busyLabel: TEXT.verifying },
@@ -85,7 +91,7 @@ function useActions(
   { mode, fields, token }: Readonly<ReturnType<typeof useDraft>>,
   changed: (view: VaultView) => void,
 ) {
-  const { flow, run } = useActionFlow<Action>(TEXT.failed);
+  const { flow, run } = useActionFlow<Action>(FAILED);
   const secretMissing = mode === "github" && !view.secretReady ? AI_TEXT["secret-missing"] : null;
   const unavailable = {
     save: secretMissing,

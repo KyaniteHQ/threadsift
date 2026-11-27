@@ -4,9 +4,9 @@ export const INDEX_PAGE = {
   masthead: "Index",
   title: "Index",
   loading: "Loading topics…",
-  loadFailed: "Couldn’t load your topics.",
+  loadFailed: "Couldn’t load topics.",
   emptyHeading: "No topics yet",
-  emptyLine: "Topics appear here once items are saved and sorted.",
+  emptyLine: "Each saved item gets a topic when Threadsift makes its digest.",
   loadMoreFailed: "Couldn’t load more topics.",
   sort: "Alphabetical",
 } as const;

@@ -16,7 +16,15 @@ import {
   useActionFlow,
 } from "./use-settings-action.ts";
 
+export const GITHUB_STATE_ID = "github-state";
+
 type Action = "save" | "verify" | "remove";
+
+const FAILED = {
+  save: GITHUB_TEXT.saveFailed,
+  verify: GITHUB_TEXT.verifyFailed,
+  remove: GITHUB_TEXT.removeFailed,
+} as const satisfies Record<Action, string>;
 
 type Changed = (view: GithubSettingsView) => void;
 
@@ -79,7 +87,7 @@ function verifyUnavailable(view: Readonly<GithubSettingsView>): string | null {
 
 export function useGithubForm(view: GithubSettingsView, changed: Changed) {
   const token = useField();
-  const { flow, run } = useActionFlow<Action>(GITHUB_TEXT.failed);
+  const { flow, run } = useActionFlow<Action>(FAILED);
 
   const unavailable = {
     save: view.secretReady ? null : AI_TEXT["secret-missing"],
@@ -112,7 +120,7 @@ export function useGithubForm(view: GithubSettingsView, changed: Changed) {
     check: "verify",
     labels: LABELS,
     unavailable,
-    showReason: view.token === "none",
+    explainedBy: view.token === "none" ? GITHUB_STATE_ID : undefined,
     press: { check: verifyNow, remove: removeNow },
   });
 

@@ -106,13 +106,13 @@ const SOURCE = { reddit: "Reddit", x: "X", github: "GitHub", article: "Article",
 const SOURCES = Object.keys(SOURCE);
 const OPEN_LABELS = { reddit: "Open on Reddit", x: "Open on X", github: "Open on GitHub", article: "Open article", other: "Open link" };
 const STUB_TEXTS = {
-  "not-saved": "The parent was not saved.",
-  "not-kept": "Comment not kept, shown so the replies below make sense.",
-  more: "Further replies were not saved.",
+  "not-saved": "The comment being replied to wasn’t saved.",
+  "not-kept": "The digest didn’t keep this comment.",
+  more: "Further replies weren’t saved.",
 };
-const DIGEST_PENDING = "The summary and key points are not ready yet.";
-const UNFILTERED_PENDING = "The comments below are not filtered by a Digest yet. One is being made now, and the filter follows when it is ready.";
-const FILL_NOTE = "The thread for this item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
+const DIGEST_PENDING = "Writing the summary and key points…";
+const UNFILTERED_PENDING = "These comments aren’t filtered by a digest. One is being made now. Only kept comments will show when it’s ready.";
+const FILL_NOTE = "The post and comments aren’t saved yet. Open the post on Reddit in a browser with the Threadsift extension and its filling turned on to save them.";
 const SOURCE_MARKS = {
   reddit: '<path d="M5 4v16"/><path d="M5 7h13"/><path d="M9 12h11"/><path d="M9 17h7"/>',
   x: '<path d="M4 5h16v11h-9l-4 4v-4H4z"/>',
@@ -230,7 +230,7 @@ function readerHead(it, level = 2, titleId = "") {
   return `<header class="rd-head ${it.read ? "" : "unread"}" data-id="${it.id}"><div class="share" style="--kept:${keptShare(it)}"></div><h${level} class="rd-title"${titleId ? ` id="${titleId}"` : ""}>${esc(it.title)}</h${level}>${readerMeta(it)}${desc}${tagList(it)}${it.picture ? pictureBox(it, "rd-cover") : ""}</header>`;
 }
 
-const SECTION_TITLES = { reddit: "Original post", x: "Original post", github: "README", article: "Article", other: "Original post" };
+const SECTION_TITLES = { reddit: "Original post", x: "Original post", github: "README", article: "Article", other: "Page text", comment: "Saved comment" };
 
 function readerBody(it, titleId = "") {
   if (it.linkOnly) {
@@ -242,11 +242,11 @@ function readerBody(it, titleId = "") {
   const parentStub = it.parentStub ? `<div class="stub">${icon("up")}${STUB_TEXTS["not-saved"]}</div>` : "";
   const shown = drawnComments(it.comments);
   const comments = it.comments.length
-    ? `<section class="cm-tree"><h3 class="h2">Comments <span class="meta">${it.digest ? "Kept" : "Showing"} ${shown} of ${it.savedComments} comments</span></h3>${
+    ? `<section class="cm-tree"><h3 class="h2">Comments <span class="meta">${it.digest ? "Kept" : "Showing"} ${shown} of ${it.savedComments}</span></h3>${
         it.digest ? "" : `<p class="note-first">${UNFILTERED_PENDING}</p>`
       }${commentNodes(it.comments, 1)}</section>`
     : "";
-  return `${readerHead(it, 2, titleId)}${summaryBox(it)}${facts}<section class="post"><h3 class="h2">${SECTION_TITLES[it.source]}</h3>${parentStub}${post}</section>${comments}`;
+  return `${readerHead(it, 2, titleId)}${summaryBox(it)}${facts}<section class="post"><h3 class="h2">${SECTION_TITLES[it.kind === "comment" ? "comment" : it.source]}</h3>${parentStub}${post}</section>${comments}`;
 }
 
 function readerBar(it, mode, seq, from) {
@@ -283,7 +283,7 @@ function panel(s, popover = true) {
     <div class="p-row"><span class="label" id="lbl-style">Style</span><div class="tiles" role="radiogroup" aria-labelledby="lbl-style">${STYLES.map(
       (st) => `<label class="tile"><input type="radio" name="style" value="${st.id}" ${s.style === st.id ? "checked" : ""}>${tileArt(st.id)}<span class="tile-name">${st.name}</span></label>`,
     ).join("")}</div></div>
-    <div class="p-row"><span class="label">Theme</span>${seg("theme", [...THEMES, { id: "system", name: "Match system" }], s.theme, "Theme")}</div>
+    <div class="p-row"><span class="label">Theme</span>${seg("theme", [...THEMES, { id: "system", name: "System" }], s.theme, "Theme")}</div>
     <div class="p-row"><span class="label" id="lbl-acc">Accent</span><div class="swatches" role="radiogroup" aria-labelledby="lbl-acc">${ACCENTS.map((a) => `<label class="swatch" data-accent="${a.id}" title="${a.name}"><input type="radio" name="accent" value="${a.id}" aria-label="${a.name}" ${s.accent === a.id ? "checked" : ""}><span></span></label>`)
       .join("")}</div></div>
     <div class="p-row"><span class="label" id="lbl-font">Font</span><div class="tiles fonts" role="radiogroup" aria-labelledby="lbl-font">${FONTS.map((f) => `<label class="tile"><input type="radio" name="font" value="${f.id}" ${s.font === f.id ? "checked" : ""}><span class="tile-art font-art" data-font="${f.id}"><span class="ag">Ag</span><span class="rd">Reading text</span></span><span class="tile-name">${esc(f.name)}</span></label>`)
@@ -320,14 +320,17 @@ const shownItem = (s) => {
   const vis = visible(s);
   return vis.find((i) => i.id === s.item) ?? vis[0];
 };
-const noResults = () => `<div class="empty" role="status"><p>No items match</p><button class="btn" type="button" data-act="clear">Clear search and filters</button></div>`;
+const isFiltered = (s) => s.readf !== "all" || s.src !== null;
+const countText = (s) =>
+  isFiltered(s) ? `${visible(s).length} of ${items.length} items` : `${items.length} items, ${items.filter((i) => !i.read).length} unread`;
+const noResults = () => `<div class="empty"><button class="btn" type="button" data-act="clear">Clear filters</button></div>`;
 
 let uidN = 0;
 function pasteBox() {
   const id = `paste-${++uidN}`;
-  return `<form class="paste" data-act="paste"><label class="vh" for="${id}">Paste a link to save</label><input class="field" id="${id}" type="url" placeholder="Paste a link" required><button class="btn primary" type="submit">Add</button></form>`;
+  return `<form class="paste" data-act="paste"><label class="vh" for="${id}">Link to add</label><input class="field" id="${id}" type="url" placeholder="Paste a link" required><button class="btn primary" type="submit">Add</button></form>`;
 }
-const searchBox = () => `<label class="search"><span class="vh">Search items</span>${icon("search")}<input class="field" type="search" placeholder="Search title, post text, summary or tags"></label>`;
+const searchBox = () => `<label class="search"><span class="vh">Search items</span>${icon("search")}<input class="field" type="search" placeholder="Title, post text, summary or tags"></label>`;
 
 function listScreen(s) {
   const vis = visible(s);
@@ -335,7 +338,7 @@ function listScreen(s) {
   const reader = open ? `<div class="rd">${readerBar(open, "pane", vis)}<div class="rd-col">${readerBody(open)}</div></div>` : `<p class="rd-empty">Select an item</p>`;
   return `<div class="l-screen">
     <aside class="side"><div class="side-top">${wordmark()}<div class="g-tools"><button class="btn quiet icon" type="button" aria-label="Grid layout" data-act="screen" data-screen="grid">${icon("grid")}</button>${aaBtn()}</div></div>${pasteBox()}${filterRail(s)}</aside>
-    <section class="list-pane" aria-label="Items"><div class="list-head">${searchBox()}<span class="count">${vis.length} Items</span></div>
+    <section class="list-pane" aria-label="Items"><div class="list-head">${searchBox()}<span class="count">${countText(s)}</span></div>
       <div class="rows">${vis.length ? vis.map((i) => row(i, { open: i === open })).join("") : noResults()}</div></section>
     <section class="rd-pane" aria-label="Reader">${reader}</section>
   </div>${panel(s)}`;
@@ -374,12 +377,12 @@ function componentsScreen(s) {
     <section class="c-sec"><h2 class="h2">Buttons</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Default, primary, quiet</span><div class="c-line"><button class="btn" type="button">Mark read</button><button class="btn primary" type="button">Add</button><button class="btn quiet" type="button">Reset look</button></div></div>
       <div class="c-demo"><span class="label">Disabled</span><div class="c-line"><button class="btn" type="button" disabled>Mark read</button><button class="btn primary" type="button" disabled>Add</button></div></div>
-      <div class="c-demo"><span class="label">Focus</span><div class="c-line"><button class="btn is-focus" type="button">Mark read</button><button class="btn primary is-focus" type="button">Add</button><button class="btn quiet icon is-focus" type="button" aria-label="Next Item">${icon("next")}</button></div></div>
+      <div class="c-demo"><span class="label">Focus</span><div class="c-line"><button class="btn is-focus" type="button">Mark read</button><button class="btn primary is-focus" type="button">Add</button><button class="btn quiet icon is-focus" type="button" aria-label="Next item">${icon("next")}</button></div></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">Fields</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Paste box</span>${pasteBox()}</div>
       <div class="c-demo"><span class="label">Search, focused</span><label class="search"><span class="vh">Search items</span>${icon("search")}<input class="field is-focus" type="search" value="sqlite"></label></div>
-      <div class="c-demo fld"><label class="label" for="c-name">Instance name</label><span class="fld-hint">Shown in the masthead of the sign-in screen.</span><input class="field is-invalid" id="c-name" value="" placeholder="Library" aria-describedby="c-err"><span class="fld-err" id="c-err">Enter a value.</span></div>
+      <div class="c-demo fld"><label class="label" for="c-name">Instance name</label><span class="fld-hint">Shown in the masthead of the sign-in screen.</span><input class="field is-invalid" id="c-name" value="" placeholder="Library" aria-describedby="c-err"><span class="fld-err" id="c-err">This field is required.</span></div>
     </div></section>
     <section class="c-sec"><h2 class="h2">Chips, segments and Tags</h2><div class="c-cols">
       <div class="c-demo"><span class="label">Filter chips</span><div class="c-line"><button class="chip" type="button" aria-pressed="true">All</button><button class="chip" type="button" aria-pressed="false">Unread</button><button class="chip" type="button" aria-pressed="false">Reddit<span class="n">5</span></button></div></div>
@@ -510,6 +513,7 @@ export function boot() {
       } else el.querySelector(".lbl").textContent = readLabel(it);
     }
     for (const el of document.querySelectorAll(`:is(.row, .card, .rd-head)[data-id="${id}"]`)) el.classList.toggle("unread", !it.read);
+    for (const el of document.querySelectorAll(".list-head .count")) el.textContent = countText(s);
   }
   function focusKey(el) {
     const sel = ["act", "id", "step", "v", "src"].map((k) => (el.dataset[k] === undefined ? "" : `[data-${k}="${el.dataset[k]}"]`)).join("");
@@ -568,6 +572,14 @@ export function boot() {
       return;
     } else if (act === "read") {
       toggleRead(el.dataset.id);
+      if (s.readf === "all" || s.screen === "reader") return;
+      const marks = [...main.querySelectorAll('.mark[data-act="read"]')];
+      const at = marks.indexOf(el);
+      if (!visible(s).some((i) => i.id === s.item)) s.sheetOpen = false;
+      filtered();
+      render();
+      const left = main.querySelectorAll(at === -1 ? 'button[data-act="read"]:not(.mark)' : '.mark[data-act="read"]');
+      (left[Math.min(Math.max(at, 0), left.length - 1)] ?? main.querySelector('[data-act="clear"]'))?.focus();
       return;
     } else if (act === "expand") {
       s.sheetOpen = false;
@@ -576,9 +588,11 @@ export function boot() {
     else if (act === "screen") go(el.dataset.screen);
     else if (act === "step") {
       const vis = visible(s);
-      const seq = vis.some((i) => i.id === s.item) ? vis : items;
-      const i = seq.findIndex((x) => x.id === s.item);
-      s.item = seq[(i + Number(el.dataset.step) + seq.length) % seq.length].id;
+      const pool = vis.length ? vis : items;
+      const from = items.findIndex((x) => x.id === s.item);
+      const n = items.length;
+      const ahead = Array.from({ length: n }, (_, k) => items[(((from + Number(el.dataset.step) * (k + 1)) % n) + n) % n]);
+      s.item = (ahead.find((i) => pool.includes(i)) ?? items[from]).id;
     } else if (act === "readf") {
       s.readf = el.dataset.v;
       filtered();

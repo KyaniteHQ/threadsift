@@ -33,6 +33,7 @@ export interface ActionButton<Action extends string> {
   readonly busyLabel: string;
   readonly blocked: boolean;
   readonly hint?: string | undefined;
+  readonly reasonId?: string | undefined;
   readonly onClick?: () => void;
   readonly secondary: boolean;
 }
@@ -70,7 +71,9 @@ export function outcomeOf<Action extends string>(flow: Readonly<ActionFlow<Actio
   return flow.kind === "done" ? flow.outcome : null;
 }
 
-export function useActionFlow<Action extends string>(failedText: string) {
+export function useActionFlow<Action extends string>(
+  failedTexts: Readonly<Record<Action, string>>,
+) {
   const [flow, send] = useFlow<ActionFlow<Action>, ActionEvent<Action>>(reduceFlow, {
     kind: "idle",
   });
@@ -88,10 +91,10 @@ export function useActionFlow<Action extends string>(failedText: string) {
       try {
         send({ kind: "settle", outcome: await task() });
       } catch {
-        send({ kind: "settle", outcome: { kind: "error", text: failedText } });
+        send({ kind: "settle", outcome: { kind: "error", text: failedTexts[action] } });
       }
     },
-    [failedText, send],
+    [failedTexts, send],
   );
 
   return { flow, run };
@@ -117,7 +120,8 @@ interface ButtonSet<Check extends string> {
   readonly check: Check;
   readonly labels: Readonly<Record<"save" | "remove" | Check, Labels>>;
   readonly unavailable: Readonly<Record<"save" | "remove" | Check, Unavailable>>;
-  readonly showReason: boolean;
+  readonly showReason?: boolean;
+  readonly explainedBy?: string | undefined;
   readonly press: { readonly check: () => void; readonly remove: () => void };
   readonly saveSecondary?: boolean;
 }
@@ -125,29 +129,38 @@ interface ButtonSet<Check extends string> {
 function removeButton(
   labels: Labels,
   reason: Unavailable,
+  explainedBy: string | undefined,
   onClick: () => void,
 ): ActionButton<"remove"> {
   return {
     action: "remove",
     ...labels,
     blocked: reason !== null,
-    hint: reason ?? undefined,
+    ...reasonOf(reason, explainedBy),
     onClick,
     secondary: true,
   };
+}
+
+function reasonOf(reason: Unavailable, explainedBy: string | undefined) {
+  if (reason === null) return {};
+
+  return explainedBy === undefined ? { hint: reason } : { reasonId: explainedBy };
 }
 
 export function useActionButtons<Check extends string>({
   check,
   labels,
   unavailable,
-  showReason,
+  showReason = false,
+  explainedBy,
   press,
   saveSecondary = false,
 }: Readonly<ButtonSet<Check>>) {
   const { save: saveReason, remove: removeReason } = unavailable;
   const checkReason = unavailable[check];
   const hint = showReason ? (checkReason ?? undefined) : undefined;
+  const checkReasonId = checkReason === null ? undefined : explainedBy;
 
   return useMemo<readonly ActionButton<"save" | "remove" | Check>[]>(
     () => [
@@ -163,10 +176,11 @@ export function useActionButtons<Check extends string>({
         ...labels[check],
         blocked: checkReason !== null,
         hint,
+        reasonId: checkReasonId,
         onClick: press.check,
         secondary: true,
       },
-      removeButton(labels.remove, removeReason, press.remove),
+      removeButton(labels.remove, removeReason, explainedBy, press.remove),
     ],
     [
       check,
@@ -174,7 +188,9 @@ export function useActionButtons<Check extends string>({
       saveReason,
       checkReason,
       hint,
+      checkReasonId,
       removeReason,
+      explainedBy,
       press.check,
       press.remove,
       saveSecondary,

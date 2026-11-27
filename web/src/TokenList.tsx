@@ -4,8 +4,9 @@ import type { Token } from "../../src/core/contract/access-wire.ts";
 import { changeBudget, revokeToken } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
+import { filled } from "./filled.ts";
 import { BUDGET_START, reduceBudget, rowBudget } from "./token-budget.ts";
-import { START, askedId, reduceRevoke } from "./token-revoke.ts";
+import { type RevokeFlow, START, askedId, reduceRevoke } from "./token-revoke.ts";
 import { TokenRow } from "./TokenRow.tsx";
 import { useFlow } from "./use-flow.ts";
 
@@ -13,6 +14,14 @@ function neighbourOf(tokens: readonly Token[], id: number): number | null {
   const index = tokens.findIndex((token) => token.id === id);
 
   return (tokens[index + 1] ?? tokens[index - 1])?.id ?? null;
+}
+
+function revokeFailure(tokens: readonly Token[], flow: Readonly<RevokeFlow>): string | null {
+  if (flow.kind !== "failed") return null;
+
+  const token = tokens.find(({ id }) => id === flow.id);
+
+  return token === undefined ? null : filled(SETTINGS.revokeFailed, { name: token.name });
 }
 
 function useRevoke(
@@ -135,7 +144,7 @@ export function TokenList({
 
   return (
     <>
-      <Alert text={flow.kind === "failed" ? SETTINGS.revokeFailed : null} />
+      <Alert text={revokeFailure(tokens, flow)} />
       {tokens.length === 0 ? null : (
         <ul role="list" className="toks">
           {tokens.map((token) => (

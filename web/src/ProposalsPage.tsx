@@ -1,6 +1,7 @@
 import { useCallback, useLayoutEffect } from "react";
 
 import type { Proposal, ProposalPage } from "../../src/core/contract/proposal-contract.ts";
+import { AiSettingsLink } from "./AiSettingsLink.tsx";
 import { Announcement } from "./Announcement.tsx";
 import { type Listing, ListPage } from "./ListPage.tsx";
 import { localDate } from "./log-date.ts";
@@ -13,8 +14,10 @@ const LISTING: Listing<ProposalPage, Proposal> = {
   text: PROPOSALS_PAGE,
   focus: REJECT_SELECTOR,
   head: () => PROPOSALS_PAGE.head,
+  intro: PROPOSALS_PAGE.intro,
   emptyLine: ({ provider, checkedAt }) =>
     proposalsEmptyLine(provider, checkedAt === null ? null : localDate(checkedAt)),
+  emptyFoot: ({ provider }) => (provider ? null : <AiSettingsLink />),
   rows: ({ proposals }) => proposals,
 };
 

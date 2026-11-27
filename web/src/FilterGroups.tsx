@@ -3,6 +3,7 @@ import { type ChangeEvent, useCallback, useId } from "react";
 import type { CountedName } from "../../src/core/contract/filter-counts-contract.ts";
 import { filled } from "./filled.ts";
 import { Icon } from "./Icon.tsx";
+import { plural } from "./plural.ts";
 import {
   ALL_CHOICE,
   ALL_ROWS,
@@ -90,12 +91,12 @@ export function Segments<Key extends string>({
 
 export function withAll<Key extends string>(
   segments: readonly Segment<Key>[],
-  allName: string,
+  allName: Readonly<{ one: string; many: string }>,
 ): readonly Segment<Key>[] {
   const sum = segments.reduce((all, segment) => all + segment.count, 0);
 
   return [
-    { key: null, label: ALL_CHOICE, name: filled(allName, { count: String(sum) }), count: sum },
+    { key: null, label: ALL_CHOICE, name: plural(sum, allName.one, allName.many), count: sum },
     ...segments,
   ];
 }

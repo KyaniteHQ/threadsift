@@ -53,11 +53,12 @@ function BackupForm({
   view,
   changed,
 }: Readonly<{ view: ExportStatus; changed: (view: ExportStatus) => void }>) {
-  const { busy, result, start, remove } = useBackup(view, changed);
+  const { busy, result, start, stop, remove } = useBackup(view, changed);
   const blocked = busy !== null;
   const startable = view.state === "none" || view.state === "failed";
   const removable = view.state === "ready" || view.state === "failed";
-  const labels = view.state === "running" ? STOP : DELETE;
+  const running = view.state === "running";
+  const ending = running ? STOP : DELETE;
 
   return (
     <>
@@ -78,13 +79,14 @@ function BackupForm({
             {EXPORT_TEXT.download}
           </a>
         ) : null}
-        {view.state === "running" || removable ? (
+        {running || removable ? (
           <SwapButton
-            {...labels}
-            busy={busy === "remove"}
+            label={ending.label}
+            busyLabel={ending.busyLabel}
+            busy={busy === (running ? "stop" : "remove")}
             blocked={blocked}
             type="button"
-            onClick={remove}
+            onClick={running ? stop : remove}
             secondary
           />
         ) : null}

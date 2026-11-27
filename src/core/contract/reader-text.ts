@@ -6,22 +6,23 @@ export const COMMENTS_TITLE = "Comments";
 export const HIGHLIGHTS_TITLE = "Highlights";
 export const NOTE_TITLE = "Note";
 export const UNTITLED = "Untitled";
-export const CONTEXT_LABEL = "Context";
+export const CONTEXT_LABEL = "Not shown";
 export const STUB_TEXTS = {
-  dropped: "Removed comment shown so the replies below make sense.",
-  "not-saved": "The parent was not saved.",
-  "not-kept": "Comment not kept, shown so the replies below make sense.",
-  more: "Further replies were not saved.",
+  dropped: "This comment was removed, empty, from a bot or only a short agreement.",
+  "not-saved": "The comment being replied to wasn’t saved.",
+  "not-kept": "The digest didn’t keep this comment.",
+  more: "Further replies weren’t saved.",
 } as const;
-export const NOT_FOUND = "Passage no longer found because the item’s text changed.";
+export const NOT_FOUND =
+  "The item’s text changed. This passage is missing or appears more than once.";
 
 export const SECTION_TITLES: Readonly<Record<Kind, string>> = {
   "reddit-post": "Original post",
-  "reddit-comment": "Original post",
+  "reddit-comment": "Saved comment",
   "x-post": "Original post",
   "github-repo": "README",
   article: "Article",
-  link: "Original post",
+  link: "Page text",
 };
 
 export function handleOf(source: Source, author: string | null): string {

@@ -7,7 +7,12 @@ import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";
 import { topicLinkLabel } from "../web/src/topic-text.ts";
 import { savedItem } from "./saved-item.ts";
-import { atPhoneWidth, expectNoSidewaysScroll, expectTarget } from "./screen-checks.ts";
+import {
+  atPhoneWidth,
+  expectNoSidewaysScroll,
+  expectTarget,
+  openSettings,
+} from "./screen-checks.ts";
 
 const LINES_PER_FILLER = 2;
 
@@ -47,8 +52,7 @@ const save = (
 const rows = (page: Page) => page.locator(".lg-line");
 
 async function openLogFromPanel(page: Page): Promise<void> {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("link", { name: LOG_PAGE.masthead, exact: true }).click();
   await expect(page).toHaveURL(/\/log$/u);
   await expect(page).toHaveTitle("Log, Threadsift");

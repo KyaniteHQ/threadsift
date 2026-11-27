@@ -1,4 +1,4 @@
-export const GROUPS = ["View", "Reading", "Cards and tags"] as const;
+export const GROUPS = ["View", "Reading", "Accent, tags and cards"] as const;
 
 export interface Option {
   readonly id: string;
@@ -38,7 +38,7 @@ export const THEME = setting({
     { id: "light", label: "Light" },
     { id: "dark", label: "Dark" },
     { id: "sepia", label: "Sepia" },
-    { id: "system", label: "Match system", followsDevice: ["light", "dark"] },
+    { id: "system", label: "System", followsDevice: ["light", "dark"] },
   ],
 });
 
@@ -173,7 +173,7 @@ export const SETTINGS = [
     label: "Accent",
     attribute: "data-accent",
     kind: "swatches",
-    group: "Cards and tags",
+    group: "Accent, tags and cards",
     look: true,
     default: "cobalt",
     options: [
@@ -189,7 +189,7 @@ export const SETTINGS = [
     label: "Tag style",
     attribute: "data-tags",
     kind: "segments",
-    group: "Cards and tags",
+    group: "Accent, tags and cards",
     look: true,
     default: "dots",
     options: [
@@ -203,7 +203,7 @@ export const SETTINGS = [
     label: "Card images",
     attribute: "data-images",
     kind: "segments",
-    group: "Cards and tags",
+    group: "Accent, tags and cards",
     look: true,
     default: "on",
     options: [

@@ -3,6 +3,7 @@ import type { SkipReason } from "../../src/core/contract/import-list.ts";
 import { REDDIT_WINDOW_REQUESTS } from "../../src/core/contract/limits.ts";
 import type { CliProvider } from "../../src/core/contract/provider-families.ts";
 import { filled } from "./filled.ts";
+import { plural } from "./plural.ts";
 import { RETRY_LABEL } from "./text.ts";
 
 export const IMPORT = {
@@ -12,54 +13,56 @@ export const IMPORT = {
   boxLabel: "Links",
   fileButton: "Choose file",
   fileFailed: "Couldn’t read the file.",
-  noLinks: "No links found.",
+  noLinks: "No links found",
   checking: "Checking this list…",
   checkFailed: "Couldn’t check whether this list was imported before.",
   retry: RETRY_LABEL,
-  resumeComplete: "You already imported this whole list.",
+  resumeComplete: "This whole list was already imported.",
   start: "Start import",
   resume: "Continue",
   again: "Import again",
   progressLabel: "Import progress",
   countsNote:
-    "Known links are already in the library and are left as they are. Refused links point to a private address that the Instance will not fetch.",
+    "Known links are already in the library and stay as they are. Refused links lead to addresses that can’t be reached from the public internet, so the instance won’t fetch them.",
   stop: "Stop",
-  stopping: "Stopping after this batch…",
-  waiting:
-    "Waiting to see whether the last batch was saved because the Instance is slow to answer.",
+  stopping: "Stopping…",
+  stoppingStatus: "The import stops after the current batch.",
+  waiting: "The instance is slow to answer. Waiting to confirm whether the last batch was saved…",
   finished: "Import finished.",
-  aiSettingsLink: "AI settings",
-  noProvider:
-    "No Provider is saved yet. Each Item is saved now and gets its Digest after you save a Provider.",
-  redditExpired:
-    "The connected Reddit session has expired, so Reddit links are filled from the archive until you connect again.",
+  noProvider: "Imported links are added now. Save a provider so Threadsift can make their digests.",
+  redditUnreadableFilled:
+    "Threadsift can no longer open your saved Reddit session. Until you connect the account again, Threadsift tries to fill Reddit links from the Arctic Shift archive. Any link it can’t fill stays a link-only item, saved without its thread.",
+  redditUnreadableLinkOnly:
+    "Threadsift can no longer open your saved Reddit session. Reddit links stay link-only items, saved without their threads. Connect the account again, or save threads from your tab with the browser extension.",
   redditSettingsLink: "Reddit account settings",
 } as const;
 
-const REDDIT_WAIT = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes, so a long thread can take up to 10 minutes. The library shows each link’s wait.`;
+const REDDIT_WAIT_ONE = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes. If a long thread uses them up, Threadsift waits up to 10 minutes, or up to an hour if Reddit reports too many requests. If the link waits, the library shows the time of its next check.`;
 
-const REDDIT_NOTE_ONE = `1 of the links is a Reddit post or comment, which Threadsift reads with the connected Reddit account. ${REDDIT_WAIT}`;
+const REDDIT_WAIT_MANY = `Reddit allows about ${String(REDDIT_WINDOW_REQUESTS)} requests every 10 minutes. When those run out, Threadsift waits up to 10 minutes, or up to an hour if Reddit reports too many requests. The library shows each waiting link with the time of its next check.`;
 
-const REDDIT_NOTE_MANY = `{count} of the links are Reddit posts or comments, which Threadsift reads one at a time with the connected Reddit account. ${REDDIT_WAIT}`;
+const REDDIT_NOTE_ONE = `1 link is a Reddit post or comment. Threadsift reads it with the connected Reddit account. ${REDDIT_WAIT_ONE}`;
+
+const REDDIT_NOTE_MANY = `{count} links are Reddit posts or comments. Threadsift reads them one at a time with the connected Reddit account. ${REDDIT_WAIT_MANY}`;
 
 const REDDIT_DONE_ONE =
-  "1 Reddit link is saved. Reading continues in the background, and the library shows each link’s wait.";
+  "1 Reddit link is saved. Threadsift continues reading it in the background, and the library shows the link’s wait.";
 
 const REDDIT_DONE_MANY =
-  "{count} Reddit links are saved. Reading continues in the background one at a time, and the library shows each link’s wait.";
+  "{count} Reddit links are saved. Threadsift continues reading them one at a time in the background, and the library shows each link’s wait.";
 
 const READY_SINGULAR = "{count} link ready";
 const READY_PLURAL = "{count} links ready";
 
 const SKIPPED: Readonly<Record<SkipReason, { singular: string; plural: string; lead: string }>> = {
   noLink: {
-    singular: "1 line has no link and is skipped.",
-    plural: "{count} lines have no link and are skipped.",
+    singular: "1 line has no link and was skipped.",
+    plural: "{count} lines have no link and were skipped.",
     lead: "Skipped lines",
   },
   tooLong: {
-    singular: "1 link is too long to send and is skipped.",
-    plural: "{count} links are too long to send and are skipped.",
+    singular: "1 link is too long to send and was skipped.",
+    plural: "{count} links are too long to send and were skipped.",
     lead: "Skipped links",
   },
 };
@@ -68,28 +71,29 @@ const SKIPPED_LINE = "Line {line}";
 const SKIPPED_MORE = "and {count} more";
 
 const RESUME_PARTIAL =
-  "You imported {done} of {total} links from this list before. The Import continues from there.";
+  "Threadsift already imported {done} of {total} links from this list. Continue starts at the next link.";
 
-const PROGRESS = "{done} of {total} links";
+const PROGRESS_ONE = "{done} of {count} link";
+const PROGRESS_MANY = "{done} of {count} links";
 const STOPPED = "Import stopped at {done} of {total}.";
 
 const PLAN_NOTICE =
-  "Your Provider is {provider}, and an Import can use up the plan’s limits. An API key is a better fit.";
+  "Your provider is {provider}, so an import can use up your plan’s limits. A provider with an API key is a better fit.";
 
 const FAILED = {
   restoring:
-    "Import stopped at {done} of {total} because a Restore is running. Start the Import again when the Restore has finished.",
-  network: "Import stopped at {done} of {total} because Threadsift couldn’t be reached.",
-  rejected: "Import stopped at {done} of {total} because the Instance didn’t accept a batch.",
+    "Import stopped at {done} of {total} because a restore is running. Start the import again when the restore finishes.",
+  network: "Import stopped at {done} of {total} because the instance couldn’t be reached.",
+  rejected: "Import stopped at {done} of {total} because the instance didn’t accept a batch.",
   unconfirmed:
-    "Import stopped at {done} of {total} links because the Instance did not confirm that the last batch was saved. Continue sends that batch again.",
+    "Import stopped at {done} of {total} because the instance didn’t confirm that the last batch was saved. Continue sends that batch again, and links already saved count as known.",
 } as const;
 
 const UNCOUNTED_ONE =
-  "The outcome of {count} link is missing from the counts above because the Instance was slow to answer.";
+  "The outcome of {count} link is missing from these counts because the instance was slow to answer.";
 
 const UNCOUNTED_MANY =
-  "The outcomes of {count} links are missing from the counts above because the Instance was slow to answer.";
+  "The outcomes of {count} links are missing from these counts because the instance was slow to answer.";
 
 const COUNTS = {
   added: "{count} added",
@@ -105,13 +109,13 @@ const PLAN_NAMES: Readonly<Record<CliProvider, string>> = {
 export type FailedEnding = keyof typeof FAILED;
 
 export function readyLabel(count: number): string {
-  return filled(count === 1 ? READY_SINGULAR : READY_PLURAL, { count: groupedNumber(count) });
+  return plural(count, READY_SINGULAR, READY_PLURAL);
 }
 
 export function skippedLabel(reason: SkipReason, count: number): string {
-  const { singular, plural } = SKIPPED[reason];
+  const { singular, plural: many } = SKIPPED[reason];
 
-  return count === 1 ? singular : filled(plural, { count: groupedNumber(count) });
+  return plural(count, singular, many);
 }
 
 export function skippedLead(reason: SkipReason): string {
@@ -131,7 +135,7 @@ export function resumePartialLabel(done: number, total: number): string {
 }
 
 export function progressLabel(done: number, total: number): string {
-  return filled(PROGRESS, { done: groupedNumber(done), total: groupedNumber(total) });
+  return plural(total, PROGRESS_ONE, PROGRESS_MANY, { done: groupedNumber(done) });
 }
 
 export function stoppedLabel(done: number, total: number): string {
@@ -143,7 +147,7 @@ export function failedLabel(ending: FailedEnding, done: number, total: number): 
 }
 
 export function uncountedLabel(count: number): string {
-  return filled(count === 1 ? UNCOUNTED_ONE : UNCOUNTED_MANY, { count: groupedNumber(count) });
+  return plural(count, UNCOUNTED_ONE, UNCOUNTED_MANY);
 }
 
 export function countLabel(count: number, kind: keyof typeof COUNTS): string {
@@ -155,11 +159,7 @@ export function planNoticeLabel(provider: CliProvider): string {
 }
 
 export function redditNoteLabel(count: number, finished: boolean): string {
-  if (finished) {
-    return count === 1
-      ? REDDIT_DONE_ONE
-      : filled(REDDIT_DONE_MANY, { count: groupedNumber(count) });
-  }
-
-  return count === 1 ? REDDIT_NOTE_ONE : filled(REDDIT_NOTE_MANY, { count: groupedNumber(count) });
+  return finished
+    ? plural(count, REDDIT_DONE_ONE, REDDIT_DONE_MANY)
+    : plural(count, REDDIT_NOTE_ONE, REDDIT_NOTE_MANY);
 }
