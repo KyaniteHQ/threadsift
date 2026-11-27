@@ -15,58 +15,70 @@ export const REDDIT_ACCOUNT_GUIDE_URL =
 export const REDDIT_ACCOUNT_TEXT = {
   sectionTitle: "Reddit account",
   intro:
-    "Connect your Reddit account to read Reddit links directly when they arrive without the Extension. Use a separate Reddit account, because Reddit’s User Agreement forbids scraping without written consent and the requests use your own session.",
-  guideLink: "How to find your session",
+    "Connect a Reddit account so Threadsift can read Reddit links added without the extension. Use a separate account, because Reddit’s User Agreement forbids scraping without written consent and the requests use that account’s session.",
+  guideLink: "How to find the session cookie",
   fieldLabel: "Session cookie",
   fieldHelp:
-    "Paste the value of the reddit_session cookie, with or without the reddit_session= prefix. It is kept sealed on this Instance, sent only to reddit.com, and never shown again.",
+    "Paste the value of the reddit_session cookie, with or without the reddit_session= prefix. Threadsift stores it encrypted on this instance, sends it only to reddit.com and never shows it again.",
   fieldPlaceholder: "Session saved",
-  stateNone: "No Reddit account is connected. Reddit links are filled from the archive.",
+  stateNone:
+    "No Reddit account is connected. Threadsift tries to fill Reddit links added without the extension from the Arctic Shift archive when Reddit archive fill is On. When it’s Off, or if that fails, they stay link-only items.",
+  stateNoneFilled:
+    "No Reddit account is connected. Threadsift tries to fill Reddit links added without the extension from the Arctic Shift archive. If that fails, they stay link-only items.",
+  stateNoneLinkOnly:
+    "No Reddit account is connected. Reddit links added without the extension stay link-only items. Connect an account or turn Reddit archive fill On to fill them. You can also use the extension to save threads from your tab.",
   stateConnected:
-    "Every Reddit link, an Import’s included, is read one at a time with this account.",
+    "A Reddit account is connected. Threadsift uses it to read every Reddit link added without the extension, imports included, one at a time.",
   stateExpired:
-    "Reddit stopped accepting the session. Connect again; links are filled from the archive until then.",
+    "Reddit stopped accepting the saved session. Connect again. Until then, Threadsift tries to fill Reddit links added without the extension from the Arctic Shift archive when Reddit archive fill is On. When it’s Off, or if that fails, they stay link-only items.",
+  stateExpiredFilled:
+    "Reddit stopped accepting the saved session. Connect again. Until then, Threadsift tries to fill Reddit links added without the extension from the Arctic Shift archive. If that fails, they stay link-only items.",
+  stateExpiredLinkOnly:
+    "Reddit stopped accepting the saved session. Connect again. Until then, Reddit links added without the extension stay link-only items.",
   stateUnreadable:
-    "This Instance can no longer open the saved session because its secret key changed. Connect again.",
+    "This instance can no longer open the saved session. Either its secret key changed or the stored session is damaged. Connect again.",
   connect: "Connect",
   connecting: "Connecting…",
   verify: "Verify",
   verifying: "Verifying…",
   disconnect: "Disconnect",
   disconnecting: "Disconnecting…",
-  connected: "Reddit account connected.",
-  disconnected: "Reddit account disconnected.",
-  removeNothing: "There is no connected Reddit account to disconnect.",
+  connected: "Reddit account connected",
+  disconnected: "Reddit account disconnected",
+  removeNothing: "No Reddit account is connected.",
   pasteLead:
-    "Pasting the cookie by hand is the other way to connect when the Extension is not available.",
-  valueNeeded: "Enter a session cookie to connect.",
-  invalidValue: `Enter 1 to ${groupedNumber(REDDIT_SESSION_MAX)} characters using only letters, digits and . _ ~ + / = % -, with no spaces, semicolons or line breaks.`,
+    "If the extension isn’t available, paste the cookie value into the Session cookie field.",
+  valueNeeded: "Enter a session cookie.",
+  invalidValue: `Enter 1 to ${groupedNumber(REDDIT_SESSION_MAX)} characters: letters, digits and . _ ~ + / = % - only. Leave out spaces, semicolons and line breaks.`,
   resultOk: "Reddit accepted the session.",
-  resultLoggedOut: "Reddit says the session is logged out. Connect again with a new value.",
+  resultLoggedOut:
+    "Reddit says the session is signed out. Connect again with a new session cookie.",
   resultBlocked:
-    "Reddit refused this request, which does not by itself mean the session is dead. Try again later.",
-  resultLimited: "Reddit is limiting requests, so try again in a few minutes.",
-  resultUnreachable: "Reddit did not answer. Try again.",
-  resultTimeout: `Reddit did not answer in ${String(REQUEST_DEADLINE_MS / SECOND_MS)} seconds. Try again.`,
-  resultNotConfigured: "Connect a Reddit account first, then press Verify.",
-  connectExtension: "Connect with the Extension",
-  connectingExtension: "Connecting with the Extension…",
-  reconnectExtension: "Reconnect with the Extension",
-  reconnectingExtension: "Reconnecting with the Extension…",
+    "Reddit refused the request. That doesn’t mean the session stopped working. Try again later.",
+  resultLimited: "Reddit is limiting requests. Try again in a few minutes.",
+  resultUnreachable: "Reddit didn’t answer. Try again.",
+  resultTimeout: `Reddit didn’t answer within ${String(REQUEST_DEADLINE_MS / SECOND_MS)} seconds. Try again.`,
+  resultNotConfigured: "Connect a Reddit account first.",
+  connectExtension: "Connect with the extension",
+  connectingExtension: "Connecting with the extension…",
+  reconnectExtension: "Reconnect with the extension",
+  reconnectingExtension: "Reconnecting with the extension…",
   extensionMissing:
-    "The Extension did not answer. Use the Extension’s Connect Reddit button, or paste the cookie value in the field above.",
+    "The extension didn’t answer. It may not be installed, or it may be turned off. Use Connect Reddit in Threadsift extension settings, or paste the cookie value into the Session cookie field.",
   extensionNoAccess:
-    "The Extension has no access to cookies and reddit.com. Press Connect Reddit once in the Extension’s settings page.",
-  extensionSignedOut: "Your browser isn’t signed in to Reddit. Sign in and try again.",
+    "The extension is missing a browser permission, so nothing was sent. In Threadsift extension settings, use Connect Reddit to allow access to cookies and reddit.com, or Save settings to allow access to the Threadsift address.",
+  extensionSignedOut: "This browser isn’t signed in to Reddit. Sign in and try again.",
   extensionScopeRefused:
-    "The Extension’s agent token lacks the Reddit scope. Make a new agent token with the Reddit scope under Agent tokens above and enter it in the Extension’s settings.",
+    "The extension’s agent token is missing the Read or Reddit scope. Create a token with the Read, Add and Reddit scopes in the Agent tokens section and enter it in Threadsift extension settings.",
   extensionTokenRefused:
-    "The Extension’s agent token is wrong or was revoked. Check it in the Extension’s settings.",
+    "The extension’s agent token isn’t valid or was revoked. Check or replace it in Threadsift extension settings.",
   extensionUnreachable:
-    "The Extension couldn’t reach this Instance. Check the address in the Extension’s settings.",
-  extensionFailed: "Couldn’t reconnect with the Extension. Try again.",
+    "The extension couldn’t reach this instance. Check the Threadsift address in Threadsift extension settings.",
+  extensionFailed: "Couldn’t connect with the extension. Try again.",
   loadFailed: "Couldn’t load the Reddit account settings. Reload the page.",
-  failed: "Couldn’t connect, verify or disconnect the Reddit account. Try again.",
+  connectFailed: "Couldn’t connect the Reddit account. Try again.",
+  verifyFailed: "Couldn’t verify the saved session. Try again.",
+  disconnectFailed: "Couldn’t disconnect the Reddit account. Try again.",
 } as const;
 
 const STATE_TEXT = {
@@ -109,6 +121,27 @@ export function relayText(state: RedditConnectState): string {
   return RELAY_TEXT[state];
 }
 
-export function stateText(state: RedditAccountView["state"]): string {
-  return STATE_TEXT[state];
+const ARCHIVE_STATE_TEXT = {
+  none: {
+    on: REDDIT_ACCOUNT_TEXT.stateNoneFilled,
+    off: REDDIT_ACCOUNT_TEXT.stateNoneLinkOnly,
+    unknown: REDDIT_ACCOUNT_TEXT.stateNone,
+  },
+  expired: {
+    on: REDDIT_ACCOUNT_TEXT.stateExpiredFilled,
+    off: REDDIT_ACCOUNT_TEXT.stateExpiredLinkOnly,
+    unknown: REDDIT_ACCOUNT_TEXT.stateExpired,
+  },
+} as const;
+
+function archiveFillKey(archiveFill: boolean | null): "on" | "off" | "unknown" {
+  if (archiveFill === null) return "unknown";
+
+  return archiveFill ? "on" : "off";
+}
+
+export function stateText(state: RedditAccountView["state"], archiveFill: boolean | null): string {
+  return state === "none" || state === "expired"
+    ? ARCHIVE_STATE_TEXT[state][archiveFillKey(archiveFill)]
+    : STATE_TEXT[state];
 }

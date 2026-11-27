@@ -1,4 +1,4 @@
-import { useCallback } from "react";
+import { useCallback, useMemo } from "react";
 
 import { outcomeOf, useActionFlow } from "./use-settings-action.ts";
 
@@ -7,7 +7,7 @@ export function useSaveOnPick<Value, View>(
   changed: (view: View) => void,
   failedText: string,
 ) {
-  const { flow, run } = useActionFlow<"save">(failedText);
+  const { flow, run } = useActionFlow(useMemo(() => ({ save: failedText }), [failedText]));
 
   const pick = useCallback(
     (value: Value) => {
@@ -20,5 +20,11 @@ export function useSaveOnPick<Value, View>(
     [changed, run, save],
   );
 
-  return { busy: flow.kind === "running", failed: outcomeOf(flow)?.kind === "error", pick };
+  const outcome = outcomeOf(flow);
+
+  return {
+    busy: flow.kind === "running",
+    error: outcome?.kind === "error" ? outcome.text : null,
+    pick,
+  };
 }

@@ -1,11 +1,12 @@
 import { type RefObject, useCallback, useId, useRef } from "react";
 
 import type { Token } from "../../src/core/contract/access-wire.ts";
+import { groupedNumber } from "../../src/core/contract/format.ts";
 import { SETTINGS } from "./access-text.ts";
 import { BudgetEdit } from "./BudgetEdit.tsx";
 import { filled } from "./filled.ts";
 import { ageLabel } from "./saved-label.ts";
-import { SCOPE_NAMES } from "./ScopePicker.tsx";
+import { SCOPE_LABELS } from "./ScopePicker.tsx";
 import type { RowBudget } from "./token-budget.ts";
 import { useEscape, useFocusOnMount } from "./use-form.ts";
 
@@ -23,8 +24,11 @@ interface BudgetActions {
 
 function budgetMeta({ budget }: Token): string {
   return budget.kind === "unlimited"
-    ? filled(SETTINGS.budgetUsedUnlimited, { added: String(budget.added) })
-    : filled(SETTINGS.budgetUsed, { added: String(budget.added), limit: String(budget.limit) });
+    ? filled(SETTINGS.budgetUsedUnlimited, { added: groupedNumber(budget.added) })
+    : filled(SETTINGS.budgetUsed, {
+        added: groupedNumber(budget.added),
+        limit: groupedNumber(budget.limit),
+      });
 }
 
 function metaOf(token: Token, now: number): string {
@@ -39,10 +43,10 @@ function metaOf(token: Token, now: number): string {
     scopes:
       token.scopes.length === 0
         ? SETTINGS.scopesNone
-        : token.scopes.map((scope) => SCOPE_NAMES[scope]).join(", "),
+        : token.scopes.map((scope) => SCOPE_LABELS[scope]).join(", "),
   });
 
-  return `${created} · ${used} · ${scopes} · ${budgetMeta(token)}`;
+  return `${created} · ${used} · ${scopes}`;
 }
 
 function Confirm({
@@ -233,6 +237,7 @@ export function TokenRow({
       <div className="tok-main">
         <p className="tok-name">{token.name}</p>
         <p className="tok-meta">{metaOf(token, now)}</p>
+        <p className="tok-meta">{budgetMeta(token)}</p>
         <output className="fld-err">
           {token.budget.kind === "spent" ? SETTINGS.budgetSpent : null}
         </output>

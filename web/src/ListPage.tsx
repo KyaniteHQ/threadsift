@@ -21,7 +21,9 @@ export interface Listing<Page extends PagedPage, Row> {
   readonly text: ListText;
   readonly focus: string;
   readonly head: (ready: PagedReady<Page>) => string;
+  readonly intro?: string;
   readonly emptyLine: (ready: PagedReady<Page>) => string;
+  readonly emptyFoot?: (ready: PagedReady<Page>) => ReactNode;
   readonly rows: (ready: PagedReady<Page>) => readonly Row[];
 }
 
@@ -62,6 +64,7 @@ function Rows<Page extends PagedPage, Row>({
         </h2>
         <p className="label">{listing.text.sort}</p>
       </header>
+      {listing.intro === undefined ? null : <p className="rl-intro">{listing.intro}</p>}
       <ol ref={list} role="list" className="rl-list">
         {listing.rows(ready).map((row) => draw(row))}
       </ol>
@@ -90,7 +93,12 @@ function Body<Page extends PagedPage, Row>({
       return null;
     case "ready":
       return listing.rows(state).length === 0 ? (
-        <EmptyState heading={listing.text.emptyHeading} line={listing.emptyLine(state)} />
+        <>
+          {listing.intro === undefined ? null : <p className="rl-intro">{listing.intro}</p>}
+          <EmptyState heading={listing.text.emptyHeading} line={listing.emptyLine(state)}>
+            {listing.emptyFoot?.(state)}
+          </EmptyState>
+        </>
       ) : (
         <Rows ready={state} loadMore={loadMore} listing={listing} draw={draw} />
       );

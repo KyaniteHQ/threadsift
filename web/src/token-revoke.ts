@@ -1,4 +1,4 @@
-type RevokeFlow =
+export type RevokeFlow =
   | { readonly kind: "idle"; readonly focus: number | null }
   | { readonly kind: "asking"; readonly id: number }
   | { readonly kind: "revoking"; readonly id: number; readonly request: number }

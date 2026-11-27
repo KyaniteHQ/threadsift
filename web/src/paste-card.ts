@@ -3,6 +3,7 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { whereOf } from "../../src/core/contract/link-place.ts";
 import {
   CARD_TITLES,
+  NOTICE_DETAILS,
   NOTICES,
   type NoteKey,
   type NoticeKey,
@@ -14,7 +15,12 @@ import { waitText } from "./wait-text.ts";
 export type Shown = Readonly<{ seq: number; url: string }> &
   (
     | { readonly kind: "notice"; readonly key: NoticeKey }
-    | { readonly kind: "item"; readonly itemId: number; readonly refreshed: boolean }
+    | {
+        readonly kind: "item";
+        readonly itemId: number;
+        readonly known: boolean;
+        readonly refreshed: boolean;
+      }
   );
 
 export interface Face {
@@ -89,22 +95,33 @@ export function noteOf(item: Readonly<Item>): NoticeKey | null {
   return noteOfResult(item.fetch);
 }
 
-function savedLook(note: NoticeKey | null, refreshed: boolean) {
+type SavedOutcome = "added" | "refreshed" | "unchanged";
+
+type SavedAs = Readonly<{ known: boolean; refreshed: boolean }>;
+
+function savedOutcomeOf(item: Readonly<Item>, saved: Readonly<SavedAs>): SavedOutcome {
+  if (!saved.known) return "added";
+
+  return saved.refreshed && item.fetch === "ok" ? "refreshed" : "unchanged";
+}
+
+function savedLook(note: NoticeKey | null, outcome: SavedOutcome) {
   if (note !== null) {
     return { icon: "warn", tone: "tone-warn" } as const;
   }
 
-  return refreshed
+  return outcome === "refreshed"
     ? ({ icon: "refresh", tone: "tone-acc" } as const)
     : ({ icon: "check", tone: "tone-ok" } as const);
 }
 
-function savedFace(item: Readonly<Item>, refreshed: boolean): Face {
+function savedFace(item: Readonly<Item>, saved: Readonly<SavedAs>): Face {
   const note = noteOf(item);
+  const outcome = savedOutcomeOf(item, saved);
 
   return {
-    ...savedLook(note, refreshed),
-    title: CARD_TITLES[refreshed ? "refreshed" : "added"],
+    ...savedLook(note, outcome),
+    title: CARD_TITLES[outcome],
     name: item.title ?? whereOf(item),
     note: note === null ? null : NOTICES[note],
     wait: null,
@@ -147,14 +164,14 @@ function failedFace(item: Readonly<Extract<Item, { status: "failed" }>>): Face {
   };
 }
 
-function itemFace(item: Readonly<Item>, refreshed: boolean): Face {
+function itemFace(item: Readonly<Item>, saved: Readonly<SavedAs>): Face {
   switch (item.status) {
     case "processing":
       return readingFace(item);
     case "failed":
       return failedFace(item);
     case "ready":
-      return savedFace(item, refreshed);
+      return savedFace(item, saved);
     default: {
       const exhaustive: never = item;
 
@@ -170,7 +187,7 @@ export function faceOf(shown: Readonly<Shown>, items: readonly Item[]): Face | n
       tone: "tone-warn",
       title: NOTICES[shown.key],
       name: null,
-      note: null,
+      note: NOTICE_DETAILS[shown.key] ?? null,
       wait: null,
       itemTitle: null,
       alert: true,
@@ -181,7 +198,7 @@ export function faceOf(shown: Readonly<Shown>, items: readonly Item[]): Face | n
 
   const item = items.find((each) => each.id === shown.itemId);
 
-  return item === undefined ? null : itemFace(item, shown.refreshed);
+  return item === undefined ? null : itemFace(item, shown);
 }
 
 export function announcementsOf(face: Readonly<Face> | null) {

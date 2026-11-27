@@ -1,10 +1,11 @@
 import { KnownDisagreements } from "./KnownDisagreements.tsx";
-import { EmptyState, Skeleton } from "./ListBody.tsx";
+import { Skeleton } from "./ListBody.tsx";
 import { PageBar } from "./PageBar.tsx";
 import { RetryNotice } from "./RetryRegions.tsx";
 import type { Route } from "./routing.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
 import { TopicItemsSection } from "./TopicItemsSection.tsx";
+import { TopicMissing } from "./TopicMissing.tsx";
 import { TopicOverview } from "./TopicOverview.tsx";
 import { usePageName } from "./use-document-title.ts";
 import { type TopicState, useTopicPage } from "./use-topic-page.ts";
@@ -24,7 +25,7 @@ function Body({
     case "failed":
       return null;
     case "missing":
-      return <EmptyState heading={TOPIC_PAGE.notFoundHeading} line={TOPIC_PAGE.notFoundLine} />;
+      return <TopicMissing />;
     case "ready":
       return (
         <>

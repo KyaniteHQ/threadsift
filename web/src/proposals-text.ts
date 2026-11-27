@@ -16,15 +16,17 @@ export const PROPOSALS_PAGE = {
   title: "Proposals",
   loading: "Loading proposals…",
   loadFailed: "Couldn’t load proposals.",
-  emptyHeading: "No proposals yet",
+  emptyHeading: "No open proposals",
   loadMoreFailed: "Couldn’t load more proposals.",
   sort: NEWEST_FIRST,
-  head: "Accepting a merge can’t be undone in this release, and accepting removes a highlight for good. Accepting an overview update starts a model run for that topic, and accepting a disagreement keeps the pair on the topic page. Rejecting is final: that tag, topic or item pair, highlight or topic stays as it is and won’t be proposed again.",
+  head: "Open proposals",
+  intro:
+    "Rejecting a proposal can’t be undone. The weekly check never proposes it again, and the library stays as it is.",
 } as const;
 
-const EMPTY_NO_PROVIDER = "Save a provider in the instance settings to run the weekly check.";
+const EMPTY_NO_PROVIDER = "Proposals come from a weekly check. Save a provider so it can run.";
 const EMPTY_NOT_CHECKED = "Proposals appear here once the weekly check runs.";
-const EMPTY_CHECKED = "The last check started on {date}. No proposals are open now.";
+const EMPTY_CHECKED = "The last weekly check started on {date}.";
 
 export function proposalsEmptyLine(provider: boolean, checkedDate: string | null): string {
   if (!provider) return EMPTY_NO_PROVIDER;
@@ -45,55 +47,53 @@ const ALREADY_DECIDED = "This proposal was already decided or is no longer in th
 
 const WORDS = {
   "tag-merge": {
-    effect: "Merge {from} into {into}",
-    acceptNamed: "Accept merging {from} into {into}",
-    acceptRetryNamed: "Try again to accept merging {from} into {into}",
-    accepted: "Accepted merging {from} into {into}.",
-    rejectNamed: "Reject merging {from} into {into}",
-    rejectRetryNamed: "Try again to reject merging {from} into {into}",
-    rejected: "Rejected merging {from} into {into}.",
+    effect: "Merge tag {from} into {into}",
+    acceptNamed: "Accept merging tag {from} into {into}",
+    acceptRetryNamed: "Try again to accept merging tag {from} into {into}",
+    accepted: "Accepted: merge tag “{from}” into “{into}”.",
+    rejectNamed: "Reject merging tag {from} into {into}",
+    rejectRetryNamed: "Try again to reject merging tag {from} into {into}",
+    rejected: "Rejected: merge tag “{from}” into “{into}”.",
   },
   "topic-merge": {
     effect: "Merge topic {from} into {into}",
     acceptNamed: "Accept merging topic {from} into {into}",
     acceptRetryNamed: "Try again to accept merging topic {from} into {into}",
-    accepted: "Accepted merging topic {from} into {into}.",
+    accepted: "Accepted: merge topic “{from}” into “{into}”.",
     rejectNamed: "Reject merging topic {from} into {into}",
     rejectRetryNamed: "Try again to reject merging topic {from} into {into}",
-    rejected: "Rejected merging topic {from} into {into}.",
+    rejected: "Rejected: merge topic “{from}” into “{into}”.",
   },
   "highlight-lost": {
     effect: "Remove this highlight",
     acceptNamed: "Accept removing highlight “{quote}” from {title}",
     acceptRetryNamed: "Try again to accept removing highlight “{quote}” from {title}",
-    accepted: "Accepted removing highlight “{quote}” from {title}.",
+    accepted: "Accepted: remove highlight “{quote}” from “{title}”.",
     rejectNamed: "Reject removing highlight “{quote}” from {title}",
     rejectRetryNamed: "Try again to reject removing highlight “{quote}” from {title}",
-    rejected: "Rejected removing highlight “{quote}” from {title}.",
+    rejected: "Rejected: remove highlight “{quote}” from “{title}”.",
   },
   "overview-gap": {
     effect: "Update the overview of topic {topic}",
     acceptNamed: "Accept updating the overview of topic {topic}",
     acceptRetryNamed: "Try again to accept updating the overview of topic {topic}",
-    accepted: "Accepted updating the overview of topic {topic}.",
+    accepted: "Accepted: update the overview of topic “{topic}”.",
     rejectNamed: "Reject updating the overview of topic {topic}",
     rejectRetryNamed: "Try again to reject updating the overview of topic {topic}",
-    rejected: "Rejected updating the overview of topic {topic}.",
+    rejected: "Rejected: update the overview of topic “{topic}”.",
   },
   "items-disagree": {
-    effect: "These two items disagree in topic {topic}",
+    effect: "Keep this disagreement in topic {topic}",
     acceptNamed:
-      "Accept keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+      "Accept keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
     acceptRetryNamed:
-      "Try again to accept keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
-    accepted:
-      "Accepted keeping the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
+      "Try again to accept keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
+    accepted: "Accepted: keep the disagreement between “{first}” and “{second}”.",
     rejectNamed:
-      "Reject the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
+      "Reject keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
     rejectRetryNamed:
-      "Try again to reject the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”",
-    rejected:
-      "Rejected the disagreement between {first} “{firstSummary}” and {second} “{secondSummary}”.",
+      "Try again to reject keeping the disagreement between {first}, “{firstSummary}”, and {second}, “{secondSummary}”",
+    rejected: "Rejected: keep the disagreement between “{first}” and “{second}”.",
   },
 } as const satisfies Record<ProposalKind, Record<Wording, string>>;
 
@@ -106,21 +106,25 @@ export const PROPOSAL_WORDS = {
   acceptFailed: "Couldn’t accept this proposal.",
   applying: "Applying…",
   applyFailedOnce:
-    "Applying this merge failed once. The server log has a merge-unit-failed line with the error class and any database code.",
+    "Applying this merge failed once. Threadsift will try again. The instance logs have a merge-unit-failed line with the error class and any database code.",
   applyFailedMany:
-    "Applying this merge failed {count} times. The server log has a merge-unit-failed line with the error class and any database code.",
-  mergeBusy: "Another merge is already running.",
+    "Applying this merge failed {count} times. Threadsift will try again. The instance logs have a merge-unit-failed line with the error class and any database code.",
+  mergeBusy: "Another merge is already running. Press Accept again once it finishes.",
   topicOverviewEffect:
-    "The surviving topic’s overview is written again later and counts the moved items.",
+    "After the merge finishes, Threadsift writes the remaining topic’s overview again to include the moved items.",
   reject: "Reject",
   rejectFailed: "Couldn’t reject this proposal.",
   alreadyDecided: ALREADY_DECIDED,
   overviewCounts: "Items not in the overview: {uncovered} of {items}",
-  overviewCost: `Accept writes the topic’s overview again: each call covers up to ${String(ADDED_READ_LIMIT)} items, so many items can take several calls, and the run stops when a call fails.`,
+  overviewCost: `Accept writes the topic’s overview again. Each call to the provider covers up to ${String(ADDED_READ_LIMIT)} items, so a topic with many items can take several calls. The run stops if a call fails.`,
   noProvider:
-    "Save a provider in the instance settings to update the overview; this row stays and Accept works after that.",
+    "Nothing changed. This proposal stays in the list, and Accept works once you save a provider.",
+  mergeFinal: "Accept starts the merge at once. This can’t be undone in this release.",
+  topicMergeFinal:
+    "Accept starts the merge at once. This can’t be undone in this release. The merge moves the first topic’s items into the second and deletes the first topic. Its page address then opens the second topic’s page.",
+  highlightRemoved: "Accept removes this highlight at once. This can’t be undone. Reject keeps it.",
   disagreementKept:
-    "Accept keeps this pair on the topic page under Known disagreements, and changes nothing in the items.",
+    "Accept keeps this pair on the topic page under Known disagreements. Neither item changes.",
   reasonLabel: "Reason",
   summaryLabel: "Summary",
   sideNamed: "disagrees with {other}",
@@ -153,9 +157,12 @@ const TEXT_CUT = 40;
 function textCut(text: string): string {
   const letters = Array.from(collapsed(text));
 
-  return letters.length > TEXT_CUT
-    ? `${letters.slice(0, TEXT_CUT).join("").trimEnd()}…`
-    : letters.join("");
+  if (letters.length <= TEXT_CUT) return letters.join("");
+
+  const cut = letters.slice(0, TEXT_CUT).join("");
+  const wordEnd = letters[TEXT_CUT] === " " ? cut.length : cut.lastIndexOf(" ");
+
+  return `${cut.slice(0, wordEnd > 0 ? wordEnd : cut.length).trimEnd()}…`;
 }
 
 function slotsOf(proposal: Readonly<Proposal>) {

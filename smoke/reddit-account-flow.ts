@@ -2,7 +2,8 @@ import { type Page, expect } from "@playwright/test";
 
 import { SETTINGS } from "../web/src/access-text.ts";
 import { REDDIT_ACCOUNT_TEXT } from "../web/src/reddit-account-text.ts";
-import { expectFitsPhone } from "./screen-checks.ts";
+import { REDDIT_TEXT } from "../web/src/reddit-text.ts";
+import { expectFitsPhone, openSettings } from "./screen-checks.ts";
 
 const SESSION = "a-smoke-session-value.that_is-not-real";
 
@@ -14,22 +15,35 @@ const button = (page: Page, name: string) =>
 
 const sessionField = (page: Page) => page.getByLabel(REDDIT_ACCOUNT_TEXT.fieldLabel);
 
+async function pickArchiveFill(page: Page, option: string, note: string): Promise<void> {
+  const radio = page
+    .getByRole("radiogroup", { name: REDDIT_TEXT.fieldLabel })
+    .getByRole("radio", { name: option, exact: true });
+
+  await radio.click();
+  await expect(radio).toBeChecked();
+  await expect(page.getByText(note, { exact: true })).toBeVisible();
+}
+
 export async function redditAccountFlow(page: Page): Promise<void> {
-  await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await openSettings(page);
   await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
   await expect(page.getByRole("heading", { name: REDDIT_ACCOUNT_TEXT.sectionTitle })).toBeVisible();
-  await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNone)).toBeVisible();
+  await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNoneFilled)).toBeVisible();
+  await pickArchiveFill(page, REDDIT_TEXT.optionOff, REDDIT_TEXT.stateOff);
+  await expect(section(page).getByText(REDDIT_ACCOUNT_TEXT.stateNoneLinkOnly)).toBeVisible();
+  await pickArchiveFill(page, REDDIT_TEXT.optionOn, REDDIT_TEXT.stateOn);
+  await expect(section(page).getByText(REDDIT_ACCOUNT_TEXT.stateNoneFilled)).toBeVisible();
   await expect(button(page, REDDIT_ACCOUNT_TEXT.verify)).toHaveAttribute("aria-disabled", "true");
   await expect(button(page, REDDIT_ACCOUNT_TEXT.verify)).toHaveAccessibleDescription(
-    REDDIT_ACCOUNT_TEXT.resultNotConfigured,
+    REDDIT_ACCOUNT_TEXT.stateNoneFilled,
   );
   await expect(button(page, REDDIT_ACCOUNT_TEXT.disconnect)).toHaveAccessibleDescription(
-    REDDIT_ACCOUNT_TEXT.removeNothing,
+    REDDIT_ACCOUNT_TEXT.stateNoneFilled,
   );
   await expect(
     section(page).getByText(REDDIT_ACCOUNT_TEXT.removeNothing, { exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(0);
 
   await button(page, REDDIT_ACCOUNT_TEXT.connect).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.valueNeeded)).toBeVisible();
@@ -53,7 +67,7 @@ export async function redditAccountFlow(page: Page): Promise<void> {
 
   await button(page, REDDIT_ACCOUNT_TEXT.disconnect).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.disconnected)).toBeVisible();
-  await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNone)).toBeVisible();
+  await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNoneFilled)).toBeVisible();
 
   await button(page, REDDIT_ACCOUNT_TEXT.connectExtension).click();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.extensionMissing)).toBeVisible();

@@ -38,7 +38,13 @@ function Skipped({ reason, skipped }: Readonly<{ reason: SkipReason; skipped: Sk
   );
 }
 
-function Summary({ list }: Readonly<{ list: ImportList }>) {
+function readyText(count: number, ran: boolean): string | null {
+  if (count === 0) return IMPORT.noLinks;
+
+  return ran ? null : readyLabel(count);
+}
+
+function Summary({ list, ran }: Readonly<{ list: ImportList; ran: boolean }>) {
   const { links, skipped } = list;
   const shown = SKIP_REASONS.filter((reason) => skipped[reason].count > 0);
 
@@ -46,7 +52,7 @@ function Summary({ list }: Readonly<{ list: ImportList }>) {
 
   return (
     <div className="imp-summary">
-      <output>{links.length === 0 ? IMPORT.noLinks : readyLabel(links.length)}</output>
+      <output>{readyText(links.length, ran)}</output>
       {shown.map((reason) => (
         <Skipped key={reason} reason={reason} skipped={skipped[reason]} />
       ))}
@@ -81,7 +87,8 @@ export function ListSection({
   input,
   list,
   locked,
-}: Readonly<{ input: ImportInput; list: ImportList; locked: boolean }>) {
+  ran,
+}: Readonly<{ input: ImportInput; list: ImportList; locked: boolean; ran: boolean }>) {
   const id = useId();
   const { text, type } = input;
 
@@ -110,7 +117,7 @@ export function ListSection({
         onChange={change}
       />
       <FileButton locked={locked} input={input} />
-      <Summary list={list} />
+      <Summary list={list} ran={ran} />
     </div>
   );
 }

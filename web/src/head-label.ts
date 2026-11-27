@@ -4,21 +4,21 @@ import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { matchedCount } from "./list-counts.ts";
 
 export const ITEM_HEAD = {
-  one: "1 Item, {unread} unread",
-  many: "{total} Items, {unread} unread",
-  matching: "{shown} of {total} Items",
-  matchingText: "{shown} of {total} Items matching “{text}”",
-  matchingOne: "{shown} of 1 Item",
-  matchingTextOne: "{shown} of 1 Item matching “{text}”",
+  one: "1 item, {unread} unread",
+  many: "{total} items, {unread} unread",
+  matching: "{shown} of {total} items",
+  matchingText: "{shown} of {total} items matching “{text}”",
+  matchingOne: "{shown} of 1 item",
+  matchingTextOne: "{shown} of 1 item matching “{text}”",
 } as const;
 
 export const HIGHLIGHTS_HEAD = {
-  one: "1 Highlight or Note",
-  many: "{total} Highlights and Notes",
-  matching: "{shown} of {total} Highlights and Notes",
-  matchingText: "{shown} of {total} Highlights and Notes matching “{text}”",
-  matchingOne: "{shown} of 1 Highlight or Note",
-  matchingTextOne: "{shown} of 1 Highlight or Note matching “{text}”",
+  one: "1 highlight or note",
+  many: "{total} highlights and notes",
+  matching: "{shown} of {total} highlights and notes",
+  matchingText: "{shown} of {total} highlights and notes matching “{text}”",
+  matchingOne: "{shown} of 1 highlight or note",
+  matchingTextOne: "{shown} of 1 highlight or note matching “{text}”",
 } as const;
 
 type HeadWords = Readonly<Record<keyof typeof ITEM_HEAD, string>>;

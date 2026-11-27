@@ -11,34 +11,54 @@ import {
   keyApplies,
 } from "../../src/core/contract/provider-families.ts";
 import { type AiView, saveAiSettings, verifyAi } from "./ai-api.ts";
-import { AI_TEXT, CLI_TEXT, signedOutSentence } from "./ai-text.ts";
+import { AI_TEXT, CLI_TEXT, rejectedSentence, signedOutSentence } from "./ai-text.ts";
+import { filled } from "./filled.ts";
 import { FIELD_TEXT } from "./text.ts";
 import { useAiFields } from "./use-ai-fields.ts";
 import { type AiPhase, type Outcome, useAiPhase } from "./use-ai-phase.ts";
 import { useConnect } from "./use-connect.ts";
 
-function refusalText(refusal: AiRefused, provider: Provider): string {
+function refusalText(refusal: AiRefused, provider: Provider, publicOnly: boolean): string {
   if (refusal.reason === "invalid-effort")
     return refusal.levels !== undefined && refusal.levels.length > 0
-      ? AI_TEXT.invalidEffort.replace("{levels}", refusal.levels.join(", "))
+      ? filled(AI_TEXT.invalidEffort, { levels: refusal.levels.join(", ") })
       : AI_TEXT.noEfforts;
 
-  if (isCliProvider(provider) && refusal.reason === "wrong-key") return CLI_TEXT[provider].rejected;
+  if (isCliProvider(provider) && refusal.reason === "wrong-key") return rejectedSentence(provider);
 
   if (provider === GROK_BOT_PROVIDER && refusal.reason === "timeout") return AI_TEXT.botTimeout;
 
   if (provider === GROK_BOT_PROVIDER && refusal.reason === "provider-busy") return AI_TEXT.botBusy;
 
-  return refusal.reason === "provider-busy" && refusal.status !== null
-    ? `${AI_TEXT[refusal.reason]} (${String(refusal.status)})`
-    : AI_TEXT[refusal.reason];
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "wrong-key") return AI_TEXT.botWrongKey;
+
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "unreachable")
+    return AI_TEXT.botUnreachable;
+
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "refused") return AI_TEXT.botRefused;
+
+  if (refusal.reason === "cli-not-started")
+    return isCliProvider(provider)
+      ? CLI_TEXT[provider].notStarted
+      : AI_TEXT["provider-unavailable"];
+
+  if (isCliProvider(provider) && refusal.reason === "not-configured")
+    return signedOutSentence(provider);
+
+  if (provider === GROK_BOT_PROVIDER && refusal.reason === "not-configured")
+    return AI_TEXT.grokBotFirst;
+
+  if (publicOnly && refusal.reason === "refused") return AI_TEXT.refusedPublic;
+
+  return AI_TEXT[refusal.reason];
 }
 
 function failureText(
   response: Extract<Awaited<ReturnType<typeof saveAiSettings>>, { readonly kind: string }>,
   provider: Provider,
+  publicOnly: boolean,
 ): string {
-  if (response.kind === "refused") return refusalText(response, provider);
+  if (response.kind === "refused") return refusalText(response, provider, publicOnly);
 
   return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
 }
@@ -91,9 +111,9 @@ function useVerify(view: AiView, { run, refuse }: Readonly<Pick<AiPhase, "run" |
 
       return response.kind === "done"
         ? { kind: "ok", text: AI_TEXT.verified, digest: response.digest }
-        : { kind: "error", text: refusalText(response, provider) };
+        : { kind: "error", text: refusalText(response, provider, view.publicOnly) };
     });
-  }, [unavailable, provider, run, refuse]);
+  }, [unavailable, provider, view.publicOnly, run, refuse]);
 
   return {
     verifyNow,
@@ -191,14 +211,15 @@ function useSave(
     run("saving", async (): Promise<Outcome> => {
       const response = await saveAiSettings(settingsInput(fields));
 
-      if ("kind" in response) return { kind: "error", text: failureText(response, provider) };
+      if ("kind" in response)
+        return { kind: "error", text: failureText(response, provider, view.publicOnly) };
 
       saved(response);
       clearKey();
 
       return { kind: "ok", text: AI_TEXT.saved };
     });
-  }, [unavailable, refuse, clear, run, fields, provider, clearKey, saved]);
+  }, [unavailable, refuse, clear, run, fields, provider, view.publicOnly, clearKey, saved]);
 
   return { submit, saveBlocked: unavailable !== null };
 }

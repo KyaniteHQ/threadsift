@@ -13,6 +13,7 @@ import {
   STUB_TEXTS,
   handleOf,
 } from "../../src/core/contract/reader-text.ts";
+import { AiSettingsLink } from "./AiSettingsLink.tsx";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
 import { useOpenOnReveal } from "./highlights-context.ts";
@@ -142,7 +143,7 @@ function Stub({ kind }: Readonly<{ kind: keyof typeof STUB_TEXTS }>) {
   return (
     <div className="cm-stub">
       <span className="cm-av" aria-hidden="true" />
-      <span className="cm-ctx">{CONTEXT_LABEL}</span>
+      {kind === "more" ? null : <span className="cm-ctx">{CONTEXT_LABEL}</span>}
       <span className="cm-prev" title={text}>
         {text}
       </span>
@@ -214,6 +215,7 @@ function Branches({
 interface Section {
   readonly counts: CommentCount | null;
   readonly note: string | null;
+  readonly needsProvider: boolean;
 }
 
 function sectionOf(view: Readonly<CommentsFilter>): Section | null {
@@ -221,13 +223,17 @@ function sectionOf(view: Readonly<CommentsFilter>): Section | null {
     case "absent":
       return null;
     case "removed":
-      return { counts: null, note: ALL_REMOVED };
+      return { counts: null, note: ALL_REMOVED, needsProvider: false };
     case "unfiltered":
-      return { counts: view.count, note: UNFILTERED_NOTES[view.cause] };
+      return {
+        counts: view.count,
+        note: UNFILTERED_NOTES[view.cause],
+        needsProvider: view.cause === "no-provider",
+      };
     case "kept":
-      return { counts: view.count, note: null };
+      return { counts: view.count, note: null, needsProvider: false };
     case "nothing-kept":
-      return { counts: view.count, note: NONE_KEPT };
+      return { counts: view.count, note: NONE_KEPT, needsProvider: false };
     default: {
       const exhaustive: never = view;
 
@@ -238,7 +244,7 @@ function sectionOf(view: Readonly<CommentsFilter>): Section | null {
 
 function CommentTree({
   item,
-  section: { counts, note },
+  section: { counts, note, needsProvider },
   nodes,
 }: Readonly<{ item: Item; section: Section; nodes: readonly CommentNode[] }>) {
   const branches = nest(nodes);
@@ -252,6 +258,7 @@ function CommentTree({
         {counts === null ? null : <p className="rd-count">{countLabel(counts, "heading")}</p>}
       </div>
       {note === null ? null : <p className="rd-note">{note}</p>}
+      {needsProvider ? <AiSettingsLink /> : null}
       {branches.length === 0 ? null : <Branches branches={branches} owner={item} first />}
     </section>
   );

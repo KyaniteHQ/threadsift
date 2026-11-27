@@ -52,19 +52,30 @@ export function SettingsActions<Action extends string>({
   return (
     <>
       <div className="ai-actions">
-        {buttons.map(({ action, label, busyLabel, blocked, hint, onClick, secondary }) => (
-          <SwapButton
-            key={action}
-            label={label}
-            busyLabel={busyLabel}
-            busy={running === action}
-            blocked={running !== null || blocked}
-            type={onClick === undefined ? "submit" : "button"}
-            onClick={hint === undefined ? onClick : undefined}
-            secondary={secondary}
-            describedBy={hint === undefined ? undefined : reasonId(hint)}
-          />
-        ))}
+        {buttons.map(
+          ({
+            action,
+            label,
+            busyLabel,
+            blocked,
+            hint,
+            reasonId: shownReason,
+            onClick,
+            secondary,
+          }) => (
+            <SwapButton
+              key={action}
+              label={label}
+              busyLabel={busyLabel}
+              busy={running === action}
+              blocked={running !== null || blocked}
+              type={onClick === undefined ? "submit" : "button"}
+              onClick={hint === undefined ? onClick : undefined}
+              secondary={secondary}
+              describedBy={hint === undefined ? shownReason : reasonId(hint)}
+            />
+          ),
+        )}
       </div>
       {reasons.map((reason) => (
         <p key={reason} id={reasonId(reason)} className="fld-help">

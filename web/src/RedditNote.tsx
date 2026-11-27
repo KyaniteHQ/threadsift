@@ -1,20 +1,26 @@
 import { IMPORT, redditNoteLabel } from "./import-text.ts";
 import { InternalLink } from "./InternalLink.tsx";
 import { REDDIT_ACCOUNT_TEXT } from "./reddit-account-text.ts";
-import { REDDIT_TEXT } from "./reddit-text.ts";
 import { SETTINGS_PATH } from "./routing.ts";
 import { redditLinkCount, useRedditNote } from "./use-reddit-note.ts";
 
-const ARCHIVE_FILLED = {
-  none: REDDIT_ACCOUNT_TEXT.stateNone,
-  expired: IMPORT.redditExpired,
-  unreadable: REDDIT_ACCOUNT_TEXT.stateUnreadable,
+const NOT_CONNECTED = {
+  none: {
+    on: REDDIT_ACCOUNT_TEXT.stateNoneFilled,
+    off: REDDIT_ACCOUNT_TEXT.stateNoneLinkOnly,
+  },
+  expired: {
+    on: REDDIT_ACCOUNT_TEXT.stateExpiredFilled,
+    off: REDDIT_ACCOUNT_TEXT.stateExpiredLinkOnly,
+  },
+  unreadable: {
+    on: IMPORT.redditUnreadableFilled,
+    off: IMPORT.redditUnreadableLinkOnly,
+  },
 } as const;
 
-function notConnectedText(state: keyof typeof ARCHIVE_FILLED, archiveFill: boolean): string {
-  if (state === "unreadable" || archiveFill) return ARCHIVE_FILLED[state];
-
-  return REDDIT_TEXT.stateOff;
+function notConnectedText(state: keyof typeof NOT_CONNECTED, archiveFill: boolean): string {
+  return NOT_CONNECTED[state][archiveFill ? "on" : "off"];
 }
 
 export function RedditNote({

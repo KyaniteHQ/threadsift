@@ -1,6 +1,7 @@
 import { memo } from "react";
 
 import type { MergeProposal } from "../../src/core/contract/proposal-contract.ts";
+import { FinalLine } from "./FinalLine.tsx";
 import { ItemsDisagreeBody } from "./ItemsDisagreeBody.tsx";
 import { LostHighlightBody } from "./LostHighlightBody.tsx";
 import { OverviewGapBody } from "./OverviewGapBody.tsx";
@@ -59,6 +60,15 @@ function MergeBody({
         <span className="vh">{PROPOSAL_WORDS.reasonLabel}: </span>
         {reason}
       </p>
+      <FinalLine
+        proposal={proposal}
+        className="pr-final"
+        text={
+          proposal.kind === "topic-merge"
+            ? PROPOSAL_WORDS.topicMergeFinal
+            : PROPOSAL_WORDS.mergeFinal
+        }
+      />
       {proposal.kind === "topic-merge" && overviewFollows && (
         <p className="rl-sum pr-overview">{PROPOSAL_WORDS.topicOverviewEffect}</p>
       )}

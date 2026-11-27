@@ -65,7 +65,7 @@ Threadsift has two aims:
 - Any http or https page works except a page on x.com, twitter.com or github.com, a page on a link shortener's own address (`bit.ly`, `t.co` and the other short-link hosts) and a Reddit page that is not a post or comment. The server refuses those, and the Extension says it cannot save them.
 - On a Reddit thread it sends the thread's `.json` with the answers for the replies behind its `more` stubs, and falls back to Defuddle's Reddit extractor when that request fails or its answers cannot be assembled into one thread.
 - A page capture is sent only when the tab still holds the page the Save started on, with a hash, a tracking parameter or a trailing slash the page adds itself ignored. When the tab moved to another page meanwhile, nothing is sent and the Extension says it could not save.
-- With "Fill saved Reddit Items" on, opening a Link-only Reddit Item's thread fills that Item.
+- With "Fill saved Reddit items" on, opening a Link-only Reddit Item's thread fills that Item.
 - In the self-hosted builds, the Extension's Connect Reddit button connects the owner's Reddit account ([Connect a Reddit account](guides/reddit-account.md)).
 - The owner enters the Instance's address and an agent token on the Extension's settings page, and the browser asks permission for that one host when the address is saved.
 - The Extension holds only the `activeTab`, `scripting` and `storage` permissions, and asks for more only for the two Reddit features ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Permissions). It saves one page per click and never crawls.
@@ -76,8 +76,8 @@ Threadsift has two aims:
 - **Look settings.** Font (5 pairs), Text size (Small, Medium, Large), Text width (Narrow, Medium, Wide), Density (Compact, Comfortable, Roomy), Comment style (Indented lines, Cards, Rail), Accent (5 colours), Tag style (Chips, Text, Dots) and Card images (On, Off). Defaults: Plex, Medium text size, Medium width, Compact, Indented lines, Cobalt, Dots, images on.
 - **Reset look.** It resets only the Look settings, Style included. Layout, Open items as and Theme stay, and the panel says so in visible text.
 - **Card images.** Off hides the card picture only, never the reader's, and does not load the card pictures at all.
-- **Style.** One more look setting: Library (default) plus 10 styles ([Styles](design/styles.md)). While a Style other than Library is on, its fonts and accent replace Font and Accent. Those controls are disabled and say "Set by the Style". Their stored values stay, and choosing Library restores them, including after a reload.
-- **Themes.** Light, Dark, Sepia and Match system. Match system follows the device; with no setting stored, the app draws Light.
+- **Style.** One more look setting: Library (default) plus 10 styles ([Styles](design/styles.md)). While a Style other than Library is on, its fonts and accent replace Font and Accent. Those controls are disabled, and one note under Style, which both controls point to, says "{style} sets Font and Accent. Choose Library to change them." with the Style's name in place of `{style}`. Their stored values stay, and choosing Library restores them, including after a reload.
+- **Themes.** Light, Dark, Sepia and System. System follows the device; with no setting stored, the app draws Light.
 - **Storage.** All twelve look and view settings (Layout, Open items as, Theme and the nine Look settings) are stored together in the browser. Each Item's reading place is kept for the browser tab. The AI, GitHub token and Grok Bot settings are stored on the server, and the keys and tokens in them are sealed under the Instance's secret key ([Access](architecture/access-owner-login-agent-tokens-mcp.md)).
 - **Unavailable actions.** While nothing is saved, Verify and Test in the AI, GitHub token, Grok Bot and Reddit account settings, and Remove or Disconnect in the GitHub token, Grok Bot, Reddit account and Obsidian settings, are unavailable. The section shows the reason under its buttons before any press, and a screen reader reads it with the button.
 - **Share from phone.** The app is an installable web app with a Web Share Target, so the Android Share menu sends a link into the same Paste as the paste box.
@@ -139,8 +139,8 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 - The bot fetches the post, its thread, replies and media through its X connector and sends them back to `POST /api/ai-tasks/{id}/intake`. A bot that never answers ends the Item `failed`, with no fallback to another source.
 - Both readers store the thread unpublished, and a verification job publishes it when the post itself matches X's public oEmbed answer for its id; a reply, follow-up or quoted post that fails the check is left out ([Fetchers](architecture/fetchers.md), The check against X).
 - The Reader shows the post with its Author thread (the author's own chain of replies), its Quote chain (the posts it quotes, 5 at most) and its photos. A part that fails the check is left out, and a line says it was not saved.
-- Both readers rank replies by likes and keep the smallest set that accounts for 80% of the likes, between 20 and 40, plus those replies' ancestors and the author thread. When a parent is missing, the Reader groups its replies under one Context stub, and a thread with fewer replies than the post reports ends with a "Further replies were not saved" row ([Fetchers](architecture/fetchers.md), Replies kept).
-- A post X does not show ends the Item `status`, and the Reader says X does not show the post. A Link-only X Item offers Try again, and its note names the cause ([Fetchers](architecture/fetchers.md), Outcomes and notes).
+- Both readers rank replies by likes and keep the smallest set that accounts for 80% of the likes, between 20 and 40, plus those replies' ancestors and the author thread. When a parent is missing, the Reader groups its replies under one Context stub, and a thread with fewer replies than the post reports ends with a "Further replies weren’t saved." row ([Fetchers](architecture/fetchers.md), Replies kept).
+- A post X does not show ends the Item `status`, and the Reader says X does not show the post. A Link-only X Item offers Try again when its note is `cli-failed` or `x-unconfirmed`. Every note names the cause, and the other notes say what to do instead ([Fetchers](architecture/fetchers.md), Outcomes and notes).
 - A refresh that fails keeps the saved thread.
 - A Paste can carry the thread: `POST /api/items` with `{url, content}` for an X link takes one JSON text of the post and its replies (`XThreadSchema`), keeps every supplied reply, is not checked against X and stores it like a Reddit thread.
 - The Cloudflare build has no CLI and does not offer `grok-cli`, so there X needs the webhook.
@@ -149,7 +149,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 
 - A pasted Reddit link becomes a Link-only Item with its title, author and subreddit from Reddit's oEmbed endpoint.
 - On Save, the Extension reads the thread's `.json` with one signed-in request from the owner's tab, fetches the replies behind each `more` stub, and sends the thread's answer and the reply answers together in one request. A reply that still fails becomes a Context stub that says it was not saved ([Fetchers](architecture/fetchers.md), Reddit). When the `.json` request fails, or its answers cannot be assembled into one thread, the Extension falls back to the Reddit extractor of Defuddle on the rendered page.
-- With "Fill saved Reddit Items" turned on in the Extension's settings, opening a Link-only Reddit Item's thread in the browser saves it the same way, and never overwrites a saved thread. While such an Item is not processing, the Reader says its thread is not saved yet and how to fill it ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md)).
+- With "Fill saved Reddit items" turned on in the Extension's settings, opening a Link-only Reddit Item's thread in the browser saves it the same way, and never overwrites a saved thread. While such an Item is not processing, the Reader says its thread is not saved yet and how to fill it ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md)).
 - Without the Extension, the owner can send the text of the post's `.json` page from their own browser as `content` of `POST /api/items`. The paste box has no field for it.
 
 ### Archive fill (self-hosted builds)
@@ -161,7 +161,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 
 ### The owner's Reddit account (self-hosted builds)
 
-- An optional setting connects the owner's own Reddit account ([Connect a Reddit account](guides/reddit-account.md)). When connected, it is the first server source for a Reddit link without Extension content, before Arctic Shift, and it fetches the thread the way the Extension does, so a thread is complete and current. The setting shows when the session stops working and asks the owner to connect again.
+- An optional setting connects the owner's own Reddit account ([Connect a Reddit account](guides/reddit-account.md)). When connected, it is the first server source for a Reddit link without Extension content, before Arctic Shift, and it fetches the thread the way the Extension does, so a thread is complete and current. The setting shows when the session stops working and asks the owner to connect again. Its status line says what happens meanwhile to a Reddit link without Extension content, by the archive fill choice: tried from the archive, or kept Link-only.
 - Every Reddit link without Extension content uses the account: the paste box, Share, Import, a batch call, an agent token's add and the MCP `add` tool alike. An Import of many links is read one thread at a time, oldest first, and each waiting link shows the wait reason `reddit-limit` in the library.
 - A 429 or an exhausted request window makes the job wait, and after three limited attempts the fetch uses the archive fill.
 - Design: [Fetchers](architecture/fetchers.md), Reddit. Queue: [Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md).
@@ -214,7 +214,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 4. X replies follow the same rules.
 
 - The agent makes step 2 in the same call that writes the Digest, over the eligible comments that fit the Digest's input budget ([AI tasks and Providers](architecture/ai-tasks-and-providers.md), Measured Digest input budget). A comment that does not fit is not Kept, and as a parent it shows as the same stub as a comment the agent dropped. The app drops any id the agent returns that it was not shown. A caller-sent Digest names its own Kept comments, and the agent makes no choice for it.
-- Until a Digest covers the thread, the Reader shows every comment that passes step 1, as the thread, under a line that says the comments are not filtered by a Digest yet and why. The reasons are: a Digest is being made, the last Digest run failed, no Provider is saved (a Grok Bot chosen as the Provider counts as saved), a Provider is saved and the Item has no Digest yet, or the stored Digest was made from earlier text and does not cover the thread.
+- Until a Digest covers the thread, the Reader shows every comment that passes step 1, as the thread, under a line that says the comments are not filtered by a Digest yet and why. The reasons are: a Digest is being made, the last Digest run failed, no Provider is saved (a Grok Bot chosen as the Provider counts as saved), a Provider is saved and the Item has no Digest yet, or the stored Digest was made from earlier text and does not cover the thread. When the reason is that no Provider is saved and the Item has no Digest, a link to the Settings page sits under the line.
 - Once a Digest covers the thread, the Kept comments, and any comment that holds an attached Highlight, show and the line goes.
 - A thread whose Digest kept none says that none of the comments added anything.
 - A thread whose stored comments all fail step 1 and that no Digest covers shows the comments heading, one line that says its comments were removed, written by bots or empty, and no thread.
@@ -236,20 +236,20 @@ Rules for the Digest:
 
 - **Identity of Topics and Tags.** Case, width, composition and spacing never make a new Topic or Tag, and the first spelling stays visible ([Data model outline](architecture/data-model-outline.md), Catalog keys). Semantic near-duplicates such as "ML" and "Machine learning" are the model's job from the supplied lists and, for the pairs the plain checks find, the Proposals' job.
 - **The list.** It uses the stored Digest's clean title and Topic and keeps the fetched title separately. Summary, Key points and Tags wait for the Reader. The last stored Digest stays visible during refresh or regeneration.
-- **A failed run.** It shows "No Digest" only when there is no stored Digest. A kept Digest shows "Digest not updated". Both offer Try again, in the list row and in the Reader beside the note, and a failed Item's failure note in the Reader carries it too. A failed Digest leaves fetched content readable.
+- **A failed run.** It shows "Digest failed" only when there is no stored Digest. A kept Digest shows "Digest update failed". Both offer Try again, in the list row and in the Reader beside the note, and a failed Item's failure note in the Reader carries it too. A failed Digest leaves fetched content readable.
 - **Try again.** It queues a Digest over stored text without a new fetch, and does nothing while a Digest is already open or the Item is failed. An Item with no Digest source pastes the link again instead. The owner session and agent tokens may call it ([Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md), Fetched Items and Digests).
 - **A caller-sent Digest.** `POST /api/items` accepts one from the owner session or an agent token, and an invalid one returns 400 before storage. It sets its own Tags, publishes without a Provider call and drops with a fetch that finds no text. Try again always uses the configured Provider ([Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md), Caller-sent Digests).
 
 ## The library page and the Reader
 
-- **Paste card.** A Paste shows a card under the paste box that says what is happening: reading the link, added, already saved and refreshed, or a failure note with Try again. The Added and refreshed cards have Open and Dismiss. The Added, refreshed and failure cards close themselves after 6 seconds, held while the pointer or focus is inside. Try again on a row pastes the link again for an Item with no stored text, and queues a Digest over the stored text for one with a failed Digest.
-- **Search and filters.** The list head says how many Items match. When none do, one button, Clear search and filters, resets both; the filter pane's own Clear filters link, which keeps the search, is hidden while no Item matches. The API behind the counts is under Interfaces.
+- **Paste card.** A Paste shows a card under the paste box that says what is happening: reading the link, added, already saved and refreshed, already saved with the saved copy unchanged (a refresh whose read failed or that Threadsift does not fetch, a link whose first read has not finished, or Try again on a failed Digest), or a failure note with Try again. The cards of a saved Item have Open and Dismiss. They and the failure cards close themselves after 6 seconds, held while the pointer or focus is inside. Try again on a row pastes the link again for an Item with no stored text, and queues a Digest over the stored text for one with a failed Digest.
+- **Search and filters.** The list head says how many Items match. When none do, one button resets the search and the filters. It reads Clear search, Clear filters or Clear search and filters, by which of them is on; the filter pane's own Clear filters link, which keeps the search, is hidden while no Item matches. The API behind the counts is under Interfaces.
 - **Read state.** An Item is unread until the owner marks it read, from the Reader bar, the dot on its row or the `m` key. The agent, a refresh and a Digest never change it. In the List Layout at 760px wide and over, the first load opens the first unread Item once and leaves it unread; an Item named in the address wins, and under 760px nothing opens.
 - **What the Reader shows,** top to bottom:
   - the header: Source, place, author, posted and saved times, title, and for a Reddit link post the address it points at as a link that opens in a new tab, shortened by the width of the column and never by cutting the address, with no "no post text" line beside it. An X Item with an author shows the author's handle and no place, so the handle appears once;
   - the Topic, Tags, Summary and Key points;
   - for a GitHub repository, its block of description, stars, language, license, last push and topics;
-  - the post text (the README for a repository);
+  - the post text, under a heading that names what it holds: "Original post" for a Reddit or X post, "Saved comment" for a saved Reddit comment, "README" for a repository, "Article" for an article and "Page text" for another link;
   - the comments, as the Comment filter describes;
   - the Related Items, with no heading when there are none, each with its Source, title and reason and opening that Item;
   - the Highlights list;
@@ -260,14 +260,14 @@ Rules for the Digest:
 - **The bar** holds the Comments button, Mark read or unread, Open on the Item's Source and Delete, and it drops the key hint and then the button labels until it fits.
 - **Comments.** Replies nest under their parent, drawn in the Comment style the owner chose, and the Item author's comments carry an OP badge.
 - A comment taller than 8 lines folds to its first 6 lines, and keyboard focus that lands inside a fold opens it.
-- A Context stub marks a dropped parent or a parent missing from an X thread or a Reddit archive fill, and a stub that says "Further replies were not saved." marks replies behind a `more` stub.
+- A Context stub marks a dropped parent or a parent missing from an X thread or a Reddit archive fill, and a stub that says "Further replies weren’t saved." marks replies behind a `more` stub.
 - The Comments button jumps to the section and shortens to "N of M" and then to the count as the bar narrows.
 - **Highlights.** The owner selects one passage inside the post text or inside one comment the Reader shows, and a popover offers Keep. A selection across two bodies, or one that touches a control or a Context stub, offers nothing. When a selection does not match the stored text of that version, the Reader keeps the Item as it is and asks the owner to select the passage again or a smaller part.
 - A kept passage is marked in place, in List, Grid Page, Grid Sheet and on a phone. Pressing a mark, or Enter on a focused mark (choosing a quote in the Highlights list focuses its mark), opens a popover with Remove. Where several Highlights overlap, the popover lists each Highlight under the pressed mark, in the order of the Highlights list. A row shows the quote underlined between the last 16 code points of the text stored before it and the text stored after it, up to 3 lines, with its own Remove; a quote over 40 code points shows its first 20 and last 20. The list scrolls when the rows do not fit the room the popover has. A Remove takes away that Highlight only and closes the popover. When the removal ends, focus moves to a mark that still carries one of the pressed mark's Highlights, or to the Reader title when none is left, unless the owner moved focus to another control while the removal ran. A popover opened by Enter puts focus on its first Remove. Escape closes the popover without closing the Reader and returns focus to the mark.
-- The Highlights list at the end of the Reader holds every Highlight of the Item, and choosing one scrolls to its mark and opens the fold around it. A Highlight whose passage is gone shows its quote with the note "Passage no longer found because the item’s text changed." Each entry has its own Remove. When that removal ends, focus moves to the Remove of the next entry, or of the previous one when it was the last, or to the Reader title when none is left, unless the owner moved focus to another control while the removal ran; a failed removal leaves focus where it is.
+- The Highlights list at the end of the Reader holds every Highlight of the Item, and choosing one scrolls to its mark and opens the fold around it. A Highlight whose passage Threadsift can no longer place, because it is gone or appears more than once, shows its quote with the note "The item’s text changed. This passage is missing or appears more than once." Each entry has its own Remove. When that removal ends, focus moves to the Remove of the next entry, or of the previous one when it was the last, or to the Reader title when none is left, unless the owner moved focus to another control while the removal ran; a failed removal leaves focus where it is.
 - **Note.** The Note box follows the Highlights list (Highlights, Notes and the Highlights page).
 - **Reading place.** Each browser tab remembers where the owner stopped in each Item, for the last 100 Items it saved a place in, and returns there on reopen, as long as the text at that place is still in the Item.
-- **Delete.** Delete asks "Delete this Item?" with Cancel and Delete Item. While the request runs both buttons and Escape do nothing, and after 20 seconds without an answer the dialog reports the failure and offers both again.
+- **Delete.** Delete asks "Delete this item?" with Cancel and Delete item. While the request runs both buttons and Escape do nothing, and after 20 seconds without an answer the dialog reports the failure and offers both again.
 
 ## Highlights, Notes and the Highlights page
 
@@ -329,6 +329,7 @@ All five kinds are built, each with its weekly check, Reject and Accept. [Propos
 - Plain checks find the candidates, and the agent judges only those.
 - The owner accepts or rejects each one, and the app applies the accepted ones. Reject is final for the pair or row it names. An accepted Tag merge, Topic merge or disagreement is kept as a Pin, so the next regeneration cannot undo it.
 - Once a week, while a Provider is saved and at least one Item has a Digest, the app runs the checks for Tags, Topics and Items. A failed check shows nothing on the page.
+- The line under the list head, shown above the empty state too, holds the rule every kind shares: Reject is final. Each row says what its own Accept does, above its buttons.
 - **Tag and Topic merges:** Accept merges the first into the second with no confirmation and cannot be undone in this release. The row shows both Item counts. A Topic merge also deletes the merged-away Topic, and its address opens the survivor.
 - **Lost Highlights:** Accept removes the Highlight and cannot be undone. Reject keeps it.
 - **Overview gaps:** Accept starts the same overview run as Try again on the Topic page.
@@ -338,7 +339,7 @@ All five kinds are built, each with its weekly check, Reject and Accept. [Propos
 
 - The owner picks one Provider in the AI settings, and the screen shows only the fields that Provider needs.
 - "Verify" runs one small real Digest, so a model that cannot return the Digest's JSON fails at setup, not on the 200th Item. It uses the saved settings and shows a Digest or a refusal with a recovery action. It adds no Item, Topic or Tag.
-- The Settings page offers OpenAI-compatible URL, OpenRouter, Anthropic, OpenAI and xAI, Workers AI on Cloudflare, and on the container Claude Code on this server and Codex on this server (both use the CLI sign-in). It also offers Grok Bot on both targets. Grok Bot takes no field: Save answers 400 until the Grok Bot section holds an address and a key this Instance can open ([HTTP interfaces](architecture/http-interfaces.md), Settings routes).
+- The Settings page offers OpenAI-compatible URL, OpenRouter, Anthropic, OpenAI and xAI, Workers AI on Cloudflare, and on the container Claude Code in this container and Codex in this container (both use the CLI sign-in). It also offers Grok Bot on both targets. Grok Bot takes no field: Save answers 400 until the Grok Bot section holds an address and a key this Instance can open ([HTTP interfaces](architecture/http-interfaces.md), Settings routes).
 - The Grok CLI is not offered as a Provider, though the container uses it to fetch X posts, because it gives no proof of its tools before a model request ([Fetchers](architecture/fetchers.md), X).
 - Save keeps the API key sealed on the Instance; the screen only reports whether a key is set and whether this Instance can still open it. When it cannot, because `THREADSIFT_SECRET_KEY` changed or was lost, the screen says so and offers both ways back ([Keep the secret key](guides/self-hosting.md#keep-the-secret-key)).
 - Saving a Provider opens Digest jobs for older Items with a Digest source, no Item failure marker, no stored Digest and no open Digest job. On the container the job loop wakes when the batch that opens those Digest jobs commits. OpenRouter Connect opens them only after the saved key becomes active. Saving the Provider retries a failed Digest only when its last Digest task was refused for a wrong key. Try again can retry other failed Digests. Each eligible Item with usable text can incur a model call.
@@ -349,7 +350,7 @@ All five kinds are built, each with its weekly check, Reject and Accept. [Propos
 | Anthropic, OpenAI or xAI API key | yes | yes | yes |
 | Any OpenAI-compatible URL (Ollama and others) | yes | yes, at a public HTTPS address | no |
 | Workers AI | no | yes | maybe |
-| Claude Code or Codex signed in on this server | yes, when the app finds the CLI | no | no |
+| Claude Code or Codex signed in in this container | yes, when the app finds the CLI | no | no |
 | Grok Bot (the owner's plan runs every AI task: Digests, Topic overviews, Related Items, Proposals) | yes | yes | yes |
 | Sign in with ChatGPT | later | later | only after OpenAI approves it |
 
@@ -383,7 +384,7 @@ C. Intake webhook
 - The section holds the address and the key and no token. The key stays on the server, sealed, and no screen or route shows it again. Save and Remove contact no one, and Test sends one ping with no library text and costs the bot one run. A new address needs a new key. The address must be a public `https` address.
 - **The Threadsift bot:** a public Grok Bot template with one skill that saves links dropped in chat, searches the library, runs the X bookmark sync and answers Threadsift's webhook. Its [setup guide](../bot/setup.md) walks the user through adding their Threadsift URL and token. The bot's Digest reuses the library's Topic names and, when one fits, a Tag it already has, and otherwise picks its Tags itself.
 - **AI tasks:** when Grok Bot is the Provider, Threadsift sends it every AI task (a Digest, a Topic overview, a Related Items pick, the weekly Proposals) through the same webhook, and the bot posts the result back. Without Grok Bot, every model task runs on the Provider the owner picked, and the X reader choice decides who reads a fresh X link ([AI tasks and Providers](architecture/ai-tasks-and-providers.md), Grok Bot).
-- **Speed:** an X link through the webhook may take longer than a direct fetch, because the bot has to wake and run. The Item shows "waiting for Grok Bot" until the bot answers.
+- **Speed:** an X link through the webhook may take longer than a direct fetch, because the bot has to wake and run. The Item shows "Waiting for Grok Bot…" until the bot answers.
 
 ## Obsidian vault mirror
 
@@ -400,7 +401,7 @@ C. Intake webhook
 ## Access
 
 - **Owner password.** Signed in, the owner changes the password in Settings with the current one. Every other session ends, the owner's own session gets a new id, and agent tokens keep working.
-- **A lost password.** An owner who lost the password sets `PASSWORD_RESET_CODE` on the server (a container environment variable read at start, or a Worker secret), opens "Lost your password?" on the sign-in screen and enters the code with a new password. The code is an operator credential of at least 32 characters, works once, ends every session and keeps the agent tokens. With no code on the server nobody can reset anything ([Access](architecture/access-owner-login-agent-tokens-mcp.md)).
+- **A lost password.** An owner who lost the password sets `PASSWORD_RESET_CODE` on the server (a container environment variable read at start, or a Worker secret), opens "Reset password" on the sign-in screen and enters the code with a new password. The code is an operator credential of at least 32 characters, works once, ends every session and keeps the agent tokens. With no code on the server nobody can reset anything ([Access](architecture/access-owner-login-agent-tokens-mcp.md)).
 - **A wrong secret.** A wrong setup code, password, current password or reset code answers 403 with its own `code`: `wrong-setup-code`, `wrong-password`, `wrong-current-password` or `wrong-reset-code`.
 - **Agent access.** Besides the HTTP API, the app serves an MCP endpoint whose tools search Items, read one Item with its Digest, Highlights and Note, and add a link. Each tool runs the same code as the matching HTTP call.
 
@@ -416,7 +417,7 @@ Each agent token carries scopes that limit what it calls:
 | `delete` | Delete an Item. |
 | `reddit` | Connect and disconnect the Reddit account through `/api/reddit-account` (reading it there needs `read`). |
 
-- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. A call outside the token's scopes answers 403.
+- The owner picks the scopes when creating the token, and a new token starts with `read` and `add`. Each scope's checkbox has its own line under the group that says what the scope allows. A call outside the token's scopes answers 403.
 
 ### Token budget
 

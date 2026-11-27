@@ -7,7 +7,13 @@ import { usePolling } from "./use-polling.ts";
 import { type Task, outcomeOf, useAction, useActionFlow } from "./use-settings-action.ts";
 import { type Ticket, useTicket } from "./use-ticket.ts";
 
-type Action = "start" | "remove";
+type Action = "start" | "stop" | "remove";
+
+const FAILED = {
+  start: EXPORT_TEXT.startFailed,
+  stop: EXPORT_TEXT.stopFailed,
+  remove: EXPORT_TEXT.removeFailed,
+} as const satisfies Record<Action, string>;
 
 type Changed = (view: ExportStatus) => void;
 
@@ -41,7 +47,7 @@ function settled(call: () => Promise<void>, ticket: Ticket, refresh: () => Promi
 }
 
 export function useBackup(view: ExportStatus, changed: Changed) {
-  const { flow, run } = useActionFlow<Action>(EXPORT_TEXT.failed);
+  const { flow, run } = useActionFlow<Action>(FAILED);
   const ticket = useTicket();
   const refresh = useReader(changed, ticket);
 
@@ -55,16 +61,15 @@ export function useBackup(view: ExportStatus, changed: Changed) {
     task: useMemo(() => settled(startExport, ticket, refresh), [ticket, refresh]),
   });
 
-  const remove = useAction({
-    run,
-    action: "remove",
-    task: useMemo(() => settled(deleteExport, ticket, refresh), [ticket, refresh]),
-  });
+  const removal = useMemo(() => settled(deleteExport, ticket, refresh), [ticket, refresh]);
+  const stop = useAction({ run, action: "stop", task: removal });
+  const remove = useAction({ run, action: "remove", task: removal });
 
   return {
     busy: flow.kind === "running" ? flow.action : null,
     result: outcomeOf(flow),
     start,
+    stop,
     remove,
   };
 }

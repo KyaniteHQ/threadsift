@@ -86,7 +86,7 @@ function ReaderChoice({
         {READER_HELP[view.reader]}
       </p>
       <output>{form.busy ? X_TEXT.saving : null}</output>
-      <Alert text={form.failed ? X_TEXT.failed : null} />
+      <Alert text={form.error} />
     </div>
   );
 }
