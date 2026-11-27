@@ -102,8 +102,9 @@ export const SETTINGS = [
     kind: "select",
     group: "Reading",
     look: true,
-    default: "plex",
+    default: "library",
     options: [
+      { id: "library", label: "Schibsted Grotesk + Commit Mono" },
       { id: "plex", label: "IBM Plex Sans + Plex Mono" },
       { id: "news", label: "Newsreader + Instrument Sans" },
       { id: "brico", label: "Bricolage Grotesque + Figtree" },
@@ -175,7 +176,7 @@ export const SETTINGS = [
     kind: "swatches",
     group: "Accent, tags and cards",
     look: true,
-    default: "cobalt",
+    default: "moss",
     options: [
       { id: "cobalt", label: "Cobalt" },
       { id: "rust", label: "Rust" },

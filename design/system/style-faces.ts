@@ -4,6 +4,8 @@ import { DEFAULTS } from "./settings.ts";
 const IN_ENTRY_CSS = () => Promise.resolve();
 
 export const FACES = {
+  "schibsted-grotesk": IN_ENTRY_CSS,
+  "commit-mono": IN_ENTRY_CSS,
   "ibm-plex-sans": IN_ENTRY_CSS,
   "ibm-plex-mono": IN_ENTRY_CSS,
   inter: () => import("@fontsource-variable/inter/wght.css"),
@@ -69,6 +71,7 @@ export const STYLE_FACES: Readonly<Record<StyleId, readonly FaceId[]>> = {
 };
 
 export const FONT_FACES: Readonly<Record<FontId, readonly FaceId[]>> = {
+  library: ["schibsted-grotesk", "commit-mono"],
   plex: ["ibm-plex-sans", "ibm-plex-mono"],
   news: ["newsreader", "instrument-sans", "ibm-plex-mono"],
   brico: ["bricolage-grotesque", "figtree", "jetbrains-mono"],

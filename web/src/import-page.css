@@ -24,7 +24,7 @@
   width: 100%;
   min-height: calc(var(--field-h) * 4);
   padding: var(--s3);
-  border: 1px solid var(--ctl-line);
+  border: var(--hw) solid var(--ctl-line);
   border-radius: var(--r2);
   background: var(--surface);
   color: var(--text);
@@ -105,8 +105,8 @@
   display: block;
   width: 100%;
   height: var(--s2);
-  border: 1px solid var(--ctl-line);
-  border-radius: var(--r4);
+  border: var(--hw) solid var(--ctl-line);
+  border-radius: var(--r1);
   background: var(--surface);
   color: var(--acc);
   overflow: clip;

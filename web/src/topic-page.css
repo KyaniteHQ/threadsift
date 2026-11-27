@@ -73,7 +73,7 @@ a.fl-link {
 }
 .tp-dis:not(:first-child) {
   padding-block-start: var(--s3);
-  border-block-start: 1px solid var(--line);
+  border-block-start: var(--hw) solid var(--line);
 }
 .tp-dis:not(:last-child) {
   padding-block-end: var(--s3);
