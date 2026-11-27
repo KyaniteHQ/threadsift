@@ -178,6 +178,7 @@ Rows and the Reader appear when their data arrives, and the page accepts reflow 
 
 - The browser captures the new state when the view transition's update callback returns ([View Transitions, the update callback](https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition)). `flushSync` does not commit an update inside `startTransition`, so the callback writes the route through `atOnce`, which commits in the same call. Both states stay on the library screen; the Reader's Markdown chunk suspends inside the Reader's own boundary, which shows the pending Reader.
 - The row or card carries `vt-src`, and with it the shared name `lib-item`, in the old state of an open and the new state of a close. The Reader slot carries the name otherwise while a motion runs. Each captured state then holds one element under the name, because two make the browser abort the transition.
+- A browser Back or a page Reader's system back that leaves an open Item for an address outside the Items runs the same close motion. The route hands that `popstate` arrival to `takeBackClose`, unless it comes from a close's own `history.back()`.
 - An open or close during a motion starts a new run, and a late commit or end of the earlier run changes nothing.
 - An open while an Item is already open, reduced motion and a browser without the View Transitions API change the address with no motion.
 

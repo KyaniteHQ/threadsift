@@ -1,6 +1,7 @@
-import { useCallback, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 
+import { itemIdOf } from "../../src/core/contract/item-path.ts";
 import { REDUCED_MOTION } from "./jump-to-comments.ts";
 import type { Route, RouteWrites } from "./routing.ts";
 
@@ -97,6 +98,26 @@ function animate({
   void transition.finished.then(settle, settle);
 }
 
+type MoveOf = (kind: Move, key: number, change: (writes: RouteWrites) => void) => void;
+
+function useBackMotion(route: Route, move: MoveOf): void {
+  const { openId, takeBackClose } = route;
+
+  useEffect(
+    () =>
+      takeBackClose((arrived) => {
+        if (openId === null || itemIdOf(arrived) !== null) return false;
+
+        move("close", openId, (writes) => {
+          writes.show(arrived);
+        });
+
+        return true;
+      }),
+    [move, openId, takeBackClose],
+  );
+}
+
 export function useReaderMotion({
   route,
   covers,
@@ -133,6 +154,8 @@ export function useReaderMotion({
     },
     [covers, route, step],
   );
+
+  useBackMotion(route, move);
 
   const named = motion.phase !== "idle" && NAMES_ROW[motion.phase] ? motion.key : null;
 
