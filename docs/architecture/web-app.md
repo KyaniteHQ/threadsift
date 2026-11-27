@@ -4,7 +4,7 @@ The web app is a React 19 single-page app built by Vite. One static build serves
 
 Two rules shape the code:
 
-- Behaviour that needs the DOM (reader bar fitting, folding by measured height, the reading place, the keys) lives in plain TypeScript modules that take an element.
+- Behaviour that needs the DOM (Reader bar fitting, folding by measured height, the reading place, the keys) lives in plain TypeScript modules that take an element.
 - The design tokens, the component styles and the settings table are the one source of values and settings. The settings module builds the defaults, the stored-settings reader and the root attributes from the table's rows. The [spec](../spec.md) owns what each setting does.
 
 ## Contents
@@ -182,7 +182,9 @@ A reading place lives in `sessionStorage`, so each tab keeps its own. The tab ke
 
 The place anchors on `.md > *`, so a Kept comment's blocks are anchors like the post's. A block with no visible part, or whose visible part is above the reading edge, is never chosen as the anchor, and a saved anchor whose point is clipped on return scrolls to its comment's fold box.
 
-After the restore, the Reader saves the place `SAVE_DELAY_MS` after the last `scroll` event of the slot, and again when the Reader closes or the page hides. Every save reads the slot with `anchorAt` at the moment it runs, so the save while reading and the save at the close store the same place for the same scroll position. They differ only when the slot moved between the two, and the close then keeps the place the screen showed when it closed. In Chromium, focus that reaches a control of the sticky Reader bar from a script or the keyboard is such a move: the control sits inside the slot's `scroll-padding-top`, so Chromium scrolls the slot up by half its height to show it. Playwright's `click` scrolls its target into view the same way before it presses, while a mouse press, a touch tap or Escape moves nothing ([measurement](decisions-and-evidence.md#reading-place-at-a-close)).
+Once the Reader watches the slot, it saves the place `SAVE_DELAY_MS` after the last `scroll` event of the slot. It watches after the restore, or at once when the address points at a Highlight or the Note of the Item. It also saves on `pagehide`, when the Reader closes and when another Item opens. Every save measures the slot with `anchorAt` at the moment it runs. The save while reading and the save at the close therefore store the same place for the same scroll position. They differ when the slot or its layout changed between them, and the close then keeps the place the screen showed when it closed.
+
+On the page Reader in Chromium, focus that reaches a control of the sticky Reader bar scrolls the slot up by half its height. The measured cases are `focus()` on the back control, Shift+Tab from the Reader's title, and the return of focus to the gear after Escape closes Look settings. The control sits inside the slot's `scroll-padding-top`: with that padding at 0, nothing moves. Playwright's `click` moves the slot the same way, because its first attempt scrolls the target into view before it presses. A mouse press, a touch tap and an Escape that closes the Reader move nothing ([measurement](decisions-and-evidence.md#reading-place-at-a-close)).
 
 ### Post text renderer
 

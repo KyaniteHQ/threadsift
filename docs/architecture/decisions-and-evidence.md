@@ -282,17 +282,21 @@ At 100,000 Highlights the two indexes add 0.9 % to the database file, and 1,000 
 
 ## Reading place at a close
 
-Measured on 2026-11-27 on the container target in Chromium 156.0.8078.4, with a Playwright script that the repository does not keep, on one synthetic Item of 90 blocks. The script opened the Item at a width of 390 px, scrolled the Reader slot with 10 wheel steps of 400 px to `scrollTop` 4000, waited for the save while reading, closed the Reader, and read each saved place from `sessionStorage`. It then reopened the Item once from the place saved at the close and once from the place saved while reading, and read the restored `scrollTop`. Every place had offset 0, and the reopen from the place saved while reading restored 4000 in every run.
+Measured on 2026-11-27 on the container target, on an image built from commit `d6543208`, in Chromium 156.0.8078.4. The window was 390 px wide, so the Reader was the page Reader and the slot was as tall as the window. The pane Reader, the Sheet, Firefox and WebKit were not measured. A Playwright script that the repository does not keep ran as `CLOSE=<close> [HEIGHT=700] ./run.sh <image> <name>`. It saved one synthetic Item of 90 blocks and opened it. It scrolled the Reader slot with 10 wheel steps of 400 px to `scrollTop` 4000 and waited for the save while reading. It then closed the Reader and read each saved place from `sessionStorage`. Last, it reopened the Item once from the place saved at the close and once from the place saved while reading, and read the restored `scrollTop`. Every place saved while reading was block 25, fraction 0.898, offset 0, and the reopen from it restored 4000 in every run. Runs with the same close and height gave the same values.
 
-| Close | Slot height | Saved while reading | Saved at the close | Restored from the close |
+| Close | Slot height | Runs | Saved at the close | Restored from the close |
 |---|---|---|---|---|
-| Mouse press on the back control | 844 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
-| Touch tap on the back control | 844 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
-| Escape | 844 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
-| `focus()` on the back control, then Enter | 844 px | block 25, fraction 0.898 | block 24, fraction 0.016 | 3578 |
-| Playwright `click()` on the back control | 844 px | block 25, fraction 0.898 | block 24, fraction 0.016 | 3578 |
-| Mouse press on the back control | 700 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
-| Playwright `click()` on the back control | 700 px | block 25, fraction 0.898 | block 24, fraction 0.347 | 3650 |
-| `focus()` then Enter, with the slot's `scroll-padding-top` set to 0 | 844 px | block 25, fraction 0.898 | block 25, fraction 0.898 | 4000 |
+| Mouse press on the back control | 844 px | 2 | block 25, fraction 0.898, offset 0 | 4000 |
+| Touch tap on the back control | 844 px | 2 | block 25, fraction 0.898, offset 0 | 4000 |
+| Escape | 844 px | 2 | block 25, fraction 0.898, offset 0 | 4000 |
+| `focus()` on the back control, then Enter | 844 px | 2 | block 24, fraction 0.016, offset 0 | 3578 |
+| Shift+Tab from the Reader's title to the back control (5 presses), then Enter | 844 px | 1 | block 12, fraction 0, offset 11.4 | 1890 |
+| Mouse press on the gear, Escape to close Look settings, then a mouse press on the back control | 844 px | 1 | block 24, fraction 0.016, offset 0 | 3578 |
+| Playwright `click()` on the back control | 844 px | 4 | block 24, fraction 0.016, offset 0 | 3578 |
+| Mouse press on the back control | 700 px | 1 | block 25, fraction 0.898, offset 0 | 4000 |
+| `focus()` on the back control, then Enter | 700 px | 1 | block 24, fraction 0.347, offset 0 | 3650 |
+| Playwright `click()` on the back control | 700 px | 2 | block 24, fraction 0.347, offset 0 | 3650 |
+| `focus()` then Enter, with the slot's `scroll-padding-top` set to 0 | 844 px | 1 | block 25, fraction 0.898, offset 0 | 4000 |
+| Playwright `click()`, with the slot's `scroll-padding-top` set to 0 | 844 px | 1 | block 25, fraction 0.898, offset 0 | 4000 |
 
-In the runs that moved at a slot height of 844 px, the slot's `scrollTop` was already 3578 when the save at the close ran, and at the `pointerdown` of the Playwright click: 422 px, half the slot's height, above the place saved while reading. At 700 px the move was 350 px. Playwright's pointer actions send the DevTools Protocol command `DOM.scrollIntoViewIfNeeded` for their target before they press (playwright-core 1.64.1).
+Each focus that reached a control of the Reader bar moved the slot up by half its height, 422 px at 844 px and 350 px at 700 px. In the Shift+Tab run every press moved the slot again, from 4000 to 3578, 3156, 2734, 2312 and 1890. In the runs with a Playwright `click()`, the slot's `scrollTop` was already 3578 at the click's `pointerdown`. Before its first press, a Playwright pointer action sends the DevTools Protocol command `DOM.scrollIntoViewIfNeeded` for its target. Its retries call `scrollIntoView` with the alignments `end`, `center` and `start` ([`_retryPointerAction`, Playwright v1.64.1](https://github.com/microsoft/playwright/blob/v1.64.1/packages/playwright-core/src/server/dom.ts)).
