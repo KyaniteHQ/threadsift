@@ -53,7 +53,7 @@ Claude Code accepts the levels that `podman exec <container> claude --help` list
 
    Start the container with the token it prints in the `CLAUDE_CODE_OAUTH_TOKEN` environment variable. Keep `--env-file "$HOME/threadsift.env"` on the run command, because a container started without it has no secret key, and add `--env CLAUDE_CODE_OAUTH_TOKEN` beside it. Set the variable when the container starts. An export in a later `podman exec` shell does not reach the running app.
 
-4. Open Settings, choose "Claude Code on this server" as the Provider, press **Save**, then press **Verify**.
+4. Open Settings, choose "Claude Code in this container" as the Provider, press **Save**, then press **Verify**.
 
 Installing, updating or removing Claude Code needs a restart. [Claude Code's model configuration](https://code.claude.com/docs/en/model-config#model-aliases) gives the minimum version for Sonnet 5.5. If Claude Code rejects the token, Verify shows it.
 
@@ -81,7 +81,7 @@ npm 12 skips the install script unless you allow it. On npm 12, run `podman exec
 
    Codex prints a link and a code. Open the link on any device, enter the code and approve. Codex has no token variable. The login is saved in `/data/codex/auth.json` in the volume.
 
-4. Open Settings, choose "Codex on this server" as the Provider, press **Save**, then press **Verify**. Settings shows a recommendation when the installed Codex lists the recommended model and its effort. A model you type must appear in the output of `podman exec <container> codex debug models --bundled`.
+4. Open Settings, choose "Codex in this container" as the Provider, press **Save**, then press **Verify**. Settings shows a recommendation when the installed Codex lists the recommended model and its effort. A model you type must appear in the output of `podman exec <container> codex debug models --bundled`.
 
 Installing, updating or removing Codex needs a restart, because the app reads Codex's model list once at start. At most 2 AI tasks run at once across Claude Code and Codex together. The app never reads or stores the login.
 

@@ -8,10 +8,10 @@ export const AI_TEXT = {
   "provider-busy": "The Provider is busy or failing. Try Verify later.",
 
   publicUrlHelp:
-    "Use a public HTTPS address. A private address such as Ollama on your home network works only in the container.",
+    "Use a public HTTPS address. A private address, such as Ollama on your home network, works only in a container install.",
   title: "AI",
   intro:
-    "Choose a Provider and save, then run Verify for a small real Digest. It does not add an Item.",
+    "Choose a provider and save, then use Verify to run one real digest of a small sample. It doesn’t add an item.",
   provider: "Provider",
   compatible: "OpenAI-compatible URL",
   openrouter: "OpenRouter",
@@ -19,34 +19,35 @@ export const AI_TEXT = {
   openai: "OpenAI",
   xai: "xAI",
   workersAi: "Workers AI",
-  claudeCode: "Claude Code on this server",
-  codex: "Codex on this server",
+  claudeCode: "Claude Code in this container",
+  codex: "Codex in this container",
   grokBot: "Grok Bot",
-  grokBotHelp:
-    "Grok Bot runs every AI task for the library. Nothing else on this form needs filling in.",
+  grokBotHelp: "Grok Bot runs every AI task for the library. No other fields are needed.",
   grokBotFirst: GROK_BOT_FIRST,
-  grokBotLink: "Grok Bot section",
+  grokBotLink: "Go to the Grok Bot section",
   grokBotKey:
-    "No API key is needed. Grok Bot uses the address and key saved in the Grok Bot section.",
-  verifyingBot: "Waiting for bot…",
+    "No API key is needed here. Threadsift uses the address and key saved in the Grok Bot section.",
+  verifyingBot: "Waiting for Grok Bot…",
   botTimeout: `The Grok Bot did not answer in ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds. Check that the bot's routine is on and try Verify again.`,
   botBusy: "The Grok Bot answered with an error or is busy. Try Verify later.",
   workersAiHelp:
-    "Workers AI runs on this Instance's Cloudflare account. No URL or API key is needed.",
-  keyNotNeeded: "No API key needed for Workers AI.",
-  claudeCodeKeyNotNeeded: "No API key is needed. Claude Code uses its own sign-in on this server.",
+    "Workers AI runs on this instance’s Cloudflare account. It needs no URL or API key.",
+  keyNotNeeded: "No API key is needed.",
+  claudeCodeKeyNotNeeded:
+    "No API key is needed. Claude Code uses its own sign-in in this container.",
   claudeCodeModelHelp: "If you enter only an effort, Claude Code chooses the model.",
   recommendedModelHelp: "If you enter only an effort, Threadsift uses {model}.",
   claudeCodeSignedOut:
-    "Claude Code is not signed in on this server. Reload this page after signing in with",
+    "In this container, Claude Code isn’t signed in. Reload this page after signing in with",
   claudeCodeSignInCommand: "claude auth login",
   claudeCodeRejected:
     "Claude Code's sign-in was rejected. Run claude auth login on the server, or replace the token it started with, then press Verify again.",
-  codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in on this server.",
+  codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in in this container.",
   codexModelHelp:
-    "If you enter only an effort, Threadsift uses the first visible model in Codex's bundled catalog.",
-  codexCatalogHelp: "A model you enter must be listed by codex debug models --bundled.",
-  codexSignedOut: "Codex is not signed in on this server. Reload this page after signing in with",
+    "If you enter only an effort, Threadsift uses the first visible model in Codex’s bundled catalog.",
+  codexCatalogHelp: "Any model you enter must be listed by codex debug models --bundled.",
+  codexSignedOut:
+    "In this container, Codex isn’t signed in. Reload this page after signing in with",
   codexSignInCommand: "codex login --device-auth",
   codexRejected:
     "Codex's sign-in was rejected. Run codex login --device-auth on the server, then press Verify again.",
@@ -54,7 +55,7 @@ export const AI_TEXT = {
   cliChoice: "Model and effort",
   customMissing: "Enter a model or an effort.",
   recommendationFallback:
-    "The CLI uses its defaults until the recommended pair is supported again.",
+    "The installed CLI doesn’t support the recommended model and effort. It uses its defaults until it does.",
   cliChoices: {
     recommended: {
       label: "Recommended",
@@ -62,33 +63,33 @@ export const AI_TEXT = {
     },
     "cli-defaults": {
       label: "CLI defaults",
-      help: "The CLI chooses its model and effort.",
+      help: "The CLI chooses the model and effort.",
     },
     custom: {
       label: "Custom",
-      help: "You can set the model, effort or both.",
+      help: "Enter a model, an effort or both.",
     },
   },
   model: "Model",
   effort: "Effort",
-  effortHelp: "If you enter only a model, the CLI uses that model's default effort.",
+  effortHelp: "If you enter only a model, the CLI uses that model’s default effort.",
   invalidEffort:
     "This model rejects that effort and accepts only {levels}. Save one of those levels or clear Effort.",
   noEfforts: "This model accepts no effort levels. Clear Effort and press Save.",
   key: "API key",
-  keySet: "API key saved on this Instance.",
-  keyMissing: "No API key saved yet.",
-  keyChanged: "Enter an API key to save this Provider, URL and model.",
+  keySet: "An API key is saved on this instance.",
+  keyMissing: "No API key is saved yet.",
+  keyChanged: "Enter an API key to save this provider, URL and model.",
   keyUnreadable:
-    "This Instance can no longer open the saved API key. Enter the Provider's API key again and save to replace it, or restore the original THREADSIFT_SECRET_KEY and reload the page.",
+    "This instance can no longer open the saved API key. Enter the API key again and save to replace it, or restore the original THREADSIFT_SECRET_KEY and reload this page.",
   keyHelp:
-    "Leave blank to keep the saved key for the same Provider, URL and model; enter a key when changing them.",
+    "Leave blank to keep the saved key for the same provider, URL and model. Enter a key if you change any of them.",
   connect: "Connect",
   connecting: "Connecting…",
   connectHelp:
-    "Connect opens OpenRouter to make a key for this Instance and saves it like a typed key. Saving a Provider starts Digests for older Items, which spend model calls.",
+    "Connect opens OpenRouter to create a key for this instance and saves it like a key you enter here. Saving a provider starts digests for older items that have none, which uses model calls.",
   connectUnavailable:
-    "Connect is unavailable until THREADSIFT_PUBLIC_ORIGIN sets this Instance's public web address; a typed key still works.",
+    "Connect needs THREADSIFT_PUBLIC_ORIGIN set to this instance’s public web address. You can still enter an API key.",
   connectStale:
     "Settings changed since this page loaded, so Connect did not start. Reload the page and try again.",
   connectFailed: "Connect could not start. Try again.",
