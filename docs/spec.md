@@ -460,7 +460,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 
 - A self-hoster can deploy a Cloudflare Instance with the README button or run `pnpm run deploy` to deploy or update an Instance while keeping its library. The button's [live run on 2026-11-19](architecture/cloudflare-deploy-button.md#live-run-on-2026-11-19) verified owner setup, a working Reader, and a later release that kept the library.
 - A standalone repository copied from the `release` branch checks for updates weekly or on demand once the owner [sets up the workflow and its token](guides/self-hosting.md#update-a-cloudflare-copy). A failed update opens an issue in the copy.
-- The container image is published as `ghcr.io/kyanitehq/threadsift` ([CI, releases and rollback](architecture/ci-releases-and-rollback.md), Releases).
+- The container image is published as `ghcr.io/kyanitehq/threadsift`. Each release tag publishes its version, such as `1.4.2`; a stable release also moves `1.4`, `1` and `latest`, the `release` branch and the GitHub Release's Latest mark, each unless a newer stable tag exists in its range, and a release candidate moves none of them ([CI, releases and rollback](architecture/ci-releases-and-rollback.md), Releases).
 - **README.** It shows a Paste turning into a Digest and screenshots of the Reader, the Highlights page and a Topic page in three Styles. The media comes from an Instance with a library of public links. The README lists the container and Cloudflare install routes side by side.
 
 ## Hosted product (after the first release)
