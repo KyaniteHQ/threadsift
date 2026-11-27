@@ -3,6 +3,7 @@ import { createReadStream } from "node:fs";
 import {
   access as accessFile,
   constants,
+  link,
   open,
   readFile,
   readdir,
@@ -10,6 +11,7 @@ import {
   rename,
   rm,
   stat,
+  utimes,
 } from "node:fs/promises";
 import { isAbsolute, join, relative } from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -83,22 +85,84 @@ export function writable(folder: string): Promise<boolean> {
   );
 }
 
-export async function claimed(lock: string, now: number): Promise<boolean> {
+async function created(lock: string): Promise<boolean> {
   try {
     await (await open(lock, "wx")).close();
 
     return true;
   } catch (cause) {
     if (errnoCodeOf(cause) !== "EEXIST") throw cause;
+
+    return false;
   }
+}
 
-  const held = await stat(lock).catch(() => null);
+async function linked(existing: string, name: string): Promise<"linked" | "taken" | "gone"> {
+  try {
+    await link(existing, name);
 
-  if (held !== null && now - held.mtimeMs < STALE_MS) return false;
+    return "linked";
+  } catch (cause) {
+    const code = errnoCodeOf(cause);
 
-  await rm(lock, { force: true });
+    if (code === "EEXIST") return "taken";
 
-  return claimed(lock, Number.NEGATIVE_INFINITY);
+    if (code === "ENOENT") return "gone";
+
+    throw cause;
+  }
+}
+
+function touched(path: string): Promise<void> {
+  const now = new Date();
+
+  return utimes(path, now, now);
+}
+
+async function staleBreakTouched(tomb: string, now: number): Promise<false> {
+  const breaking = await stat(tomb).catch(() => null);
+
+  if (breaking !== null && now - breaking.ctimeMs >= STALE_MS) await touched(tomb);
+
+  return false;
+}
+
+async function brokenStale(
+  lock: string,
+  stale: Readonly<{ ino: bigint; mtimeNs: bigint }>,
+  now: number,
+): Promise<boolean> {
+  const tomb = `${lock}.${String(stale.ino)}-${String(stale.mtimeNs)}`;
+  const outcome = await linked(lock, tomb);
+
+  if (outcome === "taken") return staleBreakTouched(tomb, now);
+
+  if (outcome === "gone") return false;
+
+  return withCleanup(
+    { event: "grok-update-lock-not-removed", fields: {} },
+    async () => {
+      if ((await stat(tomb, { bigint: true })).ino !== stale.ino) return false;
+
+      await touched(tomb);
+      await rm(lock, { force: true });
+
+      return created(lock);
+    },
+    () => rm(tomb, { force: true }),
+  );
+}
+
+export async function claimed(lock: string, now: number): Promise<boolean> {
+  if (await created(lock)) return true;
+
+  const held = await stat(lock, { bigint: true }).catch(() => null);
+
+  if (held === null) return created(lock);
+
+  if (now - Number(held.mtimeMs) < STALE_MS) return false;
+
+  return brokenStale(lock, { ino: held.ino, mtimeNs: held.mtimeNs }, now);
 }
 
 export async function sweptStaging(folder: string, now: number): Promise<void> {
