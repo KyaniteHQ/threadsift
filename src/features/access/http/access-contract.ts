@@ -1,6 +1,7 @@
 import { createRoute } from "@hono/zod-openapi";
 
 import {
+  CallerScopesResponseSchema,
   ChangeBudgetRequestSchema,
   ChangePasswordRequestSchema,
   CreateTokenRequestSchema,
@@ -33,6 +34,8 @@ import { IdParamSchema } from "../../../http/route-input.ts";
 const errorBody = (description: string) => jsonBody(ErrorResponseSchema, description);
 
 const OWNER = access("owner");
+
+const READER = access("read");
 
 const TOO_MANY = errorBody("Too many wrong tries; `Retry-After` gives the seconds to wait.");
 
@@ -168,6 +171,20 @@ export const listTokensRoute = createRoute({
     200: jsonBody(
       TokenListResponseSchema,
       "Every token with its `scopes` and its `budget`, newest first, without its value. `budget` is `unlimited` with the Items added today, `within` with the `limit`, the Items added today and how many are `left`, or `spent` with the `limit` and the time in milliseconds when the budget starts again.",
+    ),
+  },
+});
+
+export const callerScopesRoute = createRoute({
+  method: "get",
+  path: "/api/scopes",
+  middleware: READER,
+  description: accessNote(READER),
+  responses: {
+    ...accessRefusals(READER),
+    200: jsonBody(
+      CallerScopesResponseSchema,
+      "The `scopes` the caller holds: those of the agent token it sends, or every scope for the owner's session. A client calls it once to check its address and token before it saves anything.",
     ),
   },
 });
