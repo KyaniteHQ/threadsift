@@ -9,5 +9,5 @@ export function useScreenState<Value>(initial: Value | (() => Value)) {
     });
   }, []);
 
-  return [value, show] as const;
+  return [value, show, setValue] as const;
 }

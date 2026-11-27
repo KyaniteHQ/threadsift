@@ -98,6 +98,7 @@ interface RowProps {
   readonly attended: () => void;
   readonly tryAgain: (item: Item) => void;
   readonly open: (id: number) => void;
+  readonly named: number | null;
   readonly toggleRead: (item: Item) => void;
 }
 
@@ -124,6 +125,7 @@ function ItemList({
             cardImages={shared.cardImages}
             eager={index < EAGER_ROWS}
             isOpen={item.id === shared.openId}
+            named={item.id === shared.named}
             attention={item.id === shared.attention?.id ? shared.attention : null}
             attended={shared.attended}
             tryAgain={shared.tryAgain}

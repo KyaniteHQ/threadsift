@@ -11,14 +11,14 @@ import { type Look, useRoot } from "./use-root.ts";
 import { useSessionView } from "./use-session-view.ts";
 
 export function App({ settings }: Readonly<{ settings: Look["settings"] }>) {
-  const { path, navigate, replace, leave, closeItem } = usePath();
+  const { path, navigate, replace, leave, atOnce, closeItem } = usePath();
 
   const { ref, attributes, ...look } = useRoot(closeItem, settings);
   const { view, ...session } = useSessionView();
 
   const route = useMemo(
-    () => ({ path, openId: itemIdOf(path), navigate, replace, leave }),
-    [path, navigate, replace, leave],
+    () => ({ path, openId: itemIdOf(path), navigate, replace, leave, atOnce }),
+    [path, navigate, replace, leave, atOnce],
   );
 
   const screen = screenOf(view, path);

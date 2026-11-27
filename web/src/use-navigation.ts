@@ -7,7 +7,7 @@ import type { Route } from "./routing.ts";
 import { useSharedArrival } from "./share-handoff.ts";
 import { useCardReturn } from "./use-card-return.ts";
 import { type LibraryDom, neighbour, useStep } from "./use-step.ts";
-import { changeView } from "./view-transition.ts";
+import { useReaderMotion } from "./view-transition.ts";
 
 export function useNavigation({
   list,
@@ -22,27 +22,30 @@ export function useNavigation({
   dom: LibraryDom;
   covers: boolean;
 }>) {
-  const { openId, navigate, leave } = route;
+  const { openId } = route;
   const { appOf } = dom;
   const [titleFocus, focusTitleOf] = useState<number | null>(null);
+  const { move, named } = useReaderMotion({ route, covers, appOf });
 
   const open = useCallback(
     (id: number) => {
       focusTitleOf(null);
       attend({ id, focus: !covers });
 
-      changeView(appOf(), id, covers, () => {
-        navigate(itemPath(id));
+      move("open", id, (writes) => {
+        writes.navigate(itemPath(id));
       });
     },
-    [appOf, attend, covers, navigate],
+    [attend, covers, move],
   );
 
   const close = useCallback(() => {
     if (openId === null) return;
 
-    changeView(appOf(), openId, covers, leave);
-  }, [appOf, covers, leave, openId]);
+    move("close", openId, (writes) => {
+      writes.leave();
+    });
+  }, [move, openId]);
 
   useSharedArrival(list.status === "ready", open);
 
@@ -54,5 +57,5 @@ export function useNavigation({
   const next = neighbour(list, openId, 1) !== null;
   const steps = useMemo(() => ({ previous, next }), [previous, next]);
 
-  return { open, close, step, titleFocus, steps };
+  return { open, close, step, titleFocus, steps, named };
 }

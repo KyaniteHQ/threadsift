@@ -90,7 +90,7 @@ The design tokens import no font host. Every face comes from a Fontsource packag
 The Settings, Obsidian, Import, Proposals and Log screens load through React `lazy` from one `LOADERS` table. A new lazy screen goes into `LOADERS`, which also lets the entry module start its chunk when the address names it, so a reload does not wait for the session answer first.
 
 - One `ModuleBoundary` handles only failed module loads. It shows `Unreachable` with Try again, which reloads the page.
-- Set the route and the session view only inside a transition (`useFlow` with `inTransition`). The current screen then stays until the next screen's chunk arrives, and an update outside a transition would hide it behind the fallback ([React, Suspense](https://react.dev/reference/react/Suspense)).
+- Set the route and the session view only inside a transition (`useFlow` with `inTransition`). The current screen then stays until the next screen's chunk arrives, and an update outside a transition would hide it behind the fallback ([React, Suspense](https://react.dev/reference/react/Suspense)). The Reader's open and close motion is the one exception, under Reader, Motion.
 - The Vite config has two `codeSplitting` groups. `zod` holds Zod and its jitless module, so jitless is set before any schema is built. `shared` holds each module that two chunks share, because Rolldown's automatic splitting makes one common chunk per set of importers ([Rolldown, Automatic code splitting](https://rolldown.rs/in-depth/automatic-code-splitting)) and the entry loads all of them before first paint.
 - After a change to these groups, run `pnpm build` and count the `modulepreload` links in the built `index.html`. Each one is a file that the first paint waits for.
 
@@ -171,6 +171,15 @@ Rows and the Reader appear when their data arrives, and the page accepts reflow 
 - Closing goes through the address like every other close, so Escape, the back gesture (`cancel`) and Close all end in `/`. Opening an Item pushes a history entry that records the path it came from, and j, k, Previous and Next from an open Item replace the entry. A close goes back one entry when that path was the library, and replaces the address with `/` for an Item reached directly, so browser Back never reopens a closed Item. Two fast closes go back one entry, because `history.state` keeps the old `from` until the first Back lands. `leave` holds the conditions.
 - Layout change. A change of Layout from the panel clears the open Item in the same event (`onLayoutChange`), because List opens its first unread Item on its own and, in Grid, that Item would cover the panel that just changed the Layout.
 - Paste card in Grid. From 760 px the card floats under the header, as [the design system](../../DESIGN.md) (Elevation & Depth) says. A card in the page flow would move every card down and back up on each Paste.
+
+### Motion
+
+`useReaderMotion` owns the open and close motion of a covering Reader (Grid Sheet, Grid Page and every layout under 760 px). Its state is one value, and a table holds its transitions: idle, opening, growing, closing and returning.
+
+- The browser captures the new state when the view transition's update callback returns ([View Transitions, the update callback](https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition)). `flushSync` does not commit an update inside `startTransition`, so the callback writes the route through `atOnce`, which commits in the same call. Both states stay on the library screen; the Reader's Markdown chunk suspends inside the Reader's own boundary, which shows the pending Reader.
+- The row or card carries `vt-src`, and with it the shared name `lib-item`, in the old state of an open and the new state of a close. The Reader slot carries the name otherwise while a motion runs. Each captured state then holds one element under the name, because two make the browser abort the transition.
+- An open or close during a motion starts a new run, and a late commit or end of the earlier run changes nothing.
+- An open while an Item is already open, reduced motion and a browser without the View Transitions API change the address with no motion.
 
 ### Loading and staleness
 
