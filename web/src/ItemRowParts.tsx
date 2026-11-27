@@ -20,7 +20,7 @@ import { WaitText } from "./WaitText.tsx";
 export type RowIds = Readonly<{
   title: string;
   meta: string;
-  foot: string;
+  byline: string;
   open: string;
   read: string;
   retry: string;
@@ -30,7 +30,7 @@ export function rowIds(base: string): RowIds {
   return {
     title: `${base}-title`,
     meta: `${base}-meta`,
-    foot: `${base}-foot`,
+    byline: `${base}-byline`,
     open: `${base}-open`,
     read: `${base}-read`,
     retry: `${base}-retry`,
@@ -38,11 +38,11 @@ export function rowIds(base: string): RowIds {
 }
 
 export function controlName(own: string, ids: RowIds): string {
-  return [own, ids.title, ids.meta, ids.foot].join(" ");
+  return [own, ids.title, ids.meta, ids.byline].join(" ");
 }
 
 export function linkName(ids: RowIds): string {
-  return [ids.open, ids.meta, ids.foot].join(" ");
+  return [ids.open, ids.meta, ids.byline].join(" ");
 }
 
 function showsSkeleton(item: Readonly<Item>): boolean {
@@ -129,13 +129,20 @@ export function Status({
   ids,
   tryAgain,
 }: Readonly<{ item: Item; now: number; ids: RowIds; tryAgain: (item: Item) => void }>) {
+  const byline = <Byline item={item} now={now} id={ids.byline} />;
+
   if (showsSkeleton(item)) {
-    return <Skeleton />;
+    return (
+      <>
+        <div className="it-end">{byline}</div>
+        <Skeleton />
+      </>
+    );
   }
 
   return (
     <div className="it-end">
-      <Byline item={item} now={now} id={ids.foot} />
+      {byline}
       {rejectsToken(item) ? <TokenRefused /> : null}
       {item.wait === null ? null : <Waiting wait={item.wait} />}
       {item.retry === null ? null : <Failed item={item} ids={ids} tryAgain={tryAgain} />}

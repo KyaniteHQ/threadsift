@@ -14,6 +14,19 @@ const SKELETON_ROWS = [0, 1, 2] as const;
 const EAGER_ROWS = 8;
 export const RESULTS_ID = "results";
 
+function Ghost({ row, line, title }: Readonly<{ row: string; line: string; title: string }>) {
+  return (
+    <div className={`${row} it-ghost`} aria-hidden="true">
+      <div className={line}>
+        <i />
+      </div>
+      <p className={title}>
+        <i />
+      </p>
+    </div>
+  );
+}
+
 export function Skeleton({
   label,
   row,
@@ -23,21 +36,33 @@ export function Skeleton({
     <>
       <output className="vh">{label}</output>
       {SKELETON_ROWS.map((at) => (
-        <div key={at} className={`${row} it-ghost`} aria-hidden="true">
-          <p className="it-meta">
-            <i />
-          </p>
-          <p className={title}>
-            <i />
-          </p>
-        </div>
+        <Ghost key={at} row={row} line="it-meta" title={title} />
       ))}
     </>
   );
 }
 
+function GhostItems() {
+  return SKELETON_ROWS.map((at) => (
+    <li key={at} aria-hidden="true">
+      <Ghost row="it" line="it-strip" title="it-title" />
+    </li>
+  ));
+}
+
+function LoadingNote() {
+  return <output className="vh">{LOADING_LABEL}</output>;
+}
+
 function Loading() {
-  return <Skeleton label={LOADING_LABEL} row="it" title="it-title" />;
+  return (
+    <>
+      <LoadingNote />
+      <ol className="items" aria-hidden="true">
+        <GhostItems />
+      </ol>
+    </>
+  );
 }
 
 export function Notice({
@@ -79,11 +104,13 @@ interface RowProps {
 function ItemList({
   items,
   loadedAt,
+  loadingMore,
   rows,
   shared,
 }: Readonly<{
   items: readonly Item[];
   loadedAt: number;
+  loadingMore: boolean;
   rows: RefObject<HTMLOListElement | null>;
   shared: Readonly<RowProps>;
 }>) {
@@ -105,6 +132,7 @@ function ItemList({
           />
         </li>
       ))}
+      {loadingMore ? <GhostItems /> : null}
     </ol>
   );
 }
@@ -112,7 +140,7 @@ function ItemList({
 function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) {
   return (
     <>
-      {state === "loading" ? <Loading /> : null}
+      {state === "loading" ? <LoadingNote /> : null}
       <LoadMore
         variant="column"
         more={state}
@@ -158,6 +186,7 @@ function LoadedList({
   const rows = useRef<HTMLOListElement>(null);
 
   const waiting = list.next !== null && list.more === "idle";
+  const loadingMore = list.next !== null && list.more === "loading";
   const bare = list.items.length === 0;
 
   useNearEnd(rows, list.items, waiting, more);
@@ -168,8 +197,14 @@ function LoadedList({
 
   return (
     <>
-      {bare ? null : (
-        <ItemList items={list.items} loadedAt={list.loadedAt} rows={rows} shared={shared} />
+      {bare && !loadingMore ? null : (
+        <ItemList
+          items={list.items}
+          loadedAt={list.loadedAt}
+          loadingMore={loadingMore}
+          rows={rows}
+          shared={shared}
+        />
       )}
       {list.next === null ? null : <MoreRows state={list.more} more={more} />}
     </>

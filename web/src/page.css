@@ -89,6 +89,10 @@ fieldset.fl-g {
   border-width: var(--grid-rule) 0 0 var(--grid-rule);
 }
 
+[data-layout="grid"][data-bp~="narrow"] .items {
+  gap: min(var(--grid-gap), var(--s4));
+}
+
 [data-layout="grid"] .items > li {
   display: grid;
 }
@@ -149,7 +153,6 @@ dialog.sheet::backdrop {
 }
 
 .it-fail {
-  grid-area: note;
   display: flex;
   flex-wrap: wrap;
   align-items: center;
@@ -168,7 +171,7 @@ dialog.sheet::backdrop {
 }
 
 .it-end {
-  grid-area: foot;
+  grid-area: byline;
 }
 
 .rd-bar:not(.icons) .rd-del-ic {

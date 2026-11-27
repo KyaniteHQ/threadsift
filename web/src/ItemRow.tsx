@@ -206,8 +206,11 @@ export const ItemRow = memo(function ItemRow({
         <KeptStrip item={item} id={ids.meta} />
       </div>
       <RowTitle item={item} ids={ids} link={link} isOpen={isOpen} open={open} />
-      {image === null ? null : <CardImage image={image} eager={eager} broke={setBroken} />}
-      {image === null && cardImages ? <Tile item={item} /> : null}
+      {image === null ? (
+        cardImages && <Tile item={item} />
+      ) : (
+        <CardImage image={image} eager={eager} broke={setBroken} />
+      )}
       <Status item={item} now={now} ids={ids} tryAgain={tryAgain} />
     </article>
   );

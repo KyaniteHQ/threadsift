@@ -14,15 +14,19 @@ function commentNote(item: Readonly<Item>): string | null {
   return counts === null ? null : countLabel(counts, "row");
 }
 
+function stripNamesAuthor(item: Readonly<Item>): boolean {
+  return item.kind === "github-repo" || (item.kind === "x-post" && whereOf(item).startsWith("@"));
+}
+
 function bylineHandle(item: Readonly<Item>): string {
-  return item.source === "x" || item.source === "github" ? "" : handleOf(item.source, item.author);
+  return stripNamesAuthor(item) ? "" : handleOf(item.source, item.author);
 }
 
 export function Byline({ item, now, id }: Readonly<{ item: Item; now: number; id: string }>) {
   const handle = bylineHandle(item);
 
   return (
-    <p id={id} className="it-foot">
+    <p id={id} className="it-byline">
       {handle === "" ? null : <bdi dir="auto">{handle}</bdi>}
       <SavedTime savedAt={item.savedAt} now={now} />
       {item.digestTopic === null ? null : <bdi dir="auto">{item.digestTopic}</bdi>}
@@ -32,7 +36,7 @@ export function Byline({ item, now, id }: Readonly<{ item: Item; now: number; id
 }
 
 function namesSource(item: Readonly<Item>): boolean {
-  return item.source !== "reddit" || item.community === null || commentNote(item) === null;
+  return item.source !== "reddit" || item.community === null;
 }
 
 export function keptShare(item: Readonly<Item>): number {
