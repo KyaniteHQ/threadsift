@@ -179,7 +179,7 @@ describe("the parsers turn literal input into the values the library stores", ()
         ["c4", "c2", 2, false, null],
         ["c5", "c0", 1, true, "I keep two copies."],
         ["c6", "c0", 1, true, "I check both copies."],
-        ["C7", null, 0, true, "Check the restore."],
+        ["c7", null, 0, true, "Check the restore."],
       ],
     );
   });
