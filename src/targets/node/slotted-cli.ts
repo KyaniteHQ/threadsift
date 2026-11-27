@@ -28,7 +28,7 @@ export function endRefusal(end: UnfinishedEnd) {
     case "over-cap":
       return refusedAi("no-json");
     case "spawn-failed":
-      return refusedAi("not-configured");
+      return refusedAi("cli-not-started");
     default: {
       const exhaustive: never = end;
 
