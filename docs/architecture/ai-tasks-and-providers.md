@@ -306,7 +306,7 @@ One run is one model call over one bounded batch. When the publication leaves It
 
 ### The `related_pick` task
 
-`digestWrites` opens one `related_pick` job for the Item after the Digest upsert, only when a Provider is saved, and the job waits for the Item's `digest` job. The [library wiki](../wiki.md) (Related Items) owns the candidates, the input and the writes.
+`digestWrites` opens one `related_pick` job for the Item after the Digest upsert, only when a Provider is saved, and the job waits for the Item's `digest` job. When a pick job of the Item is already open and waits on the Grok Bot, the same batch makes it due. The [library wiki](../wiki.md) (Related Items) owns the candidates, the input and the writes.
 
 - `relatedKind` sets `inputRevision` to the source's Digest task id. Its one guarded batch commits only while the Digest task ids of the source and of every sent candidate are current and the AI task is still running. Otherwise the task fails `stale` and the runner reruns the job with its stale backoff.
 - The schema allows at most 5 reasons of 160 characters, so `AI_LIST_OUTPUT_TOKENS` is far above any valid answer.
