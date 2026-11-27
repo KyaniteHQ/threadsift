@@ -139,8 +139,8 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 - The bot fetches the post, its thread, replies and media through its X connector and sends them back to `POST /api/ai-tasks/{id}/intake`. A bot that never answers ends the Item `failed`, with no fallback to another source.
 - Both readers store the thread unpublished, and a verification job publishes it when the post itself matches X's public oEmbed answer for its id; a reply, follow-up or quoted post that fails the check is left out ([Fetchers](architecture/fetchers.md), The check against X).
 - The Reader shows the post with its Author thread (the author's own chain of replies), its Quote chain (the posts it quotes, 5 at most) and its photos. A part that fails the check is left out, and a line says it was not saved.
-- Both readers rank replies by likes and keep the smallest set that accounts for 80% of the likes, between 20 and 40, plus those replies' ancestors and the author thread. When a parent is missing, the Reader groups its replies under one Context stub, and a thread with fewer replies than the post reports ends with a "Further replies were not saved" row ([Fetchers](architecture/fetchers.md), Replies kept).
-- A post X does not show ends the Item `status`, and the Reader says X does not show the post. A Link-only X Item offers Try again, and its note names the cause ([Fetchers](architecture/fetchers.md), Outcomes and notes).
+- Both readers rank replies by likes and keep the smallest set that accounts for 80% of the likes, between 20 and 40, plus those replies' ancestors and the author thread. When a parent is missing, the Reader groups its replies under one Context stub, and a thread with fewer replies than the post reports ends with a "Further replies weren’t saved." row ([Fetchers](architecture/fetchers.md), Replies kept).
+- A post X does not show ends the Item `status`, and the Reader says X does not show the post. A Link-only X Item offers Try again when its note is `cli-failed` or `x-unconfirmed`. Every note names the cause, and the other notes say what to do instead ([Fetchers](architecture/fetchers.md), Outcomes and notes).
 - A refresh that fails keeps the saved thread.
 - A Paste can carry the thread: `POST /api/items` with `{url, content}` for an X link takes one JSON text of the post and its replies (`XThreadSchema`), keeps every supplied reply, is not checked against X and stores it like a Reddit thread.
 - The Cloudflare build has no CLI and does not offer `grok-cli`, so there X needs the webhook.
@@ -161,7 +161,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 
 ### The owner's Reddit account (self-hosted builds)
 
-- An optional setting connects the owner's own Reddit account ([Connect a Reddit account](guides/reddit-account.md)). When connected, it is the first server source for a Reddit link without Extension content, before Arctic Shift, and it fetches the thread the way the Extension does, so a thread is complete and current. The setting shows when the session stops working and asks the owner to connect again. Its status line says what happens meanwhile to a Reddit link without Extension content, by the archive fill choice: filled from the archive, or kept Link-only.
+- An optional setting connects the owner's own Reddit account ([Connect a Reddit account](guides/reddit-account.md)). When connected, it is the first server source for a Reddit link without Extension content, before Arctic Shift, and it fetches the thread the way the Extension does, so a thread is complete and current. The setting shows when the session stops working and asks the owner to connect again. Its status line says what happens meanwhile to a Reddit link without Extension content, by the archive fill choice: tried from the archive, or kept Link-only.
 - Every Reddit link without Extension content uses the account: the paste box, Share, Import, a batch call, an agent token's add and the MCP `add` tool alike. An Import of many links is read one thread at a time, oldest first, and each waiting link shows the wait reason `reddit-limit` in the library.
 - A 429 or an exhausted request window makes the job wait, and after three limited attempts the fetch uses the archive fill.
 - Design: [Fetchers](architecture/fetchers.md), Reddit. Queue: [Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md).
@@ -214,7 +214,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 4. X replies follow the same rules.
 
 - The agent makes step 2 in the same call that writes the Digest, over the eligible comments that fit the Digest's input budget ([AI tasks and Providers](architecture/ai-tasks-and-providers.md), Measured Digest input budget). A comment that does not fit is not Kept, and as a parent it shows as the same stub as a comment the agent dropped. The app drops any id the agent returns that it was not shown. A caller-sent Digest names its own Kept comments, and the agent makes no choice for it.
-- Until a Digest covers the thread, the Reader shows every comment that passes step 1, as the thread, under a line that says the comments are not filtered by a Digest yet and why. The reasons are: a Digest is being made, the last Digest run failed, no Provider is saved (a Grok Bot chosen as the Provider counts as saved), a Provider is saved and the Item has no Digest yet, or the stored Digest was made from earlier text and does not cover the thread. When no Provider is saved, a link to the Settings page sits under the line.
+- Until a Digest covers the thread, the Reader shows every comment that passes step 1, as the thread, under a line that says the comments are not filtered by a Digest yet and why. The reasons are: a Digest is being made, the last Digest run failed, no Provider is saved (a Grok Bot chosen as the Provider counts as saved), a Provider is saved and the Item has no Digest yet, or the stored Digest was made from earlier text and does not cover the thread. When the reason is that no Provider is saved and the Item has no Digest, a link to the Settings page sits under the line.
 - Once a Digest covers the thread, the Kept comments, and any comment that holds an attached Highlight, show and the line goes.
 - A thread whose Digest kept none says that none of the comments added anything.
 - A thread whose stored comments all fail step 1 and that no Digest covers shows the comments heading, one line that says its comments were removed, written by bots or empty, and no thread.
@@ -249,7 +249,7 @@ Rules for the Digest:
   - the header: Source, place, author, posted and saved times, title, and for a Reddit link post the address it points at as a link that opens in a new tab, shortened by the width of the column and never by cutting the address, with no "no post text" line beside it. An X Item with an author shows the author's handle and no place, so the handle appears once;
   - the Topic, Tags, Summary and Key points;
   - for a GitHub repository, its block of description, stars, language, license, last push and topics;
-  - the post text, under a heading that names what it holds: the README for a repository, and the comment's own text for a saved Reddit comment;
+  - the post text, under a heading that names what it holds: "Original post" for a Reddit or X post, "Saved comment" for a saved Reddit comment, "README" for a repository, "Article" for an article and "Page text" for another link;
   - the comments, as the Comment filter describes;
   - the Related Items, with no heading when there are none, each with its Source, title and reason and opening that Item;
   - the Highlights list;
@@ -350,7 +350,7 @@ All five kinds are built, each with its weekly check, Reject and Accept. [Propos
 | Anthropic, OpenAI or xAI API key | yes | yes | yes |
 | Any OpenAI-compatible URL (Ollama and others) | yes | yes, at a public HTTPS address | no |
 | Workers AI | no | yes | maybe |
-| Claude Code or Codex signed in on this server | yes, when the app finds the CLI | no | no |
+| Claude Code or Codex signed in in this container | yes, when the app finds the CLI | no | no |
 | Grok Bot (the owner's plan runs every AI task: Digests, Topic overviews, Related Items, Proposals) | yes | yes | yes |
 | Sign in with ChatGPT | later | later | only after OpenAI approves it |
 
@@ -384,7 +384,7 @@ C. Intake webhook
 - The section holds the address and the key and no token. The key stays on the server, sealed, and no screen or route shows it again. Save and Remove contact no one, and Test sends one ping with no library text and costs the bot one run. A new address needs a new key. The address must be a public `https` address.
 - **The Threadsift bot:** a public Grok Bot template with one skill that saves links dropped in chat, searches the library, runs the X bookmark sync and answers Threadsift's webhook. Its [setup guide](../bot/setup.md) walks the user through adding their Threadsift URL and token. The bot's Digest reuses the library's Topic names and, when one fits, a Tag it already has, and otherwise picks its Tags itself.
 - **AI tasks:** when Grok Bot is the Provider, Threadsift sends it every AI task (a Digest, a Topic overview, a Related Items pick, the weekly Proposals) through the same webhook, and the bot posts the result back. Without Grok Bot, every model task runs on the Provider the owner picked, and the X reader choice decides who reads a fresh X link ([AI tasks and Providers](architecture/ai-tasks-and-providers.md), Grok Bot).
-- **Speed:** an X link through the webhook may take longer than a direct fetch, because the bot has to wake and run. The Item shows "waiting for Grok Bot" until the bot answers.
+- **Speed:** an X link through the webhook may take longer than a direct fetch, because the bot has to wake and run. The Item shows "Waiting for Grok Bot…" until the bot answers.
 
 ## Obsidian vault mirror
 

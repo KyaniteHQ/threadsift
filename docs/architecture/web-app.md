@@ -231,7 +231,7 @@ The section's three steps carry one link that opens GitHub's new fine-grained to
 
 ### Reddit account section
 
-For the states `none`, `expired` and `unreadable`, the Extension button leads the section as the primary action, above the paste field, whose lead line says pasting is the other way. Disconnect is allowed for `missing`, because the route needs no key. The status line of `none` and `expired` follows the archive fill choice of the section above, which `RedditSections` passes down through `ArchiveFillContext`, and it names both outcomes while that setting failed to load. The relay module posts one message with a new id to its own window and waits 3 s for the Extension's content script to say it works, then up to 35 s for the new state. The protocol is in [Extension and Threadsift bot](extension-and-threadsift-bot.md), Connect Reddit.
+For the states `none`, `expired` and `unreadable`, the Extension button leads the section as the primary action, above the paste field, whose lead line says pasting is the other way. Disconnect is allowed for `missing`, because the route needs no key. The status line of `none` and `expired` follows the archive fill choice of the section above, which `RedditSections` passes down through `ArchiveFillContext`, and while that setting failed to load it names the archive fill only as a condition, Reddit archive fill On, and states no outcome. The relay module posts one message with a new id to its own window and waits 3 s for the Extension's content script to say it works, then up to 35 s for the new state. The protocol is in [Extension and Threadsift bot](extension-and-threadsift-bot.md), Connect Reddit.
 
 ### Backup section
 

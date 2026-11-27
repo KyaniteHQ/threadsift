@@ -214,14 +214,14 @@ Both readers keep the most important replies by the 80/20 rule the owner chose. 
 - Bot intake also keeps replies that the Digest names in `keptComments` (the bot's Digest, otherwise the pending one), even below the cut, so a bot read can keep more replies than a CLI read of the same link. Verification still checks every selected reply.
 - A kept reply keeps its fetched ancestors on top of the limit, so the Reader draws the thread above it.
 - Replies with empty text or the CLI placeholder `(No text content)`, and replies whose parent id is older than the root or at least as new as the reply, are not ranked, because verification rejects them.
-- When the cut drops a fetched reply, the post's reported reply count rises to at least the replies fetched, so "Further replies were not saved" shows.
+- When the cut drops a fetched reply, the post's reported reply count rises to at least the replies fetched, so "Further replies weren’t saved." shows.
 - The cut keeps at least as many posts as the Item holds (`storedReplyCount`), because refusing a thread with fewer replies than the stored one would otherwise reject a refresh that read the same replies. The owner chose that this floor wins over the maximum, so an Item stored with more than 40 replies keeps that count.
 
 #### Partial threads
 
 A run reads a few dozen replies at most. Every X thread follows two rules, whichever route it came from.
 
-- When the post's reply count is larger than the replies in the thread, or unknown while replies exist, code (never the model) appends a `more` row, which the Reader shows as "Further replies were not saved" (`entriesOf`).
+- When the post's reply count is larger than the replies in the thread, or unknown while replies exist, code (never the model) appends a `more` row, which the Reader shows as "Further replies weren’t saved." (`entriesOf`).
 - A thread with fewer replies than the stored one never replaces it. The database decides at commit time (`holdsAtLeastStored` in each route's precondition). `publishThread` refuses a Paste with 400, and the CLI and the intake are refused with `x-fetch-refused` and `fewer-replies`. An owner who wants a smaller thread deletes the Item first.
 
 ### Quoted posts
