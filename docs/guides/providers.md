@@ -146,7 +146,7 @@ A fetch run can reach xAI's web search and page-open tools, which grok 1.0.77 ca
 
 ### When the app refuses the grok CLI
 
-The app makes one test run before the first fetch after it starts, and again whenever the installed binary changes. It refuses the CLI unless it is the checked version, 1.0.77. While it refuses, X links stay Link-only Items and Settings shows "Not proven" with the version. Install the checked version, or update Threadsift to a release that checks the newer one. Restarting the Instance only repeats the test run.
+The app makes one test run before the first fetch after it starts, and again whenever the installed binary changes. It refuses the CLI unless it is the checked version, 1.0.77. While it refuses, X links stay Link-only Items and Settings shows "Not checked" with the version. Install the checked version, or update Threadsift to a release that checks the newer one. Restarting the Instance only repeats the test run.
 
 When X cannot be reached or limits requests, Threadsift tries again a little later, up to two more times, and then leaves a Link-only Item. A reply that fails the check against X is left out, and the Item says that further replies were not saved.
 
