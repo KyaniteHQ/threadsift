@@ -6,7 +6,7 @@ import { FILTERS_BUTTON, FILTER_GROUPS } from "../web/src/text.ts";
 import { TOPIC_PAGE, itemsLabel, topicLinkLabel } from "../web/src/topic-text.ts";
 import { visitSignedOut } from "./document-checks.ts";
 import { savedTopicItem } from "./saved-item.ts";
-import { atPhoneWidth, expectTarget, openSettings } from "./screen-checks.ts";
+import { atPhoneWidth, expectTarget, openPhoneMenu } from "./screen-checks.ts";
 
 export interface TopicCase {
   readonly link: string;
@@ -27,7 +27,8 @@ export async function openIndex(
     keyPoint: "The Index reads stored rows",
   });
   await atPhoneWidth(page, async () => {
-    await openSettings(page);
+    await page.goto("/");
+    await openPhoneMenu(page);
     await Promise.all(
       [IMPORT.settingsLink, INDEX_PAGE.masthead].map((name) =>
         expectTarget(page.getByRole("link", { name, exact: true })),

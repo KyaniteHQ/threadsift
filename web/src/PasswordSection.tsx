@@ -5,6 +5,7 @@ import { FIELDS, PASSWORD, SETUP } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
 import { LENGTH_PROBLEM, checkNewPassword } from "./password-length.ts";
 import { PasswordField, UsernameHint, usePasswordVisibility } from "./PasswordField.tsx";
+import { SettingsSection } from "./SettingsSection.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useField, useSubmit } from "./use-form.ts";
 import { useLock } from "./use-lock.ts";
@@ -57,16 +58,16 @@ function usePasswordChange() {
   return { current, next, confirm, lock, visibility, outcome, ...useSubmit(run, lock.locked) };
 }
 
+export const PASSWORD_ID = "password";
+
+export const PASSWORD_LINK = { id: PASSWORD_ID, title: PASSWORD.title };
+
 export function PasswordSection() {
   const { current, next, confirm, lock, visibility, outcome, busy, onSubmit } = usePasswordChange();
   const { shown, toggle } = visibility;
 
   return (
-    <section className="sec" aria-labelledby="password-title">
-      <h2 id="password-title" className="rd-h">
-        {PASSWORD.title}
-      </h2>
-      <p>{PASSWORD.note}</p>
+    <SettingsSection id={PASSWORD_ID} title={PASSWORD.title} intro={PASSWORD.note}>
       <form className="stack" method="post" onSubmit={onSubmit}>
         <UsernameHint />
         <PasswordField
@@ -103,6 +104,6 @@ export function PasswordSection() {
           blocked={lock.locked}
         />
       </form>
-    </section>
+    </SettingsSection>
   );
 }

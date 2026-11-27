@@ -4,7 +4,9 @@ import type { Token } from "../../src/core/contract/access-wire.ts";
 import { fetchTokens } from "./access-api.ts";
 import { SETTINGS } from "./access-text.ts";
 import { Alert } from "./Alert.tsx";
+import { TOKENS_ID } from "./routing.ts";
 import type { Loaded } from "./settings-load-types.ts";
+import { SettingsSection } from "./SettingsSection.tsx";
 import { TokenForm } from "./TokenForm.tsx";
 import { TokenList } from "./TokenList.tsx";
 import { TokenReveal } from "./TokenReveal.tsx";
@@ -40,6 +42,8 @@ function useTokens(initial: Loaded<readonly Token[]>) {
   return { failed, tokens, add, remove, replace, reread };
 }
 
+export const TOKENS_LINK = { id: TOKENS_ID, title: SETTINGS.tokensTitle };
+
 export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly Token[]> }>) {
   const name = useField();
   const [revealed, setRevealed] = useState<Revealed | null>(null);
@@ -61,11 +65,7 @@ export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly T
   }, [nameRef]);
 
   return (
-    <section className="sec" aria-labelledby="tokens-title">
-      <h2 id="tokens-title" className="rd-h">
-        {SETTINGS.tokensTitle}
-      </h2>
-      <p>{SETTINGS.tokensIntro}</p>
+    <SettingsSection id={TOKENS_ID} title={SETTINGS.tokensTitle} intro={SETTINGS.tokensIntro}>
       <TokenForm name={name} created={created} reread={reread} />
       {revealed === null ? null : (
         <TokenReveal name={revealed.name} value={revealed.value} done={dismiss} />
@@ -78,6 +78,6 @@ export function TokensSection({ initial }: Readonly<{ initial: Loaded<readonly T
         reread={reread}
         nameField={nameRef}
       />
-    </section>
+    </SettingsSection>
   );
 }

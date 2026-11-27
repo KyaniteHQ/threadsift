@@ -7,7 +7,7 @@ import { CodeStep } from "./CodeStep.tsx";
 import { Command } from "./Command.tsx";
 import { useNavigate } from "./navigate-context.ts";
 import { PasswordStep } from "./PasswordStep.tsx";
-import { LIBRARY_PATH, SETTINGS_PATH } from "./routing.ts";
+import { BACKUP_SETTINGS_PATH, LIBRARY_PATH } from "./routing.ts";
 import type { SetupStep } from "./setup-step.ts";
 import { StartStep } from "./StartStep.tsx";
 
@@ -20,8 +20,6 @@ function UnavailableBlock({ reason }: Readonly<{ reason: SetupCodeProblem }>) {
     </div>
   );
 }
-
-const BACKUP_ADDRESS = `${SETTINGS_PATH}#backup`;
 
 interface Exits {
   readonly refresh: () => void;
@@ -81,7 +79,7 @@ export function SetupScreen({
       refresh,
       created,
       startEmpty: leaveTo(LIBRARY_PATH),
-      startRestore: leaveTo(BACKUP_ADDRESS),
+      startRestore: leaveTo(BACKUP_SETTINGS_PATH),
     }),
     [refresh, created, leaveTo],
   );

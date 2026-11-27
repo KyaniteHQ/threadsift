@@ -10,7 +10,7 @@ import {
   atPhoneWidth,
   expectNoSidewaysScroll,
   expectScrollEnded,
-  openSettings,
+  openFromMasthead,
 } from "./screen-checks.ts";
 
 const highlightAddress = (item: number, highlight: string): string =>
@@ -82,8 +82,7 @@ async function removeKeepingMovedFocus(page: Page, item: number, mark: Locator, 
 export async function highlightsFlow(page: Page): Promise<void> {
   const { item, oldestHighlight } = await keepHighlightsAndNote(page);
 
-  await openSettings(page);
-  await page.getByRole("link", { name: HIGHLIGHTS_PAGE.masthead, exact: true }).click();
+  await openFromMasthead(page, HIGHLIGHTS_PAGE.masthead);
   await expect(page).toHaveURL(/\/highlights$/u);
   await expect(page).toHaveTitle("Highlights, Threadsift");
   await expect(page.getByRole("heading", { level: 1, name: HIGHLIGHTS_PAGE.title })).toBeVisible();

@@ -68,6 +68,8 @@ const REDDIT_SECTION: SectionSpec<RedditSettings> = {
   Form: ArchiveFillRow,
 };
 
+export const REDDIT_SECTIONS = [REDDIT_SECTION, REDDIT_ACCOUNT_SECTION] as const;
+
 export function RedditSections({ loaded }: Readonly<{ loaded: SettingsLoad }>) {
   const { reddit } = loaded;
   const [archiveFill, setArchiveFill] = useState(

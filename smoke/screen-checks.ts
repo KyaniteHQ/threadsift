@@ -1,6 +1,7 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
-import { DISPLAY_SETTINGS_LABEL } from "../web/src/text.ts";
+import { SETTINGS } from "../web/src/access-text.ts";
+import { MENU_LABEL, ownerMenuLabel } from "../web/src/text.ts";
 
 const PHONE = { width: 390, height: 844 };
 
@@ -27,13 +28,27 @@ export async function atPhoneWidth(page: Page, steps: () => Promise<void>): Prom
   }
 }
 
-export async function openPanel(page: Page): Promise<void> {
-  await page.getByRole("button", { name: DISPLAY_SETTINGS_LABEL, exact: true }).click();
+const masthead = (page: Page) => page.getByRole("banner");
+
+export async function openOwnerMenu(page: Page): Promise<void> {
+  await masthead(page)
+    .getByRole("button", { name: ownerMenuLabel(new URL(page.url()).host), exact: true })
+    .click();
 }
 
-export async function openSettings(page: Page): Promise<void> {
+export async function openPhoneMenu(page: Page): Promise<void> {
+  await masthead(page).getByRole("button", { name: MENU_LABEL, exact: true }).click();
+}
+
+export async function openFromMasthead(page: Page, name: string): Promise<void> {
   await page.goto("/");
-  await openPanel(page);
+  await masthead(page).getByRole("link", { name, exact: true }).click();
+}
+
+export async function openInstanceSettings(page: Page): Promise<void> {
+  await page.goto("/");
+  await openOwnerMenu(page);
+  await page.getByRole("link", { name: SETTINGS.instanceSettings, exact: true }).click();
 }
 
 export async function expectNoSidewaysScroll(page: Page): Promise<void> {

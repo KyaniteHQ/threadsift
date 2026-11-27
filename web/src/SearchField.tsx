@@ -1,4 +1,4 @@
-import type { ChangeEvent, KeyboardEvent, RefObject } from "react";
+import type { ChangeEvent, KeyboardEvent, ReactNode, RefObject } from "react";
 import { useCallback, useId } from "react";
 
 import { SEARCH_MAX } from "../../src/core/contract/item-contract.ts";
@@ -34,48 +34,54 @@ function SearchHint({ hint }: Readonly<{ hint: string | null }>) {
   );
 }
 
-export function SearchField({
-  value,
-  label,
-  placeholder,
-  field,
-  search,
-  hint,
-  leave,
-}: Readonly<{
+type BoxProps = Readonly<{
   value: string;
   label: string;
   placeholder: string;
   field: RefObject<HTMLInputElement | null>;
   search: (text: string) => void;
-  hint: string | null;
   leave: () => void;
-}>) {
+}>;
+
+function SearchBox({ value, label, placeholder, field, search, leave }: BoxProps) {
   const { type, escape } = useHandlers(search, leave);
   const id = useId();
 
   return (
+    <label className="field" htmlFor={id}>
+      <span className="vh">{label}</span>
+      <Icon name="search" className="ic" />
+      <input
+        ref={field}
+        id={id}
+        type="search"
+        placeholder={placeholder}
+        autoComplete="off"
+        enterKeyHint="search"
+        spellCheck={false}
+        autoCapitalize="none"
+        autoCorrect="off"
+        maxLength={SEARCH_MAX}
+        value={value}
+        aria-keyshortcuts="/"
+        onChange={type}
+        onKeyDown={escape}
+      />
+    </label>
+  );
+}
+
+export function SearchField({
+  hint,
+  children = null,
+  ...box
+}: BoxProps & Readonly<{ hint: string | null; children?: ReactNode }>) {
+  return (
     <search className="search">
-      <label className="field" htmlFor={id}>
-        <span className="vh">{label}</span>
-        <Icon name="search" className="ic" />
-        <input
-          ref={field}
-          id={id}
-          type="search"
-          placeholder={placeholder}
-          autoComplete="off"
-          enterKeyHint="search"
-          spellCheck={false}
-          autoCapitalize="none"
-          autoCorrect="off"
-          maxLength={SEARCH_MAX}
-          value={value}
-          aria-keyshortcuts="/"
-          onChange={type}
-          onKeyDown={escape}
-        />
-      </label>
+      <div className="search-row">
+        <SearchBox {...box} />
+        {children}
+      </div>
       <SearchHint hint={hint} />
     </search>
   );

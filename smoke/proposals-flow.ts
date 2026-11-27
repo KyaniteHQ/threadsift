@@ -1,11 +1,10 @@
 import { type Page, expect } from "@playwright/test";
 
 import { PROPOSALS_PAGE, proposalsEmptyLine } from "../web/src/proposals-text.ts";
-import { atPhoneWidth, expectNoSidewaysScroll, openSettings } from "./screen-checks.ts";
+import { atPhoneWidth, expectNoSidewaysScroll, openFromMasthead } from "./screen-checks.ts";
 
 export async function proposalsFlow(page: Page): Promise<void> {
-  await openSettings(page);
-  await page.getByRole("link", { name: PROPOSALS_PAGE.masthead, exact: true }).click();
+  await openFromMasthead(page, PROPOSALS_PAGE.masthead);
   await expect(page).toHaveURL(/\/proposals$/u);
   await expect(page).toHaveTitle("Proposals, Threadsift");
   await expect(page.getByRole("heading", { level: 1, name: PROPOSALS_PAGE.title })).toBeVisible();

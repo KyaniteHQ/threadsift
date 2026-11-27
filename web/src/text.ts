@@ -127,10 +127,25 @@ export const LOADING_LABEL = "Loading items…";
 export const LOAD_MORE = "Load more";
 export const LOADING_MORE = "Loading more…";
 export const NEWEST_FIRST = "Newest first";
-export const BACK_TO_LIBRARY = "Back to library";
 export const LOAD_FAILED = "Couldn’t load items.";
 
-export const DISPLAY_SETTINGS_LABEL = "Display settings";
+export const LOOK_SETTINGS_LABEL = "Look settings";
+export const LIBRARY_LINK = "Library";
+export const PAGES_NAV_LABEL = "Library pages";
+export const MENU_LABEL = "Menu";
+export const WORDMARK_LINK_LABEL = "Threadsift, go to the library";
+export const SETTINGS_SECTIONS_LABEL = "Settings sections";
+
+const OWNER_MENU_LABEL = "{host}, Instance menu";
+const SIGNED_IN_LINE = "Signed in to {host}";
+
+export function ownerMenuLabel(host: string): string {
+  return filled(OWNER_MENU_LABEL, { host });
+}
+
+export function signedInLine(host: string): string {
+  return filled(SIGNED_IN_LINE, { host });
+}
 export const CLOSE_LABEL = "Close";
 export const RESET_LABEL = "Reset look";
 
@@ -181,13 +196,6 @@ export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
 export const AI_SETTINGS_LINK = "AI settings";
 export const CLEAR_ALL = "Clear search and filters";
 export const CLEAR_SEARCH = "Clear search";
-
-const TOTAL_NAME_ONE = "1 item in the library";
-const TOTAL_NAME_MANY = "{count} items in the library";
-
-export function totalName(count: number): string {
-  return plural(count, TOTAL_NAME_ONE, TOTAL_NAME_MANY);
-}
 
 export const EMPTY_LIST = {
   heading: "No items yet",

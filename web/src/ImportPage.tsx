@@ -1,6 +1,6 @@
 import { IMPORT } from "./import-text.ts";
 import { ListSection } from "./ListSection.tsx";
-import { PageBar } from "./PageBar.tsx";
+import { PageFrame } from "./PageFrame.tsx";
 import { ProviderNotice } from "./ProviderNotice.tsx";
 import { RedditNote } from "./RedditNote.tsx";
 import { RunSection } from "./RunSection.tsx";
@@ -16,8 +16,7 @@ export function ImportPage() {
   const finished = run.phase === "ended" && run.outcome.ending === "finished";
 
   return (
-    <div className="pg">
-      <PageBar title={IMPORT.title} />
+    <PageFrame title={IMPORT.title}>
       <main className="pg-col imp-col">
         <ListSection
           input={input}
@@ -29,6 +28,6 @@ export function ImportPage() {
         <RedditNote links={list.links} finished={finished} />
         <ProviderNotice />
       </main>
-    </div>
+    </PageFrame>
   );
 }

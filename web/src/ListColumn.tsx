@@ -2,10 +2,9 @@ import { type Filters, chosenCount, isSearching } from "./filters.ts";
 import { hasRows } from "./list-state.ts";
 import { ListBody } from "./ListBody.tsx";
 import { ListTools } from "./ListTools.tsx";
-import { Masthead } from "./Masthead.tsx";
 import { HINT_LIST } from "./reader-text.ts";
 import { RetryNotice } from "./RetryRegions.tsx";
-import { SkipButton } from "./SkipButton.tsx";
+import { Sidebar } from "./Sidebar.tsx";
 import { CLEAR_ALL, CLEAR_FILTERS, CLEAR_SEARCH, LOAD_FAILED } from "./text.ts";
 import type { LibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
@@ -59,12 +58,11 @@ export function ListColumn({
   arrived: boolean;
   openId: number | null;
 }>) {
-  const { library, side, covered, openItem, listPane, searchField } = view;
+  const { library, side, covered, openItem, searchField } = view;
 
   return (
     <div className="bg" inert={covered}>
-      <SkipButton pane={listPane} />
-      <Masthead
+      <Sidebar
         look={look}
         counts={view.counts}
         loading={library.list.status === "loading"}
@@ -89,6 +87,8 @@ export function ListColumn({
           look.reader !== "pane" || (openItem !== null && side.reader.hintInBar) ? null : HINT_LIST
         }
         leave={side.leaveSearch}
+        layout={look.settings.layout}
+        pick={look.pick}
       />
       <LibraryList view={view} look={look} openId={openId} />
     </div>

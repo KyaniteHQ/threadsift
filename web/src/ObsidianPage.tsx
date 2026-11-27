@@ -3,16 +3,13 @@ import { Alert } from "./Alert.tsx";
 import { fetchObsidian } from "./obsidian-api.ts";
 import { OBSIDIAN_TEXT as TEXT } from "./obsidian-text.ts";
 import { ObsidianForm } from "./ObsidianForm.tsx";
-import { PageBar } from "./PageBar.tsx";
+import { PageFrame } from "./PageFrame.tsx";
 import { PageGhost } from "./PageGhost.tsx";
-import { SETTINGS_PATH } from "./routing.ts";
 import type { Loaded } from "./settings-load-types.ts";
 import { useRead } from "./use-read.ts";
 import { useLoaded } from "./use-settings-load.ts";
 
 const FAILED: Loaded<VaultView> = { kind: "failed" };
-
-const SETTINGS_BACK = { href: SETTINGS_PATH, label: TEXT.backToSettings };
 
 function ObsidianLoaded({ initial }: Readonly<{ initial: Loaded<VaultView> }>) {
   const { loaded, ready } = useLoaded(initial);
@@ -38,11 +35,10 @@ export function ObsidianPage() {
   const loaded = useRead<Loaded<VaultView> | null>(readObsidian, null, FAILED);
 
   return (
-    <div className="pg">
-      <PageBar title={TEXT.title} backLink={SETTINGS_BACK} />
+    <PageFrame title={TEXT.title} back="settings">
       <main className="pg-col" aria-busy={loaded === null}>
         {loaded === null ? <PageGhost /> : <ObsidianLoaded initial={loaded} />}
       </main>
-    </div>
+    </PageFrame>
   );
 }

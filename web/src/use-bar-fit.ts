@@ -3,7 +3,7 @@ import { flushSync } from "react-dom";
 
 import { type BarSteps, fitBar } from "./bar-fit.ts";
 
-function watchBar(bar: HTMLElement, refit: (observed: boolean) => void): () => void {
+export function watchBar(bar: HTMLElement, refit: (observed: boolean) => void): () => void {
   const observer = new ResizeObserver(() => {
     refit(true);
   });

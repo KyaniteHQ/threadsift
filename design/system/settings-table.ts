@@ -1,4 +1,4 @@
-export const GROUPS = ["View", "Reading", "Accent, tags and cards"] as const;
+export const GROUPS = ["Reading", "Overall look", "Items, tags and comments"] as const;
 
 export interface Option {
   readonly id: string;
@@ -11,7 +11,7 @@ interface Setting {
   readonly label: string;
   readonly attribute: `data-${string}`;
   readonly kind: "segments" | "select" | "swatches";
-  readonly group: (typeof GROUPS)[number];
+  readonly group?: (typeof GROUPS)[number];
   readonly onPage?: boolean;
   readonly setByStyle?: boolean;
   readonly look: boolean;
@@ -42,57 +42,22 @@ export const THEME = setting({
   ],
 });
 
+export const LAYOUT = setting({
+  key: "layout",
+  onPage: true,
+  label: "Layout",
+  attribute: "data-layout",
+  kind: "segments",
+  look: false,
+  default: "list",
+  options: [
+    { id: "list", label: "List" },
+    { id: "grid", label: "Grid" },
+  ],
+});
+
 export const SETTINGS = [
-  setting({
-    key: "layout",
-    onPage: true,
-    label: "Layout",
-    attribute: "data-layout",
-    kind: "segments",
-    group: "View",
-    look: false,
-    default: "list",
-    options: [
-      { id: "list", label: "List" },
-      { id: "grid", label: "Grid" },
-    ],
-  }),
-  setting({
-    key: "openAs",
-    label: "Open items as",
-    attribute: "data-open-as",
-    kind: "segments",
-    group: "View",
-    look: false,
-    default: "page",
-    options: [
-      { id: "page", label: "Page" },
-      { id: "sheet", label: "Sheet" },
-    ],
-  }),
-  setting({
-    key: "style",
-    onPage: true,
-    label: "Style",
-    attribute: "data-style",
-    kind: "select",
-    group: "Reading",
-    look: true,
-    default: "library",
-    options: [
-      { id: "library", label: "Library" },
-      { id: "anthropic", label: "Anthropic" },
-      { id: "slash", label: "Slash" },
-      { id: "modal", label: "Modal" },
-      { id: "mymind", label: "mymind" },
-      { id: "monocle", label: "Monocle" },
-      { id: "linear", label: "Linear" },
-      { id: "switch-lit", label: "Switch-Lit" },
-      { id: "cursor", label: "Cursor" },
-      { id: "steep", label: "Steep" },
-      { id: "cal-com", label: "Cal.com" },
-    ],
-  }),
+  LAYOUT,
   THEME,
   setting({
     key: "font",
@@ -141,31 +106,26 @@ export const SETTINGS = [
     ],
   }),
   setting({
-    key: "density",
-    label: "Density",
-    attribute: "data-density",
-    kind: "segments",
-    group: "Reading",
+    key: "style",
+    onPage: true,
+    label: "Style",
+    attribute: "data-style",
+    kind: "select",
+    group: "Overall look",
     look: true,
-    default: "compact",
+    default: "library",
     options: [
-      { id: "compact", label: "Compact" },
-      { id: "comfortable", label: "Comfortable" },
-      { id: "roomy", label: "Roomy" },
-    ],
-  }),
-  setting({
-    key: "comments",
-    label: "Comment style",
-    attribute: "data-comments",
-    kind: "segments",
-    group: "Reading",
-    look: true,
-    default: "lines",
-    options: [
-      { id: "lines", label: "Indented lines" },
-      { id: "cards", label: "Cards" },
-      { id: "rail", label: "Rail" },
+      { id: "library", label: "Library" },
+      { id: "anthropic", label: "Anthropic" },
+      { id: "slash", label: "Slash" },
+      { id: "modal", label: "Modal" },
+      { id: "mymind", label: "mymind" },
+      { id: "monocle", label: "Monocle" },
+      { id: "linear", label: "Linear" },
+      { id: "switch-lit", label: "Switch-Lit" },
+      { id: "cursor", label: "Cursor" },
+      { id: "steep", label: "Steep" },
+      { id: "cal-com", label: "Cal.com" },
     ],
   }),
   setting({
@@ -174,7 +134,7 @@ export const SETTINGS = [
     label: "Accent",
     attribute: "data-accent",
     kind: "swatches",
-    group: "Accent, tags and cards",
+    group: "Overall look",
     look: true,
     default: "moss",
     options: [
@@ -186,11 +146,38 @@ export const SETTINGS = [
     ],
   }),
   setting({
+    key: "density",
+    label: "Density",
+    attribute: "data-density",
+    kind: "segments",
+    group: "Overall look",
+    look: true,
+    default: "compact",
+    options: [
+      { id: "compact", label: "Compact" },
+      { id: "comfortable", label: "Comfortable" },
+      { id: "roomy", label: "Roomy" },
+    ],
+  }),
+  setting({
+    key: "images",
+    label: "Card images",
+    attribute: "data-images",
+    kind: "segments",
+    group: "Items, tags and comments",
+    look: true,
+    default: "on",
+    options: [
+      { id: "on", label: "On" },
+      { id: "off", label: "Off" },
+    ],
+  }),
+  setting({
     key: "tags",
     label: "Tag style",
     attribute: "data-tags",
     kind: "segments",
-    group: "Accent, tags and cards",
+    group: "Items, tags and comments",
     look: true,
     default: "dots",
     options: [
@@ -200,16 +187,30 @@ export const SETTINGS = [
     ],
   }),
   setting({
-    key: "images",
-    label: "Card images",
-    attribute: "data-images",
+    key: "comments",
+    label: "Comment style",
+    attribute: "data-comments",
     kind: "segments",
-    group: "Accent, tags and cards",
+    group: "Items, tags and comments",
     look: true,
-    default: "on",
+    default: "lines",
     options: [
-      { id: "on", label: "On" },
-      { id: "off", label: "Off" },
+      { id: "lines", label: "Indented lines" },
+      { id: "cards", label: "Cards" },
+      { id: "rail", label: "Rail" },
+    ],
+  }),
+  setting({
+    key: "openAs",
+    label: "Open items as",
+    attribute: "data-open-as",
+    kind: "segments",
+    group: "Items, tags and comments",
+    look: false,
+    default: "page",
+    options: [
+      { id: "page", label: "Page" },
+      { id: "sheet", label: "Sheet" },
     ],
   }),
 ] as const;

@@ -3,7 +3,7 @@ import { type Page, expect } from "@playwright/test";
 import { SETTINGS } from "../web/src/access-text.ts";
 import { REDDIT_ACCOUNT_TEXT } from "../web/src/reddit-account-text.ts";
 import { REDDIT_TEXT } from "../web/src/reddit-text.ts";
-import { expectFitsPhone, openSettings } from "./screen-checks.ts";
+import { expectFitsPhone, openInstanceSettings } from "./screen-checks.ts";
 
 const SESSION = "a-smoke-session-value.that_is-not-real";
 
@@ -26,8 +26,7 @@ async function pickArchiveFill(page: Page, option: string, note: string): Promis
 }
 
 export async function redditAccountFlow(page: Page): Promise<void> {
-  await openSettings(page);
-  await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
+  await openInstanceSettings(page);
   await expect(page.getByRole("heading", { name: REDDIT_ACCOUNT_TEXT.sectionTitle })).toBeVisible();
   await expect(page.getByText(REDDIT_ACCOUNT_TEXT.stateNoneFilled)).toBeVisible();
   await pickArchiveFill(page, REDDIT_TEXT.optionOff, REDDIT_TEXT.stateOff);

@@ -6,19 +6,14 @@ import { LoadedSection } from "./LoadedSection.tsx";
 import { PasswordSection } from "./PasswordSection.tsx";
 import { RedditSections } from "./RedditSection.tsx";
 import type { SettingsLoad } from "./settings-load-types.ts";
-import { SignOutSection } from "./SignOutSection.tsx";
 import { TokensSection } from "./TokensSection.tsx";
 import { X_SECTION, useXRefresh } from "./XSection.tsx";
 
-export function SettingsSections({
-  loaded,
-  loggedOut,
-}: Readonly<{ loaded: SettingsLoad; loggedOut: () => void }>) {
+export function SettingsSections({ loaded }: Readonly<{ loaded: SettingsLoad }>) {
   const { x, version, refresh } = useXRefresh(loaded.x);
 
   return (
     <>
-      <SignOutSection loggedOut={loggedOut} />
       <PasswordSection />
       <LoadedSection {...AI_SECTION} initial={loaded.ai} />
       <LoadedSection key={version} {...X_SECTION} initial={x} />

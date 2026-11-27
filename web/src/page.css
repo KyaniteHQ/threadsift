@@ -82,7 +82,7 @@ fieldset.fl-g {
 [data-layout="grid"] .items {
   grid-column: 1 / -1;
   display: grid;
-  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(var(--card-min), 100%), 1fr));
   align-items: var(--grid-align);
   gap: var(--grid-gap);
   border: 0 solid var(--line);
