@@ -23,7 +23,8 @@ describe("removing the Grok Bot settings is refused while Grok Bot is the Provid
 
     assert.equal(answer.status, 409);
     assert.deepEqual(JSON.parse(answer.body), {
-      error: "Grok Bot is the Provider, so pick and save another Provider in the AI section first.",
+      error:
+        "Can’t remove the Grok Bot while it is set as the provider. Pick and save another provider in the AI section first.",
       code: "in-use",
     });
     assert.equal(usedAsProvider(instance), true);
