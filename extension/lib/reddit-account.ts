@@ -15,8 +15,10 @@ import {
   instanceAnswer,
   instanceRequest,
 } from "./config.ts";
+import { loadConfig } from "./credentials.ts";
 import { logFailure } from "./log.ts";
 import { oneAtATime } from "./one-at-a-time.ts";
+import type { RedditAnswer, RedditRequest } from "./state.ts";
 
 const accountWrites = oneAtATime();
 
@@ -50,12 +52,12 @@ async function call(
     body?: z.input<typeof RedditSessionInputSchema>;
   }>,
 ): Promise<RedditConnectState> {
-  const response = await instanceRequest(config, "/api/reddit-account", {
+  const reply = await instanceRequest(config, "/api/reddit-account", {
     ...request,
     event: "reddit-account-request-failed",
   });
 
-  return response === null ? "unreachable" : stateOf(response);
+  return reply.kind === "unreached" ? "unreachable" : stateOf(reply.response);
 }
 
 type Cookie = { readonly value: string } | { readonly state: "signed-out" | "failed" };
@@ -117,4 +119,16 @@ export function connectReddit(config: Readonly<Config> | null): Promise<RedditCo
 
 export function disconnectReddit(config: Readonly<Config> | null): Promise<RedditConnectState> {
   return accountWrites(() => disconnectNow(config));
+}
+const REDDIT_CALLS = {
+  read: readRedditState,
+  connect: connectReddit,
+  disconnect: disconnectReddit,
+} as const satisfies Record<
+  RedditRequest["kind"],
+  (config: Config | null) => Promise<RedditAnswer["state"]>
+>;
+
+export async function answerReddit({ kind }: Readonly<RedditRequest>): Promise<RedditAnswer> {
+  return { state: await REDDIT_CALLS[kind](await loadConfig()) };
 }

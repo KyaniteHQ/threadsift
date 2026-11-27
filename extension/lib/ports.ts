@@ -9,3 +9,5 @@ export const SETTINGS_PORT = "settings";
 export const REDDIT_PORT = "reddit";
 
 export const RELAY_PORT = "relay";
+
+export const CHECK_PORT = "check";

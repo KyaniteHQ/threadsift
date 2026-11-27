@@ -21,6 +21,14 @@ export const TEXT = {
     "Couldn’t save this page. The saved agent token reached its daily budget. You can raise it with Change budget under Agent tokens in Threadsift’s Settings. Otherwise, saving works again after 00:00 UTC.",
   threadKept: "Couldn’t read this Reddit thread. The saved item in Threadsift stays as it was.",
   unreachable: "Couldn’t reach your Threadsift address. Check the address and your connection.",
+  nameNotFound:
+    "Couldn’t save this page. The browser couldn’t find the Threadsift address’s name. Check your network and the address in Threadsift extension settings.",
+  connectionRefused:
+    "Couldn’t save this page. Nothing at the Threadsift address accepted the connection. Check that Threadsift is running.",
+  timedOut:
+    "Couldn’t save this page. The Threadsift address didn’t answer in time. Try again in a moment.",
+  certificateRefused:
+    "Couldn’t save this page. The browser refused the Threadsift address’s security certificate. Check the certificate for that address.",
   failed: "Couldn’t save this page.",
   tryAgain: "Try again",
   settingsTitle: "Threadsift extension settings",
@@ -34,10 +42,29 @@ export const TEXT = {
     "Create one with the Read and Add scopes under Agent tokens in Threadsift’s Settings. Include the Reddit scope to connect a Reddit account.",
   tokenMissing: "Enter an agent token.",
   saveSettings: "Save settings",
-  settingsSaved: "Settings saved",
+  settingsChecking: "Settings saved. Checking the address…",
+  checkWorks: "Settings saved. Your Threadsift instance answered, and the agent token works.",
+  checkNameNotFound:
+    "Settings saved. The browser couldn’t find the address’s name. Check the spelling of the address and whether your network can look it up.",
+  checkConnectionRefused:
+    "Settings saved. Nothing at that address accepted the connection. Check that Threadsift is running there and the port in the address is right.",
+  checkTimedOut:
+    "Settings saved. The address didn’t answer in time. Check the address and your connection, then try Save settings again.",
+  checkCertificateRefused:
+    "Settings saved. The browser refused the address’s security certificate, so it sent nothing. Check the address and its certificate.",
+  checkUnreachable:
+    "Settings saved. Couldn’t connect to the address. Check the address and your connection.",
+  checkNotInstance:
+    "Settings saved. Something answered at that address, but it isn’t a Threadsift instance. Check that the address is your instance’s own and accepts agent tokens.",
+  checkTokenRefused:
+    "Settings saved. Threadsift rejected the agent token because it is wrong or was revoked. Enter a new one.",
+  checkScopeRefused:
+    "Settings saved. The agent token needs the Read and Add scopes. Create a token with them under Agent tokens in Threadsift’s Settings, then enter it here.",
+  checkFailed:
+    "Settings saved. Couldn’t finish checking the address. Try Save settings again later.",
   settingsNotSaved: "Couldn’t save the settings, so nothing changed. Try again.",
-  oldAccessKept:
-    "Settings saved. The browser couldn’t remove the extension’s access to the previous address. You can remove it in the browser’s extension settings.",
+  accessNotRemoved:
+    "The browser couldn’t remove the extension’s access to the previous address. You can remove it in the browser’s extension settings.",
   accessKeptNotSaved:
     "Couldn’t save the settings. The browser also couldn’t remove the extension’s access to that address. You can remove it in the browser’s extension settings.",
   settingsUnreadable: "Couldn’t load the settings. Reload the page.",

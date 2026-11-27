@@ -1,10 +1,18 @@
 import { exclusive, reconcileAccess } from "./access.ts";
+import { checkAddress } from "./address-check.ts";
 import { instanceOrigin } from "./config.ts";
 import { syncScripts } from "./content-scripts.ts";
-import { loadConfigView, storeConfig, storeFill, storeOrigin, stored } from "./credentials.ts";
+import {
+  loadConfig,
+  loadConfigView,
+  storeConfig,
+  storeFill,
+  storeOrigin,
+  stored,
+} from "./credentials.ts";
 import { cancelFills } from "./fill.ts";
 import { logFailure } from "./log.ts";
-import type { ChangeAnswer, SettingsRequest } from "./state.ts";
+import type { ChangeAnswer, CheckAnswer, SettingsRequest } from "./state.ts";
 
 async function write(request: Readonly<SettingsRequest>): Promise<void> {
   if (request.kind === "fill") {
@@ -53,4 +61,8 @@ export function changeSettings(request: Readonly<SettingsRequest>): Promise<Chan
 
     return { stored: await loadConfigView(), write: written, access };
   });
+}
+
+export async function checkSettings(): Promise<CheckAnswer> {
+  return { reach: await checkAddress(await loadConfig()) };
 }

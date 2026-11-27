@@ -1,12 +1,12 @@
 import { type Browser, browser } from "wxt/browser";
 
 import { WORKER_WORKING } from "../../src/core/contract/reddit-relay-contract.ts";
-import { changeSettings } from "./change.ts";
-import type { Config } from "./config.ts";
+import { changeSettings, checkSettings } from "./change.ts";
 import { loadConfig, loadConfigView } from "./credentials.ts";
 import { fillOpenedThread } from "./fill.ts";
 import { logFailure } from "./log.ts";
 import {
+  CHECK_PORT,
   CONFIG_PORT,
   FILL_PORT,
   REDDIT_PORT,
@@ -14,18 +14,18 @@ import {
   SAVE_PORT,
   SETTINGS_PORT,
 } from "./ports.ts";
-import { connectReddit, disconnectReddit, readRedditState } from "./reddit-account.ts";
+import { answerReddit, connectReddit } from "./reddit-account.ts";
 import { serveSave } from "./save-port.ts";
 import {
   type ChangeAnswer,
+  type CheckAnswer,
   type ConfigView,
   type RedditAnswer,
-  type RedditRequest,
   RedditRequestSchema,
   SettingsRequestSchema,
 } from "./state.ts";
 
-type Answer = ConfigView | ChangeAnswer | RedditAnswer;
+type Answer = ConfigView | ChangeAnswer | CheckAnswer | RedditAnswer;
 
 type Port = Browser.runtime.Port;
 
@@ -37,19 +37,6 @@ async function serve(port: Port, compute: () => Promise<Answer>): Promise<void> 
     logFailure(`${port.name}-answer-failed`, cause);
     port.disconnect();
   }
-}
-
-const REDDIT_CALLS = {
-  read: readRedditState,
-  connect: connectReddit,
-  disconnect: disconnectReddit,
-} as const satisfies Record<
-  RedditRequest["kind"],
-  (config: Config | null) => Promise<RedditAnswer["state"]>
->;
-
-async function reddit({ kind }: Readonly<RedditRequest>): Promise<RedditAnswer> {
-  return { state: await REDDIT_CALLS[kind](await loadConfig()) };
 }
 
 async function relayed(
@@ -98,6 +85,9 @@ export function servePort(port: Port): void {
     case CONFIG_PORT:
       void serve(port, loadConfigView);
       break;
+    case CHECK_PORT:
+      void serve(port, checkSettings);
+      break;
     case SETTINGS_PORT:
       port.onMessage.addListener((message) => {
         void serve(port, () => changeSettings(SettingsRequestSchema.parse(message)));
@@ -105,7 +95,7 @@ export function servePort(port: Port): void {
       break;
     case REDDIT_PORT:
       port.onMessage.addListener((message) => {
-        void serve(port, () => reddit(RedditRequestSchema.parse(message)));
+        void serve(port, () => answerReddit(RedditRequestSchema.parse(message)));
       });
       break;
     case FILL_PORT:

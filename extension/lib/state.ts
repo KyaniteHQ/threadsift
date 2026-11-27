@@ -2,6 +2,7 @@ import { browser } from "wxt/browser";
 import { z } from "zod";
 
 import { REDDIT_CONNECT_STATES } from "../../src/core/contract/reddit-relay-contract.ts";
+import { UNREACHED } from "./unreached.ts";
 
 export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("saving") }),
@@ -18,7 +19,7 @@ export const SaveStateSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("unsupported-link") }),
   z.object({ kind: z.literal("thread-kept") }),
   z.object({ kind: z.literal("budget-spent") }),
-  z.object({ kind: z.literal("unreachable") }),
+  z.object({ kind: z.enum(UNREACHED) }),
   z.object({ kind: z.literal("failed") }),
 ]);
 
@@ -48,6 +49,21 @@ export const ChangeAnswerSchema = z.object({
 });
 
 export type ChangeAnswer = z.infer<typeof ChangeAnswerSchema>;
+
+export const REACHES = [
+  "works",
+  ...UNREACHED,
+  "not-instance",
+  "token-refused",
+  "scope-refused",
+  "check-failed",
+] as const;
+
+export type Reach = (typeof REACHES)[number];
+
+export const CheckAnswerSchema = z.object({ reach: z.enum(REACHES) });
+
+export type CheckAnswer = z.infer<typeof CheckAnswerSchema>;
 
 export const RedditRequestSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("read") }),

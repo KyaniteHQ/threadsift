@@ -1,28 +1,40 @@
 import { browser } from "wxt/browser";
 
+import { INSTANCE_CALL_DEADLINE_MS } from "../../src/core/contract/reddit-relay-contract.ts";
 import { hostPattern, instanceOrigin, requestAccess } from "./config.ts";
 import { logFailure } from "./log.ts";
-import { CONFIG_PORT, SETTINGS_PORT } from "./ports.ts";
+import { CHECK_PORT, CONFIG_PORT, SETTINGS_PORT } from "./ports.ts";
 import {
   ANSWER_DEADLINE_MS,
   type ChangeAnswer,
   ChangeAnswerSchema,
+  CheckAnswerSchema,
   type ConfigView,
   ConfigViewSchema,
+  type Reach,
   type SettingsRequest,
   ask,
 } from "./state.ts";
+import { ERROR_EVENT_WAIT_MS } from "./unreached.ts";
+
+const CHECK_DEADLINE_MS = INSTANCE_CALL_DEADLINE_MS + ERROR_EVENT_WAIT_MS + ANSWER_DEADLINE_MS;
 
 export type Refusal = "address" | "token" | "access";
 
-export type Failure = "not-saved" | "old-access-kept" | "not-saved-access-kept";
+export type Failure = "not-saved" | "not-saved-access-kept";
 
 export type SettingsState =
   | { readonly kind: "loading" }
   | { readonly kind: "unreadable" }
   | { readonly kind: "idle"; readonly stored: ConfigView }
   | { readonly kind: "saving"; readonly stored: ConfigView }
-  | { readonly kind: "saved"; readonly stored: ConfigView }
+  | { readonly kind: "checking"; readonly stored: ConfigView; readonly accessKept: boolean }
+  | {
+      readonly kind: "checked";
+      readonly stored: ConfigView;
+      readonly reach: Reach;
+      readonly accessKept: boolean;
+    }
   | { readonly kind: "refused"; readonly stored: ConfigView; readonly reason: Refusal }
   | { readonly kind: "failed"; readonly stored: ConfigView; readonly step: Failure };
 
@@ -66,18 +78,12 @@ export function loadSettings(): Promise<SettingsState> {
   return readState((stored) => ({ kind: "idle", stored }));
 }
 
-function failureOf({ write, access }: Readonly<ChangeAnswer>): Failure | null {
-  if (write === "done") return access === "kept" ? "old-access-kept" : null;
+function stateOf({ stored, write, access }: Readonly<ChangeAnswer>): SettingsState {
+  const accessKept = access === "kept";
 
-  return access === "kept" ? "not-saved-access-kept" : "not-saved";
-}
+  if (write === "done") return { kind: "checking", stored, accessKept };
 
-function stateOf(answer: Readonly<ChangeAnswer>): SettingsState {
-  const step = failureOf(answer);
-
-  return step === null
-    ? { kind: "saved", stored: answer.stored }
-    : { kind: "failed", stored: answer.stored, step };
+  return { kind: "failed", stored, step: accessKept ? "not-saved-access-kept" : "not-saved" };
 }
 
 function notSaved(): Promise<SettingsState> {
@@ -100,7 +106,11 @@ export async function saveSettings(
   if (tokenMissing(stored, token)) return { kind: "refused", stored, reason: "token" };
 
   const granted = await requestAccess(
-    () => browser.permissions.request({ origins: [hostPattern(origin)] }),
+    () =>
+      browser.permissions.request({
+        permissions: ["webRequest"],
+        origins: [hostPattern(origin)],
+      }),
     "settings-request-failed",
   );
 
@@ -115,4 +125,21 @@ export async function saveSettings(
   });
 
   return answer === null ? { kind: "unreadable" } : stateOf(answer);
+}
+
+async function askReach(): Promise<Reach> {
+  try {
+    return (await ask(CHECK_PORT, CheckAnswerSchema, { deadlineMs: CHECK_DEADLINE_MS })).reach;
+  } catch (cause) {
+    logFailure("address-check-unanswered", cause);
+
+    return "check-failed";
+  }
+}
+
+export async function checkSaved({
+  stored,
+  accessKept,
+}: Readonly<Extract<SettingsState, { kind: "checking" }>>): Promise<SettingsState> {
+  return { kind: "checked", stored, reach: await askReach(), accessKept };
 }

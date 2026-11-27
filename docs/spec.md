@@ -68,7 +68,9 @@ Threadsift has two aims:
 - With "Fill saved Reddit items" on, opening a Link-only Reddit Item's thread fills that Item.
 - In the self-hosted builds, the Extension's Connect Reddit button connects the owner's Reddit account ([Connect a Reddit account](guides/reddit-account.md)).
 - The owner enters the Instance's address and an agent token on the Extension's settings page, and the browser asks permission for that one host when the address is saved.
-- The Extension holds only the `activeTab`, `scripting` and `storage` permissions, and asks for more only for the two Reddit features ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Permissions). It saves one page per click and never crawls.
+- After it saves them, the settings page sends one request with that address and token and says what came back: the address and the token work, the name was not found, the connection was refused or timed out, the certificate was refused, the address is not a Threadsift Instance, the token was refused, or the token lacks the Read and Add scopes ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Check the address at Save settings). When the check fails, the fields keep what the owner typed.
+- When a save cannot reach the Instance, the popup names the cause the browser reports: the name was not found, the connection was refused or timed out, or the certificate was refused. Without a reported cause it says it could not reach the address.
+- The Extension holds only the `activeTab`, `scripting` and `storage` permissions. It asks for `webRequest` with the Instance's host at Save settings, to read why a call to the Instance failed, and for more only for the two Reddit features ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Permissions). It saves one page per click and never crawls.
 
 ## Settings, look and layout
 

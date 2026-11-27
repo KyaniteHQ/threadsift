@@ -16,14 +16,14 @@ export function cancelFills(): void {
 }
 
 async function isWaiting(config: Readonly<Config>, url: string): Promise<boolean> {
-  const response = await instanceRequest(config, `/api/items?${new URLSearchParams({ url })}`, {
+  const reply = await instanceRequest(config, `/api/items?${new URLSearchParams({ url })}`, {
     method: "GET",
     event: "fill-lookup-failed",
   });
 
-  if (response === null || !response.ok) return false;
+  if (reply.kind === "unreached" || !reply.response.ok) return false;
 
-  const listed = await instanceAnswer(response, ListedSchema);
+  const listed = await instanceAnswer(reply.response, ListedSchema);
 
   return listed?.items.some(({ fillable }) => fillable) === true;
 }
