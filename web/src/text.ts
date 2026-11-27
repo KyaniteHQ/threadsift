@@ -1,9 +1,9 @@
 import type { FetchFailure } from "../../src/core/contract/fetch-results.ts";
-import { groupedNumber } from "../../src/core/contract/format.ts";
 import type { FailureReason, ReadState, Source } from "../../src/core/contract/item-contract.ts";
 import type { WaitReason } from "../../src/core/contract/job-contract.ts";
 import type { XReadNote } from "../../src/core/contract/x-read-note.ts";
 import { filled } from "./filled.ts";
+import { plural } from "./plural.ts";
 import { type XNoticeKey, X_NOTICES } from "./x-text.ts";
 
 export const PASTE_LABEL = "Link to add";
@@ -30,8 +30,7 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
   empty: "Paste a link first.",
   invalid: "Links must start with https:// or http://.",
   failed: "Couldn’t save this link.",
-  restoring:
-    "Couldn’t save this link while a restore is running. Paste it again after the restore finishes.",
+  restoring: "Couldn’t save during a restore",
   refused:
     "Saved without a title. This link leads to an address that isn’t reachable from the public internet.",
   unsupported: "Saved without a title. This link redirected to an address that isn’t a web page.",
@@ -47,12 +46,16 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
     "Couldn’t update this item because GitHub rejected the saved token. Replace or remove the token in Settings, then paste the link again.",
   ...X_NOTICES,
   "title-kept": "Couldn’t read a new title. The saved one was kept.",
-  private: "This link can’t be saved. Its address isn’t reachable from the public internet.",
+  private: "Can’t save this link",
+};
+
+export const NOTICE_DETAILS: Readonly<Partial<Record<NoticeKey, string>>> = {
+  restoring: "Nothing was saved. Paste the link again after the restore finishes.",
+  private: "Its address can’t be reached from the public internet, so the instance won’t fetch it.",
 };
 
 export const TOKEN_REFUSED = {
-  row: "Couldn’t update this item because GitHub rejected the saved token.",
-  reader: "Couldn’t update this item because GitHub rejected the saved token.",
+  message: "Couldn’t update this item because GitHub rejected the saved token.",
   link: "Open Settings",
 } as const;
 
@@ -127,12 +130,11 @@ export const NEWEST_FIRST = "Newest first";
 export const BACK_TO_LIBRARY = "Back to library";
 export const LOAD_FAILED = "Couldn’t load items.";
 
-export const SETTINGS_GEAR_LABEL = "Display settings";
-export const SETTINGS_TITLE = "Display settings";
+export const DISPLAY_SETTINGS_LABEL = "Display settings";
 export const CLOSE_LABEL = "Close";
 export const RESET_LABEL = "Reset look";
 
-export const RESET_NOTE = "Layout, Open items as and Theme stay as they are.";
+export const RESET_NOTE = "Layout, Theme and how Grid opens items stay as they are.";
 
 export const MATCH_SYSTEM_NOTES = {
   dark: "Using Dark now",
@@ -176,14 +178,15 @@ export function namedOption(name: string, count: number): string {
 
 export const NO_ROWS = { topic: "No topics yet", tag: "No tags yet" } as const;
 
-export const NO_RESULTS = "No items match";
+export const AI_SETTINGS_LINK = "AI settings";
 export const CLEAR_ALL = "Clear search and filters";
+export const CLEAR_SEARCH = "Clear search";
 
 const TOTAL_NAME_ONE = "1 item in the library";
 const TOTAL_NAME_MANY = "{count} items in the library";
 
 export function totalName(count: number): string {
-  return count === 1 ? TOTAL_NAME_ONE : filled(TOTAL_NAME_MANY, { count: String(count) });
+  return plural(count, TOTAL_NAME_ONE, TOTAL_NAME_MANY);
 }
 
 export const EMPTY_LIST = {
@@ -203,15 +206,19 @@ const STARS_ONE = "{count} star";
 const STARS_MANY = "{count} stars";
 
 export function starsLabel(count: number): string {
-  return filled(count === 1 ? STARS_ONE : STARS_MANY, { count: groupedNumber(count) });
+  return plural(count, STARS_ONE, STARS_MANY);
 }
 
 export const SAVED_COMMENT = "Saved comment";
 
-export const STYLE_NOTE = "Style sets this. Choose Library to change it.";
+const STYLE_NOTE = "{style} sets Font and Accent. Choose Library to change them.";
+
+export function styleNote(style: string): string {
+  return filled(STYLE_NOTE, { style });
+}
 export const OPEN_AS_NARROW_NOTE = "Items open as a full page at this width.";
-export const NO_DIGEST = "Digest failed";
-export const DIGEST_NOT_UPDATED = "Digest update failed";
+export const DIGEST_FAILED = "Digest failed";
+export const DIGEST_UPDATE_FAILED = "Digest update failed";
 
 export const FIELD_TEXT = {
   required: "This field is required.",

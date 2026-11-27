@@ -5,13 +5,7 @@ import { Icon } from "./Icon.tsx";
 import { PageLinks } from "./PageLinks.tsx";
 import { PANEL_CLASS } from "./panel-dom.ts";
 import { SettingsRows } from "./SettingsRows.tsx";
-import {
-  CLOSE_LABEL,
-  RESET_LABEL,
-  RESET_NOTE,
-  SETTINGS_GEAR_LABEL,
-  SETTINGS_TITLE,
-} from "./text.ts";
+import { CLOSE_LABEL, RESET_LABEL, RESET_NOTE, DISPLAY_SETTINGS_LABEL } from "./text.ts";
 import { type PanelState, usePanel } from "./use-panel.ts";
 import type { Look } from "./use-root.ts";
 
@@ -31,7 +25,7 @@ function Gear({
       ref={gear}
       type="button"
       className="st-gear"
-      aria-label={SETTINGS_GEAR_LABEL}
+      aria-label={DISPLAY_SETTINGS_LABEL}
       aria-expanded={open}
       aria-controls={controls}
       onClick={toggle}
@@ -45,7 +39,7 @@ function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () =
   return (
     <div className="st-head">
       <h2 className="st-title" id={titleId}>
-        {SETTINGS_TITLE}
+        {DISPLAY_SETTINGS_LABEL}
       </h2>
       <button
         type="button"
@@ -94,11 +88,16 @@ export function SettingsPanel({ look, panel: state }: Readonly<{ look: Look; pan
           ref={panel}
           id={panelId}
           className={PANEL_CLASS}
-          aria-label={modal ? undefined : SETTINGS_TITLE}
-          aria-labelledby={modal ? titleId : undefined}
+          aria-labelledby={titleId}
           data-font={DEFAULTS.font}
         >
-          {modal ? <SheetHeader titleId={titleId} close={closeToGear} /> : null}
+          {modal ? (
+            <SheetHeader titleId={titleId} close={closeToGear} />
+          ) : (
+            <h2 className="vh" id={titleId}>
+              {DISPLAY_SETTINGS_LABEL}
+            </h2>
+          )}
           <div className="st-body">
             <SettingsRows
               settings={settings}
