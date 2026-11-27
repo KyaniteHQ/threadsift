@@ -67,7 +67,7 @@ var LIB = (function () {
     layout: { label: 'Layout', kind: 'seg', options: [{ id: 'list', label: 'List' }, { id: 'grid', label: 'Grid' }] },
     openAs: { label: 'Open items as', kind: 'seg', options: [{ id: 'page', label: 'Page' }, { id: 'sheet', label: 'Sheet' }] },
     style: { label: 'Style', kind: 'select', options: STYLES },
-    theme: { label: 'Theme', kind: 'seg', options: THEMES.concat([{ id: 'system', label: 'Match system' }]) },
+    theme: { label: 'Theme', kind: 'seg', options: THEMES.concat([{ id: 'system', label: 'System' }]) },
     font: { label: 'Font', kind: 'select', options: TYPES },
     width: { label: 'Text width', kind: 'seg', options: MEASURES },
     density: { label: 'Density', kind: 'seg', options: DENSITIES },
@@ -79,7 +79,7 @@ var LIB = (function () {
   var SETTING_GROUPS = [
     { label: 'View', keys: ['layout', 'openAs'] },
     { label: 'Reading', keys: ['style', 'theme', 'font', 'width', 'density', 'comments'] },
-    { label: 'Cards and Tags', keys: ['accent', 'tags', 'images'] }
+    { label: 'Accent, tags and cards', keys: ['accent', 'tags', 'images'] }
   ];
   // Style comes last, so a preset code saved before it existed (one part shorter) still reads, as Library.
   var SETTING_KEYS = ['layout', 'openAs', 'theme', 'font', 'width', 'density', 'comments', 'accent', 'tags', 'images', 'style'];
@@ -87,7 +87,7 @@ var LIB = (function () {
   var LOOK_KEYS = ['style', 'font', 'width', 'density', 'comments', 'accent', 'tags', 'images'];
   // What a style other than Library sets itself, so these rows are shown off while one is on.
   var STYLE_SETS = ['font', 'accent'];
-  // The defaults: the List look (the plain values in tokens.css), List, Page and Match system.
+  // The defaults: the List look (the plain values in tokens.css), List, Page and System.
   var SETTINGS_DEFAULT = { layout: 'list', openAs: 'page', theme: 'system', font: 'plex', width: 'medium', density: 'compact', comments: 'lines', accent: 'cobalt', tags: 'dots', images: true, style: 'library' };
   // Built-in presets for the Tweaks panel: the defaults, and the old Grid draft's look.
   var PRESETS = [
@@ -255,7 +255,7 @@ var LIB = (function () {
   var PASTE = {
     processing: { title: 'Reading the link…', sub: '', icon: 'spin', tone: 'acc', actions: [] },
     done: { title: 'Added', icon: 'check', tone: 'ok', actions: ['open', 'dismiss'] },
-    refreshed: { title: 'Already saved, refreshed', icon: 'refresh', tone: 'acc', actions: ['open', 'dismiss'] },
+    refreshed: { title: 'Already saved and refreshed', icon: 'refresh', tone: 'acc', actions: ['open', 'dismiss'] },
     failed: { title: '', icon: 'warn', tone: 'warn', actions: ['retry', 'dismiss'] },
     reasons: { blocked: 'Reddit blocked the request', unreadable: 'Couldn’t read this page', invalid: 'That doesn’t look like a link' }
   };

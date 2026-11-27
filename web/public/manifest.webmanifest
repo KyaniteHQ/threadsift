@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Threadsift",
   "short_name": "Threadsift",
-  "description": "A reading library: paste or share a link, an agent keeps the useful parts and everything is read on one page.",
+  "description": "A reading library. Paste or share a link, and an agent keeps the useful parts. Read everything on one page.",
   "lang": "en",
   "start_url": "/",
   "scope": "/",

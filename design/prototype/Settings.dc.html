@@ -68,11 +68,11 @@ body{margin:0}
 .app[data-bp~="phone"] .st-note { grid-column: 1; }
 </style>
 </helmet>
-<button type="button" class="st-gear" id="{{gearId}}" aria-label="Settings" title="Settings" aria-expanded="{{expanded}}" aria-controls="{{popId}}" onClick="{{toggle}}" onKeyDown="{{onKey}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
+<button type="button" class="st-gear" id="{{gearId}}" aria-label="Display settings" title="Display settings" aria-expanded="{{expanded}}" aria-controls="{{popId}}" onClick="{{toggle}}" onKeyDown="{{onKey}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"></path><circle cx="12" cy="12" r="3"></circle></svg></button>
 <sc-if value="{{open}}" hint-placeholder-val="{{ false }}">
 <sc-if value="{{narrow}}" hint-placeholder-val="{{ false }}"><div class="st-backdrop" aria-hidden="true" onClick="{{closeBack}}"></div></sc-if>
 <div class="st-pop" id="{{popId}}" role="dialog" aria-label="{{dialogLabel}}" aria-labelledby="{{titleRef}}" data-font="{{uiFont}}" tabindex="-1" onKeyDown="{{onKey}}" onBlur="{{onBlur}}">
-<sc-if value="{{narrow}}" hint-placeholder-val="{{ false }}"><div class="st-head"><h2 class="st-title" id="{{titleId}}">Settings</h2><button type="button" class="st-close" aria-label="Close settings" title="Close" onClick="{{closeBtn}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div></sc-if>
+<sc-if value="{{narrow}}" hint-placeholder-val="{{ false }}"><div class="st-head"><h2 class="st-title" id="{{titleId}}">Display settings</h2><button type="button" class="st-close" aria-label="Close settings" title="Close" onClick="{{closeBtn}}"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"></path></svg></button></div></sc-if>
 <div class="st-body">
 <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
 <section class="st-group" aria-labelledby="{{g.id}}">
@@ -99,7 +99,7 @@ body{margin:0}
 // swatch: its control.
 // value: the app's settings; narrow: the app is under the narrow breakpoint (items always open
 // full screen, so Open items as is shown but off, and the panel is a sheet from the bottom);
-// resolved: what Match system stands for now (light or dark); covered: the app's header is
+// resolved: what System stands for now (light or dark); covered: the app's header is
 // behind an open item, which closes the panel; onChange(key, id) saves and applies one choice;
 // onReset() puts the look settings back to their defaults (the panel stays open).
 // While a style other than Library is on, Font and Accent are shown but off: the style sets them.
@@ -107,7 +107,7 @@ body{margin:0}
 // returns to the gear; so does a tap on the dimmed page behind the phone sheet. A click
 // elsewhere, or focus moving out of the panel, closes it too.
 var count = 0;
-var STYLE_NOTE = 'Set by the Style';
+var STYLE_NOTE = 'Style sets this. Choose Library to change it.';
 function narrowNote() {   // built from the narrow breakpoint in tokens.css
   var b = LIB.breakpoints();
   return 'Under ' + (b ? b.narrow + 'px' : 'the narrow width') + ' wide, items always open full screen';
@@ -151,12 +151,12 @@ class Component extends DCLogic {
     var note = function (k) {
       if (k === 'openAs' && narrow) return narrowNote();
       if (styled && LIB.STYLE_SETS.indexOf(k) >= 0) return STYLE_NOTE;
-      if (k === 'theme' && v.theme === 'system' && self.props.resolved) return 'Match system · ' + self.props.resolved + ' now';
+      if (k === 'theme' && v.theme === 'system' && self.props.resolved) return 'Using ' + self.props.resolved.charAt(0).toUpperCase() + self.props.resolved.slice(1) + ' now';
       return '';
     };
     return {
       gearId: this.gearId, popId: this.popId, resetNoteId: this.resetNoteId, open: this.state.open, expanded: LIB.pressed(this.state.open), narrow: narrow,
-      titleId: this.popId + '-title', titleRef: narrow ? this.popId + '-title' : undefined, dialogLabel: narrow ? undefined : 'Settings',
+      titleId: this.popId + '-title', titleRef: narrow ? this.popId + '-title' : undefined, dialogLabel: narrow ? undefined : 'Display settings',
       uiFont: LIB.SETTINGS_DEFAULT.font,
       toggle: this.toggle, onKey: this.onKey, onBlur: this.onBlur, reset: this.reset, closeBack: this.closeBack, closeBtn: this.closeBtn,
       groups: LIB.SETTING_GROUPS.map(function (g) {

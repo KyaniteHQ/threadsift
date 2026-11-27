@@ -48,7 +48,7 @@ const rows = (page: Page) => page.locator(".lg-line");
 
 async function openLogFromPanel(page: Page): Promise<void> {
   await page.goto("/");
-  await page.getByRole("button", { name: "Settings", exact: true }).click();
+  await page.getByRole("button", { name: "Display settings", exact: true }).click();
   await page.getByRole("link", { name: LOG_PAGE.masthead, exact: true }).click();
   await expect(page).toHaveURL(/\/log$/u);
   await expect(page).toHaveTitle("Log, Threadsift");

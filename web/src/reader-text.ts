@@ -10,98 +10,98 @@ import { plural } from "./plural.ts";
 import { ageLabel, dateLabel } from "./saved-label.ts";
 import { CLOSE_LABEL } from "./text.ts";
 
-export const READER_PLACEHOLDER = "Select an Item";
+export const READER_PLACEHOLDER = "Select an item";
 export const MARK_READ = "Mark read";
 export const MARK_UNREAD = "Mark unread";
 export const ROW_MARK_READ = "Mark as read";
 export const ROW_MARK_UNREAD = "Mark as unread";
 export const MARKED_READ = "Marked as read";
 export const MARKED_UNREAD = "Marked as unread";
-export const READ_FAILED = "Couldn’t change this Item’s Read state.";
+export const READ_FAILED = "Couldn’t change this item’s read state. Try again.";
 export const DELETE_LABEL = "Delete";
-export const DELETE_TITLE = "Delete this Item?";
+export const DELETE_TITLE = "Delete this item?";
 
 export const DELETE_DESCRIPTION =
-  "Deleting removes this Item, its Summary and Key points, its saved text and its Kept comments from the library. This can’t be undone.";
+  "The item, its summary, key points, saved text and kept comments will be removed from the library. This can’t be undone.";
 
 export const CANCEL_LABEL = "Cancel";
-export const DELETE_CONFIRM = "Delete Item";
-export const DELETE_PENDING = "Deleting Item…";
-export const DELETE_FAILED = "Couldn’t delete this Item. Try again.";
-export const DELETED = "Item deleted.";
+export const DELETE_CONFIRM = "Delete item";
+export const DELETE_PENDING = "Deleting item…";
+export const DELETE_FAILED = "Couldn’t delete this item. Try again.";
+export const DELETED = "Item deleted";
 const BACK_LONG = "Back to list";
 const BACK_TO_GRID = "Back to grid";
 const BACK_SHORT = "Back";
-export const PREVIOUS_ITEM = "Previous Item";
-export const NEXT_ITEM = "Next Item";
+export const PREVIOUS_ITEM = "Previous item";
+export const NEXT_ITEM = "Next item";
 export const HINT_LIST = "j k move · Enter open · m read · / search";
 export const HINT_PANE = "j k move · Enter open · m read · / search · Esc close";
-export const READER_LOADING = "Loading Item…";
-export const READER_FAILED = "Couldn’t load this Item.";
-export const READER_STALE = "This text is from earlier and may be outdated.";
-export const DIGEST_PENDING = "The Summary and Key points are not ready yet.";
-export const NO_POST_TEXT = "This Item has no post text.";
+export const READER_LOADING = "Loading item…";
+export const READER_FAILED = "Couldn’t load this item.";
+export const READER_STALE = "Couldn’t reload this item. Showing an earlier copy.";
+export const DIGEST_PENDING = "Writing the summary and key points…";
+export const NO_POST_TEXT = "This item has no post text.";
 
 export const FILL_NOTE =
-  "The thread for this Item is not saved yet. Open it on Reddit with the Extension and filling turned on to fill it with the post and comments.";
+  "The post and comments aren’t saved yet. Open the post on Reddit in a browser with the Threadsift extension and its filling turned on to save them.";
 
-const ARCHIVE_NOTE = "The post and comments were filled from the Arctic Shift archive on {date}.";
+const ARCHIVE_NOTE = "The post and comments were saved from the Arctic Shift archive on {date}.";
 
 const ARCHIVE_COMMENTS_NOTE =
-  "Only the comments were filled from the Arctic Shift archive on {date}.";
+  "Only the comments were saved from the Arctic Shift archive on {date}.";
 
 export const NO_README = "This repository has no Markdown README.";
 export const GITHUB_TOPICS_LABEL = "Topics on GitHub";
 export const NONE_STATED = "None stated";
 export const PASTE_OPEN = "Open";
 export const FOLD_HIDE = "Show fewer lines";
-export const NONE_KEPT = "None of the comments added anything the post doesn’t already say.";
+export const NONE_KEPT = "The digest found no comments to keep.";
 
-const UNFILTERED_LEAD = "The comments below are not filtered by a Digest yet.";
+const UNFILTERED_LEAD = "These comments aren’t filtered by a digest.";
 
 export const UNFILTERED_NOTES = {
-  pending: `${UNFILTERED_LEAD} One is being made now, and the filter follows when it is ready.`,
-  failed: `${UNFILTERED_LEAD} The last Digest run failed.`,
-  "no-provider": `${UNFILTERED_LEAD} No Provider is saved, so no Digest can be made.`,
-  "not-run": `${UNFILTERED_LEAD} A Provider is saved, but this Item has no Digest yet.`,
-  older: `${UNFILTERED_LEAD} The Digest was made from earlier text and does not cover them.`,
+  pending: `${UNFILTERED_LEAD} One is being made now. Only kept comments will show when it’s ready.`,
+  failed: `${UNFILTERED_LEAD} The last digest run failed.`,
+  "no-provider": `${UNFILTERED_LEAD} No provider is saved, so no digest can be made.`,
+  "not-run": `${UNFILTERED_LEAD} A provider is saved, but this item has no digest yet.`,
+  older: `${UNFILTERED_LEAD} This item’s digest was made from earlier text and doesn’t cover them.`,
 } as const satisfies Record<UnfilteredCause, string>;
 
-export const ALL_REMOVED = "The comments of this thread were removed, written by bots or empty.";
+export const ALL_REMOVED = "Every comment in this thread was removed, empty or written by a bot.";
 
 export const OP_LABEL = "OP";
 export const SHOW_FULL_COMMENT = "Show full comment";
 export const SHOW_LESS = "Show less";
 export const KEEP_LABEL = "Keep";
-export const KEEP_GROUP = "Keep Highlight";
+export const KEEP_GROUP = "Keep highlight";
 export const REMOVE_LABEL = "Remove";
-export const REMOVE_GROUP = "Remove Highlight";
-export const RELATED = { title: "Related Items", untitled: UNTITLED } as const;
-export const KEPT_ANNOUNCEMENT = "Highlight kept.";
-export const REMOVED_ANNOUNCEMENT = "Highlight removed.";
-export const KEEP_FAILED = "Couldn’t keep this Highlight. Select the passage again.";
+export const REMOVE_GROUP = "Remove highlight";
+export const RELATED = { title: "Related items", untitled: UNTITLED } as const;
+export const KEPT_ANNOUNCEMENT = "Highlight kept";
+export const REMOVED_ANNOUNCEMENT = "Highlight removed";
+export const KEEP_FAILED = "Couldn’t keep this highlight. Select the passage again.";
 export const KEEP_REFUSED =
-  "Couldn’t keep this Highlight. Select the passage again, or a smaller part without pictures, footnotes or code.";
-export const SELECT_FAILED = "Can’t select a passage to keep right now. Try again below.";
-export const REMOVE_FAILED = "Couldn’t remove this Highlight. Try again.";
+  "Couldn’t keep this highlight. Select a smaller passage without pictures, footnotes or code.";
+export const SELECT_FAILED = "Can’t keep passages right now because part of the page didn’t load.";
+export const REMOVE_FAILED = "Couldn’t remove this highlight. Try again.";
 
 export const KEEP_STALE =
-  "Couldn’t keep this Highlight because the Item’s text changed. Select the passage again once the new text is shown.";
+  "Couldn’t keep this highlight because the item’s text changed. Select the passage again once the new text appears.";
 
 export const NOTE_SAVE = "Save";
 export const NOTE_SAVED = "Saved";
-export const NOTE_FAILED = "Couldn’t save this Note. The text is still here. Try again.";
-export const NOTE_TOO_LONG = `This Note is over the limit of ${groupedNumber(NOTE_MAX_CODE_POINTS)} characters.`;
-export const NOTE_CHANGED = "This Note changed somewhere else. The newer version follows.";
+export const NOTE_FAILED = "Couldn’t save this note. Your text is still in the field. Try again.";
+export const NOTE_TOO_LONG = `This note is over the limit of ${groupedNumber(NOTE_MAX_CODE_POINTS)} characters. Shorten it to save.`;
+export const NOTE_CHANGED = "This note changed in another tab or device.";
 export const NOTE_NEWER_EMPTY = "The newer version is empty.";
-export const NOTE_KEEP_MINE = "Keep mine";
+export const NOTE_KEEP_MINE = "Save your version";
 export const NOTE_USE_NEWER = "Use newer version";
-export const NOTE_KEYS = "Ctrl+Enter or Cmd+Enter saves";
+export const NOTE_KEYS = "Ctrl+Enter or Cmd+Enter to save";
 export const NOTE_NEWER_LABEL = "Newer version";
 
 export const FOOTNOTES_LABEL = "Footnotes";
-const FOOTNOTE_BACK = "Back to reference {reference}";
-const FOOTNOTE_BACK_AGAIN = "Back to footnote {reference}, reference {again}";
+const FOOTNOTE_BACK = "Back to text, footnote {reference}";
+const FOOTNOTE_BACK_AGAIN = "Back to text, footnote {reference}, reference {again}";
 
 export const REPOSITORY_LABELS = {
   stars: "Stars",
@@ -120,20 +120,21 @@ export const OPEN_LABELS: Readonly<Record<Source, string>> = {
 
 export const PICTURE_LABEL = "Image";
 
-const REMOVE_NAMED = "Remove Highlight: {quote}";
+const REMOVE_NAMED = "Remove highlight: {quote}";
 const QUOTE_SHORT_CODE_POINTS = 40;
 export const ELLIPSIS = "…";
 const POSTED = "posted {when}";
 const CODE_ONE = "Code block, 1 line";
 const CODE_MANY = "Code block, {count} lines";
-const TABLE_NAME = "Table, {count} columns";
+const TABLE_ONE = "Table, 1 column";
+const TABLE_MANY = "Table, {count} columns";
 const FOLD_SHOW = "Show all {count} lines";
 
 const COUNT_TEXTS = {
-  kept: { row: "Kept {shown} of {total}", heading: "Kept {shown} of {total} comments" },
+  kept: { row: "Kept {shown} of {total}", heading: "Kept {shown} of {total}" },
   unfiltered: {
     row: "Showing {shown} of {total}",
-    heading: "Showing {shown} of {total} comments",
+    heading: "Showing {shown} of {total}",
   },
 } as const satisfies Record<CommentCount["filter"], Record<"row" | "heading", string>>;
 
@@ -196,7 +197,7 @@ export function codeName(lines: number): string {
 }
 
 export function tableName(columns: number): string {
-  return filled(TABLE_NAME, { count: String(columns) });
+  return plural(columns, TABLE_ONE, TABLE_MANY);
 }
 
 export function foldShowLabel(lines: number): string {

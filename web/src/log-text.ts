@@ -34,7 +34,7 @@ export function addedRemoved(added: number, removed: number): string {
 }
 
 export function picksLabel(picks: number): string {
-  return plural(picks, "1 pick", "{count} picks");
+  return plural(picks, "1 item", "{count} items");
 }
 
 export function mergeLabel(from: string, into: string): string {
@@ -42,5 +42,5 @@ export function mergeLabel(from: string, into: string): string {
 }
 
 export function logItemsLabel(items: number): string {
-  return plural(items, "1 Item", "{count} Items");
+  return plural(items, "1 item", "{count} items");
 }
