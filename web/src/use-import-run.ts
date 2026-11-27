@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import { NO_COUNTS } from "./import-api.ts";
 import { type Outcome, type Progress, runImport } from "./import-run.ts";
+import type { Check } from "./use-import-list.ts";
 
 type RunningState = {
   readonly phase: "running";
@@ -17,6 +18,16 @@ export type RunState =
   | { readonly phase: "ended"; readonly name: string; readonly outcome: Outcome };
 
 export const NOT_STARTED: Progress = { done: 0, counts: NO_COUNTS, uncounted: 0 };
+
+const IDLE: RunState = { phase: "idle" };
+
+export function shownRun(state: RunState, check: Check): RunState {
+  if (state.phase === "running") return state;
+
+  return state.phase === "ended" && check.status === "ready" && state.name === check.name
+    ? state
+    : IDLE;
+}
 
 export function useImportRun(seal: () => void) {
   const [state, setState] = useState<RunState>({ phase: "idle" });
