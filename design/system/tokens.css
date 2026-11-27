@@ -32,7 +32,11 @@
    data-width, data-density, data-comments, data-accent, data-tags and
    data-images; and two the app works out: data-reader (pane, page or sheet:
    from the layout, Open items as and the width) and data-bp (every width
-   band the app is under: "narrow medium wide full" at 600px).
+   band the app is under: "narrow medium wide full" at 600px). While a List
+   pane's handle is dragged, the root also carries data-resizing (rail or
+   list), and in the List layout the library's script sets --rail-w and
+   --list-w on the root: the saved width of each pane, clamped to its bounds
+   and to the room the Reader keeps.
 
    Per-element variables, set by a component on one element, never on the
    root: --d (a comment's depth, inline style on .cm), --tag-h (a tag's hue,
@@ -58,7 +62,8 @@
      an open Grid card and of a phone reply rail, and the 2px focus ring,
      its offset, the 2px and 3px offsets of the read mark's hover and focus
      rings, the progress line, the line under the masthead's current page
-     link and the segmented controls' inset;
+     link, the line a List pane handle draws and the segmented controls'
+     inset;
    - the 1.5 step between a row's title and its byline (one and a half
      --s1, times --k);
    - the swatch's 2px border and the 2px overlay that covers it, the 2px
@@ -117,6 +122,7 @@
   --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */
   --tag-c: 0.13;                      /* tag colour chroma; lightness per theme (--tag-l), hue per tag (data-tag) */
   --reader-pad: var(--s6); --code-pad-y: 10px; --code-pad-x: 12px;
+  --margin-w: 320px;                  /* the Reader's margin column beside the reading column, in a wide Reader */
   --bar-h: 56px;                      /* the reader bar, and the phone settings sheet's header: one row, its bottom line included */
   --mast-h: 48px;                     /* the masthead over every signed-in screen, its bottom line included */
   --host-max: 22ch;                   /* the Instance host on the owner menu button, cut with an end ellipsis */
@@ -132,6 +138,7 @@
   /* layers, bottom to top */
   --z-raise: 1;                       /* a card's whole-card link */
   --z-sticky: 3;                      /* the reader bar and the sheet's key hint */
+  --z-split: 4;                       /* the List panes' handles, over the reader bar */
   --z-float: 6;                       /* the paste card over the grid */
   --z-mast: 10;                       /* the masthead, whose panels float over the panes */
   --z-reader: 20;                     /* the full-page reader */
@@ -298,6 +305,10 @@
 :root, [data-layout] {
   --display-base: 1.5rem;
   --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px;
+  /* the List panes' handles: each pane's bounds, the room the Reader always keeps, and the
+     handle's hit area for a fine and a coarse pointer */
+  --rail-min: 200px; --rail-max: 400px; --list-max: 640px; --reader-min: 480px;
+  --split-hit: 9px; --split-hit-coarse: 24px;
 }
 [data-layout="grid"] {
   --display-base: 1.875rem;

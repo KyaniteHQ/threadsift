@@ -47,6 +47,7 @@ function FilterSlot({
 }
 
 export function Sidebar({
+  id,
   look,
   counts,
   loading,
@@ -60,6 +61,7 @@ export function Sidebar({
   queue,
   open,
 }: Readonly<{
+  id: string;
   look: Look;
   counts: FilterCounts | null;
   loading: boolean;
@@ -74,7 +76,7 @@ export function Sidebar({
   open: (id: number) => void;
 }>) {
   return (
-    <div className="lib-side">
+    <div id={id} className="lib-side">
       <PasteBox save={save} focusOnMount={focusOnMount} items={items} queue={queue} open={open} />
       <FilterSlot
         counts={counts}
