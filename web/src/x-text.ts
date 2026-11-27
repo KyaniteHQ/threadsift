@@ -42,18 +42,18 @@ export const READER_HELP = {
 } as const satisfies Readonly<Record<XReaderChoice, string>>;
 
 export const BOT_STATES = {
-  ready: "Ready",
-  "not-configured": "Not set up",
-  "secret-missing": "Key can’t be opened",
-  refused: "Address not allowed",
+  ready: "ready",
+  "not-configured": "not set up",
+  "secret-missing": "key can’t be read",
+  refused: "address not allowed",
 } as const satisfies Readonly<Record<XBotState, string>>;
 
 export const X_STATES = {
-  "signed-in": "Signed in",
-  "signed-out": "Signed out",
-  "not-proven": "Not supported",
-  unknown: "Sign-in state unknown",
-  "not-installed": "Not installed",
+  "signed-in": "signed in",
+  "signed-out": "signed out",
+  "not-proven": "not supported",
+  unknown: "sign-in state unknown",
+  "not-installed": "not installed",
 } as const;
 
 export type XNoticeKey = XReadNote | "x-unreadable" | "x-kept";
