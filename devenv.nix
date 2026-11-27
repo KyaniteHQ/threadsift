@@ -139,6 +139,7 @@ in
     };
     "extension:package" = {
       after = [ "ci:install" ];
+      showOutput = true;
       exec = "pnpm run package:extension";
     };
     "web:build" = {
@@ -148,7 +149,6 @@ in
     "ci:build" = {
       after = [
         "ci:install"
-        "extension:package"
         "web:build"
       ];
       exec = "pnpm run build:worker";
@@ -173,6 +173,7 @@ in
         "ci:build"
         "ci:audit"
         "design:check"
+        "extension:package"
       ];
     };
     "container:build" = {
