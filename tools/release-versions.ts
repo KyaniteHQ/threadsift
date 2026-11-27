@@ -1,51 +1,37 @@
-import { readFileSync } from "node:fs";
-import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { z } from "zod";
 
 export const ROOT = fileURLToPath(new URL("..", import.meta.url));
-const SEMVER =
-  /^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?<patch>0|[1-9]\d*)(?:-rc\.(?<rc>[1-9]\d*))?$/u;
 export const TAG_PREFIX = "v";
+export const FIRST_STABLE = "1.0.0";
 
-type Reading =
-  | { readonly kind: "shared"; readonly version: Version }
-  | { readonly kind: "own"; readonly label: string };
-
-interface VersionFile {
-  readonly path: string;
-  readonly gated: boolean;
-  readonly read: (text: string) => Reading;
-  readonly write: (text: string, version: Version) => string;
-}
+const NUMBER = String.raw`0|[1-9]\d{0,14}`;
+const SEMVER = new RegExp(
+  `^(?<major>${NUMBER})\\.(?<minor>${NUMBER})\\.(?<patch>${NUMBER})(?:-rc\\.(?<rc>[1-9]\\d{0,14}))?$`,
+  "u",
+);
 
 export class ReleaseError extends Error {}
 
-const VersionGroupsSchema = z.object({
-  major: z.coerce.number(),
-  minor: z.coerce.number(),
-  patch: z.coerce.number(),
-  rc: z.coerce.number().optional(),
+const VersionSchema = z.object({
+  major: z.coerce.number().int().nonnegative(),
+  minor: z.coerce.number().int().nonnegative(),
+  patch: z.coerce.number().int().nonnegative(),
+  rc: z.coerce.number().int().positive().optional(),
 });
 
-const PackageSchema = z.object({ version: z.string() });
+export type Version = Readonly<z.infer<typeof VersionSchema>>;
 
-export type Version = Readonly<z.infer<typeof VersionGroupsSchema>>;
+export interface VersionFile {
+  readonly path: string;
+  readonly read: (text: string) => Version;
+  readonly write: (text: string, version: Version) => string;
+}
 
 export function parseVersion(text: string): Version | undefined {
   const groups = SEMVER.exec(text)?.groups;
-  return groups === undefined ? undefined : VersionGroupsSchema.parse(groups);
-}
-
-function sharedVersion(text: string, where: string): Reading {
-  const version = parseVersion(text);
-  if (version === undefined) {
-    throw new ReleaseError(
-      `${where} holds ${JSON.stringify(text)}, which is not X.Y.Z or X.Y.Z-rc.N`,
-    );
-  }
-  return { kind: "shared", version };
+  return groups === undefined ? undefined : VersionSchema.parse(groups);
 }
 
 export function format(version: Version): string {
@@ -53,15 +39,39 @@ export function format(version: Version): string {
   return version.rc === undefined ? core : `${core}-rc.${version.rc}`;
 }
 
+export function tagOf(version: Version): string {
+  return `${TAG_PREFIX}${format(version)}`;
+}
+
+function compareCandidates(left: number | undefined, right: number | undefined): number {
+  if (left === undefined || right === undefined) {
+    return (left === undefined ? 1 : 0) - (right === undefined ? 1 : 0);
+  }
+  return left - right;
+}
+
 export function compare(left: Version, right: Version): number {
-  const stableRank = Number.MAX_SAFE_INTEGER;
   const order = [
     left.major - right.major,
     left.minor - right.minor,
     left.patch - right.patch,
-    (left.rc ?? stableRank) - (right.rc ?? stableRank),
+    compareCandidates(left.rc, right.rc),
   ];
   return order.find((step) => step !== 0) ?? 0;
+}
+
+export function newest(versions: readonly Version[]): Version | undefined {
+  return versions.toSorted(compare).at(-1);
+}
+
+function versionIn(text: string, where: string): Version {
+  const version = parseVersion(text);
+  if (version === undefined) {
+    throw new ReleaseError(
+      `${where} holds ${JSON.stringify(text)}, which is not X.Y.Z or X.Y.Z-rc.N`,
+    );
+  }
+  return version;
 }
 
 export function replaceOnce(
@@ -76,88 +86,56 @@ export function replaceOnce(
   return text.replace(pattern, replacement);
 }
 
-function packageFile(path: string, gated: boolean): VersionFile {
+const PackageSchema = z.object({ version: z.string() });
+
+function packageFile(path: string): VersionFile {
   const line = /^ {2}"version": "[^"]*",$/mu;
   return {
     path,
-    gated,
-    read: (text) => sharedVersion(PackageSchema.parse(JSON.parse(text)).version, path),
+    read: (text) => {
+      const manifest = PackageSchema.safeParse(JSON.parse(text));
+      if (!manifest.success) {
+        throw new ReleaseError(`${path} has no "version" string`);
+      }
+      return versionIn(manifest.data.version, path);
+    },
     write: (text, version) => replaceOnce(text, line, `  "version": "${format(version)}",`, path),
   };
 }
 
 const IMAGE_LABEL = /^LABEL org\.opencontainers\.image\.version=(\S+)$/mu;
-const BOT_TAG = /TAG=([^ ;]+)/u;
-const BOT_OWN_VERSION = /^\d+$/u;
 
-export const APP = packageFile("package.json", true);
+const IMAGE: VersionFile = {
+  path: "Containerfile",
+  read: (text) => {
+    const label = IMAGE_LABEL.exec(text)?.[1];
+    if (label === undefined) {
+      throw new ReleaseError("Containerfile has no LABEL org.opencontainers.image.version line");
+    }
+    return versionIn(label, "the version label of the Containerfile");
+  },
+  write: (text, version) =>
+    replaceOnce(
+      text,
+      IMAGE_LABEL,
+      `LABEL org.opencontainers.image.version=${format(version)}`,
+      "Containerfile",
+    ),
+};
 
-export const VERSION_FILES: readonly VersionFile[] = [
-  APP,
-  {
-    path: "Containerfile",
-    gated: true,
-    read: (text) => sharedVersion(IMAGE_LABEL.exec(text)?.[1] ?? "", "Containerfile"),
-    write: (text, version) =>
-      replaceOnce(
-        text,
-        IMAGE_LABEL,
-        `LABEL org.opencontainers.image.version=${format(version)}`,
-        "Containerfile",
-      ),
-  },
-  packageFile("extension/package.json", false),
-  {
-    path: "bot/VERSION",
-    gated: true,
-    read: (text) =>
-      BOT_OWN_VERSION.test(text.trim())
-        ? { kind: "own", label: text.trim() }
-        : sharedVersion(text.trim(), "bot/VERSION"),
-    write: (_text, version) => `${format(version)}\n`,
-  },
-  {
-    path: "bot/skills/threadsift/SKILL.md",
-    gated: true,
-    read: (text) => {
-      const tag = BOT_TAG.exec(text)?.[1] ?? "";
-      return tag.startsWith(TAG_PREFIX)
-        ? sharedVersion(tag.slice(TAG_PREFIX.length), "the TAG pin of the bot skill")
-        : { kind: "own", label: tag };
-    },
-    write: (text, version) =>
-      replaceOnce(text, BOT_TAG, `TAG=${TAG_PREFIX}${format(version)}`, "the bot skill"),
-  },
+export const APP = packageFile("package.json");
+export const COMPARED_FILES: readonly VersionFile[] = [APP, IMAGE];
+export const RELEASE_FILES: readonly VersionFile[] = [
+  ...COMPARED_FILES,
+  packageFile("extension/package.json"),
 ];
 
-export function readFile(path: string): string {
-  return readFileSync(join(ROOT, path), "utf8");
-}
-
-function versionDifferences(): readonly string[] {
-  const app = APP.read(readFile(APP.path));
-  if (app.kind !== "shared") {
-    throw new ReleaseError(`${APP.path} carries no shared version`);
-  }
-  return VERSION_FILES.filter((file) => file.gated).flatMap((file) => {
-    const reading = file.read(readFile(file.path));
-    return reading.kind === "shared" && compare(reading.version, app.version) !== 0
-      ? [
-          `${file.path} carries ${format(reading.version)}, but ${APP.path} carries ${format(app.version)}`,
-        ]
-      : [];
+export function versionDifferences(read: (path: string) => string): readonly string[] {
+  const app = APP.read(read(APP.path));
+  return COMPARED_FILES.flatMap((file) => {
+    const version = file.read(read(file.path));
+    return compare(version, app) === 0
+      ? []
+      : [`${file.path} carries ${format(version)}, but ${APP.path} carries ${format(app)}`];
   });
-}
-
-export function checkVersions(): string {
-  const differences = versionDifferences();
-  const compared = VERSION_FILES.filter(
-    (file) => file.gated && file.read(readFile(file.path)).kind === "shared",
-  );
-  if (differences.length > 0) {
-    throw new ReleaseError(
-      `every artifact carries the version of ${APP.path}; run node tools/release.ts v<version> to set them all\n${differences.join("\n")}`,
-    );
-  }
-  return `versions agree: ${compared.map((file) => file.path).join(", ")}`;
 }

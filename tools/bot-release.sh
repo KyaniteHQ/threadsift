@@ -47,14 +47,6 @@ released_tag() {
   echo "$tag"
 }
 
-own_version() {
-  [[ "$1" =~ ^[0-9]+$ ]]
-}
-
-tag_of() {
-  if own_version "$1"; then echo "bot-v$1"; else echo "v$1"; fi
-}
-
 pin() {
   local tag="$1" hash="$2"
   sed -E -i "s/TAG=[^ ;]+ SUMS_SHA256=[^ ;]+/TAG=$tag SUMS_SHA256=$hash/" "$skill"
@@ -71,7 +63,6 @@ case "$mode" in
     pin "$(pinned TAG)" "$(sums_hash)"
     ;;
   release)
-    own_version "$(< "$bot/VERSION")" || { echo "bot/VERSION is the shared version of the app; release it with node tools/release.ts v<version>" >&2; exit 1; }
     version=$(( $(< "$bot/VERSION") + 1 ))
     echo "$version" > "$bot/VERSION"
     computed_sums > "$sums"
@@ -82,7 +73,7 @@ case "$mode" in
   check)
     version="$(< "$bot/VERSION")"
     tag="$(pinned TAG)"
-    [[ "$tag" == "$(tag_of "$version")" ]] || { echo "SKILL.md pins tag $tag but bot/VERSION is $version" >&2; exit 1; }
+    [[ "$tag" == "bot-v$version" ]] || { echo "SKILL.md pins tag $tag but bot/VERSION is $version" >&2; exit 1; }
     [[ "$(computed_sums)" == "$(< "$sums")" ]] || { echo "bot/SHA256SUMS does not match setup.md, update.md and scripts/threadsift.sh; run tools/bot-release.sh" >&2; exit 1; }
     [[ "$(pinned SUMS_SHA256)" == "$(sums_hash)" ]] || { echo "SKILL.md pins another SHA256SUMS hash; run tools/bot-release.sh" >&2; exit 1; }
     tag="$(released_tag)"

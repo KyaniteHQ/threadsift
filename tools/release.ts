@@ -1,129 +1,98 @@
-import { execFileSync } from "node:child_process";
-import { mkdtempSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parseArgs } from "node:util";
 
+import { CHANGELOG, checkHeadline, cutChangelog, unreleasedNotes } from "./release-changelog.ts";
+import {
+  fetchTag,
+  fileAt,
+  git,
+  migrationChanges,
+  remoteTags,
+  type ReleaseTag,
+} from "./release-git.ts";
+import { publish, type ReleasePlan } from "./release-publish.ts";
 import {
   APP,
+  COMPARED_FILES,
+  FIRST_STABLE,
+  RELEASE_FILES,
   ROOT,
   ReleaseError,
   TAG_PREFIX,
-  VERSION_FILES,
-  checkVersions,
   compare,
   format,
+  newest,
   parseVersion,
-  readFile,
-  replaceOnce,
+  tagOf,
+  versionDifferences,
   type Version,
 } from "./release-versions.ts";
 
-const UNRELEASED = "## Unreleased";
-const ROOT_CHANGELOG = "CHANGELOG.md";
-const BOT_CHANGELOG = "bot/CHANGELOG.md";
-const MIGRATIONS = "migrations";
+const USAGE = 'usage: node tools/release.ts check | v<version> [--dry-run] [--headline "<phrase>"]';
+const BOT_VERSION_FILE = "bot/VERSION";
 
-interface ReleasePlan {
-  readonly version: Version;
-  readonly kind: string;
-  readonly edits: readonly Edit[];
+interface PlanInput {
+  readonly tag: string;
+  readonly base: string;
+  readonly headline: string | undefined;
+  readonly fetchMissing: boolean;
 }
 
-function git(...args: readonly string[]): string {
-  return execFileSync("git", args, { cwd: ROOT, encoding: "utf8" }).trim();
+function newestTag(tags: readonly ReleaseTag[]): ReleaseTag | undefined {
+  const version = newest(tags.map((tag) => tag.version));
+  return version === undefined
+    ? undefined
+    : tags.find((tag) => compare(tag.version, version) === 0);
 }
 
-interface Edit {
-  readonly path: string;
-  readonly before: string;
-  readonly after: string;
-  readonly change: string;
-}
-
-function releasedTags(): readonly Version[] {
-  return git("tag", "--list", `${TAG_PREFIX}[0-9]*`)
-    .split("\n")
-    .flatMap((tag) => {
-      const version = parseVersion(tag.slice(TAG_PREFIX.length));
-      return version === undefined ? [] : [version];
-    });
-}
-
-function newest(versions: readonly Version[]): Version | undefined {
-  return versions.toSorted(compare).at(-1);
-}
-
-function unreleasedNotes(changelog: string, path: string): string {
-  const start = changelog.indexOf(`${UNRELEASED}\n`);
-  if (start === -1) {
-    throw new ReleaseError(`${path} has no "${UNRELEASED}" heading`);
+function patchBaseline(version: Version, tags: readonly ReleaseTag[]): ReleaseTag | undefined {
+  if (version.patch === 0) {
+    return undefined;
   }
-  const body = changelog.slice(start + UNRELEASED.length + 1);
-  const next = body.search(/^## /mu);
-  return (next === -1 ? body : body.slice(0, next)).trim();
-}
-
-function cutChangelog(path: string, version: Version, requireNotes: boolean): Edit {
-  const before = readFile(path);
-  if (requireNotes && unreleasedNotes(before, path) === "") {
+  const stable = newestTag(tags.filter((tag) => tag.version.rc === undefined));
+  if (
+    stable === undefined ||
+    stable.version.major !== version.major ||
+    stable.version.minor !== version.minor
+  ) {
     throw new ReleaseError(
-      `${path} has nothing under "${UNRELEASED}"; write the notes of ${TAG_PREFIX}${format(version)} there first`,
+      `${tagOf(version)} is a patch release, so the newest stable release must be ${TAG_PREFIX}${version.major}.${version.minor}.x, and it is ${stable === undefined ? "none" : tagOf(stable.version)}`,
     );
   }
-  const heading = `## ${TAG_PREFIX}${format(version)}`;
-  return {
-    path,
-    before,
-    after: replaceOnce(before, /^## Unreleased$/mu, `${UNRELEASED}\n\n${heading}`, path),
-    change: `"${UNRELEASED}" becomes "${heading}" under a new empty "${UNRELEASED}"`,
-  };
+  return stable;
 }
 
-function migrationChanges(since: Version): readonly string[] {
-  const diff = git(
-    "diff",
-    "--name-only",
-    `${TAG_PREFIX}${format(since)}`,
-    "HEAD",
-    "--",
-    MIGRATIONS,
-  );
-  return diff === "" ? [] : diff.split("\n");
-}
-
-function refusePatchWithMigration(version: Version, released: readonly Version[]): string {
-  const stable = newest(released.filter((tag) => tag.rc === undefined));
-  if (stable === undefined || stable.major !== version.major || stable.minor !== version.minor) {
-    return stable === undefined
-      ? "no stable release tag exists yet"
-      : `a new major or minor after ${TAG_PREFIX}${format(stable)}`;
-  }
-  const changed = migrationChanges(stable);
+function refuseMigrations(version: Version, baseline: ReleaseTag, base: string): void {
+  const changed = migrationChanges(baseline, base);
   if (changed.length > 0) {
     throw new ReleaseError(
-      `${TAG_PREFIX}${format(version)} is a patch release of ${TAG_PREFIX}${format(stable)}, and a patch never carries a migration, but these changed since ${TAG_PREFIX}${format(stable)}:\n${changed.join("\n")}\nrelease ${TAG_PREFIX}${version.major}.${version.minor + 1}.0 instead`,
+      `${tagOf(version)} is a patch release of ${tagOf(baseline.version)}, and a patch never carries a migration, but these changed since ${tagOf(baseline.version)}:\n${changed.join("\n")}\nrelease ${TAG_PREFIX}${version.major}.${version.minor + 1}.0 instead`,
     );
   }
-  return `a patch release of ${TAG_PREFIX}${format(stable)}, with no migration changed since it`;
 }
 
-function versionEdits(version: Version): readonly Edit[] {
-  return VERSION_FILES.flatMap((file) => {
-    const before = readFile(file.path);
-    const after = file.write(before, version);
-    const reading = file.read(before);
-    const from =
-      reading.kind === "shared"
-        ? format(reading.version)
-        : `${reading.label}, the bot's own numbering,`;
-    return after === before
-      ? []
-      : [{ path: file.path, before, after, change: `${from} to ${format(version)}` }];
-  });
+function refuseVersion(version: Version, tags: readonly ReleaseTag[], app: Version): void {
+  const latest = newestTag(tags);
+  if (latest !== undefined && compare(version, latest.version) <= 0) {
+    throw new ReleaseError(
+      `${tagOf(version)} is not above the newest release tag ${tagOf(latest.version)}`,
+    );
+  }
+  if (compare(version, app) <= 0) {
+    throw new ReleaseError(
+      `${tagOf(version)} is not above ${format(app)}, the version ${APP.path} already carries`,
+    );
+  }
+  const first = tags.every((tag) => tag.version.rc !== undefined);
+  if (first && format({ ...version, rc: undefined }) !== FIRST_STABLE) {
+    throw new ReleaseError(
+      `no stable release exists yet, and the first one is ${TAG_PREFIX}${FIRST_STABLE}; give ${TAG_PREFIX}${FIRST_STABLE} or ${TAG_PREFIX}${FIRST_STABLE}-rc.<N>`,
+    );
+  }
 }
 
-function planRelease(tag: string): ReleasePlan {
+function versionOfTag(tag: string): Version {
   const version = tag.startsWith(TAG_PREFIX)
     ? parseVersion(tag.slice(TAG_PREFIX.length))
     : undefined;
@@ -132,103 +101,136 @@ function planRelease(tag: string): ReleasePlan {
       `${JSON.stringify(tag)} is not a release tag: give v<X.Y.Z> or v<X.Y.Z>-rc.<N>`,
     );
   }
-  const released = releasedTags();
-  const latest = newest(released);
-  if (latest !== undefined && compare(version, latest) <= 0) {
-    throw new ReleaseError(
-      `${tag} is not above the newest release tag ${TAG_PREFIX}${format(latest)}`,
-    );
+  return version;
+}
+
+function versionEdits(read: (path: string) => string, version: Version): ReleasePlan["edits"] {
+  return RELEASE_FILES.map((file) => {
+    const before = read(file.path);
+    return {
+      path: file.path,
+      after: file.write(before, version),
+      change: `${format(file.read(before))} to ${format(version)}`,
+    };
+  });
+}
+
+function planRelease(input: PlanInput): ReleasePlan {
+  const version = versionOfTag(input.tag);
+  const read = (path: string): string => fileAt(input.base, path);
+  const tags = remoteTags();
+  refuseVersion(version, tags, APP.read(read(APP.path)));
+  const baseline = patchBaseline(version, tags);
+  if (baseline !== undefined) {
+    if (input.fetchMissing) {
+      fetchTag(baseline);
+    }
+    refuseMigrations(version, baseline, input.base);
   }
-  const app = APP.read(readFile(APP.path));
-  if (app.kind === "shared" && compare(version, app.version) <= 0) {
-    throw new ReleaseError(
-      `${tag} is not above ${format(app.version)}, the version ${APP.path} already carries`,
-    );
-  }
-  const line = refusePatchWithMigration(version, released);
+  checkHeadline(version, input.headline);
+  const changelog = read(CHANGELOG);
   const stable = version.rc === undefined;
-  const changelogs = stable
-    ? [cutChangelog(ROOT_CHANGELOG, version, true), cutChangelog(BOT_CHANGELOG, version, false)]
-    : [];
+  const cut = stable ? cutChangelog(changelog, version, input.headline) : undefined;
   return {
     version,
-    kind: `${stable ? "stable release" : "release candidate"}, ${line}`,
-    edits: [...versionEdits(version), ...changelogs],
+    lines: [
+      `${tagOf(version)}: ${stable ? "stable release" : "release candidate"}${baseline === undefined ? "" : `, a patch of ${tagOf(baseline.version)} with no migration file changed since it`}`,
+      `  ${BOT_VERSION_FILE} and the bot skill's TAG pin stay at the bot's own number ${read(BOT_VERSION_FILE).trim()}, because an installed bot finds only bot-v tags until its update follows the Instance`,
+    ],
+    edits: [
+      ...versionEdits(read, version),
+      ...(cut === undefined
+        ? []
+        : [
+            {
+              path: CHANGELOG,
+              after: cut.after,
+              change: `"## Unreleased" becomes "${cut.heading}"`,
+            },
+          ]),
+    ],
+    notes: cut?.notes ?? unreleasedNotes(changelog),
   };
 }
 
-function pullRequestBody(tag: string, stable: boolean, changelog: string): string {
-  const notes = stable ? unreleasedNotes(changelog, ROOT_CHANGELOG) : "";
-  return [
-    `Set every version to \`${tag.slice(TAG_PREFIX.length)}\`${stable ? ` and cut the changelog's Unreleased section into \`${tag}\`` : ""}.`,
-    "",
-    `After the merge, tag the squash commit on \`main\` with \`${tag}\` and push the tag; the release workflow starts from the tag.`,
-    ...(notes === "" ? [] : ["", "## Notes", "", notes]),
-  ].join("\n");
+function readWorkingFile(path: string): string {
+  return readFileSync(join(ROOT, path), "utf8");
 }
 
-function refuseUnlessAtMain(): void {
-  if (git("status", "--porcelain") !== "") {
-    throw new ReleaseError("the working tree has changes; run the release from a clean checkout");
+function check(): void {
+  const read = readWorkingFile;
+  const differences = versionDifferences(read);
+  if (differences.length > 0) {
+    throw new ReleaseError(
+      `every artifact carries the version of ${APP.path}; run node tools/release.ts v<version> to set them all\n${differences.join("\n")}`,
+    );
   }
-  if (git("rev-parse", "HEAD") !== git("rev-parse", "origin/main")) {
-    throw new ReleaseError("HEAD is not origin/main; run the release from the tip of main");
+  const app = APP.read(read(APP.path));
+  process.stdout.write(
+    `versions agree at ${format(app)}: ${COMPARED_FILES.map((file) => file.path).join(", ")}\n`,
+  );
+  if (app.patch === 0) {
+    return;
+  }
+  const tags = remoteTags();
+  if (tags.some((tag) => compare(tag.version, app) === 0)) {
+    return;
+  }
+  const baseline = patchBaseline(app, tags);
+  if (baseline !== undefined) {
+    fetchTag(baseline);
+    refuseMigrations(app, baseline, "HEAD");
+    process.stdout.write(`no migration file changed since ${tagOf(baseline.version)}\n`);
   }
 }
 
-function openPullRequest(tag: string, edits: readonly Edit[], stable: boolean): void {
-  const branch = `release-${tag}`;
-  const title = `chore(release): ${tag}`;
-  const body = pullRequestBody(tag, stable, readFile(ROOT_CHANGELOG));
-  git("switch", "--create", branch);
-  for (const edit of edits) {
-    writeFileSync(join(ROOT, edit.path), edit.after);
-  }
-  git("commit", "--quiet", "--message", title, "--", ...edits.map((edit) => edit.path));
-  git("push", "--quiet", "--set-upstream", "origin", branch);
-  const bodyFile = join(mkdtempSync(join(tmpdir(), "threadsift-release-")), "body.md");
-  writeFileSync(bodyFile, body);
-  const url = execFileSync(
-    "gh",
-    ["pr", "create", "--base", "main", "--head", branch, "--title", title, "--body-file", bodyFile],
-    { cwd: ROOT, encoding: "utf8" },
-  ).trim();
-  process.stdout.write(`opened ${url}\n`);
-}
-
-function release(tag: string, dryRun: boolean): void {
-  git("fetch", "--quiet", "--tags", "origin", "main");
+function release(tag: string, dryRun: boolean, headline: string | undefined): void {
   if (!dryRun) {
-    refuseUnlessAtMain();
+    git("fetch", "--quiet", "--no-tags", "origin", "main");
   }
-  const plan = planRelease(tag);
-  process.stdout.write(`${tag}: ${plan.kind}\n`);
+  const base = git("rev-parse", dryRun ? "HEAD" : "refs/remotes/origin/main");
+  const plan = planRelease({ tag, base, headline, fetchMissing: !dryRun });
+  process.stdout.write(`${plan.lines.join("\n")}\n`);
   for (const edit of plan.edits) {
     process.stdout.write(`  ${edit.path}: ${edit.change}\n`);
   }
   if (dryRun) {
     process.stdout.write(
-      `dry run at ${git("rev-parse", "--short", "HEAD")}: changed no file; a release from the tip of main commits "chore(release): ${tag}" on a new branch release-${tag}, pushes it and opens a pull request to main\n`,
+      `dry run of the files committed at ${base.slice(0, 8)}: wrote nothing; a release commits "chore(release): ${tag}" on origin/main, pushes it as release-${tag} and opens a pull request to main\n`,
     );
     return;
   }
-  openPullRequest(tag, plan.edits, plan.version.rc === undefined);
+  publish(plan, base);
 }
 
-const { values, positionals } = parseArgs({
-  options: { "dry-run": { type: "boolean", default: false } },
-  allowPositionals: true,
-});
+function parsedArguments(): ReturnType<typeof parseCommandLine> {
+  try {
+    return parseCommandLine();
+  } catch (error) {
+    throw new ReleaseError(USAGE, { cause: error });
+  }
+}
+
+function parseCommandLine() {
+  return parseArgs({
+    options: {
+      "dry-run": { type: "boolean", default: false },
+      headline: { type: "string" },
+    },
+    allowPositionals: true,
+  });
+}
 
 try {
+  const { values, positionals } = parsedArguments();
   const [command] = positionals;
   if (positionals.length !== 1 || command === undefined) {
-    throw new ReleaseError("usage: node tools/release.ts check | v<version> [--dry-run]");
+    throw new ReleaseError(USAGE);
   }
   if (command === "check") {
-    process.stdout.write(`${checkVersions()}\n`);
+    check();
   } else {
-    release(command, values["dry-run"]);
+    release(command, values["dry-run"], values.headline);
   }
 } catch (error) {
   if (!(error instanceof ReleaseError)) {
