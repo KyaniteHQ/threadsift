@@ -4,8 +4,8 @@ import { SECOND_MS } from "../../src/core/contract/time-units.ts";
 
 export const AI_TEXT = {
   "key-needed":
-    "An API key is required on first save or after changing Provider, URL or model. Enter the API key and save again.",
-  "provider-busy": "The Provider is busy or failing. Try Verify later.",
+    "An API key is needed on the first save or after changing Provider, Base URL or Model. Enter a key and save again.",
+  "provider-busy": "The provider is busy or failing. Try Verify later.",
 
   publicUrlHelp:
     "Use a public HTTPS address. A private address, such as Ollama on your home network, works only in a container install.",
@@ -28,8 +28,8 @@ export const AI_TEXT = {
   grokBotKey:
     "No API key is needed here. Threadsift uses the address and key saved in the Grok Bot section.",
   verifyingBot: "Waiting for Grok Bot…",
-  botTimeout: `The Grok Bot did not answer in ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds. Check that the bot's routine is on and try Verify again.`,
-  botBusy: "The Grok Bot answered with an error or is busy. Try Verify later.",
+  botTimeout: `The Grok Bot didn’t answer within ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds. Check that its routine in Grok is on, then press Verify again.`,
+  botBusy: "The Grok Bot is busy or returned an error. Try Verify later.",
   workersAiHelp:
     "Workers AI runs on this instance’s Cloudflare account. It needs no URL or API key.",
   keyNotNeeded: "No API key is needed.",
@@ -41,7 +41,7 @@ export const AI_TEXT = {
     "In this container, Claude Code isn’t signed in. Reload this page after signing in with",
   claudeCodeSignInCommand: "claude auth login",
   claudeCodeRejected:
-    "Claude Code's sign-in was rejected. Run claude auth login on the server, or replace the token it started with, then press Verify again.",
+    "Claude Code rejected its sign-in. Run claude auth login in the container or replace the token in CLAUDE_CODE_OAUTH_TOKEN, then press Verify again.",
   codexKeyNotNeeded: "No API key is needed. Codex uses its own sign-in in this container.",
   codexModelHelp:
     "If you enter only an effort, Threadsift uses the first visible model in Codex’s bundled catalog.",
@@ -50,10 +50,10 @@ export const AI_TEXT = {
     "In this container, Codex isn’t signed in. Reload this page after signing in with",
   codexSignInCommand: "codex login --device-auth",
   codexRejected:
-    "Codex's sign-in was rejected. Run codex login --device-auth on the server, then press Verify again.",
+    "Codex rejected its sign-in. Run codex login --device-auth in the container, then press Verify again.",
   baseUrl: "Base URL",
   cliChoice: "Model and effort",
-  customMissing: "Enter a model or an effort.",
+  customMissing: "Enter a model or effort level.",
   recommendationFallback:
     "The installed CLI doesn’t support the recommended model and effort. It uses its defaults until it does.",
   cliChoices: {
@@ -74,8 +74,8 @@ export const AI_TEXT = {
   effort: "Effort",
   effortHelp: "If you enter only a model, the CLI uses that model’s default effort.",
   invalidEffort:
-    "This model rejects that effort and accepts only {levels}. Save one of those levels or clear Effort.",
-  noEfforts: "This model accepts no effort levels. Clear Effort and press Save.",
+    "This model rejected that effort level. Accepted levels: {levels}. Enter one or clear Effort, then save again.",
+  noEfforts: "This model doesn’t accept effort levels. Clear Effort and save again.",
   key: "API key",
   keySet: "An API key is saved on this instance.",
   keyMissing: "No API key is saved yet.",
@@ -91,44 +91,44 @@ export const AI_TEXT = {
   connectUnavailable:
     "Connect needs THREADSIFT_PUBLIC_ORIGIN set to this instance’s public web address. You can still enter an API key.",
   connectStale:
-    "Settings changed since this page loaded, so Connect did not start. Reload the page and try again.",
-  connectFailed: "Connect could not start. Try again.",
+    "AI settings changed since the page loaded, so Connect didn’t start. Reload the page and press Connect again.",
+  connectFailed: "Couldn’t start Connect. Try again.",
   connected: "OpenRouter key saved. Press Verify to check the model.",
   connectActivationPending:
-    "The key is saved. OpenRouter has not activated the new key yet, so Digests for older Items did not start. Wait a minute, press Verify to check the key, and then press Save to start those Digests.",
+    "The key is saved. OpenRouter hasn’t activated it yet, so digests for older items didn’t start. Wait about a minute, press Verify to check the key, then press Save to start those digests.",
   connectIncomplete:
-    "Threadsift could not confirm this Connect. Press Verify to check the key, or press Connect again if no key is saved.",
+    "Threadsift couldn’t confirm the OpenRouter connection. Press Verify to check the saved key, or press Connect again if no key is saved.",
   connectSettingsChanged:
-    "AI settings changed while you were away, so nothing was saved. Press Connect again.",
+    "AI settings changed while you were on OpenRouter, so nothing was saved. Press Connect again.",
   connectPossibleOrphan:
-    "OpenRouter may have made a key that Threadsift did not save. You can delete unused keys in your OpenRouter account, then press Connect again.",
-  connectModelNeeded: "Fill in the Model field before pressing Connect.",
+    "OpenRouter may have created a key that Threadsift didn’t save. You can delete unused keys in your OpenRouter account, then press Connect again.",
+  connectModelNeeded: "Enter a model before pressing Connect.",
   save: "Save",
   saving: "Saving…",
-  saved: "Settings saved.",
+  saved: "Settings saved",
   verify: "Verify",
   verifying: "Verifying…",
-  verified: "Digest received.",
-  loadFailed: "Couldn’t load AI settings. Reload this page to try again.",
-  failed: "Couldn’t save or verify. Try again.",
+  verified: "Digest received",
+  loadFailed: "Couldn’t load AI settings. Reload the page to try again.",
+  failed: "Couldn’t save, verify or connect. Try again.",
   "secret-missing":
-    "This Instance has a missing, malformed or changed THREADSIFT_SECRET_KEY. Set it in the container environment or as a Worker secret to 32 random bytes encoded as 64 hex characters, or restore the original key if already saved. Then reload this page.",
-  "wrong-key": "Wrong API key. Check the API key and save again.",
-  "model-not-found": "Model not found. Check the model and save again.",
+    "THREADSIFT_SECRET_KEY is missing, invalid or changed on this instance. Set it in the container environment or as a Worker secret to 32 random bytes (64 hex characters). If keys were already saved with an earlier secret key, restore that key instead. Then reload the page.",
+  "wrong-key": "The provider rejected the API key. Check the key and save again.",
+  "model-not-found": "The provider doesn’t recognize this model. Check it and save again.",
   "no-json":
-    "The Provider did not return a valid Digest. Choose a model that supports structured JSON.",
+    "The provider didn’t return a valid digest. Choose a model that supports structured JSON output and save again.",
   declined:
-    "The Provider refused to return a Digest. Choose another model or Provider and save again.",
+    "The provider’s content filter blocked the digest. Choose another model or provider and save again.",
   "cut-off":
-    "The Provider cut off the Digest at the output limit. Choose a model that answers briefly in JSON or has a larger limit and save again.",
-  unreachable: "Couldn’t reach the Provider. Check the URL and connection.",
-  timeout: "The Provider timed out. Try Verify again.",
+    "The provider cut off the digest at its output limit. Choose a model that answers briefly in JSON or has a larger output limit, then save again.",
+  unreachable: "Couldn’t reach the provider. Check the Base URL and the network connection.",
+  timeout: "The provider took too long to answer. Try Verify again.",
   refused:
-    "Base URL refused. On Cloudflare use a public HTTPS URL; redirects are refused on both targets.",
+    "Threadsift rejected this Base URL. Redirects aren’t allowed, and on Cloudflare it must be a public HTTPS address.",
   "not-configured":
-    "Save Provider settings first, or sign in to Claude Code or Codex on this server.",
+    "Save provider settings first. Claude Code and Codex also need to be signed in inside the container.",
   "provider-unavailable":
-    "This Provider is not available on this Instance. Choose another Provider.",
+    "This provider isn’t available on this instance. Choose another provider.",
 } as const;
 
 export const CLI_TEXT = {

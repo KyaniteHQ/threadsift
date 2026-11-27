@@ -91,7 +91,7 @@ export const VERIFY_WAIT_MS = 60_000;
 
 export const VERIFY_DEADLINE_MS = VERIFY_WAIT_MS + HOP_DEADLINE_MS;
 
-export const GROK_BOT_FIRST = "Save a Grok Bot address and key first.";
+export const GROK_BOT_FIRST = "Save an address and key in the Grok Bot section first.";
 
 export const GROK_BOT_IN_USE =
   "Grok Bot is the Provider, so pick and save another Provider in the AI section first.";
