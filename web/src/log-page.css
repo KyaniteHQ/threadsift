@@ -3,9 +3,6 @@
 }
 .lg-date {
   color: var(--muted);
-  font-family: var(--f-mono);
-  font-size: var(--t-label);
-  font-variant-numeric: tabular-nums;
   white-space: nowrap;
 }
 .lg-sep {
@@ -41,8 +38,6 @@
 }
 .app[data-bp~="phone"] .lg-date {
   flex-basis: 100%;
-  color: var(--muted);
-  font-size: var(--t-meta);
 }
 .app[data-bp~="phone"] .lg-sep {
   display: none;

@@ -27,37 +27,51 @@ interface Segment<Key extends string> {
 
 export type SegmentsKind = "chips" | "segments" | "rows";
 
-const BUTTON_CLASS: Readonly<Record<SegmentsKind, string>> = {
-  chips: "fl-chip",
-  segments: "fl-seg-b",
-  rows: "fl-row",
+const KIND: Readonly<
+  Record<SegmentsKind, Readonly<{ group: string; button: string; labelInside: boolean }>>
+> = {
+  chips: { group: "fl-g", button: "fl-chip", labelInside: true },
+  segments: { group: "fl-seg", button: "fl-seg-b", labelInside: false },
+  rows: { group: "fl-rows", button: "fl-row", labelInside: false },
 };
 
-function SegmentButton<Key extends string>({
-  segment,
+function FilterButton<Key extends string>({
+  className,
+  value,
+  label,
+  count,
   pressed,
-  kind,
   pick,
+  ariaLabel,
+  labelledBy,
 }: Readonly<{
-  segment: Segment<Key>;
+  className: string;
+  value: Key | null;
+  label: string;
+  count: number;
   pressed: boolean;
-  kind: SegmentsKind;
   pick: (key: Key | null) => void;
+  ariaLabel?: string | undefined;
+  labelledBy?: string;
 }>) {
+  const id = useId();
+
   const press = useCallback(() => {
-    pick(pressed ? null : segment.key);
-  }, [pick, pressed, segment.key]);
+    pick(pressed ? null : value);
+  }, [pick, pressed, value]);
 
   return (
     <button
       type="button"
-      className={BUTTON_CLASS[kind]}
+      id={id}
+      className={className}
       aria-pressed={pressed}
-      aria-label={segment.name}
+      aria-label={ariaLabel}
+      aria-labelledby={labelledBy === undefined ? undefined : `${id} ${labelledBy}`}
       onClick={press}
     >
-      {segment.label}
-      <span className="fl-n">{segment.count}</span>
+      <bdi dir="auto">{label}</bdi>
+      <span className="fl-n">{count}</span>
     </button>
   );
 }
@@ -75,32 +89,36 @@ export function Segments<Key extends string>({
   kind: SegmentsKind;
   pick: (key: Key | null) => void;
 }>) {
+  const { group, button, labelInside } = KIND[kind];
   const label = (
     <span className="label" aria-hidden="true">
       {name}
     </span>
   );
-  const buttons = segments.map((segment) => (
-    <SegmentButton
-      key={segment.key ?? ALL_CHOICE}
-      segment={segment}
-      pressed={segment.key === chosen}
-      kind={kind}
-      pick={pick}
-    />
-  ));
-
-  return kind === "chips" ? (
-    <fieldset className="fl-g" aria-label={name}>
-      {label}
-      {buttons}
+  const fieldset = (
+    <fieldset className={group} aria-label={name}>
+      {labelInside ? label : null}
+      {segments.map((segment) => (
+        <FilterButton
+          key={segment.key ?? ALL_CHOICE}
+          className={button}
+          value={segment.key}
+          label={segment.label}
+          count={segment.count}
+          pressed={segment.key === chosen}
+          pick={pick}
+          ariaLabel={segment.name}
+        />
+      ))}
     </fieldset>
+  );
+
+  return labelInside ? (
+    fieldset
   ) : (
     <div className="fl-group">
       {label}
-      <fieldset className={kind === "rows" ? "fl-rows" : "fl-seg"} aria-label={name}>
-        {buttons}
-      </fieldset>
+      {fieldset}
     </div>
   );
 }
@@ -115,38 +133,6 @@ export function withAll<Key extends string>(
     { key: null, label: ALL_CHOICE, name: plural(sum, allName.one, allName.many), count: sum },
     ...segments,
   ];
-}
-
-function Row({
-  row,
-  heading,
-  pressed,
-  pick,
-}: Readonly<{
-  row: CountedName;
-  heading: string;
-  pressed: boolean;
-  pick: (key: string | null) => void;
-}>) {
-  const id = useId();
-
-  const press = useCallback(() => {
-    pick(pressed ? null : row.key);
-  }, [pick, pressed, row.key]);
-
-  return (
-    <button
-      type="button"
-      id={id}
-      className="fl-row"
-      aria-labelledby={`${id} ${heading}`}
-      aria-pressed={pressed}
-      onClick={press}
-    >
-      <bdi dir="auto">{row.name}</bdi>
-      <span className="fl-n">{row.count}</span>
-    </button>
-  );
 }
 
 function visibleRows(
@@ -198,7 +184,16 @@ function Rows({
     <fieldset id={id} className="fl-rows" aria-label={FILTER_GROUPS[facet]}>
       {rows.length === 0 ? <p className="list-hint">{NO_ROWS[facet]}</p> : null}
       {shown.map((row) => (
-        <Row key={row.key} row={row} heading={heading} pressed={row.key === chosen} pick={pick} />
+        <FilterButton
+          key={row.key}
+          className="fl-row"
+          value={row.key}
+          label={row.name}
+          count={row.count}
+          pressed={row.key === chosen}
+          pick={pick}
+          labelledBy={heading}
+        />
       ))}
       {visible.length > SHOWN_ROWS ? (
         <MoreRows facet={facet} count={visible.length} all={all} toggle={toggleAll} />
