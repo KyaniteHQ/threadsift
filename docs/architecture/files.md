@@ -62,7 +62,7 @@ Listing 4,500 files in 1,500 Item folders in pages of 100 (the page size of `cle
 
 The fetch job stores a post text over `INLINE_TEXT_BYTES` (1,000,000 UTF-8 bytes) in the store, and `readArticle` returns the whole Markdown, so the job and not the reader splits at the limit.
 
-The key is `items/<item id>/post-<job id>-<attempt>.md`. A job id is never reused, and a job gets a new attempt number whenever a runner takes it over, so a key is never written twice. One SQL expression builds the key (`postText` of `attemptFileKeys`), so the claim, the fetch job and the cleanup share one formatter.
+The key is `items/<item id>/post-<job id>-<attempt>.md`. A job id is never reused, and a job gets a new attempt number whenever a runner takes it over, so a key is never written twice. Only a Digest job, which writes no file, starts its count at 0 again when its input moved ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md), Attempts belong to a generation). A newer X answer for an Item closes its open `x_verify` job and opens another, so the input of an `x_verify` job never moves after its first claim. One SQL expression builds the key (`postText` of `attemptFileKeys`), so the claim, the fetch job and the cleanup share one formatter.
 
 Two requeues keep the attempt number, and neither may follow a file write, because a key written twice would replace a file nothing names yet. The batch that publishes a key also closes the job.
 

@@ -1,7 +1,11 @@
 import { type SQLWrapper, and, eq, inArray, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { INTAKE_JOB_KINDS, type UnownedJobKind } from "../contract/job-contract.ts";
+import {
+  INTAKE_JOB_KINDS,
+  type IntakeJobKind,
+  type UnownedJobKind,
+} from "../contract/job-contract.ts";
 import { givenUpTasks, supersededTasks } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
 import type { JobCurrency } from "./job-outcome.ts";
@@ -41,22 +45,37 @@ export function closeRunJobs(db: Database, kind: UnownedJobKind, runId: number) 
   return closeJobs(db, and(eq(jobs.kind, kind), eq(jobs.address, unownedAddress(kind, runId))));
 }
 
-export function closeItemJobs(
+function closeIntakeJobs(
   db: Database,
   itemId: Readonly<SQLWrapper>,
-  { answering }: Readonly<{ answering?: number }> = {},
+  kinds: readonly IntakeJobKind[],
+  answering: number | null,
 ) {
-  const ofItem = and(eq(jobs.itemId, sql`${itemId}`), inArray(jobs.kind, INTAKE_JOB_KINDS));
+  const ofItem = and(eq(jobs.itemId, sql`${itemId}`), inArray(jobs.kind, kinds));
   const itemJobs = db.select({ id: jobs.id }).from(jobs).where(ofItem);
 
   return [
     supersededTasks(
       db,
-      sql`${inArray(aiTasks.jobId, itemJobs)} and ${aiTasks.id} is not ${answering ?? null}`,
+      sql`${inArray(aiTasks.jobId, itemJobs)} and ${aiTasks.id} is not ${answering}`,
     ),
     closeJobs(db, ofItem),
+  ] as const;
+}
+
+export function closeItemJobs(
+  db: Database,
+  itemId: Readonly<SQLWrapper>,
+  { answering }: Readonly<{ answering?: number }> = {},
+) {
+  return [
+    ...closeIntakeJobs(db, itemId, INTAKE_JOB_KINDS, answering ?? null),
     db.delete(xVerifications).where(eq(xVerifications.itemId, sql`${itemId}`)),
   ] as const;
+}
+
+export function closeVerifyJob(db: Database, itemId: number) {
+  return closeIntakeJobs(db, sql`${itemId}`, ["x_verify"], null);
 }
 
 export async function discardTask(

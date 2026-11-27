@@ -54,7 +54,7 @@ async function rebuilt(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<Sett
   const progress = progressOf(verification.thread, verification.judged);
 
   return progress.kind === "asking"
-    ? { writes: [], continuation: [...reopened(ports.db, job.itemId, job.address)] }
+    ? { writes: [], continuation: [reopened(ports.db, job.itemId, job.address)] }
     : ended(ports, job, verification, progress);
 }
 

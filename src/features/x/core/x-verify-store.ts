@@ -6,24 +6,16 @@ import type { Judged } from "../../../core/contract/x-verdict.ts";
 import type { XThreadValue } from "../../../core/contract/x-wire.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { guardHolds } from "../../../core/kernel/guards.ts";
+import { closeVerifyJob } from "../../../core/kernel/job-close.ts";
 import type { JobWrites, SettledOutcome } from "../../../core/kernel/job-outcome.ts";
 import { isLastAttempt, retryDelayMs } from "../../../core/kernel/job-retry.ts";
 import { opening } from "../../../core/kernel/job-rows.ts";
-import { jobIs } from "../../../core/kernel/job-tables.ts";
-import { items, jobs, xVerifications } from "../../../core/kernel/schema.ts";
+import { items, xVerifications } from "../../../core/kernel/schema.ts";
 import { withdrawnFetch } from "../../item/core/settle.ts";
 import { startingJudged } from "./x-verify-state.ts";
 
 export function reopened(db: Database, itemId: number, address: string) {
-  const now = Date.now();
-
-  return [
-    opening(db, { kind: "x_verify", address, now, where: eq(items.id, itemId) }),
-    db
-      .update(jobs)
-      .set({ attempts: 0, nextAttemptAt: now, waitReason: null })
-      .where(and(eq(jobs.itemId, itemId), eq(jobs.kind, "x_verify"), jobIs("queued"))),
-  ] as const;
+  return opening(db, { kind: "x_verify", address, now: Date.now(), where: eq(items.id, itemId) });
 }
 
 export function queuedVerification(
@@ -57,7 +49,8 @@ export function queuedVerification(
         target: xVerifications.itemId,
         set: { revision: sql`${xVerifications.revision} + 1`, ...fresh },
       }),
-    ...reopened(db, itemId, address),
+    ...closeVerifyJob(db, itemId),
+    reopened(db, itemId, address),
   ];
 }
 

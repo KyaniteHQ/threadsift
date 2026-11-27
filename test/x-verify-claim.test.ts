@@ -7,6 +7,7 @@ import { insertedXItem } from "./x-intake-fixtures.ts";
 import { commentCount, itemRow, verificationRow } from "./x-intake-rows.ts";
 import {
   claimedBeforeNewerAnswer,
+  claimsAroundNewerAnswer,
   dueKindsBesideVerification,
   jobAfterNewerAnswer,
   storedUnreadably,
@@ -17,6 +18,7 @@ const BROKEN = "1000000000000000006";
 const CLAIMED = "1000000000000000007";
 const DIGESTED = "1000000000000000008";
 const RESTARTED = "1000000000000000009";
+const TAKEN_OVER = "1000000000000000041";
 
 describe("a verification job ends its own stored row and no newer one", () => {
   let instance: Instance;
@@ -69,5 +71,30 @@ describe("a verification job ends its own stored row and no newer one", () => {
 
     assert.deepEqual([job?.attempts, job?.waitReason], [0, null]);
     assert.ok((job?.nextAttemptAt ?? Infinity) <= Date.now());
+  });
+});
+
+describe("a verification job claimed again after a newer answer", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await Instance.start();
+    await instance.setUp();
+  });
+
+  after(() => instance.close());
+
+  it("writes under file keys that the claim it replaced did not hold", async () => {
+    const itemId = insertedXItem(instance, TAKEN_OVER);
+    const [first, second] = await claimsAroundNewerAnswer(
+      instance,
+      itemId,
+      TAKEN_OVER,
+      valueOf(TAKEN_OVER),
+    );
+
+    assert.ok(first?.kind === "x_verify" && second?.kind === "x_verify");
+    assert.notEqual(second.attemptKey, first.attemptKey);
+    assert.notEqual(second.imagePrefix, first.imagePrefix);
   });
 });

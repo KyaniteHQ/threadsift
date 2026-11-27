@@ -1,9 +1,10 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { claimNextDue, dueIds } from "../src/core/compose/jobs.ts";
 import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { XThreadValue } from "../src/core/contract/x-wire.ts";
 import { enqueueItemJobs } from "../src/core/kernel/job-rows.ts";
+import { jobOpen } from "../src/core/kernel/job-tables.ts";
 import { jobs, xVerifications } from "../src/core/kernel/schema.ts";
 import { queuedVerification, savedProgress } from "../src/features/x/core/x-verify-store.ts";
 import type { Instance } from "./instance.ts";
@@ -54,6 +55,34 @@ export async function claimedBeforeNewerAnswer(
   ]);
 
   return claimed;
+}
+
+export async function claimsAroundNewerAnswer(
+  instance: Instance,
+  itemId: number,
+  statusId: string,
+  value: XThreadValue,
+) {
+  const { db } = instance.core;
+
+  await storedForVerification(instance, itemId, statusId, value, {
+    judged: allJudged(value),
+    waiting: true,
+  });
+
+  const first = await claimNextDue(db);
+
+  await db.update(jobs).set({ claimExpires: 0 }).where(eq(jobs.itemId, itemId));
+  await db.batch([
+    ...queuedVerification(db, {
+      itemId,
+      address: xAddressOf(statusId),
+      thread: value,
+      digest: null,
+    }),
+  ]);
+
+  return [first, await claimNextDue(db)] as const;
 }
 
 export async function dueKindsBesideVerification(
@@ -117,7 +146,10 @@ export async function jobAfterNewerAnswer(
     }),
   ]);
 
-  const [job] = await db.select().from(jobs).where(eq(jobs.itemId, itemId));
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.itemId, itemId), jobOpen()));
 
   return job;
 }
