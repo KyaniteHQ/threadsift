@@ -4,16 +4,17 @@ import type { BatchItem } from "drizzle-orm/batch";
 import {
   GROK_BOT_WAIT,
   INTAKE_JOB_KINDS,
-  type OwnedJobKind,
+  ITEM_JOB_KINDS,
   type WaitReason,
 } from "../contract/job-contract.ts";
+import { GROK_BOT_EXECUTOR, RUNNING } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { jobIs, jobOpen } from "./job-tables.ts";
 import { listed } from "./schema-checks.ts";
-import { items, jobs } from "./schema.ts";
+import { aiTasks, items, jobs } from "./schema.ts";
 
 export function waitingFor(reason?: WaitReason): SQL {
   return reason === undefined
@@ -49,19 +50,23 @@ export function wokenJob(db: Database, jobId: number, now: number, when?: Readon
   return wokenJobs(db, now, eq(jobs.id, jobId), jobOpen(), when && sql`${when}`);
 }
 
+export type MovedInput =
+  | { readonly kind: "item-content"; readonly itemId: number | Readonly<SQLWrapper> }
+  | { readonly kind: "library" };
+
+function jobsReading(moved: MovedInput): SQL {
+  return moved.kind === "item-content"
+    ? sql`${jobs.kind} = 'digest' and ${jobs.itemId} = ${moved.itemId}`
+    : sql`${jobs.kind} not in (${listed(ITEM_JOB_KINDS)})`;
+}
+
+const AWAITS_SENT_TASK = sql`exists (select 1 from ${aiTasks} where ${aiTasks.jobId} = ${jobs.id} and ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${RUNNING})`;
+
 export function wokenBotWaits(
   db: Database,
-  kind: OwnedJobKind,
-  itemId: number | Readonly<SQLWrapper>,
-  now: number,
+  { moved, now }: Readonly<{ moved: MovedInput; now: number }>,
 ) {
-  return wokenJobs(
-    db,
-    now,
-    waitingFor(GROK_BOT_WAIT),
-    eq(jobs.kind, kind),
-    eq(jobs.itemId, itemId),
-  );
+  return wokenJobs(db, now, waitingFor(GROK_BOT_WAIT), AWAITS_SENT_TASK, jobsReading(moved));
 }
 
 export async function enqueueWoken(

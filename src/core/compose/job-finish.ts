@@ -21,6 +21,7 @@ import {
   type JobPorts,
   type JobWrites,
   NO_FILES,
+  type OpenTask,
   type Precondition,
   type SettledOutcome,
 } from "../kernel/job-outcome.ts";
@@ -133,12 +134,12 @@ export async function exhaust(
   await afterClose(ports, job, wrote, NO_FILES, spec);
 }
 
-function dueAt(until: number, closedTask: number | undefined): number | SQL {
-  if (closedTask === undefined) return until;
+function dueAt(until: number, open: Readonly<OpenTask> | undefined): number | SQL {
+  if (open === undefined) return until;
 
   const now = Date.now();
 
-  return sql`case when ${answeredOrClosed(closedTask)} then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${closedTask}), ${until})) end`;
+  return sql`case when ${answeredOrClosed(open.taskId)} or not (${open.current}) then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${open.taskId}), ${until})) end`;
 }
 
 export async function queueLater(
@@ -157,7 +158,7 @@ export async function queueLater(
     attempts: number;
     staleRequeues: number;
     wait: WaitReason | null;
-    unlessOpen?: number | undefined;
+    unlessOpen?: Readonly<OpenTask> | undefined;
     writes?: JobWrites | undefined;
     closing: JobClosing;
   }>,

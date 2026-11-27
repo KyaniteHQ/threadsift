@@ -2,6 +2,7 @@ import { type SQLWrapper, and, asc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
 import { storedWithTopic } from "../../../core/kernel/digest-stored.ts";
+import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
 import { digests, items, logEntries, topics } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
@@ -64,5 +65,6 @@ export function topicMoves(
       .update(logEntries)
       .set({ topicId: survivor })
       .where(and(eq(logEntries.topicId, loser), among(logEntries.id, entryIds))),
+    wokenBotWaits(db, { moved: { kind: "library" }, now: Date.now() }),
   ];
 }

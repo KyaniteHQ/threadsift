@@ -14,7 +14,7 @@ import {
   pickedFor,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { applied, step, taskAfterStart } from "./bot-task-lifecycle.ts";
+import { applied, sentTaskWait, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { sweptWith } from "./weekly-claim-fixtures.ts";
@@ -39,12 +39,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
   it("makes the deferral read the answer: an answer that committed first leaves the job due now, not at the deadline", async () => {
     const task = await taskAfterStart(instance, library.source);
 
-    const deferral = {
-      deferredUntil: taskRow(instance, task.id).deadline,
-      wait: "grok-bot",
-      countsAttempt: false,
-      unlessOpen: task.id,
-    } as const;
+    const deferral = sentTaskWait(taskRow(instance, task.id));
 
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
@@ -65,12 +60,7 @@ describe("an answer reaches its job whichever happens first, the answer or the s
   it("finds the answered job through the sweep's due query when the wake reached no claimable job, and a claim applies the answer", async () => {
     const task = await taskAfterStart(instance, library.source);
 
-    await applied(instance, task.job, {
-      deferredUntil: taskRow(instance, task.id).deadline,
-      wait: "grok-bot",
-      countsAttempt: false,
-      unlessOpen: task.id,
-    });
+    await applied(instance, task.job, sentTaskWait(taskRow(instance, task.id)));
     assert.equal(jobRow(instance, task.job.id).state, "queued");
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,

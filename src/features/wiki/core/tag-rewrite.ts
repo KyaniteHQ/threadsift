@@ -13,6 +13,7 @@ import {
   unchangedDigests,
 } from "../../../core/kernel/digest-stored.ts";
 import { report } from "../../../core/kernel/failure-log.ts";
+import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
 import { digests, items, itemTags } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
@@ -92,7 +93,7 @@ function readableDigests(
 }
 
 function digestRewrites(db: Database, reading: Readonly<ReturnType<typeof readableDigests>>) {
-  return reading.flatMap(({ row, rewritten }) =>
+  const rewrites = reading.flatMap(({ row, rewritten }) =>
     rewritten === null
       ? []
       : [
@@ -110,6 +111,10 @@ function digestRewrites(db: Database, reading: Readonly<ReturnType<typeof readab
             ),
         ],
   );
+
+  return rewrites.length === 0
+    ? []
+    : [...rewrites, wokenBotWaits(db, { moved: { kind: "library" }, now: Date.now() })];
 }
 
 export async function readRewrite(
