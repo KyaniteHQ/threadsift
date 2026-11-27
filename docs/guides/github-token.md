@@ -13,7 +13,7 @@ The token only reads public repositories. Threadsift keeps it sealed on your Ins
 
 ## Create and save the token
 
-1. Open [GitHub's new fine-grained token page](https://github.com/settings/personal-access-tokens/new?name=Threadsift&description=Threadsift+reads+public+repositories+for+pasted+links+at+a+higher+request+limit&expires_in=366). The link fills in the name, a description and an expiry of 366 days, which is GitHub's longest ([pre-filling token details](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)).
+1. Open [GitHub's new fine-grained token page](https://github.com/settings/personal-access-tokens/new?name=Threadsift&description=Threadsift+reads+public+repositories+for+pasted+links+at+a+higher+request+limit&expires_in=365). The link fills in the name, a description and an expiry of 365 days ([pre-filling token details](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/managing-your-personal-access-tokens)). If GitHub says the expiry is above the limit of your account or organization, choose a shorter expiry on the form.
 2. Leave every permission as it is, and generate the token. Every token can read public repositories, so none is needed.
 3. In Threadsift, open Settings, paste the token into the GitHub token section, and choose **Save token**.
 4. Choose **Verify token**. Threadsift asks GitHub for your hourly limit and shows how many requests are left.

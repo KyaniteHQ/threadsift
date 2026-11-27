@@ -6,7 +6,7 @@ Contents: [The Extension](#the-extension), [Publishing a sent page](#publishing-
 
 ## The Extension
 
-WXT builds the Extension for desktop Chrome and Firefox (Manifest V3). It posts to `POST /api/items` with an agent token, saves one page per click and never crawls. `pnpm run build:extension` builds both browsers. Defuddle is pinned in the workspace catalog to the version the server uses, so the browser and the server read a page alike.
+WXT builds the Extension for desktop Chrome and Firefox (Manifest V3). The Firefox manifest sets `strict_min_version` to 140.0 for desktop and 142.0 for Android, the first versions with Firefox's built-in consent screen for the data the manifest declares ([Mozilla's guide](https://extensionworkshop.com/documentation/develop/firefox-builtin-data-consent/)), so an older Firefox refuses to install it. The Extension supports Firefox for desktop only. It posts to `POST /api/items` with an agent token, saves one page per click and never crawls. `pnpm run build:extension` builds both browsers. Defuddle is pinned in the workspace catalog to the version the server uses, so the browser and the server read a page alike.
 
 ### Load the build in Firefox
 

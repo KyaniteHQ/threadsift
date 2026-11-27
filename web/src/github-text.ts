@@ -54,7 +54,7 @@ export const TOKEN_STATES = {
 } as const;
 
 export const TOKEN_PAGE =
-  "https://github.com/settings/personal-access-tokens/new?name=Threadsift&description=Threadsift+reads+public+repositories+for+pasted+links+at+a+higher+request+limit&expires_in=366";
+  "https://github.com/settings/personal-access-tokens/new?name=Threadsift&description=Threadsift+reads+public+repositories+for+pasted+links+at+a+higher+request+limit&expires_in=365";
 
 export const GUIDE_URL =
   "https://github.com/KyaniteHQ/threadsift/blob/main/docs/guides/github-token.md";
