@@ -42,7 +42,7 @@ What an Instance protects, who can reach it, where content and credentials cross
 A security review ranks a finding higher when it touches a critical asset and an attacker in scope reaches it.
 
 - **Critical.** The library and its Export, the credentials and the owner's authority, and the host and its private network. The fourth asset, job capacity and the Provider's spend, is protected but not critical.
-- **Attackers in scope.** An anonymous caller on the network, a caller who uses a stolen agent token or task callback credential, a hostile site, redirect or author of saved content, and a compromised integration. A compromised upstream release pipeline and a hostile or compromised operator are in scope too. The app cannot stop an operator who holds the secrets, the stored data and the host, so a review reports what such an operator or a bad release can do and names the findings that have no fix inside the app.
+- **Attackers in scope.** An anonymous caller on the network, a caller who uses a stolen agent token or task callback credential, a caller who holds a stolen owner session or the owner's password, a hostile site, redirect or author of saved content, and a compromised integration. A compromised upstream release pipeline and a hostile or compromised operator are in scope too. The app cannot stop an operator who holds the secrets, the stored data and the host, so a review reports what such an operator or a bad release can do and names the findings that have no fix inside the app.
 - **Accepted risk.** The owner accepts the limits under [Known limits](#known-limits) and no other risk.
 
 ## Known limits
