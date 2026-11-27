@@ -36,14 +36,17 @@ export const READER_LABELS = {
   auto: "Auto",
   "grok-bot": "Grok Bot",
   "grok-cli": "grok CLI",
+  "x-api": "X API",
 } as const satisfies Readonly<Record<XReaderChoice, string>>;
 
 export const READER_HELP = {
-  auto: "Auto uses the Grok Bot only when its address is saved, Threadsift allows that address, and its saved key can be opened. Otherwise it uses the grok CLI if it’s installed. With neither, the link stays link-only.",
+  auto: "Auto uses the Grok Bot only when its address is saved, Threadsift allows that address, and its saved key can be opened. Otherwise it uses the grok CLI if it’s installed. If neither can be used and a token is saved, it uses the X API, which spends your X API credit. With none available, the link stays link-only.",
   "grok-bot":
     "Only the Grok Bot reads X links. If it can’t be used, the link stays link-only and the grok CLI is never tried.",
   "grok-cli":
     "Only the grok CLI reads X links. If it can’t be used, the link stays link-only and the Grok Bot is never tried.",
+  "x-api":
+    "Only the X API reads X links, and each read spends your X API credit. If it can’t be used, the link stays link-only and the other readers are never tried.",
 } as const satisfies Readonly<Record<XReaderChoice, string>>;
 
 export const BOT_STATES = {
@@ -94,6 +97,24 @@ export const X_NOTICES: Readonly<Record<XNoticeKey, string>> = {
     "The grok CLI couldn’t reach xAI’s service to read this post. Any earlier copy was kept. Paste the link again later.",
   "cli-failed":
     "Threadsift didn’t get a usable answer from the grok CLI, so this post couldn’t be read. Any earlier copy was kept. Try pasting the link again.",
+  "api-not-set-up":
+    "No X API Bearer token is saved, so this post couldn’t be read. Because X API is chosen, the other readers weren’t tried. Any earlier copy was kept. Save a token or change the reader in Settings, X posts, then paste the link again.",
+  "api-key-unopened":
+    "The saved X API Bearer token couldn’t be opened, so this post couldn’t be read. Any earlier copy was kept. Replace the token or change the reader in Settings, X posts, then paste the link again.",
+  "api-key-rejected":
+    "X rejected the saved Bearer token, so this post couldn’t be read. Any earlier copy was kept. Replace the token in Settings, X posts, then paste the link again.",
+  "api-not-enrolled":
+    "X says your developer app isn’t in the pay-per-use package, so this post couldn’t be read. Any earlier copy was kept. Move the app to pay-per-use in X’s developer console, then paste the link again.",
+  "api-ip-blocked":
+    "X refused the request to read this post because this instance’s address isn’t on the IP allowlist for your X developer account. Any earlier copy was kept. Add the address in X’s developer console, then paste the link again.",
+  "api-out-of-credits":
+    "Your X developer account has no credit left or has reached its spending limit, so this post couldn’t be read. Any earlier copy was kept. Add credit or raise the limit in X’s developer console, then paste the link again.",
+  "api-refused":
+    "X refused the request to read this post. Any earlier copy was kept. Paste the link again later.",
+  "api-unreachable":
+    "Threadsift couldn’t reach the X API to read this post. Any earlier copy was kept. Paste the link again later.",
+  "api-answer-unreadable":
+    "Threadsift didn’t get a usable answer from the X API, so this post couldn’t be read. Any earlier copy was kept. Paste the link again later.",
   "x-unconfirmed":
     "Threadsift couldn’t check this post on X, or the fetched post didn’t match what X shows. Nothing new was saved, and any earlier copy was kept.",
   "x-answer-refused":

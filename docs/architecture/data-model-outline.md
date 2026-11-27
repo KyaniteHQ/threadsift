@@ -60,6 +60,7 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
   - `archived_at` is the fill time of an Arctic Shift fill, and null for a thread that the Extension, a `.json` Paste, an X Paste or the connected Reddit account sent.
   - `linked_url` is the candidate link for the Digest's one hop, read for the Item's current generation (`candidateLink`). `post_link` is the address a Reddit link post points at, read from the newest generation. The candidate differs: it skips video and Reddit or X addresses and falls back to the first link of the post text.
   - The foreign key `(item_id, source)` to `items(id, source)` refuses a row that names another Source than its Item.
+  - `x_api_read` marks a thread the X API reader stored, which gets no Digest from the owner's Provider while `X_API_PROVIDER_DIGESTS` is off ([Fetchers](fetchers.md), X API).
 - **`thread_comments`.** `id` and `parent_id` hold the comment id at its Source, lower-cased: Reddit's base-36 comment id without the `t1_` of its fullname, or the status id of an X reply. A `more` stub's id is `more_<position>`, and a comment's `parent_id` is null for a reply to the post. `eligible` is false for a deleted or removed body, `AutoModerator` and a bare agreement such as "this" or "thanks". A Digest publication sets `kept` on eligible rows only and deletes every older generation in the same batch.
 
 ### Settings and integrations
@@ -73,11 +74,13 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
 | `github_cooldown` | The time before which the Instance sends no GitHub request. |
 | `grok_bot_settings` | The owner's Grok Bot, one row. No row means no Grok Bot is set up. |
 | `x_settings` | The owner's choice of the reader of X links. No row means `auto`. |
+| `x_api_settings` | The owner's X API Bearer token and the spend limits per Item and per UTC day, one row. No row, or a null token, means no token is saved. |
+| `x_api_spend` | One row per UTC day: the micro-USD the X API reader reserved and settled, the posts and users it counted, and X's own count of the day's posts from the daily usage read. |
 | `reddit_settings` | The owner's Reddit settings. No row means the archive fill is on. |
 | `reddit_account` | The owner's own Reddit account with its session cookie. |
 | `vault_settings`, `mirror_notes`, `mirror_files` | The Vault target, the lease, the queued note subjects and the per-file checkpoints. See [Vault mirror](vault-mirror.md). |
 
-- **Secrets.** `settings`, `github_settings`, `reddit_account`, `vault_settings` and `grok_bot_settings` hold their secret sealed under `THREADSIFT_SECRET_KEY`. `x_settings` and `reddit_settings` hold none. No route, log or Export returns `reddit_account`.
+- **Secrets.** `settings`, `github_settings`, `reddit_account`, `vault_settings`, `grok_bot_settings` and `x_api_settings` hold their secret sealed under `THREADSIFT_SECRET_KEY`. `x_settings` and `reddit_settings` hold none. No route, log or Export returns `reddit_account`.
 - **`settings`.** Only a Claude Code or Codex row can store an effort or use a choice other than `custom`. Grok Bot is not a value of this row. The flag `use_as_provider` on `grok_bot_settings` says Grok Bot is the Provider, and it blocks removing that row. `grok_bot_settings` holds no agent token, references no other table, and stays out of the Export (see [Export, backup and restore](export-backup-and-restore.md)).
 - **`reddit_account`.** The Reddit account module writes the row except `busy_job`, `busy_attempt`, `busy_until` and `queue_head`, which the Reddit queue module writes (The Reddit turn in [Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
 

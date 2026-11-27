@@ -5,6 +5,7 @@ const SETTING_NAMES = [
   "PASSWORD_RESET_CODE",
   "THREADSIFT_SECRET_KEY",
   "THREADSIFT_PUBLIC_ORIGIN",
+  "THREADSIFT_X_API_ORIGIN",
   "THREADSIFT_OPENROUTER_MAX_PRICE_ZERO",
 ] as const;
 
@@ -20,6 +21,7 @@ export interface Settings {
   readonly setupCode: string | undefined;
   readonly resetCode: string | undefined;
   readonly publicOrigin: string | undefined;
+  readonly xApiOrigin: string | undefined;
   readonly secretKey: string | undefined;
   readonly zeroOpenRouterPrice: boolean;
 }
@@ -38,6 +40,7 @@ export function settingsOf(variables: SettingVariables): Settings {
     setupCode: variables.SETUP_CODE,
     resetCode: variables.PASSWORD_RESET_CODE,
     publicOrigin: variables.THREADSIFT_PUBLIC_ORIGIN,
+    xApiOrigin: variables.THREADSIFT_X_API_ORIGIN,
     secretKey: variables.THREADSIFT_SECRET_KEY,
     zeroOpenRouterPrice,
   };

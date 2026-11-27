@@ -34,11 +34,13 @@ describe("the X settings report the reader of X links and let the owner choose i
 
   after(() => instance.close());
 
-  it("answers auto, all three choices and no reader on a container without the grok CLI or a Grok Bot", async () => {
+  it("answers auto, all four choices and no reader on a container without the grok CLI or a Grok Bot", async () => {
     assert.deepEqual(await instance.read("GET", PATH, XSettingsViewSchema), {
       reader: "auto",
-      choices: ["auto", "grok-bot", "grok-cli"],
+      choices: ["auto", "grok-bot", "grok-cli", "x-api"],
       bot: "not-configured",
+      api: "none",
+      auto: { reader: null, because: "no-reader" },
       fetcher: null,
       state: "not-installed",
       version: null,
@@ -55,6 +57,7 @@ describe("the X settings report the reader of X links and let the owner choose i
   it("saves each choice, reads it back, and returns to auto", async () => {
     assert.equal(await chosenAs(instance, "grok-bot"), "grok-bot");
     assert.equal(await chosenAs(instance, "grok-cli"), "grok-cli");
+    assert.equal(await chosenAs(instance, "x-api"), "x-api");
     assert.equal(await chosenAs(instance, "auto"), "auto");
   });
 
@@ -85,13 +88,13 @@ describe("on the Worker the choice of the grok CLI is not offered and is refused
 
   after(() => instance.close());
 
-  it("offers auto and grok-bot only", async () => {
+  it("offers auto, grok-bot and x-api only", async () => {
     const answer = await instance.sendWithPublicOnlyAiAndNoXFetcher("GET", PATH);
     const view = XSettingsViewSchema.parse(JSON.parse(answer.body));
 
     assert.deepEqual(
       [view.choices, view.state, view.fetcher],
-      [["auto", "grok-bot"], "worker", null],
+      [["auto", "grok-bot", "x-api"], "worker", null],
     );
   });
 

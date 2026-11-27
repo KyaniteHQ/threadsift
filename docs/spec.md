@@ -119,7 +119,7 @@ classify the URL: reddit post | reddit comment | x post | github repo | article 
         v
 fetch, or take the content the caller sent
   (no Provider call, but a model reads an X post, through the grok CLI
-   or the Grok Bot's x_intake AI task)
+   or the Grok Bot's x_intake AI task, or the X API returns it)
         |
         v
 deterministic clean
@@ -138,18 +138,23 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 
 ### X post
 
-- The owner chooses in Settings which reader fetches X links: `auto` (the default), `grok-bot` or `grok-cli`. Under `auto`, a usable Grok Bot webhook goes first, and without one the container tries the installed grok CLI ([Fetchers](architecture/fetchers.md), X).
-- `grok-bot` and `grok-cli` use that reader alone and never fall back to the other. When it cannot be used, the Item is Link-only and carries a note that names the cause.
+- The owner chooses in Settings which reader fetches X links: `auto` (the default), `grok-bot`, `grok-cli` or `x-api`. Under `auto`, a usable Grok Bot webhook goes first, then the container's installed grok CLI, then the X API when a Bearer token is saved ([Fetchers](architecture/fetchers.md), X). `GET /api/settings/x` names the reader `auto` uses now and why.
+- `grok-bot`, `grok-cli` and `x-api` use that reader alone and never fall back to another. When it cannot be used, the Item is Link-only and carries a note that names the cause.
+- The X API reader reads the post, its Quote chain, its Author thread and up to 40 replies through X's API with the owner's Bearer token, on both install targets. Its answer is X's own data, so it publishes without the check against X ([Fetchers](architecture/fetchers.md), X API).
+- Every X API read spends the owner's X credit. A limit per Item (default 1 USD) and per UTC day (default 3 USD) bound it: the Instance counts each request's worst case before sending it and sends no request that could pass a limit. A read that finds the day's limit used waits for the next UTC day, and one that X limits waits for X's reset time.
+- Once a day while a token is saved, the Instance reads X's own usage count of the day before and logs it beside its count. A failed answer changes nothing.
+- An X Item read through the X API gets no Digest from the owner's Provider while `X_API_PROVIDER_DIGESTS` is off. A Digest a caller sends with the Paste still publishes ([Decisions and evidence](architecture/decisions-and-evidence.md#x-developer-terms)).
+- The X API settings (`/api/settings/x-api`) save the token sealed, remove it, save the two limits, and Verify the token with one balance read. They answer the token state, the limits and today's spend, and never the token.
 - The bot fetches the post, its thread, replies and media through its X connector and sends them back to `POST /api/ai-tasks/{id}/intake`. A bot that never answers ends the Item `failed`, with no fallback to another source.
-- Both readers store the thread unpublished, and a verification job publishes it when the post itself matches X's public oEmbed answer for its id; a reply, follow-up or quoted post that fails the check is left out ([Fetchers](architecture/fetchers.md), The check against X).
+- The Grok Bot and the grok CLI store the thread unpublished, and a verification job publishes it when the post itself matches X's public oEmbed answer for its id; a reply, follow-up or quoted post that fails the check is left out ([Fetchers](architecture/fetchers.md), The check against X).
 - The Reader shows the post with its Author thread (the author's own chain of replies), its Quote chain (the posts it quotes, 5 at most) and its photos. A part that fails the check is left out, and a line says it was not saved.
-- Both readers rank replies by likes and keep the smallest set that accounts for 80% of the likes, between 20 and 40, plus those replies' ancestors and the author thread. When a parent is missing, the Reader groups its replies under one Context stub, and a thread with fewer replies than the post reports ends with a "Further replies weren’t saved." row ([Fetchers](architecture/fetchers.md), Replies kept).
+- Every reader ranks replies by likes and keeps the smallest set that accounts for 80% of the likes, between 20 and 40, plus those replies' ancestors and the author thread. When a parent is missing, the Reader groups its replies under one Context stub, and a thread with fewer replies than the post reports ends with a "Further replies weren’t saved." row ([Fetchers](architecture/fetchers.md), Replies kept).
 - A post X does not show ends the Item `status`, and the Reader says X does not show the post. A Link-only X Item offers Try again when its note is `cli-failed` or `x-unconfirmed`. Every note names the cause, and the other notes say what to do instead ([Fetchers](architecture/fetchers.md), Outcomes and notes).
 - A refresh that fails keeps the saved thread.
 - A Paste can carry the thread: `POST /api/items` with `{url, content}` for an X link takes one JSON text of the post and its replies (`XThreadSchema`), keeps every supplied reply, is not checked against X and stores it like a Reddit thread.
 - The container checks the grok CLI before it reads X posts with it, and again whenever the binary changes: a test run, and a probe run that asks for a file write, a file read and a shell command. A CLI that lists a local tool or acts on a file is not used, whatever its version.
 - Once a day the container updates the grok CLI with the CLI's own update command, checks the new version the same way, and switches to it only when it passes. X links are read with the version in use meanwhile. The X posts section of Settings shows the version in use, and a skipped newer version with the reason. The image sets `THREADSIFT_GROK_AUTO_UPDATE=true`, `false` turns the update off, and a Node target started outside the image leaves it off ([Fetchers](architecture/fetchers.md), The update).
-- The Cloudflare build has no CLI and does not offer `grok-cli`, so there X needs the webhook.
+- The Cloudflare build has no CLI and does not offer `grok-cli`, so there X needs the webhook or the X API.
 
 ### Reddit post or comment
 
@@ -453,7 +458,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 |---|---|---|
 | Storage | SQLite and a folder for images | D1 and R2 |
 | AI Providers | every row of AI providers marked for the container | API keys, OpenRouter, an OpenAI-compatible URL at a public HTTPS address, Workers AI, Grok Bot |
-| X fetching | Grok Bot webhook, or the grok CLI installed by the owner, as the owner chooses in Settings | Grok Bot webhook; without it, X links are Link-only Items |
+| X fetching | Grok Bot webhook, the grok CLI installed by the owner, or the X API with the owner's token, as the owner chooses in Settings | Grok Bot webhook or the X API; without either, X links are Link-only Items |
 | Reddit | Extension, `.json` paste, archive fill, the owner's Reddit account, Link-only Items, own adapter if added | Extension, `.json` paste, archive fill, the owner's Reddit account, Link-only Items |
 | Vault mirror | Item notes and the library wiki in a GitHub repository or mounted folder | Item notes and the library wiki in a GitHub repository |
 | Deploy button | none needed | Deploys `release` to the owner's Cloudflare account and creates a GitHub copy in the owner's account. The copy is private when the owner selects **Create private Git repository**. |

@@ -25,6 +25,7 @@ export type JobPorts = Pick<
   | "crypto"
   | "fetchers"
   | "xFetcher"
+  | "config"
 >;
 
 export type JobWrites = readonly BatchItem<"sqlite">[];
