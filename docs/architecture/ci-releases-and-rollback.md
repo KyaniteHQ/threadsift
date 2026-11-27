@@ -23,7 +23,7 @@ docs only     -> documentation checks -> aggregate `gate`
 full gate     -> check + smoke(worker) + smoke(container) -> aggregate `gate`
 code on main  -> full gate or matching pull request gate -> deploy (live Worker)
                                                         \-> image (ghcr.io :sha-<sha>, :main)
-tag v*        -> release: build amd64 + arm64 -> publish index, move `release`
+tag v*        -> release: plan -> build amd64 + arm64 -> publish index and image tags, move `release`, GitHub Release
 manual        -> live check (Worker and container, environment post-merge)
 ```
 
@@ -250,15 +250,41 @@ The `image` job of the gate workflow publishes the amd64 image after the full ga
 
 ## Releases
 
-The release workflow handles version tags and is separate from the gate workflow, so an ordinary push to `main` never moves the `release` branch. Both of its jobs run only in `KyaniteHQ/threadsift`.
+The release workflow handles version tags and is separate from the gate workflow, so an ordinary push to `main` never moves the `release` branch. Its jobs run only in `KyaniteHQ/threadsift`.
 
-1. A `v*` tag must name a commit on `main`. The build fails before publication when that ancestry check fails.
-2. One build job for each architecture pushes its image by digest with provenance, records the digest, start-checks the digest and, on amd64, runs the container smoke on it.
-3. The publish job checks that `release` can advance by fast-forward, validates a dry-run image index (both platforms and two attestation manifests), publishes the version tag and moves `release` to the tagged commit.
+`tools/release-plan.sh <tag>` decides what a tag moves, and both the `plan` and the `publish` job call it. It reads the repository's `v*` tags and the root changelog, prints each decision and changes nothing, so it also runs on a machine with no tag pushed. `--changelog <file>` reads another changelog, such as a draft.
 
-The `release` concurrency group serializes whole runs, and their order is not guaranteed. The publish checkout keeps full history, so later releases advance `release` with a fast-forward push. If publication succeeds but the branch push fails, rerun the failed publish job. It reuses the recorded digests, and creating the same index again is idempotent. Each build records its pushed digest before the runtime checks, so those artifacts also identify untagged versions that a failed check leaves for manual cleanup.
+| Tag | Image tags | `release` branch | GitHub Release |
+|---|---|---|---|
+| `v1.4.2` | publishes `1.4.2`, moves `1.4`, `1` and `latest` | moves to the tagged commit | a release marked latest |
+| `v1.5.0-rc.1` (any tag with `-`) | publishes `1.5.0-rc.1` only | stays | a prerelease |
 
-Verified on 2026-11-17 with two pre-release runs ([first](https://github.com/KyaniteHQ/threadsift/actions/runs/44159949236), [second](https://github.com/KyaniteHQ/threadsift/actions/runs/44164286715)): `docker buildx imagetools inspect` showed both platforms and two attestation manifests, the native arm64 start checks answered 200, `release` advanced to the tagged commit's direct child, and an [ordinary main run](https://github.com/KyaniteHQ/threadsift/actions/runs/44162780681) left it unchanged.
+- Version tags. A tag is `v<major>.<minor>.<patch>`, with `-<pre-release>` for a release candidate. A tag with `+<build>` is refused, because an image tag cannot hold `+`. Every Cloudflare copy follows the `release` branch, so a release candidate never moves it.
+- An older stable tag. A moving tag moves only when no stable tag in its range is newer: `1.4` stays when `v1.4.3` exists, `1` when `v1.5.0` exists, and `latest`, the `release` branch and the Latest mark of the GitHub Release stay when any newer stable tag exists. The plan prints the newer tag as the reason.
+- Notes. The GitHub Release takes its notes from the section of the root changelog headed `## <tag>`, then an image line that names the published image tags, then GitHub's generated list of pull requests. For a stable release that list starts at the previous stable tag. The plan fails when the section is missing, empty or headed twice.
+- Titles. `v1.0.0` is titled "Threadsift 1.0", and a release candidate or a patch carries its full version, such as "Threadsift 1.0.1". A minor release needs a headline in its heading, `## v1.1.0: <headline>`, and is titled "Threadsift 1.1: <headline>". The plan refuses a headline on a patch or a release candidate.
+
+```text
+plan: release-plan.sh <tag> --> refuses a bad tag or changelog, nothing builds
+  |
+build amd64 + arm64: push by digest, start check, container smoke (amd64)
+  |
+publish: release-plan.sh again (tags pushed meanwhile count)
+  -> fast-forward check of `release` (only when it moves)
+  -> dry-run index, then the version tag and the moving tags in one index
+  -> push `release` (only when it moves)
+  -> GitHub Release: draft, attach the files, check them, publish
+```
+
+1. The `plan` job runs the plan, writes it to the job summary and fails before any build when the tag or the changelog section is wrong.
+2. A `v*` tag must name a commit on `main`. The build fails before publication when that ancestry check fails.
+3. One build job for each architecture pushes its image by digest with provenance, records the digest, start-checks the digest and, on amd64, runs the container smoke on it.
+4. The publish job runs the plan again, because a tag pushed while the build ran changes which moving tags move. When `release` moves, it checks that `release` can advance by fast-forward. It validates a dry-run image index (both platforms and two attestation manifests), publishes the version tag and the moving tags in one index, checks that each tag names that index, and moves `release` when the plan says so.
+5. The publish job then creates the GitHub Release as a draft with every file in its release files folder, checks that the draft lists each file as uploaded, and only then publishes it, because once the repository turns on immutable releases a published release takes no new file ([gh release create](https://cli.github.com/manual/gh_release_create), Immutable Releases). The workflow builds no release file yet, so the release has none until a job adds files to that folder.
+
+The `release` concurrency group serializes whole runs, and their order is not guaranteed; the newer-tag rule keeps an older tag that runs last from moving a tag back. The publish checkout keeps full history, so later releases advance `release` with a fast-forward push. If publication succeeds but the branch push fails, rerun the failed publish job. It reuses the recorded digests, and creating the same index again is idempotent. A rerun deletes a draft that an earlier attempt left and creates it again, and leaves a published GitHub Release as it is. Each build records its pushed digest before the runtime checks, so those artifacts also identify untagged versions that a failed check leaves for manual cleanup.
+
+Verified on 2026-11-17 with two tag runs ([first](https://github.com/KyaniteHQ/threadsift/actions/runs/44159949236), [second](https://github.com/KyaniteHQ/threadsift/actions/runs/44164286715)) of the workflow before it had a plan: `docker buildx imagetools inspect` showed both platforms and two attestation manifests, the native arm64 start checks answered 200, the fast-forward push advanced `release` to the tagged commit's direct child, and an [ordinary main run](https://github.com/KyaniteHQ/threadsift/actions/runs/44162780681) left it unchanged. No tag has yet run the plan, the moving tags or the GitHub Release steps ([Open items and unverified claims](open-items-and-unverified-claims.md)).
 
 ## Rollback
 
