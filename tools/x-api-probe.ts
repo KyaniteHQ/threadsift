@@ -1,3 +1,4 @@
+import { appStep } from "./x-api-probe-app-step.ts";
 import {
   ASSUMPTIONS,
   billedOf,
@@ -31,9 +32,26 @@ import { type Run, step, writeRecord } from "./x-api-probe-step.ts";
 
 type Next = { readonly kind: "go" } | { readonly kind: "stop" | "end"; readonly ending: Ending };
 
+function openingNext(config: Config, sent: Sent): Next {
+  const need = costOf(worstOf(config.plan));
+
+  if (sent.balanceMicros === null)
+    return { kind: "end", ending: { kind: "balance-unread", label: sent.request.label } };
+  if (sent.balanceMicros < need)
+    return {
+      kind: "end",
+      ending: { kind: "low-balance", balanceUsd: usd(sent.balanceMicros), needUsd: usd(need) },
+    };
+  return { kind: "go" };
+}
+
 function nextOf(config: Config, sent: Sent): Next {
   const { label, role, worst } = sent.request;
 
+  if (sent.outcome.kind === "app")
+    return sent.outcome.published
+      ? { kind: "go" }
+      : { kind: "stop", ending: { kind: "unpublished", label, why: sent.outcome.why } };
   if (sent.outcome.kind === "no-answer")
     return {
       kind: "end",
@@ -44,18 +62,8 @@ function nextOf(config: Config, sent: Sent): Next {
   if (endsRunOn(sent.request, status))
     return { kind: "end", ending: { kind: "answer", label, status } };
   switch (role) {
-    case "opening-balance": {
-      const need = costOf(worstOf(config.plan));
-
-      if (sent.balanceMicros === null)
-        return { kind: "end", ending: { kind: "balance-unread", label } };
-      if (sent.balanceMicros < need)
-        return {
-          kind: "end",
-          ending: { kind: "low-balance", balanceUsd: usd(sent.balanceMicros), needUsd: usd(need) },
-        };
-      return { kind: "go" };
-    }
+    case "opening-balance":
+      return openingNext(config, sent);
     case "mid-balance":
       return sent.balanceMicros === null
         ? { kind: "stop", ending: { kind: "balance-unread", label } }
@@ -76,6 +84,7 @@ function nextOf(config: Config, sent: Sent): Next {
       return { kind: "go" };
     case "usage":
     case "closing-balance":
+    case "app-read":
       return { kind: "go" };
     default:
       return role satisfies never;
@@ -100,7 +109,7 @@ async function runPlan(run: Run): Promise<RunState> {
       continue;
     }
     // oxlint-disable-next-line eslint/no-await-in-loop -- Requests go one at a time, so each balance read follows the requests before it and each cap check counts every earlier answer.
-    const done = await step(run, index, request);
+    const done = await (request.role === "app-read" ? appStep : step)(run, index, request);
 
     sent.push(done);
     const next = nextOf(run.config, done);

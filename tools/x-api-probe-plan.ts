@@ -1,4 +1,11 @@
-import { ASSUMED, type Counts, NO_COUNTS, REFERENCE_TYPES, totalOf } from "./x-api-probe-cost.ts";
+import {
+  ASSUMED,
+  type Counts,
+  NO_COUNTS,
+  PRICE_MICROS,
+  REFERENCE_TYPES,
+  totalOf,
+} from "./x-api-probe-cost.ts";
 
 export class Refusal extends Error {}
 
@@ -21,9 +28,10 @@ export type ProbeInput =
       readonly deletedId: string;
       readonly protectedId: string;
       readonly suspendedId: string;
-    };
+    }
+  | { readonly probe: "S4" | "S5"; readonly postId: string };
 
-export const POST_ID_COUNT = { S1: 1, S2: 2, S3: 3 } as const satisfies Record<
+export const POST_ID_COUNT = { S1: 1, S2: 2, S3: 3, S4: 1, S5: 1 } as const satisfies Record<
   ProbeInput["probe"],
   number
 >;
@@ -53,7 +61,8 @@ export type RequestRole =
   | "mid-balance"
   | "closing-balance"
   | "usage"
-  | "lookup";
+  | "lookup"
+  | "app-read";
 
 export type PlannedRequest = {
   readonly label: string;
@@ -164,6 +173,28 @@ function lookupRead(label: string, ids: readonly string[], fields: LookupFields)
   };
 }
 
+export const APP_READ = {
+  S4: { target: "container", itemLimitMicros: 1_000_000 },
+  S5: { target: "worker", itemLimitMicros: 100_000 },
+} as const;
+
+export function appLimitsOf(probe: "S4" | "S5") {
+  const { itemLimitMicros } = APP_READ[probe];
+
+  return { itemLimitMicros, dayLimitMicros: itemLimitMicros + ASSUMED.usageReadMicros };
+}
+
+function appRead(probe: "S4" | "S5", postId: string): PlannedRequest {
+  return {
+    label: "app-read",
+    role: "app-read",
+    path: `https://x.com/i/status/${postId}`,
+    query: {},
+    worst: { ...NO_COUNTS, posts: appLimitsOf(probe).dayLimitMicros / PRICE_MICROS.post },
+    settleFirst: false,
+  };
+}
+
 function probeSteps(input: ProbeInput): readonly PlannedRequest[] {
   switch (input.probe) {
     case "S1":
@@ -189,6 +220,9 @@ function probeSteps(input: ProbeInput): readonly PlannedRequest[] {
         lookupRead("lookup-suspended", [input.suspendedId], PLAIN),
         lookupRead("lookup-batch", [input.deletedId, input.protectedId, input.suspendedId], PLAIN),
       ];
+    case "S4":
+    case "S5":
+      return [appRead(input.probe, input.postId)];
     default:
       return input satisfies never;
   }
@@ -203,7 +237,11 @@ export function planOf(input: ProbeInput): readonly PlannedRequest[] {
 }
 
 export function isBalanceRead(request: PlannedRequest): boolean {
-  return request.role !== "usage" && request.role !== "lookup";
+  return (
+    request.role === "opening-balance" ||
+    request.role === "mid-balance" ||
+    request.role === "closing-balance"
+  );
 }
 
 function isServerError(status: number): boolean {

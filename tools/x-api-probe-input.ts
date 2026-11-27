@@ -59,8 +59,8 @@ function probeInputOf(): ProbeInput {
     throw new Refusal(`X_API_PROBE is not a probe; the probes are ${PROBES.join(", ")}`);
   const known = probe.data;
 
-  if (known === "S4" || known === "S5" || known === "S6" || known === "S7")
-    throw new Refusal(`probe ${known} is not defined yet; this task runs S1, S2 and S3`);
+  if (known === "S6" || known === "S7")
+    throw new Refusal(`probe ${known} is not defined yet; this task runs S1 to S5`);
   const [first = "", second = "", third = ""] = postIds(known);
 
   switch (known) {
@@ -76,6 +76,9 @@ function probeInputOf(): ProbeInput {
     }
     case "S3":
       return { probe: known, deletedId: first, protectedId: second, suspendedId: third };
+    case "S4":
+    case "S5":
+      return { probe: known, postId: first };
     default:
       return known satisfies never;
   }

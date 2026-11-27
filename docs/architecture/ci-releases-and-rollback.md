@@ -189,8 +189,12 @@ Each Paste carries a caller-sent Digest ([the v1 spec](../spec.md), Agent output
 | S1 | Which names the API takes: `tweet.fields` and `note_tweet` from the docs pages, or `post.fields`, `note_post` and the `username` expansion from the OpenAPI document. Whether a usage read costs anything | a usage read, a balance read, then two lookups of one long post with a photo and a quote, one with each set of names |
 | S2 | Whether expanded users and quoted posts are billed | a lookup of one post without expansions, a balance read, a lookup of a second post with expansions |
 | S3 | What a deleted, a protected and a suspended post return | three single lookups and one batch lookup of the three ids |
+| S4 | Whether the X API reader publishes one Item on the container within its limits | the reader's own requests for one post, on a local Node Instance |
+| S5 | The same on the Worker | the reader's own requests for the same post, on a local Worker (`worker-local`) |
 
-The task refuses S4 to S7, which are not defined yet. Every probe starts and ends with a balance read (`GET /2/usage/credits`).
+The task refuses S6 and S7, which are not defined yet. Every probe starts and ends with a balance read (`GET /2/usage/credits`).
+
+S4 and S5 start a fresh local Instance with a scratch database and folder, which the task deletes at the end, and with no grok CLI and no Grok Bot. The task saves the token through `PUT /api/settings/x-api` and sets the Instance's limits: 1 USD per Item for S4 and 0.10 USD for S5, and a day limit 0.20 USD higher for the daily usage read. It checks that `auto` names the X API (`GET /api/settings/x`) before it pastes `https://x.com/i/status/<id>`, then waits up to 5 minutes for the fetch to end. The Instance's own counter bounds the read, so the task counts the read at the day limit. The run record holds the Item, the day's spend the Instance counted and its `x-api` log lines. A run that does not publish the Item ends `unpublished` with the fetch result and note. Run S5 on the same UTC day as S4, because X bills a post once per UTC day.
 
 Results of the probes of 2026-11-26:
 
@@ -203,8 +207,8 @@ The task reads its input from the environment, as the other live tasks do:
 
 | Variable | Value |
 |---|---|
-| `X_API_PROBE` | `S1`, `S2` or `S3` |
-| `X_API_POST_IDS` | different post ids, comma-separated: 1 for S1; 2 for S2, the plain one first; 3 for S3, in the order deleted, protected, suspended |
+| `X_API_PROBE` | `S1` to `S5` |
+| `X_API_POST_IDS` | different post ids, comma-separated: 1 for S1, S4 and S5; 2 for S2, the plain one first; 3 for S3, in the order deleted, protected, suspended |
 | `X_API_FIELD_NAMES` | S2 only: `tweet` or `post`, the names to send |
 | `X_API_CAP_USD`, `X_API_CAP_POSTS` | the caps of the run, at most 2 USD and 400 posts |
 | `X_API_BEARER_TOKEN` | the app's Bearer token from the owner's secret store, set in the environment of this one command |

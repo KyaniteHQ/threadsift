@@ -32,13 +32,15 @@ export type Ending =
       readonly planned: Billed;
     }
   | { readonly kind: "answer"; readonly label: string; readonly status: number }
+  | { readonly kind: "unpublished"; readonly label: string; readonly why: string }
   | { readonly kind: "no-answer"; readonly label: string; readonly errorClass: string };
 
 export type Sent = {
   readonly request: PlannedRequest;
   readonly outcome:
     | { readonly kind: "answer"; readonly status: number }
-    | { readonly kind: "no-answer"; readonly errorClass: string };
+    | { readonly kind: "no-answer"; readonly errorClass: string }
+    | { readonly kind: "app"; readonly published: boolean; readonly why: string };
   readonly reading: Reading | null;
   readonly charged: Counts;
   readonly balanceMicros: number | null;
@@ -47,9 +49,11 @@ export type Sent = {
 export type RunState = { readonly sent: readonly Sent[]; readonly ending: Ending };
 
 function queryText(request: PlannedRequest): string {
+  if (request.role === "app-read")
+    return `paste ${request.path} into a local Instance whose only X reader is the X API`;
   const pairs = Object.entries(request.query).map(([key, value]) => `${key}=${value}`);
 
-  return pairs.length === 0 ? request.path : `${request.path}?${pairs.join("&")}`;
+  return `GET ${pairs.length === 0 ? request.path : `${request.path}?${pairs.join("&")}`}`;
 }
 
 function countsText(counts: Counts): string {
@@ -63,7 +67,7 @@ export function printPlan(config: Config): void {
     const wait = request.settleFirst ? ` (waits ${BALANCE_SETTLE_MS / 1000} s first)` : "";
 
     process.stdout.write(
-      `${probe} ${index + 1} ${request.label}${wait}\n  GET ${queryText(request)}\n  worst case: ${countsText(request.worst)}\n`,
+      `${probe} ${index + 1} ${request.label}${wait}\n  ${queryText(request)}\n  worst case: ${countsText(request.worst)}\n`,
     );
   }
   process.stdout.write(
@@ -92,12 +96,23 @@ function readingText(reading: Reading | null): readonly string[] {
   ];
 }
 
+function outcomeText(outcome: Sent["outcome"]): string {
+  switch (outcome.kind) {
+    case "answer":
+      return `status=${outcome.status}`;
+    case "no-answer":
+      return `no-answer=${outcome.errorClass}`;
+    case "app":
+      return `published=${String(outcome.published)} ${outcome.why}`;
+    default:
+      return outcome satisfies never;
+  }
+}
+
 export function printSent(probe: string, index: number, sent: Sent): void {
   const parts = [
     `${probe} ${index + 1} ${sent.request.label}`,
-    sent.outcome.kind === "answer"
-      ? `status=${sent.outcome.status}`
-      : `no-answer=${sent.outcome.errorClass}`,
+    outcomeText(sent.outcome),
     sent.balanceMicros === null ? "" : `balance=${usd(sent.balanceMicros)} USD`,
     ...readingText(sent.reading),
   ];
