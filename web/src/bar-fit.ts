@@ -1,6 +1,6 @@
 import { pixelsOf } from "./css-length.ts";
 
-const PARTS = ".rd-back, .rd-hint, .rd-cm, .st-gear, .rd-act";
+const PARTS = ".rd-back, .rd-hint, .rd-cm, .look-btn, .rd-act";
 const TOLERANCE = 0.5;
 const ROUNDING = 1;
 

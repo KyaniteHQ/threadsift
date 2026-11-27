@@ -2,7 +2,7 @@ import { type Page, expect } from "@playwright/test";
 import { z } from "zod";
 
 import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
-import { openPanel } from "./screen-checks.ts";
+import { openOwnerMenu } from "./screen-checks.ts";
 
 const PASSWORD = "a smoke password of fifteen or more";
 
@@ -28,10 +28,10 @@ export async function setUp(page: Page): Promise<void> {
 }
 
 export async function signOutAndIn(page: Page): Promise<void> {
-  await openPanel(page);
-  await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
-  await page.getByRole("button", { name: SETTINGS.signOut }).click();
+  await openOwnerMenu(page);
+  await page.getByRole("button", { name: SETTINGS.signOut, exact: true }).click();
   await expect(page).toHaveTitle("Sign in to Threadsift");
+  expect((await page.request.get("/api/items")).status()).toBe(401);
   await passwordField(page).fill(PASSWORD);
   await page.getByRole("button", { name: LOGIN.signIn }).click();
   await expect(libraryHeading(page)).toBeVisible();

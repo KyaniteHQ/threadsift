@@ -2,7 +2,7 @@ import { type MouseEvent, type ReactNode, useCallback, useRef } from "react";
 
 import { EmptyState, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
-import { PageBar } from "./PageBar.tsx";
+import { PageFrame } from "./PageFrame.tsx";
 import type { PagedPage } from "./read-through.ts";
 import { RetryNotice } from "./RetryRegions.tsx";
 import { useFocusNewRows } from "./use-focus-new-rows.ts";
@@ -121,8 +121,7 @@ export function ListPage<Page extends PagedPage, Row>({
   }, [retry]);
 
   return (
-    <div className="pg">
-      <PageBar title={listing.text.title} ready={!loading} />
+    <PageFrame title={listing.text.title} ready={!loading}>
       <main className="pg-col rl-col" aria-busy={loading}>
         {notice === null ? null : <p className="rd-note">{notice}</p>}
         <RetryNotice
@@ -132,6 +131,6 @@ export function ListPage<Page extends PagedPage, Row>({
         />
         <Body state={state} loadMore={loadMore} listing={listing} draw={draw} />
       </main>
-    </div>
+    </PageFrame>
   );
 }

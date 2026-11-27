@@ -155,8 +155,6 @@ export const SETTINGS = {
   budgetSave: "Save budget",
   budgetSaveFailed:
     "Couldn’t confirm whether the new daily budget was saved. Reload the page to check, or try again.",
-  signOutTitle: "Sign out",
-  signOutNote: "Other browsers stay signed in. Agent tokens keep working.",
   signOut: "Sign out",
   signOutFailed:
     "Couldn’t confirm whether you’re signed out. Reload the page to check, or try again.",

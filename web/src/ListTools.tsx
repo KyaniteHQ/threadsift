@@ -1,7 +1,9 @@
 import type { RefObject } from "react";
 
+import type { SettingKey, Settings } from "../../design/system/settings-table.ts";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { ITEM_HEAD, headLabel } from "./head-label.ts";
+import { LayoutToggle } from "./LayoutToggle.tsx";
 import { matchedCount } from "./list-counts.ts";
 import { type ListState, type Ready, countsOf, readFor } from "./list-state.ts";
 import { ListHead } from "./ListBody.tsx";
@@ -18,6 +20,8 @@ interface ListToolsProps {
   readonly leave: () => void;
   readonly query: string;
   readonly active: boolean;
+  readonly layout: Settings["layout"];
+  readonly pick: (key: SettingKey, id: string) => void;
 }
 
 function headText(list: Readonly<Ready>, filters: Readonly<Filters>): string {
@@ -36,6 +40,8 @@ function Tools({
   search,
   hint,
   leave,
+  layout,
+  pick,
   head,
 }: Readonly<Omit<ListToolsProps, "query" | "active"> & { head: string }>) {
   const counts = countsOf(list);
@@ -52,7 +58,9 @@ function Tools({
         search={search}
         hint={hint}
         leave={leave}
-      />
+      >
+        <LayoutToggle layout={layout} pick={pick} />
+      </SearchField>
       {list.status === "loading" ? (
         <div className="list-head" data-loading aria-hidden="true" />
       ) : (

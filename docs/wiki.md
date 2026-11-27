@@ -89,7 +89,7 @@ The Index reads `topics` and `topic_pages`. It adds no table, no job and no AI t
 - A Topic whose Items were all deleted stays in the list with `itemCount` 0, because the lists outlive their last Item.
 - `overviewLine` is the first non-blank line of the stored `topic_pages.overview` with every `[12]`-style mark removed, inside the line as well as at its end. The Topic page turns a mark into the cited Item's title or drops it, and never shows it as raw text. A bracketed phrase that is not an id stays (`[the docs] [12]` gives `[the docs]`). The Index reads the stored text whatever the failure marker says, so a failed run does not hide an earlier overview. The Topic page splits the same text with `overviewLines`, so both screens use one rule.
 - Rows come ascending by `topics.key`, so a row does not move when a count changes. SQLite compares keys byte by byte, which for UTF-8 text is code point order: `éclair` sorts after `zebra`, and no locale rule applies. A `cursor` longer than `CATALOG_KEY_MAX` characters answers 400, so the `next` of any page is a cursor that the next request accepts.
-- The Index link sits in the settings panel and not in the masthead row, for the reason that The Highlights page gives in the [data model outline](architecture/data-model-outline.md).
+- The Index link sits in the masthead with Library, Highlights, Proposals and Log, and a Topic page marks it as the current page.
 
 ## Related Items
 

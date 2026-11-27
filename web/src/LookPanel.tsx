@@ -1,56 +1,38 @@
 import { type RefObject, useId } from "react";
 
 import { DEFAULTS } from "../../design/system/settings.ts";
-import { Icon } from "./Icon.tsx";
-import { PageLinks } from "./PageLinks.tsx";
 import { PANEL_CLASS } from "./panel-dom.ts";
+import { PanelHead } from "./PanelHead.tsx";
 import { SettingsRows } from "./SettingsRows.tsx";
-import { CLOSE_LABEL, RESET_LABEL, RESET_NOTE, DISPLAY_SETTINGS_LABEL } from "./text.ts";
+import { LOOK_SETTINGS_LABEL, RESET_LABEL, RESET_NOTE } from "./text.ts";
 import { type PanelState, usePanel } from "./use-panel.ts";
 import type { Look } from "./use-root.ts";
 
-function Gear({
-  gear,
+function LookButton({
+  opener,
   open,
   controls,
   toggle,
 }: Readonly<{
-  gear: RefObject<HTMLButtonElement | null>;
+  opener: RefObject<HTMLButtonElement | null>;
   open: boolean;
   controls: string;
   toggle: () => void;
 }>) {
   return (
     <button
-      ref={gear}
+      ref={opener}
       type="button"
-      className="st-gear"
-      aria-label={DISPLAY_SETTINGS_LABEL}
+      className="btn look-btn"
+      aria-label={LOOK_SETTINGS_LABEL}
       aria-expanded={open}
       aria-controls={controls}
       onClick={toggle}
     >
-      <Icon name="gear" className="ic" />
+      <span className="look-mark" aria-hidden="true">
+        Aa
+      </span>
     </button>
-  );
-}
-
-function SheetHeader({ titleId, close }: Readonly<{ titleId: string; close: () => void }>) {
-  return (
-    <div className="st-head">
-      <h2 className="st-title" id={titleId}>
-        {DISPLAY_SETTINGS_LABEL}
-      </h2>
-      <button
-        type="button"
-        className="st-close"
-        data-focus-key="close"
-        aria-label={CLOSE_LABEL}
-        onClick={close}
-      >
-        <Icon name="close" className="ic" />
-      </button>
-    </div>
   );
 }
 
@@ -73,16 +55,16 @@ function Footer({ noteId, reset }: Readonly<{ noteId: string; reset: () => void 
   );
 }
 
-export function SettingsPanel({ look, panel: state }: Readonly<{ look: Look; panel: PanelState }>) {
+export function LookPanel({ look, panel: state }: Readonly<{ look: Look; panel: PanelState }>) {
   const { settings, themeNote, narrow: modal, pick: choose, reset } = look;
   const idBase = useId();
   const panelId = `${idBase}-panel`;
   const titleId = `${idBase}-title`;
-  const { open, toggle, closeToGear, gear, panel } = usePanel(modal, state);
+  const { open, toggle, closeToOpener, opener, panel } = usePanel(modal, state);
 
   return (
-    <>
-      <Gear gear={gear} open={open} controls={panelId} toggle={toggle} />
+    <div className="pop-anchor">
+      <LookButton opener={opener} open={open} controls={panelId} toggle={toggle} />
       {open ? (
         <dialog
           ref={panel}
@@ -91,13 +73,12 @@ export function SettingsPanel({ look, panel: state }: Readonly<{ look: Look; pan
           aria-labelledby={titleId}
           data-font={DEFAULTS.font}
         >
-          {modal ? (
-            <SheetHeader titleId={titleId} close={closeToGear} />
-          ) : (
-            <h2 className="vh" id={titleId}>
-              {DISPLAY_SETTINGS_LABEL}
-            </h2>
-          )}
+          <PanelHead
+            modal={modal}
+            titleId={titleId}
+            title={LOOK_SETTINGS_LABEL}
+            close={closeToOpener}
+          />
           <div className="st-body">
             <SettingsRows
               settings={settings}
@@ -107,10 +88,9 @@ export function SettingsPanel({ look, panel: state }: Readonly<{ look: Look; pan
               choose={choose}
             />
           </div>
-          <PageLinks />
           <Footer noteId={`${idBase}-reset-note`} reset={reset} />
         </dialog>
       ) : null}
-    </>
+    </div>
   );
 }

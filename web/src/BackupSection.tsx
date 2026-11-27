@@ -5,6 +5,7 @@ import { EXPORT_TEXT, failureLabel, progressLabel, readyDetailLabel } from "./ex
 import { Icon } from "./Icon.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { RestoreBlock } from "./RestoreBlock.tsx";
+import { BACKUP_ID } from "./routing.ts";
 import { SettingsResult } from "./SettingsForm.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useBackup } from "./use-backup.ts";
@@ -98,7 +99,7 @@ function BackupForm({
 }
 
 export const BACKUP_SECTION: SectionSpec<ExportStatus> = {
-  id: "backup",
+  id: BACKUP_ID,
   title: EXPORT_TEXT.sectionTitle,
   intro: EXPORT_TEXT.intro,
   loadFailed: EXPORT_TEXT.loadFailed,

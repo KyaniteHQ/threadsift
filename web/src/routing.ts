@@ -6,6 +6,10 @@ import { useScreenState } from "./use-screen-state.ts";
 
 export const SETTINGS_PATH = "/settings";
 export const AI_SETTINGS_PATH = `${SETTINGS_PATH}#ai`;
+export const TOKENS_ID = "tokens";
+export const BACKUP_ID = "backup";
+export const TOKENS_SETTINGS_PATH = `${SETTINGS_PATH}#${TOKENS_ID}`;
+export const BACKUP_SETTINGS_PATH = `${SETTINGS_PATH}#${BACKUP_ID}`;
 
 export const OBSIDIAN_PATH = "/settings/obsidian";
 

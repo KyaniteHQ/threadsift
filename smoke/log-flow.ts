@@ -11,7 +11,7 @@ import {
   atPhoneWidth,
   expectNoSidewaysScroll,
   expectTarget,
-  openSettings,
+  openFromMasthead,
 } from "./screen-checks.ts";
 
 const LINES_PER_FILLER = 2;
@@ -52,8 +52,7 @@ const save = (
 const rows = (page: Page) => page.locator(".lg-line");
 
 async function openLogFromPanel(page: Page): Promise<void> {
-  await openSettings(page);
-  await page.getByRole("link", { name: LOG_PAGE.masthead, exact: true }).click();
+  await openFromMasthead(page, LOG_PAGE.masthead);
   await expect(page).toHaveURL(/\/log$/u);
   await expect(page).toHaveTitle("Log, Threadsift");
 }

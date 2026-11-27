@@ -2,6 +2,7 @@ import { filled } from "./filled.ts";
 import { plural } from "./plural.ts";
 
 export const TOPIC_PAGE = {
+  backToIndex: "Back to Index",
   overviewHeading: "Overview",
   overviewPending: "Writing overview…",
   overviewFailed: "Couldn’t write the overview.",

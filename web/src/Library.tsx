@@ -2,8 +2,10 @@ import { useMemo } from "react";
 
 import { Announcement } from "./Announcement.tsx";
 import { ListColumn } from "./ListColumn.tsx";
+import { Masthead } from "./Masthead.tsx";
 import { ReaderPane } from "./ReaderPane.tsx";
 import type { Route } from "./routing.ts";
+import { SkipButton } from "./SkipButton.tsx";
 import { useLibraryView } from "./use-library-view.ts";
 import type { Look } from "./use-root.ts";
 
@@ -15,10 +17,11 @@ export function Library({
   const view = useLibraryView(look, route);
   const { root, counts, openItem, covered, side } = view;
 
+  const paged = covered && look.reader === "page";
   const classes = [
     "lib",
     ...(counts?.total === 0 ? ["is-empty"] : []),
-    ...(covered && look.reader === "page" ? ["covered"] : []),
+    ...(paged ? ["covered"] : []),
   ];
 
   const hasReader =
@@ -29,19 +32,23 @@ export function Library({
   const nav = useMemo(() => ({ steps, step, close }), [steps, step, close]);
 
   return (
-    <div ref={root} className={classes.join(" ")}>
-      <ListColumn view={view} look={look} arrived={arrived} openId={route.openId} />
-      {hasReader ? (
-        <ReaderPane
-          item={openItem}
-          controls={side.reader.controls}
-          nav={nav}
-          look={look}
-          tryAgain={view.actions.retryItem}
-          announcement={side.reader.announcement}
-        />
-      ) : null}
-      {sheetOpen ? null : <Announcement {...side.reader.announcement} />}
-    </div>
+    <>
+      <SkipButton pane={view.listPane} inert={covered} />
+      <Masthead inert={covered} hidden={paged} />
+      <div ref={root} className={classes.join(" ")}>
+        <ListColumn view={view} look={look} arrived={arrived} openId={route.openId} />
+        {hasReader ? (
+          <ReaderPane
+            item={openItem}
+            controls={side.reader.controls}
+            nav={nav}
+            look={look}
+            tryAgain={view.actions.retryItem}
+            announcement={side.reader.announcement}
+          />
+        ) : null}
+        {sheetOpen ? null : <Announcement {...side.reader.announcement} />}
+      </div>
+    </>
   );
 }
