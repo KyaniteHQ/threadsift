@@ -137,9 +137,9 @@ in
       after = [ "ci:install" ];
       exec = "pnpm test";
     };
-    "extension:build" = {
+    "extension:package" = {
       after = [ "ci:install" ];
-      exec = "pnpm run build:extension";
+      exec = "pnpm run package:extension";
     };
     "web:build" = {
       after = [ "ci:install" ];
@@ -148,10 +148,10 @@ in
     "ci:build" = {
       after = [
         "ci:install"
-        "extension:build"
+        "extension:package"
         "web:build"
       ];
-      exec = "pnpm run build:worker && pnpm run lint:extension";
+      exec = "pnpm run build:worker";
     };
     "ci:audit" = {
       after = [ "ci:install" ];

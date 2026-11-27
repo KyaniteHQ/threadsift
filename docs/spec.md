@@ -72,6 +72,7 @@ Threadsift has two aims:
 - A changed address needs its agent token: the settings page does not keep the saved token for another address and saves nothing until the owner enters one.
 - When a save cannot reach the Instance, the popup names the cause the browser reports: the name was not found, the connection was refused or timed out, or no secure connection could be made. Without a reported cause it says it could not reach the address.
 - The Extension holds only the `activeTab`, `scripting`, `storage` and `webRequest` permissions, the last to read why its own call to the Instance failed. It asks for the Instance's host at Save settings, and for more only for the two Reddit features ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Permissions). It saves one page per click and never crawls.
+- One command builds the Extension's Chrome and Firefox store zips and the source archive that Firefox Add-ons reviews, checks both zips, and rebuilds both from the archive; the gate runs it ([Extension and Threadsift bot](architecture/extension-and-threadsift-bot.md), Package for the stores). The owner uploads to the stores by hand.
 
 ## Settings, look and layout
 

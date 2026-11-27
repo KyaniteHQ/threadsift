@@ -34,6 +34,7 @@ const pageTitles: Plugin = {
 };
 
 export default defineConfig({
+  zip: { zipSources: false },
   vite: () => ({ plugins: [pageTitles] }),
   manifest: ({ browser }) => {
     const manifest = {
