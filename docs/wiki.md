@@ -122,7 +122,7 @@ The input is capped at the AI input cap ([AI tasks and Providers](architecture/a
 | The source's stored Digest does not parse | Closes the same way (`related-digest-unreadable`). |
 | A candidate's stored Digest does not parse | Skips that candidate (`related-candidate-unreadable`). |
 
-One batch holds the version guard, the delete of the old set, the insert of the new set, the completion of the AI task and the closing of the job. The guard holds only while the source Item's Digest is the one the attempt read, every candidate that was sent still has the Digest it had, and the AI task is still running. When the guard fails, nothing is written, the AI task fails as `stale`, and the job returns to the runner's stale backoff without spending an attempt. A terminal refusal or the last retry closes the job and leaves the stored set as it was.
+One batch holds the version guard, the delete of the old set, the insert of the new set, the completion of the AI task and the closing of the job. The guard holds only while the source Item and every candidate that was sent still have the Digest the attempt read, with the same stored Tags and Topic, and the AI task is still running. When the guard fails, nothing is written, the AI task fails as `stale`, and the job returns to the runner's stale backoff without spending an attempt. A terminal refusal or the last retry closes the job and leaves the stored set as it was.
 
 The Item is not marked, and the Reader shows no status for the pick, only the retained set. "Not run", "failed" and "picked none" therefore look the same, and there is no Try again. A later Digest of the Item runs the pick again.
 

@@ -8,6 +8,10 @@
 - Take a new Export after the update. Restore accepts only an Export of the migration the Instance runs, so it refuses an Export taken before this update.
 - On Cloudflare, an overview job that the previous Worker opens while the deploy runs has no Topic. It runs when the previous Worker claims it, and it ends without a run when the new Worker claims it. Its Topic runs again at its next Digest, at Try again, or when the owner accepts an overview-gap Proposal ([CI, releases and rollback](docs/architecture/ci-releases-and-rollback.md#the-topic-of-an-overview-job)).
 
+### Added
+
+- Each release attaches the Extension's Chrome zip, Firefox zip and source archive, and each stable release is submitted to the Chrome Web Store and Firefox Add-ons. A daily check reports when a store rejects, takes down or warns the Extension, or still shows an older version 21 days after a release.
+
 ### Fixed
 
 - A Topic overview run works for the Topic it was opened for, also when its owner Item moves to another Topic first, and a run that gives up marks that Topic.

@@ -84,15 +84,16 @@ export function guardedOpenings(
   }>,
 ): Promise<readonly Readonly<{ id: number }>[] | null> {
   return unlessRefused(async () => {
-    const results = await db.batch(
+    const [, ...results] = await db.batch(
       guardedWrites(db, condition, [...before, ...openings, ...after]),
     );
-    const first = 1 + before.length;
 
-    return results
-      .slice(first, first + openings.length)
-      .flatMap((opened) => OpenedSchema.parse(opened));
+    return openedRows(results, before.length, openings.length);
   });
+}
+
+export function openedRows(results: readonly unknown[], first: number, count: number) {
+  return results.slice(first, first + count).flatMap((opened) => OpenedSchema.parse(opened));
 }
 
 export function openingJob(

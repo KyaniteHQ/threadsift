@@ -1,9 +1,10 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { itemFilesPrefix } from "../contract/file-keys.ts";
 import { logFailure } from "../kernel/failure-log.ts";
 import { listedKeys } from "../kernel/file-pages.ts";
 import type { FileStore } from "../kernel/file-store.ts";
+import { wokenBotWaits } from "../kernel/job-waiting.ts";
 import type { Ports } from "../kernel/ports.ts";
 import { items } from "../kernel/schema.ts";
 import { STALE } from "../kernel/vault-stale.ts";
@@ -30,6 +31,11 @@ export async function deleteItem(
 ): Promise<boolean> {
   const results = await db.batch([
     ...STALE.itemDeleted(db, id),
+    wokenBotWaits(db, {
+      moved: { kind: "library" },
+      now: Date.now(),
+      when: sql`exists (select 1 from ${items} where ${items.id} = ${id})`,
+    }),
     db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
   ]);
 

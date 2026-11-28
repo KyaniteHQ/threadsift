@@ -65,6 +65,10 @@ export function closeItemJobs(
   ] as const;
 }
 
+export function closeVerifyJob(db: Database, itemId: number) {
+  return closeJobs(db, and(eq(jobs.itemId, itemId), eq(jobs.kind, "x_verify")));
+}
+
 export async function discardTask(
   db: Database,
   currency: JobCurrency | undefined,

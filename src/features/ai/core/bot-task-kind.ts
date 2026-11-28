@@ -24,10 +24,10 @@ function currentOf<Context>(
   schema: z.ZodType<Context>,
   current: (context: Context) => Readonly<SQLWrapper>,
 ): KindFace["current"] {
-  return async (db, contextText) => {
+  return (contextText) => {
     const parsed = parsedJson(schema, contextText);
 
-    return parsed !== null && (await guardHolds(db, current(parsed)));
+    return parsed === null ? sql`0` : current(parsed);
   };
 }
 

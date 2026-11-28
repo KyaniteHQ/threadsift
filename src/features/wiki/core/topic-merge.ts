@@ -1,5 +1,6 @@
 import { sql } from "drizzle-orm";
 
+import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
@@ -23,7 +24,10 @@ export async function planTopicUnit({
       ...overviewJobsFollow(db, { loser: from.id, survivor: into.id }, gone),
     ],
     cursor: null,
-    before: STALE.topicMerged(db, { from: from.id, gone }),
+    before: [
+      ...STALE.topicMerged(db, { from: from.id, gone }),
+      wokenBotWaits(db, { moved: { kind: "library" }, now: Date.now(), when: gone }),
+    ],
     wakes: [continuingOverview(db, into.id, gone)],
   };
 }
