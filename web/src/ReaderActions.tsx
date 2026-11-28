@@ -28,17 +28,17 @@ export function ReaderActions({
   controls,
   look,
   panel,
-  beside,
+  commentsListed,
 }: Readonly<{
   item: Item;
   controls: ReaderControls;
   look: Look;
   panel: PanelState;
-  beside: boolean;
+  commentsListed: boolean;
 }>) {
   const { mode, toggleRead, remove } = controls;
   const read = item.readState === "read";
-  const comments = beside ? null : item.commentCount;
+  const comments = commentsListed ? null : item.commentCount;
 
   const toggle = useCallback(() => {
     toggleRead(item);

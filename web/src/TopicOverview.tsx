@@ -104,7 +104,7 @@ export function TopicOverview({
   write: () => void;
 }>) {
   return (
-    <section className="rd-agent tp-overview">
+    <section className="tp-box tp-overview">
       <h2 className="label">{TOPIC_PAGE.overviewHeading}</h2>
       {overview.text === null ? null : <Lines overview={overview} />}
       <Status overview={overview} write={write} />

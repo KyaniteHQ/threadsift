@@ -38,7 +38,7 @@ export function KnownDisagreements({
   if (disagreements.length === 0) return null;
 
   return (
-    <section className="rd-agent tp-disagreements">
+    <section className="tp-box tp-disagreements">
       <h2 className="label">{TOPIC_PAGE.disagreementsHeading}</h2>
       <ul role="list" className="tp-dis-list">
         {disagreements.map((disagreement) => (

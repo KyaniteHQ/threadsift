@@ -5,7 +5,8 @@
    --rail-w and --list-w, on the app's root.
 
    1. Fixed tokens: type, line heights, spacing, controls, icons, layers,
-      motion.
+      motion, and the line counts of a folded comment, the Note field and a
+      folded code block (--fold-show, --note-lines, --code-show).
    2. The look: every option of every look setting (Style, Font, Text size, Text
       width, Density, Accent, Comment style, Tag style, Card images), picked
       by an attribute on the app's root.
@@ -47,8 +48,15 @@
    inline style on .it-share), --dot-room (the room a row's kept strip
    keeps above and below its line for the read mark's hit area, set on
    .it-strip), --fade-to (the colour a sideways-scrolling box fades into,
-   set on its wrapper) and --pop-room (the height a Highlight popover may
-   take, set on .hl-pop by script).
+   set on its wrapper), --pop-room (the height a Highlight popover may
+   take, set on .hl-pop by script), --rd-wide (the reading column, the
+   column gap and the side column together), --rd-fit (--rd-wide and the
+   side padding: the width a Reader needs for its side column, registered
+   as a length so script reads it in pixels) and --rd-content (the width
+   the Reader bar and the columns centre on: --measure-read in one column,
+   --rd-wide while the side column shows), all three set on .reader, and
+   --bar-edge (the Reader bar's side padding, set on .rd-bar, which a
+   Sheet's Look panel also takes as its end inset).
 
    --vh is the app's visible height: 100dvh unless a host that draws the app
    inside a frame or scaled sets it.
@@ -63,8 +71,8 @@
      an open Grid card and of a phone reply rail, and the 2px focus ring,
      its offset, the 2px and 3px offsets of the read mark's hover and focus
      rings, the progress line, the line under the masthead's current page
-     link and under the Reader's current Contents entry, the line a List pane handle draws and the segmented controls'
-     inset;
+     link and under the Reader's current Contents entry, the line a List
+     pane handle draws and the segmented controls' inset;
    - the 1.5 step between a row's title and its byline (one and a half
      --s1, times --k);
    - the swatch's 2px border and the 2px overlay that covers it, the 2px
@@ -87,8 +95,11 @@
      strip and the room the strip keeps for it, the offset that centres the
      square before a strip or byline part on the part's first line, the padding that centres
      the revealed token in a field-high box, the margin that centres a tag's dot on the first line
-     of its name, and a tag's corner radius (half a line plus its padding
-     and hairline border, so a wrapped Chips name stays inside the pill);
+     of its name, a tag's corner radius (half a line plus its padding
+     and hairline border, so a wrapped Chips name stays inside the pill),
+     and the Note field's least height (--note-lines lines plus its padding
+     and border);
+   - the 0px initial value that registering --rd-fit as a length needs;
    - 100vw in the maximum width of the Look panel, the Instance menu and a confirmation
      dialog;
    - the 2px underline offset of links and text buttons, and the 1px side
@@ -133,7 +144,7 @@
   --settings-rail: 200px; --sec-head-w: 280px; --sec-body-w: 560px;
   --sec-name-w: 140px;
   --fold-show: 6;                     /* lines a folded comment shows */
-  --note-lines: 3;                    /* lines the Reader's Note field shows before it grows with its text */
+  --note-lines: 3;
   --code-show: 14;                    /* lines a folded code block shows */
   /* motion: an item growing out of its card and back, and every fade or small turn */
   --dur-move: 280ms; --dur-fade: 200ms; --ease-move: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -293,8 +304,7 @@
 :root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --press: color-mix(in oklab, var(--text) 4%, var(--surface-2)); --acc-hover: color-mix(in oklab, var(--acc) 90%, var(--text)); --press-soft: color-mix(in oklab, var(--text) 4%, var(--acc-soft)); }
 
 /* Worked out from the inputs above, declared again on every element where an input can
-   change: the body, title, reading and display sizes, the measure at an element's own size,
-   and the measure at the reading size, which every part of the Reader shares. */
+   change: the body, title, reading and display sizes, --measure and --measure-read. */
 :root, .app, [data-layout], [data-theme], [data-font], [data-size], [data-width], [data-density], [data-accent] {
   --t-body: max(var(--t-floor-ui), calc(var(--t-body-base) * var(--tz)));
   --t-title: max(var(--t-floor-ui), calc(var(--t-title-base) * var(--dz) * var(--tz)));

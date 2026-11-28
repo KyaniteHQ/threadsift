@@ -131,8 +131,12 @@ One line in a comment tree that stands in for comments not shown: a dropped pare
 _Avoid_: Placeholder, removed comment
 
 **Reader**:
-The view that shows one Item in full: header, Summary, Key points, post text, the comments (Kept comments, and any comment that holds an attached Highlight, once a Digest covers the thread, otherwise every comment that passes the first step of the comment filter), the link a Reddit link post points at, and the owner's Highlights and Note.
+The view that shows one Item in full: header, Summary, Key points, post text, **Related Items**, the comments (Kept comments, and any comment that holds an attached Highlight, once a Digest covers the thread, otherwise every comment that passes the first step of the comment filter), the link a Reddit link post points at, the owner's Highlights and Note and, when it is wide enough, **Contents**.
 _Avoid_: Detail view, article view
+
+**Contents**:
+The list of an Item's sections in the side column of a wide **Reader**: each entry leads to its section, and the entry of the section being read is marked.
+_Avoid_: Table of contents, TOC, outline, section nav
 
 **Kept strip**:
 The one line of monospaced text that opens a List row and a Grid card and starts the line under the Reader's title: it names where the Item came from and, for a thread, counts the comments the Reader shows out of the thread's comments: the number its Source reports, or the number saved when that is larger.

@@ -15,15 +15,12 @@ export const BESIDE = "beside";
 
 export const BESIDE_MARGIN = `.rd-col[data-margin="${BESIDE}"] > .rd-margin`;
 
+const FIT_WIDTH = "--rd-fit";
+
 export interface MarginSlot {
   readonly node: HTMLElement | null;
   readonly beside: boolean;
-}
-
-function widthBeside(col: HTMLElement): number | null {
-  const margin = col.querySelector<HTMLElement>(":scope > .rd-margin");
-
-  return margin === null ? null : pixelsOf(getComputedStyle(margin).maxWidth);
+  readonly listComments: (listed: boolean) => void;
 }
 
 function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace): boolean {
@@ -35,8 +32,12 @@ function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace)
 
     if (element === null || slot === null) return NOTHING;
 
+    let watching = true;
+
     const measure = (): void => {
-      const width = widthBeside(element);
+      if (!watching) return;
+
+      const width = pixelsOf(getComputedStyle(element).getPropertyValue(FIT_WIDTH));
       setFits(width !== null && slot.clientWidth >= width);
     };
 
@@ -47,6 +48,7 @@ function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace)
     void document.fonts.ready.then(measure);
 
     return () => {
+      watching = false;
       observer.disconnect();
     };
   }, [col]);
@@ -58,13 +60,15 @@ export interface MarginColumn {
   readonly col: RefObject<HTMLDivElement | null>;
   readonly host: RefCallback<HTMLDivElement>;
   readonly margin: MarginSlot;
+  readonly commentsListed: boolean;
 }
 
 export function useMarginColumn(place: ReaderPlace): MarginColumn {
   const col = useRef<HTMLDivElement>(null);
   const [node, host] = useState<HTMLDivElement | null>(null);
+  const [listed, listComments] = useState(false);
   const beside = useMarginBeside(col, place);
-  const margin = useMemo<MarginSlot>(() => ({ node, beside }), [node, beside]);
+  const margin = useMemo<MarginSlot>(() => ({ node, beside, listComments }), [node, beside]);
 
-  return { col, host, margin };
+  return { col, host, margin, commentsListed: beside && listed };
 }

@@ -1,13 +1,19 @@
-import { type MouseEvent, useCallback, useId, useMemo, useRef } from "react";
+import { type MouseEvent, useCallback, useId, useLayoutEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 
 import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
+import { NOTHING } from "../../src/core/contract/nothing.ts";
 import { HighlightList } from "./HighlightList.tsx";
 import { scrollAndFocus } from "./jump-to-comments.ts";
 import type { MarginSlot } from "./margin-column.ts";
 import { NoteBox } from "./NoteBox.tsx";
-import { type ContentsEntry, type SectionIds, contentsOf, postTextOf } from "./reader-sections.ts";
+import {
+  type ContentsEntry,
+  type SectionIds,
+  contentsOf,
+  holdsSelectableText,
+} from "./reader-sections.ts";
 import { CONTENTS_TITLE } from "./reader-text.ts";
 import { useSectionInView } from "./use-section-in-view.ts";
 
@@ -18,7 +24,7 @@ function Entry({ entry, current }: Readonly<{ entry: ContentsEntry; current: boo
     (event: MouseEvent<HTMLAnchorElement>): void => {
       event.preventDefault();
 
-      const heading = document.querySelector(`#${id}`)?.querySelector<HTMLElement>(".rd-h") ?? null;
+      const heading = document.querySelector<HTMLElement>(`#${CSS.escape(id)} .rd-h`);
 
       if (heading !== null) scrollAndFocus(heading, "start");
     },
@@ -38,11 +44,39 @@ function Entry({ entry, current }: Readonly<{ entry: ContentsEntry; current: boo
   );
 }
 
-function Contents({ entries }: Readonly<{ entries: readonly ContentsEntry[] }>) {
+function useCommentsListed(
+  entries: readonly ContentsEntry[],
+  commentsId: string,
+  listComments: (listed: boolean) => void,
+): void {
+  const listed = entries.some(({ id }) => id === commentsId);
+
+  useLayoutEffect(() => {
+    if (!listed) return NOTHING;
+
+    listComments(true);
+
+    return () => {
+      listComments(false);
+    };
+  }, [listed, listComments]);
+}
+
+function Contents({
+  entries,
+  commentsId,
+  listComments,
+}: Readonly<{
+  entries: readonly ContentsEntry[];
+  commentsId: string;
+  listComments: (listed: boolean) => void;
+}>) {
   const nav = useRef<HTMLElement>(null);
   const heading = useId();
   const ids = useMemo(() => entries.map(({ id }) => id), [entries]);
   const current = useSectionInView(nav, ids, entries.length > 0);
+
+  useCommentsListed(entries, commentsId, listComments);
 
   if (entries.length === 0) return null;
 
@@ -69,14 +103,19 @@ export function ReaderSide({
   ids,
 }: Readonly<{ margin: MarginSlot; item: Item; detail: ItemDetail; ids: SectionIds }>) {
   const contents = useMemo(() => contentsOf(item, detail, ids), [item, detail, ids]);
-  const selectable = postTextOf(detail) !== null || detail.comments.nodes.length > 0;
 
   return margin.node === null
     ? null
     : createPortal(
         <>
-          {margin.beside ? <Contents entries={contents} /> : null}
-          <HighlightList selectable={selectable} />
+          {margin.beside ? (
+            <Contents
+              entries={contents}
+              commentsId={ids.comments}
+              listComments={margin.listComments}
+            />
+          ) : null}
+          <HighlightList selectable={holdsSelectableText(detail)} />
           <NoteBox key={item.id} itemId={item.id} initial={detail.note} />
         </>,
         margin.node,

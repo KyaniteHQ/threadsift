@@ -117,6 +117,7 @@ export function Reader({
         look={look}
         panel={panel}
         beside={column.margin.beside}
+        commentsListed={column.commentsListed}
       />
       <ReaderCol
         item={item}

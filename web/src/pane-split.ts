@@ -3,7 +3,7 @@ import {
   type PaneBounds,
   type Room,
   type Widths,
-  type Range,
+  type PaneRange,
   drawnWidths,
   rangeOf,
   readBounds,
@@ -44,7 +44,7 @@ interface Mounted {
   readonly bounds: PaneBounds;
 }
 
-function keyedWidth(event: KeyboardEvent, now: number, range: Range) {
+function keyedWidth(event: KeyboardEvent, now: number, range: PaneRange) {
   const step = event.shiftKey ? SHIFT_STEP : STEP;
 
   switch (event.key) {

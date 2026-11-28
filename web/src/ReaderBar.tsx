@@ -42,13 +42,20 @@ function fitSignature(
   item: Readonly<Item>,
   mode: BarMode,
   settingsKey: string,
-  beside: boolean,
+  { beside, commentsListed }: Readonly<{ beside: boolean; commentsListed: boolean }>,
 ): string {
   const { id, readState, commentCount } = item;
 
-  return [id, readState, commentCount?.shown, commentCount?.total, mode, settingsKey, beside].join(
-    "|",
-  );
+  return [
+    id,
+    readState,
+    commentCount?.shown,
+    commentCount?.total,
+    mode,
+    settingsKey,
+    beside,
+    commentsListed,
+  ].join("|");
 }
 
 function useProgress(bar: RefObject<HTMLElement | null>): void {
@@ -66,18 +73,25 @@ export function ReaderBar({
   look,
   panel,
   beside,
+  commentsListed,
 }: Readonly<{
   item: Item;
   controls: ReaderControls;
   look: Look;
   panel: PanelState;
   beside: boolean;
+  commentsListed: boolean;
 }>) {
   const { mode, settingsKey, close, hintPlaced } = controls;
   const bar = useRef<HTMLDivElement>(null);
   const leave = leaveOf(mode === "sheet", look.settings.layout === "grid");
 
-  useBarFit(bar, STEPS[mode], fitSignature(item, mode, settingsKey, beside), hintPlaced);
+  useBarFit(
+    bar,
+    STEPS[mode],
+    fitSignature(item, mode, settingsKey, { beside, commentsListed }),
+    hintPlaced,
+  );
   useProgress(bar);
 
   return (
@@ -91,7 +105,13 @@ export function ReaderBar({
           </span>
         </button>
       )}
-      <ReaderActions item={item} controls={controls} look={look} panel={panel} beside={beside} />
+      <ReaderActions
+        item={item}
+        controls={controls}
+        look={look}
+        panel={panel}
+        commentsListed={commentsListed}
+      />
       <i className="rd-progress" aria-hidden="true" />
     </div>
   );
