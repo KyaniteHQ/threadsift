@@ -12,7 +12,7 @@ export const OVERVIEWS: ReadonlyMap<string, readonly OverviewLine[]> = new Map([
         about: ["mini PC"],
       },
       {
-        text: "The saves on this topic agree that backups come first: restore a folder on a schedule and compare checksums.",
+        text: "The Items on this topic agree that backups come first: restore a folder on a schedule and compare checksums.",
         about: ["restore drill", "mini PC"],
       },
       {

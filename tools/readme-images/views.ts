@@ -2,13 +2,6 @@ import type { Ids } from "./seed.ts";
 
 export type Theme = "light" | "dark" | "sepia";
 
-export interface Settings {
-  readonly theme: Theme;
-  readonly layout: "list" | "grid";
-  readonly openAs: "page" | "sheet";
-  readonly style: string;
-}
-
 export interface Shot {
   readonly name: string;
   readonly path: (ids: Ids) => string;
@@ -24,7 +17,9 @@ const WINDOW = { width: 1280, height: 800 } as const;
 
 const NARROW_PAGE = { width: 960, height: 720 } as const;
 
-const PAGE_OF_THE_STYLES = { width: 520, height: 680 } as const;
+const HIGHLIGHTS_PAGE = { width: 960, height: 900 } as const;
+
+const PAGE_OF_THE_STYLES = { width: 520, height: 740 } as const;
 
 const itemPath = (key: string) => (ids: Ids) => `/items/${String(ids[key])}`;
 
@@ -59,7 +54,7 @@ export const SHOTS: readonly Shot[] = [
   {
     name: "highlights",
     path: () => "/highlights",
-    ...NARROW_PAGE,
+    ...HIGHLIGHTS_PAGE,
     layout: "list",
     style: "library",
     themes: ["light", "dark"],

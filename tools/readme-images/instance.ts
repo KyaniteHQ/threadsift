@@ -1,17 +1,19 @@
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
-import { mkdtempSync, rmSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { mkdirSync } from "node:fs";
+import { dirname, join } from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
+
+import { freePort } from "./loopback.ts";
+import type { Resources } from "./resources.ts";
 
 const SESSION_WAIT_MS = 30_000;
 
 const SESSION_POLL_MS = 250;
 
-const PASSWORD = "readme images owner password";
+const STDERR_TAIL = 1500;
 
 const SessionSchema = z.object({ state: z.string() });
 
@@ -29,6 +31,10 @@ export interface Instance {
   readonly base: string;
   readonly send: (method: string, path: string, body?: Json) => Promise<Json>;
   readonly cookie: string;
+}
+
+interface Server {
+  readonly exited: () => string | null;
   readonly stop: () => Promise<void>;
 }
 
@@ -42,21 +48,36 @@ async function answers(base: string): Promise<boolean> {
   }
 }
 
-async function waitForSession(base: string, deadline: number): Promise<void> {
+async function waitForSession(base: string, server: Server, deadline: number): Promise<void> {
+  const gone = server.exited();
+
+  if (gone !== null) throw new Error(`The Instance exited before it answered. ${gone}`);
   if (await answers(base)) return;
   if (Date.now() > deadline) throw new Error("The Instance did not answer /api/session in time.");
   await delay(SESSION_POLL_MS);
-  await waitForSession(base, deadline);
+  await waitForSession(base, server, deadline);
 }
 
-function spawnServer(root: string, port: number, code: string) {
-  const dataDir = mkdtempSync(join(tmpdir(), "threadsift-readme-images-"));
+function withoutSetupCode(text: string): string {
+  return text
+    .split("\n")
+    .filter((line) => !line.includes("Setup code"))
+    .join("\n");
+}
+
+function spawnServer(root: string, scratch: string, port: number, code: string): Server {
+  const dataDir = join(scratch, "data");
+  const home = join(scratch, "home");
+
+  mkdirSync(dataDir);
+  mkdirSync(home);
 
   const child = spawn(process.execPath, ["src/targets/node/index.ts"], {
     cwd: root,
-    stdio: "ignore",
+    stdio: ["ignore", "ignore", "pipe"],
     env: {
-      PATH: process.env["PATH"],
+      PATH: dirname(process.execPath),
+      HOME: home,
       PORT: String(port),
       DATA_DIR: dataDir,
       SETUP_CODE: code,
@@ -64,26 +85,36 @@ function spawnServer(root: string, port: number, code: string) {
     },
   });
 
-  const stop = async () => {
-    const done = new Promise<void>((resolve) => {
-      child.once("exit", () => {
-        resolve();
-      });
+  let stderr = "";
+
+  child.stderr.setEncoding("utf8");
+  child.stderr.on("data", (chunk: string) => {
+    stderr = (stderr + chunk).slice(-STDERR_TAIL);
+  });
+
+  const done = new Promise<void>((resolve) => {
+    child.once("exit", () => {
+      resolve();
     });
+  });
 
-    child.kill("SIGTERM");
-    await done;
-    rmSync(dataDir, { recursive: true, force: true });
+  return {
+    exited: () =>
+      child.exitCode === null && child.signalCode === null
+        ? null
+        : `Exit ${String(child.exitCode ?? child.signalCode)}. ${withoutSetupCode(stderr)}`,
+    stop: async () => {
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGTERM");
+      await done;
+    },
   };
-
-  return stop;
 }
 
-async function ownerCookie(base: string, code: string): Promise<string> {
+async function ownerCookie(base: string, code: string, password: string): Promise<string> {
   const setup = await fetch(`${base}/api/setup`, {
     method: "POST",
     headers: { "content-type": "application/json", origin: base },
-    body: JSON.stringify({ code, password: PASSWORD }),
+    body: JSON.stringify({ code, password }),
   });
 
   const [first] = setup.headers.getSetCookie();
@@ -115,18 +146,19 @@ async function call(
   return response.status === 204 ? null : AnswerSchema.parse(await response.json());
 }
 
-export async function startInstance(root: string, port: number): Promise<Instance> {
+export async function startInstance(
+  root: string,
+  scratch: string,
+  held: Resources,
+): Promise<Instance> {
   const code = randomBytes(16).toString("hex");
+  const password = randomBytes(16).toString("hex");
+  const port = await freePort();
   const base = `http://127.0.0.1:${String(port)}`;
-  const stop = spawnServer(root, port, code);
+  const server = held.own(spawnServer(root, scratch, port, code), (running) => running.stop());
 
-  await waitForSession(base, Date.now() + SESSION_WAIT_MS);
-  const cookie = await ownerCookie(base, code);
+  await waitForSession(base, server, Date.now() + SESSION_WAIT_MS);
+  const cookie = await ownerCookie(base, code, password);
 
-  return {
-    base,
-    cookie,
-    send: (method, path, body) => call(base, cookie, method, path, body),
-    stop,
-  };
+  return { base, cookie, send: (method, path, body) => call(base, cookie, method, path, body) };
 }

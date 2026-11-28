@@ -1,8 +1,9 @@
+import { REDDIT_POSTED_AT, X_POSTED_AT } from "./clock.ts";
 import type { Comment, RedditPost, XPost, XThread } from "./seed-types.ts";
 
-const POSTED = 1_790_000_000;
+const POSTED = Math.floor(REDDIT_POSTED_AT / 1000);
 
-const POSTED_AT = "2026-11-20T09:14:00Z";
+const POSTED_AT = new Date(X_POSTED_AT).toISOString().slice(0, 19) + "Z";
 
 function wire(comments: readonly Comment[], parent: string): readonly object[] {
   return comments.map((comment) => ({

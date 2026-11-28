@@ -3,21 +3,21 @@ import { reddit } from "./seed-wire.ts";
 
 const FOUR_BAY = reddit({
   id: "q1",
-  subreddit: "homeserverlog",
+  subreddit: "homeserverlog_notebook",
   title: "Moved my media server off a four-bay NAS to a mini PC. What I would do differently",
-  author: "tallow_and_tin",
+  author: "tallow_and_tin_candle",
   text: "I ran a four-bay NAS for six years. It worked, but it was loud, it idled at 38 W, and the CPU could not transcode one 4K stream.\n\nIf I did it again I would set up the off-site backup first, copy with checksums, and only then retire the NAS.",
   total: 64,
   comments: [
     {
       id: "k1",
-      author: "brindle_ops",
+      author: "brindle_ops_after_hours",
       score: 128,
       body: "The disconnects are almost always USB autosuspend. Turn it off for the shelf's controller and the drops stop.",
       replies: [
         {
           id: "k2",
-          author: "tallow_and_tin",
+          author: "tallow_and_tin_candle",
           score: 41,
           body: "That was it. With autosuspend off, the 9 TB copy finished in one pass.",
         },
@@ -25,19 +25,19 @@ const FOUR_BAY = reddit({
     },
     {
       id: "d1",
-      author: "drifting_byte",
+      author: "drifting_byte_collector",
       score: 3,
       body: "Did you try a different cable first?",
       replies: [
         {
           id: "k3",
-          author: "quarry_lane",
+          author: "quarry_lane_log_keeper",
           score: 64,
           body: "I ran the same shelf for a year and logged every drop. Every drop came right after the controller went idle, and turning off autosuspend for that one controller fixed it while the rest of the bus kept its power saving.",
           replies: [
             {
               id: "k4",
-              author: "oddly_specific",
+              author: "oddly_specific_answers",
               score: 22,
               body: "Same here. A second pass that compares checksums is slow, but it is the only proof that the copy is complete.",
             },
@@ -47,7 +47,7 @@ const FOUR_BAY = reddit({
     },
     {
       id: "k5",
-      author: "fernhollow",
+      author: "fernhollow_rack_cabinet",
       score: 17,
       body: "Counterpoint: a NAS gives you hot-swap bays and one vendor to blame. A mini PC with a USB shelf is cheaper, but you own every failure.",
     },
@@ -56,27 +56,27 @@ const FOUR_BAY = reddit({
 
 const WAL = reddit({
   id: "q2",
-  subreddit: "sqlitenotes",
+  subreddit: "sqlitenotes_and_lockups",
   title: "WAL mode and a network drive: why my app's database kept locking",
-  author: "page_cache",
+  author: "page_cache_of_the_week",
   text: "My small app keeps its database on a network share so two machines can use it. Since I turned on WAL mode, writes fail with a lock error a few times a day.",
   total: 57,
   comments: [
     {
       id: "w1",
-      author: "btree_bert",
+      author: "btree_bert_the_indexer",
       score: 212,
       body: "WAL mode needs shared memory between the processes, and a network file system cannot give you that. Keep the file on a local disk.",
       replies: [
         {
           id: "w2",
-          author: "page_cache",
+          author: "page_cache_of_the_week",
           score: 31,
           body: "So the second machine should talk to the first one over HTTP instead of opening the file?",
           replies: [
             {
               id: "w3",
-              author: "btree_bert",
+              author: "btree_bert_the_indexer",
               score: 88,
               body: "Yes. One process owns the file, and everything else asks it. It took me an afternoon to move over and the locks stopped.",
             },
@@ -84,27 +84,27 @@ const WAL = reddit({
         },
       ],
     },
-    { id: "w4", author: "rollback_rita", score: 9, body: "lol just use postgres" },
+    { id: "w4", author: "rollback_rita_each_time", score: 9, body: "lol just use postgres" },
   ],
 });
 
 const KEEBS = reddit({
   id: "q3",
-  subreddit: "keebworkshop",
+  subreddit: "keebworkshop_bench_notes",
   title: "Six months on Hall effect switches: what held up and what did not",
-  author: "stem_and_spring",
+  author: "stem_and_spring_switches",
   text: "Every switch still registers cleanly. The adjustable actuation point stayed at 1.2 mm the whole time, and I never went back to the default.\n\nThe one failure was a stabilizer wire that rattled from the first day.",
   total: 31,
   comments: [
     {
       id: "h1",
-      author: "dampened_dave",
+      author: "dampened_dave_of_foam",
       score: 54,
       body: "Rattling stabilizer wires usually need a dab of dielectric grease on the wire ends, not on the housing. It fixed mine in two minutes.",
     },
     {
       id: "h2",
-      author: "lowprofile_lena",
+      author: "lowprofile_lena_board",
       score: 19,
       body: "The adjustable actuation is the real feature. I set 0.8 mm for the home row and 1.6 mm for the rest, and my typos dropped.",
     },
@@ -114,7 +114,7 @@ const KEEBS = reddit({
 export const REDDIT_ITEMS: readonly SeedItem[] = [
   {
     key: "four-bay",
-    url: "https://www.reddit.com/r/homeserverlog/comments/q1/moved_my_media_server/",
+    url: "https://www.reddit.com/r/homeserverlog_notebook/comments/q1/moved_my_media_server/",
     content: FOUR_BAY,
     digest: {
       title: "Moved my media server off a four-bay NAS to a mini PC. What I would do differently",
@@ -132,7 +132,7 @@ export const REDDIT_ITEMS: readonly SeedItem[] = [
   },
   {
     key: "wal",
-    url: "https://www.reddit.com/r/sqlitenotes/comments/q2/wal_mode_and_a_network_drive/",
+    url: "https://www.reddit.com/r/sqlitenotes_and_lockups/comments/q2/wal_mode_and_a_network_drive/",
     content: WAL,
     read: true,
     digest: {
@@ -151,7 +151,7 @@ export const REDDIT_ITEMS: readonly SeedItem[] = [
   },
   {
     key: "keebs",
-    url: "https://www.reddit.com/r/keebworkshop/comments/q3/six_months_on_hall_effect_switches/",
+    url: "https://www.reddit.com/r/keebworkshop_bench_notes/comments/q3/six_months_on_hall_effect_switches/",
     content: KEEBS,
     digest: {
       title: "Hall effect switches after six months of daily use",

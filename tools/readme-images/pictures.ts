@@ -1,9 +1,8 @@
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { chromium } from "@playwright/test";
+import type { Rig } from "./rig.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 
@@ -27,19 +26,24 @@ function pageOf(accent: string, variant: number): string {
   return `<!doctype html><link rel="stylesheet" href="${tokens}"><style>body{margin:0}.art{position:relative;overflow:hidden;width:${String(SIZE.width)}px;height:${String(SIZE.height)}px;background:linear-gradient(${String(120 + variant * 25)}deg,var(--acc-soft),color-mix(in oklab,var(--acc) 55%,var(--bg)))}i{position:absolute;translate:-50% -50%;border-radius:50%;background:var(--acc)}</style><body data-theme="light"><div class="art" data-accent="${accent}">${blobs}</div>`;
 }
 
-export async function picture(accent: string, variant: number): Promise<string> {
-  const scratch = mkdtempSync(join(tmpdir(), "threadsift-readme-picture-"));
-  const file = join(scratch, "picture.html");
+export async function picture(
+  rig: Readonly<Rig>,
+  accent: string,
+  variant: number,
+): Promise<string> {
+  const file = join(rig.scratch, "picture.html");
 
   writeFileSync(file, pageOf(accent, variant));
-  const browser = await chromium.launch();
-  const tab = await browser.newPage({ viewport: SIZE });
+  const context = await rig.newContext({ ...SIZE, scale: 1 });
 
-  await tab.goto(pathToFileURL(file).href);
-  const bytes = await tab.screenshot({ type: "jpeg", quality: QUALITY });
+  try {
+    const tab = await context.newPage();
 
-  await browser.close();
-  rmSync(scratch, { recursive: true, force: true });
+    await tab.goto(pathToFileURL(file).href);
+    const bytes = await tab.screenshot({ type: "jpeg", quality: QUALITY });
 
-  return `data:image/jpeg;base64,${bytes.toString("base64")}`;
+    return `data:image/jpeg;base64,${bytes.toString("base64")}`;
+  } finally {
+    await context.close();
+  }
 }

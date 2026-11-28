@@ -1,35 +1,35 @@
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { keepHighlights } from "./capture.ts";
-import { startInstance } from "./instance.ts";
-import { renderAll } from "./render.ts";
-import { seedLibrary } from "./seed.ts";
-import { startStubProvider } from "./stub-provider.ts";
+import { requireDaysInYear } from "./clock.ts";
+import { requireMagick } from "./frame.ts";
+import { produce } from "./produce.ts";
+import { resources } from "./resources.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
 
 const ASSETS = join(ROOT, "docs", "assets");
 
-const INSTANCE_PORT = 5430;
-
-const PROVIDER_PORT = 5431;
-
+requireMagick();
+requireDaysInYear();
 execFileSync("pnpm", ["run", "build"], { cwd: ROOT, stdio: "inherit" });
-mkdirSync(ASSETS, { recursive: true });
-const scratch = mkdtempSync(join(tmpdir(), "threadsift-readme-raw-"));
-const provider = await startStubProvider(PROVIDER_PORT);
-const instance = await startInstance(ROOT, INSTANCE_PORT);
+
+const held = resources();
 
 try {
-  const ids = await seedLibrary(instance, provider);
+  const scratch = held.own(mkdtempSync(join(tmpdir(), "threadsift-readme-images-")), (folder) => {
+    rmSync(folder, { recursive: true, force: true });
 
-  await keepHighlights(instance, ids);
-  await renderAll(instance, ids, scratch, ASSETS);
+    return Promise.resolve();
+  });
+  const out = join(scratch, "out");
+
+  mkdirSync(out);
+  await produce(ROOT, scratch, out, held);
+  mkdirSync(ASSETS, { recursive: true });
+  for (const name of readdirSync(out)) copyFileSync(join(out, name), join(ASSETS, name));
 } finally {
-  await instance.stop();
-  await provider.stop();
-  rmSync(scratch, { recursive: true, force: true });
+  await held.releaseAll();
 }

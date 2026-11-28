@@ -1,12 +1,9 @@
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { readFileSync, writeFileSync } from "node:fs";
+import { basename, join } from "node:path";
 import { pathToFileURL } from "node:url";
 
-import { chromium } from "@playwright/test";
-
-import { SCALE } from "./capture.ts";
+import { type Rig, SCALE } from "./rig.ts";
 import type { Theme } from "./views.ts";
 
 const ROOT = join(import.meta.dirname, "..", "..");
@@ -32,22 +29,38 @@ function pageOf(raws: readonly string[], theme: Theme): string {
   return `<!doctype html><link rel="stylesheet" href="${tokens}"><link rel="stylesheet" href="${style}"><body data-theme="${theme}"><div class="stage" id="stage"><div class="glow a" data-accent="moss"></div><div class="glow b" data-accent="teal"></div>${windows}</div></body>`;
 }
 
-export async function frame(raws: readonly string[], theme: Theme, out: string): Promise<void> {
-  const scratch = mkdtempSync(join(tmpdir(), "threadsift-readme-frame-"));
-  const page = join(scratch, "frame.html");
-  const png = join(scratch, "frame.png");
+export function requireMagick(): void {
+  try {
+    const formats = execFileSync("magick", ["-list", "format"], { encoding: "utf8" });
+
+    if (!/^\s*WEBP\b/mu.test(formats)) throw new Error("no WebP");
+  } catch {
+    throw new Error(
+      "ImageMagick with WebP support is missing: `magick -list format` must list WEBP. Install ImageMagick and run the tool again.",
+    );
+  }
+}
+
+export async function frame(
+  rig: Readonly<Rig>,
+  raws: readonly string[],
+  theme: Theme,
+  out: string,
+): Promise<void> {
+  const page = join(rig.scratch, `${basename(out)}.html`);
+  const png = join(rig.scratch, `${basename(out)}.png`);
 
   writeFileSync(page, pageOf(raws, theme));
-  const browser = await chromium.launch();
-  const tab = await browser.newPage({
-    viewport: { width: STAGE_WIDTH, height: STAGE_WIDTH },
-    deviceScaleFactor: SCALE,
-  });
+  const context = await rig.newContext({ width: STAGE_WIDTH, height: STAGE_WIDTH, scale: SCALE });
 
-  await tab.goto(pathToFileURL(page).href);
-  await tab.evaluate(() => document.fonts.ready);
-  await tab.locator("#stage").screenshot({ path: png });
-  await browser.close();
+  try {
+    const tab = await context.newPage();
+
+    await tab.goto(pathToFileURL(page).href);
+    await tab.evaluate(() => document.fonts.ready);
+    await tab.locator("#stage").screenshot({ path: png });
+  } finally {
+    await context.close();
+  }
   execFileSync("magick", [png, "-strip", "-define", "webp:lossless=true", out]);
-  rmSync(scratch, { recursive: true, force: true });
 }

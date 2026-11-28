@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 
 import { z } from "zod";
 
+import { onFreePort } from "./loopback.ts";
 import { OVERVIEWS } from "./stub-overviews.ts";
 
 const RELATED_PICKS = 2;
@@ -32,7 +33,6 @@ const RelatedInputSchema = z.object({
 
 export interface StubProvider {
   readonly baseUrl: string;
-  readonly calls: () => number;
   readonly stop: () => Promise<void>;
 }
 
@@ -102,7 +102,7 @@ function answerFor(
   return "picks" in properties ? relatedAnswer(input) : nothing(properties);
 }
 
-export function answerTo(raw: string): string {
+function answerTo(raw: string): string {
   const request = ChatRequestSchema.parse(JSON.parse(raw));
   const input = request.messages.at(-1)?.content ?? "";
   const { properties } = request.response_format.json_schema.schema;
@@ -124,43 +124,38 @@ export function answerTo(raw: string): string {
   });
 }
 
-export async function startStubProvider(port: number): Promise<StubProvider> {
-  let calls = 0;
+export async function startStubProvider(): Promise<StubProvider> {
+  const { server, port } = await onFreePort(() =>
+    createServer((request, response) => {
+      let raw = "";
 
-  const server = createServer((request, response) => {
-    let raw = "";
+      request.setEncoding("utf8");
+      request.on("data", (chunk: string) => {
+        raw += chunk;
+      });
+      request.on("end", () => {
+        try {
+          const answer = answerTo(raw);
 
-    request.setEncoding("utf8");
-    request.on("data", (chunk: string) => {
-      raw += chunk;
-    });
-    request.on("end", () => {
-      calls += 1;
+          response.writeHead(200, { "content-type": "application/json" });
+          response.end(answer);
+        } catch (error) {
+          process.stderr.write(`${String(error).slice(0, 300)}\n${raw.slice(0, 600)}\n`);
+          response.writeHead(500);
+          response.end();
+        }
+      });
+    }),
+  );
 
-      try {
-        const answer = answerTo(raw);
-
-        response.writeHead(200, { "content-type": "application/json" });
-        response.end(answer);
-      } catch (error) {
-        process.stderr.write(`${String(error).slice(0, 300)}\n${raw.slice(0, 600)}\n`);
-        response.writeHead(500);
-        response.end();
-      }
-    });
-  });
-
-  await new Promise<void>((resolve) => {
-    server.listen(port, "127.0.0.1", resolve);
-  });
   return {
     baseUrl: `http://127.0.0.1:${String(port)}/v1`,
-    calls: () => calls,
     stop: () =>
       new Promise<void>((resolve) => {
         server.close(() => {
           resolve();
         });
+        server.closeAllConnections();
       }),
   };
 }
