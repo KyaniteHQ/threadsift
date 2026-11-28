@@ -1,11 +1,11 @@
 import type { RefObject } from "react";
 
 export type PanelRefs = Readonly<{
-  gear: RefObject<HTMLButtonElement | null>;
+  opener: RefObject<HTMLButtonElement | null>;
   panel: RefObject<HTMLDialogElement | null>;
 }>;
 
-export const PANEL_CLASS = "st-pop";
+export const PANEL_CLASS = "pnl";
 
 export const PANEL_SELECTOR = `dialog.${PANEL_CLASS}`;
 
@@ -20,7 +20,7 @@ function isOutside(refs: PanelRefs, target: EventTarget | null): boolean {
     panel !== null &&
     target instanceof Node &&
     !panel.contains(target) &&
-    refs.gear.current?.contains(target) !== true
+    refs.opener.current?.contains(target) !== true
   );
 }
 
@@ -38,7 +38,7 @@ function isInside(
   );
 }
 
-type Close = (refocusGear: boolean) => void;
+type Close = (refocusOpener: boolean) => void;
 
 export function watchPopover(refs: PanelRefs, close: Close, signal: AbortSignal): void {
   document.addEventListener(

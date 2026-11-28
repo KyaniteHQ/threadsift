@@ -1,7 +1,7 @@
 import { useCallback } from "react";
 
 import type { Proposal } from "../../src/core/contract/proposal-contract.ts";
-import { AiSettingsLink } from "./AiSettingsLink.tsx";
+import { PlaceLink } from "./PlaceLink.tsx";
 import { ACCEPT_CLASS, REJECT_CLASS, rowDescription } from "./proposal-dom.ts";
 import type { Busy } from "./proposals-api.ts";
 import {
@@ -68,7 +68,7 @@ function Notes({
         {alert}
       </p>
       <output className="rd-note">{status}</output>
-      {row.kind === "busy" && row.busy === "no-provider" ? <AiSettingsLink /> : null}
+      {row.kind === "busy" && row.busy === "no-provider" ? <PlaceLink to="ai-settings" /> : null}
       {applying && isMerge(proposal) && proposal.failedRuns > 0 && (
         <p className="rd-note">{applyFailedNote(proposal.failedRuns)}</p>
       )}

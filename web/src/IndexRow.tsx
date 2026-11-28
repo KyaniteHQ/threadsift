@@ -22,12 +22,12 @@ export const IndexRow = memo(function IndexRow({ topic }: Readonly<{ topic: Inde
             <bdi dir="auto">{name}</bdi>
           </InternalLink>
         </h2>
-        <p className="ix-count">{itemsLabel(itemCount)}</p>
         {overviewLine === null ? null : (
           <p id={lineId} className="rl-sum ix-line" dir="auto">
             {overviewLine}
           </p>
         )}
+        <p className="ix-count">{itemsLabel(itemCount)}</p>
       </article>
     </li>
   );

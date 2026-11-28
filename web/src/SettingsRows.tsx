@@ -19,7 +19,9 @@ function appliesTo(row: SettingRow, settings: Readonly<Settings>): boolean {
 function shownGroups(settings: Readonly<Settings>) {
   return GROUPS.map((group) => ({
     group,
-    rows: SETTINGS.filter((row) => row.group === group && appliesTo(row, settings)),
+    rows: SETTINGS.filter(
+      (row) => "group" in row && row.group === group && appliesTo(row, settings),
+    ),
   })).filter(({ rows }) => rows.length > 0);
 }
 

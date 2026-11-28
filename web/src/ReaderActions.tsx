@@ -4,8 +4,8 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { CommentsButton } from "./CommentsButton.tsx";
 import { DeleteItem } from "./DeleteItem.tsx";
 import { Icon } from "./Icon.tsx";
+import { LookPanel } from "./LookPanel.tsx";
 import { HINT_PANE, MARK_READ, MARK_UNREAD, OPEN_LABELS } from "./reader-text.ts";
-import { SettingsPanel } from "./SettingsPanel.tsx";
 import type { PanelState } from "./use-panel.ts";
 import type { ReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
@@ -28,15 +28,17 @@ export function ReaderActions({
   controls,
   look,
   panel,
+  commentsListed,
 }: Readonly<{
   item: Item;
   controls: ReaderControls;
   look: Look;
   panel: PanelState;
+  commentsListed: boolean;
 }>) {
   const { mode, toggleRead, remove } = controls;
   const read = item.readState === "read";
-  const comments = item.commentCount;
+  const comments = commentsListed ? null : item.commentCount;
 
   const toggle = useCallback(() => {
     toggleRead(item);
@@ -50,8 +52,13 @@ export function ReaderActions({
         </p>
       ) : null}
       {comments === null || comments.shown === 0 ? null : <CommentsButton counts={comments} />}
-      {mode === "pane" ? null : <SettingsPanel look={look} panel={panel} />}
-      <button type="button" className="btn rd-act" aria-keyshortcuts="M" onClick={toggle}>
+      {mode === "pane" ? null : <LookPanel look={look} panel={panel} />}
+      <button
+        type="button"
+        className={read ? "btn rd-act" : "btn btn-acc rd-act"}
+        aria-keyshortcuts="M"
+        onClick={toggle}
+      >
         <ReadIcon read={read} />
         <span className="rd-act-l">{read ? MARK_UNREAD : MARK_READ}</span>
       </button>

@@ -111,6 +111,8 @@ The settings routes for the Reddit account, the Grok Bot, the X reader and the P
 
 The Test and Verify calls of these sections answer every outcome inside HTTP 200, so the bot's or Reddit's own 401 never signs the owner out. Verify with Grok Bot as the Provider holds the request for up to 60 seconds (`VERIFY_WAIT_MS`) while the bot answers, then answers `refused` with `timeout` and closes the task, so a late answer is 409.
 
+`POST /api/settings/ai/models` answers a Provider's model list, or why there is none, for the AI settings. It answers every outcome of the Provider's own answer inside HTTP 200 too, and 400 for a Provider this Instance does not offer. It takes the typed API key in the JSON body and never in the address, because an address can reach a log. It never returns the key, answers `Cache-Control: no-store` and keeps no list on the server. [AI tasks and Providers](ai-tasks-and-providers.md), Model lists, holds its sources and limits.
+
 ## The Grok Bot task routes
 
 The three routes (`GET /api/ai-tasks/{id}`, `POST .../result` and `POST .../intake`) accept only the task's own callback credential ([Access](access-owner-login-agent-tokens-mcp.md), the task callback credential).

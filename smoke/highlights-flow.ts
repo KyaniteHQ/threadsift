@@ -1,5 +1,6 @@
 import { type Locator, type Page, expect } from "@playwright/test";
 
+import { groupedNumber } from "../src/core/contract/format.ts";
 import { PAGE_SIZE } from "../src/core/contract/paging.ts";
 import { NOTE_TITLE } from "../src/core/contract/reader-text.ts";
 import { HIGHLIGHTS_PAGE } from "../web/src/highlights-page-text.ts";
@@ -10,7 +11,7 @@ import {
   atPhoneWidth,
   expectNoSidewaysScroll,
   expectScrollEnded,
-  openSettings,
+  openFromMasthead,
 } from "./screen-checks.ts";
 
 const highlightAddress = (item: number, highlight: string): string =>
@@ -82,11 +83,13 @@ async function removeKeepingMovedFocus(page: Page, item: number, mark: Locator, 
 export async function highlightsFlow(page: Page): Promise<void> {
   const { item, oldestHighlight } = await keepHighlightsAndNote(page);
 
-  await openSettings(page);
-  await page.getByRole("link", { name: HIGHLIGHTS_PAGE.masthead, exact: true }).click();
+  await openFromMasthead(page, HIGHLIGHTS_PAGE.masthead);
   await expect(page).toHaveURL(/\/highlights$/u);
   await expect(page).toHaveTitle("Highlights, Threadsift");
   await expect(page.getByRole("heading", { level: 1, name: HIGHLIGHTS_PAGE.title })).toBeVisible();
+  await expect(
+    page.getByText(`${groupedNumber(HIGHLIGHTS)} highlights, 1 note`, { exact: true }),
+  ).toBeVisible();
 
   const entries = page.locator(".hp-it");
 

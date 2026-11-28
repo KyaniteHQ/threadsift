@@ -1,6 +1,6 @@
 import { KnownDisagreements } from "./KnownDisagreements.tsx";
 import { Skeleton } from "./ListBody.tsx";
-import { PageBar } from "./PageBar.tsx";
+import { PageFrame } from "./PageFrame.tsx";
 import { RetryNotice } from "./RetryRegions.tsx";
 import type { Route } from "./routing.ts";
 import { TOPIC_PAGE } from "./topic-text.ts";
@@ -46,11 +46,11 @@ function Body({
 export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; route: Route }>) {
   const { state, retry, loadMore, writeOverview } = useTopicPage(topicKey, route.replace);
   const name = state.status === "ready" ? state.topic.name : "";
+  const title = state.status === "missing" ? TOPIC_PAGE.notFoundHeading : name;
   usePageName(name);
 
   return (
-    <div className="pg">
-      <PageBar title={name} ready={state.status !== "loading"} />
+    <PageFrame title={title} ready={title !== ""} back="index">
       <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
         <RetryNotice
           failed={state.status === "failed"}
@@ -59,6 +59,6 @@ export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; rout
         />
         <Body state={state} loadMore={loadMore} write={writeOverview} />
       </main>
-    </div>
+    </PageFrame>
   );
 }

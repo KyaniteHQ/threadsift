@@ -3,15 +3,17 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { NOTHING } from "../../src/core/contract/nothing.ts";
 import { type PanelRefs, watchPopover, watchSheet } from "./panel-dom.ts";
 
-const FIRST_CHOICE = '.st-body input[type="radio"]:checked';
+const FIRST_CHOICE = '.pnl-body input[type="radio"]:checked';
+
+const FIRST_CONTROL = ".pnl-body :is(a[href], button)";
 
 const KEYED = "[data-focus-key]";
 
-const BODY = ".st-body";
+const BODY = ".pnl-body";
 
-type View = Readonly<{ open: boolean; refocusGear: boolean }>;
+type View = Readonly<{ open: boolean; refocusOpener: boolean }>;
 
-const CLOSED: View = { open: false, refocusGear: false };
+const CLOSED: View = { open: false, refocusOpener: false };
 
 interface Carry {
   readonly focusKey: string | null;
@@ -104,7 +106,11 @@ function restoreInto(dialog: HTMLElement, { focusKey, scrollTop }: Readonly<Carr
     (each) => each.dataset["focusKey"] === focusKey,
   );
 
-  (keyed ?? dialog.querySelector<HTMLElement>(FIRST_CHOICE))?.focus({ preventScroll: true });
+  (
+    keyed ??
+    dialog.querySelector<HTMLElement>(FIRST_CHOICE) ??
+    dialog.querySelector<HTMLElement>(FIRST_CONTROL)
+  )?.focus({ preventScroll: true });
 }
 
 function useShownAs(open: boolean, modal: boolean, refs: PanelRefs, carry: CarryStore) {
@@ -139,19 +145,19 @@ function useShownAs(open: boolean, modal: boolean, refs: PanelRefs, carry: Carry
   }, [open, modal, refs, carry]);
 }
 
-function useGearFocus({ open, refocusGear }: View, refs: PanelRefs) {
+function useOpenerFocus({ open, refocusOpener }: View, refs: PanelRefs) {
   useEffect(() => {
-    if (!open && refocusGear) {
-      refs.gear.current?.focus();
+    if (!open && refocusOpener) {
+      refs.opener.current?.focus();
     }
-  }, [open, refocusGear, refs]);
+  }, [open, refocusOpener, refs]);
 }
 
 function useDismissal(
   open: boolean,
   modal: boolean,
   refs: PanelRefs,
-  close: (refocusGear: boolean) => void,
+  close: (refocusOpener: boolean) => void,
 ) {
   useEffect(() => {
     const listeners = new AbortController();
@@ -167,32 +173,36 @@ function useDismissal(
 }
 
 export function usePanel(modal: boolean, { view, setView, carry }: Readonly<PanelState>) {
-  const gear = useRef<HTMLButtonElement>(null);
+  const opener = useRef<HTMLButtonElement>(null);
   const panel = useRef<HTMLDialogElement>(null);
-  const refs = useMemo(() => ({ gear, panel }), [gear, panel]);
+  const refs = useMemo(() => ({ opener, panel }), [opener, panel]);
 
   const close = useCallback(
-    (refocusGear: boolean) => {
-      setView({ open: false, refocusGear });
+    (refocusOpener: boolean) => {
+      setView({ open: false, refocusOpener });
     },
     [setView],
   );
 
   useShownAs(view.open, modal, refs, carry);
-  useGearFocus(view, refs);
+  useOpenerFocus(view, refs);
   useDismissal(view.open, modal, refs, close);
 
   const toggle = useCallback(() => {
     if (view.open) {
       close(true);
     } else {
-      setView({ open: true, refocusGear: false });
+      setView({ open: true, refocusOpener: false });
     }
   }, [view.open, close, setView]);
 
-  const closeToGear = useCallback(() => {
+  const closeToOpener = useCallback(() => {
     close(true);
   }, [close]);
 
-  return { open: view.open, toggle, closeToGear, gear, panel };
+  const dismiss = useCallback(() => {
+    close(false);
+  }, [close]);
+
+  return { open: view.open, toggle, closeToOpener, dismiss, opener, panel };
 }

@@ -2,6 +2,7 @@ import { type ReactNode, useCallback } from "react";
 
 import { Alert } from "./Alert.tsx";
 import type { Loaded } from "./settings-load-types.ts";
+import { SettingsSection } from "./SettingsSection.tsx";
 import { useLoaded } from "./use-settings-load.ts";
 
 export interface SectionSpec<View> {
@@ -36,11 +37,7 @@ export function LoadedSection<View>({
   );
 
   return (
-    <section id={id} className="sec" aria-labelledby={`${id}-title`}>
-      <h2 id={`${id}-title`} className="rd-h" tabIndex={-1}>
-        {title}
-      </h2>
-      <p>{intro}</p>
+    <SettingsSection id={id} title={title} intro={intro}>
       {lead}
       {loaded.kind === "ready" ? (
         <Form view={loaded.view} changed={changed} />
@@ -48,6 +45,6 @@ export function LoadedSection<View>({
         <Alert text={loadFailed} />
       )}
       {foot}
-    </section>
+    </SettingsSection>
   );
 }

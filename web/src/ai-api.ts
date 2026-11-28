@@ -3,8 +3,11 @@ import type { z } from "zod";
 import {
   AiSettingsViewSchema,
   AiSaveResponseSchema,
+  ModelListSchema,
   VerifyResultSchema,
   type AiSettingsInput,
+  type ModelList,
+  type ModelListRequest,
 } from "../../src/core/contract/ai-settings-contract.ts";
 import { GrokBotUnreadySchema } from "../../src/core/contract/grok-bot-contract.ts";
 import {
@@ -17,6 +20,7 @@ import {
   AI_SAVE_DEADLINE_MS,
   AI_VERIFY_DEADLINE_MS,
   DATABASE_WRITE_DEADLINE_MS,
+  MODEL_LIST_DEADLINE_MS,
 } from "./write-deadlines.ts";
 
 export type AiView = z.infer<typeof AiSettingsViewSchema>;
@@ -46,6 +50,12 @@ export async function saveAiSettings(input: Readonly<AiSettingsInput>): Promise<
   if (!unready.success) throw new Error("PUT /api/settings/ai answered 400");
 
   return { kind: "grok-bot-unready", code: unready.data.code };
+}
+
+export function listAiModels(input: Readonly<ModelListRequest>): Promise<ModelList> {
+  return parsedFrom(post(MODEL_LIST_DEADLINE_MS), "/api/settings/ai/models", ModelListSchema, {
+    json: input,
+  });
 }
 
 export function verifyAi(): Promise<VerifyResult> {

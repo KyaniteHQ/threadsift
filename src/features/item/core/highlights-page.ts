@@ -18,7 +18,11 @@ import { partMatching } from "./search.ts";
 export interface HighlightsRead {
   readonly entries: readonly Entry[];
   readonly next: string | null;
-  readonly counts: ({ readonly total: number } & ReturnType<typeof facetCounts>) | null;
+  readonly counts:
+    | ({ readonly total: number; readonly highlights: number; readonly notes: number } & ReturnType<
+        typeof facetCounts
+      >)
+    | null;
 }
 
 function ownPart(terms: readonly string[], owner: Readonly<SQLWrapper>): SQL | undefined {
@@ -149,10 +153,15 @@ export async function highlightsPage(
     ...facetQueries(db, facets, () => entryUnit(filters.terms)),
   ]);
 
+  const highlightCount = highlightTotal?.count ?? 0;
+  const noteCount = noteTotal?.count ?? 0;
+
   return {
     ...pageOf(rows),
     counts: {
-      total: (highlightTotal?.count ?? 0) + (noteTotal?.count ?? 0),
+      total: highlightCount + noteCount,
+      highlights: highlightCount,
+      notes: noteCount,
       ...facetCounts(counted),
     },
   };

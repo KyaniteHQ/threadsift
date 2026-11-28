@@ -1,3 +1,5 @@
+import { type RefObject, useEffect } from "react";
+
 const MORE_ROUNDING = 1;
 
 function sideways(scroller: HTMLElement) {
@@ -5,55 +7,80 @@ function sideways(scroller: HTMLElement) {
 
   return {
     wide: scrollWidth > clientWidth + MORE_ROUNDING,
+    before: scrollLeft > MORE_ROUNDING,
     more: scrollLeft + clientWidth < scrollWidth - MORE_ROUNDING,
   };
 }
 
 function makeFocusable(scroller: HTMLElement, wide: boolean): void {
+  const { label, labelledby: labelledBy } = scroller.dataset;
+  const naming = labelledBy === undefined ? "aria-label" : "aria-labelledby";
+  const name = labelledBy ?? label;
+
+  if (name === undefined) return;
+
   if (wide) {
     scroller.tabIndex = 0;
     scroller.setAttribute("role", "region");
-    scroller.setAttribute("aria-label", scroller.dataset["label"] ?? "");
+    scroller.setAttribute(naming, name);
   } else {
     scroller.removeAttribute("tabindex");
     scroller.removeAttribute("role");
-    scroller.removeAttribute("aria-label");
+    scroller.removeAttribute(naming);
   }
 }
 
-function update(root: HTMLElement): void {
-  for (const box of root.querySelectorAll<HTMLElement>(".sxw")) {
-    const scroller = box.querySelector<HTMLElement>(".sx");
+function updateBox(box: HTMLElement): void {
+  const scroller = box.querySelector<HTMLElement>(".sx");
 
-    if (scroller !== null) {
-      const { wide, more } = sideways(scroller);
-      box.dataset["more"] = more ? "1" : "0";
-      makeFocusable(scroller, wide);
-    }
+  if (scroller !== null) {
+    const { wide, before, more } = sideways(scroller);
+    box.dataset["before"] = before ? "1" : "0";
+    box.dataset["more"] = more ? "1" : "0";
+    makeFocusable(scroller, wide);
   }
 }
 
-export function watchFades(root: HTMLElement): () => void {
+function watch(target: HTMLElement, update: () => void, observed: readonly Element[]): () => void {
   let frame = 0;
 
   const schedule = (): void => {
     if (frame === 0) {
       frame = requestAnimationFrame(() => {
         frame = 0;
-        update(root);
+        update();
       });
     }
   };
 
-  update(root);
-  root.addEventListener("scroll", schedule, { capture: true, passive: true });
+  update();
+  target.addEventListener("scroll", schedule, { capture: true, passive: true });
   const observer = new ResizeObserver(schedule);
-  observer.observe(root);
+  for (const element of observed) observer.observe(element);
   void document.fonts.ready.then(schedule);
 
   return () => {
     cancelAnimationFrame(frame);
-    root.removeEventListener("scroll", schedule, { capture: true });
+    target.removeEventListener("scroll", schedule, { capture: true });
     observer.disconnect();
   };
+}
+
+export function watchFades(root: HTMLElement): () => void {
+  return watch(root, () => {
+    for (const box of root.querySelectorAll<HTMLElement>(".sxw")) updateBox(box);
+  }, [root]);
+}
+
+function watchBox(box: HTMLElement): () => void {
+  const scroller = box.querySelector<HTMLElement>(".sx");
+  const content = scroller?.firstElementChild ?? null;
+
+  return watch(box, () => {
+    updateBox(box);
+  }, [box, ...(content === null ? [] : [content])]);
+}
+
+export function useSidewaysFade(box: RefObject<HTMLElement | null>): void {
+  useEffect(() => (box.current === null ? undefined : watchBox(box.current)), [box]);
 }

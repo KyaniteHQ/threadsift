@@ -41,6 +41,7 @@ export interface CodexEnvironment {
 class CodexCli extends SlottedCli {
   readonly provider = PROVIDERS.codex.id;
   readonly recommendation;
+  readonly models;
   private readonly installation: Readonly<Installation>;
   private readonly catalog: Readonly<ToollessCatalog>;
 
@@ -52,6 +53,11 @@ class CodexCli extends SlottedCli {
     super(slots);
     this.installation = installation;
     this.catalog = catalog;
+    this.models = catalog.models
+      .filter(({ visible }) => visible)
+      .map(({ slug, label, levels }) =>
+        label === undefined ? { id: slug, efforts: levels } : { id: slug, label, efforts: levels },
+      );
     this.recommendation =
       this.modelChoice(RECOMMENDED.model)?.levels.includes(RECOMMENDED.effort) === true
         ? RECOMMENDED

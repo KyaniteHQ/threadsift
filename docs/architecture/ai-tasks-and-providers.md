@@ -5,6 +5,7 @@ Every model call is an AI task with a kind, inputs, an input revision and a Zod 
 - [Providers and executors](#providers-and-executors)
 - [The task row](#the-task-row)
 - [Settings and secrets](#settings-and-secrets)
+- [Model lists](#model-lists)
 - [OpenRouter Connect](#openrouter-connect)
 - [The HTTP executor](#the-http-executor)
 - [Refusal mapping](#refusal-mapping)
@@ -73,6 +74,30 @@ The Grok CLI is not an executor (CLI executors).
   - Settings offers Recommended only when the runner has a supported pair. A saved recommendation falls back to CLI defaults while its pair is unavailable, and the settings route refuses a new recommendation when the runner has none.
   - Custom requires a model, an effort or both. [Default model in the spec](../spec.md#ai-providers) describes partial fields.
   - If a catalog update removes a saved effort level, the runner refuses with `invalid-effort` and the accepted levels. An unknown model gives `model-not-found`.
+
+## Model lists
+
+`listModels` answers `POST /api/settings/ai/models`, which the AI settings call to offer a Provider's models as choices. The list is a hint: Save still checks a CLI model with `SlottedCli.resolve`, and an HTTP Provider still refuses an unknown model at Verify.
+
+| Provider | Source | Efforts in the answer |
+|---|---|---|
+| `anthropic` | `GET /v1/models` with `limit=1000`, following `after_id` for at most `MODEL_LIST_PAGES` (3) pages. It sends `x-api-key` and `anthropic-version: 2023-06-01`, the headers the installed `@ai-sdk/anthropic` sends. It keeps the active models whose `capabilities.structured_outputs` is supported, and a model with no `capabilities` ([List Models](https://platform.claude.com/docs/en/api/models/list)). | None |
+| `openai` | `GET /v1/models`, ids only ([List models](https://developers.openai.com/api/reference/resources/models/methods/list)). The answer has no field that tells a chat model from another, so the list leaves out an id with a dash-separated part such as `embedding`, `tts`, `whisper`, `dall`, `image`, `moderation`, `realtime`, `audio` or `transcribe` (`NOT_CHAT_PARTS`). That filter is a heuristic: a new kind of model shows in the list until the parts name it. | None |
+| `xai` | `GET /v1/language-models`, which lists only language models ([Models](https://docs.x.ai/developers/rest-api-reference/inference/models)). | None |
+| `openrouter` | `GET /api/v1/models?supported_parameters=structured_outputs`, with the key when one applies. The API reference marks the route as authenticated, but a request without a key answers 200, so the list does not depend on either ([Get models](https://openrouter.ai/docs/api/api-reference/models/get-models)). | None |
+| `openai-compatible` | `GET {baseUrl}/models`, the OpenAI convention that Ollama follows ([OpenAI compatibility](https://docs.ollama.com/api/openai-compatibility)), with the key when one applies. | None |
+| `workers-ai` | `WORKERS_AI_MODELS`, the models that Cloudflare's [JSON Mode](https://developers.cloudflare.com/workers-ai/features/json-mode/) page lists, because the binding sends `response_format: json_schema` and no answer field reports JSON Mode support. The binding's `models()` is never called, because the repository's rule against Workers AI calls from checks forbids it and no local run can reach it. When Cloudflare changes that page, edit the list. | None |
+| `claude-code` | The adapter's fixed list: the recommended model when the installed version supports it, and the aliases `fable`, `opus`, `sonnet` and `haiku` from [Model configuration](https://code.claude.com/docs/en/model-config). Claude Code has no command that lists models. When that page adds an alias, edit `ALIASES`. | The 5 levels the adapter accepts |
+| `codex` | The visible entries (`visibility: "list"`) of the bundled catalog the adapter reads at start, with `display_name` as the label, in the catalog's priority order. An entry with an empty `display_name` is left out of the list, and the other entries stay. | Each model's `supported_reasoning_levels` |
+| `grok-bot` | None: it has no Model field, and the route refuses it with 400. | |
+
+- **Which key.** The typed key in the body when there is one. Otherwise the saved key, when Provider and Base URL equal the saved row's (`keyApplies`). Without either, Anthropic, OpenAI and xAI answer `unlisted` with `key-needed`, and OpenRouter and a compatible URL list without a key.
+- **Transport.** HTTP lists go through `allowsUrl` and `aiTransport`, as a model call does, so the Worker keeps its public HTTPS rule and refuses redirects, and the container still reaches a private Ollama.
+- **Deadline and size.** Each request waits at most `HOP_DEADLINE_MS` (8 seconds), the app's wait for one request to another service. The web app's `MODEL_LIST_DEADLINE_MS` is `MODEL_LIST_PAGES` such requests plus its margin. The answer body is read up to 4 MiB (`MODEL_LIST_BYTES`): OpenRouter's filtered list was 793,931 bytes on 2026-11-27 (`curl -s 'https://openrouter.ai/api/v1/models?supported_parameters=structured_outputs' -o /dev/null -w '%{size_download}'`).
+- **Unlisted.** A 401 or 403 is `wrong-key` when a key was sent and `key-needed` when none was, and an xAI 400 that names an incorrect key is `wrong-key`, so a vendor's 401 never signs the owner out. A 429, a 5xx, a timeout or a network failure is `unreachable`, a refused address or a redirect is `refused`, and any other status, an answer over the cap, an answer that does not parse or a list with no model left is `no-list`. When a later Anthropic page fails, the whole answer is `unlisted` with that page's reason, so a cut list never shows as complete.
+- **Order.** A list from an HTTP Provider is sorted by label, or by id where there is no label. A CLI and Workers AI keep their declared order.
+- **Efforts.** Only the two CLIs answer effort levels, because the HTTP executor sends no effort.
+- **No server cache.** Every request asks again, so no list tied to a key is stored and both targets behave the same. The web app keeps each answer for the page, under the saved settings revision, the Provider, the Base URL and the key it sent ([Web app](web-app.md#model-list)). The Worker has no CLI runner, so it lists no CLI.
 
 ## OpenRouter Connect
 

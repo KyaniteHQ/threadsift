@@ -12,12 +12,10 @@ export const AI_TASK_PATH = "/api/ai-tasks/{id}";
 
 const PUBLIC_ONLY = true;
 
-const QUERY_OR_FRAGMENT_MARK = /[?#]/u;
-
 const GROK_BOT_ADDRESS_RULE = "a public https address with no credentials, query or fragment";
 
 export function allowedGrokBotUrl(address: string): boolean {
-  return !QUERY_OR_FRAGMENT_MARK.test(address) && allowedAiUrl(address, PUBLIC_ONLY);
+  return allowedAiUrl(address, PUBLIC_ONLY);
 }
 
 export function grokBotAddressOf(address: string): string {

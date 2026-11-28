@@ -8,8 +8,8 @@ export function localDate(at: number): string {
   return calendarDate(new Date(at));
 }
 
-export function localStamp(at: number): string {
+export function localTime(at: number): string {
   const day = new Date(at);
 
-  return `${calendarDate(day)} ${pad(day.getHours())}:${pad(day.getMinutes())}`;
+  return `${pad(day.getHours())}:${pad(day.getMinutes())}`;
 }

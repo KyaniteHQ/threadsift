@@ -1,10 +1,14 @@
 import { eq } from "drizzle-orm";
 
 import type { ModelAi } from "../../../core/contract/ai-contract.ts";
-import { GROK_BOT_PROVIDER } from "../../../core/contract/provider-families.ts";
+import {
+  GROK_BOT_PROVIDER,
+  type HttpProvider,
+  keyApplies,
+} from "../../../core/contract/provider-families.ts";
 import { readRevision } from "../../../core/kernel/ai-settings-revision.ts";
 import { grokBotSettings } from "../../../core/kernel/grok-bot-tables.ts";
-import type { AiPorts } from "../../../core/kernel/ports.ts";
+import type { AiPorts, SettingsPorts } from "../../../core/kernel/ports.ts";
 import { UninitializedDatabase, settings } from "../../../core/kernel/schema.ts";
 import { connectionOf, unreadyAsProvider } from "./grok-bot-ready.ts";
 import { openedGrokBot } from "./grok-bot-settings.ts";
@@ -63,4 +67,19 @@ async function modelLoaded(snapshot: Readonly<Snapshot>): Promise<Snapshot & Mod
   if (saved === undefined) return { ...snapshot, state: "not-configured" };
 
   return { ...snapshot, ...(await saved.connect(sealer)) };
+}
+
+export async function loadSavedKey(
+  ports: SettingsPorts,
+  scope: Readonly<{ provider: HttpProvider; baseUrl: string }>,
+): Promise<string | undefined> {
+  const [row] = await ports.db.select().from(settings).where(eq(settings.id, 1));
+  const saved = row === undefined ? undefined : StoredSettingsSchema.parse(row);
+  const sealer = ports.secrets;
+
+  if (saved === undefined || saved.sealedKey === null || sealer === null) return undefined;
+
+  if (!keyApplies(saved, scope)) return undefined;
+
+  return (await sealer.open(saved.sealedKey)) ?? undefined;
 }

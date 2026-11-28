@@ -2,7 +2,10 @@ import { type Page, expect } from "@playwright/test";
 import { z } from "zod";
 
 import { FIELDS, LOGIN, SETTINGS, SETUP } from "../web/src/access-text.ts";
-import { openPanel } from "./screen-checks.ts";
+import { EXPORT_TEXT } from "../web/src/export-text.ts";
+import { OWNER_ENTRIES } from "../web/src/owner-entries.ts";
+import { signedInLine } from "../web/src/text.ts";
+import { openOwnerMenu } from "./screen-checks.ts";
 
 const PASSWORD = "a smoke password of fifteen or more";
 
@@ -28,11 +31,35 @@ export async function setUp(page: Page): Promise<void> {
 }
 
 export async function signOutAndIn(page: Page): Promise<void> {
-  await openPanel(page);
-  await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
-  await page.getByRole("button", { name: SETTINGS.signOut }).click();
+  await openOwnerMenu(page);
+  await page.getByRole("button", { name: SETTINGS.signOut, exact: true }).click();
   await expect(page).toHaveTitle("Sign in to Threadsift");
+  expect((await page.request.get("/api/items")).status()).toBe(401);
   await passwordField(page).fill(PASSWORD);
   await page.getByRole("button", { name: LOGIN.signIn }).click();
   await expect(libraryHeading(page)).toBeVisible();
+}
+
+async function openSectionFromMenu(page: Page, entry: string): Promise<void> {
+  await openOwnerMenu(page);
+  await page.getByRole("dialog").getByRole("link", { name: entry, exact: true }).click();
+  await expect(page.getByRole("heading", { level: 2, name: entry, exact: true })).toBeInViewport();
+}
+
+export async function instanceMenuFlow(page: Page): Promise<void> {
+  await page.goto("/");
+  await openOwnerMenu(page);
+
+  const menu = page.getByRole("dialog");
+
+  await expect(
+    menu.getByText(signedInLine(new URL(page.url()).host), { exact: true }),
+  ).toBeVisible();
+  await expect(menu.locator(".om-row")).toHaveText([
+    ...OWNER_ENTRIES.map(({ label }) => label),
+    SETTINGS.signOut,
+  ]);
+  await page.keyboard.press("Escape");
+  await openSectionFromMenu(page, SETTINGS.tokensTitle);
+  await openSectionFromMenu(page, EXPORT_TEXT.sectionTitle);
 }

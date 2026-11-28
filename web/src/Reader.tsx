@@ -4,6 +4,7 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { ReaderBar } from "./ReaderBar.tsx";
 import { ReaderBody } from "./ReaderBody.tsx";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
+import { BESIDE, type SideColumn, useSideColumn } from "./side-column.ts";
 import { usePageName } from "./use-document-title.ts";
 import { useFocusMoved } from "./use-focus-moved.ts";
 import { refreshKey, useItemDetail } from "./use-item-detail.ts";
@@ -44,12 +45,14 @@ function ReaderCol({
   item,
   slot,
   controls,
+  column: { col, host, side },
   titleId,
   tryAgain,
 }: Readonly<{
   item: Item;
   slot: RefObject<HTMLElement | null>;
   controls: ReaderControls;
+  column: SideColumn;
   titleId: string;
   tryAgain: (item: Item) => void;
 }>) {
@@ -59,33 +62,29 @@ function ReaderCol({
   const focusTitle = !moved && (controls.mode !== "pane" || controls.titleFocus === item.id);
 
   const pending = useMemo(
-    () => (
-      <ReaderPending
-        item={item}
-        now={now}
-        titleId={titleId}
-        focusTitle={focusTitle}
-        tryAgain={tryAgain}
-      />
-    ),
+    () => <ReaderPending {...{ item, now, titleId, focusTitle, tryAgain }} />,
     [focusTitle, item, now, titleId, tryAgain],
   );
 
   return (
-    <div className="rd-col">
-      <Suspense fallback={pending}>
-        <ReaderBody
-          item={item}
-          slot={slot}
-          state={state}
-          actions={actions}
-          announce={controls.announce}
-          now={now}
-          titleId={titleId}
-          focusTitle={focusTitle}
-          tryAgain={tryAgain}
-        />
-      </Suspense>
+    <div ref={col} className="rd-col" data-side={side.beside ? BESIDE : undefined}>
+      <div className="rd-main">
+        <Suspense fallback={pending}>
+          <ReaderBody
+            item={item}
+            slot={slot}
+            state={state}
+            actions={actions}
+            announce={controls.announce}
+            now={now}
+            titleId={titleId}
+            focusTitle={focusTitle}
+            tryAgain={tryAgain}
+            side={side}
+          />
+        </Suspense>
+      </div>
+      <div ref={host} className="rd-side" />
     </div>
   );
 }
@@ -108,14 +107,23 @@ export function Reader({
   tryAgain: (item: Item) => void;
 }>) {
   usePageName(item.digestTitle ?? item.title ?? "");
+  const column = useSideColumn(look.reader);
 
   return (
     <section className="reader" aria-labelledby={titleId}>
-      <ReaderBar item={item} controls={controls} look={look} panel={panel} />
+      <ReaderBar
+        item={item}
+        controls={controls}
+        look={look}
+        panel={panel}
+        beside={column.side.beside}
+        commentsListed={column.commentsListed}
+      />
       <ReaderCol
         item={item}
         slot={slot}
         controls={controls}
+        column={column}
         titleId={titleId}
         tryAgain={tryAgain}
       />

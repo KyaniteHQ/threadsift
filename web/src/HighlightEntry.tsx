@@ -16,7 +16,7 @@ function placeOf(entry: Readonly<Entry>): Place {
 
 function Passage({ entry, id }: Readonly<{ entry: Entry; id: string }>) {
   return entry.kind === "highlight" ? (
-    <blockquote id={id} className="hp-text" dir="auto">
+    <blockquote id={id} className="hp-text flat-note" dir="auto">
       <QuoteText text={entry.text} />
     </blockquote>
   ) : (

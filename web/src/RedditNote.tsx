@@ -33,7 +33,7 @@ export function RedditNote({
   if (note.state === "unknown" || note.state === "missing" || count === 0) return null;
 
   return (
-    <div className="sec imp-notice">
+    <div className="flat-note imp-notice">
       {note.state === "connected" ? (
         <p>{redditNoteLabel(count, finished)}</p>
       ) : (

@@ -5,9 +5,9 @@ import {
   overviewLines,
   overviewTokens,
 } from "../../src/core/contract/topic-overview-contract.ts";
-import { AiSettingsLink } from "./AiSettingsLink.tsx";
 import { InternalLink } from "./InternalLink.tsx";
 import { keyed } from "./keyed.ts";
+import { PlaceLink } from "./PlaceLink.tsx";
 import { AlertRegion } from "./RetryRegions.tsx";
 import { TOPIC_PAGE, builtFromLabel, citationLabel } from "./topic-text.ts";
 
@@ -79,7 +79,7 @@ function Unwritten({ overview, write }: Readonly<{ overview: Overview; write: ()
     return (
       <div className="tp-status">
         <p className="rd-note">{TOPIC_PAGE.noProvider}</p>
-        <AiSettingsLink />
+        <PlaceLink to="ai-settings" />
       </div>
     );
   }
@@ -104,7 +104,7 @@ export function TopicOverview({
   write: () => void;
 }>) {
   return (
-    <section className="rd-agent tp-overview">
+    <section className="tp-box tp-overview">
       <h2 className="label">{TOPIC_PAGE.overviewHeading}</h2>
       {overview.text === null ? null : <Lines overview={overview} />}
       <Status overview={overview} write={write} />

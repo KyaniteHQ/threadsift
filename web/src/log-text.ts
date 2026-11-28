@@ -1,3 +1,4 @@
+import type { LogAction } from "../../src/core/contract/log-actions.ts";
 import { filled } from "./filled.ts";
 import { plural } from "./plural.ts";
 import { NEWEST_FIRST } from "./text.ts";
@@ -23,11 +24,24 @@ export function logSince(date: string): string {
   return filled(SINCE, { date });
 }
 
-export const LOG_WORDS = {
-  topic: "topic:",
-  tags: "tags:",
-  tag: "tag:",
+export const LOG_COLUMNS = {
+  time: "Time",
+  change: "Change",
+  subject: "Subject",
+  details: "Details",
 } as const;
+
+export const LOG_CHANGES = {
+  ingest: "Digest written",
+  digest: "Digest refreshed",
+  topic: "Topic created",
+  overview: "Overview updated",
+  related: "Related items picked",
+  merge: "Tag merged",
+  "merge-topic": "Topic merged",
+  "vault-file-skipped": "Vault file skipped",
+  "vault-file-conflict": "Vault file blocked",
+} as const satisfies Readonly<Record<LogAction, string>>;
 
 export function addedRemoved(added: number, removed: number): string {
   return `${String(added)} added, ${String(removed)} removed`;

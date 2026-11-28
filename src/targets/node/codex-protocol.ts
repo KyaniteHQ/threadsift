@@ -26,6 +26,8 @@ const CatalogSchema = z
   })
   .readonly();
 
+const LabelSchema = z.string().min(1).optional();
+
 const ToolSchema = z
   .looseObject({
     type: z.string(),
@@ -72,6 +74,7 @@ export interface ToollessCatalog {
   readonly models: readonly {
     readonly visible: boolean;
     readonly slug: string;
+    readonly label: string | undefined;
     readonly levels: readonly string[];
   }[];
 }
@@ -84,11 +87,20 @@ export function toollessCatalog(stdout: string): ToollessCatalog | null {
   return {
     models: catalog.models
       .toSorted((a, b) => a.priority - b.priority)
-      .map(({ slug, visibility, supported_reasoning_levels }) => ({
-        visible: visibility === "list",
-        slug,
-        levels: supported_reasoning_levels.map(({ effort }) => effort),
-      })),
+      .flatMap(({ slug, display_name: name, visibility, supported_reasoning_levels }) => {
+        const label = LabelSchema.safeParse(name);
+
+        return label.success
+          ? [
+              {
+                visible: visibility === "list",
+                slug,
+                label: label.data,
+                levels: supported_reasoning_levels.map(({ effort }) => effort),
+              },
+            ]
+          : [];
+      }),
     bytes: JSON.stringify({
       ...catalog,
       models: catalog.models.map((model) => Object.assign({}, model, TOOLLESS)),

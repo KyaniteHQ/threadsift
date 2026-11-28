@@ -1,8 +1,10 @@
 import { type Page, type Route, expect } from "@playwright/test";
 
 import { ReadStateRequestSchema } from "../src/core/contract/item-route-wire.ts";
-import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
+import { NOTE_TITLE, SECTION_TITLES, SUMMARY_LABEL } from "../src/core/contract/reader-text.ts";
+import { CONTENTS_TITLE, NOTE_SAVE, OP_LABEL, RELATED } from "../web/src/reader-text.ts";
 import { itemDetail, savedItem, savedTopicItem } from "./saved-item.ts";
+import { atWideWidth } from "./screen-checks.ts";
 
 const THREAD_ID = "3000000000000000001";
 
@@ -63,8 +65,32 @@ export async function readerWithoutProvider(
     .getByRole("link")
     .first()
     .click();
-  await expect(page.locator(".reader")).toContainText(sentence);
+  const reader = page.locator(".reader");
+
+  await expect(reader).toContainText(sentence);
   await expect(page.getByRole("heading", { name: RELATED.title })).toHaveCount(0);
+
+  const headings = await reader.getByRole("heading").allTextContents();
+
+  expect(headings.indexOf(SUMMARY_LABEL)).toBeGreaterThan(-1);
+  expect(headings.indexOf(SUMMARY_LABEL)).toBeLessThan(headings.indexOf(SECTION_TITLES.article));
+
+  await atWideWidth(page, async () => {
+    await page
+      .getByRole("navigation", { name: CONTENTS_TITLE })
+      .getByRole("link", { name: SECTION_TITLES.article })
+      .click();
+    await expect(reader.getByRole("heading", { name: SECTION_TITLES.article })).toBeFocused();
+
+    const note = page.getByRole("textbox", { name: NOTE_TITLE });
+    const save = page.getByRole("button", { name: NOTE_SAVE, exact: true });
+
+    await expect(save).toHaveCount(0);
+    await note.fill("Check the copy before trusting it.");
+    await expect(save).toBeVisible();
+    await note.fill("");
+    await expect(save).toHaveCount(0);
+  });
 
   expect((await itemDetail(page.request, item)).related).toEqual([]);
 }

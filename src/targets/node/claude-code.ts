@@ -29,6 +29,8 @@ export interface ClaudeEnvironment {
 const BINARY = "claude";
 const SONNET_5_5_VERSION = /^(\d+)\.(\d+)\.(\d+) \(Claude Code\)\s*$/u;
 const RECOMMENDED = { model: "claude-sonnet-5-5", effort: "medium" } as const;
+const EFFORTS = ["low", "medium", "high", "xhigh", "max"] as const;
+const ALIASES = ["fable", "opus", "sonnet", "haiku"] as const;
 const VERSION_UNKNOWN = "claude-version-unknown";
 
 function supportsSonnet55(stdout: string): boolean | null {
@@ -84,6 +86,7 @@ function taskArguments(
 class ClaudeCode extends SlottedCli {
   readonly provider = PROVIDERS["claude-code"].id;
   readonly recommendation;
+  readonly models;
   private readonly binary: string;
   private readonly environment: Readonly<ClaudeEnvironment>;
 
@@ -97,10 +100,13 @@ class ClaudeCode extends SlottedCli {
     this.binary = binary;
     this.environment = environment;
     this.recommendation = recommendation;
+    this.models = [...(recommendation === undefined ? [] : [recommendation.model]), ...ALIASES].map(
+      (id) => ({ id, efforts: EFFORTS }),
+    );
   }
 
   protected modelChoice(slug: string) {
-    return { slug, levels: ["low", "medium", "high", "xhigh", "max"] } as const;
+    return { slug, levels: EFFORTS } as const;
   }
 
   protected async probe(signal: AbortSignal): Promise<SignIn> {

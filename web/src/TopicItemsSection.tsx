@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import { EmptyState } from "./ListBody.tsx";
+import { EmptyState } from "./EmptyState.tsx";
 import { LoadMore } from "./LoadMore.tsx";
 import { SORT_LABEL } from "./text.ts";
 import { TOPIC_PAGE, itemsLabel } from "./topic-text.ts";
@@ -12,7 +12,9 @@ function ItemList({ state }: Readonly<{ state: TopicReady }>) {
   const listed = state.overview.text !== null;
 
   if (state.items.length === 0) {
-    return <EmptyState heading={TOPIC_PAGE.emptyHeading} />;
+    return (
+      <EmptyState place="page" heading={TOPIC_PAGE.emptyHeading} line={TOPIC_PAGE.emptyLine} />
+    );
   }
 
   return (

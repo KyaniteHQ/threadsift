@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import type { XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Command } from "./Command.tsx";
+import { DescriptionRow } from "./DescriptionRow.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { RadioChoice } from "./RadioChoice.tsx";
 import type { Loaded } from "./settings-load-types.ts";
@@ -98,26 +99,38 @@ function ReaderChoice({
   );
 }
 
-function CliRows({ view }: Readonly<{ view: XSettingsView }>) {
+function CliStates({ view }: Readonly<{ view: XSettingsView }>) {
+  if (view.state === "worker") return null;
+
+  return (
+    <>
+      <DescriptionRow name={X_TEXT.cliLabel} value={X_STATES[view.state]} />
+      {view.version === null ? null : (
+        <DescriptionRow name={X_TEXT.versionLabel} value={view.version} />
+      )}
+      {view.refusedUpdate === null ? null : (
+        <DescriptionRow name={X_TEXT.refusedLabel} value={view.refusedUpdate.version} />
+      )}
+    </>
+  );
+}
+
+function States({ view }: Readonly<{ view: XSettingsView }>) {
+  return (
+    <dl className="st-states">
+      <DescriptionRow name={X_TEXT.botLabel} value={BOT_STATES[view.bot]} />
+      <CliStates view={view} />
+    </dl>
+  );
+}
+
+function CliNotes({ view }: Readonly<{ view: XSettingsView }>) {
   if (view.state === "worker") return <p>{X_TEXT.noteWorker}</p>;
 
   return (
     <>
-      <p>
-        {X_TEXT.cliLabel}: {X_STATES[view.state]}
-      </p>
-      {view.version === null ? null : (
-        <p>
-          {X_TEXT.versionLabel}: {view.version}
-        </p>
-      )}
       {view.refusedUpdate === null ? null : (
-        <>
-          <p>
-            {X_TEXT.refusedLabel}: {view.refusedUpdate.version}
-          </p>
-          <p className="fld-help">{REFUSED_REASONS[view.refusedUpdate.reason]}</p>
-        </>
+        <p className="fld-help">{REFUSED_REASONS[view.refusedUpdate.reason]}</p>
       )}
       <Note view={view} />
       {view.fetcher === null ? null : <p className="fld-help">{X_TEXT.noteSearch}</p>}
@@ -132,10 +145,8 @@ function XRows({
   return (
     <>
       <ReaderChoice view={view} changed={changed} />
-      <p>
-        {X_TEXT.botLabel}: {BOT_STATES[view.bot]}
-      </p>
-      <CliRows view={view} />
+      <States view={view} />
+      <CliNotes view={view} />
     </>
   );
 }
@@ -150,13 +161,11 @@ export const X_SECTION: SectionSpec<XSettingsView> = {
 
 export function useXRefresh(initial: Loaded<XSettingsView>) {
   const [x, setX] = useState(initial);
-  const [version, setVersion] = useState(0);
 
   const refresh = useCallback(() => {
     void fetchXSettings().then(
       (view) => {
         setX({ kind: "ready", view });
-        setVersion((current) => current + 1);
 
         return null;
       },
@@ -164,5 +173,5 @@ export function useXRefresh(initial: Loaded<XSettingsView>) {
     );
   }, []);
 
-  return { x, version, refresh };
+  return { x, refresh };
 }

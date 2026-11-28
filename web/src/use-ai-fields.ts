@@ -10,6 +10,9 @@ import {
 } from "../../src/core/contract/provider-families.ts";
 import type { AiView } from "./ai-api.ts";
 import { type FieldState, useField } from "./use-form.ts";
+import { useModelList } from "./use-model-list.ts";
+
+export const ANOTHER_MODEL = " another";
 
 function useCliChoice(
   savedChoice: CliChoice | undefined,
@@ -51,15 +54,42 @@ function useClearing(field: FieldState, clear: () => void): FieldState {
 function useModelFields(savedModel: string, savedEffort: string) {
   const modelField = useField(null, savedModel);
   const effortField = useField(null, savedEffort);
+  const [modelTyped, setModelTyped] = useState(false);
   const { fail } = modelField;
+  const { set: setModel } = modelField;
+  const { set: setEffort } = effortField;
 
   const clearError = useCallback(() => {
     fail(null);
   }, [fail]);
 
+  const changeModel = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      const { value } = event.target;
+      const another = value === ANOTHER_MODEL;
+
+      clearError();
+      setModelTyped(another);
+      if (!another) setModel(value);
+    },
+    [clearError, setModel],
+  );
+
+  const changeEffort = useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      clearError();
+      setEffort(event.target.value);
+    },
+    [clearError, setEffort],
+  );
+
   return {
     model: useClearing(modelField, clearError),
     effort: useClearing(effortField, clearError),
+    modelTyped,
+    setModelTyped,
+    changeModel,
+    changeEffort,
     clearError,
   };
 }
@@ -76,13 +106,22 @@ interface Resets {
   readonly setModel: (model: string) => void;
   readonly setEffort: (effort: string) => void;
   readonly setChoice: (choice: CliChoice | undefined) => void;
+  readonly setModelTyped: (typed: boolean) => void;
   readonly clearError: () => void;
   readonly clearKey: () => void;
 }
 
 function useChangeProvider(
   { provider, model, effort, choice }: Readonly<Saved>,
-  { setProvider, setModel, setEffort, setChoice, clearError, clearKey }: Readonly<Resets>,
+  {
+    setProvider,
+    setModel,
+    setEffort,
+    setChoice,
+    setModelTyped,
+    clearError,
+    clearKey,
+  }: Readonly<Resets>,
 ) {
   return useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
@@ -92,6 +131,7 @@ function useChangeProvider(
       setModel(saved ? model : "");
       setEffort(saved ? effort : "");
       setChoice(saved ? choice : undefined);
+      setModelTyped(false);
       clearError();
       clearKey();
     },
@@ -104,6 +144,7 @@ function useChangeProvider(
       setModel,
       setEffort,
       setChoice,
+      setModelTyped,
       clearError,
       clearKey,
     ],
@@ -121,9 +162,11 @@ export function useAiFields(view: AiView) {
   const baseUrl = useField(null, offered?.provider === "openai-compatible" ? offered.baseUrl : "");
   const savedEffort = offered && "effort" in offered ? offered.effort : "";
   const savedChoice = offered && "choice" in offered ? offered.choice : undefined;
-  const { model, effort, clearError } = useModelFields(offered?.model ?? "", savedEffort);
+  const { model, effort, modelTyped, setModelTyped, changeModel, changeEffort, clearError } =
+    useModelFields(offered?.model ?? "", savedEffort);
   const { setChoice, ...cli } = useCliChoice(savedChoice, provider, recommendations, clearError);
   const key = useField();
+  const models = useModelList(provider, baseUrl.value, key.value, view.revision);
 
   const changeProvider = useChangeProvider(
     {
@@ -137,6 +180,7 @@ export function useAiFields(view: AiView) {
       setModel: model.set,
       setEffort: effort.set,
       setChoice,
+      setModelTyped,
       clearError,
       clearKey: key.clear,
     },
@@ -149,7 +193,11 @@ export function useAiFields(view: AiView) {
     baseUrl,
     model,
     effort,
+    modelTyped,
+    changeModel,
+    changeEffort,
     key,
+    models,
     changeProvider,
   } as const;
 }

@@ -2,6 +2,7 @@ import { filled } from "./filled.ts";
 import { plural } from "./plural.ts";
 
 export const TOPIC_PAGE = {
+  backToIndex: "Back to Index",
   overviewHeading: "Overview",
   overviewPending: "Writing overview…",
   overviewFailed: "Couldn’t write the overview.",
@@ -17,6 +18,7 @@ export const TOPIC_PAGE = {
   notFoundHeading: "Topic not found",
   notFoundLine: "No topic has this address. Open Index to see all topics.",
   emptyHeading: "No items in this topic",
+  emptyLine: "An item appears here when its digest puts it in this topic.",
   loadMoreFailed: "Couldn’t load more items.",
   openPage: "Open topic page",
   disagreementsHeading: "Known disagreements",

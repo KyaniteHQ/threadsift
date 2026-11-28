@@ -60,6 +60,14 @@ export function refusedAi<Reason extends AiRefusal>(
   return { kind: "refused", reason, status };
 }
 
+export function rejectsKeyWith400(
+  provider: HttpProvider,
+  status: number | undefined,
+  message: string,
+): boolean {
+  return provider === "xai" && status === 400 && message.includes("Incorrect API key provided");
+}
+
 export function apiRefusal(status: number | undefined) {
   if (status === undefined) return refusedAi("unreachable");
 

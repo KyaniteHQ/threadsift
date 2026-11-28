@@ -68,7 +68,7 @@ export async function nextSettings(
   const same =
     saved !== undefined &&
     saved.sealedKey !== null &&
-    keyApplies(saved, { provider: input.provider, baseUrl, model: input.model });
+    keyApplies(saved, { provider: input.provider, baseUrl });
 
   if (input.key === undefined && !same) return refusedAi("key-needed");
 

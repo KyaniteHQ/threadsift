@@ -1,4 +1,4 @@
-import { useId } from "react";
+import { useId, useMemo } from "react";
 
 import type { Digest } from "../../src/core/contract/digest-schema.ts";
 import {
@@ -45,18 +45,31 @@ const RUNNING = {
   leaving: "connect",
 } as const satisfies Record<Form["phase"], AiAction | null>;
 
-function aiButtons(
-  view: AiView,
-  form: Form,
-  saveReasonId: string,
-): readonly ActionButton<AiAction>[] {
+interface ReasonIds {
+  readonly save: string;
+  readonly status: string;
+}
+
+function verifyTie(form: Form, ids: ReasonIds): Pick<ActionButton<AiAction>, "hint" | "reasonId"> {
+  const { verifyReason, saveReason, fields, savedKey } = form;
+
+  if (verifyReason === null) return {};
+
+  if (verifyReason === saveReason) return { reasonId: ids.save };
+
+  return verifyReason === keyStatus(fields.provider, savedKey)
+    ? { reasonId: ids.status }
+    : { hint: verifyReason };
+}
+
+function aiButtons(view: AiView, form: Form, ids: ReasonIds): readonly ActionButton<AiAction>[] {
   const buttons: readonly ActionButton<AiAction>[] = [
     {
       action: "save",
       label: AI_TEXT.save,
       busyLabel: AI_TEXT.saving,
       blocked: form.saveBlocked,
-      reasonId: form.saveBlocked ? saveReasonId : undefined,
+      reasonId: form.saveBlocked ? ids.save : undefined,
       secondary: false,
     },
     {
@@ -64,8 +77,8 @@ function aiButtons(
       label: AI_TEXT.verify,
       busyLabel:
         view.settings?.provider === GROK_BOT_PROVIDER ? AI_TEXT.verifyingBot : AI_TEXT.verifying,
-      blocked: form.verifyBlocked,
-      hint: form.verifyHint,
+      blocked: form.verifyReason !== null,
+      ...verifyTie(form, ids),
       onClick: form.verifyNow,
       secondary: true,
     },
@@ -121,13 +134,13 @@ function ProviderNotes({
   provider,
   savedKey,
   saveBlocked,
-  saveReasonId,
+  ids,
 }: Readonly<{
   view: AiView;
   provider: Provider;
   savedKey: SavedKey;
   saveBlocked: boolean;
-  saveReasonId: string;
+  ids: ReasonIds;
 }>) {
   const signedOut =
     isCliProvider(provider) && isSignedOut(view, provider) ? signedOutParts(provider) : null;
@@ -135,16 +148,16 @@ function ProviderNotes({
 
   return (
     <>
-      {status === null ? null : <p>{status}</p>}
+      {status === null ? null : <p id={ids.status}>{status}</p>}
       {signedOut === null ? null : (
-        <p id={saveReasonId} className="fld-help">
+        <p id={ids.save} className="fld-help">
           {signedOut.before}
           <code>{signedOut.command}</code>
           {signedOut.after}
         </p>
       )}
       {saveBlocked && signedOut === null ? (
-        <p id={saveReasonId} className="fld-help">
+        <p id={ids.save} className="fld-help">
           {AI_TEXT["secret-missing"]}
         </p>
       ) : null}
@@ -163,11 +176,7 @@ function ProviderNotes({
   );
 }
 
-function AiControls({
-  view,
-  form,
-  saveReasonId,
-}: Readonly<{ view: AiView; form: Form; saveReasonId: string }>) {
+function AiControls({ view, form, ids }: Readonly<{ view: AiView; form: Form; ids: ReasonIds }>) {
   const { fields, phase, savedKey, saveBlocked } = form;
 
   return (
@@ -183,7 +192,7 @@ function AiControls({
         provider={fields.provider}
         savedKey={savedKey}
         saveBlocked={saveBlocked}
-        saveReasonId={saveReasonId}
+        ids={ids}
       />
     </>
   );
@@ -192,13 +201,15 @@ function AiControls({
 function AiForm({ view, changed }: Readonly<{ view: AiView; changed: (value: AiView) => void }>) {
   const form = useAiForm(view, changed);
   const { phase, submit } = form;
-  const saveReasonId = useId();
+  const save = useId();
+  const status = useId();
+  const ids = useMemo(() => ({ save, status }), [save, status]);
 
   return (
     <>
       <SettingsForm action="/api/settings/ai" busy={phase !== "idle"} submit={submit}>
-        <AiControls view={view} form={form} saveReasonId={saveReasonId} />
-        <SettingsActions running={RUNNING[phase]} buttons={aiButtons(view, form, saveReasonId)} />
+        <AiControls view={view} form={form} ids={ids} />
+        <SettingsActions running={RUNNING[phase]} buttons={aiButtons(view, form, ids)} />
       </SettingsForm>
       <ConnectNotice view={view} notice={form.notice} />
       <AiOutcome outcome={form.outcome} />

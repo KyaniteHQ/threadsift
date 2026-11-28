@@ -11,11 +11,14 @@ const HOSTS = ["https://*/*", ...LOOPBACK_HOSTS.map((host) => `http://${host}/*`
 
 const GECKO = {
   id: GECKO_ID,
+  strict_min_version: "140.0",
   data_collection_permissions: {
     required: ["websiteContent", "authenticationInfo"],
     optional: ["browsingActivity"],
   },
 };
+
+const GECKO_ANDROID = { strict_min_version: "142.0" };
 
 const PAGE_TITLES = new Map([
   ["popup", TEXT.actionTitle],
@@ -51,7 +54,7 @@ export default defineConfig({
     };
 
     return browser === "firefox"
-      ? { ...manifest, browser_specific_settings: { gecko: GECKO } }
+      ? { ...manifest, browser_specific_settings: { gecko: GECKO, gecko_android: GECKO_ANDROID } }
       : manifest;
   },
 });

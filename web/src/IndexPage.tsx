@@ -9,6 +9,7 @@ const LISTING: Listing<TopicIndex, IndexTopic> = {
   focus: ".rl-open",
   head: ({ total }) => indexHeadLabel(total),
   emptyLine: () => INDEX_PAGE.emptyLine,
+  emptyLink: () => "ai-settings",
   rows: ({ topics }) => topics,
 };
 

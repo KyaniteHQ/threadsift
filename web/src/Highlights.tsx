@@ -3,7 +3,6 @@ import { flushSync } from "react-dom";
 
 import type { Highlight, HighlightsView } from "../../src/core/contract/highlight-contract.ts";
 import { NOTHING } from "../../src/core/contract/nothing.ts";
-import { HighlightList } from "./HighlightList.tsx";
 import {
   type HighlightsApi,
   type Failure,
@@ -164,10 +163,7 @@ export function HighlightsProvider({
 
   return (
     <HighlightsContext value={api}>
-      <PanelContext value={panel}>
-        {children}
-        <HighlightList />
-      </PanelContext>
+      <PanelContext value={panel}>{children}</PanelContext>
     </HighlightsContext>
   );
 }

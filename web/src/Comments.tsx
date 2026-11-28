@@ -1,10 +1,6 @@
 import { type CSSProperties, type FocusEvent, useCallback, useEffect, useId, useRef } from "react";
 
-import type {
-  CommentCount,
-  CommentNode,
-  CommentsFilter,
-} from "../../src/core/contract/comment-view.ts";
+import type { CommentNode } from "../../src/core/contract/comment-view.ts";
 import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import {
@@ -13,18 +9,16 @@ import {
   STUB_TEXTS,
   handleOf,
 } from "../../src/core/contract/reader-text.ts";
-import { AiSettingsLink } from "./AiSettingsLink.tsx";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
 import { useOpenOnReveal } from "./highlights-context.ts";
+import { PlaceLink } from "./PlaceLink.tsx";
 import { PostTextView } from "./post-text-module.ts";
+import { type CommentsSection, commentsSectionOf } from "./reader-sections.ts";
 import {
-  ALL_REMOVED,
-  NONE_KEPT,
   OP_LABEL,
   SHOW_FULL_COMMENT,
   SHOW_LESS,
-  UNFILTERED_NOTES,
   countLabel,
   isSameHandle,
   scoreLabel,
@@ -212,45 +206,16 @@ function Branches({
   );
 }
 
-interface Section {
-  readonly counts: CommentCount | null;
-  readonly note: string | null;
-  readonly needsProvider: boolean;
-}
-
-function sectionOf(view: Readonly<CommentsFilter>): Section | null {
-  switch (view.filter) {
-    case "absent":
-      return null;
-    case "removed":
-      return { counts: null, note: ALL_REMOVED, needsProvider: false };
-    case "unfiltered":
-      return {
-        counts: view.count,
-        note: UNFILTERED_NOTES[view.cause],
-        needsProvider: view.cause === "no-provider",
-      };
-    case "kept":
-      return { counts: view.count, note: null, needsProvider: false };
-    case "nothing-kept":
-      return { counts: view.count, note: NONE_KEPT, needsProvider: false };
-    default: {
-      const exhaustive: never = view;
-
-      return exhaustive;
-    }
-  }
-}
-
 function CommentTree({
   item,
   section: { counts, note, needsProvider },
   nodes,
-}: Readonly<{ item: Item; section: Section; nodes: readonly CommentNode[] }>) {
+  id,
+}: Readonly<{ item: Item; section: CommentsSection; nodes: readonly CommentNode[]; id: string }>) {
   const branches = nest(nodes);
 
   return (
-    <section className="rd-comments">
+    <section id={id} className="rd-comments">
       <div className="rd-sec-h">
         <h3 className="rd-h" tabIndex={-1}>
           {COMMENTS_TITLE}
@@ -258,16 +223,20 @@ function CommentTree({
         {counts === null ? null : <p className="rd-count">{countLabel(counts, "heading")}</p>}
       </div>
       {note === null ? null : <p className="rd-note">{note}</p>}
-      {needsProvider ? <AiSettingsLink /> : null}
+      {needsProvider ? <PlaceLink to="ai-settings" /> : null}
       {branches.length === 0 ? null : <Branches branches={branches} owner={item} first />}
     </section>
   );
 }
 
-export function Comments({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
-  const section = sectionOf(detail.comments.view);
+export function Comments({
+  item,
+  detail,
+  id,
+}: Readonly<{ item: Item; detail: ItemDetail; id: string }>) {
+  const section = commentsSectionOf(detail.comments.view);
 
   return section === null ? null : (
-    <CommentTree item={item} section={section} nodes={detail.comments.nodes} />
+    <CommentTree item={item} section={section} nodes={detail.comments.nodes} id={id} />
   );
 }

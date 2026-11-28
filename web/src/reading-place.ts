@@ -2,9 +2,10 @@ import { z } from "zod";
 
 import { collapsed } from "../../src/core/contract/format.ts";
 import { WholeCount } from "../../src/core/contract/whole-count.ts";
+import { SIDE_COLUMN_BESIDE } from "./side-column.ts";
 
 const STORAGE_KEY = "threadsift:reading-places";
-const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
+const ANCHORS = ".rd-head, .rd-digest, .rd-note, .rel-entry, .md > *";
 const BAR_FALLBACK_HEIGHT = 56;
 const PASSAGE_LENGTH = 80;
 const PLACES_MAX = 100;
@@ -74,6 +75,12 @@ function shownBottom(block: Element): number | null {
   return box.top < foldBottom ? Math.min(box.bottom, foldBottom) : null;
 }
 
+function anchorsIn(slot: HTMLElement): Element[] {
+  return [...slot.querySelectorAll(ANCHORS)].filter(
+    (block) => block.closest(SIDE_COLUMN_BESIDE) === null,
+  );
+}
+
 function passageOf(block: Element): string {
   return collapsed(block.textContent ?? "").slice(0, PASSAGE_LENGTH);
 }
@@ -83,7 +90,7 @@ export function anchorAt(slot: HTMLElement): Anchor | null {
 
   const top = topOf(slot);
 
-  for (const [index, block] of slot.querySelectorAll(ANCHORS).entries()) {
+  for (const [index, block] of anchorsIn(slot).entries()) {
     const box = block.getBoundingClientRect();
     const bottom = shownBottom(block);
 
@@ -103,7 +110,7 @@ export function anchorAt(slot: HTMLElement): Anchor | null {
 }
 
 export function scrollToAnchor(slot: HTMLElement, anchor: Readonly<Anchor>): boolean {
-  const blocks = [...slot.querySelectorAll(ANCHORS)];
+  const blocks = anchorsIn(slot);
   const saved = blocks[anchor.index];
 
   const block =
