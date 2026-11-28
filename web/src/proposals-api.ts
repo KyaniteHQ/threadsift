@@ -22,7 +22,7 @@ export type Failure = "accept" | "reject";
 
 const RefusalSchema = z.object({ error: z.enum(ACCEPT_REFUSALS) });
 
-export type Answer = Exclude<Acceptance, typeof RESTORING_CODE> | Restoring;
+type Answer = Exclude<Acceptance, typeof RESTORING_CODE> | Restoring;
 
 export function isBusy(outcome: Answer): outcome is Busy {
   return BUSY.some((busy) => busy === outcome);
