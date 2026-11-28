@@ -14,7 +14,7 @@ import {
   pickedFor,
 } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
-import { applied, sentTaskWait, step, taskAfterStart } from "./bot-task-lifecycle.ts";
+import { applied, sentRelatedTask, step, taskAfterStart } from "./bot-task-lifecycle.ts";
 import { insertedTask, jobRow, taskRow } from "./bot-task-rows.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { sweptWith } from "./weekly-claim-fixtures.ts";
@@ -37,9 +37,9 @@ describe("an answer reaches its job whichever happens first, the answer or the s
   after(() => instance.close());
 
   it("makes the deferral read the answer: an answer that committed first leaves the job due now, not at the deadline", async () => {
-    const task = await taskAfterStart(instance, library.source);
+    const task = await sentRelatedTask(instance, library.source);
 
-    const deferral = sentTaskWait(taskRow(instance, task.id));
+    const deferral = await step(instance, task.job);
 
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,
@@ -54,13 +54,13 @@ describe("an answer reaches its job whichever happens first, the answer or the s
 
     assert.equal(job.state, "queued");
     assert.ok(job.next_attempt_at <= committed + 1000);
-    assert.ok(job.next_attempt_at < deferral.deferredUntil);
+    assert.ok(job.next_attempt_at < taskRow(instance, task.id).deadline);
   });
 
   it("finds the answered job through the sweep's due query when the wake reached no claimable job, and a claim applies the answer", async () => {
-    const task = await taskAfterStart(instance, library.source);
+    const task = await sentRelatedTask(instance, library.source);
 
-    await applied(instance, task.job, sentTaskWait(taskRow(instance, task.id)));
+    await applied(instance, task.job, await step(instance, task.job));
     assert.equal(jobRow(instance, task.job.id).state, "queued");
     assert.equal(
       (await answered(instance, task, answerOf(picksFor(library.candidates[0])))).status,

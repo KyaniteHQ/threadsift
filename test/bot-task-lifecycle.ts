@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 
 import { applyOutcome } from "../src/core/compose/job-finish.ts";
 import { HANDLERS } from "../src/core/compose/job-handlers.ts";
-import type { DeferredOutcome, JobOutcome } from "../src/core/kernel/job-outcome.ts";
+import type { JobOutcome } from "../src/core/kernel/job-outcome.ts";
 import { holding } from "../src/core/kernel/job-rows.ts";
 import { botStep } from "../src/features/ai/core/bot-step.ts";
 import { sendBotTask } from "../src/features/ai/core/bot-task-send.ts";
@@ -49,17 +49,6 @@ export async function sentRelatedTask(instance: Instance, itemId: number) {
 
 export function step(instance: Instance, job: Readonly<ClaimedJob>) {
   return botStep(instance.core, job, relatedKind);
-}
-
-export function sentTaskWait(
-  task: Readonly<{ id: number; deadline: number; context: string | null }>,
-): DeferredOutcome {
-  return {
-    deferredUntil: task.deadline,
-    wait: "grok-bot",
-    countsAttempt: false,
-    unlessOpen: { taskId: task.id, current: relatedKind.current(task.context ?? "") },
-  };
 }
 
 export function applied(
