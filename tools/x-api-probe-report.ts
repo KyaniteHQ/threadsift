@@ -33,7 +33,8 @@ export type Ending =
     }
   | { readonly kind: "answer"; readonly label: string; readonly status: number }
   | { readonly kind: "unpublished"; readonly label: string; readonly why: string }
-  | { readonly kind: "no-answer"; readonly label: string; readonly errorClass: string };
+  | { readonly kind: "no-answer"; readonly label: string; readonly errorClass: string }
+  | { readonly kind: "over-cap"; readonly measuredUsd: string; readonly capUsd: string };
 
 export type Sent = {
   readonly request: PlannedRequest;
@@ -120,7 +121,7 @@ export function printSent(probe: string, index: number, sent: Sent): void {
   process.stdout.write(`${parts.filter((part) => part !== "").join(" ")}\n`);
 }
 
-function balanceAt(state: RunState, role: "opening-balance" | "closing-balance") {
+export function balanceAt(state: RunState, role: "opening-balance" | "closing-balance") {
   return state.sent.find((item) => item.request.role === role)?.balanceMicros ?? null;
 }
 

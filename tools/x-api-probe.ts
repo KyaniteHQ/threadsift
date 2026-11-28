@@ -20,15 +20,21 @@ import {
   usageFailureRuleOf,
   worstOf,
 } from "./x-api-probe-plan.ts";
+import type { PlannedRequest } from "./x-api-probe-plan.ts";
 import {
   type Ending,
   type RunState,
   type Sent,
+  balanceAt,
   printPlan,
   summaryOf,
 } from "./x-api-probe-report.ts";
 import { createdRunFolder } from "./x-api-probe-runs-dir.ts";
 import { type Run, step, writeRecord } from "./x-api-probe-step.ts";
+
+const MIDNIGHT_MARGIN_MS = 15 * 60_000;
+
+const DAY_MS = 86_400_000;
 
 type Next = { readonly kind: "go" } | { readonly kind: "stop" | "end"; readonly ending: Ending };
 
@@ -45,13 +51,21 @@ function openingNext(config: Config, sent: Sent): Next {
   return { kind: "go" };
 }
 
+function appNext(_config: Config, sent: Sent): Next {
+  const { label } = sent.request;
+
+  if (sent.outcome.kind !== "app")
+    return { kind: "stop", ending: { kind: "unpublished", label, why: "no app outcome" } };
+  return sent.outcome.published
+    ? { kind: "go" }
+    : { kind: "stop", ending: { kind: "unpublished", label, why: sent.outcome.why } };
+}
+
 function nextOf(config: Config, sent: Sent): Next {
   const { label, role, worst } = sent.request;
 
   if (sent.outcome.kind === "app")
-    return sent.outcome.published
-      ? { kind: "go" }
-      : { kind: "stop", ending: { kind: "unpublished", label, why: sent.outcome.why } };
+    return { kind: "stop", ending: { kind: "unpublished", label, why: "an app outcome" } };
   if (sent.outcome.kind === "no-answer")
     return {
       kind: "end",
@@ -91,6 +105,33 @@ function nextOf(config: Config, sent: Sent): Next {
   }
 }
 
+type Handler = {
+  readonly send: (run: Run, index: number, request: PlannedRequest) => Promise<Sent>;
+  readonly next: (config: Config, sent: Sent) => Next;
+};
+
+const HANDLER_OF: Readonly<Record<PlannedRequest["role"], Handler>> = {
+  "opening-balance": { send: step, next: nextOf },
+  "mid-balance": { send: step, next: nextOf },
+  lookup: { send: step, next: nextOf },
+  usage: { send: step, next: nextOf },
+  "closing-balance": { send: step, next: nextOf },
+  "app-read": { send: appStep, next: appNext },
+};
+
+function overCap(config: Config, state: RunState): Ending | null {
+  const opening = balanceAt(state, "opening-balance");
+  const closing = balanceAt(state, "closing-balance");
+
+  if (opening === null || closing === null || opening - closing <= config.caps.usdMicros)
+    return null;
+  return {
+    kind: "over-cap",
+    measuredUsd: usd(opening - closing),
+    capUsd: usd(config.caps.usdMicros),
+  };
+}
+
 async function runPlan(run: Run): Promise<RunState> {
   const { plan, caps } = run.config;
   const closing = plan.find((request) => request.role === "closing-balance");
@@ -108,20 +149,23 @@ async function runPlan(run: Run): Promise<RunState> {
       stop ??= { kind: "cap", label: request.label };
       continue;
     }
+    const handler = HANDLER_OF[request.role];
     // oxlint-disable-next-line eslint/no-await-in-loop -- Requests go one at a time, so each balance read follows the requests before it and each cap check counts every earlier answer.
-    const done = await (request.role === "app-read" ? appStep : step)(run, index, request);
+    const done = await handler.send(run, index, request);
 
     sent.push(done);
-    const next = nextOf(run.config, done);
+    const next = handler.next(run.config, done);
 
     if (next.kind === "end") return { sent, ending: next.ending };
     if (next.kind === "stop") stop ??= next.ending;
   }
   const closingRead = sent.find((item) => item.request === closing);
+  const measuredOver = overCap(run.config, { sent, ending: { kind: "completed" } });
 
   return {
     sent,
     ending:
+      measuredOver ??
       stop ??
       ((closingRead?.balanceMicros ?? null) === null
         ? { kind: "balance-unread", label: closing?.label ?? "balance-after" }
@@ -129,8 +173,24 @@ async function runPlan(run: Run): Promise<RunState> {
   };
 }
 
+function minutesToMidnight(config: Config, now: number): number | null {
+  const left = DAY_MS - (now % DAY_MS);
+
+  if (!config.plan.some((request) => request.role === "app-read") || left >= MIDNIGHT_MARGIN_MS)
+    return null;
+  return Math.floor(left / 60_000);
+}
+
 async function runLive(config: Config, token: string, runFolder: string): Promise<number> {
   const run: Run = { config, token, folder: runFolder };
+  const minutesLeft = minutesToMidnight(config, Date.now());
+
+  if (minutesLeft !== null) {
+    process.stdout.write(
+      `${config.input.probe}: ${String(minutesLeft)} min to 00:00 UTC, under the ${String(MIDNIGHT_MARGIN_MS / 60_000)} min margin, so no request was sent\n`,
+    );
+    return 1;
+  }
 
   await createdRunFolder(runFolder);
   const planRecord = {

@@ -148,7 +148,7 @@ export async function appStep(
   request: Readonly<PlannedRequest>,
 ): Promise<Sent> {
   const read = await readOrWhy(run, request);
-  const counted = read.counts !== null && read.micros === costOf(read.counts);
+  const counted = read.counts !== null && read.micros === costOf(read.counts) ? read.counts : null;
   const sent: Sent = {
     request,
     outcome: { kind: "app", published: read.published, why: read.why },
@@ -156,7 +156,7 @@ export async function appStep(
       read.counts === null
         ? null
         : { kind: "counted", counts: read.counts, postIds: [], problems: [] },
-    charged: counted && read.counts !== null ? read.counts : request.worst,
+    charged: counted ?? request.worst,
     balanceMicros: null,
   };
   const record = {
