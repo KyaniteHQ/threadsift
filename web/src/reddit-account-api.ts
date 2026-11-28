@@ -3,7 +3,8 @@ import {
   RedditAccountViewSchema,
   RedditVerifySchema,
 } from "../../src/core/contract/reddit-account-contract.ts";
-import { del, parsedFrom, post, put } from "./calls.ts";
+import { del, parsedFrom, post } from "./calls.ts";
+import { savedSetting } from "./setting-save.ts";
 import { DATABASE_WRITE_DEADLINE_MS, REDDIT_VERIFY_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/reddit-account";
@@ -13,9 +14,7 @@ export function fetchRedditAccount(signal?: AbortSignal) {
 }
 
 export function saveRedditAccount(session: string) {
-  return parsedFrom(put(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, RedditAccountSaveResponseSchema, {
-    json: { session },
-  });
+  return savedSetting(ENDPOINT, RedditAccountSaveResponseSchema, { session });
 }
 
 export async function verifyRedditAccount() {

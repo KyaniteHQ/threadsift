@@ -1,6 +1,6 @@
 import { BotUpdateViewSchema } from "../../src/core/contract/bot-install-contract.ts";
-import { parsedFrom, put } from "./calls.ts";
-import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
+import { parsedFrom } from "./calls.ts";
+import { savedSetting } from "./setting-save.ts";
 
 const ENDPOINT = "/api/settings/bot-update";
 
@@ -9,7 +9,5 @@ export function fetchBotUpdate(signal?: AbortSignal) {
 }
 
 export function saveBotUpdate(autoInstall: boolean) {
-  return parsedFrom(put(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, BotUpdateViewSchema, {
-    json: { autoInstall },
-  });
+  return savedSetting(ENDPOINT, BotUpdateViewSchema, { autoInstall });
 }
