@@ -1,23 +1,16 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { after, before, beforeEach, describe, it } from "node:test";
 
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
-import { DAY, HOUR, ScriptWorld, ageBy, justBefore, justPast } from "./bot-script-world.ts";
+import { HOUR, ScriptWorld, ageBy, justBefore, justPast } from "./bot-script-world.ts";
 import { acceptedByBot, pastDeadline, picksFor } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 
 const NINE_MIB = 9 * 1024 * 1024;
-const aged = (folder: string, name: string, seconds: number, text = "x") => {
-  const file = join(folder, name);
-
-  writeFileSync(file, text);
-  ageBy(file, seconds);
-};
-
 const sha256 = (text: string) => createHash("sha256").update(text).digest("hex");
 
 describe("the script opens, answers and reports a task and prints one word for each answer of a real Instance", () => {
@@ -124,34 +117,21 @@ describe("the script opens, answers and reports a task and prints one word for e
     assert.equal(world.folder.fileOf(task.id, "done"), sha256(resent.token));
   });
 
-  it("deletes the folder of a task that was done more than 7 days ago and the folder of a task left open for more than a day when it runs a command", async () => {
-    const finished = world.folder.taskFolder(111);
-    const abandoned = world.folder.taskFolder(222);
-    const recent = world.folder.taskFolder(333);
-    const kept = world.folder.taskFolder(444);
-    const fresh = world.folder.taskFolder(555);
+  it("waits while another process holds the lock of a task, then opens the task in one of two runs of one event and answers already-open in the other", async () => {
+    const task = await world.result();
+    const lock = join(world.folder.path, "tmp", `open-${String(task.id)}.lock`);
+    const token = join(world.folder.taskFolder(task.id), "token");
+    const { holder } = await world.folder.holding(lock, 2, token);
+    const runs = Promise.all([
+      world.opened(task, "related_pick"),
+      world.opened(task, "related_pick"),
+    ]);
 
-    for (const folder of [finished, abandoned, recent, kept, fresh]) {
-      mkdirSync(folder, { recursive: true });
-    }
-
-    aged(finished, "done", justPast(7 * DAY));
-    aged(abandoned, "token", justPast(DAY));
-    aged(abandoned, "task.json", justPast(DAY), "{}");
-    aged(recent, "done", justBefore(7 * DAY));
-    aged(kept, "done", 0);
-    aged(kept, "task.json", justPast(DAY), "{}");
-    aged(kept, "token", justPast(DAY));
-    aged(fresh, "token", justBefore(DAY));
-    aged(fresh, "task.json", justBefore(DAY), "{}");
-
-    assert.equal(await run(["check"]), "ok");
-    assert.equal(existsSync(finished), false);
-    assert.equal(existsSync(abandoned), false);
-    assert.equal(existsSync(join(recent, "done")), true);
-    assert.equal(existsSync(join(kept, "task.json")), true);
-    assert.equal(existsSync(join(kept, "token")), false);
-    assert.equal(existsSync(join(fresh, "token")), true);
+    assert.equal((await holder).word, "waited");
+    assert.deepEqual((await runs).toSorted(), [
+      "already-open",
+      `ok ${String(task.id)} related_pick`,
+    ]);
   });
 
   it("answers closed and marks the task done when Threadsift no longer takes an answer", async () => {

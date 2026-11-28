@@ -48,6 +48,13 @@ const refuse = async (folder: string) => {
   }
 };
 
+const aged = (folder: string, name: string, seconds: number, text = "x") => {
+  const file = join(folder, name);
+
+  writeFileSync(file, text);
+  ageBy(file, seconds);
+};
+
 describe("the script makes a fresh delimiter and stores the text of a heredoc unchanged in ~/threadsift/tmp", () => {
   let world: ScriptWorld;
 
@@ -216,5 +223,45 @@ describe("the script makes a fresh delimiter and stores the text of a heredoc un
     assert.equal(await run(["write", `new-${HEX}.txt`], "text"), "ok");
     assert.equal(existsSync(old), false);
     assert.equal(existsSync(recent), true);
+  });
+
+  it("deletes the folder of a task that was done more than 7 days ago and the folder of a task left open for more than a day, a part file and a task folder left for more than a day, when it runs a command", async () => {
+    const finished = world.folder.taskFolder(111);
+    const abandoned = world.folder.taskFolder(222);
+    const recent = world.folder.taskFolder(333);
+    const kept = world.folder.taskFolder(444);
+    const fresh = world.folder.taskFolder(555);
+    const empty = world.folder.taskFolder(666);
+
+    for (const folder of [finished, abandoned, recent, kept, fresh, empty]) {
+      mkdirSync(folder, { recursive: true });
+    }
+
+    aged(finished, "done", justPast(7 * DAY));
+    aged(abandoned, "token", justPast(DAY));
+    aged(abandoned, "task.json", justPast(DAY), "{}");
+    aged(recent, "done", justBefore(7 * DAY));
+    aged(kept, "done", 0);
+    aged(kept, "task.json", justPast(DAY), "{}");
+    aged(kept, "token", justPast(DAY));
+    aged(fresh, "token", justBefore(DAY));
+    aged(fresh, "task.json", justBefore(DAY), "{}");
+    aged(fresh, "token.part.AAAAAA", justPast(DAY));
+    aged(fresh, "task.json.part.BBBBBB", justBefore(DAY));
+    ageBy(empty, justPast(DAY));
+
+    assert.equal(await run(["check"]), "ok");
+    assert.equal(existsSync(finished), false);
+    assert.equal(existsSync(abandoned), false);
+    assert.equal(existsSync(join(recent, "done")), true);
+    assert.equal(existsSync(join(kept, "task.json")), true);
+    assert.equal(existsSync(join(kept, "token")), false);
+    assert.equal(existsSync(join(fresh, "token")), true);
+    assert.deepEqual(readdirSync(fresh).toSorted(), [
+      "task.json",
+      "task.json.part.BBBBBB",
+      "token",
+    ]);
+    assert.equal(existsSync(empty), false);
   });
 });

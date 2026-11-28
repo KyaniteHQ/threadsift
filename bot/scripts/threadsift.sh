@@ -204,6 +204,7 @@ pruned_tasks() {
   local tasks="$HERE/tasks"
   find "$HERE/tmp" -maxdepth 1 -type f -mmin +1440 -delete 2> /dev/null || true
   find "$HERE" -maxdepth 3 -type f -name '*.part.*' -mmin +1440 -delete 2> /dev/null || true
+  find "$tasks" -mindepth 1 -maxdepth 1 -type d -empty -mmin +1440 -delete 2> /dev/null || true
   find "$HERE" -mindepth 1 -maxdepth 1 -type d -name '.release-*' -mmin +1440 -exec rm -rf -- {} + 2> /dev/null || true
   find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[1-9][0-9]{0,15}/done' -mmin +10080 \
     -exec sh -c 'for each; do rm -rf -- "${each%/*}"; done' _ {} + 2> /dev/null || true

@@ -170,6 +170,6 @@ The script follows the bot release the Instance expects. After a webhook task is
 ## Setup and update
 For "set up threadsift" or a new owner's first conversation, follow `~/threadsift/setup.md`. For "update threadsift", follow `~/threadsift/update.md`; the owner's request is the yes. If the file or the script is missing, fetch the pinned release first with this exact line:
 ```bash
-TAG=bot-v14 SUMS_SHA256=5df2888cb434cf807d69eb44f2453ac03a714d2ba189359f6c9ad8009f9e2430; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
+TAG=bot-v14 SUMS_SHA256=cfa5aba60158876aaac10fab3f33fe75e2e5378e19541bb0df36f1f5cd73a36d; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
 ```
 If any check fails, delete what was fetched, tell the owner, and stop.
