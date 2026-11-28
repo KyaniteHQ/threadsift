@@ -31,11 +31,11 @@ async function expectStoredAuthor(page: Page, title: string): Promise<void> {
   await page.goto("/");
   await page.locator("article.it").filter({ hasText: title }).getByRole("link").first().click();
 
-  const meta = page.locator(".reader .rd-meta");
+  const source = page.locator(".reader .rd-src");
 
-  await expect(meta.locator(".rd-part", { hasText: /^@someone$/u })).toHaveCount(1);
-  await expect(meta).not.toContainText("oldname");
-  await expect(meta).not.toContainText("x.com");
+  await expect(source.locator("span", { hasText: /@someone/iu })).toHaveCount(1);
+  await expect(source).not.toContainText("oldname");
+  await expect(source).not.toContainText("x.com");
 }
 
 interface PastedCase {
