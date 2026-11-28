@@ -148,7 +148,7 @@ The `proposals` and `topic-proposals` sweep stages claim the `scheduled_runs` ro
 
 Each stage opens one job in the same batch as its claim, and the newest Item with a Digest owns the job. A stage opens no job when that owner Item already has an open job of that kind. The two claims are independent, so a stage or a job that fails in one check does not skip the other check. The input holds pairs of Tags or Topics that have an Item and no row yet (see [The reads of the run](#the-reads-of-the-run)).
 
-The job's input is the set of Tags or Topics it sent, and its result stores only while each of them still exists (`sentExist`). Only the merge unit that retires a merged-away Tag or Topic removes one, and that unit makes a job that waits on the Grok Bot for this input due in the same batch ([Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md#waiting-for-a-vendor)).
+The job sends pairs of Tags or Topics with their names, Item counts and related names, and its result stores only while every Tag or Topic it sent still exists (`sentExist`). Only the merge unit that retires a merged-away Tag or Topic removes one. That unit makes every weekly job that waits on the Grok Bot due in the same batch ([Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md#waiting-for-a-vendor)), and the claim finds the task stale when the job sent the retired Tag or Topic. A stored Digest or a delete also makes the job due but removes no Tag or Topic, so the claim finds the task current and the job waits again without spending an attempt.
 
 ## The weekly Highlight check
 
@@ -201,7 +201,7 @@ One guarded batch stores the result. Its guard holds while the AI task is runnin
 
 When the guard fails, the batch writes nothing, the task fails as `stale`, and the job runs again without spending an attempt. A Topic that was touched but not sent stays touched for the next week.
 
-Three writes move that membership text: a stored Digest, a delete that removed an Item, and a Topic merge that moves Items. Each makes a disagreement job that waits on the Grok Bot due ([Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md#waiting-for-a-vendor)). A stored Digest and a delete do it in their own batch. A Topic merge does it only in the unit that retires the merged-away Topic. A merge of more than one unit (more than 500 Items or 500 Log entries) therefore wakes the job one or more batches after its first unit moved the input.
+Three writes can change that membership text: a stored Digest, a delete that removed an Item, and a Topic merge that moves Items. Each makes a disagreement job that waits on the Grok Bot due ([Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md#waiting-for-a-vendor)), whether or not it changed the text of a sent Topic. When the text is unchanged, the claim finds the task current and the job waits again without spending an attempt. A stored Digest and a delete make the job due in their own batch. A Topic merge does it only in the unit that retires the merged-away Topic, so when a merge has more than one unit (more than 500 Items or more than 500 Log entries), the job wakes in the last unit, even when an earlier unit changed the text.
 
 ### What hides and deletes a row
 

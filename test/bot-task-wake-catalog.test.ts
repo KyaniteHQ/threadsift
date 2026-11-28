@@ -6,7 +6,7 @@ import { accept, propose } from "./accept-fixtures.ts";
 import { jobRow, openJobOf, selectGrokBot, sentTask } from "./bot-kinds-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
 import { endsStale, inInstance, waitingOn, waitsForBot } from "./bot-wait-fixtures.ts";
-import { seedDigested, seedTopics } from "./disagreement-fixtures.ts";
+import { replaceDigest, seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { paste, until } from "./library-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
@@ -17,7 +17,7 @@ const tagItems = (instance: Instance, name: string): number =>
     name,
   );
 
-describe("a catalog write that moves the input of a job waiting on the Grok Bot makes that job due", () => {
+describe("a library write that moves the input of a job waiting on the Grok Bot makes that job due", () => {
   it("retiring a sent Tag that no Item carries any more ends the stale task of the waiting Proposals job", () =>
     inInstance(async (instance) => {
       const carrier = await paste(instance, "llm", { title: "LLM notes", tags: ["llm"] });
@@ -83,11 +83,7 @@ describe("a catalog write that moves the input of a job waiting on the Grok Bot 
       );
 
       await waitingOn(instance, sent.job);
-      await paste(instance, "202", {
-        title: "Title 202, revised",
-        topic: "Alpha",
-        url: "https://example.com/202",
-      });
+      await replaceDigest(instance, 202, { topic: "Alpha", title: "Title 202, revised" });
       await endsStale(instance, sent.id);
     }));
 
