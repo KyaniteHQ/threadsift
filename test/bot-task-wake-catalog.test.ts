@@ -3,22 +3,12 @@ import { describe, it } from "node:test";
 
 import { topicOverviewKind } from "../src/features/wiki/core/topic-overview-kind.ts";
 import { accept, propose } from "./accept-fixtures.ts";
-import { botInstance, jobRow, openJobOf, selectGrokBot, sentTask } from "./bot-kinds-fixtures.ts";
+import { jobRow, openJobOf, selectGrokBot, sentTask } from "./bot-kinds-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
-import { endsStale, waitingOn, waitsForBot } from "./bot-wait-fixtures.ts";
+import { endsStale, inInstance, waitingOn, waitsForBot } from "./bot-wait-fixtures.ts";
 import { seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { paste, until } from "./library-fixtures.ts";
-
-async function inInstance(body: (instance: Instance) => Promise<void>): Promise<void> {
-  const instance = await botInstance();
-
-  try {
-    await body(instance);
-  } finally {
-    await instance.close();
-  }
-}
 
 const tagItems = (instance: Instance, name: string): number =>
   instance.database.count(

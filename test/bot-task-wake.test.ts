@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
 import { accept, propose } from "./accept-fixtures.ts";
-import { botInstance, jobRow, openJobOf, sentTask, taskRow } from "./bot-kinds-fixtures.ts";
+import { jobRow, openJobOf, sentTask, taskRow } from "./bot-kinds-fixtures.ts";
 import { answerOf, picksFor, relatedLibrary, unblock } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { applied, sentRelatedTask, step } from "./bot-task-lifecycle.ts";
-import { endsStale, waitingOn } from "./bot-wait-fixtures.ts";
+import { endsStale, inInstance, waitingOn } from "./bot-wait-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { paste, until } from "./library-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
@@ -15,16 +15,6 @@ const REFETCHED = Array.from(
   { length: 6 },
   () => "The second version of the page explains how the quasar lattice decoder recovers.",
 ).join("\n\n");
-
-async function inInstance(body: (instance: Instance) => Promise<void>): Promise<void> {
-  const instance = await botInstance();
-
-  try {
-    await body(instance);
-  } finally {
-    await instance.close();
-  }
-}
 
 async function waitingPick(
   instance: Instance,
