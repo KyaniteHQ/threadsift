@@ -57,7 +57,7 @@ The tab lists each permission of the manifest. `cookies` and the host permission
 #### `activeTab`
 
 ```text
-[text needed]
+The extension uses activeTab only after the user presses the toolbar button and only on the current tab. On most pages, its own script runs there to read the title, text and image addresses. In a Reddit post or comment tab, its own code uses the user’s Reddit session to send reddit.com one request for the thread and one per group of hidden replies, up to Reddit’s limit. If that fails, it reads the tab like other pages. Background Reddit tab reads use scripting and the optional host permission for reddit.com and its subdomains, never activeTab, and only while "Fill saved Reddit items" is on.
 ```
 
 #### `scripting`
@@ -164,12 +164,14 @@ browsingActivity: Turning on "Fill saved Reddit items" opens one Firefox prompt 
 
 ### Notes to reviewer
 
-Upload the source archive that the package command writes, with the Firefox zip. Firefox Add-ons keeps the notes to the reviewer to 3,000 characters ([addons-server version model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/versions/models.py#L311)), and the text holds 662 characters.
+Upload the source archive that the package command writes, with the Firefox zip. Firefox Add-ons keeps the notes to the reviewer to 3,000 characters ([addons-server version model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/versions/models.py#L311)), and the text holds 1,604 characters.
 
 ```text
 WXT’s production build bundles and minifies the extension’s code without obfuscation. The source upload is a git archive of the repository with the readable code. SOURCE_CODE_REVIEW.md at its root gives the build environment (Node.js 26, pnpm 12.23.0), commands and how to compare the build with the upload. It explains web-ext lint warnings from two libraries: DANGEROUS_EVAL from zod and UNSAFE_VAR_ASSIGNMENT from defuddle.
 
 To use the extension, run a Threadsift instance (the README shows how in a container). Enter its address and an agent token with Read and Add scopes in the extension’s settings, plus the Reddit scope for Connect Reddit.
 
-[text needed]
+For webRequest, the extension listens only to fetch requests on every port of the Threadsift host. It reads address, method and tab to find its own call, reads only its network error, and never blocks, changes or reads request content. Only Connect Reddit and Reconnect ask for the optional cookies permission, which covers every held host, Threadsift included. The extension reads only reddit.com’s reddit_session cookie and sends it only to the saved Threadsift origin. In Firefox, turning on Fill saved Reddit items opens one prompt for optional browsing activity data and, if not yet held, access to reddit.com and its subdomains. Deny leaves Fill off. All host permissions are optional. The extension requests the Threadsift host at each Save settings. One grant covers every port, and the browser prompts only when the host is not yet held.
+
+The Description gives the reason for every permission and every data collection permission in the manifest.
 ```
