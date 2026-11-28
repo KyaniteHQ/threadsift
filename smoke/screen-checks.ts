@@ -5,6 +5,8 @@ import { MENU_LABEL, ownerMenuLabel } from "../web/src/text.ts";
 
 const PHONE = { width: 390, height: 844 };
 
+const WIDE = { width: 1920, height: 1080 };
+
 const TARGET_PX = 44;
 
 export async function expectTarget(target: Locator): Promise<void> {
@@ -14,18 +16,30 @@ export async function expectTarget(target: Locator): Promise<void> {
   expect(box?.height).toBeGreaterThanOrEqual(TARGET_PX);
 }
 
-export async function atPhoneWidth(page: Page, steps: () => Promise<void>): Promise<void> {
+async function atSize(
+  page: Page,
+  size: Readonly<{ width: number; height: number }>,
+  steps: () => Promise<void>,
+): Promise<void> {
   const entry = page.viewportSize();
 
   if (entry === null) throw new Error("the smoke runs with a fixed viewport");
 
-  await page.setViewportSize(PHONE);
+  await page.setViewportSize(size);
 
   try {
     await steps();
   } finally {
     await page.setViewportSize(entry);
   }
+}
+
+export function atPhoneWidth(page: Page, steps: () => Promise<void>): Promise<void> {
+  return atSize(page, PHONE, steps);
+}
+
+export function atWideWidth(page: Page, steps: () => Promise<void>): Promise<void> {
+  return atSize(page, WIDE, steps);
 }
 
 const masthead = (page: Page) => page.getByRole("banner");

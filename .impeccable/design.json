@@ -1,6 +1,6 @@
 {
   "schemaVersion": 2,
-  "generatedAt": "2026-11-27T19:15:19Z",
+  "generatedAt": "2026-11-28T02:25:47Z",
   "title": "Design System: Threadsift",
   "extensions": {
     "colorMeta": {
@@ -231,49 +231,57 @@
       }
     },
     "typographyMeta": {
+      "wordmark": {
+        "displayName": "Wordmark",
+        "purpose": "\"Thread\" in ink and \"sift\" in the accent ink, in the masthead and on the sign-in screen, in Schibsted Grotesk at weight 600 and -0.015em tracking (`--f-brand`, `--brand-w`, `--brand-ls`). Its size is the Display size of the layout with the 0.85 scale under 760px (`--display-x`) and without the Font's display factor, so no Font or Style changes the wordmark. It has no minimum against Headline; only the 12px text floor holds it. Until Schibsted Grotesk loads, a local Arial Bold, scaled to the same width, stands in (`Schibsted Grotesk Fallback`)."
+      },
       "display": {
         "displayName": "Display",
-        "purpose": "The wordmark (in the app bar and on the sign-in screen), the reader title, the page headings such as Settings and Import, and the empty-library heading. 24px in List, 30px in Grid, 0.85 under 760px, except that the reader title and the page headings never go under --rd-title-min (1.1) times Headline, 22px at the default 16px browser font. The two wordmarks and the empty-library heading keep the 0.85 scale. These three have no minimum against Headline, because they are not reading headings, so at a very small browser font they can fall under it; only the 12px text floor (--t-floor-ui) holds them."
+        "purpose": "the reader title, the page headings such as Settings and Import, and the empty-library heading. It scales to 0.85 under 760px, except that the reader title and the page headings never go under `--rd-title-min` (1.1) times Headline, 22px at the default 16px browser font, so the reader title stays the largest heading in the Reader and a page heading stays above the section headings on its page, in every Font and Style. The empty-library heading keeps the 0.85 scale and has no minimum against Headline, because it is not a reading heading, so at a very small browser font it can fall under it; only the 12px text floor holds it."
       },
       "headline": {
         "displayName": "Headline",
-        "purpose": "Reader section headings such as Original post, Comments and README, and the heading of each sign-in and setup screen. Never under the 16px reading floor divided by --post-h-cap (about 16.84px)."
+        "purpose": "reader section headings such as Original post, Comments and README, and the heading of each sign-in and setup screen. It is never under the 16px reading floor divided by `--post-h-cap`, about 16.84px, so a heading inside a post keeps the floor too."
       },
       "title": {
         "displayName": "Title",
-        "purpose": "Item titles in rows and cards. An unread title takes --dw-strong, 700 in the default Library pair; Instrument Serif and the Cal.com Style have one display weight, so there the Read state mark alone marks it, in the Item list, in Grid and on a Topic page."
+        "purpose": "item titles in rows and cards. An item's title takes `--dw-soft` (560 in the default Library pair), and an unread item's title takes `--dw-strong`, which each Font and Style sets: 700 in the default Library pair. Instrument Serif and the Cal.com Style have one display weight, so there an unread title keeps the read weight and the Read state mark alone marks it, in the Item list, in Grid and on a Topic page. A row with no title shows its link in the title slot on one line with an end ellipsis; the paste card shows the pasted link in full, wrapped."
       },
       "body": {
         "displayName": "Body",
-        "purpose": "Post, comment and summary text in the reading column, at the Text width measure."
+        "purpose": "post and comment text in the reading column, up to 62 average characters a line at Medium text width (56 Narrow, 68 Wide). The reader's summary and key points use the same size at line height 1.5 (`--lh-text`). The \"Key points\" label above them uses the same size in the display face, at the display weight (`--dw`) and line height `--lh-title`."
       },
       "body-list": {
         "displayName": "Body list",
-        "purpose": "Interface text of fields, dialogs, page sections and the Highlights and Proposals lists; size follows Density."
+        "purpose": "the interface text of fields, dialogs, page sections and the Highlights and Proposals lists. Comfortable and Roomy density raise it."
       },
       "meta": {
         "displayName": "Meta",
-        "purpose": "The default UI size: metadata, buttons, filters and bylines."
+        "purpose": "the app's default UI size, for metadata, buttons, filters and bylines."
       },
       "label": {
         "displayName": "Label",
-        "purpose": "Uppercase names of controls, filter groups, settings groups and data fields."
+        "purpose": "(`--t-label`, uppercase): names of controls, filter groups, settings groups and data fields such as Stars and Language."
       },
       "code": {
         "displayName": "Code",
-        "purpose": "Code blocks; inline code keeps the surrounding size."
+        "purpose": "code blocks. Inline code keeps the size of the text around it."
+      },
+      "strip": {
+        "displayName": "Kept strip",
+        "purpose": "Commit Mono at 12px in muted ink. In a List row and a Grid card it is the first line of the cell, under a top rule that holds a 3px bar. Once a Digest covers the thread, the accent part of the bar is the ratio the strip's count reads (shown over total, where total is the larger of the count the source reports and the comments saved), and the rest is hairline. Before that, and on an Item without comments, the rule is all hairline. In the Reader the header opens with the same rule and then the title, and the strip sits under the title, at the start of the line with the author and the date."
       }
     },
     "shadows": [
       {
         "name": "shadow",
         "value": "0 1px 2px oklch(0.2 0 0 / 0.05), 0 6px 20px oklch(0.2 0 0 / 0.06)",
-        "purpose": "Low: the sheet's side buttons, the focused skip button and the Grid cards of the Styles other than Library (Light theme)."
+        "purpose": "Low (Light theme). The sheet's side buttons and the focused skip button carry the low shadow (`--shadow`), and the Grid cards of the Styles other than Library carry their Style's own shadow (`--card-shadow`)."
       },
       {
         "name": "shadow-lg",
         "value": "0 18px 50px oklch(0.2 0 0 / 0.22)",
-        "purpose": "High: the settings panel, the reader sheet and the floating paste card (Light theme)."
+        "purpose": "High (Light theme). The Look panel, the Instance menu, the reader sheet and the floating paste card carry the high shadow (`--shadow-lg`), over a dimming scrim where they cover the page; the two panels also carry a strong-hairline edge."
       }
     ],
     "motion": [
@@ -380,17 +388,33 @@
       "css": ".ds-card { box-sizing: border-box; display: grid; overflow: hidden; border: 0 solid var(--line); border-width: var(--card-hw); border-radius: var(--card-r); background: var(--surface); box-shadow: var(--card-shadow); padding-bottom: var(--s4); font-family: var(--f-ui); font-size: var(--t-meta); line-height: var(--lh-ui); --img-ratio: 16 / 10; } .ds-card:hover { outline: var(--hw) solid var(--ctl-line); outline-offset: calc(var(--hw) * -1); } .ds-card:active { background: var(--press); } .ds-card-share { height: 3px; background: linear-gradient(var(--acc), var(--acc)) 0 0 / calc(var(--kept) * 100%) 100% no-repeat; } .ds-card-strip { display: flex; align-items: center; gap: var(--s2); margin: 0; padding: var(--s2) var(--s4); color: var(--muted); font-family: var(--f-mono); font-size: var(--t-label); line-height: var(--lh-label); } .ds-card-mark { width: var(--mark); height: var(--mark); border: var(--hw) solid var(--acc); border-radius: var(--r4); background: var(--acc); } .ds-card-pic { aspect-ratio: var(--img-ratio); background: var(--surface-2); } .ds-card-title { margin: var(--s3) var(--s4) 0; color: var(--text); font-family: var(--f-display); font-size: var(--t-title); font-weight: var(--dw-strong); letter-spacing: var(--dls); word-spacing: var(--dws); line-height: var(--lh-title); text-wrap: balance; } .ds-card-byline { margin: calc(var(--s1) * var(--k) * 1.5) var(--s4) 0; color: var(--muted); }"
     },
     {
-      "name": "Summary box",
+      "name": "Reader summary",
+      "kind": "custom",
+      "refersTo": "summary-box",
+      "description": "The Reader's Summary and Key points: a section heading, the summary and the Key points at the reading size, flat on the page between two hairlines.",
+      "html": "<section class=\"ds-digest\"><h3 class=\"ds-h\">Summary</h3><p class=\"ds-text\">A two-line summary of what the thread says and what the kept comments add.</p><h4 class=\"ds-sub\">Key points</h4><ul class=\"ds-points\"><li>The fix is a one-line change to the compose file.</li><li>Two commenters confirm it on version 2.4.</li></ul></section>",
+      "css": ".ds-digest { display: flex; flex-direction: column; gap: var(--s3); padding-block: var(--s4) var(--s5); border-block: var(--hw) solid var(--line); color: var(--text); font-family: var(--f-read); font-size: var(--t-read); } .ds-h { margin: 0; font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); letter-spacing: var(--dls); word-spacing: var(--dws); line-height: var(--lh-title); } .ds-text { margin: 0; line-height: var(--lh-text); text-wrap: pretty; } .ds-sub { margin: var(--s2) 0 0; font-family: var(--f-display); font-size: var(--t-read); font-weight: var(--dw); line-height: var(--lh-title); } .ds-points { display: flex; flex-direction: column; gap: var(--s1); margin: 0; padding-inline-start: 1.2em; line-height: var(--lh-text); } .ds-points li::marker { color: var(--muted); }"
+    },
+    {
+      "name": "Topic page box",
       "kind": "card",
       "refersTo": "summary-box",
-      "description": "The reader's Topic, Tags, summary and key points, flat on the page.",
-      "html": "<section class=\"ds-agent\"><p class=\"ds-filed\"><b class=\"ds-topic\">Self-hosting</b> <span class=\"ds-tags\"><span class=\"ds-tag\"><i></i>docker</span></span></p><p class=\"ds-text\">A two-line summary of what the thread says and what the kept comments add.</p><ul class=\"ds-points\"><li>The fix is a one-line change to the compose file.</li><li>Two commenters confirm it on version 2.4.</li></ul></section>",
-      "css": ".ds-agent { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: var(--hw) solid var(--line); border-radius: var(--r3); background: var(--surface); color: var(--text); } .ds-filed { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s2) var(--s3); margin: 0; font-family: var(--f-ui); font-size: var(--t-meta); } .ds-tags { display: inline-flex; flex-wrap: wrap; gap: var(--s1) var(--s2); max-width: 100%; } .ds-tag { display: inline-flex; align-items: flex-start; gap: var(--tag-gap); max-width: 100%; overflow-wrap: anywhere; padding: var(--tag-pad-y) var(--tag-pad); border: var(--tag-box); border-radius: calc(0.5lh + var(--tag-pad-y) + 1px); background: var(--tag-bg); color: var(--tag-fg); } .ds-tag::before { content: var(--tag-mark); } .ds-tag i { display: var(--tag-dot); flex: none; margin-block-start: calc((1lh - var(--dot)) / 2); width: var(--dot); height: var(--dot); border-radius: var(--r1); background: oklch(var(--tag-l) var(--tag-c) 20); } .ds-text { margin: 0; font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-text); } .ds-topic { font-weight: 600; } .ds-points { display: flex; flex-direction: column; gap: var(--s1); margin: 0; padding-left: 1.2em; font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-text); text-wrap: pretty; } .ds-points li::marker { color: var(--muted); }"
+      "description": "The Topic page's overview and its Known disagreements, on the surface with a hairline edge.",
+      "html": "<section class=\"ds-box\"><h2 class=\"ds-box-h\">Overview</h2><p class=\"ds-box-text\">Most saves in this Topic settle on a nightly copy and a restore drill.</p></section>",
+      "css": ".ds-box { display: flex; flex-direction: column; gap: var(--s3); padding: var(--s4); border: var(--hw) solid var(--line); border-radius: var(--r3); background: var(--surface); color: var(--text); } .ds-box-h { margin: 0; font-family: var(--f-display); font-size: var(--t-h2); font-weight: var(--dw); line-height: var(--lh-title); } .ds-box-text { margin: 0; font-family: var(--f-read); font-size: var(--t-read); line-height: var(--lh-text); }"
+    },
+    {
+      "name": "Contents",
+      "kind": "nav",
+      "refersTo": "list-row",
+      "description": "The side column's list of an Item's sections in a wide Reader; the entry being read is ink at weight 600 with a 2px accent-ink line under it.",
+      "html": "<nav class=\"ds-toc\" aria-label=\"Contents\"><h3 class=\"ds-toc-h\">Contents</h3><ul><li><a href=\"#s\" class=\"ds-toc-a\">Summary</a></li><li><a href=\"#p\" class=\"ds-toc-a\" aria-current=\"location\">Original post</a></li><li><a href=\"#c\" class=\"ds-toc-a\">Comments <span class=\"ds-toc-n\">6 of 183</span></a></li></ul></nav>",
+      "css": ".ds-toc { display: flex; flex-direction: column; gap: var(--s2); font-family: var(--f-ui); font-size: var(--t-meta); } .ds-toc-h { margin: 0; color: var(--text); font-size: var(--t-meta); font-weight: 600; } .ds-toc ul { display: flex; flex-direction: column; margin: 0; padding: 0; list-style: none; } .ds-toc-a { position: relative; display: flex; align-items: center; gap: var(--s2); width: fit-content; min-height: var(--row-h); color: var(--muted); font-weight: 500; text-decoration: none; } .ds-toc-a:hover { color: var(--text); } .ds-toc-a[aria-current=\"location\"] { color: var(--text); font-weight: 600; } .ds-toc-a[aria-current=\"location\"]::after { content: ''; position: absolute; inset-inline: 0; bottom: calc(var(--hw) * -1); height: 2px; background: var(--acc-ink); } .ds-toc-a:focus-visible { outline: 2px solid var(--acc-ink); outline-offset: 2px; } .ds-toc-n { color: var(--muted); font-variant-numeric: tabular-nums; font-weight: 400; }"
     }
   ],
   "narrative": {
     "northStar": "The Reading Room",
-    "overview": "**Creative North Star: \"The Reading Room\"**\n\nThreadsift is a quiet library room. The saved text leads, and the interface stays in the background. The mood is quiet, bookish and exact. Chrome is drawn in near-white surfaces, cool greys and hairlines, and one accent hue marks state. The reading column holds post and comment text at one size and one line length. The metadata, controls and lists around it are smaller and greyer than that text.\n\nThis file describes the app as built. Its last section, Brand Brief, describes the target look, the Quarto direction. Where the two differ, a change to the app follows the earlier sections, and the Quarto kit in the prototype and the build of Quarto follow the Brand Brief.\n\nThe look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens; Theme and Layout are attributes on the same root. `design/system/tokens.css` is the source every value is read from, except the literal values its header lists, and `design/system/settings-table.ts` owns the list of settings and which option is the default. The tokens in this file record the default look: the Library Style, Light theme, the Library font pair (Schibsted Grotesk and Commit Mono), Moss accent, Medium text size, Medium text width, Compact density and the List layout.\n\nDensity is compact by default, because a library with hundreds of saves needs many rows on screen, but the reading column never gets denser with it. Components are refined and restrained. Two looks are rejected. One is a social feed: Reddit's or X's own chrome, with vote arrows, avatars ahead of the item title, and engagement counts as the loudest thing on a row. The other is a SaaS dashboard: gradient hero cards, number tiles and icons in coloured circles.",
+    "overview": "Threadsift is a quiet library room. The saved text leads, and the interface stays in the background. The mood is quiet, bookish and exact. Chrome is drawn in near-white surfaces, cool greys and hairlines, and one accent hue marks state. The reading column holds post and comment text at one size and one line length. The metadata, controls and lists around it are smaller and greyer than that text.\n\nThis file describes the app as built. Its last section, Brand Brief, describes the target look, the Quarto direction. Where the two differ, a change to the app follows the earlier sections, and the Quarto kit in the prototype and the build of Quarto follow the Brand Brief.\n\nThe look is not one preset. Every Look setting is a `data-*` attribute on the app root, and each option swaps a set of tokens; Theme and Layout are attributes on the same root. `design/system/tokens.css` is the source every value is read from, except the literal values its header lists, and `design/system/settings-table.ts` owns the list of settings and which option is the default. The tokens in this file record the default look: the Library Style, Light theme, the Library font pair (Schibsted Grotesk and Commit Mono), Moss accent, Medium text size, Medium text width, Compact density and the List layout.\n\nDensity is compact by default, because a library with hundreds of saves needs many rows on screen, but the reading column never gets denser with it. Components are refined and restrained. Two looks are rejected. One is a social feed: Reddit's or X's own chrome, with vote arrows, avatars ahead of the item title, and engagement counts as the loudest thing on a row. The other is a SaaS dashboard: gradient hero cards, number tiles and icons in coloured circles.",
     "keyCharacteristics": [
       "One accent hue on neutrals with almost no colour, the same in List and Grid; Sepia is the one warm Theme. The theme sets the accent's lightness and chroma.",
       "One reading size and one capped line length for post, comment and summary text.",
@@ -401,7 +425,7 @@
     "rules": [
       {
         "name": "The One Accent Rule",
-        "body": "The accent is the one colour that marks selection, action and state. The tag hues, the paste card's status tones, the `warn` colour of field errors, delete buttons and the failure mark on an Item row, and the accent swatches in the settings panel are the only other colours in the chrome. A full accent fill covers nothing larger than a control, a dot or a bar. A larger selected area, such as the open row, takes the soft tint.",
+        "body": "The accent is the one colour that marks selection, action and state. The tag hues, the paste card's status tones, the `warn` colour of field errors, delete buttons and the failure mark on an Item row, and the accent swatches in the Look panel are the only other colours in the chrome. A full accent fill covers nothing larger than a control, a dot or a bar. A larger selected area, such as the open row, takes the soft tint.",
         "section": "colors"
       },
       {
@@ -416,12 +440,12 @@
       },
       {
         "name": "The Plain Panel Rule",
-        "body": "The settings panel keeps the Library pair whatever the Font setting is, so the controls that change the font never move.",
+        "body": "The Look panel keeps the Library pair whatever the Font setting is, so the controls that change the font never move.",
         "section": "typography"
       },
       {
         "name": "The Open Word Rule",
-        "body": "Display, page and section headings and item titles take the Font's display letter and word spacing (`--dls`, `--dws`). The Library pair tightens the letters by 0.015em and opens each word space by 0.05em, so a tight grotesque title still reads as separate words.",
+        "body": "Display, page and section headings and item titles take the Font's display letter and word spacing (`--dls`, `--dws`). The headings of the Reader's side column are the one exception (Layout). The Library pair tightens the letters by 0.015em and opens each word space by 0.05em, so a tight grotesque title still reads as separate words.",
         "section": "typography"
       },
       {
@@ -446,7 +470,7 @@
       "**Do** keep every text and background pair at 4.5:1 or more, and every mark, icon and border a person needs to see a control or its state at 3:1 or more, in every theme with every accent and Style.",
       "**Do** draw the edge in the control line colour (`--ctl-line`) when the edge is what shows the control, such as a field or a read Item's Read state mark. It measures 3:1 or more against the page, the surfaces and the open row's tint, in every theme with every accent. The hairline colours (`--line`, `--line-2`) measure 1.2 to 2.1:1 against the page and both surfaces, so they only separate regions or edge a control that shows visible text. Both figures are WCAG relative-luminance ratios computed from the OKLCH values in `tokens.css`.",
       "**Do** make every target at least 44px under 480px, except the width of a link or a Highlight mark in the text of a rendered post or comment (`.md`), a code block included. Each keeps the width of its text, so two marks side by side never share a tap area, and `--link-pad` sets its height. A mark that wraps a picture has the picture's size (WCAG 2.2 SC 2.5.8, [Inline exception](https://www.w3.org/WAI/WCAG22/Understanding/target-size-minimum.html)).",
-      "**Do** mark the open row and the open Grid card with an edge as well as a tint.",
+      "**Do** mark the open row and the open Grid card with their accent-ink edge as well as their tint.",
       "**Do** give every animation a reduced-motion form.",
       "**Do** keep the reading column at the Text width setting's measure, and keep the Read state mark at the start of the kept strip, never on a picture."
     ],

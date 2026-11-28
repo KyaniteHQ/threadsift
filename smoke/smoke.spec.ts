@@ -128,7 +128,7 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
   await test.step("the Instance menu names the host and its five entries, and Agent tokens and Backup open their Settings sections", () =>
     instanceMenuFlow(page));
   await settingsSteps(page);
-  await test.step("a Pasted Item with a Digest and no Provider shows no Related Items section", () =>
+  await test.step("a Pasted Item with a Digest and no Provider leads with its Summary, shows no Related Items section, moves focus to a section heading from Contents on a wide window, and offers the Note's Save only for unsaved text", () =>
     readerWithoutProvider(page, {
       topic: UNRELATED_TOPIC,
       markdown: ARTICLE_TEXT,

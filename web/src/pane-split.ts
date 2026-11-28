@@ -3,7 +3,7 @@ import {
   type PaneBounds,
   type Room,
   type Widths,
-  type Range,
+  type PaneRange,
   drawnWidths,
   rangeOf,
   readBounds,
@@ -44,7 +44,7 @@ interface Mounted {
   readonly bounds: PaneBounds;
 }
 
-function keyedWidth(event: KeyboardEvent, now: number, range: Range) {
+function keyedWidth(event: KeyboardEvent, now: number, range: PaneRange) {
   const step = event.shiftKey ? SHIFT_STEP : STEP;
 
   switch (event.key) {
@@ -167,10 +167,14 @@ export class PaneSplits {
     for (const pane of PANES) {
       app.style.setProperty(WIDTH_TOKENS[pane], `${String(drawn[pane])}px`);
       const handle = this.#handles.get(pane);
+
+      if (handle === undefined) continue;
+
       const range = rangeOf(pane, bounds, room, drawn);
-      handle?.setAttribute("aria-valuenow", String(drawn[pane]));
-      handle?.setAttribute("aria-valuemin", String(range.min));
-      handle?.setAttribute("aria-valuemax", String(range.max));
+      handle.hidden = range.min >= range.max;
+      handle.setAttribute("aria-valuenow", String(drawn[pane]));
+      handle.setAttribute("aria-valuemin", String(range.min));
+      handle.setAttribute("aria-valuemax", String(range.max));
     }
   }
 

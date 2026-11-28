@@ -131,28 +131,41 @@ function Actions({
   );
 }
 
-function useFocusKept(offered: boolean, field: RefObject<HTMLTextAreaElement | null>): void {
+function useSaveButton(
+  { canSave, save }: Readonly<{ canSave: boolean; save: () => void }>,
+  offered: boolean,
+  field: RefObject<HTMLTextAreaElement | null>,
+): () => void {
+  const pressed = useRef(false);
   const wasOffered = useRef(offered);
 
   useEffect(() => {
     const withdrawn = wasOffered.current && !offered;
     wasOffered.current = offered;
 
-    if (withdrawn && document.activeElement === document.body) {
+    if (!withdrawn) return;
+
+    const fromButton = pressed.current;
+    pressed.current = false;
+
+    if (fromButton && document.activeElement === document.body) {
       field.current?.focus({ preventScroll: true });
     }
   }, [offered, field]);
+
+  return useCallback(() => {
+    pressed.current = canSave;
+    save();
+  }, [canSave, save]);
 }
 
 function useNoteField(
   field: RefObject<HTMLTextAreaElement | null>,
   { edit, save }: Readonly<{ edit: (text: string) => void; save: () => void }>,
-  offered: boolean,
 ) {
   const press = useKeys(save);
 
   useNoteArrival(field);
-  useFocusKept(offered, field);
 
   const change = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement>): void => {
@@ -169,8 +182,9 @@ export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial:
   const heading = useId();
   const keys = useId();
   const note = useNote(itemId, initial, field);
-  const offered = note.dirty || note.pending;
-  const { change, press } = useNoteField(field, note, offered);
+  const offered = note.dirty && !note.pending;
+  const { change, press } = useNoteField(field, note);
+  const saveFromButton = useSaveButton(note, offered, field);
 
   return (
     <section className="rd-nt">
@@ -193,7 +207,7 @@ export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial:
         canSave={note.canSave}
         justSaved={note.justSaved}
         keys={keys}
-        save={note.save}
+        save={saveFromButton}
       />
       <Refusals
         failed={note.failed}

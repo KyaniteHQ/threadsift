@@ -13,20 +13,17 @@ import type { ReaderPlace } from "./reader-place.ts";
 
 export const BESIDE = "beside";
 
-export const BESIDE_MARGIN = `.rd-col[data-margin="${BESIDE}"] > .rd-margin`;
+export const SIDE_COLUMN_BESIDE = `.rd-col[data-side="${BESIDE}"] > .rd-side`;
 
-export interface MarginSlot {
+const FIT_WIDTH = "--rd-fit";
+
+export interface SideSlot {
   readonly node: HTMLElement | null;
   readonly beside: boolean;
+  readonly listComments: (listed: boolean) => void;
 }
 
-function widthBeside(col: HTMLElement): number | null {
-  const margin = col.querySelector<HTMLElement>(":scope > .rd-margin");
-
-  return margin === null ? null : pixelsOf(getComputedStyle(margin).maxWidth);
-}
-
-function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace): boolean {
+function useSideBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace): boolean {
   const [fits, setFits] = useState(false);
 
   useLayoutEffect(() => {
@@ -35,8 +32,12 @@ function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace)
 
     if (element === null || slot === null) return NOTHING;
 
+    let watching = true;
+
     const measure = (): void => {
-      const width = widthBeside(element);
+      if (!watching) return;
+
+      const width = pixelsOf(getComputedStyle(element).getPropertyValue(FIT_WIDTH));
       setFits(width !== null && slot.clientWidth >= width);
     };
 
@@ -47,6 +48,7 @@ function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace)
     void document.fonts.ready.then(measure);
 
     return () => {
+      watching = false;
       observer.disconnect();
     };
   }, [col]);
@@ -54,17 +56,19 @@ function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace)
   return fits && place !== "sheet";
 }
 
-export interface MarginColumn {
+export interface SideColumn {
   readonly col: RefObject<HTMLDivElement | null>;
   readonly host: RefCallback<HTMLDivElement>;
-  readonly margin: MarginSlot;
+  readonly side: SideSlot;
+  readonly commentsListed: boolean;
 }
 
-export function useMarginColumn(place: ReaderPlace): MarginColumn {
+export function useSideColumn(place: ReaderPlace): SideColumn {
   const col = useRef<HTMLDivElement>(null);
   const [node, host] = useState<HTMLDivElement | null>(null);
-  const beside = useMarginBeside(col, place);
-  const margin = useMemo<MarginSlot>(() => ({ node, beside }), [node, beside]);
+  const [listed, listComments] = useState(false);
+  const beside = useSideBeside(col, place);
+  const side = useMemo<SideSlot>(() => ({ node, beside, listComments }), [node, beside]);
 
-  return { col, host, margin };
+  return { col, host, side, commentsListed: beside && listed };
 }

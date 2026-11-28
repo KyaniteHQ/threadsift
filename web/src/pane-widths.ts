@@ -80,12 +80,12 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-export interface Range {
+export interface PaneRange {
   readonly min: number;
   readonly max: number;
 }
 
-export function rangeOf(pane: Pane, bounds: PaneBounds, room: Room, drawn: Widths): Range {
+export function rangeOf(pane: Pane, bounds: PaneBounds, room: Room, drawn: Widths): PaneRange {
   const beside = pane === "list" && room.rail ? drawn.rail : pane === "rail" ? drawn.list : 0;
   const max = Math.max(0, Math.min(bounds[pane].max, room.width - beside - bounds.readerMin));
 

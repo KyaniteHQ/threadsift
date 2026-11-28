@@ -1,12 +1,12 @@
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { HighlightsProvider } from "./Highlights.tsx";
-import type { MarginSlot } from "./margin-column.ts";
 import { useSectionIds } from "./reader-sections.ts";
 import { READER_FAILED, READER_STALE } from "./reader-text.ts";
 import { Agent } from "./ReaderColumn.tsx";
 import { Original } from "./ReaderOriginal.tsx";
 import { ReaderSide } from "./ReaderSide.tsx";
 import { AlertRegion, StatusRegion } from "./RetryRegions.tsx";
+import type { SideSlot } from "./side-column.ts";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 
 export function ReaderNotices({
@@ -38,7 +38,7 @@ export function ReaderContent({
   announce,
   tryAgain,
   now,
-  margin,
+  side,
 }: Readonly<{
   item: Item;
   state: Extract<DetailState, { status: "ready" }>;
@@ -46,7 +46,7 @@ export function ReaderContent({
   announce: (text: string) => void;
   tryAgain: (item: Item) => void;
   now: number;
-  margin: MarginSlot;
+  side: SideSlot;
 }>) {
   const { detail } = state;
   const ids = useSectionIds();
@@ -60,7 +60,7 @@ export function ReaderContent({
     >
       <Agent item={item} detail={detail} summaryId={ids.summary} tryAgain={tryAgain} />
       <Original item={item} detail={detail} now={now} ids={ids} />
-      <ReaderSide margin={margin} item={item} detail={detail} ids={ids} />
+      <ReaderSide side={side} item={item} detail={detail} ids={ids} />
     </HighlightsProvider>
   );
 }

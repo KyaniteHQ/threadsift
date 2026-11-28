@@ -2,33 +2,49 @@ import { type RefObject, useEffect, useState } from "react";
 
 import { NOTHING } from "../../src/core/contract/nothing.ts";
 
-const READING_LINE = "-20% 0px -79% 0px";
+const READING_LINE = 0.2;
+
+function atEnd(scroller: HTMLElement): boolean {
+  const { scrollTop, clientHeight, scrollHeight } = scroller;
+
+  return scrollHeight > clientHeight && scrollTop + clientHeight >= scrollHeight - 1;
+}
+
+function sectionAt(scroller: HTMLElement, sections: readonly HTMLElement[]): string | null {
+  const view = scroller.getBoundingClientRect();
+  const line = atEnd(scroller) ? view.bottom : view.top + scroller.clientHeight * READING_LINE;
+
+  return sections.findLast((section) => section.getBoundingClientRect().top <= line)?.id ?? null;
+}
 
 function watchSections(
   scroller: HTMLElement,
   sections: readonly HTMLElement[],
-  show: (id: string) => void,
+  show: (id: string | null) => void,
 ): () => void {
-  const crossing = new Set<string>();
+  let frame = 0;
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      for (const { target, isIntersecting } of entries) {
-        if (isIntersecting) crossing.add(target.id);
-        else crossing.delete(target.id);
-      }
+  const measure = (): void => {
+    frame = 0;
+    show(sectionAt(scroller, sections));
+  };
 
-      const current = sections.find(({ id }) => crossing.has(id));
+  const schedule = (): void => {
+    if (frame === 0) frame = requestAnimationFrame(measure);
+  };
 
-      if (current !== undefined) show(current.id);
-    },
-    { root: scroller, rootMargin: READING_LINE },
-  );
+  const resized = new ResizeObserver(schedule);
+  resized.observe(scroller);
 
-  for (const section of sections) observer.observe(section);
+  for (const section of sections) resized.observe(section);
+
+  scroller.addEventListener("scroll", schedule, { passive: true });
+  schedule();
 
   return () => {
-    observer.disconnect();
+    cancelAnimationFrame(frame);
+    resized.disconnect();
+    scroller.removeEventListener("scroll", schedule);
   };
 }
 
