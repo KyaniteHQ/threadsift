@@ -3,7 +3,7 @@ import { after, afterEach, before, beforeEach, describe, it } from "node:test";
 
 import type { Client } from "@modelcontextprotocol/client";
 
-import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
+import { ErrorResponseSchema, UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { Instance } from "./instance.ts";
 import {
@@ -16,9 +16,6 @@ import {
 } from "./mcp-client.ts";
 import { DIGEST } from "./mcp-fixtures.ts";
 import { holdLibrary } from "./restore-fixtures.ts";
-
-const RESTORING =
-  "The library is being restored and saves nothing new until the restore has finished. Reads and deletes work meanwhile.";
 
 describe("an agent adds a link through /mcp as POST /api/items adds it", () => {
   let instance: Instance;
@@ -127,13 +124,16 @@ describe("add keeps the refusal that POST /api/items gives while a Restore holds
 
     const link = "https://x.com/someone/status/5000000001";
 
-    assert.equal((await instance.send("POST", "/api/items", { url: link })).status, 503);
+    const refused = await instance.send("POST", "/api/items", { url: link });
+    const body = UnavailableResponseSchema.parse(JSON.parse(refused.body));
+
+    assert.deepEqual([refused.status, body.code], [503, "restoring"]);
 
     const added = await client.callTool({ name: "add", arguments: { url: link } });
 
     assert.equal(added.isError, true);
     assert.equal(await instance.itemTotal(), 0);
-    assert.deepEqual(added.content, [{ type: "text", text: RESTORING }]);
+    assert.deepEqual(added.content, [{ type: "text", text: body.error }]);
     assert.notEqual((await client.callTool({ name: "search", arguments: {} })).isError, true);
   });
 });

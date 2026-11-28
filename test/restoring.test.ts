@@ -1,18 +1,33 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
-import { UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
 import {
   RestoreErrorSchema,
   RestoreStatusSchema,
   StartedRestoreSchema,
 } from "../src/core/contract/restore-contract.ts";
-import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { redditAddressOf, threadOf } from "./reader-thread-fixtures.ts";
 import { holdLibrary } from "./restore-fixtures.ts";
+import {
+  HELD,
+  heldThenReleased,
+  ownerLibrary,
+  PASTE_HELD,
+  recordsOf,
+  refusal,
+  savedUnresolved,
+  throughDoors,
+} from "./restoring-fixtures.ts";
+import {
+  claimedJobs,
+  grokBotVerify,
+  heldMerge,
+  owedDigestJobs,
+  weeklyClaims,
+} from "./restoring-runs.ts";
 
 const xLink = (id: number): string => `https://x.com/someone/status/${String(id)}`;
 
@@ -42,8 +57,7 @@ describe("a batch refused while a Restore holds the library keeps its old cursor
       import: { name, cursor: "new" },
     });
 
-    assert.equal(stopped.status, 503);
-    assert.equal(UnavailableResponseSchema.parse(JSON.parse(stopped.body)).code, "restoring");
+    assert.deepEqual(refusal(stopped), PASTE_HELD);
     assert.equal(await instance.itemTotal(), 1);
 
     const read = await instance.send("GET", `/api/imports/${name}`);
@@ -147,12 +161,7 @@ describe("an Item is refused through every door while a Restore holds the librar
       // oxlint-disable-next-line eslint/no-await-in-loop -- Each door answers on its own, in the order listed.
       const answer = await send();
 
-      assert.equal(answer.status, 503, door);
-      assert.equal(
-        UnavailableResponseSchema.parse(JSON.parse(answer.body)).code,
-        "restoring",
-        door,
-      );
+      assert.deepEqual(refusal(answer), PASTE_HELD, door);
     }
 
     assert.equal(await instance.itemTotal(), stored);
@@ -161,13 +170,7 @@ describe("an Item is refused through every door while a Restore holds the librar
   it("stores no failed short link while a Restore holds the library and stores it once the run is no longer holding", async () => {
     const short = "https://t.co/heldfailure";
 
-    const unresolved = () =>
-      saveUnresolved(instance.core, {
-        paste: { address: short, addedByToken: null },
-        link: { source: "other", kind: "link", normalizedUrl: short },
-        fetched: { status: "unresolved" },
-        existing: "refresh",
-      });
+    const unresolved = () => savedUnresolved(instance, short);
 
     holdLibrary(instance, "running", null);
 
@@ -192,8 +195,7 @@ describe("an Item is refused through every door while a Restore holds the librar
     const stored = await instance.itemTotal();
     const refused = await instance.send("POST", "/api/items", link);
 
-    assert.equal(refused.status, 503);
-    assert.equal(UnavailableResponseSchema.parse(JSON.parse(refused.body)).code, "restoring");
+    assert.deepEqual(refusal(refused), PASTE_HELD);
     assert.equal(await instance.itemTotal(), stored);
 
     holdLibrary(instance, "failed", "no-manifest");
@@ -202,5 +204,57 @@ describe("an Item is refused through every door while a Restore holds the librar
 
     assert.equal(accepted.status, 201);
     assert.equal(await instance.itemTotal(), stored + 1);
+  });
+});
+
+describe("an owner write that adds a record the zip may hold is refused while a Restore holds the library", () => {
+  it("answers 503 restoring through each door and adds no record, and takes each write once the run no longer holds", async () => {
+    const library = await ownerLibrary();
+    const stored = recordsOf(library.instance);
+    const [held, released] = await heldThenReleased(library.instance, () => throughDoors(library));
+
+    await library.instance.close();
+
+    for (const [door, answer] of held.answers) {
+      assert.deepEqual(refusal(answer), HELD, door);
+    }
+    assert.deepEqual(held.records, stored);
+    assert.deepEqual(
+      released.answers.map(([door, answer]) => [door, answer.status]),
+      released.answers.map(([door, , success]) => [door, success]),
+    );
+    assert.deepEqual(
+      released.records.map((count, table) => count > (stored[table] ?? 0)),
+      released.records.map(() => true),
+    );
+  });
+
+  it("answers a Grok Bot Verify 503 restoring and starts no AI task", async () => {
+    const [answer, tasks] = await grokBotVerify();
+
+    assert.deepEqual([refusal(answer), tasks], [HELD, 0]);
+  });
+});
+
+describe("the background work that adds a record the zip may hold waits while a Restore holds the library", () => {
+  it("claims no due job while held and claims it once the run no longer holds", async () => {
+    assert.deepEqual(await claimedJobs(), ["none", "digest"]);
+  });
+
+  it("opens no owed Digest job while held and opens it once the run no longer holds", async () => {
+    assert.deepEqual(await owedDigestJobs(), [0, 1]);
+  });
+
+  it("claims no week of the weekly check while held and claims it once the run no longer holds", async () => {
+    const [held, released] = await weeklyClaims();
+
+    assert.deepEqual([held, released > 0], [0, true]);
+  });
+
+  it("moves no Tag of an accepted merge while held and finishes the merge once after", async () => {
+    const [held, released] = await heldMerge();
+
+    assert.deepEqual(held, { moved: 100, open: 1, merged: [] });
+    assert.deepEqual([released.moved, released.open, released.merged.length], [150, 0, 1]);
   });
 });
