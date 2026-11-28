@@ -8,3 +8,20 @@
   color: var(--muted);
   vertical-align: middle;
 }
+.passage {
+  margin: 0;
+  color: var(--text);
+  font-family: var(--f-read);
+  font-size: var(--t-body);
+  line-height: var(--lh-text);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+.quote {
+  padding-inline-start: var(--s3);
+  border-inline-start: 2px solid var(--line-2);
+}
+.app:is(:not([data-style]), [data-style="library"]) .quote {
+  padding-inline-start: var(--s4);
+  border-inline-start-width: var(--hw);
+}

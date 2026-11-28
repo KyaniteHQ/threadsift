@@ -146,21 +146,53 @@ function useOverviewPoll(
   });
 }
 
-function useWriteOverview(key: string, setState: SetState, reload: () => Promise<void>) {
+function useWriteOverview(
+  key: string,
+  {
+    setState,
+    state,
+    reload,
+  }: Readonly<{ setState: SetState; state: TopicState; reload: () => Promise<void> }>,
+) {
   const { guard } = useGuard();
+  const [refusedFor, setRefusedFor] = useState<Overview | null>(null);
+  const latest = useLatest(state);
 
-  return useCallback((): void => {
+  const write = useCallback((): void => {
     guard(async () => {
-      try {
-        const overview = await retryTopicOverview(key);
+      setRefusedFor(null);
 
-        if (overview === null) await reload();
-        else setState((now) => (now.status === "ready" ? { ...now, overview } : now));
+      const settle = (retry: Awaited<ReturnType<typeof retryTopicOverview>>): Promise<void> => {
+        switch (retry.kind) {
+          case "started":
+            setState((now) =>
+              now.status === "ready" ? { ...now, overview: retry.overview } : now,
+            );
+
+            return Promise.resolve();
+          case "restoring":
+            if (latest.current.status === "ready") setRefusedFor(latest.current.overview);
+
+            return Promise.resolve();
+          case "refused":
+            return reload();
+          default: {
+            const exhaustive: never = retry;
+
+            return exhaustive;
+          }
+        }
+      };
+
+      try {
+        await settle(await retryTopicOverview(key));
       } catch {
         await reload();
       }
     });
-  }, [guard, key, reload, setState]);
+  }, [guard, key, latest, reload, setState]);
+
+  return { write, refused: state.status === "ready" && state.overview === refusedFor };
 }
 
 export function useTopicPage(key: string, replace: Route["replace"]) {
@@ -168,7 +200,11 @@ export function useTopicPage(key: string, replace: Route["replace"]) {
   const ticket = useTicket();
   const first = useFirstRead(key, setState, ticket);
   const loadMore = useLoadMore(key, { setState, ticket, state });
-  const writeOverview = useWriteOverview(key, setState, first);
+  const { write: writeOverview, refused: writeRefused } = useWriteOverview(key, {
+    setState,
+    state,
+    reload: first,
+  });
 
   useEffect(() => {
     void first();
@@ -182,5 +218,5 @@ export function useTopicPage(key: string, replace: Route["replace"]) {
   useOverviewPoll(key, { setState, ticket, state });
   useSurvivorAddress(state.status === "ready" ? state.topic.key : null, key, replace);
 
-  return { state, retry, loadMore, writeOverview };
+  return { state, retry, loadMore, writeOverview, writeRefused };
 }

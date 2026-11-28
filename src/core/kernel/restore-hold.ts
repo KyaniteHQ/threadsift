@@ -135,6 +135,10 @@ export function whileOpen<Result>(write: () => Promise<Result>): Promise<Result 
   return answeringRefusal("restore", write, CLOSED);
 }
 
+export async function unlessHeld<Answer>(db: Database, answer: Answer): Promise<Answer | Closed> {
+  return (await restoreHoldsLibrary(db)) ? CLOSED : answer;
+}
+
 export function isClosed<Result>(
   outcome: Result | Closed,
 ): outcome is Extract<Result | Closed, Closed> {

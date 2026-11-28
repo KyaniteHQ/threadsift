@@ -37,10 +37,28 @@ export interface PasteQueue {
   readonly taken: (seq: number) => void;
 }
 
+type Origin = "field" | "card" | "queue";
+
 const FAILED: SaveOutcome = { kind: "notice", notice: "failed" };
 const EMPTY: SaveOutcome = { kind: "notice", notice: "empty" };
 
-async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
+export function retryTargetOf({ retry, originalUrl, id }: Readonly<Item>): SaveTarget | null {
+  switch (retry) {
+    case null:
+      return null;
+    case "digest":
+      return { kind: "digest", url: originalUrl, id };
+    case "paste":
+      return { kind: "paste", url: originalUrl };
+    default: {
+      const exhaustive: never = retry;
+
+      return exhaustive;
+    }
+  }
+}
+
+export async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
   try {
     return await save(target);
   } catch {
@@ -48,7 +66,7 @@ async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
   }
 }
 
-function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Shown {
+function shownOf(outcome: Readonly<SaveOutcome>, origin: Origin, url: string, seq: number): Shown {
   return outcome.kind === "item"
     ? {
         kind: "item",
@@ -58,7 +76,13 @@ function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Show
         url,
         seq,
       }
-    : { kind: "notice", key: outcome.notice, url, seq };
+    : {
+        kind: "notice",
+        key: outcome.notice,
+        press: origin === "queue" ? "retry" : "paste",
+        url,
+        seq,
+      };
 }
 
 type SaveInputs = Readonly<{
@@ -74,7 +98,7 @@ function useSaveValue({ save, setValue, setShown, focusField, release, open }: S
   const sequence = useRef(0);
 
   return useCallback(
-    async (target: SaveTarget, origin: "field" | "card" | "queue") => {
+    async (target: SaveTarget, origin: Origin) => {
       const { url } = target;
       setShown(null);
       const outcome = url === "" ? EMPTY : await attempt(save, target);
@@ -85,7 +109,7 @@ function useSaveValue({ save, setValue, setShown, focusField, release, open }: S
       }
 
       sequence.current += 1;
-      setShown(shownOf(outcome, url, sequence.current));
+      setShown(shownOf(outcome, origin, url, sequence.current));
 
       if (origin === "field" && outcome.kind === "item" && outcome.known) {
         open(outcome.itemId);
