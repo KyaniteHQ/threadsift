@@ -63,7 +63,7 @@ When the user activates the toolbar button, the extension reads the current tab 
 #### `scripting`
 
 ```text
-When activated, the extension runs its own script in the current tab to read its title, text, and image addresses for saving; in a Reddit tab, it requests thread data from reddit.com in the user’s session. Only on granted hosts, it registers a script on the Threadsift address (so its Settings can ask to reconnect Reddit) and, only if "Fill saved Reddit items" is on, on reddit.com (to save a thread when opening an item saved without comments). It runs no code from outside the extension.
+Saving a page runs the extension’s own script once in the current tab to read its title, text and image addresses. In a Reddit tab, it asks reddit.com for the thread in the user’s Reddit session. On granted hosts, the extension registers two scripts: one on reddit.com only while "Fill saved Reddit items" is on, to save a thread when the user opens an item saved without comments, and one on every port of the Threadsift host so the Settings page can ask to reconnect Reddit. The extension ignores that request unless it comes from the saved address. It runs no code from outside the extension.
 ```
 
 #### `storage`
@@ -87,7 +87,7 @@ Only Connect Reddit and Reconnect ask for this optional permission. The extensio
 #### Optional host permissions
 
 ```text
-All host permissions are optional and grant nothing at install: any https host for a self-hosted instance, and http only on localhost and 127.0.0.1. At Save settings, the extension asks only for the one host of the person’s Threadsift address, named in the browser’s prompt, and for reddit.com only when they turn on "Fill saved Reddit items" or select Connect Reddit or Reconnect. It removes every other host it holds; if the browser refuses, that host stays granted and the extension logs it.
+All host permissions are optional and grant nothing at install: any https host for a self-hosted instance, and http only on localhost and 127.0.0.1. At Save settings, the extension asks for the host of the person’s Threadsift address. The browser shows its prompt, which names that host, only when the extension does not hold it yet. One grant covers every port of the host. The extension asks for reddit.com only when the person turns on "Fill saved Reddit items" or selects Connect Reddit or Reconnect. It removes every other host it holds. If the browser refuses, that host stays granted and the extension logs it.
 ```
 
 ### Remote code
@@ -117,7 +117,7 @@ activeTab: When you press the toolbar button, the extension gets one-time access
 #### `scripting`
 
 ```text
-scripting: Saving a page runs the extension’s own script in that tab to read the title, text and image addresses, or in a Reddit tab to request the thread from reddit.com with your Reddit session. On granted hosts, the extension registers two scripts: one on your Threadsift address so Settings can ask to reconnect Reddit, and one on reddit.com only while "Fill saved Reddit items" is on. It runs no code from outside the extension.
+scripting: Saving a page runs the extension’s own script once in the current tab to read its title, text and image addresses. In a Reddit tab, it asks reddit.com for the thread in your Reddit session. On granted hosts, the extension registers two scripts: one on reddit.com only while "Fill saved Reddit items" is on, to save a thread when you open an item saved without comments, and one on every port of your Threadsift host so the Settings page can ask to reconnect Reddit. The extension ignores that request unless it comes from your saved address. It runs no code from outside the extension.
 ```
 
 #### `storage`
@@ -164,12 +164,12 @@ browsingActivity: Turning on "Fill saved Reddit items" opens one Firefox prompt 
 
 ### Notes to reviewer
 
-Upload the source archive that the package command writes, with the Firefox zip. Firefox Add-ons keeps the notes to the reviewer to 3,000 characters ([addons-server version model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/versions/models.py#L311)), and the text holds 1,318 characters.
+Upload the source archive that the package command writes, with the Firefox zip. Firefox Add-ons keeps the notes to the reviewer to 3,000 characters ([addons-server version model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/versions/models.py#L311)), and the text holds 1,290 characters.
 
 ```text
 WXT’s production build bundles and minifies the extension’s code without obfuscation. The source upload is a git archive of the repository with the readable code. SOURCE_CODE_REVIEW.md at its root gives the build environment (Node.js 26, pnpm 12.23.0), commands and how to compare the build with the upload. It explains web-ext lint warnings from two libraries: DANGEROUS_EVAL from zod and UNSAFE_VAR_ASSIGNMENT from defuddle.
 
 To use the extension, run a Threadsift instance (the README shows how in a container). Enter its address and an agent token with Read and Add scopes in the extension’s settings, plus the Reddit scope for Connect Reddit.
 
-The webRequest permission reads only network errors of the extension’s own requests to the Threadsift address. It blocks and changes nothing. Only Connect Reddit and Reconnect ask for the optional cookies permission, which reads only reddit.com’s reddit_session cookie.com’s reddit_session cookie. In Firefox, turning on "Fill saved Reddit items" asks for reddit.com access and the optional browsing activity data permission in one prompt. Deny leaves Fill off. All host permissions are optional. The extension asks for the one Threadsift host at Save settings. The Description gives the reason for every permission and every data collection permission in the manifest.
+The webRequest permission reads only network errors of the extension’s own requests to the Threadsift address. It blocks and changes nothing. Only Connect Reddit and Reconnect ask for the optional cookies permission, which reads only reddit.com’s reddit_session cookie. In Firefox, turning on "Fill saved Reddit items" asks for reddit.com access and the optional browsing activity data permission in one prompt. Deny leaves Fill off. All host permissions are optional. The extension asks for the one Threadsift host at Save settings. The Description gives the reason for every permission and every data collection permission in the manifest.
 ```
