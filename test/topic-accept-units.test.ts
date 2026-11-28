@@ -8,11 +8,17 @@ import { mergesOf, readPage } from "./lost-highlight-fixtures.ts";
 import { pasteTopics } from "./overview-gap-fixtures.ts";
 import { seedTopicItems } from "./pin-fixtures.ts";
 import {
+  type Library,
   answerOf,
+  beforeFirstBatch,
   itemsOf,
+  pinsFrom,
   proposeTopics,
+  runMergesStage,
   topicId,
   topicMergeLines,
+  withInstance,
+  withLibrary,
 } from "./topic-accept-fixtures.ts";
 import { nextSweep } from "./weekly-claim-fixtures.ts";
 
@@ -110,35 +116,6 @@ describe("Accept of a Topic row that the sweep continues after an Item was delet
   });
 });
 
-interface Library {
-  readonly instance: Instance;
-  readonly loser: number;
-  readonly survivor: number;
-  readonly proposal: number;
-}
-
-const withLibrary = async (run: (library: Library) => Promise<void>): Promise<void> => {
-  const instance = await Instance.start();
-
-  try {
-    await instance.setUp();
-
-    await pasteTopics(instance, { Loser: ["loser"], Survivor: ["survivor"] });
-
-    const loser = topicId(instance, "Loser");
-
-    seedTopicItems(instance, { topicId: loser, name: "Loser", from: 1000, items: 2 });
-    await run({
-      instance,
-      loser,
-      survivor: topicId(instance, "Survivor"),
-      proposal: proposeTopics(instance, ["Loser", "Survivor"]),
-    });
-  } finally {
-    await instance.close();
-  }
-};
-
 const unchanged = ({ instance, loser }: Library): void => {
   assert.equal(itemsOf(instance, loser), 3);
   assert.equal(instance.database.count("select count(*) as n from pins"), 0);
@@ -188,6 +165,45 @@ describe("Accept of a Topic row hands back a failed first unit", () => {
         "alter table log_entries rename column renamed_topic_id to topic_id",
       );
       await acceptsAtOnce(library);
+    }));
+});
+
+describe("Accept of a Topic row whose claimed merge the merges stage runs first", () => {
+  it("answers done when the stage finished the merge before the request's first unit", () =>
+    withLibrary(async ({ instance, loser, proposal }) => {
+      const swept = beforeFirstBatch(instance, () => runMergesStage(instance));
+
+      assert.deepEqual(await answerOf(instance, proposal), [200, { state: "done" }]);
+      assert.equal(swept(), true);
+      assert.equal(pinsFrom(instance, "loser"), 1);
+      assert.equal(
+        instance.database.count("select count(*) as n from topics where id = ?", loser),
+        0,
+      );
+    }));
+
+  it("answers 404 when another merge removed the row after the stage handed the claim back", () =>
+    withInstance(async (instance) => {
+      await pasteTopics(instance, { A: ["a"], B: ["b"], C: ["c"] });
+      const a = topicId(instance, "A");
+      seedTopicItems(instance, { topicId: a, name: "A", from: 1000, items: 2 });
+      const first = proposeTopics(instance, ["A", "B"]);
+      const second = proposeTopics(instance, ["B", "C"]);
+      let secondAnswer: readonly [number, unknown] | null = null;
+      const staged = beforeFirstBatch(instance, async () => {
+        instance.database.script(
+          "create trigger test_on_pin before insert on pins begin select raise(abort, 'the unit fails'); end;",
+        );
+        await runMergesStage(instance).catch(() => {});
+        instance.database.script("drop trigger test_on_pin");
+        secondAnswer = await answerOf(instance, second);
+      });
+
+      assert.deepEqual(await answerOf(instance, first), [404, { error: "Not found" }]);
+      assert.equal(staged(), true);
+      assert.deepEqual(secondAnswer, [200, { state: "done" }]);
+      assert.equal(instance.database.count("select count(*) as n from topics where id = ?", a), 1);
+      assert.equal(pinsFrom(instance, "a"), 0);
     }));
 });
 

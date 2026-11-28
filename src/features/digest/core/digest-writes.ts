@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { Database } from "../../../core/kernel/database.ts";
 import { markDigest } from "../../../core/kernel/digest-marker.ts";
 import { opening } from "../../../core/kernel/job-rows.ts";
+import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
 import { providerSet } from "../../../core/kernel/provider-saved.ts";
 import { digests, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
@@ -21,13 +22,18 @@ interface DigestWriteInput {
   readonly kept: Readonly<KeptSelection>;
 }
 
-function openingPick(db: Database, itemId: number) {
-  return opening(db, {
-    kind: "related_pick",
-    address: sql`${items.originalUrl}`,
-    now: Date.now(),
-    where: and(eq(items.id, itemId), providerSet()) ?? sql`0`,
-  });
+function wikiAfterDigest(db: Database, itemId: number) {
+  const now = Date.now();
+
+  return [
+    opening(db, {
+      kind: "related_pick",
+      address: sql`${items.originalUrl}`,
+      now,
+      where: and(eq(items.id, itemId), providerSet()) ?? sql`0`,
+    }),
+    wokenBotWaits(db, { moved: { kind: "library" }, now }),
+  ];
 }
 
 export function digestWrites(db: Database, { stored, entries, kept }: Readonly<DigestWriteInput>) {
@@ -36,7 +42,7 @@ export function digestWrites(db: Database, { stored, entries, kept }: Readonly<D
   return [
     ...publishedLinks(db, itemId, entries, title),
     db.insert(digests).values(stored).onConflictDoUpdate({ target: digests.itemId, set: stored }),
-    openingPick(db, itemId),
+    ...wikiAfterDigest(db, itemId),
     ...selectionWrites(db, { itemId, generation }, kept.ids),
     ...digestPartWrites(db, eq(items.id, itemId)),
     ...commentPartWrites(db, eq(items.id, itemId), kept.bodies),
