@@ -278,7 +278,7 @@ For the states `none`, `expired` and `unreadable`, the Extension button leads th
 
 `useBackup` polls running exports through the shared `usePolling`. One `<output className="bk-state">` stays mounted in every state and only changes its text. A running export shows no percentage, because the total is unknown while it runs.
 
-`GET /api/export` returns only `gave-up` and `list-changed` as failures (`SHOWN_EXPORT_FAILURES`). The web app has no text for `cancelled` and `replaced`, because `exportStatus` answers `none` for both. Start export tolerates a 409 (another tab started one), Delete export tolerates a 404, and each reads the state again as its own step. A read that fails after a press that succeeded shows `EXPORT_TEXT.loadFailed` in the result line, so a successful press never shows the failure line of the button pressed.
+`GET /api/export` returns only `gave-up` and `list-changed` as failures (`SHOWN_EXPORT_FAILURES`). The web app has no text for `cancelled` and `replaced`, because `exportStatus` answers `none` for both. Start export tolerates a 409 (another tab started one), Delete export tolerates a 404, and each reads the state again as its own step. A 503 `restoring` from Start export shows `EXPORT_TEXT.startRestoring` and reads the Restore status once. The Restore block polls only while its own view runs. Without that read, a tab opened before another tab started the Restore would show neither Resume restore nor Cancel restore, which the text names. `BackupForm` holds the Restore state, so both blocks read the same one. A read that fails after a press that succeeded shows `EXPORT_TEXT.loadFailed` in the result line, so a successful press never shows the failure line of the button pressed.
 
 ### Restore block
 

@@ -12,7 +12,7 @@ import {
   entering,
 } from "../src/core/contract/restore-contract.ts";
 import { exportedZip } from "./export-restore-fixtures.ts";
-import type { Instance } from "./instance.ts";
+import type { Answer, Instance } from "./instance.ts";
 import { loggedAttempts, untilRetried } from "./job-fixtures.ts";
 import { until } from "./library-fixtures.ts";
 
@@ -175,6 +175,31 @@ export function holdLibrary(
 
 export function releaseLibrary(instance: Instance): void {
   instance.database.exec("delete from restores where id = 1");
+}
+
+export async function whileHeld<Seen>(
+  instance: Instance,
+  run: () => Promise<Seen>,
+  failure: "gave-up" | null = null,
+): Promise<Seen> {
+  assert.equal(
+    instance.database.rowCount("restores"),
+    0,
+    "whileHeld stages Restore 1 on an Instance that holds no Restore",
+  );
+  holdLibrary(instance, failure === null ? "running" : "failed", failure);
+
+  try {
+    return await run();
+  } finally {
+    releaseLibrary(instance);
+  }
+}
+
+const RefusalBodySchema = z.object({ error: z.string(), code: z.string() });
+
+export function refusal(answer: Answer) {
+  return { status: answer.status, body: RefusalBodySchema.parse(JSON.parse(answer.body)) };
 }
 
 export async function restoreLibrary({

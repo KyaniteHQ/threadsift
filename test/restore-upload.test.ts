@@ -6,7 +6,7 @@ import { z } from "zod";
 import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
-import { exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
+import { exportedZip, readyExport, savedLibrary } from "./export-restore-fixtures.ts";
 import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
 import {
@@ -221,5 +221,44 @@ describe("a Restore start deletes the AI tasks no Digest names, so the zip's tas
       [started.status, done.dropped["ai_tasks"], digestTasks(target)],
       [202, 0, digestTasks(source)],
     );
+  });
+});
+
+describe("a Restore start ends an Export that is still running, so no zip holds a half-restored library", () => {
+  let source: Instance;
+  let target: Instance;
+
+  before(async () => {
+    source = await Instance.start();
+    await source.setUp();
+    await savedLibrary(source, { inlineText: 1, fileText: 0 });
+    target = await Instance.start();
+    await target.setUp();
+  });
+
+  after(async () => {
+    await source.close();
+    await target.close();
+  });
+
+  it("marks the running Export failed with cancelled in the start batch", async () => {
+    const zip = await exportedZip(source);
+    const { id: exportId } = await readyExport(target);
+
+    target.database.exec(
+      "update exports set state = 'running', finished_at = null where id = ?",
+      exportId,
+    );
+    const id = await uploadedRestore(target, zip);
+    const started = await target.send("POST", `/api/restore/${String(id)}/start`);
+    const ended = target.database.rows(
+      z.object({ state: z.string(), failure: z.string().nullable() }),
+      "select state, failure from exports where id = ?",
+      exportId,
+    );
+
+    await restoredDone(target);
+
+    assert.deepEqual([started.status, ended], [202, [{ state: "failed", failure: "cancelled" }]]);
   });
 });
