@@ -12,8 +12,6 @@ import type { MergeKindSpec, MergeRow, Side } from "./merge-unit.ts";
 import { mergePinWrites } from "./pins.ts";
 import { atRevision, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
 
-type Outcome = "ran" | "lost";
-
 function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
   const { table, subject, from, into } = MERGE[row.kind];
   const names = sql`${proposals.id} = ${id} and ${from} = ${row.from.id} and ${into} = ${row.into.id} and exists (select 1 from ${table} where ${table.id} = ${row.from.id} and ${table.key} = ${row.from.key}) and exists (select 1 from ${table} where ${table.id} = ${row.into.id} and ${table.key} = ${row.into.key})`;
@@ -42,7 +40,7 @@ export async function applyUnit(
   ports: JobPorts,
   id: number,
   row: Readonly<MergeRow>,
-): Promise<Outcome> {
+): Promise<void> {
   const { db } = ports;
   const spec = MERGE[row.kind];
   const from = recomputed(row.from);
@@ -71,9 +69,5 @@ export async function applyUnit(
     after: retired(db, spec.table, from.id, gone),
   });
 
-  if (opened === null) return "lost";
-
-  await enqueueRows(ports, opened);
-
-  return "ran";
+  if (opened !== null) await enqueueRows(ports, opened);
 }

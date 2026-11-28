@@ -12,6 +12,7 @@ export interface DigestRead {
   readonly id: number;
   readonly task: number | null;
   readonly tags: string | null;
+  readonly topic?: string;
 }
 
 type StoredDigestRead =
@@ -67,8 +68,12 @@ export const storedTags = sql<
   string | null
 >`case when ${STORED_IS_JSON} then ${digests.digest} -> '$.tags' end`;
 
+function seenIs(stored: Readonly<SQLWrapper>, field: "task" | "tags" | "topic"): SQL {
+  return sql`(select ${stored} from ${digests} where ${digests.itemId} = json_extract(seen.value, '$.id')) is json_extract(seen.value, ${`$.${field}`})`;
+}
+
 export function unchangedDigests(reads: readonly DigestRead[]): SQL {
-  return sql`select json_extract(seen.value, '$.id') from json_each(${JSON.stringify(reads)}) as seen where (select ${digests.taskId} from ${digests} where ${digests.itemId} = json_extract(seen.value, '$.id')) is json_extract(seen.value, '$.task') and (select ${storedTags} from ${digests} where ${digests.itemId} = json_extract(seen.value, '$.id')) is json_extract(seen.value, '$.tags')`;
+  return sql`select json_extract(seen.value, '$.id') from json_each(${JSON.stringify(reads)}) as seen where ${seenIs(digests.taskId, "task")} and ${seenIs(storedTags, "tags")} and (json_type(seen.value, '$.topic') is null or ${seenIs(digests.topic, "topic")})`;
 }
 
 function digestRows(db: Database, where: SQL) {
@@ -78,6 +83,7 @@ function digestRows(db: Database, where: SQL) {
       digest: digests.digest,
       taskId: digests.taskId,
       tags: storedTags,
+      topic: digests.topic,
     })
     .from(digests)
     .where(where);

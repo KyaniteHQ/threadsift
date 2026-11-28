@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+
 type Release = () => void;
 
 export class Slots {
@@ -59,6 +61,14 @@ export class Slots {
   }
 }
 
+type Hold = () => Promise<void>;
+
+const holdsOfSlot = new AsyncLocalStorage<Hold[]>();
+
+export function holdSlotUntil(hold: Hold): void {
+  holdsOfSlot.getStore()?.push(hold);
+}
+
 export async function inSlot<Result>(
   slots: Slots,
   stop: AbortSignal,
@@ -68,9 +78,11 @@ export async function inSlot<Result>(
 
   if (release === null) return null;
 
+  const holds: Hold[] = [];
+
   try {
-    return await work();
+    return await holdsOfSlot.run(holds, work);
   } finally {
-    release();
+    void Promise.all(holds.map((hold) => hold())).then(release);
   }
 }
