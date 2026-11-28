@@ -3,9 +3,18 @@ import { after, before, describe, it } from "node:test";
 
 import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
+import { botInstance } from "./bot-task-fixtures.ts";
 import { exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
+import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { putPart, restoreStatus, settledRestore } from "./restore-fixtures.ts";
+import { item } from "./pin-fixtures.ts";
+import {
+  putPart,
+  restoredDone,
+  restoreStatus,
+  settledRestore,
+  startedRestore,
+} from "./restore-fixtures.ts";
 
 const codeOf = (body: string) => RestoreErrorSchema.parse(JSON.parse(body)).code;
 
@@ -161,5 +170,42 @@ describe("a part that arrives after its Restore left the upload is not kept", ()
     assert.equal(late.status, 409);
     assert.equal(codeOf(await late.text()), "not-uploading");
     assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
+  });
+});
+
+describe("a Restore that starts on an Instance with an AI task no Digest names keeps the id of every task in the zip", () => {
+  let source: Instance;
+  let target: Instance;
+
+  before(async () => {
+    source = await Instance.start();
+    await source.setUp();
+    source.database.script(item(1, [], []));
+    target = await botInstance();
+  });
+
+  after(async () => {
+    await source.close();
+    await target.close();
+  });
+
+  it("deletes the Verify task at Start, so the zip's task 1 is restored and the Digest names it", async () => {
+    const verify = await sentVerifyTask(target);
+
+    assert.equal(verify.id, 1);
+
+    await startedRestore(target, await exportedZip(source));
+
+    const done = await restoredDone(target);
+
+    assert.equal(done.dropped["ai_tasks"], 0);
+    assert.equal(done.restored["ai_tasks"], 1);
+    assert.equal(target.database.count("select count(*) as n from ai_tasks"), 1);
+    assert.equal(
+      target.database.count(
+        "select count(*) as n from ai_tasks where id = 1 and executor = 'caller' and item_id = 1",
+      ),
+      1,
+    );
   });
 });

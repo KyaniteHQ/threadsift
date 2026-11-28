@@ -4,7 +4,8 @@ import type { AiRefusal } from "../contract/ai-contract.ts";
 import type { Provider } from "../contract/provider-families.ts";
 import { ANSWERED, RUNNING, mayComplete, mayExpire, mayFail } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
-import { aiTasks } from "./schema.ts";
+import { holdsNoRow } from "./guards.ts";
+import { aiTasks, digests } from "./schema.ts";
 
 interface NewTask {
   readonly kind: string;
@@ -108,4 +109,10 @@ export function supersededTasks(db: Database, tasks: Readonly<SQLWrapper>) {
 
 export function expireAiTasks(db: Database, now: number) {
   return failingAiTask(db, { reason: "timeout", status: null }).where(and(RUNNING, mayExpire(now)));
+}
+
+export function deletedUndigestedTasks(db: Database, scope: Readonly<SQLWrapper>) {
+  return db
+    .delete(aiTasks)
+    .where(and(sql`${scope}`, holdsNoRow(db, digests, eq(digests.taskId, aiTasks.id))));
 }
