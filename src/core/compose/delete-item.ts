@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 import { itemFilesPrefix } from "../contract/file-keys.ts";
 import { logFailure } from "../kernel/failure-log.ts";
@@ -34,6 +34,7 @@ export async function deleteItem(
     wokenBotWaits(db, {
       moved: { kind: "library" },
       now: Date.now(),
+      when: sql`exists (select 1 from ${items} where ${items.id} = ${id})`,
     }),
     db.delete(items).where(eq(items.id, id)).returning({ id: items.id }),
   ]);

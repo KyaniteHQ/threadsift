@@ -60,11 +60,15 @@ export function topicMoves(
           sql`${digests.itemId} in (select ${items.id} from ${items} where ${items.topicId} = ${loser})`,
         ),
       ),
+    wokenBotWaits(db, {
+      moved: { kind: "library" },
+      now: Date.now(),
+      when: sql`exists (select 1 from ${items} where ${moving})`,
+    }),
     db.update(items).set({ topicId: survivor }).where(moving),
     db
       .update(logEntries)
       .set({ topicId: survivor })
       .where(and(eq(logEntries.topicId, loser), among(logEntries.id, entryIds))),
-    wokenBotWaits(db, { moved: { kind: "library" }, now: Date.now() }),
   ];
 }

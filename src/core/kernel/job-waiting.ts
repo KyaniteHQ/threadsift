@@ -7,7 +7,7 @@ import {
   ITEM_JOB_KINDS,
   type WaitReason,
 } from "../contract/job-contract.ts";
-import { GROK_BOT_EXECUTOR, RUNNING } from "./ai-task-state.ts";
+import { GROK_BOT_EXECUTOR, UNANSWERED } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
@@ -60,13 +60,25 @@ function jobsReading(moved: MovedInput): SQL {
     : sql`${jobs.kind} not in (${listed(ITEM_JOB_KINDS)})`;
 }
 
-const AWAITS_SENT_TASK = sql`exists (select 1 from ${aiTasks} where ${aiTasks.jobId} = ${jobs.id} and ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${RUNNING})`;
+const AWAITS_ANSWER = sql`exists (select 1 from ${aiTasks} where ${aiTasks.jobId} = ${jobs.id} and ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${UNANSWERED})`;
 
 export function wokenBotWaits(
   db: Database,
-  { moved, now }: Readonly<{ moved: MovedInput; now: number }>,
+  {
+    moved,
+    now,
+    when = sql`1`,
+  }: Readonly<{ moved: MovedInput; now: number; when?: Readonly<SQLWrapper> }>,
 ) {
-  return wokenJobs(db, now, waitingFor(GROK_BOT_WAIT), AWAITS_SENT_TASK, jobsReading(moved));
+  return wokenJobs(
+    db,
+    now,
+    waitingFor(GROK_BOT_WAIT),
+    sql`${jobs.nextAttemptAt} > ${now}`,
+    AWAITS_ANSWER,
+    jobsReading(moved),
+    sql`${when}`,
+  );
 }
 
 export async function enqueueWoken(
