@@ -137,9 +137,10 @@ in
       after = [ "ci:install" ];
       exec = "pnpm test";
     };
-    "extension:build" = {
+    "extension:package" = {
       after = [ "ci:install" ];
-      exec = "pnpm run build:extension";
+      showOutput = true;
+      exec = "pnpm run package:extension";
     };
     "web:build" = {
       after = [ "ci:install" ];
@@ -148,10 +149,9 @@ in
     "ci:build" = {
       after = [
         "ci:install"
-        "extension:build"
         "web:build"
       ];
-      exec = "pnpm run build:worker && pnpm run lint:extension";
+      exec = "pnpm run build:worker";
     };
     "ci:audit" = {
       after = [ "ci:install" ];
@@ -173,6 +173,7 @@ in
         "ci:build"
         "ci:audit"
         "design:check"
+        "extension:package"
       ];
     };
     "container:build" = {

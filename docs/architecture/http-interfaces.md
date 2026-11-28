@@ -73,7 +73,7 @@ The 400, 403, 413 and 415 of each route in `GET /api/openapi.json` come from the
 - `results[i]` answers `links[i]` with `added`, `known` or `refused` (a host that is not globally reachable, which does not stop the other links).
 - An invalid entry answers 400 and saves nothing.
 
-`import` is `{name, cursor, previous?}`. The caller picks the `name` and an opaque `cursor`, such as the last bookmark id. When `previous` is sent, the Instance saves the cursor only while the stored one equals it (null means only while nothing is stored).
+`import` is `{name, cursor, previous?, previousUpdatedAt?}`. The caller picks the `name` and an opaque `cursor`, such as the last bookmark id. A `previous` of null saves the cursor only while nothing is stored. A request without `previous` saves it with no guard, so a late one can move a cursor back; the X bookmark sync of the Threadsift bot sends that form, as the only writer of its cursors. A text `previous` comes with `previousUpdatedAt`, the `updatedAt` that `GET /api/imports/{name}` answered with that cursor. The Instance then saves the cursor only while the stored cursor equals `previous` and the stored `updatedAt` equals `previousUpdatedAt`. A cursor that left `previous` and came back to it has a new `updatedAt`, so a late request that sends a text `previous` does not match and cannot move the cursor back. A request that sends a text `previous` without `previousUpdatedAt`, sends `previousUpdatedAt` with `previous` null or absent, or sends another key in `import` answers 400 and saves nothing.
 
 The Instance saves the cursor only after every link has an outcome, so a call that dies half way leaves the old cursor, and the repeat answers `known` for the links already saved. `GET /api/imports/{name}` reads it back, and an agent token calls both ([Data model outline](data-model-outline.md), the import cursor).
 
@@ -89,7 +89,7 @@ The Instance saves the cursor only after every link has an outcome, so a call th
 The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 to an agent token. All Highlight and Note writes answer 403 to an agent token too. `GET /api/highlights` answers one page of the Highlights page and is open to agent tokens.
 
 - `POST /api/items/:id/highlights` answers 409 when the text changed since the owner read it, and 400 with `code` `selector-mismatch` when the passage does not stand at its hint in that text.
-- Its `target.commentId` takes the comment id that `GET /api/items/:id` answers (`CommentId`) and answers 400 for an id with Reddit's `t1_` prefix, which a Digest's `keptComments` still accept. A Reader tab that loaded an Item from a build that stored the prefix sends it, so that tab must be reloaded.
+- Its `target.commentId` takes the comment id that `GET /api/items/:id` answers (`CommentId`), in any letter case, and answers 400 for an id with Reddit's `t1_` prefix, which a Digest's `keptComments` still accept. A Reader tab that loaded an Item from a build that stored the prefix sends it, so that tab must be reloaded.
 - `PUT /api/items/:id/note` takes the Note's `revision` and answers 409 with the stored Note when it moved.
 - `GET /api/highlights` answers its `counts` only when the request has no `cursor`, by the rule of the Item list, so a Load more does not count the library again.
 
@@ -132,5 +132,5 @@ The Web Share Target is a form `POST /share` that the app handles on the server.
 The Export and Restore routes answer 403 to an agent token and 401 with no owner session, because a leaked token must not copy the library in one request.
 
 - One Export exists at a time, and a ready one is kept 24 hours.
-- A Restore starts only into an empty library. While it runs, a write of `POST /api/items` or `POST /api/items/batch` that would store an Item answers 503 with `code: "restoring"`, and the MCP `add` tool returns an error with the same text.
+- A Restore starts only into an empty library. While it runs, a write of `POST /api/items` or `POST /api/items/batch` that would store an Item answers 503 with `code: "restoring"`, and the MCP `add` tool returns an error with the same text. `POST /api/items/{id}/highlights`, `PUT /api/items/{id}/note`, `POST /api/items/{id}/digest`, `POST /api/topics/{key}/overview`, `POST /api/proposals/{id}/accept` (except for a `highlight-lost` row), `POST /api/settings/ai/verify` and `PUT /api/settings/reddit` answer the same 503 ([Export, backup and restore](export-backup-and-restore.md), While it runs).
 - [Export, backup and restore](export-backup-and-restore.md) holds the limits of the download on the Worker.

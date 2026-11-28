@@ -1,6 +1,7 @@
 import { GROK_BOT_WAIT } from "../../../core/contract/job-contract.ts";
 import { type BotStep, type AiTaskRow, stepOf } from "../../../core/kernel/ai-task-state.ts";
 import { lostOutcome } from "../../../core/kernel/guarded-outcome.ts";
+import { guardHolds } from "../../../core/kernel/guards.ts";
 import type {
   ClaimedJob,
   DeferredOutcome,
@@ -18,16 +19,16 @@ const FULL_CAP_DEFER_MS = 60_000;
 
 const STALENESS_CHECKED_STEPS: ReadonlySet<BotStep> = new Set(["resend", "wait", "expire"]);
 
-type Waiting = Readonly<Pick<AiTaskRow, "id" | "deadline">>;
+type Waiting = Readonly<Pick<AiTaskRow, "id" | "deadline" | "context">>;
 
 type SentTask = Readonly<Pick<AiTaskRow, "id" | "kind" | "inputs" | "context" | "deadline">>;
 
-function waiting(task: Waiting): DeferredOutcome {
+function waiting(kind: KindFace, task: Waiting): DeferredOutcome {
   return {
     deferredUntil: task.deadline,
     wait: GROK_BOT_WAIT,
     countsAttempt: false,
-    unlessOpen: task.id,
+    unlessOpen: { taskId: task.id, current: kind.current(task.context ?? "") },
     writes: [],
   };
 }
@@ -46,7 +47,7 @@ async function sentOutcome(
 
   if (sent.kind === "failed") throw new Error(`The Grok Bot send failed: ${sent.reason}`);
 
-  return waiting(context.task);
+  return waiting(kind, context.task);
 }
 
 async function startedOutcome(
@@ -120,7 +121,7 @@ async function resendStep(
     callbackHash: credential.hash,
   });
 
-  if (!renewed) return waiting(task);
+  if (!renewed) return waiting(context.kind, task);
 
   return sentOutcome(ports, { ...context, token: credential.value });
 }
@@ -157,7 +158,10 @@ export async function botStep(
 
   if (task === null || step === "start") return startStep(ports, job, kind);
 
-  if (STALENESS_CHECKED_STEPS.has(step) && !(await kind.current(ports.db, task.context ?? ""))) {
+  if (
+    STALENESS_CHECKED_STEPS.has(step) &&
+    !(await guardHolds(ports.db, kind.current(task.context ?? "")))
+  ) {
     return lostOutcome(ports.db, { taskId: task.id });
   }
 
@@ -165,7 +169,7 @@ export async function botStep(
     case "resend":
       return resendStep(ports, { kind, job, task });
     case "wait":
-      return waiting(task);
+      return waiting(kind, task);
     case "apply":
       return kind.apply(ports, job, task);
     case "expire":

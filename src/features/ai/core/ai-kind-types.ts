@@ -113,7 +113,7 @@ export type SentTask = Readonly<Pick<AiTaskRow, "id" | "kind" | "context">>;
 
 export interface KindFace {
   readonly prepare: (ports: JobPorts, job: Readonly<ClaimedJob>) => Promise<BotPreparation>;
-  readonly current: (db: Database, context: string) => Promise<boolean>;
+  readonly current: (context: string) => SQLWrapper;
   readonly describe: BotAnswering["describe"];
   readonly apply: (
     ports: JobPorts,
