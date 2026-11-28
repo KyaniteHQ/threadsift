@@ -25,6 +25,7 @@ export interface SearchRead {
 export interface XApiReads {
   readonly statusId: string;
   readonly root: Lookup | null;
+  readonly quotesAsked: readonly string[];
   readonly quoteLookups: readonly Lookup[];
   readonly searches: readonly SearchRead[];
 }
@@ -102,11 +103,15 @@ function chainOf(root: ApiPost, known: Readonly<Known>): readonly Quoted[] {
   return chain;
 }
 
-function quotedOf({ post, author }: Readonly<Quoted>, known: Readonly<Known>): XQuoted {
+function quotedOf(
+  { post, author }: Readonly<Quoted>,
+  quoteShown: boolean,
+  known: Readonly<Known>,
+): XQuoted {
   return {
     id: post.id,
     author,
-    text: shownText(post),
+    text: shownText(post, quoteShown),
     postedAt: postedAtOf(post),
     images: photosOf(post, known),
   };
@@ -141,26 +146,6 @@ function candidatesOf(
   return [...found.values()];
 }
 
-function underRoot(candidates: readonly Candidate[], rootId: string): readonly Candidate[] {
-  const parentOf = new Map(candidates.map(({ post, parentId }) => [post.id, parentId]));
-
-  const reaches = (id: string): boolean => {
-    const seen = new Set<string>();
-    let at = parentOf.get(id);
-
-    while (at !== undefined && !seen.has(at)) {
-      if (at === rootId) return true;
-
-      seen.add(at);
-      at = parentOf.get(at);
-    }
-
-    return false;
-  };
-
-  return candidates.filter(({ post }) => reaches(post.id));
-}
-
 function replyOf(
   { post, author, parentId }: Readonly<Candidate>,
   known: Readonly<Known>,
@@ -169,7 +154,7 @@ function replyOf(
     id: post.id,
     parentId,
     author,
-    text: shownText(post),
+    text: shownText(post, false),
     postedAt: postedAtOf(post),
     likes: post.public_metrics?.like_count ?? null,
     replies: post.public_metrics?.reply_count ?? null,
@@ -185,20 +170,20 @@ export function threadOf(reads: Readonly<XApiReads>): XCliThreadValue | null {
   if (root === undefined || author === null) return null;
 
   const candidates = candidatesOf(reads, root, author, known);
-  const kept =
-    (root.conversation_id ?? root.id) === root.id ? candidates : underRoot(candidates, root.id);
+
+  const chain = chainOf(root, known);
 
   return {
     post: {
       id: root.id,
       author,
-      text: shownText(root),
+      text: shownText(root, chain.length > 0),
       postedAt: postedAtOf(root),
       replies: root.public_metrics?.reply_count ?? null,
       images: photosOf(root, known),
-      quoted: chainOf(root, known).map((quoted) => quotedOf(quoted, known)),
+      quoted: chain.map((quoted, at) => quotedOf(quoted, at + 1 < chain.length, known)),
     },
-    replies: kept.map((candidate) => replyOf(candidate, known)),
+    replies: candidates.map((candidate) => replyOf(candidate, known)),
   };
 }
 
@@ -213,7 +198,7 @@ function quoteToExpand(
   if (last === undefined || chain.length >= X_QUOTES_MAX) return null;
 
   const next = referenced(last, "quoted");
-  const looked = reads.quoteLookups.some(({ data }) => data?.id === last.id);
+  const looked = reads.quotesAsked.includes(last.id);
 
   return next === null || known.posts.has(next) || looked ? null : last.id;
 }
@@ -231,6 +216,7 @@ export function factsOf(reads: Readonly<XApiReads>): PlanFacts {
             conversationId: root.conversation_id ?? root.id,
             author: thread.post.author,
             replyCount: root.public_metrics?.reply_count ?? 0,
+            postedAt: thread.post.postedAt,
           },
     quoteToExpand: root === undefined ? null : quoteToExpand(reads, root, knownOf(reads)),
     quoteLookups: reads.quoteLookups.length,

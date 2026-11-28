@@ -177,6 +177,18 @@ Not verified:
 - A successful Worker claim at the deadline. Only the failure path ran under `wrangler dev --local`.
 - The waiting texts for `grok-bot` and `topic-busy` were not reviewed in Impeccable.
 
+### X API reader
+
+No run has sent a request to X through the Instance's reader yet. Probes S4 and S5 are prepared and wait for the owner's go ([CI, releases and rollback](ci-releases-and-rollback.md#x-api-probe)). Runs against a refused local port and synthetic answers show the planner, the counter, the mapper and the notes.
+
+Not verified:
+
+- The answers for 401, 402, 403 and 429: the `usage-capped` problem type, the `client-not-enrolled` and `client-forbidden` types, and a 403 whose detail starts `client IP not allowed`. They follow X's docs, and probes S1 to S3 saw only 200 and 503.
+- That X answers a full-archive search with `start_time` set to the post's own time for a post older than 30 days. X's docs say it does ([decisions and evidence](decisions-and-evidence.md#full-archive-search-window)).
+- The worst case of a lookup, 4 posts and 4 users. It counts one referenced post for each of X's 3 reference types, and no run has measured an answer near it.
+- The price of `GET /2/usage/tweets` and `GET /2/usage/credits`. The Instance counts each at 0.20 USD.
+- Whether a request with no answer was billed. The Instance counts it at its worst case.
+
 ## Ingest pipeline on the Worker
 
 Not verified:

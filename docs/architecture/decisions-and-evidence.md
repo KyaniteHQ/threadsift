@@ -2,7 +2,7 @@
 
 [The spec](../spec.md) states what the app does. This page holds the reasons behind its product decisions and the measured or sourced facts the spec leaves out. A fact here carries the command, address or source that shows it. [Open items and unverified claims](open-items-and-unverified-claims.md) holds a fact no run has proven.
 
-Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [X developer terms](#x-developer-terms), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131), [Highlights page order](#highlights-page-order), [Reading place at a close](#reading-place-at-a-close).
+Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [X developer terms](#x-developer-terms), [Full-archive search window](#full-archive-search-window), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131), [Highlights page order](#highlights-page-order), [Reading place at a close](#reading-place-at-a-close).
 
 ## Product decisions
 
@@ -92,6 +92,15 @@ The table splits the second point in two: a stored post and a shown post.
 - **A public demo of other authors' posts.** X's [Display Requirements](https://docs.x.com/developer-terms/display-requirements) bar the use of "X content to promote any product or service (e.g., by displaying X content in advertising or otherwise displaying X content to imply endorsement of any product or service) without explicit permission from the user." X has not said whether a public demo that shows the posts of authors who gave permission fits pay-per-use. The choice: the public demo shows only the owner's own X posts.
 
 The hosted product stores an X Item as a Link-only Item, because X has published no answer on what a deletion reaches or on how current a shown post must be, and no end-user threshold for pay-per-use ([the spec](../spec.md), Hosted product).
+
+## Full-archive search window
+
+Every full-archive search of the X API reader sends `start_time` set to the post's own time, cut to the second. X's docs say that without it the search returns posts from the last 30 days only: "By default, results return Posts from the last 30 days" ([full-archive search quickstart](https://docs.x.com/x-api/posts/search/quickstart/full-archive-search#step-2-set-a-time-range)), and "If you want to get Posts that are older than 30 days, you can use the start_time and end_time parameters" ([getting historical posts](https://docs.x.com/tutorials/getting-historical-posts-using-the-full-archive-search-endpoint)). Most saved posts are older than 30 days, so without it the paid search would read no replies and no Author thread.
+
+- `start_time` over `since_id`: "At most one of `start_time`, `since_id` may be provided" ([Search All Posts](https://docs.x.com/x-api/posts/search-posts-all)). The docs tie the 30-day default to `start_time` only and say nothing about whether `since_id` lifts it, so the reader sends `start_time`.
+- The earliest value: the docs set no minimum for `start_time`. They say the archive starts in March 2006 and the first post is of 2006-03-21 ([full-archive search](https://docs.x.com/x-api/posts/search/quickstart/full-archive-search), [data availability](https://docs.x.com/x-api/enterprise-gnip-2.0/fundamentals/search-api#data-availability-/-important-date)). A post's own time is never earlier, and its replies are never older than it.
+- A post without `created_at` gets no search. The lookup asks for `created_at`, so this does not happen in an answer X documents.
+- No run has sent such a search yet ([Open items](open-items-and-unverified-claims.md#x-api-reader)).
 
 ## The library wiki
 

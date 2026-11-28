@@ -86,7 +86,7 @@ The core is the `contract`, `kernel` and `compose` folders and the core half of 
 
 Both targets turn their variables into `Ports` with the same two functions:
 
-1. `settingsOf` reads the five variables both targets share (`SettingVariables`, which `settingVariablesOf` takes from `process.env` or from `Env`) and returns `Settings`.
+1. `settingsOf` reads the variables both targets share (`SETTING_NAMES`, typed `SettingVariables`, which `settingVariablesOf` takes from `process.env` or from `Env`) and returns `Settings`.
 2. `portsOf` takes `Settings` and the target's own adapters (`TargetAdapters`) and returns `Ports`. It seals the secret key, passes `nodeCrypto`, checks the public origin (`publicOriginOf`) and fills `Ports.config` and `Ports.ai`.
 
 The container copies the values it reads from `process.env` once through `nodeEnvironment`, which takes the names of the shared variables from `settingVariablesOf`. `startNode` passes the result on. The Worker's `Env` extends `SettingVariables`, and `workerAdapters` builds its adapters from the bindings. The name of a shared variable therefore exists once.
@@ -103,9 +103,9 @@ A variable that Threadsift reads (`SETTING_NAMES` and the ones `nodeEnvironment`
 | Variables | Step | Effect |
 |---|---|---|
 | The variables that `nodeEnvironment` reads (container) | `nodeEnvironment` drops every empty entry of `process.env` | an empty `PORT` is `8080`. An empty `DATA_DIR` is the `.data` folder in the repository root (in the image, a link to `/data`). An empty `GROK_HOME` or `THREADSIFT_FETCHERS` is absent. An empty `THREADSIFT_GROK_AUTO_UPDATE` is `false`, so an empty value passed to the container turns off the `true` that the image sets. |
-| The six shared variables (both targets) | `settingVariablesOf` applies `unsetWhenEmpty` | the container passes them through it from `process.env`. The Worker reads them, `PASSWORD_RESET_CODE` included, only through it. |
+| The shared variables of `SETTING_NAMES` (both targets) | `settingVariablesOf` applies `unsetWhenEmpty` | the container passes them through it from `process.env`. The Worker reads them, `PASSWORD_RESET_CODE` included, only through it. |
 
-The provider comparison tool calls `unsetWhenEmpty` for the Claude Code and Codex variables it reads. A nonempty `THREADSIFT_PUBLIC_ORIGIN` of spaces, or a nonempty `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` or `THREADSIFT_GROK_AUTO_UPDATE` other than `true` or `false`, is still an error (a `ZodError` for the last two).
+The provider comparison tool calls `unsetWhenEmpty` for the Claude Code and Codex variables it reads. A nonempty `THREADSIFT_PUBLIC_ORIGIN` or `THREADSIFT_X_API_ORIGIN` of spaces, or one that is not a valid origin, or a nonempty `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` or `THREADSIFT_GROK_AUTO_UPDATE` other than `true` or `false`, is still an error (a `ZodError` for the last two).
 
 ## Why Hono
 

@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { X_API_REFUSALS } from "../src/core/contract/x-api-contract.ts";
-import { answerOf, concludedOfRefusal } from "../src/features/x/core/x-api-answer.ts";
+import { answerOf } from "../src/features/x/core/x-api-answer.ts";
 import type { Json } from "./instance.ts";
 
 const NOW = Date.parse("2026-11-28T12:00:00.000Z");
@@ -85,24 +84,6 @@ describe("an X API answer maps to the reader's own failure note, or to a wait un
     assert.deepEqual(
       answerOf({ status: 503, header: () => null, text: "Service Unavailable" }, NOW),
       { kind: "refused", reason: "api-unreachable", status: 503 },
-    );
-  });
-
-  it("ends the Item with the X API reader's own note for every refusal", () => {
-    assert.deepEqual(
-      Object.fromEntries(X_API_REFUSALS.map((reason) => [reason, concludedOfRefusal(reason)])),
-      {
-        "secret-missing": { status: "not-requested", note: "api-key-unopened" },
-        "not-configured": { status: "not-requested", note: "api-not-set-up" },
-        "api-key-rejected": { status: "not-requested", note: "api-key-rejected" },
-        "api-not-enrolled": { status: "not-requested", note: "api-not-enrolled" },
-        "api-ip-blocked": { status: "not-requested", note: "api-ip-blocked" },
-        "api-out-of-credits": { status: "not-requested", note: "api-out-of-credits" },
-        "api-rate-limited": { status: "network", note: "api-unreachable" },
-        "api-refused": { status: "not-requested", note: "api-refused" },
-        "api-unreachable": { status: "network", note: "api-unreachable" },
-        "api-answer-refused": { status: "unreadable", note: "api-answer-unreadable" },
-      },
     );
   });
 });

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { X_API_PROBLEMS } from "../../../core/contract/x-api-contract.ts";
 import { StatusIdSchema } from "../../../core/contract/x-wire.ts";
 import { parsedJson } from "../../../core/kernel/parsed-json.ts";
 import type { Resources } from "./x-api-plan.ts";
@@ -7,8 +8,8 @@ import type { Resources } from "./x-api-plan.ts";
 const STATUS_LINK = /^https:\/\/(?:www\.)?(?:x|twitter)\.com\/[^/]+\/status\/(\d+)/u;
 
 const ABSENT_PROBLEMS = new Set([
-  "https://api.x.com/2/problems/resource-not-found",
-  "https://api.x.com/2/problems/not-authorized-for-resource",
+  `${X_API_PROBLEMS}resource-not-found`,
+  `${X_API_PROBLEMS}not-authorized-for-resource`,
 ]);
 
 const UrlEntitySchema = z
@@ -117,10 +118,10 @@ const CountedSchema = z.looseObject({
     .optional(),
 });
 
-export function resourcesOf(text: string): Resources {
+export function resourcesOf(text: string): Resources | null {
   const counted = parsedJson(CountedSchema, text);
 
-  if (counted === null) return { posts: 0, users: 0 };
+  if (counted === null) return null;
 
   const { data, includes } = counted;
   const own = data === undefined ? 0 : Array.isArray(data) ? data.length : 1;
@@ -156,8 +157,8 @@ function quotesThatPost(expanded: string | undefined, quotedId: string | null): 
   return quotedId !== null && STATUS_LINK.exec(expanded ?? "")?.[1] === quotedId;
 }
 
-export function shownText(post: ApiPost): string {
-  const quotedId = referenced(post, "quoted");
+export function shownText(post: ApiPost, quoteShown: boolean): string {
+  const quotedId = quoteShown ? referenced(post, "quoted") : null;
   const links = [...(post.note_tweet?.entities?.urls ?? []), ...(post.entities?.urls ?? [])];
 
   const linked = links.reduce((text, { url, expanded_url: expanded, media_key: media }) => {

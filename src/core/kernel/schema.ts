@@ -39,7 +39,7 @@ export { redditSettings } from "./reddit-tables.ts";
 
 export { threadComments, threads } from "./thread-tables.ts";
 
-export { xApiSettings, xApiSpend } from "./x-api-tables.ts";
+export { xApiItemSpend, xApiSettings, xApiSpend } from "./x-api-tables.ts";
 
 export { pins } from "./pin-tables.ts";
 

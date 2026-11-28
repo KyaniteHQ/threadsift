@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import type { XApiRefusal } from "../../../core/contract/x-api-contract.ts";
+import { X_API_PROBLEMS, type XApiRefusal } from "../../../core/contract/x-api-contract.ts";
 import type { XReadNote } from "../../../core/contract/x-read-note.ts";
 import type { Concluded } from "../../media/core/details.ts";
 
@@ -11,11 +11,12 @@ const FORBIDDEN = 403;
 const TOO_MANY_REQUESTS = 429;
 const SERVER_ERRORS = 500;
 
-const PROBLEMS = "https://api.x.com/2/problems/";
+const NOT_ENROLLED = new Set([
+  `${X_API_PROBLEMS}client-not-enrolled`,
+  `${X_API_PROBLEMS}client-forbidden`,
+]);
 
-const NOT_ENROLLED = new Set([`${PROBLEMS}client-not-enrolled`, `${PROBLEMS}client-forbidden`]);
-
-const USAGE_CAPPED = `${PROBLEMS}usage-capped`;
+const USAGE_CAPPED = `${X_API_PROBLEMS}usage-capped`;
 
 const IP_NOT_ALLOWED = /^client IP not allowed\b/u;
 

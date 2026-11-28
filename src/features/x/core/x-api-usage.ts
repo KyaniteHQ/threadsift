@@ -5,16 +5,14 @@ import { X_API_USAGE_READ_MICROS } from "../../../core/contract/x-api-contract.t
 import { report } from "../../../core/kernel/failure-log.ts";
 import { parsedJson } from "../../../core/kernel/parsed-json.ts";
 import { claimingRun } from "../../wiki/core/scheduled-claim.ts";
-import { xApiGet } from "./x-api-request.ts";
+import { meteredGet } from "./x-api-metered.ts";
 import type { ReadPorts } from "./x-api-send.ts";
-import { recordXPosts, reserved, settled, spentOn, utcDayOf } from "./x-api-spend.ts";
+import { recordXPosts, spentOn, utcDayOf } from "./x-api-spend.ts";
 import { loadXApi, tokenSaved } from "./x-api-token.ts";
 
 const USAGE_TASK = "x-api-usage";
 
 const USAGE_PATH = "/2/usage/tweets?days=2&usage.fields=daily_project_usage";
-
-const NOTHING = { posts: 0, users: 0 } as const;
 
 const UsageSchema = z.object({
   data: z.object({
@@ -34,30 +32,38 @@ function postsOn(text: string, day: string): number | null {
 }
 
 export async function readXApiUsage(ports: Readonly<ReadPorts>, now: number): Promise<void> {
-  const claimed = await claimingRun(ports.db, USAGE_TASK, now, DAY_MS, tokenSaved());
+  const today = Math.floor(now / DAY_MS) * DAY_MS;
+  const claimed = await claimingRun(ports.db, USAGE_TASK, today, DAY_MS, tokenSaved());
+
+  if (claimed.length === 0) return;
+
   const { auth, limits } = await loadXApi(ports);
 
-  if (claimed.length === 0 || auth.kind !== "token") return;
+  if (auth.kind !== "token") return;
 
-  const today = utcDayOf(now);
-  const yesterday = utcDayOf(now - DAY_MS);
-  const worst = { day: today, worstMicros: X_API_USAGE_READ_MICROS };
+  const yesterday = utcDayOf(today - DAY_MS);
+  const sent = await meteredGet(
+    {
+      db: ports.db,
+      dayLimitMicros: limits.dayLimitMicros,
+      itemId: null,
+      price: { kind: "flat", micros: X_API_USAGE_READ_MICROS },
+    },
+    {
+      origin: ports.config.xApiOrigin,
+      token: auth.token,
+      path: USAGE_PATH,
+      signal: new AbortController().signal,
+    },
+  );
 
-  if (!(await reserved(ports.db, { ...worst, dayLimitMicros: limits.dayLimitMicros }))) {
+  if (sent === null) {
     report(USAGE_TASK, { read: "over-limit" });
 
     return;
   }
 
-  const { answer } = await xApiGet({
-    origin: ports.config.xApiOrigin,
-    token: auth.token,
-    path: USAGE_PATH,
-    signal: new AbortController().signal,
-  });
-
-  await settled(ports.db, { ...worst, counted: NOTHING });
-
+  const { answer } = sent;
   const xPosts = answer.kind === "ok" ? postsOn(answer.text, yesterday) : null;
   const counted = await spentOn(ports.db, yesterday);
 
@@ -65,7 +71,8 @@ export async function readXApiUsage(ports: Readonly<ReadPorts>, now: number): Pr
     read: xPosts === null ? "no-data" : "read",
     status: answer.kind === "refused" ? answer.status : null,
     day: yesterday,
-    countedPosts: counted.posts + counted.users,
+    countedPosts: counted.posts,
+    countedUsers: counted.users,
     xPosts,
   });
 

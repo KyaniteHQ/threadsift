@@ -1,15 +1,24 @@
-export const MICROS_PER_USD = 1_000_000;
+import {
+  MICROS_PER_USD,
+  X_API_LOOKUP_WORST,
+  X_API_POST_MICROS,
+  X_API_USAGE_READ_MICROS,
+  X_API_USER_MICROS,
+  X_REFERENCE_TYPES,
+} from "../src/core/contract/x-api-contract.ts";
 
-export const REFERENCE_TYPES = 3;
+export { MICROS_PER_USD } from "../src/core/contract/x-api-contract.ts";
+
+export const REFERENCE_TYPES = X_REFERENCE_TYPES;
 
 export const ASSUMED = {
-  usageReadMicros: 200_000,
-  usernameUsersPerPost: 1 + REFERENCE_TYPES,
+  usageReadMicros: X_API_USAGE_READ_MICROS,
+  usernameUsersPerPost: X_API_LOOKUP_WORST.users,
 } as const;
 
 export const PRICE_MICROS = {
-  post: 5_000,
-  user: 10_000,
+  post: X_API_POST_MICROS,
+  user: X_API_USER_MICROS,
   usageRead: ASSUMED.usageReadMicros,
 } as const;
 

@@ -1,3 +1,12 @@
+CREATE TABLE `x_api_item_spend` (
+	`item_id` integer NOT NULL,
+	`day` text NOT NULL,
+	`micros` integer DEFAULT 0 NOT NULL,
+	PRIMARY KEY(`item_id`, `day`),
+	FOREIGN KEY (`item_id`) REFERENCES `items`(`id`) ON UPDATE no action ON DELETE cascade,
+	CONSTRAINT "x_api_item_spend_micros" CHECK("x_api_item_spend"."micros" >= 0)
+);
+--> statement-breakpoint
 CREATE TABLE `x_api_settings` (
 	`id` integer PRIMARY KEY NOT NULL,
 	`sealed_token` text,

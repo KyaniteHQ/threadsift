@@ -10,10 +10,9 @@ import {
   repliesOf,
 } from "../../thread/core/thread-store.ts";
 import type { ApiRead } from "./x-api-read.ts";
-import { NOTE_OF_REFUSAL, type ToVerify } from "./x-fetcher.ts";
-import { queuedVerification } from "./x-verify-store.ts";
+import { NOTE_OF_REFUSAL } from "./x-fetcher.ts";
 
-async function apiPublished(
+export async function apiPublished(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
   { thread }: Readonly<ApiRead>,
@@ -40,24 +39,5 @@ async function apiPublished(
       holds: sql`${holds} and ${outcome.precondition?.holds ?? sql`1`}`,
       rebuild: () => apiPublished(ports, job, { status: "x-api", thread }, deadline),
     },
-  };
-}
-
-export function readOutcome(
-  ports: JobPorts,
-  job: Readonly<ClaimedJob>,
-  read: Readonly<ToVerify | ApiRead>,
-  deadline: AbortSignal,
-): Promise<SettledOutcome> | SettledOutcome {
-  if (read.status === "x-api") return apiPublished(ports, job, read, deadline);
-
-  return {
-    writes: queuedVerification(ports.db, {
-      itemId: job.itemId,
-      address: job.address,
-      thread: read.thread,
-      digest: null,
-      cliAttempts: job.attempts,
-    }),
   };
 }

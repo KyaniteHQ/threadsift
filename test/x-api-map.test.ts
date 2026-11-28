@@ -32,8 +32,6 @@ const pageOf = (answer: Json) => parsedPage(JSON.stringify(answer));
 const countOf = (answer: Json) => resourcesOf(JSON.stringify(answer));
 
 function parsedOrFail<Value>(value: Value | null): Value {
-  assert.notEqual(value, null);
-
   if (value === null) throw new Error("the answer did not parse");
 
   return value;
@@ -52,6 +50,7 @@ function reads(
   return {
     statusId: ROOT_ID,
     root: parsedOrFail(lookupOf(root)),
+    quotesAsked: [],
     quoteLookups: quotes.map((answer) => parsedOrFail(lookupOf(answer))),
     searches: searches.map(({ step, minLikes = null, page }) => ({
       step,
@@ -137,6 +136,7 @@ describe("the X API answers map to the thread the other X readers produce", () =
 
     const second: XApiReads = {
       ...first,
+      quotesAsked: [chain[0] ?? ""],
       quoteLookups: [
         parsedOrFail(
           lookupOf(
@@ -157,15 +157,38 @@ describe("the X API answers map to the thread the other X readers produce", () =
     assert.equal(factsOf(second).quoteLookups, 1);
   });
 
-  it("stops the chain at a quoted post X did not return, without a lookup of it", () => {
+  it("stops the chain at a quoted post X did not return, without a lookup of it, and keeps the post's link to it", () => {
     const missing = "1800000000000000002";
+    const link = `https://x.com/other_one/status/${missing}`;
     const read = reads({
       ...absent(missing, "resource-not-found"),
-      data: post({ id: ROOT_ID, quotes: missing }),
+      data: post({
+        id: ROOT_ID,
+        text: "Read this https://t.co/quo2",
+        quotes: missing,
+        urls: [{ url: "https://t.co/quo2", expanded_url: link }],
+      }),
       includes: { users: [user(AUTHOR_ID, AUTHOR)] },
     });
+    const thread = threadOrFail(read);
 
-    assert.deepEqual(threadOrFail(read).post.quoted, []);
+    assert.deepEqual([thread.post.quoted, thread.post.text], [[], `Read this ${link}`]);
+    assert.equal(factsOf(read).quoteToExpand, null);
+  });
+
+  it("keeps 5 posts of a quote chain of 6 and asks for no further level", () => {
+    const chain = [1, 2, 3, 4, 5, 6].map((level) => `180000000000000001${String(level)}`);
+    const read = reads(
+      lookup(post({ id: ROOT_ID, quotes: chain[0] }), {
+        users: [user(AUTHOR_ID, AUTHOR), user("72", "other_one")],
+        tweets: chain.map((id, at) => quoting(id, chain[at + 1])),
+      }),
+    );
+
+    assert.deepEqual(
+      threadOrFail(read).post.quoted.map(({ id }) => id),
+      chain.slice(0, 5),
+    );
     assert.equal(factsOf(read).quoteToExpand, null);
   });
 
@@ -216,7 +239,12 @@ describe("the X API answers map to the thread the other X readers produce", () =
     );
     assert.deepEqual(factsOf(read), {
       statusId: ROOT_ID,
-      root: { conversationId: ROOT_ID, author: AUTHOR, replyCount: 3 },
+      root: {
+        conversationId: ROOT_ID,
+        author: AUTHOR,
+        replyCount: 3,
+        postedAt: Date.parse("2026-11-20T10:00:00.000Z"),
+      },
       quoteToExpand: null,
       quoteLookups: 0,
       searches: [
@@ -225,46 +253,6 @@ describe("the X API answers map to the thread the other X readers produce", () =
       ],
       replies: 3,
     });
-  });
-
-  it("keeps only the replies under the post when the post itself replies inside a larger conversation", () => {
-    const conversation = "1900000000000000001";
-    const under = "1900000000000000104";
-    const sibling = "1900000000000000105";
-    const read = reads(
-      lookup(
-        post({ id: ROOT_ID, conversationId: conversation, repliedTo: conversation, replyCount: 1 }),
-      ),
-      {
-        searches: [
-          {
-            step: "replies",
-            page: searchPage(
-              [
-                post({
-                  id: under,
-                  authorId: "73",
-                  conversationId: conversation,
-                  repliedTo: ROOT_ID,
-                }),
-                post({
-                  id: sibling,
-                  authorId: "73",
-                  conversationId: conversation,
-                  repliedTo: conversation,
-                }),
-              ],
-              [user("73", "first_reader")],
-            ),
-          },
-        ],
-      },
-    );
-
-    assert.deepEqual(
-      threadOrFail(read).replies.map(({ id }) => id),
-      [under],
-    );
   });
 
   it("reads a deleted post and a protected or suspended post as absent, and refuses an answer that is not a lookup", () => {
@@ -281,7 +269,7 @@ describe("the X API answers map to the thread the other X readers produce", () =
     assert.equal(pageOf({ data: [] }), null);
   });
 
-  it("counts every post and user an answer returns, in data and in includes", () => {
+  it("counts every post and user an answer returns, in data and in includes, and nothing it can count in a body that is not JSON", () => {
     assert.deepEqual(
       countOf(
         lookup(post({ id: ROOT_ID }), {
@@ -296,5 +284,6 @@ describe("the X API answers map to the thread the other X readers produce", () =
       { posts: 2, users: 1 },
     );
     assert.deepEqual(countOf(absent(ROOT_ID, "resource-not-found")), { posts: 0, users: 0 });
+    assert.equal(resourcesOf("<html>Bad gateway</html>"), null);
   });
 });

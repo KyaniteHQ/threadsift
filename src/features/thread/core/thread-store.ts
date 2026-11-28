@@ -87,7 +87,7 @@ function headerInsert(
         linkedUrl: sql<string | null>`${linkedUrl}`.as("linked_url"),
         postLink: sql<string | null>`${postLink}`.as("post_link"),
         followUps: sql<number>`${followUps ?? 0}`.as("follow_ups"),
-        xApiRead: sql<boolean>`${xApiRead === true ? 1 : 0}`.as("x_api_read"),
+        xApiRead: sql<boolean>`${xApiRead ? 1 : 0}`.as("x_api_read"),
       })
       .from(sql`(select 1)`)
       .where(sql`1`),

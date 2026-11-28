@@ -44,6 +44,7 @@ const EXCLUDED_TABLES = {
   github_cooldown: "work-in-flight",
   x_verifications: "work-in-flight",
   x_api_spend: "work-in-flight",
+  x_api_item_spend: "work-in-flight",
   search_parts: "derived",
   search_index: "derived",
   search_index_config: "derived",

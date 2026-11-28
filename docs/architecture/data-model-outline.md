@@ -75,7 +75,8 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
 | `grok_bot_settings` | The owner's Grok Bot, one row. No row means no Grok Bot is set up. |
 | `x_settings` | The owner's choice of the reader of X links. No row means `auto`. |
 | `x_api_settings` | The owner's X API Bearer token and the spend limits per Item and per UTC day, one row. No row, or a null token, means no token is saved. |
-| `x_api_spend` | One row per UTC day: the micro-USD the X API reader reserved and settled, the posts and users it counted, and X's own count of the day's posts from the daily usage read. |
+| `x_api_spend` | One row per UTC day: the micro-USD reserved and settled for every request to X (reads, Verify and the daily usage read), the posts and users counted, and X's own count of the day's posts from the daily usage read. |
+| `x_api_item_spend` | One row per Item and UTC day: the micro-USD the X API reader reserved and settled for that Item, so the Item limit holds across retries and restarts. It goes with its Item. |
 | `reddit_settings` | The owner's Reddit settings. No row means the archive fill is on. |
 | `reddit_account` | The owner's own Reddit account with its session cookie. |
 | `vault_settings`, `mirror_notes`, `mirror_files` | The Vault target, the lease, the queued note subjects and the per-file checkpoints. See [Vault mirror](vault-mirror.md). |

@@ -1,6 +1,10 @@
 import { type OpenAPIHono, createRoute } from "@hono/zod-openapi";
 
 import {
+  MICROS_PER_USD,
+  X_API_POST_MICROS,
+  X_API_USAGE_READ_MICROS,
+  X_API_USER_MICROS,
   XApiLimitsInputSchema,
   XApiSaveResponseSchema,
   XApiSettingsViewSchema,
@@ -22,8 +26,9 @@ const OWNER = access("owner");
 
 const PATH = "/api/settings/x-api";
 
-const VIEW =
-  "Whether an X API Bearer token is saved, missing or unreadable, whether this Instance has a usable sealing key, the spend limits per Item and per UTC day in millionths of a US dollar, and what the counter holds for today (UTC): the counted micro-dollars, posts and users, at X's prices of 0.005 USD a post and 0.010 USD a user. The counter counts every post and user an answer returned, so it can be above X's bill, which counts a resource once a UTC day. No token is returned.";
+const usd = (micros: number) => (micros / MICROS_PER_USD).toFixed(3);
+
+const VIEW = `Whether an X API Bearer token is saved, missing or unreadable, whether this Instance has a usable sealing key, the spend limits per Item and UTC day and per UTC day in millionths of a US dollar, and what the counter holds for today (UTC): the counted micro-dollars, posts and users. Posts and users count at X's prices of ${usd(X_API_POST_MICROS)} USD a post and ${usd(X_API_USER_MICROS)} USD a user, and each Verify and daily usage read at ${usd(X_API_USAGE_READ_MICROS)} USD. The counter counts every post and user an answer returned, so it can be above X's bill, which counts a resource once a UTC day. No token is returned.`;
 
 const readRoute = createRoute({
   method: "get",
@@ -43,7 +48,7 @@ const saveRoute = createRoute({
     ...accessRefusals(OWNER),
     200: jsonBody(
       XApiSaveResponseSchema,
-      "The settings after the Bearer token is saved or replaced, sealed like the other secrets, or the refusal `secret-missing` when the Instance has no usable sealing key. With a token saved and neither a ready Grok Bot nor the grok CLI, `auto` reads X links through the X API, which spends the owner's X credit.",
+      "The settings after the Bearer token is saved or replaced, sealed like the other secrets, or the refusal `secret-missing` when the Instance has no usable sealing key. With a token saved and neither a ready Grok Bot nor the grok CLI, `auto` reads X links through the X API, which can spend the owner's X credit.",
     ),
   },
 });
@@ -72,7 +77,7 @@ const limitsRoute = createRoute({
     ...accessRefusals(OWNER),
     200: jsonBody(
       XApiSettingsViewSchema,
-      "The settings after the limits are saved. A read sends no request whose worst case could pass the limit per Item or what is left of the limit for the UTC day.",
+      "The settings after the limits are saved. A read sends no request whose worst case could pass what is left of the Item's limit for the UTC day or of the limit for the UTC day.",
     ),
   },
 });
@@ -86,7 +91,7 @@ const verifyRoute = createRoute({
     ...accessRefusals(OWNER),
     200: jsonBody(
       XApiVerifyResultSchema,
-      "The credit balance in US dollars from X's `GET /2/usage/credits`, which reads no post, or a safe refusal. X's own 401 is a refusal inside this 200, so it never signs the owner out.",
+      `The credit balance in US dollars from X's \`GET /2/usage/credits\`, which reads no post, or a safe refusal. The read is counted at ${usd(X_API_USAGE_READ_MICROS)} USD against today's limit, and \`day-limit\` refuses it when the limit has no room for it. X's own 401 is a refusal inside this 200, so it never signs the owner out.`,
     ),
   },
 });

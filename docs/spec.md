@@ -118,8 +118,9 @@ classify the URL: reddit post | reddit comment | x post | github repo | article 
         |
         v
 fetch, or take the content the caller sent
-  (no Provider call, but a model reads an X post, through the grok CLI
-   or the Grok Bot's x_intake AI task, or the X API returns it)
+  (no Provider call; a model reads an X post through the grok CLI
+   or the Grok Bot's x_intake AI task, or the X API returns the post
+   with no model)
         |
         v
 deterministic clean
@@ -138,13 +139,15 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 
 ### X post
 
-- The owner chooses in Settings which reader fetches X links: `auto` (the default), `grok-bot`, `grok-cli` or `x-api`. Under `auto`, a usable Grok Bot webhook goes first, then the container's installed grok CLI, then the X API when a Bearer token is saved ([Fetchers](architecture/fetchers.md), X). `GET /api/settings/x` names the reader `auto` uses now and why.
+- The owner chooses which reader fetches X links: `auto` (the default), `grok-bot`, `grok-cli` or `x-api` (`PUT /api/settings/x`). Settings, X posts, offers `x-api` only while it is the saved choice, until the Settings part with the token control lands. Under `auto`, a usable Grok Bot webhook goes first, then the container's installed grok CLI, then the X API when a Bearer token is saved ([Fetchers](architecture/fetchers.md), X). `GET /api/settings/x` names the reader `auto` uses now and why.
 - `grok-bot`, `grok-cli` and `x-api` use that reader alone and never fall back to another. When it cannot be used, the Item is Link-only and carries a note that names the cause.
 - The X API reader reads the post, its Quote chain, its Author thread and up to 40 replies through X's API with the owner's Bearer token, on both install targets. Its answer is X's own data, so it publishes without the check against X ([Fetchers](architecture/fetchers.md), X API).
-- Every X API read spends the owner's X credit. A limit per Item (default 1 USD) and per UTC day (default 3 USD) bound it: the Instance counts each request's worst case before sending it and sends no request that could pass a limit. A read that finds the day's limit used waits for the next UTC day, and one that X limits waits for X's reset time.
-- Once a day while a token is saved, the Instance reads X's own usage count of the day before and logs it beside its count. A failed answer changes nothing.
-- An X Item read through the X API gets no Digest from the owner's Provider while `X_API_PROVIDER_DIGESTS` is off. A Digest a caller sends with the Paste still publishes ([Decisions and evidence](architecture/decisions-and-evidence.md#x-developer-terms)).
-- The X API settings (`/api/settings/x-api`) save the token sealed, remove it, save the two limits, and Verify the token with one balance read. They answer the token state, the limits and today's spend, and never the token.
+- An X API read can spend the owner's X credit. X bills each post and user once per UTC day, and the Instance counts every request it sends. A limit per Item and UTC day (default 1 USD) and per UTC day (default 3 USD) bound the spend. The Item's limit holds across retries, refreshes and restarts on the same UTC day.
+- Every request to X, Verify and the daily usage read included, is counted at its worst case before it is sent, and no request is sent that could pass a limit. After the answer, the count becomes what X returned. An answer X may have billed but that cannot be counted keeps its worst case, such as a request with no answer.
+- Before the post is read, a read that finds no room left in the day's limit waits for the next UTC day, and one that X limits waits for X's reset time, or 60 s without one. After the post is read, a limit or a refusal ends the read with what it holds, and the parts it did not read are marked not saved.
+- Once a UTC day while a token is saved and the day's limit has room for it, the Instance reads X's own usage count of the day before and logs it beside its own count of posts and users. A failed answer changes nothing.
+- While `X_API_PROVIDER_DIGESTS` is off, no text read through the X API reaches a Provider in any AI task. An Item whose thread came through the X API gets no Digest from the Provider, and the Related Items pick, the Topic page overview and the weekly Proposals leave it out of their input. A Digest a caller sends with the Paste still publishes, without a Provider call ([Decisions and evidence](architecture/decisions-and-evidence.md#x-developer-terms)).
+- The X API settings (`/api/settings/x-api`) save the token sealed, remove it, save the two limits, and Verify the token with one balance read. Verify refuses when the day's limit has no room for that read. They answer the token state, the limits and today's spend, and never the token.
 - The bot fetches the post, its thread, replies and media through its X connector and sends them back to `POST /api/ai-tasks/{id}/intake`. A bot that never answers ends the Item `failed`, with no fallback to another source.
 - The Grok Bot and the grok CLI store the thread unpublished, and a verification job publishes it when the post itself matches X's public oEmbed answer for its id; a reply, follow-up or quoted post that fails the check is left out ([Fetchers](architecture/fetchers.md), The check against X).
 - The Reader shows the post with its Author thread (the author's own chain of replies), its Quote chain (the posts it quotes, 5 at most) and its photos. A part that fails the check is left out, and a line says it was not saved.
@@ -154,7 +157,7 @@ wiki steps: Topic page, Related Items, Log (see The library wiki)
 - A Paste can carry the thread: `POST /api/items` with `{url, content}` for an X link takes one JSON text of the post and its replies (`XThreadSchema`), keeps every supplied reply, is not checked against X and stores it like a Reddit thread.
 - The container checks the grok CLI before it reads X posts with it, and again whenever the binary changes: a test run, and a probe run that asks for a file write, a file read and a shell command. A CLI that lists a local tool or acts on a file is not used, whatever its version.
 - Once a day the container updates the grok CLI with the CLI's own update command, checks the new version the same way, and switches to it only when it passes. X links are read with the version in use meanwhile. The X posts section of Settings shows the version in use, and a skipped newer version with the reason. The image sets `THREADSIFT_GROK_AUTO_UPDATE=true`, `false` turns the update off, and a Node target started outside the image leaves it off ([Fetchers](architecture/fetchers.md), The update).
-- The Cloudflare build has no CLI and does not offer `grok-cli`, so there X needs the webhook or the X API.
+- The Cloudflare build has no CLI and does not offer `grok-cli`, so there X needs the webhook or the X API. A saved `grok-cli` choice, such as one a Restore brings, stays as it is: Settings shows it, and X links end Link-only with the grok CLI note.
 
 ### Reddit post or comment
 

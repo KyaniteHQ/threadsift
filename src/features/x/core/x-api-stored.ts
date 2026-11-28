@@ -28,9 +28,7 @@ export async function storedOf(
   if (ranked.kind === "refused") return ANSWER_REFUSED;
 
   const every = new Set(ranked.thread.replies.map(({ id }) => id));
-  const parsed = parseJoinedXThread(joinedPost(ranked.thread, every, {}), reads.statusId);
+  const parsed = parseJoinedXThread(joinedPost(ranked.thread, every, {}), reads.statusId, true);
 
-  return parsed.kind === "thread"
-    ? { status: "x-api", thread: { ...parsed.thread, xApiRead: true } }
-    : ANSWER_REFUSED;
+  return parsed.kind === "thread" ? { status: "x-api", thread: parsed.thread } : ANSWER_REFUSED;
 }

@@ -1,7 +1,8 @@
 import { sql } from "drizzle-orm";
-import { check, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { check, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
 import { X_API_DAY_LIMIT_MICROS, X_API_ITEM_LIMIT_MICROS } from "../contract/x-api-contract.ts";
+import { items } from "./item-tables.ts";
 
 export const xApiSettings = sqliteTable(
   "x_api_settings",
@@ -34,5 +35,20 @@ export const xApiSpend = sqliteTable(
       "x_api_spend_counts",
       sql`${table.micros} >= 0 and ${table.posts} >= 0 and ${table.users} >= 0`,
     ),
+  ],
+);
+
+export const xApiItemSpend = sqliteTable(
+  "x_api_item_spend",
+  {
+    itemId: integer("item_id")
+      .notNull()
+      .references(() => items.id, { onDelete: "cascade" }),
+    day: text("day").notNull(),
+    micros: integer("micros").notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.itemId, table.day] }),
+    check("x_api_item_spend_micros", sql`${table.micros} >= 0`),
   ],
 );

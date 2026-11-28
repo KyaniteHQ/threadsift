@@ -1,17 +1,20 @@
+import { X_POST_ABSENT } from "../../../core/contract/x-read-note.ts";
 import type { Fetched } from "../../media/core/details.ts";
 import { concludedOfRefusal } from "./x-api-answer.ts";
-import { type XApiReads, parsedLookup, parsedPage, rootState } from "./x-api-map.ts";
+import { type XApiReads, parsedLookup, parsedPage, rootState, threadOf } from "./x-api-map.ts";
 import type { XApiRequest } from "./x-api-plan.ts";
 import type { XApiSent } from "./x-api-request.ts";
 import { nextUtcDayAt } from "./x-api-spend.ts";
 import { ANSWER_REFUSED } from "./x-api-stored.ts";
 
-const POST_ABSENT: Fetched = { status: "status", note: "x-post-absent" };
+type Refused = Extract<XApiSent["answer"], { kind: "refused" }>["reason"];
+
+export type Ending = "done" | "limit" | "answer-refused" | "api-rate-limited" | Refused;
 
 export type Step =
   | { readonly kind: "read"; readonly reads: XApiReads }
   | { readonly kind: "ended"; readonly fetched: Fetched }
-  | { readonly kind: "finished"; readonly why: string };
+  | { readonly kind: "finished"; readonly why: Ending };
 
 export function unaffordable(reads: Readonly<XApiReads>): Step {
   return reads.root === null
@@ -33,22 +36,34 @@ function rootStep(reads: Readonly<XApiReads>, text: string): Step {
 
   if (root === null || state === "refused") return { kind: "ended", fetched: ANSWER_REFUSED };
 
-  return state === "absent"
-    ? { kind: "ended", fetched: POST_ABSENT }
-    : { kind: "read", reads: { ...reads, root } };
+  if (state === "absent") return { kind: "ended", fetched: X_POST_ABSENT };
+
+  const read = { ...reads, root };
+
+  return threadOf(read) === null
+    ? { kind: "ended", fetched: ANSWER_REFUSED }
+    : { kind: "read", reads: read };
+}
+
+function quoteStep(reads: Readonly<XApiReads>, postId: string, text: string): Step {
+  const quote = parsedLookup(text);
+  const quotesAsked = [...reads.quotesAsked, postId];
+
+  return quote === null
+    ? { kind: "finished", why: "answer-refused" }
+    : {
+        kind: "read",
+        reads: { ...reads, quotesAsked, quoteLookups: [...reads.quoteLookups, quote] },
+      };
 }
 
 function laterStep(reads: Readonly<XApiReads>, request: Readonly<XApiRequest>, text: string): Step {
-  if (request.step === "quote") {
-    const quote = parsedLookup(text);
+  if (request.step === "root") return rootStep(reads, text);
 
-    return quote === null
-      ? { kind: "finished", why: "answer-refused" }
-      : { kind: "read", reads: { ...reads, quoteLookups: [...reads.quoteLookups, quote] } };
-  }
+  if (request.step === "quote") return quoteStep(reads, request.postId, text);
 
   const page = parsedPage(text);
-  const step = request.step === "author" ? "author" : "replies";
+  const minLikes = request.step === "replies" ? request.minLikes : null;
 
   return page === null
     ? { kind: "finished", why: "answer-refused" }
@@ -56,7 +71,7 @@ function laterStep(reads: Readonly<XApiReads>, request: Readonly<XApiRequest>, t
         kind: "read",
         reads: {
           ...reads,
-          searches: [...reads.searches, { step, minLikes: request.minLikes, page }],
+          searches: [...reads.searches, { step: request.step, minLikes, page }],
         },
       };
 }
@@ -83,9 +98,5 @@ export function appliedStep(
   request: Readonly<XApiRequest>,
   { answer }: Readonly<XApiSent>,
 ): Step {
-  if (answer.kind !== "ok") return failedStep(reads, answer);
-
-  return request.step === "root"
-    ? rootStep(reads, answer.text)
-    : laterStep(reads, request, answer.text);
+  return answer.kind === "ok" ? laterStep(reads, request, answer.text) : failedStep(reads, answer);
 }

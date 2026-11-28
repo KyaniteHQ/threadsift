@@ -39,3 +39,5 @@ export type XFetchRetryNote = (typeof X_FETCH_RETRY_NOTES)[number];
 export function isXFetchRetryNote(note: XReadNote | null): note is XFetchRetryNote {
   return X_FETCH_RETRY_NOTES.some((retryNote) => retryNote === note);
 }
+
+export const X_POST_ABSENT = { status: "status", note: "x-post-absent" } as const;

@@ -1,14 +1,13 @@
 import { statusIdOf } from "../../../core/contract/links.ts";
+import type { XApiLimits } from "../../../core/contract/x-api-contract.ts";
 import { StatusIdSchema } from "../../../core/contract/x-wire.ts";
 import { report } from "../../../core/kernel/failure-log.ts";
 import type { Fetched } from "../../media/core/details.ts";
-import { concludedOfRefusal } from "./x-api-answer.ts";
 import { type XApiReads, factsOf } from "./x-api-map.ts";
 import { nextRequest } from "./x-api-plan.ts";
 import { type ReadPorts, type Run, type Tally, leftFor, sent, spentBy } from "./x-api-send.ts";
 import { type Step, appliedStep, unaffordable } from "./x-api-steps.ts";
 import { ANSWER_REFUSED, type ApiRead, storedOf } from "./x-api-stored.ts";
-import { loadXApi } from "./x-api-token.ts";
 
 export type { ApiRead } from "./x-api-stored.ts";
 
@@ -22,7 +21,7 @@ async function stepOf(
   tally: Readonly<Tally>,
   reads: Readonly<XApiReads>,
 ): Promise<{ readonly step: Step; readonly tally: Tally }> {
-  const next = nextRequest(factsOf(reads), await leftFor(run, tally));
+  const next = nextRequest(factsOf(reads), await leftFor(run));
 
   if (next.kind === "done") return { step: { kind: "finished", why: "done" }, tally };
 
@@ -35,7 +34,7 @@ async function stepOf(
 
 async function readAll(run: Readonly<Run>, statusId: string) {
   let tally: Tally = { requests: 0, counted: { posts: 0, users: 0 }, lastSearchAt: null };
-  let reads: XApiReads = { statusId, root: null, quoteLookups: [], searches: [] };
+  let reads: XApiReads = { statusId, root: null, quotesAsked: [], quoteLookups: [], searches: [] };
 
   for (;;) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- each request depends on the answers before it.
@@ -52,19 +51,15 @@ async function readAll(run: Readonly<Run>, statusId: string) {
 export async function fetchedByXApi(
   ports: Readonly<ReadPorts>,
   source: Readonly<Source>,
+  api: Readonly<{ token: string; limits: XApiLimits }>,
   signal: AbortSignal,
 ): Promise<ApiRead | Fetched> {
   const statusId = StatusIdSchema.safeParse(statusIdOf(source.address));
-  const { auth, limits } = await loadXApi(ports);
 
   if (!statusId.success) return ANSWER_REFUSED;
 
-  if (auth.kind !== "token") {
-    return concludedOfRefusal(auth.kind === "none" ? "not-configured" : "secret-missing");
-  }
-
   const { step, reads, tally } = await readAll(
-    { ports, token: auth.token, ...limits, signal },
+    { ports, itemId: source.itemId, token: api.token, ...api.limits, signal },
     statusId.data,
   );
 

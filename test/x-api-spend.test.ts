@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import {
+  itemSpentOn,
   nextUtcDayAt,
   reserved,
   settled,
@@ -17,6 +19,7 @@ describe("the X API spend counter keeps the counted spend of each UTC day and re
 
   before(async () => {
     instance = await Instance.start();
+    await instance.setUp();
   });
 
   after(() => instance.close());
@@ -42,16 +45,16 @@ describe("the X API spend counter keeps the counted spend of each UTC day and re
     const day = "2026-11-02";
 
     assert.equal(
-      await reserved(db, { day, worstMicros: 600_000, dayLimitMicros: 1_000_000 }),
+      await reserved(db, { day, worstMicros: 600_000, itemId: null, dayLimitMicros: 1_000_000 }),
       true,
     );
     assert.equal(
-      await reserved(db, { day, worstMicros: 400_001, dayLimitMicros: 1_000_000 }),
+      await reserved(db, { day, worstMicros: 400_001, itemId: null, dayLimitMicros: 1_000_000 }),
       false,
     );
     assert.equal((await spentOn(db, day)).micros, 600_000);
     assert.equal(
-      await reserved(db, { day, worstMicros: 400_000, dayLimitMicros: 1_000_000 }),
+      await reserved(db, { day, worstMicros: 400_000, itemId: null, dayLimitMicros: 1_000_000 }),
       true,
     );
     assert.equal((await spentOn(db, day)).micros, 1_000_000);
@@ -61,8 +64,10 @@ describe("the X API spend counter keeps the counted spend of each UTC day and re
     const { db } = instance.core;
     const day = "2026-11-03";
 
-    await reserved(db, { day, worstMicros: 1_500_000, dayLimitMicros: 3_000_000 });
-    await settled(db, { day, worstMicros: 1_500_000, counted: { posts: 31, users: 29 } });
+    const reservation = { day, worstMicros: 1_500_000, itemId: null };
+
+    await reserved(db, { ...reservation, dayLimitMicros: 3_000_000 });
+    await settled(db, reservation, { micros: 31 * 5000 + 29 * 10_000, posts: 31, users: 29 });
 
     assert.deepEqual(await spentOn(db, day), {
       day,
@@ -76,8 +81,10 @@ describe("the X API spend counter keeps the counted spend of each UTC day and re
     const { db } = instance.core;
     const day = "2026-11-04";
 
-    await reserved(db, { day, worstMicros: 45_000, dayLimitMicros: 3_000_000 });
-    await settled(db, { day, worstMicros: 45_000, counted: { posts: 0, users: 0 } });
+    const reservation = { day, worstMicros: 60_000, itemId: null };
+
+    await reserved(db, { ...reservation, dayLimitMicros: 3_000_000 });
+    await settled(db, reservation, { micros: 0, posts: 0, users: 0 });
 
     assert.deepEqual(await spentOn(db, day), { day, micros: 0, posts: 0, users: 0 });
   });
@@ -86,7 +93,9 @@ describe("the X API spend counter keeps the counted spend of each UTC day and re
     const { db } = instance.core;
     const day = "2026-11-05";
     const both = await Promise.all(
-      [1, 2].map(() => reserved(db, { day, worstMicros: 700_000, dayLimitMicros: 1_000_000 })),
+      [1, 2].map(() =>
+        reserved(db, { day, worstMicros: 700_000, itemId: null, dayLimitMicros: 1_000_000 }),
+      ),
     );
 
     assert.deepEqual(
@@ -94,5 +103,26 @@ describe("the X API spend counter keeps the counted spend of each UTC day and re
       [false, true],
     );
     assert.equal((await spentOn(db, day)).micros, 700_000);
+  });
+
+  it("keeps what an Item spent on a day across reads, so a later read of the same Item on that day starts from it", async () => {
+    const { db } = instance.core;
+    const day = "2026-11-06";
+    const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
+      url: "https://held.test/x-api-spend",
+      page: { title: "Held", markdown: "Held page text." },
+    });
+    const first = { day, worstMicros: 60_000, itemId: item.id };
+    const second = { day, worstMicros: 60_000, itemId: item.id };
+
+    await reserved(db, { ...first, dayLimitMicros: 3_000_000 });
+    await settled(db, first, { micros: 60_000, posts: 4, users: 4 });
+    await reserved(db, { ...second, dayLimitMicros: 3_000_000 });
+    await settled(db, second, { micros: 15_000, posts: 1, users: 1 });
+
+    assert.deepEqual(
+      [await itemSpentOn(db, item.id, day), await itemSpentOn(db, item.id, "2026-11-07")],
+      [75_000, 0],
+    );
   });
 });

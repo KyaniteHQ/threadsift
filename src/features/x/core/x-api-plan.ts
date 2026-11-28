@@ -1,5 +1,6 @@
 import { X_QUOTES_MAX, X_REPLIES_KEPT_MAX } from "../../../core/contract/limits.ts";
-import { postsMicros } from "../../../core/contract/x-api-contract.ts";
+import { SECOND_MS } from "../../../core/contract/time-units.ts";
+import { X_API_LOOKUP_WORST, postsMicros } from "../../../core/contract/x-api-contract.ts";
 
 const POST_FIELDS =
   "created_at,author_id,conversation_id,referenced_tweets,note_tweet,public_metrics,attachments,entities";
@@ -24,8 +25,6 @@ const REPLIES_QUERY = {
   "user.fields": "username",
   "media.fields": "type,url",
 };
-
-const LOOKUP_WORST = { posts: 3, users: 3 } as const;
 
 const QUOTE_LOOKUPS_MAX = X_QUOTES_MAX - 1;
 
@@ -53,6 +52,7 @@ export interface PlanFacts {
     readonly conversationId: string;
     readonly author: string;
     readonly replyCount: number;
+    readonly postedAt: number | null;
   } | null;
   readonly quoteToExpand: string | null;
   readonly quoteLookups: number;
@@ -65,12 +65,18 @@ export interface Resources {
   readonly users: number;
 }
 
-export interface XApiRequest {
-  readonly step: "root" | "quote" | SearchStep;
+export type XApiRequest = {
   readonly path: string;
   readonly worst: Resources;
-  readonly search: boolean;
-  readonly minLikes: number | null;
+} & (
+  | { readonly step: "root" }
+  | { readonly step: "quote"; readonly postId: string }
+  | { readonly step: "author" }
+  | { readonly step: "replies"; readonly minLikes: number | null }
+);
+
+export function isSearch(request: Readonly<XApiRequest>): boolean {
+  return request.step === "author" || request.step === "replies";
 }
 
 export type NextStep =
@@ -91,17 +97,13 @@ function pathOf(path: string, query: Readonly<Record<string, string>>): string {
 }
 
 function lookup(step: "root" | "quote", id: string, left: number): NextStep {
-  if (microsOf(LOOKUP_WORST) > left) return OVER_LIMIT;
+  if (microsOf(X_API_LOOKUP_WORST) > left) return OVER_LIMIT;
+
+  const asked = { path: pathOf(`/2/tweets/${id}`, LOOKUP_QUERY), worst: X_API_LOOKUP_WORST };
 
   return {
     kind: "request",
-    request: {
-      step,
-      path: pathOf(`/2/tweets/${id}`, LOOKUP_QUERY),
-      worst: LOOKUP_WORST,
-      search: false,
-      minLikes: null,
-    },
+    request: step === "root" ? { ...asked, step } : { ...asked, step, postId: id },
   };
 }
 
@@ -110,9 +112,13 @@ interface Search {
   readonly query: string;
   readonly minLikes: number | null;
   readonly token: string | null;
+  readonly startTime: string;
 }
 
-function search({ step, query, minLikes, token }: Readonly<Search>, left: number): NextStep {
+function search(
+  { step, query, minLikes, token, startTime }: Readonly<Search>,
+  left: number,
+): NextStep {
   const usersPerPost = step === "author" ? 0 : 1;
   const size = Math.min(PAGE_MAX, Math.floor(left / microsOf({ posts: 1, users: usersPerPost })));
 
@@ -121,24 +127,28 @@ function search({ step, query, minLikes, token }: Readonly<Search>, left: number
   const fields = step === "author" ? AUTHOR_QUERY : REPLIES_QUERY;
   const paging = token === null ? {} : { pagination_token: token };
 
+  const asked = {
+    path: pathOf("/2/tweets/search/all", {
+      query,
+      start_time: startTime,
+      max_results: String(size),
+      ...fields,
+      ...paging,
+    }),
+    worst: { posts: size, users: size * usersPerPost },
+  };
+
   return {
     kind: "request",
-    request: {
-      step,
-      path: pathOf("/2/tweets/search/all", {
-        query,
-        max_results: String(size),
-        ...fields,
-        ...paging,
-      }),
-      worst: { posts: size, users: size * usersPerPost },
-      search: true,
-      minLikes,
-    },
+    request: step === "author" ? { ...asked, step } : { ...asked, step, minLikes },
   };
 }
 
-type Root = NonNullable<PlanFacts["root"]>;
+type Root = Omit<NonNullable<PlanFacts["root"]>, "postedAt"> & { readonly postedAt: string };
+
+function searchStartOf(postedAt: number): string {
+  return new Date(Math.floor(postedAt / SECOND_MS) * SECOND_MS).toISOString().replace(".000Z", "Z");
+}
 
 function smallConversation(facts: Readonly<PlanFacts>, root: Root, left: number): NextStep {
   const pages = facts.searches.filter(({ step }) => step === "replies");
@@ -146,13 +156,19 @@ function smallConversation(facts: Readonly<PlanFacts>, root: Root, left: number)
   const query = `conversation_id:${root.conversationId}`;
 
   if (last === undefined)
-    return search({ step: "replies", query, minLikes: null, token: null }, left);
+    return search(
+      { step: "replies", query, minLikes: null, token: null, startTime: root.postedAt },
+      left,
+    );
 
   if (last.nextToken === null || pages.length >= SMALL_PAGES_MAX) return DONE;
 
   return facts.replies >= X_REPLIES_KEPT_MAX
     ? DONE
-    : search({ step: "replies", query, minLikes: null, token: last.nextToken }, left);
+    : search(
+        { step: "replies", query, minLikes: null, token: last.nextToken, startTime: root.postedAt },
+        left,
+      );
 }
 
 function largeConversation(facts: Readonly<PlanFacts>, root: Root, left: number): NextStep {
@@ -160,7 +176,13 @@ function largeConversation(facts: Readonly<PlanFacts>, root: Root, left: number)
 
   if (!facts.searches.some(({ step }) => step === "author")) {
     return search(
-      { step: "author", query: `${conversation} from:${root.author}`, minLikes: null, token: null },
+      {
+        step: "author",
+        query: `${conversation} from:${root.author}`,
+        minLikes: null,
+        token: null,
+        startTime: root.postedAt,
+      },
       left,
     );
   }
@@ -178,6 +200,7 @@ function largeConversation(facts: Readonly<PlanFacts>, root: Root, left: number)
           query: `${conversation} -from:${root.author} min_likes:${String(minLikes)}`,
           minLikes,
           token: null,
+          startTime: root.postedAt,
         },
         left,
       );
@@ -192,9 +215,13 @@ export function nextRequest(facts: Readonly<PlanFacts>, left: number): NextStep 
     return lookup("quote", facts.quoteToExpand, left);
   }
 
-  if (root.replyCount === 0) return DONE;
+  if (root.replyCount === 0 || root.conversationId !== facts.statusId || root.postedAt === null) {
+    return DONE;
+  }
+
+  const searched = { ...root, postedAt: searchStartOf(root.postedAt) };
 
   return root.replyCount <= SMALL_CONVERSATION
-    ? smallConversation(facts, root, left)
-    : largeConversation(facts, root, left);
+    ? smallConversation(facts, searched, left)
+    : largeConversation(facts, searched, left);
 }

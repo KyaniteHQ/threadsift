@@ -1,11 +1,13 @@
 import { z } from "zod";
 
-import { SecretInputSchema } from "./secret-input.ts";
+import { HeaderSecretSchema } from "./secret-input.ts";
 import { WholeCount } from "./whole-count.ts";
 
 export const X_READER_API = "x-api";
 
 export const X_API_ORIGIN = "https://api.x.com";
+
+export const X_API_PROBLEMS = `${X_API_ORIGIN}/2/problems/`;
 
 export const X_API_PROVIDER_DIGESTS = false;
 
@@ -17,11 +19,20 @@ export const X_API_USER_MICROS = 10_000;
 
 export const X_API_USAGE_READ_MICROS = 200_000;
 
+export const X_REFERENCE_TYPES = 3;
+
+export const X_API_LOOKUP_WORST = {
+  posts: 1 + X_REFERENCE_TYPES,
+  users: 1 + X_REFERENCE_TYPES,
+} as const;
+
 export const X_API_ITEM_LIMIT_MICROS = 1_000_000;
 
 export const X_API_DAY_LIMIT_MICROS = 3_000_000;
 
-export const X_API_ITEM_LIMIT_MIN_MICROS = 50_000;
+export const X_API_ITEM_LIMIT_MIN_MICROS = 100_000;
+
+const X_API_DAY_LIMIT_MIN_MICROS = X_API_USAGE_READ_MICROS + X_API_ITEM_LIMIT_MIN_MICROS;
 
 const X_API_ITEM_LIMIT_MAX_MICROS = 10_000_000;
 
@@ -31,7 +42,7 @@ export const X_API_TOKEN_STATES = ["none", "saved", "unreadable"] as const;
 
 export type XApiTokenState = (typeof X_API_TOKEN_STATES)[number];
 
-export const XApiTokenInputSchema = z.object({ token: SecretInputSchema });
+export const XApiTokenInputSchema = z.object({ token: HeaderSecretSchema });
 
 export type XApiTokenInput = z.infer<typeof XApiTokenInputSchema>;
 
@@ -45,7 +56,7 @@ export const XApiLimitsInputSchema = z
     dayLimitMicros: z
       .number()
       .int()
-      .min(X_API_ITEM_LIMIT_MIN_MICROS)
+      .min(X_API_DAY_LIMIT_MIN_MICROS)
       .max(X_API_DAY_LIMIT_MAX_MICROS),
   })
   .refine(({ itemLimitMicros, dayLimitMicros }) => dayLimitMicros >= itemLimitMicros, {
@@ -89,6 +100,10 @@ export const X_API_REFUSALS = [
 
 export type XApiRefusal = (typeof X_API_REFUSALS)[number];
 
+const X_API_VERIFY_REFUSALS = [...X_API_REFUSALS, "day-limit"] as const;
+
+export type XApiVerifyRefusal = (typeof X_API_VERIFY_REFUSALS)[number];
+
 const XApiRefusedSchema = z.object({
   kind: z.literal("refused"),
   reason: z.enum(X_API_REFUSALS),
@@ -99,15 +114,18 @@ export type XApiRefused = z.infer<typeof XApiRefusedSchema>;
 
 export const XApiVerifyResultSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("verified"), balanceUsd: z.number() }),
-  XApiRefusedSchema,
+  XApiRefusedSchema.extend({ reason: z.enum(X_API_VERIFY_REFUSALS) }),
 ]);
 
 export type XApiVerifyResult = z.infer<typeof XApiVerifyResultSchema>;
 
 export const XApiSaveResponseSchema = z.union([XApiSettingsViewSchema, XApiRefusedSchema]);
 
-export function refusedXApi(reason: XApiRefusal, status: number | null = null): XApiRefused {
-  return { kind: "refused", reason, status };
+export function refusedXApi<Reason extends XApiVerifyRefusal>(
+  reason: Reason,
+  status: number | null = null,
+) {
+  return { kind: "refused", reason, status } as const;
 }
 
 export function postsMicros(posts: number, users: number): number {

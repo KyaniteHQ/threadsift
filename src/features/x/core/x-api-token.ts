@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
   X_API_DAY_LIMIT_MICROS,
   X_API_ITEM_LIMIT_MICROS,
+  X_API_USAGE_READ_MICROS,
   type XApiLimits,
   type XApiRefused,
   type XApiSettingsView,
@@ -15,7 +16,7 @@ import {
 import { parsedJson } from "../../../core/kernel/parsed-json.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { xApiSettings } from "../../../core/kernel/schema.ts";
-import { xApiGet } from "./x-api-request.ts";
+import { meteredGet } from "./x-api-metered.ts";
 import { spentOn, utcDayOf } from "./x-api-spend.ts";
 
 export type XApiPorts = Pick<Ports, "db" | "secrets">;
@@ -59,7 +60,7 @@ export async function loadXApi({ db, secrets }: Readonly<XApiPorts>): Promise<XA
   return { auth: token === null ? { kind: "unreadable" } : { kind: "token", token }, limits };
 }
 
-function stateOf(auth: Readonly<XApiAuth>): XApiTokenState {
+export function tokenStateOf(auth: Readonly<XApiAuth>): XApiTokenState {
   switch (auth.kind) {
     case "none":
       return "none";
@@ -76,7 +77,7 @@ function stateOf(auth: Readonly<XApiAuth>): XApiTokenState {
 }
 
 export async function xApiTokenState(ports: Readonly<XApiPorts>): Promise<XApiTokenState> {
-  return stateOf((await loadXApi(ports)).auth);
+  return tokenStateOf((await loadXApi(ports)).auth);
 }
 
 export async function readXApiSettings(ports: Readonly<XApiPorts>): Promise<XApiSettingsView> {
@@ -85,7 +86,7 @@ export async function readXApiSettings(ports: Readonly<XApiPorts>): Promise<XApi
     spentOn(ports.db, utcDayOf(Date.now())),
   ]);
 
-  return { token: stateOf(auth), secretReady: ports.secrets !== null, ...limits, today };
+  return { token: tokenStateOf(auth), secretReady: ports.secrets !== null, ...limits, today };
 }
 
 export async function saveXApiToken(
@@ -128,18 +129,25 @@ export async function verifyXApiToken(
 ): Promise<XApiVerifyResult> {
   if (ports.secrets === null) return refusedXApi("secret-missing");
 
-  const { auth } = await loadXApi(ports);
+  const { auth, limits } = await loadXApi(ports);
 
   if (auth.kind === "none") return refusedXApi("not-configured");
 
   if (auth.kind === "unreadable") return refusedXApi("secret-missing");
 
-  const { answer } = await xApiGet({
-    origin: ports.config.xApiOrigin,
-    token: auth.token,
-    path: "/2/usage/credits",
-    signal,
-  });
+  const sent = await meteredGet(
+    {
+      db: ports.db,
+      dayLimitMicros: limits.dayLimitMicros,
+      itemId: null,
+      price: { kind: "flat", micros: X_API_USAGE_READ_MICROS },
+    },
+    { origin: ports.config.xApiOrigin, token: auth.token, path: "/2/usage/credits", signal },
+  );
+
+  if (sent === null) return refusedXApi("day-limit");
+
+  const { answer } = sent;
 
   if (answer.kind === "limited") return refusedXApi("api-rate-limited", null);
 

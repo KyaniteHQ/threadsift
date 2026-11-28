@@ -108,11 +108,11 @@ Threadsift hands X links to Grok Bot, which reads the posts and replies and save
 
 Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**.
 
-The X posts section in Settings chooses the reader for X links: Auto (the default), Grok Bot or the grok CLI. Auto sends a pasted link to the saved bot when its settings can send. Otherwise the container fetches it with the grok CLI when that is set up, and the link stays a Link-only Item when it is not. [Fetchers](../architecture/fetchers.md), X, holds the rules of each choice.
+The X posts section in Settings chooses the reader for X links: Auto (the default), Grok Bot or the grok CLI. Auto sends a pasted link to the saved bot when its settings can send. Otherwise the container fetches it with the grok CLI when that is set up. Otherwise Threadsift reads it through the X API when an X API Bearer token is saved, which can spend the owner's X API credit. With none of them, the link stays a Link-only Item. [Fetchers](../architecture/fetchers.md), X, holds the rules of each choice.
 
 ## Use the grok CLI for X posts on the container
 
-When no usable Grok Bot is saved, or when you choose the grok CLI in the X posts section, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. The image ships no grok CLI, and nothing in the app installs it. Everything stays in the folder `/data/grok` of the volume. The Cloudflare Worker install has no such tool, so a pasted X link stays a Link-only Item there unless a Grok Bot is saved.
+When no usable Grok Bot is saved, or when you choose the grok CLI in the X posts section, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. The image ships no grok CLI, and nothing in the app installs it. Everything stays in the folder `/data/grok` of the volume. The Cloudflare Worker install has no such tool, so there a pasted X link needs a Grok Bot or a saved X API token, and stays a Link-only Item without either.
 
 1. Install the grok CLI into the volume (the image has `curl` for the installer):
 

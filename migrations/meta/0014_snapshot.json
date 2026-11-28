@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2999006c-aa34-47c4-8537-f8b9e18bc2e5",
+  "id": "55936e2d-065e-4bbd-938a-c9a7f7bd2360",
   "prevId": "ffd2f411-a34f-4c60-9ccd-cafba1c190db",
   "tables": {
     "agent_tokens": {
@@ -3793,6 +3793,58 @@
         "vault_settings_target": {
           "name": "vault_settings_target",
           "value": "(\"vault_settings\".\"mode\" = 'github' and \"vault_settings\".\"repository\" is not null and \"vault_settings\".\"branch\" is not null and \"vault_settings\".\"sealed_token\" is not null and \"vault_settings\".\"folder\" is null)\n        or (\"vault_settings\".\"mode\" = 'folder' and \"vault_settings\".\"folder\" is not null and substr(\"vault_settings\".\"folder\", 1, 1) = '/' and \"vault_settings\".\"repository\" is null and \"vault_settings\".\"branch\" is null and \"vault_settings\".\"sealed_token\" is null)"
+        }
+      }
+    },
+    "x_api_item_spend": {
+      "name": "x_api_item_spend",
+      "columns": {
+        "item_id": {
+          "name": "item_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "day": {
+          "name": "day",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "micros": {
+          "name": "micros",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": 0
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "x_api_item_spend_item_id_items_id_fk": {
+          "name": "x_api_item_spend_item_id_items_id_fk",
+          "tableFrom": "x_api_item_spend",
+          "tableTo": "items",
+          "columnsFrom": ["item_id"],
+          "columnsTo": ["id"],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "x_api_item_spend_item_id_day_pk": {
+          "columns": ["item_id", "day"],
+          "name": "x_api_item_spend_item_id_day_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {
+        "x_api_item_spend_micros": {
+          "name": "x_api_item_spend_micros",
+          "value": "\"x_api_item_spend\".\"micros\" >= 0"
         }
       }
     },
