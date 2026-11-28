@@ -1,6 +1,11 @@
-import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
+import { createRoute, type OpenAPIHono, type z } from "@hono/zod-openapi";
 
-import { BatchRequestSchema, BatchResponseSchema } from "../../../core/contract/batch-wire.ts";
+import { BUDGET_SPENT } from "../../../core/contract/agent-token-contract.ts";
+import {
+  BatchBudgetRefusalSchema,
+  BatchRequestSchema,
+  BatchResponseSchema,
+} from "../../../core/contract/batch-wire.ts";
 import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import {
   BATCH_LINKS_MAX,
@@ -20,8 +25,9 @@ import {
 } from "../../../http/openapi.ts";
 import { refusing } from "../../../http/refusals.ts";
 import { callerOf, requirePasteScopes } from "../../../http/token-scopes.ts";
+import { retryAfterSeconds } from "../../access/core/agent-token-budget.ts";
 import { pasteLinksThenSaveCursor, type BatchEntry } from "../core/batch-paste.ts";
-import { refusalOf } from "../core/paste-refusal.ts";
+import { BATCH_CUT_SHORT, refusalOf } from "../core/paste-refusal.ts";
 
 const BATCH_DIGEST_SCOPE =
   " An entry with a `digest` needs the `digest` scope as well, and the call saves nothing without it.";
@@ -37,7 +43,8 @@ const batchRoute = createRoute({
   responses: {
     ...accessRefusals(BATCH, BATCH_DIGEST_SCOPE),
     ...budgetRefusal(
-      "The count is checked once before the first save. If the token lacks budget for every possibly new link, nothing is saved and the import cursor stays. The batch is not checked again when a held link is deleted or midnight passes. Two concurrent requests can both pass the check and exceed the limit by one request's links.",
+      "The count is checked once before the first save. If the token lacks budget for every possibly new link, nothing is saved, `results` is absent and the import cursor stays. Each new Item is checked again as it is saved, so concurrent requests of one token never pass the limit together. When another request used the budget first, the batch stops at the first link that would cross it: `results` holds the outcomes of the links before it, which stay saved, in the order sent, and the import cursor stays.",
+      BatchBudgetRefusalSchema,
     ),
     200: jsonBody(
       BatchResponseSchema,
@@ -47,7 +54,9 @@ const batchRoute = createRoute({
       ErrorResponseSchema,
       `The error names the field it refuses: the entry's index, as \`links.2.url\`, or \`import\` for an \`import\` the rules above refuse. Nothing is saved and the cursor stays.`,
     ),
-    503: restoringResponse("nothing is saved and the cursor stays."),
+    503: restoringResponse(
+      "the batch stops at the link it was saving when the restore began: the links before it stay saved, that link and the ones after it are not saved, and the cursor stays.",
+    ),
   },
 });
 
@@ -55,6 +64,14 @@ function resultOf(entry: Readonly<BatchEntry>) {
   if (entry.outcome === "refused") return entry;
 
   return { ...savedView(entry.item), outcome: entry.outcome };
+}
+
+function cutShort(entries: readonly BatchEntry[]): z.infer<typeof BatchBudgetRefusalSchema> {
+  return {
+    error: BATCH_CUT_SHORT,
+    code: BUDGET_SPENT,
+    results: entries.map((entry) => resultOf(entry)),
+  };
 }
 
 export function registerBatchRoutes(app: OpenAPIHono, ports: Ports): void {
@@ -67,6 +84,12 @@ export function registerBatchRoutes(app: OpenAPIHono, ports: Ports): void {
     );
 
     const pasted = await pasteLinksThenSaveCursor(ports, links, callerOf(c), cursor);
+
+    if ("entries" in pasted && pasted.kind === "budget-spent") {
+      c.header("Retry-After", String(retryAfterSeconds(pasted, Date.now())));
+
+      return c.json(cutShort(pasted.entries), 429);
+    }
 
     if (pasted.kind !== "done") return refusing(c, refusalOf(pasted));
 

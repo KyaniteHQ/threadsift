@@ -14,6 +14,7 @@ import {
   type Saved,
   foundItem,
   holdsNoItem,
+  insertResults,
   itemInsert,
   knownItem,
 } from "../../item/core/item-rows.ts";
@@ -38,8 +39,6 @@ interface Failure {
   readonly addedByToken: Paste["addedByToken"];
 }
 
-const INSERTED_ITEM = 1;
-
 const REFRESHED_ITEM = 2;
 
 async function insertedFailure(
@@ -61,17 +60,17 @@ async function insertedFailure(
 
   const inserted = await heldBatch(
     db,
-    [insert, itemRead(db, itemKey), ...STALE.itemChanged(db, itemKey)] as const,
+    [...insert, itemRead(db, itemKey), ...STALE.itemChanged(db, itemKey)] as const,
     sql`${noAlias} and ${missing}`,
   );
 
-  return inserted === null
-    ? null
-    : {
-        kind: "saved",
-        item: foundItem(inserted[INSERTED_ITEM][0], normalizedUrl),
-        created: true,
-      };
+  if (inserted === null) return null;
+
+  const {
+    rest: [[item]],
+  } = insertResults(inserted);
+
+  return { kind: "saved", item: foundItem(item, normalizedUrl), created: true };
 }
 
 async function refreshedFailure(

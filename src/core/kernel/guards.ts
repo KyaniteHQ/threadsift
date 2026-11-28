@@ -4,7 +4,7 @@ import { type SQLiteTable, check, integer, sqliteTable } from "drizzle-orm/sqlit
 
 import type { Database } from "./database.ts";
 
-const REFUSED_AS = { write: 0, restore: 2, outcome: 3 } as const;
+const REFUSED_AS = { write: 0, restore: 2, outcome: 3, budget: 4 } as const;
 
 export type Refusal = keyof typeof REFUSED_AS;
 
@@ -19,6 +19,7 @@ export const guards = sqliteTable(
     check("guards_write", sql`${table.ok} <> ${refusedAs("write")}`),
     check("guards_restore", sql`${table.ok} <> ${refusedAs("restore")}`),
     check("guards_outcome", sql`${table.ok} <> ${refusedAs("outcome")}`),
+    check("guards_budget", sql`${table.ok} <> ${refusedAs("budget")}`),
   ],
 );
 
@@ -33,6 +34,7 @@ const REFUSALS = {
   write: failedCheck("write"),
   restore: failedCheck("restore"),
   outcome: failedCheck("outcome"),
+  budget: failedCheck("budget"),
 };
 
 export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<SQLWrapper>) {
@@ -90,6 +92,8 @@ function refusalOf(cause: unknown): Refusal | null {
   if (refusedBy(cause, REFUSALS.write)) return "write";
 
   if (refusedBy(cause, REFUSALS.restore)) return "restore";
+
+  if (refusedBy(cause, REFUSALS.budget)) return "budget";
 
   return refusedBy(cause, REFUSALS.outcome) ? "outcome" : null;
 }

@@ -52,7 +52,7 @@ Other sections record these limits, and the owner accepts each one.
 - Anyone who reaches the sign-in can lock it for up to 1 hour ([Access](access-owner-login-agent-tokens-mcp.md#throttle)).
 - A plug-in runs without isolation ([Fetchers](fetchers.md#deadline)).
 - The Worker cannot check the address that a public name resolves to, and the local Worker has no name check ([Open items and unverified claims](open-items-and-unverified-claims.md#fetching-links)).
-- The Daily budget does not bound refreshes, and two requests at the same moment can both pass, which exceeds the budget by the links of one request ([Access](access-owner-login-agent-tokens-mcp.md#daily-budget)).
+- The Daily budget does not bound refreshes. Requests of one token at the same moment cannot pass it together, because each Item insert checks the count and refuses a token that no longer exists ([Access](access-owner-login-agent-tokens-mcp.md#daily-budget)).
 - A hostile post or reply can make the Grok CLI open a public page, which sends public post text and the Grok account's saved rules to a page that the attacker chose. A Grok account kept for the Instance limits what leaves ([Fetchers](fetchers.md#the-isolation-rule)).
 - The limit of 6 reply searches in the Grok CLI's prompt is a request to the model. The deadline and the 2 slots bound a run ([Fetchers](fetchers.md#grok-cli)).
 
