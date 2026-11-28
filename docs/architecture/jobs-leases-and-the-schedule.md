@@ -95,6 +95,7 @@ One module owns every write that closes a job row. `closeJob` closes the claimed
 
 - The `closing` of the Digest declaration (`owedDigest`) follows it in that batch. It opens the Digest that a pending caller-sent Digest still owes, when that Digest differs from the one the job claimed.
 - `closeRunJobs` closes the open jobs of one Export or Restore by address.
+- `closeVerifyJob` closes the open `x_verify` job of an Item in the batch of `queuedVerification`, which then opens a new one, so a newer X answer never shares a job, or its file keys, with the check it replaces.
 - A save that supplies content closes the Item's open `fetch` and `x_verify` jobs and deletes its `x_verifications` row through `closeItemJobs`. It takes no `holding` guard, so a running fetch loses its claim and writes nothing.
 - Give-up and exhaustion use the same path, so the paste card's Added state and the New marker wait until both jobs end.
 - A Digest failure never discards fetched content or an earlier Digest.
@@ -140,7 +141,7 @@ Every ending that stores the failure marker from an attempt's own read of the It
 
 ### Attempts belong to a generation
 
-Every claim of a Digest job stores the Item's generation in `jobs.attempt_generation`. A claim that finds a different stored generation starts the count at 0, so content that moved since the last attempt gets its own 3 attempts. Content moves after a refresh, a supplied thread or a crashed claim. A job that runs out of attempts closes through `exhaust`, whose batch commits only while the Item still has that generation (the Digest declaration's `input`). When the Item moved in between, the job goes back to `queued` with its attempts, and the next claim starts the count again. The failure marker is never written for content that had no attempt.
+Every claim of a Digest job stores the Item's generation in `jobs.attempt_generation`. A claim that finds a different stored generation starts the count at 0, so content that moved since the last attempt gets its own 3 attempts. Content moves after a refresh, a supplied thread or a crashed claim. A job that runs out of attempts closes through `exhaust`, whose batch commits only while the Item still has that generation (the Digest declaration's `input`). When the Item moved in between, the job goes back to `queued` with its attempts, and the next claim starts the count again. The failure marker is never written for content that had no attempt. An `x_verify` job declares `x_verifications.revision` as its input, but no claim of one finds a different revision: a newer X answer for the Item (`queuedVerification`) closes the open `x_verify` job and opens another in the same batch. The count of a job that writes files therefore never goes back, and its file keys never repeat ([Files](files.md)).
 
 ### A caller-sent Digest that arrives mid-attempt
 

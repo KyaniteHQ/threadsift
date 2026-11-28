@@ -17,7 +17,7 @@ devenv owns everything a contributor or CI runs. You need Nix, devenv and direnv
 
 ## Tasks
 
-`devenv tasks run ci:gate` is the gate. It runs `ci:check`, `ci:test`, `ci:build`, `ci:audit` and `design:check`. `devenv test` is not the gate, because it also starts the dev processes. It does run the commit hooks on every file.
+`devenv tasks run ci:gate` is the gate. It runs `ci:check`, `ci:test`, `ci:build`, `ci:audit`, `design:check` and `extension:package`. `devenv test` is not the gate, because it also starts the dev processes. It does run the commit hooks on every file.
 
 `devenv tasks list` shows every task. [Testing](testing.md) lists the smoke and live runs, and [CI, releases and rollback](ci-releases-and-rollback.md) describes the jobs that run them.
 
@@ -29,7 +29,7 @@ Corepack comes from the unmodified `pkgs.corepack`, whose launcher uses Node 24.
 
 ## Playwright browsers
 
-The npm `@playwright/test` version must match nixpkgs' `playwright-driver`, so the shell takes the browsers from nixpkgs. The `playwright-driver.browsers` override turns off Firefox and WebKit, because both smoke specs drive Chromium only. The shell keeps Chromium, its headless shell and ffmpeg. The override cuts the profile's closure by about 1 GiB.
+The npm `@playwright/test` version must match nixpkgs' `playwright-driver`, so the shell takes the browsers from nixpkgs. The `playwright-driver.browsers` override turns off Firefox and WebKit, because both smoke specs and the Extension's package command drive Chromium only. The shell keeps Chromium, its headless shell and ffmpeg. The override cuts the profile's closure by about 1 GiB.
 
 ## Podman storage and signature policy
 
