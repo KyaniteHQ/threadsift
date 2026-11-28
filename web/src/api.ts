@@ -53,8 +53,8 @@ export function fetchItem(id: number): Promise<Item | "gone"> {
   return parsedOrGone(`/api/items/${id}/status`, ItemResponseSchema, ({ item }) => item);
 }
 
-export async function fetchItemDetail(id: number): Promise<ItemDetail> {
-  return (await parsedFrom("GET", `/api/items/${id}`, ItemDetailResponseSchema)).item;
+export function fetchItemDetail(id: number): Promise<ItemDetail | "gone"> {
+  return parsedOrGone(`/api/items/${id}`, ItemDetailResponseSchema, ({ item }) => item);
 }
 
 export async function putReadState(id: number, readState: ReadState): Promise<Item> {

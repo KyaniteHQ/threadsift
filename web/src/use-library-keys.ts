@@ -2,6 +2,7 @@ import { useEffect, useEffectEvent } from "react";
 
 import { DELETE_DIALOG_CLASS } from "./DeleteItem.tsx";
 import { PANEL_SELECTOR } from "./panel-dom.ts";
+import { onItem } from "./routing.ts";
 
 const TYPING = `input, textarea, select, ${PANEL_SELECTOR}, [popover], [contenteditable]`;
 const POPOVER_OPEN = ":popover-open";
@@ -36,7 +37,7 @@ function press(event: KeyboardEvent, target: Element | null, actions: KeyActions
   if (
     (key === "ArrowLeft" || key === "ArrowRight") &&
     actions.arrows &&
-    actions.openId !== null &&
+    onItem() &&
     !event.shiftKey &&
     !scrollsSideways
   ) {
@@ -57,7 +58,7 @@ function press(event: KeyboardEvent, target: Element | null, actions: KeyActions
     actions.focusSearch();
   } else if (
     key === "Escape" &&
-    actions.openId !== null &&
+    onItem() &&
     !inPasteBox(event) &&
     document.querySelector(POPOVER_OPEN) === null
   ) {

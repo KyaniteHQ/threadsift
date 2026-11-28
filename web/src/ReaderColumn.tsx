@@ -2,14 +2,41 @@ import { useEffect, useRef } from "react";
 
 import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import { shownUrl, whereOf } from "../../src/core/contract/link-place.ts";
-import { handleOf } from "../../src/core/contract/reader-text.ts";
+import { shownUrl } from "../../src/core/contract/link-place.ts";
+import { SUMMARY_LABEL } from "../../src/core/contract/reader-text.ts";
+import { keptBarStyle, readerStrip } from "./kept-strip.ts";
+import { keyed } from "./keyed.ts";
 import { DIGEST_PENDING, READER_LOADING, postedLabel } from "./reader-text.ts";
 import { HeadNote, Note } from "./ReaderNote.tsx";
-import { ReaderSummary } from "./ReaderSummary.tsx";
+import { ReaderFiled, ReaderSummary } from "./ReaderSummary.tsx";
 import { savedLabel } from "./saved-label.ts";
-import { DIGEST_UPDATE_FAILED, DIGEST_FAILED, SOURCE_LABELS } from "./text.ts";
+import { DIGEST_UPDATE_FAILED, DIGEST_FAILED } from "./text.ts";
 import type { RetryOpened } from "./use-list-actions.ts";
+
+function ReaderMeta({
+  item,
+  postedAt,
+  now,
+}: Readonly<{ item: Item; postedAt: number | null; now: number }>) {
+  const { parts, author } = readerStrip(item);
+
+  return (
+    <p className={item.readState === "unread" ? "rd-meta unread" : "rd-meta"}>
+      {keyed(parts).map(({ key, text }) => (
+        <span key={key} className="rd-part rd-st">
+          {text}
+        </span>
+      ))}
+      {author === "" ? null : (
+        <span className="rd-part">
+          <bdi dir="auto">{author}</bdi>
+        </span>
+      )}
+      {postedAt === null ? null : <span className="rd-part">{postedLabel(postedAt, now)}</span>}
+      <span className="rd-part">{savedLabel(item.savedAt, now)}</span>
+    </p>
+  );
+}
 
 export function ReaderHead({
   item,
@@ -38,18 +65,12 @@ export function ReaderHead({
 
   return (
     <header className="rd-head" inert={loading}>
-      <p className="rd-src">
-        <span className="src">{SOURCE_LABELS[item.source]}</span>
-        {item.source === "x" && item.author !== null ? null : <span>{whereOf(item)}</span>}
-        <span>{handleOf(item.source, item.author)}</span>
-        <span>
-          {detail === null || detail.postedAt === null ? "" : postedLabel(detail.postedAt, now)}
-        </span>
-        <span>{savedLabel(item.savedAt, now)}</span>
-      </p>
+      <i className="rd-share" style={keptBarStyle(item)} aria-hidden="true" />
       <h2 ref={title} id={titleId} className="rd-title" tabIndex={-1}>
         <bdi dir="auto">{name ?? shownUrl(item.normalizedUrl)}</bdi>
       </h2>
+      <ReaderMeta item={item} postedAt={detail?.postedAt ?? null} now={now} />
+      <ReaderFiled topic={item.digestTopic} digest={detail?.digest ?? null} />
       {link === null ? null : (
         <a className="rd-link" href={link} target="_blank" rel="noopener noreferrer">
           {link}
@@ -75,13 +96,26 @@ export function Agent({
 }: Readonly<{ item: Item; detail: ItemDetail; tryAgain: RetryOpened }>) {
   const note = digestNote(item, detail.digest !== null);
 
+  if (detail.digest === null && note === DIGEST_PENDING && item.retry === null)
+    return <DigestWait />;
+
   return (
     <>
-      {detail.digest === null ? null : <ReaderSummary item={item} digest={detail.digest} />}
+      {detail.digest === null ? null : <ReaderSummary digest={detail.digest} />}
       {note === null ? null : (
         <Note item={item} text={note} withRetry={item.retry !== null} tryAgain={tryAgain} />
       )}
     </>
+  );
+}
+
+function DigestWait() {
+  return (
+    <div className="rd-wait">
+      <p className="label">{SUMMARY_LABEL}</p>
+      <p className="rd-note">{DIGEST_PENDING}</p>
+      <i className="rd-wait-line" aria-hidden="true" />
+    </div>
   );
 }
 

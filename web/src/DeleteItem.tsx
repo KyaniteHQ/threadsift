@@ -165,7 +165,7 @@ export function DeleteItem({
 
   return (
     <>
-      <button ref={trigger} type="button" className="btn rd-act" onClick={ask}>
+      <button ref={trigger} type="button" className="btn btn-plain rd-act" onClick={ask}>
         <Icon name="trash" className="ic rd-del-ic" />
         <span className="rd-act-l">{DELETE_LABEL}</span>
       </button>

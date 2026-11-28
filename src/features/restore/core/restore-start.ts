@@ -6,13 +6,15 @@ import type { Database } from "../../../core/kernel/database.ts";
 import { guardedWrite } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { enqueueRows } from "../../../core/kernel/job-rows.ts";
-import { NEWEST_RESTORE, RESUMABLE_RESTORE, resumable } from "../../../core/kernel/restore-hold.ts";
+import { resumable } from "../../../core/kernel/restore-hold.ts";
 import { restoreRuns } from "../../../core/kernel/schema.ts";
 import { fenceVault, vaultIdleAt } from "../../vault/core/vault-state.ts";
 import {
   EMPTY_LIBRARY,
+  KEPT_FOR_RESUME,
   holdsEveryPart,
   isNewestRestore,
+  keepsEveryPart,
   libraryIsEmpty,
   restoreById,
 } from "./restore-state.ts";
@@ -101,19 +103,27 @@ export async function startRestore(ports: JobPorts, id: number): Promise<Started
   return { kind: "started" };
 }
 
-export async function resumeRestore(ports: JobPorts, id: number): Promise<ResumedRestore> {
-  const { db } = ports;
-  const run = await restoreById(db, id);
+async function resumeRefusal(ports: JobPorts, id: number): Promise<ResumedRestore | null> {
+  const run = await restoreById(ports.db, id);
 
   if (run === null) return { kind: "missing" };
 
-  if (!(await isNewestRestore(db, id))) return { kind: "superseded" };
+  if (!(await isNewestRestore(ports.db, id))) return { kind: "superseded" };
 
   if (!resumable(run)) return { kind: "not-resumable" };
 
-  if (!(await holdsEveryPart(ports.files, run))) return { kind: "incomplete-upload" };
+  if (!(await keepsEveryPart(ports, run))) return { kind: "incomplete-upload" };
 
-  const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${RESUMABLE_RESTORE}`;
+  return null;
+}
+
+export async function resumeRestore(ports: JobPorts, id: number): Promise<ResumedRestore> {
+  const { db } = ports;
+  const refused = await resumeRefusal(ports, id);
+
+  if (refused !== null) return refused;
+
+  const waiting = sql`${restoreRuns.id} = ${id} and ${KEPT_FOR_RESUME}`;
 
   const written = await guardedWrite(
     db,
@@ -127,7 +137,7 @@ export async function resumeRestore(ports: JobPorts, id: number): Promise<Resume
     ],
   );
 
-  if (written === null) return { kind: "not-resumable" };
+  if (written === null) return (await resumeRefusal(ports, id)) ?? { kind: "not-resumable" };
 
   await enqueueRows(ports, written);
 

@@ -264,6 +264,12 @@ function CommentTree({
   );
 }
 
+export function drawsCommentText(comments: Readonly<ItemDetail["comments"]>): boolean {
+  return (
+    sectionOf(comments.view) !== null && comments.nodes.some((node) => node.kind === "comment")
+  );
+}
+
 export function Comments({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
   const section = sectionOf(detail.comments.view);
 

@@ -1,6 +1,6 @@
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 
-import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
+import { BudgetRefusalSchema, ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import { SavedItemResponseSchema } from "../../../core/contract/item-route-wire.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "../../../core/contract/save-wire.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
@@ -35,7 +35,7 @@ const saveItemRoute = createRoute({
   request: { body: jsonRequest(SaveItemRequestSchema) },
   responses: {
     ...accessRefusals(SAVE_ITEM, PASTE_DIGEST_SCOPE),
-    ...budgetRefusal("Nothing is saved."),
+    ...budgetRefusal("Nothing is saved.", BudgetRefusalSchema),
     201: jsonBody(
       SavedItemResponseSchema,
       "The link was new and is now an Item. The Item is `processing` until its fetch and Digest jobs end. Read `GET /api/items/{id}/status` until `status` leaves `processing`. A short link that cannot be resolved answers with its end state.",

@@ -162,7 +162,7 @@ const resumeRoute = createRoute({
     ),
     400: jsonBody(
       RestoreErrorSchema,
-      "`code` is `incomplete-upload`: a part of the zip is gone, so the restore cannot continue. Cancel it and upload the zip again.",
+      "`code` is `incomplete-upload`: the zip's parts are past the 24 hours they are kept for a resume, measured at the newest sweep, or a part is gone, so the restore cannot continue. Cancel it and upload the zip again.",
     ),
     ...accessRefusals(OWNER),
     404: jsonBody(ErrorResponseSchema, "No restore has this id."),
