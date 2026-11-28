@@ -4,8 +4,8 @@ import { SETTINGS_CHANGED } from "../../../core/contract/ai-contract.ts";
 import type { ConnectNotice } from "../../../core/contract/openrouter-contract.ts";
 import { CURRENT_REVISION } from "../../../core/kernel/ai-settings-revision.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
-import { guardedBatch } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { DATABASE_NOW } from "../../../core/kernel/sql-expressions.ts";
 import { sessionIsLive } from "../../access/core/sessions.ts";
 import { type PreparedSave, prepareAiSettings, providerWrites } from "./ai-settings.ts";
@@ -41,11 +41,15 @@ async function committed(
   }>,
 ): Promise<boolean> {
   try {
-    return await guardedBatch(
-      ports.db,
-      sql`${sessionIsLive(ports.crypto, sessionId, DATABASE_NOW)} and ${CURRENT_REVISION} = ${claimed.expectedRevision} and ${DATABASE_NOW} < ${claimed.expiresAt}`,
-      providerWrites(ports.db, prepared),
+    const written = await whileOpen(() =>
+      heldBatch(
+        ports.db,
+        providerWrites(ports.db, prepared),
+        sql`${sessionIsLive(ports.crypto, sessionId, DATABASE_NOW)} and ${CURRENT_REVISION} = ${claimed.expectedRevision} and ${DATABASE_NOW} < ${claimed.expiresAt}`,
+      ),
     );
+
+    return !isClosed(written) && written !== null;
   } catch (error) {
     logFailure("openrouter-connect-commit-failed", {}, error);
 

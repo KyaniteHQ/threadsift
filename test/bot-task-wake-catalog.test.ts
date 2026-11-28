@@ -6,9 +6,10 @@ import { accept, propose } from "./accept-fixtures.ts";
 import { jobRow, openJobOf, selectGrokBot, sentTask } from "./bot-kinds-fixtures.ts";
 import { applied } from "./bot-task-lifecycle.ts";
 import { endsStale, inInstance, waitingOn, waitsForBot } from "./bot-wait-fixtures.ts";
-import { seedDigested, seedTopics } from "./disagreement-fixtures.ts";
+import { replaceDigest, seedDigested, seedTopics } from "./disagreement-fixtures.ts";
 import type { Instance } from "./instance.ts";
 import { paste, until } from "./library-fixtures.ts";
+import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 const tagItems = (instance: Instance, name: string): number =>
   instance.database.count(
@@ -16,7 +17,7 @@ const tagItems = (instance: Instance, name: string): number =>
     name,
   );
 
-describe("a catalog write that moves the input of a job waiting on the Grok Bot makes that job due", () => {
+describe("a library write that moves the input of a job waiting on the Grok Bot makes that job due", () => {
   it("retiring a sent Tag that no Item carries any more ends the stale task of the waiting Proposals job", () =>
     inInstance(async (instance) => {
       const carrier = await paste(instance, "llm", { title: "LLM notes", tags: ["llm"] });
@@ -46,6 +47,43 @@ describe("a catalog write that moves the input of a job waiting on the Grok Bot 
       const answer = await accept(instance, propose(instance, ["llm", "llms"]));
 
       assert.ok(answer.status < 300, answer.body);
+      await endsStale(instance, sent.id);
+    }));
+
+  it("retiring a sent Topic ends the stale task of the waiting Topic proposals job", () =>
+    inInstance(async (instance) => {
+      await paste(instance, "llm", { title: "LLM notes", topic: "LLM" });
+      await paste(instance, "llms", { title: "LLMs", topic: "LLMs" });
+
+      const owner = await paste(instance, "games", { title: "Games", topic: "Games" });
+      const sent = await sentTask(
+        instance,
+        await openJobOf(instance, { kind: "topic_proposals", itemId: owner }),
+      );
+
+      await waitingOn(instance, sent.job);
+
+      const answer = await accept(instance, proposeTopics(instance, ["LLM", "LLMs"]));
+
+      assert.ok(answer.status < 300, answer.body);
+      await endsStale(instance, sent.id);
+    }));
+
+  it("a new Digest of an Item in a sent Topic ends the stale task of the waiting disagreement check", () =>
+    inInstance(async (instance) => {
+      seedTopics(instance, { 1: "Alpha" });
+      seedDigested(instance, [
+        { id: 201, topic: 1 },
+        { id: 202, topic: 1 },
+      ]);
+
+      const sent = await sentTask(
+        instance,
+        await openJobOf(instance, { kind: "disagreement_proposals", itemId: 201 }),
+      );
+
+      await waitingOn(instance, sent.job);
+      await replaceDigest(instance, 202, { topic: "Alpha", title: "Title 202, revised" });
       await endsStale(instance, sent.id);
     }));
 

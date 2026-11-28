@@ -6,8 +6,7 @@ import type {
   ImportWrite,
 } from "../../../core/contract/import-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedWrite } from "../../../core/kernel/guards.ts";
-import { type Closed, holdsNoRestore } from "../../../core/kernel/restore-hold.ts";
+import { type Closed, heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { imports } from "../../../core/kernel/schema.ts";
 
 export async function readImport(db: Database, name: string): Promise<ImportState | undefined> {
@@ -47,9 +46,7 @@ function cursorWrite(db: Database, write: Readonly<ImportWrite>) {
 }
 
 async function writtenWhileOpen(db: Database, write: Readonly<ImportWrite>): Promise<boolean> {
-  const written = await guardedWrite(db, holdsNoRestore(db), cursorWrite(db, write), []);
-
-  return written !== null;
+  return !isClosed(await whileOpen(() => heldBatch(db, [cursorWrite(db, write)] as const)));
 }
 
 export async function saveImport(

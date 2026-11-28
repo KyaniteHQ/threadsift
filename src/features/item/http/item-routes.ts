@@ -10,8 +10,8 @@ import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
 import { readItemPage } from "../../../http/item-read.ts";
 import { itemView } from "../../../http/item-view.ts";
-import { accessNote, accessRefusals, jsonBody } from "../../../http/openapi.ts";
-import { notFound } from "../../../http/refusals.ts";
+import { accessNote, accessRefusals, jsonBody, restoringResponse } from "../../../http/openapi.ts";
+import { notFound, restoring } from "../../../http/refusals.ts";
 import { IdParamSchema, ItemQuerySchema } from "../../../http/route-input.ts";
 import { retryDigest } from "../../digest/core/digest-retry.ts";
 import { getListedItem } from "../core/item-selection.ts";
@@ -68,14 +68,19 @@ const retryDigestRoute = createRoute({
       "Queue a Digest over stored text, or return the unchanged Item when a Digest is already open or no text exists.",
     ),
     404: jsonBody(ErrorResponseSchema, "No Item has this id."),
+    503: restoringResponse("no Digest is queued."),
   },
 });
 
 export function registerItemRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(retryDigestRoute, async (c) => {
-    const item = await retryDigest(ports, c.req.valid("param").id);
+    const retried = await retryDigest(ports, c.req.valid("param").id);
 
-    return item === undefined ? notFound(c) : c.json({ item: itemView(item) }, 200);
+    if (retried === undefined) return notFound(c);
+
+    return retried.kind === "restoring"
+      ? restoring(c)
+      : c.json({ item: itemView(retried.item) }, 200);
   });
 
   app.openapi(getItemStatusRoute, async (c) => {

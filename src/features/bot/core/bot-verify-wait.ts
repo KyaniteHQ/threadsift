@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, isNotNull } from "drizzle-orm";
 
 import { AiRefusalSchema, refusedAi } from "../../../core/contract/ai-contract.ts";
 import type { VerifyResultSchema } from "../../../core/contract/ai-settings-contract.ts";
@@ -45,7 +45,10 @@ function verifyStage(
 }
 
 async function readTask(db: Database, taskId: number) {
-  const [task] = await db.select().from(aiTasks).where(eq(aiTasks.id, taskId));
+  const [task] = await db
+    .select()
+    .from(aiTasks)
+    .where(and(eq(aiTasks.id, taskId), isNotNull(aiTasks.callbackHash)));
 
   return task ?? null;
 }
