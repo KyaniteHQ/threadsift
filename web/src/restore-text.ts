@@ -106,11 +106,11 @@ const GAVE_UP = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)}
 
 const CANCEL_STOPPED = `Cancelling the restore stopped after a step failed ${String(MAX_ATTEMPTS)} times. Some restored records are still in the library. Use Cancel restore again to remove them from where it stopped.`;
 
-const GAVE_UP_NO_ZIP = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times. Some records are already restored, and the export zip is no longer on this instance. Cancel restore removes the restored records so you can choose the zip again.`;
+const GAVE_UP_NO_ZIP = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times, and some records are already restored. This restore can no longer be resumed. Cancel restore removes those records so you can choose the zip again.`;
 
 const GAVE_UP_EMPTY = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times. The library is still empty. Resume restore tries again from the last finished step. Cancel restore ends the restore so you can choose the zip again.`;
 
-const GAVE_UP_EMPTY_NO_ZIP = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times. The library is still empty, and the export zip is no longer on this instance. Cancel restore ends the restore so you can choose the zip again.`;
+const GAVE_UP_EMPTY_NO_ZIP = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times, and the library is still empty. This restore can no longer be resumed. Cancel restore ends the restore so you can choose the zip again.`;
 
 export function refusalLabel(code: RestoreErrorCode): string {
   return REFUSAL_TEXT[code];
