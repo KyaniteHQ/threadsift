@@ -1,4 +1,4 @@
-import { type Dispatch, useCallback, useEffect, useReducer } from "react";
+import { type Dispatch, useCallback, useEffect, useReducer, useRef } from "react";
 import { flushSync } from "react-dom";
 
 import type { Digest } from "../../src/core/contract/digest-schema.ts";
@@ -41,7 +41,7 @@ type Event =
   | { readonly kind: "settle"; readonly outcome: Outcome }
   | { readonly kind: "refuse"; readonly outcome: Outcome }
   | { readonly kind: "clear" }
-  | { readonly kind: "restore" };
+  | { readonly kind: "return" };
 
 function noticeOf(search: string): ConnectNotice | null {
   const parsed = ConnectNoticeSchema.safeParse(new URLSearchParams(search).get(NOTICE_PARAMETER));
@@ -68,7 +68,7 @@ function reduce(state: FormState, event: Event): FormState {
     return state.phase === "idle" ? { ...state, outcome: null, notice: null } : state;
   }
 
-  if (event.kind === "restore") {
+  if (event.kind === "return") {
     return state.phase === LEAVING ? { ...state, phase: "idle" } : state;
   }
 
@@ -94,16 +94,22 @@ function useRefusals(dispatch: Dispatch<Event>) {
   return { refuse, clear };
 }
 
-function useLeaveExit(leaving: boolean, dispatch: Dispatch<Event>): void {
-  const restore = useCallback(() => {
-    dispatch({ kind: "restore" });
+function useLeaveExit(leaving: boolean, dispatch: Dispatch<Event>): () => void {
+  const pending = useRef(false);
+
+  const expire = useCallback(() => {
+    pending.current = true;
+    dispatch({ kind: "return" });
   }, [dispatch]);
 
-  useAfter(leaving, LEAVE_WAIT_MS, restore);
+  useAfter(leaving, LEAVE_WAIT_MS, expire);
 
   useEffect(() => {
     const onPageShow = (event: Readonly<PageTransitionEvent>): void => {
-      if (event.persisted) restore();
+      if (!event.persisted) return;
+
+      pending.current = false;
+      dispatch({ kind: "return" });
     };
 
     window.addEventListener("pageshow", onPageShow);
@@ -111,7 +117,14 @@ function useLeaveExit(leaving: boolean, dispatch: Dispatch<Event>): void {
     return () => {
       window.removeEventListener("pageshow", onPageShow);
     };
-  }, [restore]);
+  }, [dispatch]);
+
+  return useCallback(() => {
+    if (!pending.current) return;
+
+    pending.current = false;
+    window.stop();
+  }, []);
 }
 
 export function useAiPhase() {
@@ -124,13 +137,14 @@ export function useAiPhase() {
     if (noticed) window.history.replaceState(null, "", window.location.pathname);
   }, [noticed]);
 
-  useLeaveExit(phase === LEAVING, dispatch);
+  const stayOnPage = useLeaveExit(phase === LEAVING, dispatch);
 
   const { refuse, clear } = useRefusals(dispatch);
 
   const run = useCallback(
     (next: Working, task: Task) => {
       guard(async () => {
+        stayOnPage();
         dispatch({ kind: "begin", phase: next });
 
         try {
@@ -146,10 +160,10 @@ export function useAiPhase() {
         }
       });
     },
-    [guard],
+    [guard, stayOnPage],
   );
 
-  return { phase, outcome: state.outcome, notice, run, refuse, clear };
+  return { phase, outcome: state.outcome, notice, run, refuse, clear, stayOnPage };
 }
 
 export type AiPhase = ReturnType<typeof useAiPhase>;
