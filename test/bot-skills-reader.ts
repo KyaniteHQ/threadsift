@@ -159,7 +159,7 @@ export function wordOf(
 
 export function scriptWordsOf(script: string): readonly string[] {
   const named = [
-    ...script.matchAll(/(?:echo|stop) ([a-z]+(?:-[a-z]+)*)(?=[ ;]|$)/gmu),
+    ...script.matchAll(/(?:echo|stop|said) ([a-z]+(?:-[a-z]+)*)(?=[ ;]|$)/gmu),
     ...script.matchAll(/word=([a-z]+(?:-[a-z]+)*)/gu),
   ].map(([, word = ""]) => word);
 

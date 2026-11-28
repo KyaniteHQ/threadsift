@@ -2,6 +2,7 @@ import { execFile } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import {
   copyFileSync,
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -10,7 +11,8 @@ import {
   writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
+import { setTimeout as delay } from "node:timers/promises";
 
 import { z } from "zod";
 
@@ -23,6 +25,12 @@ export interface Ran {
   readonly reasons: string;
   readonly code: number;
 }
+
+const present = async (file: string, tries = 250): Promise<void> => {
+  if (existsSync(file) || tries === 0) return;
+  await delay(20);
+  await present(file, tries - 1);
+};
 
 export class ScriptFolder {
   readonly path = mkdtempSync(join(tmpdir(), "threadsift-script-"));
@@ -93,6 +101,32 @@ export class ScriptFolder {
     ]);
 
     return { delimiter, ran: await this.script(command, name.replace("<hex>", hex)) };
+  }
+
+  async holding(
+    lock: string,
+    seconds: number,
+    watched: string,
+  ): Promise<{ readonly holder: Promise<Ran> }> {
+    const held = join(this.path, "held");
+
+    rmSync(held, { force: true });
+    mkdirSync(dirname(lock), { recursive: true });
+
+    const holder = this.script(
+      'set -e; exec 8> "$2"; flock 8; : > "$3"; sleep "$4"; if [ -e "$5" ]; then echo changed; else echo waited; fi',
+      lock,
+      held,
+      String(seconds),
+      watched,
+    );
+
+    await present(held);
+
+    if (!existsSync(held))
+      throw new Error(`the lock ${lock} was not taken: ${(await holder).reasons}`);
+
+    return { holder };
   }
 
   script(command: string | Uint8Array, ...args: readonly string[]): Promise<Ran> {
