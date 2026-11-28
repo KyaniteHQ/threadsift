@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 import { GithubTokenStateSchema } from "./github-contract.ts";
-import { HEADER_SAFE_SECRET, SECRET_INPUT_MAX } from "./secret-input.ts";
+import { HeaderSecretSchema } from "./secret-input.ts";
 
 export const VAULT_NAME_MAX = 240;
 
@@ -29,7 +29,7 @@ const GithubInputSchema = z.strictObject({
         !name.endsWith(".") &&
         name !== "@",
     ),
-  token: z.string().trim().min(1).max(SECRET_INPUT_MAX).regex(HEADER_SAFE_SECRET),
+  token: z.string().trim().pipe(HeaderSecretSchema),
 });
 
 export const VAULT_FOLDER_MAX = 4096;

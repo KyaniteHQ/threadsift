@@ -27,7 +27,14 @@ const CommentNodeSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("more"), ...Place }),
 ]);
 
-const UnfilteredCauseSchema = z.enum(["pending", "failed", "no-provider", "not-run", "older"]);
+const UnfilteredCauseSchema = z.enum([
+  "pending",
+  "failed",
+  "no-provider",
+  "not-run",
+  "older",
+  "x-api-read",
+]);
 
 export type UnfilteredCause = z.infer<typeof UnfilteredCauseSchema>;
 
@@ -88,6 +95,7 @@ export interface ThreadReport {
     readonly outcome: DigestOutcome;
     readonly stored: boolean;
     readonly provider: boolean;
+    readonly providerMayRead: boolean;
   };
 }
 
@@ -100,10 +108,17 @@ export const NO_COMMENTS: CommentsView = {
   view: { filter: "absent" },
 };
 
-function causeOf({ outcome, stored, provider }: Readonly<ThreadReport["digest"]>): UnfilteredCause {
+function causeOf({
+  outcome,
+  stored,
+  provider,
+  providerMayRead,
+}: Readonly<ThreadReport["digest"]>): UnfilteredCause {
   if (outcome !== "none") return outcome;
 
   if (stored) return "older";
+
+  if (!providerMayRead) return "x-api-read";
 
   return provider ? "not-run" : "no-provider";
 }

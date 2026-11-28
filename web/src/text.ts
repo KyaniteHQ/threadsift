@@ -128,6 +128,17 @@ export const WAITING = {
     until: "The grok CLI couldn’t read this X post. Threadsift will try again {when}.",
     due: "The grok CLI couldn’t read this X post. Threadsift will try again.",
   },
+  "x-api-budget": {
+    title: "Waiting for the next UTC day…",
+    until:
+      "The amount left under today’s X API spend limits can’t cover the next request to X. Threadsift will try again {when}.",
+    due: "The amount left under today’s X API spend limits can’t cover the next request to X. Threadsift will try again.",
+  },
+  "x-api-rate": {
+    title: "Waiting for X…",
+    until: "X is limiting requests. Threadsift will try again {when}.",
+    due: "X is limiting requests. Threadsift will try again.",
+  },
   "topic-busy": {
     title: "Waiting for the topic…",
     until: "This item’s topic is updating. Threadsift will try again {when}.",

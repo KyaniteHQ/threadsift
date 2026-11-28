@@ -8,7 +8,7 @@ import {
   type DigestRead,
   type StoredDigest,
   readStoredDigest,
-  storedDigests,
+  allStoredDigests,
   storedTags,
   unchangedDigests,
 } from "../../../core/kernel/digest-stored.ts";
@@ -125,7 +125,7 @@ export async function readRewrite(
 
   const itemIds = linked.map(({ itemId }) => itemId);
 
-  const stored = itemIds.length === 0 ? [] : await storedDigests(db, itemIds);
+  const stored = itemIds.length === 0 ? [] : await allStoredDigests(db, itemIds);
 
   const read = new Map(stored.map((row) => [row.itemId, row]));
 

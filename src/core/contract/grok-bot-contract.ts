@@ -2,9 +2,8 @@ import { z } from "zod";
 
 import { resolveUrl } from "./addresses.ts";
 import { allowedAiUrl } from "./ai-url.ts";
-import { groupedNumber } from "./format.ts";
 import { HOP_DEADLINE_MS } from "./request-waits.ts";
-import { HEADER_SAFE_SECRET, SECRET_INPUT_MAX } from "./secret-input.ts";
+import { HeaderSecretSchema } from "./secret-input.ts";
 
 export const GROK_BOT_PING_KIND = "ping";
 
@@ -31,13 +30,7 @@ export const GrokBotInputSchema = z.object({
     .string()
     .trim()
     .refine(allowedGrokBotUrl, { error: `must be ${GROK_BOT_ADDRESS_RULE}` }),
-  key: z
-    .string()
-    .max(SECRET_INPUT_MAX)
-    .regex(HEADER_SAFE_SECRET, {
-      error: `must be 1 to ${groupedNumber(SECRET_INPUT_MAX)} printable ASCII characters, no space`,
-    })
-    .optional(),
+  key: HeaderSecretSchema.optional(),
 });
 
 export type GrokBotInput = z.infer<typeof GrokBotInputSchema>;

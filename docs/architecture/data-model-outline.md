@@ -60,6 +60,7 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
   - `archived_at` is the fill time of an Arctic Shift fill, and null for a thread that the Extension, a `.json` Paste, an X Paste or the connected Reddit account sent.
   - `linked_url` is the candidate link for the Digest's one hop, read for the Item's current generation (`candidateLink`). `post_link` is the address a Reddit link post points at, read from the newest generation. The candidate differs: it skips video and Reddit or X addresses and falls back to the first link of the post text.
   - The foreign key `(item_id, source)` to `items(id, source)` refuses a row that names another Source than its Item.
+  - `x_api_read` marks a thread the X API reader stored, which no AI task sends to the owner's Provider while the constant `X_API_PROVIDER_DIGESTS` is `false` in the source ([Fetchers](fetchers.md), X API).
 - **`thread_comments`.** `id` and `parent_id` hold the comment id at its Source, lower-cased: Reddit's base-36 comment id without the `t1_` of its fullname, or the status id of an X reply. A `more` stub's id is `more_<position>`, and a comment's `parent_id` is null for a reply to the post. `eligible` is false for a deleted or removed body, `AutoModerator` and a bare agreement such as "this" or "thanks". A Digest publication sets `kept` on eligible rows only and deletes every older generation in the same batch.
 
 ### Settings and integrations
@@ -73,11 +74,14 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
 | `github_cooldown` | The time before which the Instance sends no GitHub request. |
 | `grok_bot_settings` | The owner's Grok Bot, one row. No row means no Grok Bot is set up. |
 | `x_settings` | The owner's choice of the reader of X links. No row means `auto`. |
+| `x_api_settings` | The owner's X API Bearer token, the spend limit for each Item on each UTC day and the one for each UTC day, one row. No row, or a null token, means no token is saved. |
+| `x_api_spend` | One row per UTC day: the micro-USD reserved and settled for every request to X (reads, Verify and the daily usage read), the posts and users counted, and X's own count of the day's posts from the daily usage read. |
+| `x_api_item_spend` | One row per Item and UTC day: the micro-USD the X API reader reserved and settled for that Item, so the Item limit holds across retries and restarts. It goes with its Item, so a deleted Item's link pasted again starts a new Item counter; the day limit still bounds the day. |
 | `reddit_settings` | The owner's Reddit settings. No row means the archive fill is on. |
 | `reddit_account` | The owner's own Reddit account with its session cookie. |
 | `vault_settings`, `mirror_notes`, `mirror_files` | The Vault target, the lease, the queued note subjects and the per-file checkpoints. See [Vault mirror](vault-mirror.md). |
 
-- **Secrets.** `settings`, `github_settings`, `reddit_account`, `vault_settings` and `grok_bot_settings` hold their secret sealed under `THREADSIFT_SECRET_KEY`. `x_settings` and `reddit_settings` hold none. No route, log or Export returns `reddit_account`.
+- **Secrets.** `settings`, `github_settings`, `reddit_account`, `vault_settings`, `grok_bot_settings` and `x_api_settings` hold their secret sealed under `THREADSIFT_SECRET_KEY`. `x_settings` and `reddit_settings` hold none. The Export leaves out `x_api_settings` as a secret and `x_api_spend` and `x_api_item_spend` as spend counters, so after a Restore the owner saves the token again and both counters start at 0. A Restore on the same UTC day therefore starts the day limit again ([Export, backup and restore](export-backup-and-restore.md#the-backup-list)). No route, log or Export returns `reddit_account`.
 - **`settings`.** Only a Claude Code or Codex row can store an effort or use a choice other than `custom`. Grok Bot is not a value of this row. The flag `use_as_provider` on `grok_bot_settings` says Grok Bot is the Provider, and it blocks removing that row. `grok_bot_settings` holds no agent token, references no other table, and stays out of the Export (see [Export, backup and restore](export-backup-and-restore.md)).
 - **`reddit_account`.** The Reddit account module writes the row except `busy_job`, `busy_attempt`, `busy_until` and `queue_head`, which the Reddit queue module writes (The Reddit turn in [Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
 
@@ -186,7 +190,7 @@ Not verified: the phone's own selection menu (iOS Safari, Android Chrome), the r
 | Failed refresh, or a result that publishes no content | Rows, files and text stay as they were. |
 | Refresh with no images, or a change to Other | Every row of the Item is deleted and every file goes. |
 | A thread published over the Item (`publishSupplied`) | Every row of the Item is deleted in the publishing batch, and the cleanup pass removes the files that no row names. |
-| An X thread published by the check job (`x_verify`) | The photos in its post text are stored like an Article's. A photo that is still there keeps its row, one that is gone loses it with its file, and a post with no photo removes every row. |
+| An X thread published by the check job (`x_verify`) or by the X API route | The photos in its post text are stored like an Article's. A photo that is still there keeps its row, one that is gone loses it with its file, and a post with no photo removes every row. |
 | Delete of the Item | The cascade deletes the rows and the prefix delete removes the files. |
 | Export and Restore | The records carry the ids, the file keys and the video URLs as stored, so a Restore keeps every row and link. The Export also writes each `stored` image as `items/<id>/<file name>` beside the Item's note, and `itemNote` rewrites the file-route links of the Item's own images to that bare file name. |
 | Merge of two copies | Not built. Two Items never share rows, because the match key holds `item_id`. |

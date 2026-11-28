@@ -1,6 +1,6 @@
 import type { ThreadAnswers } from "../../../core/contract/thread-answers.ts";
 import { parseRedditThread } from "../../reddit/core/reddit-json.ts";
-import type { StoredParse } from "../../thread/core/stored-thread.ts";
+import { type StoredParse, readElsewhere } from "../../thread/core/stored-thread.ts";
 import { parseXThread } from "../../x/core/x-thread.ts";
 import type { ThreadSource } from "./thread-source.ts";
 
@@ -15,7 +15,7 @@ function refused(reason: string): StoredParse {
 export function parsedThread(source: Readonly<ThreadSource>, answers: ThreadAnswers): StoredParse {
   switch (source.kind) {
     case "reddit": {
-      return parseRedditThread(answers, source.ref);
+      return readElsewhere(parseRedditThread(answers, source.ref));
     }
 
     case "none": {

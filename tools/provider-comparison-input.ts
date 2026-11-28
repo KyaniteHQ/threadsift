@@ -41,6 +41,7 @@ const CapturedItem = z.discriminatedUnion("kind", [
       "post-text-unreadable",
       "no-digest-content",
       "digest-input-too-large",
+      "provider-may-not-read",
     ]),
   }),
 ]);

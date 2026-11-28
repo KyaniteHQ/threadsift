@@ -2,7 +2,11 @@ import { eq, sql } from "drizzle-orm";
 
 import { AI_INPUT_BYTES } from "../../../core/contract/ai-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { candidateLink, hasDigestContent } from "../../../core/kernel/digest-source.ts";
+import {
+  candidateLink,
+  hasDigestContent,
+  providerMayRead,
+} from "../../../core/kernel/digest-source.ts";
 import { guardedOutcome } from "../../../core/kernel/guarded-outcome.ts";
 import type { JobOutcome } from "../../../core/kernel/job-outcome.ts";
 import { hasOpenJob } from "../../../core/kernel/job-rows.ts";
@@ -20,6 +24,7 @@ export function digestInput(db: Database, id: number) {
       postTextKey: items.postTextKey,
       postText: sql<string | null>`substr(${items.postText}, 1, ${AI_INPUT_BYTES})`,
       hasContent: sql<boolean>`${hasDigestContent()}`.mapWith(Boolean),
+      providerMayRead: sql<boolean>`${providerMayRead(items.id)}`.mapWith(Boolean),
     })
     .from(items)
     .where(eq(items.id, id));

@@ -1,8 +1,9 @@
-import { asc, count, eq, gt } from "drizzle-orm";
+import { and, asc, count, eq, gt } from "drizzle-orm";
 
 import { fitsAiInput } from "../../../core/contract/ai-contract.ts";
 import type { MergeKind } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { providerMayRead } from "../../../core/kernel/digest-source.ts";
 import { MERGE } from "./merge-kinds.ts";
 import {
   type Candidate,
@@ -37,7 +38,7 @@ function usedSubjects(db: Database, kind: MergeKind): Promise<readonly NamedCand
       .select({ id: table.id, key: table.key, name: table.name, items: count(itemLink.item) })
       .from(table)
       .innerJoin(itemLink.entry.table, eq(itemLink.entry, table.id))
-      .where(gt(table.id, after))
+      .where(and(gt(table.id, after), providerMayRead(itemLink.item)))
       .groupBy(table.id)
       .orderBy(asc(table.id))
       .limit(SUBJECT_PAGE),

@@ -1,15 +1,24 @@
-export const MICROS_PER_USD = 1_000_000;
+import {
+  MICROS_PER_USD,
+  X_API_LOOKUP_WORST,
+  X_API_POST_MICROS,
+  X_API_USAGE_READ_MICROS,
+  X_API_USER_MICROS,
+  X_REFERENCE_TYPES,
+} from "../src/core/contract/x-api-contract.ts";
 
-export const REFERENCE_TYPES = 3;
+export { MICROS_PER_USD } from "../src/core/contract/x-api-contract.ts";
+
+export const REFERENCE_TYPES = X_REFERENCE_TYPES;
 
 export const ASSUMED = {
-  usageReadMicros: 200_000,
-  usernameUsersPerPost: 1 + REFERENCE_TYPES,
+  usageReadMicros: X_API_USAGE_READ_MICROS,
+  usernameUsersPerPost: X_API_LOOKUP_WORST.users,
 } as const;
 
 export const PRICE_MICROS = {
-  post: 5_000,
-  user: 10_000,
+  post: X_API_POST_MICROS,
+  user: X_API_USER_MICROS,
   usageRead: ASSUMED.usageReadMicros,
 } as const;
 
@@ -17,7 +26,7 @@ export const ASSUMPTIONS = [
   `A usage or balance read is counted at ${usd(ASSUMED.usageReadMicros)} USD, the highest charge on X's pricing page, because the page does not price the usage endpoints. The price of a usage read is not measured.`,
   `The username expansion is counted at ${ASSUMED.usernameUsersPerPost} users per post (the author and the authors of ${REFERENCE_TYPES} referenced posts), because the OpenAPI document does not describe it. Its bound is not measured.`,
   "Media, polls, places, topics and calls are not on X's price table, so they count 0.",
-  "X bills a post or a user once per UTC day, so a second lookup of the same post on one day costs nothing and the counted spend can exceed the measured spend. S1's two lookups read the same post. S2 and S3 need posts not read earlier the same UTC day.",
+  "X normally bills a post or a user once per UTC day, a deduplication its pricing page calls a soft guarantee, so a second lookup of the same post on one day normally costs nothing and the counted spend can exceed the measured spend. S1's two lookups read the same post. S2 and S3 need posts not read earlier the same UTC day.",
 ] as const;
 
 export const CEILING = { usdMicros: 2 * MICROS_PER_USD, posts: 400 } as const;

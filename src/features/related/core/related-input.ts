@@ -6,8 +6,8 @@ import type { Digest } from "../../../core/contract/digest-schema.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import {
   type StoredDigest,
+  providerDigests,
   readStoredDigest,
-  storedDigests,
   unchangedDigests,
 } from "../../../core/kernel/digest-stored.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
@@ -103,7 +103,7 @@ function readableCandidate(row: Readonly<StoredDigest>) {
 }
 
 export async function readPick(db: Database, itemId: number): Promise<PickRead> {
-  const [row] = await storedDigests(db, [itemId]);
+  const [row] = await providerDigests(db, [itemId]);
 
   if (row === undefined) return { kind: "absent" };
 
@@ -122,7 +122,7 @@ export async function readPick(db: Database, itemId: number): Promise<PickRead> 
 
   const ids = await candidateIds(db, itemId, relatedTerms(source));
 
-  const rows = ids.length === 0 ? [] : await storedDigests(db, ids);
+  const rows = ids.length === 0 ? [] : await providerDigests(db, ids);
 
   const byId = new Map(rows.map((each) => [each.itemId, each]));
 

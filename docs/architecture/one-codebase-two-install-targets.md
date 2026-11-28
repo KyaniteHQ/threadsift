@@ -42,7 +42,7 @@ The `ports:` row names fields of `Ports`, except `tick`, which the target's time
 | `xFetcher` | `XFetcher` |
 | `crypto` | `Crypto` |
 
-Three more types hold data and are not ports: `AiRuntime` (what `Ports.ai` holds, and the runner types), `LoadedFetcher` (what `Ports.fetchers` lists) and `InstanceConfig` (`Ports.config`, which holds `setupCode`, `resetCode` and `publicOrigin` as plain values).
+Three more types hold data and are not ports: `AiRuntime` (what `Ports.ai` holds, and the runner types), `LoadedFetcher` (what `Ports.fetchers` lists) and `InstanceConfig` (`Ports.config`, which holds `setupCode`, `resetCode`, `publicOrigin` and `xApiOrigin` as plain values).
 
 An importer takes a type from the module that defines it, so no module that `Ports` names imports `Ports` back.
 
@@ -69,7 +69,7 @@ A port exists only when two production adapters need it. Four fields of `Ports` 
 
 The Worker builds its ports for each API request, each valid queue message and each Cron run, and its app for each API request. A static page and an invalid queue message build nothing.
 
-It keeps no value derived from `env` in module scope. Cloudflare may reuse an isolate when only a binding, a variable or a secret changes, and such a value can outlive that change ([Workers bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/#making-changes-to-bindings): "The correct approach would be to create a new client instance for each request."). The ports hold the bindings, the secret key, the setup code, the reset code and the public origin, so the Worker reads each of them from the `env` of the call that uses it. `workerNetwork` and `workerPageReader` stay in module scope because they derive nothing from `env`.
+It keeps no value derived from `env` in module scope. Cloudflare may reuse an isolate when only a binding, a variable or a secret changes, and such a value can outlive that change ([Workers bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/#making-changes-to-bindings): "The correct approach would be to create a new client instance for each request."). The ports hold the bindings, the secret key, the setup code, the reset code, the public origin and the X API origin, so the Worker reads each of them from the `env` of the call that uses it. `workerNetwork` and `workerPageReader` stay in module scope because they derive nothing from `env`.
 
 A failed `settingsOf` fails that request or job and leaves the next one to build again. A real input does that: `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO=yes` makes `settingsOf` throw a `ZodError`.
 
@@ -86,8 +86,8 @@ The core is the `contract`, `kernel` and `compose` folders and the core half of 
 
 Both targets turn their variables into `Ports` with the same two functions:
 
-1. `settingsOf` reads the five variables both targets share (`SettingVariables`, which `settingVariablesOf` takes from `process.env` or from `Env`) and returns `Settings`.
-2. `portsOf` takes `Settings` and the target's own adapters (`TargetAdapters`) and returns `Ports`. It seals the secret key, passes `nodeCrypto`, checks the public origin (`publicOriginOf`) and fills `Ports.config` and `Ports.ai`.
+1. `settingsOf` reads the variables both targets share (`SETTING_NAMES`, typed `SettingVariables`, which `settingVariablesOf` takes from `process.env` or from `Env`) and returns `Settings`.
+2. `portsOf` takes `Settings` and the target's own adapters (`TargetAdapters`) and returns `Ports`. It seals the secret key, passes `nodeCrypto`, checks the public origin (`publicOriginOf`) and the X API origin (`xApiOriginOf`) and fills `Ports.config` and `Ports.ai`.
 
 The container copies the values it reads from `process.env` once through `nodeEnvironment`, which takes the names of the shared variables from `settingVariablesOf`. `startNode` passes the result on. The Worker's `Env` extends `SettingVariables`, and `workerAdapters` builds its adapters from the bindings. The name of a shared variable therefore exists once.
 
@@ -102,10 +102,10 @@ A variable that Threadsift reads (`SETTING_NAMES` and the ones `nodeEnvironment`
 
 | Variables | Step | Effect |
 |---|---|---|
-| The variables that `nodeEnvironment` reads (container) | `nodeEnvironment` drops every empty entry of `process.env` | an empty `PORT` is `8080`. An empty `DATA_DIR` is the `.data` folder in the repository root (in the image, a link to `/data`). An empty `GROK_HOME` or `THREADSIFT_FETCHERS` is absent. An empty `THREADSIFT_GROK_AUTO_UPDATE` is `false`, so an empty value passed to the container turns off the `true` that the image sets. |
-| The five shared variables (both targets) | `settingVariablesOf` applies `unsetWhenEmpty` | the container passes them through it from `process.env`. The Worker reads them, `PASSWORD_RESET_CODE` included, only through it. |
+| The variables that `nodeEnvironment` reads (container) | `nodeEnvironment` drops every empty entry of `process.env` | an empty `PORT` is `8080`. An empty `HOST` listens on every interface, and `HOST`, when set, must be an IPv4 or IPv6 address, such as `127.0.0.1` for loopback only. Once it listens, the container logs one `http-listening` line with the address and port. An empty `DATA_DIR` is the `.data` folder in the repository root (in the image, a link to `/data`). An empty `GROK_HOME` or `THREADSIFT_FETCHERS` is absent. An empty `THREADSIFT_GROK_AUTO_UPDATE` is `false`, so an empty value passed to the container turns off the `true` that the image sets. |
+| The shared variables of `SETTING_NAMES` (both targets) | `settingVariablesOf` applies `unsetWhenEmpty` | the container passes them through it from `process.env`. The Worker reads them, `PASSWORD_RESET_CODE` included, only through it. |
 
-The provider comparison tool calls `unsetWhenEmpty` for the Claude Code and Codex variables it reads. A nonempty `THREADSIFT_PUBLIC_ORIGIN` of spaces, or a nonempty `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` or `THREADSIFT_GROK_AUTO_UPDATE` other than `true` or `false`, is still an error (a `ZodError` for the last two).
+The provider comparison tool calls `unsetWhenEmpty` for the Claude Code and Codex variables it reads. A nonempty `THREADSIFT_PUBLIC_ORIGIN` or `THREADSIFT_X_API_ORIGIN` of spaces, or one that is not a valid origin, or a nonempty `THREADSIFT_OPENROUTER_MAX_PRICE_ZERO` or `THREADSIFT_GROK_AUTO_UPDATE` other than `true` or `false`, is still an error (a `ZodError` for the last two).
 
 ## Why Hono
 

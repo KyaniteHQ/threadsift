@@ -8,6 +8,7 @@ import {
   commentsViewOf,
 } from "../../../core/contract/comment-view.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { providerMayRead } from "../../../core/kernel/digest-source.ts";
 import { providerSet } from "../../../core/kernel/provider-saved.ts";
 import { threadComments, threads } from "../../../core/kernel/schema.ts";
 import { commentReadable, digestCoversThread, readGeneration } from "./thread-store.ts";
@@ -67,6 +68,7 @@ function threadReport(db: Database, itemId: number) {
       generation: threads.generation,
       published: sql<boolean>`${digestCoversThread(itemId)}`.mapWith(Boolean),
       provider: sql<boolean>`${providerSet()}`.mapWith(Boolean),
+      providerMayRead: sql<boolean>`${providerMayRead(sql`${itemId}`)}`.mapWith(Boolean),
       link: sql<
         string | null
       >`(select newest.post_link from ${threads} as newest where newest.item_id = ${threads}.item_id order by newest.generation desc limit 1)`,
@@ -87,21 +89,29 @@ export function commentsOf(
     generation: number;
     published: boolean;
     provider: boolean;
+    providerMayRead: boolean;
   }>[],
   postRevision: number,
-  digest: Omit<ThreadReport["digest"], "provider">,
+  digest: Omit<ThreadReport["digest"], "provider" | "providerMayRead">,
 ): CommentsView {
   const [thread] = report;
 
   if (thread === undefined) return NO_COMMENTS;
 
-  const { reported, archivedAt, generation, published, provider } = thread;
+  const {
+    reported,
+    archivedAt,
+    generation,
+    published,
+    provider,
+    providerMayRead: mayRead,
+  } = thread;
 
   return commentsViewOf(rows, {
     reported,
     archive: archivedAt === null ? null : { at: archivedAt, withPost: generation === postRevision },
     published,
-    digest: { ...digest, provider },
+    digest: { ...digest, provider, providerMayRead: mayRead },
   });
 }
 

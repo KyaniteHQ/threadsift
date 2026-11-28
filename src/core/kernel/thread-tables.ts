@@ -25,6 +25,7 @@ export const threads = sqliteTable(
     linkedUrl: text("linked_url"),
     postLink: text("post_link"),
     followUps: integer("follow_ups").notNull().default(0),
+    xApiRead: integer("x_api_read", { mode: "boolean" }).notNull().default(false),
   },
   (table) => [
     primaryKey({ columns: [table.itemId, table.generation] }),

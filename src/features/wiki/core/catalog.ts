@@ -3,7 +3,12 @@ import { type SQL, type SQLWrapper, and, desc, eq, sql } from "drizzle-orm";
 import { catalogKey } from "../../../core/contract/catalog-key.ts";
 import type { Digest } from "../../../core/contract/digest-schema.ts";
 import type { CatalogTable } from "../../../core/kernel/catalog-tables.ts";
-import { TAG_USES, TOPIC_USES } from "../../../core/kernel/catalog-uses.ts";
+import {
+  READABLE_TAG_USES,
+  READABLE_TOPIC_USES,
+  TAG_USES,
+  TOPIC_USES,
+} from "../../../core/kernel/catalog-uses.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { loggedDigest, loggedTopic } from "../../../core/kernel/log-writes.ts";
 import {
@@ -74,19 +79,25 @@ export function catalogCurrent(version: number, entries: CatalogEntries) {
   return sql`(${CATALOG_VERSION} = ${version} or (exists (select 1 from ${topics} where key = ${entries.topic.key}) and not exists (select 1 from json_each(${keys}) wanted where not exists (select 1 from ${tags} where key = wanted.value))))`;
 }
 
-function topNames(db: Database, table: Readonly<SQLWrapper>, usage: Readonly<SQLWrapper>) {
+interface Uses {
+  readonly all: Readonly<SQLWrapper>;
+  readonly readable: Readonly<SQLWrapper>;
+}
+
+function topNames(db: Database, table: Readonly<SQLWrapper>, uses: Readonly<Uses>) {
   return db
     .select({ name: sql<string>`${table}.name` })
     .from(sql`${table}`)
-    .orderBy(desc(sql`${usage}`), sql`${table}.id`)
+    .where(sql`${uses.all} = 0 or ${uses.readable} > 0`)
+    .orderBy(desc(sql`${uses.readable}`), sql`${table}.id`)
     .limit(CATALOG_NAME_LIMIT);
 }
 
 export async function readCatalog(db: Database) {
   const [version, topicNames, tagNames] = await db.batch([
     versionRow(db),
-    topNames(db, topics, TOPIC_USES),
-    topNames(db, tags, TAG_USES),
+    topNames(db, topics, { all: TOPIC_USES, readable: READABLE_TOPIC_USES }),
+    topNames(db, tags, { all: TAG_USES, readable: READABLE_TAG_USES }),
   ]);
 
   return {
