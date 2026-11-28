@@ -61,7 +61,10 @@ export function useImportList(text: string) {
     setAttempt((count) => count + 1);
   }, []);
 
-  const answered = answer?.links === links && answer.attempt === attempt ? answer.check : null;
+  const answered =
+    text === deferred && answer?.links === links && answer.attempt === attempt
+      ? answer.check
+      : null;
 
   const check: Check =
     links.length === 0 ? { status: "none" } : (answered ?? { status: "checking" });

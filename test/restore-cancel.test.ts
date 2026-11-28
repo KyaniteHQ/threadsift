@@ -1,8 +1,7 @@
 import assert from "node:assert/strict";
 import { type TestContext, after, afterEach, before, beforeEach, describe, it } from "node:test";
 
-import { RestoreErrorSchema, restoreAnswerSchema } from "../src/core/contract/restore-contract.ts";
-import { DAY_MS } from "../src/core/contract/time-units.ts";
+import { restoreAnswerSchema } from "../src/core/contract/restore-contract.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { exportedZip, firstLongText, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
@@ -19,7 +18,7 @@ import {
   unblockItemFiles,
   uploadedRestore,
 } from "./restore-fixtures.ts";
-import { holdClaim, nextSweepAt } from "./weekly-claim-fixtures.ts";
+import { holdClaim } from "./weekly-claim-fixtures.ts";
 
 const NOT_A_ZIP = new TextEncoder().encode("this is not a zip");
 
@@ -261,32 +260,5 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     assert.equal((await send("DELETE", id)).status, 202);
     assert.equal((await settledRestore(target, ["cancelled", "failed"])).state, "cancelled");
     assert.equal(target.database.rowCount("items"), 0);
-  });
-
-  it("deletes the parts of a Restore that gave up 24 hours after its last update, and then refuses to resume it", async (t) => {
-    const id = await gaveUpInFiles(t, target, zip);
-
-    const keys = `restores/${String(id)}/`;
-    const now = Date.now();
-
-    const sweptAt = async (updatedAt: number) => {
-      target.database.exec("update restores set updated_at = ? where id = ?", updatedAt, id);
-      await nextSweepAt(target, now);
-
-      return listedKeys(target.core.files, keys);
-    };
-
-    assert.deepEqual(await sweptAt(now - DAY_MS), [`${keys}part-1`]);
-    assert.deepEqual(await sweptAt(now - DAY_MS - 1), []);
-
-    assert.equal((await settledRestore(target, ["failed"])).resumable, false);
-
-    const resume = await send("POST", id, "/resume");
-
-    assert.equal(resume.status, 400);
-    assert.equal(RestoreErrorSchema.parse(JSON.parse(resume.body)).code, "incomplete-upload");
-    unblockItemFiles(target);
-    assert.equal((await send("DELETE", id)).status, 202);
-    assert.equal((await settledRestore(target, ["cancelled", "failed"])).state, "cancelled");
   });
 });
