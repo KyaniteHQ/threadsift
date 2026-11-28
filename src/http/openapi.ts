@@ -1,7 +1,7 @@
 import type { ZodType } from "zod";
 
 import { BUDGET_SPENT, type Scope } from "../core/contract/agent-token-contract.ts";
-import { BudgetRefusalSchema, ErrorResponseSchema } from "../core/contract/error-wire.ts";
+import { ErrorResponseSchema } from "../core/contract/error-wire.ts";
 import { CHALLENGES } from "./bearer.ts";
 import { type CacheKind, cacheHeaders } from "./response-headers.ts";
 
@@ -55,10 +55,10 @@ export function cacheHeaderList(kind: CacheKind): string {
   return codeList(Object.entries(cacheHeaders(kind)).map(([name, value]) => `${name}: ${value}`));
 }
 
-export function budgetRefusal(whatIsSaved: string) {
+export function budgetRefusal<Schema extends ZodType>(whatIsSaved: string, schema: Schema) {
   return {
     429: jsonBody(
-      BudgetRefusalSchema,
+      schema,
       `The agent token has added its daily budget of Items. ${whatIsSaved} \`code\` is \`${BUDGET_SPENT}\`, and \`Retry-After\` gives the seconds until 00:00 UTC, when the budget starts again. A link the library already holds is not counted and is still answered. The owner's session has no budget.`,
     ),
   };

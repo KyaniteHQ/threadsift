@@ -25,6 +25,9 @@ const RESTORING =
 const BUDGET_SPENT_MESSAGE =
   "This agent token has added its daily budget of Items, so nothing was saved. The budget starts again at 00:00 UTC.";
 
+export const BATCH_CUT_SHORT =
+  "This agent token used up its daily budget of Items while the batch ran. `results` holds the links saved before that, and the import cursor stays. The budget starts again at 00:00 UTC.";
+
 const TOO_LARGE = {
   content: `content: longer than ${byteSize(THREAD_CONTENT_BYTES)}`,
   page: `page: longer than ${byteSize(PAGE_BYTES)}`,

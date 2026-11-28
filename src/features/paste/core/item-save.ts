@@ -56,21 +56,32 @@ export async function savePaged(
 ): Promise<Saved | null> {
   const { db } = ports;
   const { normalizedUrl } = link;
-  const { heldGuard, insert, rest } = queuedRows(db, paste, link, JSON.stringify(page));
+  const { restoreGuard, budgetGuard, insert, rest } = queuedRows(
+    db,
+    paste,
+    link,
+    JSON.stringify(page),
+  );
   const writes = [...closeItemJobs(db, ownerOf(normalizedUrl).id), ...rest];
 
   if (link.source === "reddit") {
     const inserted = await guardedItemWrite(
       db,
       hasNoThread(normalizedUrl),
-      { heldGuard, insert },
+      { restoreGuard, budgetGuard, insert },
       writes,
     );
 
     return inserted === null ? null : savedItem(ports, normalizedUrl, inserted.length > 0);
   }
 
-  const [, inserted] = await db.batch([heldGuard, insert, ...writes, db.delete(guards)]);
+  const [, , inserted] = await db.batch([
+    restoreGuard,
+    budgetGuard,
+    insert,
+    ...writes,
+    db.delete(guards),
+  ]);
 
   return savedItem(ports, normalizedUrl, inserted.length > 0);
 }

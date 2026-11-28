@@ -431,7 +431,7 @@ Each agent token has a daily budget of new Items. Only a new Item counts, becaus
 
 - The day is a fixed UTC day. A spent token gets 429 with a `Retry-After` of the seconds until 00:00 UTC, and the MCP tool `add` returns an error result with `code: budget-spent`.
 - A new token starts at 200 Items a day. The owner can set another whole number above 0, or no budget, when making the token and afterwards in Settings. A token with no budget set is unlimited.
-- A batch that would cross the budget is refused whole and saves nothing. When another request of the same token saves Items while a batch runs, the batch stops at the link that would cross the budget: the links before it stay saved, and the import cursor stays.
+- A batch that would cross the budget is refused whole and saves nothing. When another request of the same token saves Items while a batch runs, the batch stops at the link that would cross the budget: its 429 lists the links saved before it, they stay saved, and the import cursor stays.
 - The owner's session has no budget. Settings shows each token's use and marks a spent one.
 
 ## Interfaces

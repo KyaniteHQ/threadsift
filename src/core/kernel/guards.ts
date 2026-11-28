@@ -46,31 +46,19 @@ export function holdsNoRow(db: Database, table: SQLiteTable, matching: Readonly<
   );
 }
 
-export interface GuardCheck {
-  readonly holds: Readonly<SQLWrapper>;
-  readonly refusal: Refusal;
-}
-
-export function orderedGuard(db: Database, checks: readonly Readonly<GuardCheck>[]) {
-  const refused = checks.map(
-    ({ holds, refusal }) => sql`when (${holds}) is not true then ${refusedAs(refusal)}`,
-  );
-
-  return db
-    .insert(guards)
-    .select(
-      db
-        .select({ ok: sql<number>`case ${sql.join(refused, sql` `)} else 1 end`.as("ok") })
-        .from(sql`(select 1)`),
-    );
-}
-
 export function insertGuard(
   db: Database,
   condition: Readonly<SQLWrapper>,
   refusal: Refusal = "write",
 ) {
-  return orderedGuard(db, [{ holds: condition, refusal }]);
+  return db.insert(guards).select(
+    db
+      .select({
+        ok: sql<number>`case count(*) when 1 then 1 else ${refusedAs(refusal)} end`.as("ok"),
+      })
+      .from(sql`(select 1)`)
+      .where(sql`${condition}`),
+  );
 }
 
 export async function guardHolds(db: Database, condition: Readonly<SQLWrapper>): Promise<boolean> {
@@ -114,6 +102,10 @@ export function refusedByGuard(cause: unknown): boolean {
   return refusalOf(cause) !== null;
 }
 
+export function refusedWith(cause: unknown, refusal: Refusal): boolean {
+  return refusalOf(cause) === refusal;
+}
+
 export async function answeringRefusal<Result, Answer>(
   refusal: Refusal,
   run: () => Promise<Result>,
@@ -122,7 +114,7 @@ export async function answeringRefusal<Result, Answer>(
   try {
     return await run();
   } catch (error) {
-    if (refusalOf(error) !== refusal) throw error;
+    if (!refusedWith(error, refusal)) throw error;
 
     return answer;
   }

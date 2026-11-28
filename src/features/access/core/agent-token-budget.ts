@@ -8,7 +8,7 @@ import {
 import { aliasAnswers, isRefusedLink, parseLink } from "../../../core/contract/links.ts";
 import { DAY_MS } from "../../../core/contract/time-units.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { type GuardCheck, answeringRefusal } from "../../../core/kernel/guards.ts";
+import { insertGuard, refusedWith } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { agentTokens, itemAliases, items } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
@@ -40,6 +40,8 @@ export interface UnknownToken {
 
 export type Budgeted<Result> = Result | BudgetSpent | UnknownToken;
 
+const UNKNOWN: UnknownToken = { kind: "unknown-token" };
+
 export function tokenItemsToday(
   db: Database,
   tokenIdOrColumn: number | typeof agentTokens.id,
@@ -57,18 +59,15 @@ export function tokenItemsToday(
   );
 }
 
-export function dailyBudgetCheck(
+export function dailyBudgetGuard(
   db: Database,
   {
     addedByToken,
     normalizedUrl,
     savedAt,
-  }: Readonly<{ addedByToken: number; normalizedUrl: string; savedAt: number }>,
-): GuardCheck {
-  const limit = db
-    .select({ limit: agentTokens.dailyBudget })
-    .from(agentTokens)
-    .where(eq(agentTokens.id, addedByToken));
+  }: Readonly<{ addedByToken: number | null; normalizedUrl: string; savedAt: number }>,
+) {
+  if (addedByToken === null) return insertGuard(db, sql`1`, "budget");
 
   const held = exists(
     db
@@ -77,10 +76,42 @@ export function dailyBudgetCheck(
       .where(eq(items.normalizedUrl, normalizedUrl)),
   );
 
-  return {
-    holds: sql`${held} or (${limit}) is null or ${tokenItemsToday(db, addedByToken, savedAt)} < (${limit})`,
-    refusal: "budget",
-  };
+  const within = exists(
+    db
+      .select({ one: sql`1` })
+      .from(agentTokens)
+      .where(
+        and(
+          eq(agentTokens.id, addedByToken),
+          sql`(${agentTokens.dailyBudget} is null or ${tokenItemsToday(db, addedByToken, savedAt)} < ${agentTokens.dailyBudget})`,
+        ),
+      ),
+  );
+
+  return insertGuard(db, sql`${held} or ${within}`, "budget");
+}
+
+async function refusedBudget(db: Database, tokenId: number): Promise<BudgetSpent | UnknownToken> {
+  const [token] = await db
+    .select({ id: agentTokens.id })
+    .from(agentTokens)
+    .where(eq(agentTokens.id, tokenId));
+
+  return token === undefined ? UNKNOWN : spentUntilMidnight(Date.now());
+}
+
+export async function budgetAnswered<Saved>(
+  db: Database,
+  tokenId: number,
+  run: () => Promise<Saved>,
+): Promise<Budgeted<Saved>> {
+  try {
+    return await run();
+  } catch (error) {
+    if (!refusedWith(error, "budget")) throw error;
+  }
+
+  return refusedBudget(db, tokenId);
 }
 
 async function possiblyNew(db: Database, urls: readonly string[]): Promise<number> {
@@ -125,11 +156,11 @@ export async function withinBudget<Saved>(
     .from(agentTokens)
     .where(eq(agentTokens.id, caller.id));
 
-  if (token === undefined) return { kind: "unknown-token" };
-
-  const now = Date.now();
+  if (token === undefined) return UNKNOWN;
 
   if (token.limit !== null) {
+    const now = Date.now();
+
     const [added, newItems] = await Promise.all([
       tokenItemsToday(db, caller.id, now),
       possiblyNew(db, urls),
@@ -138,5 +169,5 @@ export async function withinBudget<Saved>(
     if (newItems > 0 && added + newItems > token.limit) return spentUntilMidnight(now);
   }
 
-  return answeringRefusal("budget", run, spentUntilMidnight(now));
+  return budgetAnswered(db, caller.id, run);
 }

@@ -38,7 +38,7 @@ interface Failure {
   readonly addedByToken: Paste["addedByToken"];
 }
 
-const INSERTED_ITEM = 4;
+const INSERTED_ITEM = 5;
 
 const REFRESHED_ITEM = 4;
 
@@ -51,7 +51,7 @@ async function insertedFailure(
   const missing = holdsNoItem(db, normalizedUrl);
   const itemKey = eq(items.normalizedUrl, normalizedUrl);
 
-  const { heldGuard, insert } = itemInsert(db, {
+  const entry = itemInsert(db, {
     link,
     originalUrl: address,
     savedAt: now,
@@ -61,10 +61,11 @@ async function insertedFailure(
 
   const inserted = await unlessRefused(() =>
     db.batch([
-      heldGuard,
+      entry.restoreGuard,
       insertGuard(db, noAlias),
       insertGuard(db, missing),
-      insert,
+      entry.budgetGuard,
+      entry.insert,
       itemRead(db, itemKey),
       ...STALE.itemChanged(db, itemKey),
       db.delete(guards),

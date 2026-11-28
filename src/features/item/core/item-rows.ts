@@ -9,16 +9,15 @@ import {
   guards,
   holdsNoRow,
   insertGuard,
-  orderedGuard,
   unlessRefused,
 } from "../../../core/kernel/guards.ts";
 import { closeItemJobs } from "../../../core/kernel/job-close.ts";
 import { enqueueRows, openingJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { restoreCheck } from "../../../core/kernel/restore-hold.ts";
+import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
-import { dailyBudgetCheck } from "../../access/core/agent-token-budget.ts";
+import { dailyBudgetGuard } from "../../access/core/agent-token-budget.ts";
 import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
 import { type Settled, reopenedFetch } from "./settle.ts";
 
@@ -61,15 +60,9 @@ export function itemInsert(
     fetched?: Readonly<Settled> | undefined;
   }>,
 ) {
-  const restore = restoreCheck(db);
-
   return {
-    heldGuard: orderedGuard(
-      db,
-      addedByToken === null
-        ? [restore]
-        : [restore, dailyBudgetCheck(db, { addedByToken, normalizedUrl, savedAt })],
-    ),
+    restoreGuard: restoreGuard(db),
+    budgetGuard: dailyBudgetGuard(db, { addedByToken, normalizedUrl, savedAt }),
     insert: db
       .insert(items)
       .values({ source, kind, normalizedUrl, originalUrl, savedAt, addedByToken, ...fetched })
@@ -81,13 +74,21 @@ export function itemInsert(
 export function guardedItemWrite<Insert extends BatchItem<"sqlite">>(
   db: Database,
   condition: Readonly<SQLWrapper>,
-  { heldGuard, insert }: Readonly<{ heldGuard: BatchItem<"sqlite">; insert: Insert }>,
+  {
+    restoreGuard: held,
+    budgetGuard,
+    insert,
+  }: Readonly<{
+    restoreGuard: BatchItem<"sqlite">;
+    budgetGuard: BatchItem<"sqlite">;
+    insert: Insert;
+  }>,
   rest: readonly BatchItem<"sqlite">[],
 ) {
   return unlessRefused(async () => {
-    const [, , inserted] = await db.batch([
-      heldGuard,
-      ...guardedWrites(db, condition, [insert, ...rest] as const),
+    const [, , , inserted] = await db.batch([
+      held,
+      ...guardedWrites(db, condition, [budgetGuard, insert, ...rest] as const),
     ] as const);
 
     return inserted;
@@ -171,6 +172,26 @@ function writtenFrom(
   return unlessRefused(write);
 }
 
+function writtenBare(
+  ports: Ports,
+  paste: Readonly<Paste>,
+  link: Readonly<Link>,
+): Promise<Saved | null> {
+  const { restoreGuard: held, budgetGuard, insert, rest } = queuedRows(ports.db, paste, link);
+
+  return writtenFrom(ports, link, async () => {
+    const [, , ...results] = await ports.db.batch([
+      held,
+      budgetGuard,
+      insert,
+      ...rest,
+      ports.db.delete(guards),
+    ]);
+
+    return results;
+  });
+}
+
 export function writeQueued(
   ports: Ports,
   paste: Readonly<Paste>,
@@ -178,24 +199,19 @@ export function writeQueued(
   around?: Readonly<Around>,
 ): Promise<Saved | null> {
   const { db } = ports;
-  const { heldGuard, insert, rest } = queuedRows(db, paste, link);
+  if (around === undefined) return writtenBare(ports, paste, link);
 
-  if (around === undefined) {
-    return writtenFrom(ports, link, async () => {
-      const [, ...results] = await db.batch([heldGuard, insert, ...rest, db.delete(guards)]);
-
-      return results;
-    });
-  }
+  const { restoreGuard: held, budgetGuard, insert, rest } = queuedRows(db, paste, link);
 
   const { guard, before = [], after } = around;
   const checked = insertGuard(db, guard);
 
   if (before.length === 0) {
     return writtenFrom(ports, link, async () => {
-      const [, , ...results] = await db.batch([
-        heldGuard,
+      const [, , , ...results] = await db.batch([
+        held,
         checked,
+        budgetGuard,
         insert,
         ...rest,
         ...after,
@@ -207,10 +223,11 @@ export function writeQueued(
   }
 
   return writtenFrom(ports, link, async () => {
-    const [, , , , , , ...results] = await db.batch([
-      heldGuard,
+    const [, , , , , , , ...results] = await db.batch([
+      held,
       checked,
       ...before,
+      budgetGuard,
       insert,
       ...rest,
       ...after,
