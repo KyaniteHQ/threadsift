@@ -4,7 +4,13 @@ import type { ExportStatus } from "../../src/core/contract/export-contract.ts";
 import { deleteExport, fetchExportStatus, startExport } from "./export-api.ts";
 import { EXPORT_TEXT } from "./export-text.ts";
 import { usePolling } from "./use-polling.ts";
-import { type Task, outcomeOf, useAction, useActionFlow } from "./use-settings-action.ts";
+import {
+  type Outcome,
+  type Task,
+  outcomeOf,
+  useAction,
+  useActionFlow,
+} from "./use-settings-action.ts";
 import { type Ticket, useTicket } from "./use-ticket.ts";
 
 type Action = "start" | "stop" | "remove";
@@ -31,10 +37,28 @@ function useReader(changed: Changed, ticket: Ticket) {
   }, [changed, ticket]);
 }
 
-function settled(call: () => Promise<void>, ticket: Ticket, refresh: () => Promise<void>): Task {
+const HELD_START: Outcome = { kind: "error", text: EXPORT_TEXT.startRestoring };
+
+async function started(): Promise<Outcome | null> {
+  return (await startExport()) === "restoring" ? HELD_START : null;
+}
+
+async function removed(): Promise<null> {
+  await deleteExport();
+
+  return null;
+}
+
+function settled(
+  call: () => Promise<Outcome | null>,
+  ticket: Ticket,
+  refresh: () => Promise<void>,
+): Task {
   return async () => {
     ticket.take();
-    await call();
+    const refused = await call();
+
+    if (refused !== null) return refused;
 
     try {
       await refresh();
@@ -58,10 +82,10 @@ export function useBackup(view: ExportStatus, changed: Changed) {
   const start = useAction({
     run,
     action: "start",
-    task: useMemo(() => settled(startExport, ticket, refresh), [ticket, refresh]),
+    task: useMemo(() => settled(started, ticket, refresh), [ticket, refresh]),
   });
 
-  const removal = useMemo(() => settled(deleteExport, ticket, refresh), [ticket, refresh]);
+  const removal = useMemo(() => settled(removed, ticket, refresh), [ticket, refresh]);
   const stop = useAction({ run, action: "stop", task: removal });
   const remove = useAction({ run, action: "remove", task: removal });
 
