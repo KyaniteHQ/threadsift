@@ -1,49 +1,77 @@
 # Threadsift
 
-Threadsift is a self-hosted reading library for saved links. Paste a link to a Reddit post or comment, an X post, a GitHub repository, or an article. With a Provider set up, the agent turns the fetched text into a Digest with a Topic, Tags, a two-line Summary, and Key points. For threads, the agent picks the comments that add something. Search and filter your Items in the library and open one in the Reader.
-
-![Threadsift library with Astronomy and Web Development filters and an article about HTTP ETags open in the Reader with its Digest](docs/assets/reader.png)
-
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release) [![Built with Cloudflare](https://workers.cloudflare.com/built-with-cloudflare.svg)](https://cloudflare.com)
-
-The Cloudflare route needs the [Workers Paid plan](https://developers.cloudflare.com/workers/platform/pricing/).
+Threadsift is a reading library you host yourself. Paste a link to something you saved, and an agent keeps the useful parts and grows a small wiki of your library. You read, search and filter everything on one page.
 
 v1 is not released, so do not use Threadsift for real yet.
 
-## From a Paste to a Digest
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release) or [run the container on your machine](README.md#try-it-on-your-machine). The Cloudflare option needs the [Workers Paid plan](https://developers.cloudflare.com/workers/platform/pricing/).
 
-![A Paste of an MDN article on HTTP conditional requests shows its progress. The Reader then displays the Digest with its Summary and Key points.](docs/assets/paste-to-digest.gif)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/library-dark.webp">
+  <img src="docs/assets/library-light.webp" alt="The library in the List layout. Filters sit on the left, the Item list in the middle, and the Reader on the right shows a Reddit thread about moving a media server, with its Summary and Key points.">
+</picture>
 
-The recording skips part of the wait for the Digest. The recording and the screenshot at the top use a library of public links; the screenshots further down show made-up Items.
+## What it does
 
-## Keep Highlights and Notes
+### Read a thread by its useful part
 
-Select a passage of the post text or of a comment in the Reader to keep it as a Highlight. You can also write a Note on the Item. The Highlights page gathers both and links back to the Reader.
+An agent writes a Digest for each Item: a clean title, a Topic, up to 3 Tags, a two-line Summary and Key points. For a Reddit or X thread, the agent also keeps only the comments that add something. A Kept comment adds a fact, a fix, a working link or command, first-hand experience or a real counterargument. Once a thread has a Digest, the Reader shows the Kept comments, and the Kept strip reads like `Kept 5 of 64`.
 
-![Highlights page with two Highlights and a Note on an article about Hall effect switches](docs/assets/highlights.png)
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/reader-dark.webp">
+  <img src="docs/assets/reader-light.webp" alt="The Reader of a Reddit thread, scrolled to its comments. Five Kept comments show, and a line marks a comment the Digest did not keep.">
+</picture>
 
-## Let the agent keep a wiki of the library
+### Browse as a List or a Grid
 
-As Items arrive, the agent writes an overview for each Topic page and picks up to five Related Items for each new Item. The Index lists the Topics and the Log records changes. Read how they fit together in the [library wiki guide](docs/wiki.md). The agent checks the library each week and may suggest changes such as merging two Tags. You choose which [Proposals](docs/proposals.md) to accept.
+Search covers the title, the post text, the Kept comments, the Summary, the Tags, your Highlights and your Notes. Filter by Read state, Source, Topic and Tag. Choose the List layout for three panes, or the Grid layout for cards. In Grid, cards open as a full page or as a sheet.
 
-The screenshots show the same Topic page in three Styles: Library, Monocle, and Modal.
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/grid-dark.webp">
+  <img src="docs/assets/grid-light.webp" alt="The library in the Grid layout: filters above a grid of cards, each card with its Kept strip, its title and, for an article, a picture.">
+</picture>
+
+### Keep what matters
+
+In the Reader, select a passage from the post text or a comment to keep it as a Highlight. Write one Note on any Item. The Highlights page lists every Highlight and Note, newest first, and each one links back to its place in the Reader.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/highlights-dark.webp">
+  <img src="docs/assets/highlights-light.webp" alt="The Highlights page: two Highlights and two Notes, each under the title of its Item.">
+</picture>
+
+### Let the agent keep a wiki of the library
+
+As Items arrive, the agent writes an overview for each Topic page and picks up to five Related Items for each new Item. The Index lists the Topics, and the Log records each change. Read how these parts fit together in the [library wiki guide](docs/wiki.md). Each week, the agent checks the library and may propose changes, such as merging two Tags. You choose which of those [Proposals](docs/proposals.md) to accept.
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/assets/topic-dark.webp">
+  <img src="docs/assets/topic-light.webp" alt="A Topic page named Home servers: the agent's overview with links to the Items it came from, then the list of the Topic's Items with their Summaries.">
+</picture>
+
+### Choose a look
+
+Settings has 11 [Styles](docs/design/styles.md) and four Themes: Light, Dark, Sepia and System, which follows your device. The screenshot shows the same Topic page in three Styles.
 
 | Library · Light | Monocle · Sepia | Modal · Dark |
 | --- | --- | --- |
-| ![Home servers Topic page in the Library Style and Light Theme](docs/assets/topic-library.png) | ![Home servers Topic page in the Monocle Style and Sepia Theme](docs/assets/topic-monocle.png) | ![Home servers Topic page in the Modal Style and Dark Theme](docs/assets/topic-modal.png) |
+| The default Style | A paper look with hairline rules | A developer look on near-black |
+
+<img src="docs/assets/styles.webp" alt="The Home servers Topic page in the Library Style with the Light Theme, in the Monocle Style with the Sepia Theme, and in the Modal Style with the Dark Theme.">
 
 ## Save from wherever you are
 
 - Paste a link into the box at the top of the library. Pasting a link you already saved refreshes that Item.
 - Import a pasted or uploaded list of links at `/import`.
-- Save a Reddit thread or a web page from your own browser tab with the Extension. For a Reddit thread, it reads the post and its comments through your signed-in tab.
+- Share a link from your phone. You can install Threadsift as a web app, and the Android Share menu sends the link into the same Paste.
+- Save a Reddit thread or a web page from your own browser tab with the Extension. The Extension works in desktop Chrome and Firefox. For a Reddit thread, it reads the post and its comments through your signed-in tab.
 - Send links from a script with the HTTP API and an agent token you create in Settings. `/api/openapi.json` on your Instance describes the REST routes.
-- Let an agent search, read and add Items over MCP at `/mcp`, with its own agent token.
-- Hand X links to Grok Bot, which reads the post, its replies, the posts it quotes and its photos, and saves them back. The [Threadsift bot guide](bot/README.md) says how to install the bot.
+- Let an agent search, read and add Items over MCP at `/mcp`. The agent uses its own agent token.
+- Send X links to Grok Bot. Grok Bot reads each post, its replies, its photos and the posts it quotes, and saves them back to Threadsift. The [Threadsift bot guide](bot/README.md) says how to install the bot.
 
 ## Bring your own AI
 
-Pick a Provider in Settings to run the agent. Both install targets support Anthropic, OpenAI, xAI, OpenRouter, an OpenAI-compatible address, or Grok Bot. The container also supports Claude Code and Codex signed in on your server. On Cloudflare you can use Workers AI, and an OpenAI-compatible address must use public HTTPS. See [how to set up a Provider](docs/guides/providers.md).
+Pick a Provider in Settings to run the agent. Both install targets support Anthropic, OpenAI, xAI, OpenRouter, an OpenAI-compatible address, and Grok Bot. The container also supports Claude Code and Codex signed in on your server. On Cloudflare, Threadsift also supports Workers AI, and an OpenAI-compatible address must use public HTTPS. See [how to set up a Provider](docs/guides/providers.md).
 
 ## Install Threadsift
 
@@ -54,12 +82,14 @@ Pick a Provider in Settings to run the agent. Both install targets support Anthr
 
 ### Deploy on Cloudflare
 
-Use a GitHub account, `openssl`, and a Cloudflare account on the Workers Paid plan with R2 turned on.
+You need a GitHub account, `openssl`, and a Cloudflare account on the Workers Paid plan with R2 turned on.
 
-1. Open [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release). Select **Create private Git repository**.
-2. Run `openssl rand -hex 32` and paste the result into `THREADSIFT_SECRET_KEY`. Keep a private backup of the key for the lifetime of the Instance.
-3. Run `openssl rand -hex 16` and paste the result into `SETUP_CODE`.
-4. Choose **Deploy**. When the build finishes, open the Worker URL. Enter the code on the setup page and choose an owner password.
+1. Open [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release) and select your GitHub account.
+2. Choose a project name and names for the D1 database, R2 bucket and Queue. Use names your account does not already have.
+3. Select **Create private Git repository**.
+4. Run `openssl rand -hex 32` and paste the result into `THREADSIFT_SECRET_KEY`. Keep a private backup of the key for the lifetime of the Instance.
+5. Run `openssl rand -hex 16` and paste the result into `SETUP_CODE`.
+6. Keep the build command `pnpm run build` and the deploy command `pnpm run deploy`. Select **Deploy**. When the build finishes, open the Worker URL. Enter the setup code on the setup page and choose an owner password.
 
 See the guide for the [full deploy steps](docs/guides/self-hosting.md#deploy-with-the-cloudflare-button), [update setup](docs/guides/self-hosting.md#update-a-cloudflare-copy), and [expired GitHub authorization fix](docs/guides/self-hosting.md#fix-an-expired-github-authorization).
 
@@ -73,7 +103,7 @@ Install [Podman](https://podman.io/docs/installation). On macOS and Windows, sta
    (set -Ceu; umask 077; key=$(openssl rand -hex 32); printf 'THREADSIFT_SECRET_KEY=%s\n' "$key" > "$HOME/threadsift.env")
    ```
 
-   Back up `~/threadsift.env`. The app encrypts the keys you save in Settings with it, and [Keep the secret key](docs/guides/self-hosting.md#keep-the-secret-key) says what happens when it is lost.
+   Back up `~/threadsift.env`. Threadsift uses the key in this file to encrypt the keys you save in Settings. [Keep the secret key](docs/guides/self-hosting.md#keep-the-secret-key) says what happens if you lose it.
 
 2. Start the Instance:
 
@@ -87,13 +117,13 @@ Install [Podman](https://podman.io/docs/installation). On macOS and Windows, sta
    podman logs threadsift
    ```
 
-   Until you choose a password, every start logs a new `Setup code: <code>` line, and only the newest code works. If the line is not there yet, run the command again after a few seconds.
+   Until you choose a password, the Instance logs a new `Setup code: <code>` line each time it starts. Only the newest code works. If the line is not there yet, run the command again after a few seconds.
 
-4. Open http://127.0.0.1:8080, enter the code and choose a password.
-5. Open Settings and choose a Provider. Follow the [Provider setup guide](docs/guides/providers.md) if your choice needs an API key, Claude Code or Codex on the container, or Grok Bot. Press **Save**, then press **Verify**. Verify writes one small real Digest and adds no Item.
+4. Open http://127.0.0.1:8080 in your browser. Enter the setup code and choose a password.
+5. Open Settings and choose a Provider. If it needs an API key, Claude Code or Codex on the container, or Grok Bot, follow the [Provider setup guide](docs/guides/providers.md). Press **Save**, then press **Verify**. Verify writes one small real Digest without adding an Item.
 6. Paste your first link.
 
-The app answers on this machine only, over plain HTTP. To reach it from other devices, read [Run Threadsift on your own server](docs/guides/self-hosting.md).
+The Instance responds only on this machine, over plain HTTP. To reach it from other devices, read [Run Threadsift on your own server](docs/guides/self-hosting.md).
 
 ## Status
 
