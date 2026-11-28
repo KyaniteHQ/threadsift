@@ -5,7 +5,7 @@ import { WholeCount } from "../../src/core/contract/whole-count.ts";
 import { BESIDE_MARGIN } from "./margin-column.ts";
 
 const STORAGE_KEY = "threadsift:reading-places";
-const ANCHORS = ".rd-head, .rd-agent, .rd-note, .md > *";
+const ANCHORS = ".rd-head, .rd-digest, .rd-note, .md > *";
 const BAR_FALLBACK_HEIGHT = 56;
 const PASSAGE_LENGTH = 80;
 const PLACES_MAX = 100;

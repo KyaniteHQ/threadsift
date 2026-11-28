@@ -1,7 +1,7 @@
 import { type RefObject, Suspense, useMemo, useState } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import { BESIDE, useMarginColumn } from "./margin-column.ts";
+import { BESIDE, type MarginColumn, useMarginColumn } from "./margin-column.ts";
 import { ReaderBar } from "./ReaderBar.tsx";
 import { ReaderBody } from "./ReaderBody.tsx";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
@@ -45,19 +45,18 @@ function ReaderCol({
   item,
   slot,
   controls,
-  look,
+  column: { col, host, margin },
   titleId,
   tryAgain,
 }: Readonly<{
   item: Item;
   slot: RefObject<HTMLElement | null>;
   controls: ReaderControls;
-  look: Look;
+  column: MarginColumn;
   titleId: string;
   tryAgain: (item: Item) => void;
 }>) {
   const [now] = useState(Date.now);
-  const { col, host, margin } = useMarginColumn(look.reader);
   const { state, actions } = useItemDetail(item.id, refreshKey(item));
   const moved = useFocusMoved();
   const focusTitle = !moved && (controls.mode !== "pane" || controls.titleFocus === item.id);
@@ -108,15 +107,22 @@ export function Reader({
   tryAgain: (item: Item) => void;
 }>) {
   usePageName(item.digestTitle ?? item.title ?? "");
+  const column = useMarginColumn(look.reader);
 
   return (
     <section className="reader" aria-labelledby={titleId}>
-      <ReaderBar item={item} controls={controls} look={look} panel={panel} />
+      <ReaderBar
+        item={item}
+        controls={controls}
+        look={look}
+        panel={panel}
+        beside={column.margin.beside}
+      />
       <ReaderCol
         item={item}
         slot={slot}
         controls={controls}
-        look={look}
+        column={column}
         titleId={titleId}
         tryAgain={tryAgain}
       />

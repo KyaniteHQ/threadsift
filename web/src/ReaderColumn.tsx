@@ -6,7 +6,7 @@ import { shownUrl, whereOf } from "../../src/core/contract/link-place.ts";
 import { handleOf } from "../../src/core/contract/reader-text.ts";
 import { DIGEST_PENDING, READER_LOADING, postedLabel } from "./reader-text.ts";
 import { HeadNote, Note } from "./ReaderNote.tsx";
-import { ReaderSummary } from "./ReaderSummary.tsx";
+import { ReaderFiled, ReaderSummary } from "./ReaderSummary.tsx";
 import { savedLabel } from "./saved-label.ts";
 import { DIGEST_UPDATE_FAILED, DIGEST_FAILED, SOURCE_LABELS } from "./text.ts";
 
@@ -49,6 +49,7 @@ export function ReaderHead({
       <h2 ref={title} id={titleId} className="rd-title" tabIndex={-1}>
         <bdi dir="auto">{name ?? shownUrl(item.normalizedUrl)}</bdi>
       </h2>
+      <ReaderFiled item={item} digest={detail?.digest ?? null} />
       {link === null ? null : (
         <a className="rd-link" href={link} target="_blank" rel="noopener noreferrer">
           {link}
@@ -70,13 +71,19 @@ function digestNote(item: Readonly<Item>, hasDigest: boolean): string | null {
 export function Agent({
   item,
   detail,
+  summaryId,
   tryAgain,
-}: Readonly<{ item: Item; detail: ItemDetail; tryAgain: (item: Item) => void }>) {
+}: Readonly<{
+  item: Item;
+  detail: ItemDetail;
+  summaryId: string;
+  tryAgain: (item: Item) => void;
+}>) {
   const note = digestNote(item, detail.digest !== null);
 
   return (
     <>
-      {detail.digest === null ? null : <ReaderSummary item={item} digest={detail.digest} />}
+      {detail.digest === null ? null : <ReaderSummary digest={detail.digest} id={summaryId} />}
       {note === null ? null : (
         <Note item={item} text={note} withRetry={item.retry !== null} tryAgain={tryAgain} />
       )}

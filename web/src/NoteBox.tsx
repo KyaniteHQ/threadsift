@@ -1,4 +1,12 @@
-import { type ChangeEvent, type KeyboardEvent, useCallback, useId, useRef } from "react";
+import {
+  type ChangeEvent,
+  type KeyboardEvent,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+} from "react";
 
 import type { NoteView } from "../../src/core/contract/note-contract.ts";
 import { NOTE_TITLE } from "../../src/core/contract/reader-text.ts";
@@ -94,33 +102,57 @@ function useKeys(save: () => void) {
 }
 
 function Actions({
+  offered,
   canSave,
   justSaved,
   keys,
   save,
-}: Readonly<{ canSave: boolean; justSaved: boolean; keys: string; save: () => void }>) {
+}: Readonly<{
+  offered: boolean;
+  canSave: boolean;
+  justSaved: boolean;
+  keys: string;
+  save: () => void;
+}>) {
   return (
     <div className="nt-acts">
-      <button type="button" className="btn btn-acc" aria-disabled={!canSave} onClick={save}>
-        {NOTE_SAVE}
-      </button>
+      {offered ? (
+        <button type="button" className="btn btn-acc" aria-disabled={!canSave} onClick={save}>
+          {NOTE_SAVE}
+        </button>
+      ) : null}
       <output className="nt-msg">{justSaved ? NOTE_SAVED : ""}</output>
-      <span id={keys} className="nt-msg nt-keys">
-        {NOTE_KEYS}
-      </span>
+      {offered ? (
+        <span id={keys} className="nt-msg nt-keys">
+          {NOTE_KEYS}
+        </span>
+      ) : null}
     </div>
   );
 }
 
-export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial: NoteView }>) {
-  const field = useRef<HTMLTextAreaElement>(null);
-  const heading = useId();
-  const keys = useId();
-  const note = useNote(itemId, initial, field);
-  const { edit } = note;
-  const press = useKeys(note.save);
+function useFocusKept(offered: boolean, field: RefObject<HTMLTextAreaElement | null>): void {
+  const wasOffered = useRef(offered);
+
+  useEffect(() => {
+    const withdrawn = wasOffered.current && !offered;
+    wasOffered.current = offered;
+
+    if (withdrawn && document.activeElement === document.body) {
+      field.current?.focus({ preventScroll: true });
+    }
+  }, [offered, field]);
+}
+
+function useNoteField(
+  field: RefObject<HTMLTextAreaElement | null>,
+  { edit, save }: Readonly<{ edit: (text: string) => void; save: () => void }>,
+  offered: boolean,
+) {
+  const press = useKeys(save);
 
   useNoteArrival(field);
+  useFocusKept(offered, field);
 
   const change = useCallback(
     (event: ChangeEvent<HTMLTextAreaElement>): void => {
@@ -128,6 +160,17 @@ export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial:
     },
     [edit],
   );
+
+  return { change, press };
+}
+
+export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial: NoteView }>) {
+  const field = useRef<HTMLTextAreaElement>(null);
+  const heading = useId();
+  const keys = useId();
+  const note = useNote(itemId, initial, field);
+  const offered = note.dirty || note.pending;
+  const { change, press } = useNoteField(field, note, offered);
 
   return (
     <section className="rd-nt">
@@ -139,13 +182,19 @@ export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial:
         className="nt-field"
         dir="auto"
         aria-labelledby={heading}
-        aria-describedby={keys}
+        aria-describedby={offered ? keys : undefined}
         aria-keyshortcuts="Control+Enter Meta+Enter"
         value={note.draft}
         onChange={change}
         onKeyDown={press}
       />
-      <Actions canSave={note.canSave} justSaved={note.justSaved} keys={keys} save={note.save} />
+      <Actions
+        offered={offered}
+        canSave={note.canSave}
+        justSaved={note.justSaved}
+        keys={keys}
+        save={note.save}
+      />
       <Refusals
         failed={note.failed}
         tooLong={note.tooLong}

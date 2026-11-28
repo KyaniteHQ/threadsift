@@ -1,4 +1,11 @@
-import { type RefObject, useLayoutEffect, useMemo, useRef, useState } from "react";
+import {
+  type RefCallback,
+  type RefObject,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { NOTHING } from "../../src/core/contract/nothing.ts";
 import { pixelsOf } from "./css-length.ts";
@@ -14,21 +21,9 @@ export interface MarginSlot {
 }
 
 function widthBeside(col: HTMLElement): number | null {
-  const main = col.querySelector<HTMLElement>(":scope > .rd-main");
+  const margin = col.querySelector<HTMLElement>(":scope > .rd-margin");
 
-  if (main === null) return null;
-
-  const style = getComputedStyle(main);
-  const lengthOf = (token: string): number | null => pixelsOf(style.getPropertyValue(token).trim());
-  const parts = [
-    pixelsOf(style.maxWidth),
-    lengthOf("--s6"),
-    lengthOf("--margin-w"),
-    lengthOf("--reader-pad"),
-    lengthOf("--reader-pad"),
-  ];
-
-  return parts.every((part) => part !== null) ? parts.reduce((sum, part) => sum + part, 0) : null;
+  return margin === null ? null : pixelsOf(getComputedStyle(margin).maxWidth);
 }
 
 function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace): boolean {
@@ -59,7 +54,13 @@ function useMarginBeside(col: RefObject<HTMLElement | null>, place: ReaderPlace)
   return fits && place !== "sheet";
 }
 
-export function useMarginColumn(place: ReaderPlace) {
+export interface MarginColumn {
+  readonly col: RefObject<HTMLDivElement | null>;
+  readonly host: RefCallback<HTMLDivElement>;
+  readonly margin: MarginSlot;
+}
+
+export function useMarginColumn(place: ReaderPlace): MarginColumn {
   const col = useRef<HTMLDivElement>(null);
   const [node, host] = useState<HTMLDivElement | null>(null);
   const beside = useMarginBeside(col, place);

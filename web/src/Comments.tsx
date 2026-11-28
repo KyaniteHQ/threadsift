@@ -242,15 +242,20 @@ function sectionOf(view: Readonly<CommentsFilter>): Section | null {
   }
 }
 
+export function hasComments(detail: Readonly<ItemDetail>): boolean {
+  return sectionOf(detail.comments.view) !== null;
+}
+
 function CommentTree({
   item,
   section: { counts, note, needsProvider },
   nodes,
-}: Readonly<{ item: Item; section: Section; nodes: readonly CommentNode[] }>) {
+  id,
+}: Readonly<{ item: Item; section: Section; nodes: readonly CommentNode[]; id: string }>) {
   const branches = nest(nodes);
 
   return (
-    <section className="rd-comments">
+    <section id={id} className="rd-comments">
       <div className="rd-sec-h">
         <h3 className="rd-h" tabIndex={-1}>
           {COMMENTS_TITLE}
@@ -264,10 +269,14 @@ function CommentTree({
   );
 }
 
-export function Comments({ item, detail }: Readonly<{ item: Item; detail: ItemDetail }>) {
+export function Comments({
+  item,
+  detail,
+  id,
+}: Readonly<{ item: Item; detail: ItemDetail; id: string }>) {
   const section = sectionOf(detail.comments.view);
 
   return section === null ? null : (
-    <CommentTree item={item} section={section} nodes={detail.comments.nodes} />
+    <CommentTree item={item} section={section} nodes={detail.comments.nodes} id={id} />
   );
 }

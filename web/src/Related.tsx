@@ -22,12 +22,14 @@ const Entry = memo(function Entry({ entry }: Readonly<{ entry: RelatedEntries[nu
   );
 });
 
-export function Related({ entries }: Readonly<{ entries: RelatedEntries }>) {
+export function Related({ entries, id }: Readonly<{ entries: RelatedEntries; id: string }>) {
   if (entries.length === 0) return null;
 
   return (
-    <section className="rel">
-      <h3 className="rd-h">{RELATED.title}</h3>
+    <section id={id} className="rel">
+      <h3 className="rd-h" tabIndex={-1}>
+        {RELATED.title}
+      </h3>
       <ul role="list" className="rel-list">
         {entries.map((entry) => (
           <Entry key={entry.id} entry={entry} />

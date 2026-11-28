@@ -40,7 +40,7 @@ export function useSectionInView(
   const [current, setCurrent] = useState<string | null>(null);
 
   useEffect(() => {
-    const scroller = rail.current?.closest<HTMLElement>(".pg") ?? null;
+    const scroller = rail.current?.closest<HTMLElement>(".pg, .reader-slot") ?? null;
 
     if (!ready || scroller === null) return NOTHING;
 
