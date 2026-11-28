@@ -31,6 +31,18 @@ Corepack comes from the unmodified `pkgs.corepack`, whose launcher uses Node 24.
 
 The npm `@playwright/test` version must match nixpkgs' `playwright-driver`, so the shell takes the browsers from nixpkgs. The `playwright-driver.browsers` override turns off Firefox and WebKit, because both smoke specs and the Extension's package command drive Chromium only. The shell keeps Chromium, its headless shell and ffmpeg. The override cuts the profile's closure by about 1 GiB.
 
+## README screenshots
+
+`node tools/readme-images/build.ts` makes every screenshot in the README again and writes it to `docs/assets`. It needs ImageMagick (`magick`) on the `PATH`, which the dev shell does not provide, and free ports 5430 and 5431. A run takes about 40 seconds.
+
+1. It runs `pnpm run build`, then starts the container target on `127.0.0.1` with an empty temporary data folder. Its environment holds only `PATH`, the port, a setup code and a new secret key.
+2. It saves a made-up library through `POST /api/items`: Reddit threads, X posts and articles, each with a caller-sent Digest, so no Provider writes a Digest (`ITEMS` and its library modules). Article pictures are generated gradients of the accent colours.
+3. A Topic overview and a Related Items pick need a Provider, so it saves an OpenAI-compatible Provider that points at a stub on `127.0.0.1`. The stub answers those two AI tasks with fixed text. It calls no model, and nothing is billed. It keeps the Highlights through the Reader in Chromium, as an owner does.
+4. It captures each view in `SHOTS` in Chromium at a scale of 2, in Light and Dark, and the three Topic pages in `STYLE_SHOTS`.
+5. It frames each capture in a page that loads the design tokens: two glows of the Moss and Teal accents over `--bg`, and a window with a corner radius of `--s3` and a soft shadow. ImageMagick writes the page as lossless WebP.
+
+The screenshots are not part of the gate. After a change to a screen, to the library or to the frame, run the command and commit the new files in `docs/assets` with the change.
+
 ## Podman storage and signature policy
 
 - Storage. `CONTAINERS_STORAGE_CONF` points at a `storage.conf` that holds only an empty `[storage]` table. With the variable set, Podman reads no other `storage.conf`, so rootless Podman keeps its default paths on every host. Without it, Podman 6 takes `graphroot` from the host's `/etc/containers/storage.conf` for rootless runs too, and the GitHub `ubuntu-26.04` runner's file names `/var/lib/containers/storage`, which the runner user cannot write. The variable also hides your own `~/.config/containers/storage.conf` inside the shell. The source is `Options` in [containers/container-libs, storage v1.64.2](https://github.com/podman-container-tools/container-libs/blob/storage/v1.64.2/storage/types/options.go#L142), the storage version of Podman 6.1.4.

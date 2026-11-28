@@ -27,6 +27,7 @@ Use these exact terms in code, docs and issues.
 | Before writing or changing code, config or scripts: official docs first, module design, no comments, state, repeated writes and deadlines, the finish checks | `docs/agents/changing-code.md`; the `implementer` agent (`.claude/agents/implementer.md`) runs it |
 | Before writing any text a user reads in the product (labels, messages, empty states) | `docs/agents/changing-code.md`, Interface text |
 | Before writing or changing a doc, the README, a commit message or a PR body | `docs/agents/changing-code.md`, Docs, commit messages and PR bodies |
+| Before making the README screenshots again | `docs/architecture/development-environment.md`, README screenshots |
 | Before screen work: who the product is for, then the look, the components and the do's and don'ts every screen follows | `PRODUCT.md`, then `DESIGN.md` |
 | Before reviewing a change | `docs/agents/reviewing-code.md` |
 | Any colour, size, spacing, font or setting value | `design/system/tokens.css`, the one source for every value; `design/system/settings-table.ts` owns each setting's id, label, attribute and default |
