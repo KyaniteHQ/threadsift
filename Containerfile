@@ -39,3 +39,4 @@ VOLUME /data
 USER node
 EXPOSE 8080
 CMD ["node", "src/targets/node/index.ts"]
+LABEL org.opencontainers.image.version=0.9.0

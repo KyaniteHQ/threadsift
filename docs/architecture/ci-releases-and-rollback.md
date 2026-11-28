@@ -35,14 +35,14 @@ The gate workflow runs on every pull request and on every push to `main`.
 |---|---|---|
 | `changes` | selects documentation checks, a full gate or a matching pull request gate | 5 minutes |
 | `docs` | runs `ci:check` for a docs-only change, including formatting and doc references | 10 minutes |
-| `check` | calls the reusable core workflow, which runs `ci:check`, removes the files on the docs-only skip list, then runs the other gate tasks ([Development environment](development-environment.md), Tasks), including the design check `impeccable detect --github web` | 10 minutes |
+| `check` | calls the reusable core workflow, which runs `ci:check` and the Extension's package command `extension:package`, which loads the Chrome zip in Chromium, removes the files on the docs-only skip list, then runs the other gate tasks ([Development environment](development-environment.md), Tasks), including the design check `impeccable detect --github web` | 10 minutes |
 | `smoke` | the browser smoke spec, one runner for the Worker and one for the container image | 15 minutes |
 | `gate` | checks the job results for the mode that `changes` selects | 2 minutes |
 
 - A pull request qualifies for documentation checks only when both its branch changes since the common ancestor and its changes in the tested merge affect only files on the docs-only skip list. A push compares the old and new tips. Missing history or an empty comparison rules out documentation checks. A push with an empty comparison can still reuse a pull request gate. A force-push or a manual run takes the full gate.
 - On `main`, the previous tip's push run must also have succeeded before the docs-only push arrived. Otherwise the full gate runs, including deployment and image publication after it passes, so docs cannot overtake an unfinished code deployment.
 - For a docs-only change, only `changes`, `docs` and `gate` run.
-- In a full gate, the core workflow runs `ci:check` on the complete checkout. It then removes tracked files on the docs-only skip list before the tests, builds, audit and design check. The smoke, image and deploy jobs remove those files right after checkout. If a job that docs mode skips fails because it needs a missing file, remove that path from the list. Local gate tasks and the pre-push hook keep the files.
+- In a full gate, the core workflow runs `ci:check` and `extension:package` on the complete checkout, because the package command archives the tracked files and the source archive must hold the README the store reviewer reads. It then removes tracked files on the docs-only skip list before the tests, builds, audit and design check. The smoke, image and deploy jobs remove those files right after checkout. If a job that docs mode skips fails because it needs a missing file, remove that path from the list. Local gate tasks and the pre-push hook keep the files.
 - When an unforced push does not qualify on paths alone for documentation checks, `changes` looks for a squash commit whose only parent is the previous tip of `main`. GitHub must associate that commit with exactly one pull request, merged into `main` from this repository, and record it as the pull request's merge commit. Fork runs can restore caches that earlier commits on the same pull request wrote.
 - The pull request must leave workflows, local actions, devenv task definitions, the script that owns the docs-only skip list, the tree comparison script and the design-check engine scripts unchanged, including renames. GitHub must return one gate run for the merged head. Its latest successful attempt must record the local reusable core workflow once, with the pull request's merge ref and the resolved commit SHA. That commit must have the pushed tree and exactly two parents, the previous tip of `main` followed by the pull request head. A later update to the branch cannot substitute another tree. [GitHub workflow syntax](https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax#jobsjob_iduses)
 - The attempt must finish every job, pass `gate` and skip `docs`. On a pull request that requires the core check and both smoke targets to pass. A rerun must include the same jobs as the first attempt and still be the latest successful attempt when the lookup finishes. Missing or ambiguous evidence, including a lookup that exceeds 90 seconds, selects the full gate.
@@ -272,6 +272,36 @@ The release workflow handles version tags and is separate from the gate workflow
 The `release` concurrency group serializes whole runs, and their order is not guaranteed. The publish checkout keeps full history, so later releases advance `release` with a fast-forward push. If publication succeeds but the branch push fails, rerun the failed publish job. It reuses the recorded digests, and creating the same index again is idempotent. Rerun only the failed jobs, never all jobs: a new build pushes new digests, and the publish job then refuses to point the version tag, which never moves, at them. A rerun deletes a draft that an earlier attempt left and creates it again, and passes over a published GitHub Release only when it carries every file the plan names. Each build records its pushed digest before the runtime checks, so those artifacts also identify untagged versions that a failed check leaves for manual cleanup.
 
 Verified on 2026-11-17 with two tag runs ([first](https://github.com/KyaniteHQ/threadsift/actions/runs/44159949236), [second](https://github.com/KyaniteHQ/threadsift/actions/runs/44164286715)): `docker buildx imagetools inspect` showed both platforms and two attestation manifests, the native arm64 start checks answered 200, the fast-forward push advanced `release` to the tagged commit's direct child, and an [ordinary main run](https://github.com/KyaniteHQ/threadsift/actions/runs/44162780681) left it unchanged. No tag has yet run the plan, the moving tags or the GitHub Release steps ([Open items and unverified claims](open-items-and-unverified-claims.md)).
+
+### Versions and the release pull request
+
+Every release carries one version, `X.Y.Z`, or `X.Y.Z-rc.N` for a release candidate, and its tag is `v` followed by the version ([Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)). The first stable release is `v1.0.0`. A patch release holds fixes only and never a migration, so an image tag such as `1.4` is always safe to follow. The version is committed and never passed in at build time, because the Firefox reviewer rebuilds the Extension from the source archive and must get the same files.
+
+`node tools/release.ts v<version> --dry-run` prints each change the release would make, from the files committed at `HEAD` and the `v*` tags on `origin`, and writes nothing, no ref or tag included. Without `--dry-run`, the command fetches `main`, builds the commit `chore(release): v<version>` on the tip of `origin/main` in a temporary index, pushes it as the branch `release-v<version>` and opens the release pull request, whose body holds the notes. It never changes the checkout. A failed step ends with one line that names it, and a second run makes the same commit, skips a push that `origin` already holds and reuses an open pull request. When `main` moved after the push, it names the branch to delete first. After the merge, the owner tags the squash commit and pushes the tag, which starts the release workflow. The branch is not `release/v<version>`, because Git refuses that name beside the `release` branch.
+
+The command writes the version into:
+
+- the app's `version` in the root package manifest, which the other files follow;
+- the image's `org.opencontainers.image.version` label, the last line of the `Containerfile` ([OCI annotations](https://github.com/opencontainers/image-spec/blob/v1.1.1/annotations.md));
+- the Extension's `version` in its package manifest, from which WXT 0.21.5 takes the manifest version and, for Chrome, `version_name`.
+
+The bot keeps its own `bot-v<N>` numbering and its own release ([Extension and Threadsift bot](extension-and-threadsift-bot.md), Release), because an installed bot looks for a new release only among the `bot-v` tags, so a shared tag would never reach it. The dry run says so in one line. The bot joins the shared version once its update procedure follows the Instance: that change adds its version file and skill pin to `RELEASE_FILES`, which the command writes, and `COMPARED_FILES`, which the gate compares.
+
+It refuses, with the reason, and changes nothing when:
+
+- the tag is not `vX.Y.Z` or `vX.Y.Z-rc.N`, or a number in it has more than 15 digits;
+- the version is not above the newest `v*` tag or the version the app already carries;
+- no stable tag exists yet and the version is not `v1.0.0` or one of its candidates;
+- the version, or the candidate of one, has a patch above 0 and the newest stable tag has another major or minor, so there is no release to patch;
+- it is such a patch release and a migration file (a `.sql` file of the migration folder) differs from the newest stable tag. The refusal lists the files and names the next minor. A change to the migration metadata alone does not count, because both targets apply only the `.sql` files;
+- the root changelog does not hold exactly one `## Unreleased`, or, for a stable release, holds no notes under it or already holds the release's section;
+- `--headline` comes with a release candidate or a patch release.
+
+`pnpm run check:versions`, part of `pnpm run check` and so of the gate, fails when the image label carries another version than the app. While the app's version is a patch release that has no tag yet, it also fails when a migration file differs from the newest stable tag, so a migration merged after the release pull request opened cannot reach the tag. Only then does it read `origin`, fetching the tag's commit when the clone lacks it. The gate does not compare the Extension's version yet.
+
+### Changelog
+
+The root changelog holds the release notes, written by hand under `## Unreleased` as each change lands. A release's notes open with two or three plain sentences, then "Before you update" (migrations, the rollback floor, manual steps, the Extension and bot versions this Instance expects), then Added, Changed, Fixed and Security. A release candidate leaves the changelog alone, so `## Unreleased` keeps every change since the last stable release. A stable release turns `## Unreleased` into `## v<version>`, or `## v<version>: <headline>` with `--headline` for a release with patch 0, under a new empty `## Unreleased`. Changes to the bot's files also go into the bot changelog, which the bot's own release cuts.
 
 ## Rollback
 

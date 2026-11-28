@@ -19,7 +19,7 @@ interface Pending {
 }
 
 function parentIdOf(fullname: string, postId: string): string | null {
-  if (fullname.toLowerCase() === `t3_${postId.toLowerCase()}`) return null;
+  if (fullname === `t3_${postId.toLowerCase()}`) return null;
 
   return (
     idOfCommentFullname(fullname) ??
@@ -90,7 +90,7 @@ export function walk(
 }
 
 export function walkArchive(children: readonly WireChild[], postId: string): readonly Walked[] {
-  const root = { fullname: `t3_${postId}`, id: null };
+  const root = { fullname: `t3_${postId.toLowerCase()}`, id: null };
   const branches: Pending[][] = [];
   const missing = new Map<string, Pending[]>();
 
@@ -100,7 +100,7 @@ export function walkArchive(children: readonly WireChild[], postId: string): rea
       continue;
     }
 
-    const parent = child.data.parent_id.toLowerCase();
+    const parent = child.data.parent_id;
     const reply = { child, parentId: idOfCommentFullname(parent), depth: 1 };
     const siblings = missing.get(parent);
 
@@ -115,9 +115,7 @@ export function walkArchive(children: readonly WireChild[], postId: string): rea
   }
 
   const walked = walkPending(branches.flat());
-  const present = new Set(
-    walked.flatMap(({ comment }) => (comment === null ? [] : [comment.id.toLowerCase()])),
-  );
+  const present = new Set(walked.flatMap(({ comment }) => (comment === null ? [] : [comment.id])));
 
   for (const parent of missing.keys()) {
     const id = CommentId.safeParse(idOfCommentFullname(parent));

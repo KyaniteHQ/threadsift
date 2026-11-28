@@ -37,7 +37,7 @@ The live spec is the `live` Playwright project. [Testing](../testing.md) and [CI
 
 ## What no check covers
 
-- The Extension in a real browser.
+- The Extension in a real browser, beyond the package command's load of the Chrome zip in Chromium, which starts its worker and opens the popup and the settings page with no Instance saved.
 - Contrast and layout shift in a browser. The static `impeccable detect` check runs, and the smoke spec measures some touch targets against 44px on a phone.
 - Every Provider but Claude Code. Claude Code runs on the container only, so no check runs OpenRouter, any other HTTP Provider or the Codex executor ([Open items and unverified claims](open-items-and-unverified-claims.md)).
 - A broad check against a deployed copy. The deploy job only waits for the live Worker to answer 200.
