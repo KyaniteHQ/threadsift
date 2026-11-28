@@ -12,7 +12,7 @@ import { XApiSettingsViewSchema, type XApiSpend } from "../src/core/contract/x-a
 import { type AutoReason, XSettingsViewSchema } from "../src/core/contract/x-settings-contract.ts";
 import { parsedJson } from "../src/core/kernel/parsed-json.ts";
 import { type App, type AppCall, startedApp } from "./x-api-probe-app.ts";
-import { type Counts, NO_COUNTS, costOf } from "./x-api-probe-cost.ts";
+import { type Counts, NO_COUNTS, PRICE_MICROS, costOf } from "./x-api-probe-cost.ts";
 import { APP_READ, type PlannedRequest, appLimitsOf, recordNameOf } from "./x-api-probe-plan.ts";
 import { type Sent, printSent } from "./x-api-probe-report.ts";
 import { type Run, writeRecord } from "./x-api-probe-step.ts";
@@ -105,17 +105,26 @@ async function pastedRead(app: Readonly<App>, probe: "S4" | "S5", link: string):
   };
 }
 
-async function appReadOf(run: Readonly<Run>, request: Readonly<PlannedRequest>): Promise<AppRead> {
-  const { probe } = run.config.input;
+const UNSENT_ORIGIN = "http://127.0.0.1:9";
 
-  if (probe !== "S4" && probe !== "S5") throw new Unread(`${probe} has no app read`);
-  const app = await startedApp(APP_READ[probe].target, {});
+const DRY_TOKEN = "dry-run-token-that-x-never-sees";
+
+type AppProbe = "S4" | "S5";
+
+async function appReadWith(
+  probe: AppProbe,
+  { token, link, origin }: Readonly<{ token: string; link: string; origin: string | null }>,
+): Promise<AppRead> {
+  const app = await startedApp(
+    APP_READ[probe].target,
+    origin === null ? {} : { THREADSIFT_X_API_ORIGIN: origin },
+  );
 
   try {
-    const saved = await app.call("PUT", "/api/settings/x-api", { token: run.token });
+    const saved = await app.call("PUT", "/api/settings/x-api", { token });
 
     bodyOf(XApiSettingsViewSchema, saved, "the token save");
-    const read = await pastedRead(app, probe, request.path);
+    const read = await pastedRead(app, probe, link);
 
     return {
       ...read,
@@ -124,6 +133,30 @@ async function appReadOf(run: Readonly<Run>, request: Readonly<PlannedRequest>):
   } finally {
     await app.stop();
   }
+}
+
+function appProbeOf(run: Readonly<Run>): AppProbe {
+  const { probe } = run.config.input;
+
+  if (probe !== "S4" && probe !== "S5") throw new Unread(`${probe} has no app read`);
+  return probe;
+}
+
+function appReadOf(run: Readonly<Run>, request: Readonly<PlannedRequest>): Promise<AppRead> {
+  return appReadWith(appProbeOf(run), { token: run.token, link: request.path, origin: null });
+}
+
+export async function dryAppRun(probe: AppProbe, link: string): Promise<string> {
+  const read = await appReadWith(probe, { token: DRY_TOKEN, link, origin: UNSENT_ORIGIN });
+
+  return `${probe}: dry app run against ${UNSENT_ORIGIN}, which never connects: published=${String(read.published)} ${read.why}; the Instance is stopped and its folder removed`;
+}
+
+function countsOfApp(read: Readonly<AppRead>): Counts | null {
+  if (read.counts === null || read.micros === null) return null;
+  const usageReads = (read.micros - costOf(read.counts)) / PRICE_MICROS.usageRead;
+
+  return Number.isInteger(usageReads) && usageReads >= 0 ? { ...read.counts, usageReads } : null;
 }
 
 async function readOrWhy(run: Readonly<Run>, request: Readonly<PlannedRequest>): Promise<AppRead> {
@@ -142,20 +175,23 @@ async function readOrWhy(run: Readonly<Run>, request: Readonly<PlannedRequest>):
   }
 }
 
+function readingOfApp(read: Readonly<AppRead>, counted: Readonly<Counts> | null): Sent["reading"] {
+  if (counted !== null) return { kind: "counted", counts: counted, postIds: [], problems: [] };
+
+  return read.counts === null ? null : { kind: "uncountable" };
+}
+
 export async function appStep(
   run: Readonly<Run>,
   index: number,
   request: Readonly<PlannedRequest>,
 ): Promise<Sent> {
   const read = await readOrWhy(run, request);
-  const counted = read.counts !== null && read.micros === costOf(read.counts) ? read.counts : null;
+  const counted = countsOfApp(read);
   const sent: Sent = {
     request,
     outcome: { kind: "app", published: read.published, why: read.why },
-    reading:
-      read.counts === null
-        ? null
-        : { kind: "counted", counts: read.counts, postIds: [], problems: [] },
+    reading: readingOfApp(read, counted),
     charged: counted ?? request.worst,
     balanceMicros: null,
   };

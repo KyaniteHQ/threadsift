@@ -1,4 +1,4 @@
-import { appStep } from "./x-api-probe-app-step.ts";
+import { appStep, dryAppRun } from "./x-api-probe-app-step.ts";
 import {
   ASSUMPTIONS,
   billedOf,
@@ -51,27 +51,20 @@ function openingNext(config: Config, sent: Sent): Next {
   return { kind: "go" };
 }
 
-function appNext(_config: Config, sent: Sent): Next {
-  const { label } = sent.request;
+type Outcome = Sent["outcome"];
 
-  if (sent.outcome.kind !== "app")
-    return { kind: "stop", ending: { kind: "unpublished", label, why: "no app outcome" } };
-  return sent.outcome.published
+function appNext(label: string, outcome: Extract<Outcome, { kind: "app" }>): Next {
+  return outcome.published
     ? { kind: "go" }
-    : { kind: "stop", ending: { kind: "unpublished", label, why: sent.outcome.why } };
+    : { kind: "stop", ending: { kind: "unpublished", label, why: outcome.why } };
 }
 
-function nextOf(config: Config, sent: Sent): Next {
+function nextOf(config: Config, sent: Sent, outcome: Exclude<Outcome, { kind: "app" }>): Next {
   const { label, role, worst } = sent.request;
 
-  if (sent.outcome.kind === "app")
-    return { kind: "stop", ending: { kind: "unpublished", label, why: "an app outcome" } };
-  if (sent.outcome.kind === "no-answer")
-    return {
-      kind: "end",
-      ending: { kind: "no-answer", label, errorClass: sent.outcome.errorClass },
-    };
-  const { status } = sent.outcome;
+  if (outcome.kind === "no-answer")
+    return { kind: "end", ending: { kind: "no-answer", label, errorClass: outcome.errorClass } };
+  const { status } = outcome;
 
   if (endsRunOn(sent.request, status))
     return { kind: "end", ending: { kind: "answer", label, status } };
@@ -105,19 +98,17 @@ function nextOf(config: Config, sent: Sent): Next {
   }
 }
 
-type Handler = {
-  readonly send: (run: Run, index: number, request: PlannedRequest) => Promise<Sent>;
-  readonly next: (config: Config, sent: Sent) => Next;
-};
+function sentBy(run: Run, index: number, request: PlannedRequest): Promise<Sent> {
+  return request.role === "app-read" ? appStep(run, index, request) : step(run, index, request);
+}
 
-const HANDLER_OF: Readonly<Record<PlannedRequest["role"], Handler>> = {
-  "opening-balance": { send: step, next: nextOf },
-  "mid-balance": { send: step, next: nextOf },
-  lookup: { send: step, next: nextOf },
-  usage: { send: step, next: nextOf },
-  "closing-balance": { send: step, next: nextOf },
-  "app-read": { send: appStep, next: appNext },
-};
+function nextAfter(config: Config, sent: Sent): Next {
+  const { outcome } = sent;
+
+  return outcome.kind === "app"
+    ? appNext(sent.request.label, outcome)
+    : nextOf(config, sent, outcome);
+}
 
 function overCap(config: Config, state: RunState): Ending | null {
   const opening = balanceAt(state, "opening-balance");
@@ -149,12 +140,11 @@ async function runPlan(run: Run): Promise<RunState> {
       stop ??= { kind: "cap", label: request.label };
       continue;
     }
-    const handler = HANDLER_OF[request.role];
     // oxlint-disable-next-line eslint/no-await-in-loop -- Requests go one at a time, so each balance read follows the requests before it and each cap check counts every earlier answer.
-    const done = await handler.send(run, index, request);
+    const done = await sentBy(run, index, request);
 
     sent.push(done);
-    const next = handler.next(run.config, done);
+    const next = nextAfter(run.config, done);
 
     if (next.kind === "end") return { sent, ending: next.ending };
     if (next.kind === "stop") stop ??= next.ending;
@@ -217,6 +207,16 @@ async function runLive(config: Config, token: string, runFolder: string): Promis
   return state.ending.kind === "completed" ? 0 : 1;
 }
 
+async function dryRun(config: Config): Promise<number> {
+  const { probe } = config.input;
+  const appRead = config.plan.find((request) => request.role === "app-read");
+
+  process.stdout.write(`${probe}: dry run, the worst case fits the caps, no request sent to X\n`);
+  if (appRead !== undefined && (probe === "S4" || probe === "S5"))
+    process.stdout.write(`${await dryAppRun(probe, appRead.path)}\n`);
+  return 0;
+}
+
 function main(): Promise<number> {
   const config = configOf();
 
@@ -235,10 +235,7 @@ function main(): Promise<number> {
     );
   switch (config.mode.kind) {
     case "dry":
-      process.stdout.write(
-        `${config.input.probe}: dry run, the worst case fits the caps, no request sent\n`,
-      );
-      return Promise.resolve(0);
+      return dryRun(config);
     case "live":
       return runLive(config, config.mode.token, config.mode.runFolder);
     default:

@@ -232,7 +232,7 @@ The Worker entry builds the ports with `build(env)` for each API request, each v
 
 ### Why
 
-Cloudflare's [bindings page](https://developers.cloudflare.com/workers/runtime-apis/bindings/#making-changes-to-bindings) says that "Cloudflare may reuse existing isolates that are already running your Worker" when a deploy changes only bindings, and that "The correct approach would be to create a new client instance for each request." The ports hold `drizzle(env.DB)`, the file store, the queue sender, the secret key, the setup code, the public origin and the reset code, so every one of them is derived from `env`.
+Cloudflare's [bindings page](https://developers.cloudflare.com/workers/runtime-apis/bindings/#making-changes-to-bindings) says that "Cloudflare may reuse existing isolates that are already running your Worker" when a deploy changes only bindings, and that "The correct approach would be to create a new client instance for each request." The ports hold `drizzle(env.DB)`, the file store, the queue sender, the secret key, the setup code, the public origin, the X API origin and the reset code, so every one of them is derived from `env`.
 
 The stale value, shown on 2026-11-20: two `wrangler dev --local` servers each ran a 6-line entry that calls the real `fetch(request, env)` and, for a request with the header `x-no-setup: 1`, passes `{ ...env, SETUP_CODE: undefined }`, as a reused isolate does after a binding change. `GET /api/session` three times (plain, `x-no-setup: 1`, plain) answered `"code":"set"` three times on the entry that kept the ports (`183eceb7`), and `"set"`, `"missing"`, `"set"` on the entry that builds them for each request.
 

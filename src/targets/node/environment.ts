@@ -9,6 +9,7 @@ export const REPOSITORY_ROOT = resolve(import.meta.dirname, "../../..");
 
 const ProcessSchema = z.object({
   PORT: z.coerce.number().int().min(0).max(65_535).default(8080),
+  HOST: z.union([z.ipv4(), z.ipv6()]).optional(),
   DATA_DIR: z.string().default(join(REPOSITORY_ROOT, ".data")),
   PATH: z.string().default(""),
   THREADSIFT_GROK_AUTO_UPDATE: FlagSchema.default("false"),
@@ -16,6 +17,7 @@ const ProcessSchema = z.object({
 
 export interface NodeEnvironment {
   readonly port: number;
+  readonly host: string | undefined;
   readonly dataDir: string;
   readonly variables: SettingVariables;
   readonly operator: OperatorCodeOptions;
@@ -29,6 +31,7 @@ export function nodeEnvironment(environment: Readonly<NodeJS.ProcessEnv>): NodeE
   const source = withoutEmpty(environment);
   const {
     PORT: port,
+    HOST: host,
     DATA_DIR: dataDir,
     PATH: path,
     THREADSIFT_GROK_AUTO_UPDATE: autoUpdate,
@@ -36,6 +39,7 @@ export function nodeEnvironment(environment: Readonly<NodeJS.ProcessEnv>): NodeE
 
   return {
     port,
+    host,
     dataDir,
     variables: settingVariablesOf(environment),
     operator: {

@@ -26,7 +26,7 @@ export const ASSUMPTIONS = [
   `A usage or balance read is counted at ${usd(ASSUMED.usageReadMicros)} USD, the highest charge on X's pricing page, because the page does not price the usage endpoints. The price of a usage read is not measured.`,
   `The username expansion is counted at ${ASSUMED.usernameUsersPerPost} users per post (the author and the authors of ${REFERENCE_TYPES} referenced posts), because the OpenAPI document does not describe it. Its bound is not measured.`,
   "Media, polls, places, topics and calls are not on X's price table, so they count 0.",
-  "X bills a post or a user once per UTC day, so a second lookup of the same post on one day costs nothing and the counted spend can exceed the measured spend. S1's two lookups read the same post. S2 and S3 need posts not read earlier the same UTC day.",
+  "X normally bills a post or a user once per UTC day, a deduplication its pricing page calls a soft guarantee, so a second lookup of the same post on one day normally costs nothing and the counted spend can exceed the measured spend. S1's two lookups read the same post. S2 and S3 need posts not read earlier the same UTC day.",
 ] as const;
 
 export const CEILING = { usdMicros: 2 * MICROS_PER_USD, posts: 400 } as const;

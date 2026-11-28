@@ -33,7 +33,7 @@ app.route("/", createApp(node.ports));
 
 app.route("/", webRoutes(join(REPOSITORY_ROOT, "dist", "web")));
 
-const server = serveContainer(app.fetch, environment.port);
+const server = serveContainer(app.fetch, environment);
 
 const shutdown = async (): Promise<void> => {
   const drained = new Promise<void>((finishDrain) => {

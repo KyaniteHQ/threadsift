@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { groupedNumber } from "../src/core/contract/format.ts";
+import { HeaderSecretSchema, SECRET_INPUT_MAX } from "../src/core/contract/secret-input.ts";
 import { CEILING, type Caps, MICROS_PER_USD, usd } from "./x-api-probe-cost.ts";
 import {
   FIELD_NAMES,
@@ -131,7 +133,10 @@ function modeOf(input: ProbeInput, plan: readonly PlannedRequest[]): Mode {
     "set it from the owner's secret store in this shell's environment only",
   );
 
-  if (/\s/u.test(token)) throw new Refusal("X_API_BEARER_TOKEN holds whitespace");
+  if (!HeaderSecretSchema.safeParse(token).success)
+    throw new Refusal(
+      `X_API_BEARER_TOKEN must be 1 to ${groupedNumber(SECRET_INPUT_MAX)} printable ASCII characters with no space`,
+    );
   const runsDir = required(
     "X_API_RUNS_DIR",
     "give an absolute folder that git ignores or that sits outside every git work tree, such as the runs folder in the owner's private folder",
