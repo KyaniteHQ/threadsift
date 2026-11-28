@@ -7,6 +7,7 @@ import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { usePageName } from "./use-document-title.ts";
 import { useFocusMoved } from "./use-focus-moved.ts";
 import { refreshKey, useItemDetail } from "./use-item-detail.ts";
+import type { RetryOpened } from "./use-list-actions.ts";
 import type { PanelState } from "./use-panel.ts";
 import type { ReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
@@ -22,7 +23,7 @@ function ReaderPending({
   now: number;
   titleId: string;
   focusTitle: boolean;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
 }>) {
   return (
     <>
@@ -51,7 +52,7 @@ function ReaderCol({
   slot: RefObject<HTMLElement | null>;
   controls: ReaderControls;
   titleId: string;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
 }>) {
   const [now] = useState(Date.now);
   const { state, actions } = useItemDetail(item.id, refreshKey(item));
@@ -105,7 +106,7 @@ export function Reader({
   look: Look;
   titleId: string;
   panel: PanelState;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
 }>) {
   usePageName(item.digestTitle ?? item.title ?? "");
 

@@ -49,15 +49,23 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
   private: "Can’t save this link",
 };
 
-export const RESTORING_DETAILS = {
+const RESTORING_DETAILS = {
   paste:
-    "Nothing was saved. Paste the link again after the restore finishes, or resume or cancel it in Backup in Settings.",
-  digest:
-    "Nothing was saved. Press Try again on the item after the restore finishes, or after you resume or cancel it in Backup in Settings.",
+    "Nothing was saved. Press Add again once the restore has finished or been cancelled in Backup in Settings.",
+  retry:
+    "Nothing was saved. Press Try again once the restore has finished or been cancelled in Backup in Settings.",
 } as const;
 
-export function restoringNote(target: keyof typeof RESTORING_DETAILS): string {
-  return `${NOTICES.restoring}. ${RESTORING_DETAILS[target]}`;
+export type Press = keyof typeof RESTORING_DETAILS;
+
+export function noticeDetail(key: NoticeKey, press: Press): string | null {
+  return key === "restoring" ? RESTORING_DETAILS[press] : (NOTICE_DETAILS[key] ?? null);
+}
+
+export function noticeLine(key: NoticeKey, press: Press): string {
+  const detail = noticeDetail(key, press);
+
+  return detail === null ? NOTICES[key] : `${NOTICES[key]}. ${detail}`;
 }
 
 export const NOTICE_DETAILS: Readonly<Partial<Record<NoticeKey, string>>> = {

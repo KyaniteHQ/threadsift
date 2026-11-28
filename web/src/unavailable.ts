@@ -5,8 +5,8 @@ export const RESTORING = { kind: "restoring" } as const;
 
 export type Restoring = typeof RESTORING;
 
-export function isRestoring(answer: string | Readonly<object>): answer is Restoring {
-  return answer === RESTORING;
+export function isRestoring(answer: Readonly<object>): answer is Restoring {
+  return "kind" in answer && answer.kind === RESTORING.kind;
 }
 
 async function refusedWhileRestoring(response: Response): Promise<boolean> {

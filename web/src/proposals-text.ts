@@ -110,7 +110,7 @@ export const PROPOSAL_WORDS = {
   applyFailedMany:
     "Applying this merge failed {count} times. Threadsift will try again. The instance logs have a merge-unit-failed line with the error class and any database code.",
   restoring:
-    "Nothing changed because a restore holds the library. Press Accept again once it finishes, or after you resume or cancel it in Backup in Settings.",
+    "Nothing changed because a restore holds the library. Press Accept again once the restore has finished or been cancelled in Backup in Settings.",
   mergeBusy: "Another merge is already running. Press Accept again once it finishes.",
   topicOverviewEffect:
     "After the merge finishes, Threadsift writes the remaining topic’s overview again to include the moved items.",

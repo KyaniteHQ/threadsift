@@ -67,14 +67,28 @@ function answered(
   }
 }
 
+function typedAttempt({ saved, attempt }: Readonly<NoteState>, text: string): NoteAttempt {
+  switch (attempt) {
+    case "saved":
+      return "idle";
+    case "failed":
+    case "restoring":
+      return storedNoteBody(text) === saved.body ? "idle" : attempt;
+    case "idle":
+    case "saving":
+      return attempt;
+    default: {
+      const exhaustive: never = attempt;
+
+      return exhaustive;
+    }
+  }
+}
+
 export function noteReducer(state: Readonly<NoteState>, action: Readonly<NoteAction>): NoteState {
   switch (action.kind) {
     case "type":
-      return {
-        ...state,
-        draft: action.text,
-        attempt: state.attempt === "saved" ? "idle" : state.attempt,
-      };
+      return { ...state, draft: action.text, attempt: typedAttempt(state, action.text) };
     case "send":
       return {
         ...state,

@@ -31,6 +31,7 @@ interface Outcome {
   readonly announce: (text: string) => void;
   readonly fail: (text: string | null) => void;
   readonly dismiss: () => void;
+  readonly reopen: (draft: Readonly<KeepDraft>) => void;
 }
 
 function added(view: HighlightsView, highlight: Readonly<Highlight>): HighlightsView {
@@ -56,15 +57,20 @@ function useSerial() {
 
 type Serial = ReturnType<typeof useSerial>;
 
+function startKeep({ dismiss, announce }: Readonly<Pick<Outcome, "dismiss" | "announce">>) {
+  dismiss();
+  document.getSelection()?.removeAllRanges();
+  announce("");
+}
+
 function useKeep(itemId: number, serial: Serial, actions: DetailActions, outcome: Outcome) {
   const { reload, editHighlights } = actions;
-  const { announce, fail, dismiss } = outcome;
+  const { announce, fail, dismiss, reopen } = outcome;
 
   return useCallback(
-    async ({ target, revision, selector }: Readonly<KeepDraft>): Promise<void> => {
-      dismiss();
-      document.getSelection()?.removeAllRanges();
-      announce("");
+    async (draft: Readonly<KeepDraft>): Promise<void> => {
+      const { target, revision, selector } = draft;
+      startKeep({ dismiss, announce });
 
       const answer = await serial(() =>
         keepHighlight(itemId, { target, revision, selector }).catch(() => null),
@@ -82,6 +88,7 @@ function useKeep(itemId: number, serial: Serial, actions: DetailActions, outcome
 
           return;
         case "restoring":
+          reopen(draft);
           fail(KEEP_RESTORING);
 
           return;
@@ -96,11 +103,14 @@ function useKeep(itemId: number, serial: Serial, actions: DetailActions, outcome
           announce(KEPT_ANNOUNCEMENT);
 
           return;
-        default:
-          return answer satisfies never;
+        default: {
+          const exhaustive: never = answer;
+
+          return exhaustive;
+        }
       }
     },
-    [itemId, serial, reload, editHighlights, announce, fail, dismiss],
+    [itemId, serial, reload, editHighlights, announce, fail, dismiss, reopen],
   );
 }
 
@@ -156,11 +166,12 @@ export function HighlightsProvider({
   announce: (text: string) => void;
   children: ReactNode;
 }>) {
-  const { panel, dismiss, unavailable } = useHighlightPanel(view.revisions);
+  const { panel, dismiss, reopen, unavailable } = useHighlightPanel(view.revisions);
   const [failed, fail] = useState<string | null>(null);
   const { reveal, show } = useReveal(view.items);
   const spans = useSpanIndex(view.items);
-  const { keep, remove } = useHighlightWrites(itemId, actions, { announce, fail, dismiss });
+  const outcome = { announce, fail, dismiss, reopen };
+  const { keep, remove } = useHighlightWrites(itemId, actions, outcome);
 
   const failure = useMemo<Failure | null>(() => {
     if (failed !== null) return { text: failed, reloads: unavailable };

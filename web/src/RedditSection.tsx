@@ -25,7 +25,11 @@ function ArchiveFillRow({
   view,
   changed,
 }: Readonly<{ view: RedditSettings; changed: (view: RedditSettings) => void }>) {
-  const form = useSaveOnPick(saveArchiveFill, changed, REDDIT_TEXT.failed, REDDIT_TEXT.restoring);
+  const form = useSaveOnPick({
+    save: saveArchiveFill,
+    changed,
+    texts: { failed: REDDIT_TEXT.failed, restoring: REDDIT_TEXT.restoring },
+  });
 
   return (
     <div className="stack" aria-busy={form.busy}>

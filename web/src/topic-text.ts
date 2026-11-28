@@ -6,7 +6,7 @@ export const TOPIC_PAGE = {
   overviewPending: "Writing overview…",
   overviewFailed: "Couldn’t write the overview.",
   overviewRestoring:
-    "Couldn’t write the overview: a restore holds the library. Press the button again after it finishes, or resume or cancel it in Backup in Settings.",
+    "Couldn’t write the overview because a restore holds the library. Press the button again once the restore has finished or been cancelled in Backup in Settings.",
   overviewNone: "No overview yet",
   writeOverview: "Write overview",
   noProvider:

@@ -1,22 +1,21 @@
 import type { FetchResult } from "../../src/core/contract/fetch-results.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { whereOf } from "../../src/core/contract/link-place.ts";
-import type { SaveTarget } from "./api.ts";
 import {
   CARD_TITLES,
-  NOTICE_DETAILS,
   NOTICES,
   type NoteKey,
   type NoticeKey,
-  RESTORING_DETAILS,
+  type Press,
   failureTitleOf,
+  noticeDetail,
   waitTitle,
 } from "./text.ts";
 import { waitText } from "./wait-text.ts";
 
 export type Shown = Readonly<{ seq: number; url: string }> &
   (
-    | { readonly kind: "notice"; readonly key: NoticeKey; readonly target: SaveTarget["kind"] }
+    | { readonly kind: "notice"; readonly key: NoticeKey; readonly press: Press }
     | {
         readonly kind: "item";
         readonly itemId: number;
@@ -182,10 +181,6 @@ function itemFace(item: Readonly<Item>, saved: Readonly<SavedAs>): Face {
   }
 }
 
-function detailOf({ key, target }: Readonly<{ key: NoticeKey; target: SaveTarget["kind"] }>) {
-  return key === "restoring" ? RESTORING_DETAILS[target] : (NOTICE_DETAILS[key] ?? null);
-}
-
 export function faceOf(shown: Readonly<Shown>, items: readonly Item[]): Face | null {
   if (shown.kind === "notice") {
     return {
@@ -193,7 +188,7 @@ export function faceOf(shown: Readonly<Shown>, items: readonly Item[]): Face | n
       tone: "tone-warn",
       title: NOTICES[shown.key],
       name: null,
-      note: detailOf(shown),
+      note: noticeDetail(shown.key, shown.press),
       wait: null,
       itemTitle: null,
       alert: true,

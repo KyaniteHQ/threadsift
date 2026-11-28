@@ -9,6 +9,7 @@ import { HeadNote, Note } from "./ReaderNote.tsx";
 import { ReaderSummary } from "./ReaderSummary.tsx";
 import { savedLabel } from "./saved-label.ts";
 import { DIGEST_UPDATE_FAILED, DIGEST_FAILED, SOURCE_LABELS } from "./text.ts";
+import type { RetryOpened } from "./use-list-actions.ts";
 
 export function ReaderHead({
   item,
@@ -25,7 +26,7 @@ export function ReaderHead({
   titleId: string;
   focusTitle: boolean;
   loading: boolean;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
 }>) {
   const title = useRef<HTMLHeadingElement>(null);
   const name = item.digestTitle ?? item.title;
@@ -71,7 +72,7 @@ export function Agent({
   item,
   detail,
   tryAgain,
-}: Readonly<{ item: Item; detail: ItemDetail; tryAgain: (item: Item) => void }>) {
+}: Readonly<{ item: Item; detail: ItemDetail; tryAgain: RetryOpened }>) {
   const note = digestNote(item, detail.digest !== null);
 
   return (

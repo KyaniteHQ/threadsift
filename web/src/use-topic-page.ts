@@ -162,24 +162,30 @@ function useWriteOverview(
     guard(async () => {
       setRefusedFor(null);
 
-      try {
-        const retry = await retryTopicOverview(key);
-
+      const settle = (retry: Awaited<ReturnType<typeof retryTopicOverview>>): Promise<void> => {
         switch (retry.kind) {
           case "started":
             setState((now) =>
               now.status === "ready" ? { ...now, overview: retry.overview } : now,
             );
-            break;
+
+            return Promise.resolve();
           case "restoring":
             if (latest.current.status === "ready") setRefusedFor(latest.current.overview);
-            break;
+
+            return Promise.resolve();
           case "refused":
-            await reload();
-            break;
-          default:
-            retry satisfies never;
+            return reload();
+          default: {
+            const exhaustive: never = retry;
+
+            return exhaustive;
+          }
         }
+      };
+
+      try {
+        await settle(await retryTopicOverview(key));
       } catch {
         await reload();
       }

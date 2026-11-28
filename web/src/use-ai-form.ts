@@ -65,8 +65,11 @@ function failureText(
       return AI_TEXT.saveRestoring;
     case "grok-bot-unready":
       return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
-    default:
-      return response satisfies never;
+    default: {
+      const exhaustive: never = response;
+
+      return exhaustive;
+    }
   }
 }
 
@@ -82,8 +85,11 @@ function verifyOutcome(
       return { kind: "error", text: refusalText(response, provider, publicOnly) };
     case "restoring":
       return { kind: "error", text: AI_TEXT.verifyRestoring };
-    default:
-      return response satisfies never;
+    default: {
+      const exhaustive: never = response;
+
+      return exhaustive;
+    }
   }
 }
 

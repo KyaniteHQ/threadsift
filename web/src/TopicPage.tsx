@@ -45,8 +45,11 @@ function Body({
           <TopicItemsSection state={state} loadMore={loadMore} />
         </>
       );
-    default:
-      return state satisfies never;
+    default: {
+      const exhaustive: never = state;
+
+      return exhaustive;
+    }
   }
 }
 

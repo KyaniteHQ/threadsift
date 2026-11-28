@@ -6,6 +6,7 @@ import { Agent } from "./ReaderColumn.tsx";
 import { Original } from "./ReaderOriginal.tsx";
 import { AlertRegion, StatusRegion } from "./RetryRegions.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
+import type { RetryOpened } from "./use-list-actions.ts";
 
 export function ReaderNotices({
   state,
@@ -41,7 +42,7 @@ export function ReaderContent({
   state: Extract<DetailState, { status: "ready" }>;
   actions: DetailActions;
   announce: (text: string) => void;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
   now: number;
 }>) {
   return (

@@ -14,19 +14,17 @@ import { call, parsedFrom, parsedOrGone, post, withCursor } from "./calls.ts";
 import { type Restoring, isRestoring, unlessRestoring } from "./unavailable.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
-const BUSY = ["merge-busy", "no-provider"] as const satisfies readonly Acceptance[];
-
-export type Busy = (typeof BUSY)[number];
+export type Busy = Extract<Acceptance, "merge-busy" | "no-provider">;
 
 export type Failure = "accept" | "reject";
 
 const RefusalSchema = z.object({ error: z.enum(ACCEPT_REFUSALS) });
 
-type Answer = Exclude<Acceptance, typeof RESTORING_CODE> | Restoring;
+export type Answer = Exclude<Acceptance, typeof RESTORING_CODE>;
 
-export function isBusy(outcome: Answer): outcome is Busy {
-  return BUSY.some((busy) => busy === outcome);
-}
+const answered = (answer: Answer) => ({ kind: "answer", answer }) as const;
+
+export type Accepted = ReturnType<typeof answered> | Restoring;
 
 export function fetchProposals(cursor: string | null, signal: AbortSignal): Promise<ProposalPage> {
   return parsedFrom("GET", withCursor("/api/proposals", cursor), ProposalPageSchema, { signal });
@@ -49,7 +47,7 @@ export async function sendReject(id: number): Promise<"rejected" | "unknown"> {
   }
 }
 
-export async function sendAccept(id: number): Promise<Answer> {
+export async function sendAccept(id: number): Promise<Accepted> {
   try {
     const response = await unlessRestoring(
       await call(post(DATABASE_WRITE_DEADLINE_MS), `/api/proposals/${String(id)}/accept`),
@@ -62,13 +60,13 @@ export async function sendAccept(id: number): Promise<Answer> {
     if (response.status === 409) {
       const refusal = RefusalSchema.safeParse(body);
 
-      return refusal.success ? refusal.data.error : "unknown";
+      return answered(refusal.success ? refusal.data.error : "unknown");
     }
 
     const accepted = AcceptedSchema.safeParse(body);
 
-    return response.ok && accepted.success ? accepted.data.state : "unknown";
+    return answered(response.ok && accepted.success ? accepted.data.state : "unknown");
   } catch {
-    return "unknown";
+    return answered("unknown");
   }
 }

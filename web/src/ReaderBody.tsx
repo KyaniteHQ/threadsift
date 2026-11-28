@@ -5,6 +5,7 @@ import { postTextModule } from "./post-text-module.ts";
 import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { ReaderContent, ReaderNotices } from "./ReaderContent.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
+import type { RetryOpened } from "./use-list-actions.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
 
 export function ReaderBody({
@@ -26,7 +27,7 @@ export function ReaderBody({
   now: number;
   titleId: string;
   focusTitle: boolean;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
 }>) {
   use(postTextModule());
   useReadingPlace(slot, item.id, state.status === "ready");

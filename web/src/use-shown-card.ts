@@ -22,7 +22,7 @@ function prefilledBy(arrival: Readonly<ShareArrival> | null): Prefilled {
   return {
     value,
     shown:
-      notice === null ? null : { kind: "notice", key: notice, target: "paste", url: value, seq: 0 },
+      notice === null ? null : { kind: "notice", key: notice, press: "paste", url: value, seq: 0 },
   };
 }
 

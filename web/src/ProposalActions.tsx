@@ -52,8 +52,11 @@ function notesOf(row: RowState, applying: boolean): NoteTexts {
     case "pressing":
     case "idle":
       return NO_NOTES;
-    default:
-      return row satisfies never;
+    default: {
+      const exhaustive: never = row;
+
+      return exhaustive;
+    }
   }
 }
 

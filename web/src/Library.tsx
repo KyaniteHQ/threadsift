@@ -38,7 +38,6 @@ export function Library({
           nav={nav}
           look={look}
           tryAgain={view.actions.retryOpened}
-          refusedRetry={view.actions.refusedRetry}
           announcement={side.reader.announcement}
         />
       ) : null}
