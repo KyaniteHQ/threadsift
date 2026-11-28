@@ -2,7 +2,7 @@ import { z } from "zod";
 
 import { collapsed } from "../../src/core/contract/format.ts";
 import { WholeCount } from "../../src/core/contract/whole-count.ts";
-import { BESIDE_MARGIN } from "./margin-column.ts";
+import { SIDE_COLUMN_BESIDE } from "./side-column.ts";
 
 const STORAGE_KEY = "threadsift:reading-places";
 const ANCHORS = ".rd-head, .rd-digest, .rd-note, .rel-entry, .md > *";
@@ -77,7 +77,7 @@ function shownBottom(block: Element): number | null {
 
 function anchorsIn(slot: HTMLElement): Element[] {
   return [...slot.querySelectorAll(ANCHORS)].filter(
-    (block) => block.closest(BESIDE_MARGIN) === null,
+    (block) => block.closest(SIDE_COLUMN_BESIDE) === null,
   );
 }
 

@@ -446,8 +446,8 @@ a.btn { text-decoration: none; }
    The bar, then one text column capped at the reading measure (68 characters a line at
    most). Post and comment text never drops below 16px. */
 @property --rd-fit { syntax: "<length>"; inherits: true; initial-value: 0px; }
-.reader { --rd-wide: calc(var(--measure-read) + var(--s6) + var(--margin-w)); --rd-fit: calc(var(--rd-wide) + var(--reader-pad) * 2); --rd-content: var(--measure-read); flex: 1 0 auto; display: flex; flex-direction: column; min-height: 100%; background: var(--reader-bg); color: var(--text); }
-.reader:has(> .rd-col[data-margin="beside"] > .rd-margin:not(:empty)) { --rd-content: var(--rd-wide); }
+.reader { --rd-wide: calc(var(--measure-read) + var(--s6) + var(--side-w)); --rd-fit: calc(var(--rd-wide) + var(--reader-pad) * 2); --rd-content: var(--measure-read); flex: 1 0 auto; display: flex; flex-direction: column; min-height: 100%; background: var(--reader-bg); color: var(--text); }
+.reader:has(> .rd-col[data-side="beside"] > .rd-side:not(:empty)) { --rd-content: var(--rd-wide); }
 /* bar: always one 56px row, measured after each render, once fonts load and when its width
    changes; it gives up, in order, the key hint, the position text, the button labels, the
    comments total and Back's word. Under 480px every control is 44px. A 2px line along the
@@ -479,12 +479,12 @@ a.btn { text-decoration: none; }
 /* the reading column */
 .rd-col { flex: 1 0 auto; display: flex; flex-direction: column; gap: var(--s5); width: 100%; max-width: calc(var(--rd-content) + var(--reader-pad) * 2); margin: 0 auto; padding: var(--s5) var(--reader-pad) var(--s6); font-family: var(--f-read); font-size: var(--t-read); }
 .rd-col p, .rd-col h2, .rd-col h3, .rd-col ul, .rd-col dl, .rd-col figure { margin: 0; }
-.rd-main, .rd-margin { display: contents; }
-.rd-col[data-margin="beside"]:has(> .rd-margin:not(:empty)) { display: grid; grid-template-columns: minmax(0, var(--measure-read)) var(--margin-w); align-items: start; column-gap: var(--s6); }
-.rd-col[data-margin="beside"] > .rd-main { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
-.rd-col[data-margin="beside"] > .rd-margin { position: sticky; top: calc(var(--bar-h) + var(--s5)); display: flex; flex-direction: column; gap: var(--s6); min-width: 0; max-height: calc(var(--vh) - var(--mast-h) - var(--bar-h) - var(--s5) * 2); margin-inline: calc(var(--s1) * -1); padding-inline: var(--s1); overflow-y: auto; overscroll-behavior: contain; }
-[data-reader="page"] .rd-col[data-margin="beside"] > .rd-margin { max-height: calc(var(--vh) - var(--bar-h) - var(--s5) * 2); }
-.rd-col[data-margin="beside"] > .rd-margin .rd-h { font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 600; letter-spacing: normal; word-spacing: normal; }
+.rd-main, .rd-side { display: contents; }
+.rd-col[data-side="beside"]:has(> .rd-side:not(:empty)) { display: grid; grid-template-columns: minmax(0, var(--measure-read)) var(--side-w); align-items: start; column-gap: var(--s6); }
+.rd-col[data-side="beside"] > .rd-main { display: flex; flex-direction: column; gap: var(--s5); min-width: 0; }
+.rd-col[data-side="beside"] > .rd-side { position: sticky; top: calc(var(--bar-h) + var(--s5)); display: flex; flex-direction: column; gap: var(--s6); min-width: 0; max-height: calc(var(--vh) - var(--mast-h) - var(--bar-h) - var(--s5) * 2); margin-inline: calc(var(--s1) * -1); padding-inline: var(--s1); overflow-y: auto; overscroll-behavior: contain; }
+[data-reader="page"] .rd-col[data-side="beside"] > .rd-side { max-height: calc(var(--vh) - var(--bar-h) - var(--s5) * 2); }
+.rd-col[data-side="beside"] > .rd-side .rd-h { font-family: var(--f-ui); font-size: var(--t-meta); font-weight: 600; letter-spacing: normal; word-spacing: normal; }
 .rd-head { display: flex; flex-direction: column; gap: var(--s2); }
 .rd-src { display: flex; flex-wrap: wrap; gap: var(--s1) var(--s3); color: var(--muted); font-family: var(--f-ui); font-size: var(--t-meta); }
 .rd-src span:empty { display: none; }

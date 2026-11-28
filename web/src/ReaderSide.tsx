@@ -6,7 +6,6 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { NOTHING } from "../../src/core/contract/nothing.ts";
 import { HighlightList } from "./HighlightList.tsx";
 import { scrollAndFocus } from "./jump-to-comments.ts";
-import type { MarginSlot } from "./margin-column.ts";
 import { NoteBox } from "./NoteBox.tsx";
 import {
   type ContentsEntry,
@@ -15,6 +14,7 @@ import {
   holdsSelectableText,
 } from "./reader-sections.ts";
 import { CONTENTS_TITLE } from "./reader-text.ts";
+import type { SideSlot } from "./side-column.ts";
 import { useSectionInView } from "./use-section-in-view.ts";
 
 function Entry({ entry, current }: Readonly<{ entry: ContentsEntry; current: boolean }>) {
@@ -97,27 +97,27 @@ function Contents({
 }
 
 export function ReaderSide({
-  margin,
+  side,
   item,
   detail,
   ids,
-}: Readonly<{ margin: MarginSlot; item: Item; detail: ItemDetail; ids: SectionIds }>) {
+}: Readonly<{ side: SideSlot; item: Item; detail: ItemDetail; ids: SectionIds }>) {
   const contents = useMemo(() => contentsOf(item, detail, ids), [item, detail, ids]);
 
-  return margin.node === null
+  return side.node === null
     ? null
     : createPortal(
         <>
-          {margin.beside ? (
+          {side.beside ? (
             <Contents
               entries={contents}
               commentsId={ids.comments}
-              listComments={margin.listComments}
+              listComments={side.listComments}
             />
           ) : null}
           <HighlightList selectable={holdsSelectableText(detail)} />
           <NoteBox key={item.id} itemId={item.id} initial={detail.note} />
         </>,
-        margin.node,
+        side.node,
       );
 }

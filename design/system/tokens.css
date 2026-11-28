@@ -135,7 +135,7 @@
   --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */
   --tag-c: 0.13;                      /* tag colour chroma; lightness per theme (--tag-l), hue per tag (data-tag) */
   --reader-pad: var(--s6); --code-pad-y: 10px; --code-pad-x: 12px;
-  --margin-w: 320px;
+  --side-w: 320px;
   --bar-h: 56px;                      /* the reader bar, and a phone panel sheet's header: one row, its bottom line included */
   --mast-h: 48px;
   --host-max: 22ch;
