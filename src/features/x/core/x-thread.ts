@@ -190,7 +190,7 @@ export function parseXThreadValue(thread: XThreadValue, statusId: string): Threa
 export function parseJoinedXThread(
   { thread, followUps }: Readonly<Pick<JoinedPost, "thread" | "followUps">>,
   statusId: string,
-  xApiRead: boolean,
+  { xApiRead }: Readonly<{ xApiRead: boolean }>,
 ): StoredParse {
   return parsing(() => ({ ...parseThread(thread, statusId), followUps, xApiRead }));
 }
@@ -253,5 +253,7 @@ export function parseXThread(answer: string, statusId: string): StoredParse {
 
   const everyReply = new Set(read.value.replies.map(({ id }) => id));
 
-  return parseJoinedXThread(joinedPost(read.value, everyReply, {}), statusId, false);
+  return parseJoinedXThread(joinedPost(read.value, everyReply, {}), statusId, {
+    xApiRead: false,
+  });
 }

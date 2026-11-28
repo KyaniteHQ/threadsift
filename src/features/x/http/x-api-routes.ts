@@ -28,7 +28,15 @@ const PATH = "/api/settings/x-api";
 
 const usd = (micros: number) => (micros / MICROS_PER_USD).toFixed(3);
 
-const VIEW = `Whether an X API Bearer token is saved, missing or unreadable, whether this Instance has a usable sealing key, the spend limits per Item and UTC day and per UTC day in millionths of a US dollar, and what the counter holds for today (UTC): the counted micro-dollars, posts and users. Posts and users count at X's prices of ${usd(X_API_POST_MICROS)} USD a post and ${usd(X_API_USER_MICROS)} USD a user, and each Verify and daily usage read at ${usd(X_API_USAGE_READ_MICROS)} USD. The counter counts every post and user an answer returned, so it can be above X's bill, which counts a resource once a UTC day. No token is returned.`;
+const VIEW = [
+  "Whether an X API Bearer token is saved, missing or unreadable, and whether this Instance has a usable sealing key.",
+  "The spend limit for each Item on each UTC day and the one for each UTC day, in millionths of a US dollar.",
+  "What the counter holds for today (UTC): the counted micro-dollars, posts and users.",
+  `Posts and users count at X's prices of ${usd(X_API_POST_MICROS)} USD a post and ${usd(X_API_USER_MICROS)} USD a user.`,
+  `Each Verify and daily usage read counts ${usd(X_API_USAGE_READ_MICROS)} USD, unless X refuses it with a 4xx.`,
+  "The counter counts every post and user an answer returned, so it can be above X's bill, which normally counts a resource once a UTC day.",
+  "No token is returned.",
+].join(" ");
 
 const readRoute = createRoute({
   method: "get",

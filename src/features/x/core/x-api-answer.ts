@@ -2,6 +2,7 @@ import { z } from "zod";
 
 import { X_API_PROBLEMS, type XApiRefusal } from "../../../core/contract/x-api-contract.ts";
 import type { XReadNote } from "../../../core/contract/x-read-note.ts";
+import { parsedJson } from "../../../core/kernel/parsed-json.ts";
 import type { Concluded } from "../../media/core/details.ts";
 
 const OK = 200;
@@ -39,11 +40,7 @@ export type XApiAnswer =
   | { readonly kind: "refused"; readonly reason: XApiRefusal; readonly status: number | null };
 
 function problemOf(text: string): z.output<typeof ProblemSchema> {
-  try {
-    return ProblemSchema.safeParse(JSON.parse(text)).data ?? {};
-  } catch {
-    return {};
-  }
+  return parsedJson(ProblemSchema, text) ?? {};
 }
 
 function resetOf(header: XApiWire["header"], now: number): number {

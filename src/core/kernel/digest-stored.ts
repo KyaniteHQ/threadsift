@@ -89,7 +89,7 @@ function digestRows(db: Database, where: SQL) {
     .where(where);
 }
 
-export function storedDigests(db: Database, itemIds: readonly number[]) {
+export function allStoredDigests(db: Database, itemIds: readonly number[]) {
   return digestRows(db, among(digests.itemId, itemIds));
 }
 
@@ -100,7 +100,7 @@ export function providerDigests(db: Database, itemIds: readonly number[]) {
   );
 }
 
-export type StoredDigest = Awaited<ReturnType<typeof storedDigests>>[number];
+export type StoredDigest = Awaited<ReturnType<typeof allStoredDigests>>[number];
 
 export const DIGEST_VIEW_COLUMNS = {
   digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),

@@ -17,7 +17,8 @@ export async function publishableThread(
     .where(eq(items.id, itemId));
 
   const statusId = item === undefined ? null : statusIdOf(item.normalizedUrl);
-  const parsed = statusId === null ? null : parseJoinedXThread(joined, statusId, false);
+  const parsed =
+    statusId === null ? null : parseJoinedXThread(joined, statusId, { xApiRead: false });
 
   return parsed?.kind === "thread" ? parsed.thread : null;
 }
