@@ -117,7 +117,7 @@ folder_of() {
 hash_of() { printf '%s' "$1" | sha256sum | cut -d' ' -f1; }
 
 stored_file() {
-  cat -- "$1" > "$2.part" && mv -T -- "$2.part" "$2"
+  cat -- "$1" > "$2.$$.part" && mv -T -- "$2.$$.part" "$2"
 }
 
 mark_word() {
@@ -317,6 +317,10 @@ PY
   [[ "$parsed" != ping ]] || { echo ping; exit 0; }
   read -r id token _ <<< "$parsed"
   folder_of "$id"
+  if command -v flock > /dev/null; then
+    exec 8> "$HERE/tmp/open-$id.lock"
+    flock -w 90 8 || stop failed "another run is still opening this task"
+  fi
   if [[ -f "$folder/done" && "$(< "$folder/done")" == "$(hash_of "$token")" ]]; then
     echo already-done
     exit 0
