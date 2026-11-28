@@ -21,7 +21,7 @@ import { isSpent, retryDelayMs } from "../kernel/job-retry.ts";
 import { ATTEMPT_FILES, hasOpenJob } from "../kernel/job-rows.ts";
 import type { InputFact, JobSpec, Specs } from "../kernel/job-spec.ts";
 import { jobIs } from "../kernel/job-tables.ts";
-import { holdsNoRestore } from "../kernel/restore-hold.ts";
+import { heldOff, holdsNoRestore } from "../kernel/restore-hold.ts";
 import { jobs } from "../kernel/schema.ts";
 import { applyOutcome, exhaust, queueLater } from "./job-finish.ts";
 
@@ -133,6 +133,18 @@ async function attempted(
   try {
     await applyOutcome(ports, job, await spec.attempt(ports, job), spec);
   } catch (error) {
+    if (heldOff(error)) {
+      await queueLater(ports, job, {
+        until: Date.now() + (retryDelayMs(0) ?? 0),
+        attempts: job.attempts,
+        staleRequeues: 0,
+        wait: null,
+        closing: spec,
+      });
+
+      return;
+    }
+
     logFailure(
       "job-attempt-failed",
       { jobId: job.id, kind: job.kind, attempt: job.attempts + 1 },

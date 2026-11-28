@@ -2,7 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
 import { currentDisagreementPin } from "../../../core/kernel/disagreement-sql.ts";
-import { heldBatch, whileOpen } from "../../../core/kernel/restore-hold.ts";
+import { heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { itemsDisagreeProposals, pins, proposals } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { DISAGREEMENT } from "./disagreement-rows.ts";
@@ -78,8 +78,8 @@ export async function acceptDisagreement(
 
   if (row.current === 0 || reason === null) return "not-current";
 
-  return whileOpen(async () => {
-    const accepted = await heldBatch(
+  const accepted = await whileOpen(() =>
+    heldBatch(
       db,
       [
         keptPair(db, reason, sides),
@@ -87,8 +87,10 @@ export async function acceptDisagreement(
         removedOpen(db, "items-disagree", eq(proposals.id, id)),
       ],
       stillCurrent(id),
-    );
+    ),
+  );
 
-    return accepted === null ? "not-current" : "done";
-  }, "restoring");
+  if (isClosed(accepted)) return "restoring";
+
+  return accepted === null ? "not-current" : "done";
 }

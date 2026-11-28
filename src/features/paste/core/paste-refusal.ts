@@ -5,7 +5,10 @@ import {
 } from "../../../core/contract/agent-token-contract.ts";
 import { byteSize } from "../../../core/contract/format.ts";
 import { THREAD_CONTENT_BYTES } from "../../../core/contract/limits.ts";
-import { RESTORING_CODE, RESTORING_REFUSAL } from "../../../core/contract/restore-contract.ts";
+import {
+  PASTE_RESTORING_REFUSAL,
+  RESTORING_CODE,
+} from "../../../core/contract/restore-contract.ts";
 import { PAGE_BYTES, type UNSUPPORTED_PAGE_LINK } from "../../../core/contract/supplied-page.ts";
 import type {
   Invalid,
@@ -102,7 +105,7 @@ export function refusalOf(outcome: Readonly<Unsaved>): Refusal {
     }
 
     case "restoring": {
-      return { kind: outcome.kind, status: 503, body: RESTORING_REFUSAL };
+      return { kind: outcome.kind, status: 503, body: PASTE_RESTORING_REFUSAL };
     }
 
     case "refused": {

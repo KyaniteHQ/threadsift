@@ -21,6 +21,12 @@ export const RESTORE_PHASES = ["upload", ...RUNNING_RESTORE_PHASES] as const;
 
 export const RESTORING_CODE = "restoring";
 
+export const PASTE_RESTORING_REFUSAL = {
+  error:
+    "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.",
+  code: RESTORING_CODE,
+} as const;
+
 export const RESTORING_REFUSAL = {
   error:
     "The library is being restored and saves nothing new until the restore has finished. Reads and deletes work meanwhile.",

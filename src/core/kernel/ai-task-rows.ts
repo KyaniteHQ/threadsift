@@ -5,7 +5,7 @@ import type { Provider } from "../contract/provider-families.ts";
 import { ANSWERED, RUNNING, mayComplete, mayExpire, mayFail, refusedAs } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { heldBatch } from "./restore-hold.ts";
-import { aiTasks } from "./schema.ts";
+import { aiTasks, items } from "./schema.ts";
 
 interface NewTask {
   readonly kind: string;
@@ -113,6 +113,6 @@ export function expireAiTasks(db: Database, now: number) {
   return failingAiTask(db, { reason: "timeout", status: null }).where(and(RUNNING, mayExpire(now)));
 }
 
-export function latestDigestRefused(itemId: Readonly<SQLWrapper>, refusal: string): SQL {
-  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.itemId} = ${itemId} and ${aiTasks.kind} = 'digest' and ${refusedAs(refusal)} and ${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.item_id = ${itemId} and latest.kind = 'digest'))`;
+export function lastDigestRefusedKey(): SQL {
+  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.itemId} = ${items.id} and ${aiTasks.kind} = 'digest' and ${refusedAs("wrong-key")} and ${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.item_id = ${items.id} and latest.kind = 'digest'))`;
 }

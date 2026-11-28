@@ -11,7 +11,7 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { expireAiTasks, latestDigestRefused } from "./ai-task-rows.ts";
+import { expireAiTasks, lastDigestRefusedKey } from "./ai-task-rows.ts";
 import type { Database } from "./database.ts";
 import { keptNotUpdated } from "./digest-marker.ts";
 import { hasDigestSource } from "./digest-source.ts";
@@ -132,6 +132,6 @@ export function requeuedDigests(db: Database) {
   return owedDigests(db, {
     provider: providerSet(),
     limit: undefined,
-    retried: latestDigestRefused(items.id, "wrong-key"),
+    retried: lastDigestRefusedKey(),
   });
 }

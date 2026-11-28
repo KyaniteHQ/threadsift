@@ -63,6 +63,7 @@ const saveRoute = createRoute({
       ErrorResponseSchema,
       `The settings changed while this save was prepared (\`error: ${SETTINGS_CHANGED}\`). Nothing from this save was written; send it again.`,
     ),
+    503: restoringResponse("the settings are not saved and no Digest job is queued."),
   },
 });
 
@@ -99,6 +100,8 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: GROK_BOT_FIRST, code: saved.code } as const, 400);
       case "changed":
         return c.json({ error: SETTINGS_CHANGED }, 409);
+      case "restoring":
+        return restoring(c);
       default: {
         const exhaustive: never = saved;
 

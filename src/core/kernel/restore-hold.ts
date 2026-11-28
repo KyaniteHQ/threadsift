@@ -3,7 +3,14 @@ import type { BatchItem } from "drizzle-orm/batch";
 
 import type { RestoreFailure } from "../contract/restore-contract.ts";
 import type { Database } from "./database.ts";
-import { answeringRefusal, guards, holdsNoRow, insertGuard, unlessRefused } from "./guards.ts";
+import {
+  answeringRefusal,
+  guards,
+  holdsNoRow,
+  insertGuard,
+  refusedWith,
+  unlessRefused,
+} from "./guards.ts";
 import { HOLDING, NOTHING_WRITTEN, type Standing, standingSql } from "./restore-standing.ts";
 import { type RestoreRow, restoreRuns } from "./schema.ts";
 import { STALE } from "./vault-stale.ts";
@@ -93,14 +100,22 @@ export type Closed = { readonly kind: "restoring" };
 
 const CLOSED: Closed = { kind: "restoring" };
 
-const ALWAYS = sql`1`;
-
 export function heldBatch<Writes extends readonly BatchItem<"sqlite">[]>(
   db: Database,
   writes: Writes,
-  condition: Readonly<SQLWrapper> = ALWAYS,
+  condition?: Readonly<SQLWrapper>,
 ) {
   return unlessRefused(async () => {
+    if (condition === undefined) {
+      const [, ...results] = await db.batch([
+        restoreGuard(db),
+        ...writes,
+        db.delete(guards),
+      ] as const);
+
+      return results;
+    }
+
     const [, , ...results] = await db.batch([
       restoreGuard(db),
       insertGuard(db, condition),
@@ -112,16 +127,18 @@ export function heldBatch<Writes extends readonly BatchItem<"sqlite">[]>(
   });
 }
 
-export function whileOpen<Result>(write: () => Promise<Result>): Promise<Result | Closed>;
-export function whileOpen<Result, Answer>(
-  write: () => Promise<Result>,
-  answer: Answer,
-): Promise<Result | Answer>;
-export function whileOpen<Result, Answer>(
-  write: () => Promise<Result>,
-  answer?: Answer,
-): Promise<Result | Answer | Closed> {
-  return answeringRefusal("restore", write, answer ?? CLOSED);
+export function whileOpen<Result>(write: () => Promise<Result>): Promise<Result | Closed> {
+  return answeringRefusal("restore", write, CLOSED);
+}
+
+export function isClosed<Result>(
+  outcome: Result | Closed,
+): outcome is Extract<Result | Closed, Closed> {
+  return outcome === CLOSED;
+}
+
+export function heldOff(cause: unknown): boolean {
+  return refusedWith(cause, "restore");
 }
 
 export type Ending =
