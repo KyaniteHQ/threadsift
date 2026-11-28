@@ -13,7 +13,8 @@ const SENT_ID_MAX = COMMENT_FULLNAME_PREFIX.length + COMMENT_ID_MAX;
 export const CommentId = z
   .string()
   .max(COMMENT_ID_MAX)
-  .regex(new RegExp(`^${BARE_ID_PATTERN}$`, "u"));
+  .regex(new RegExp(`^${BARE_ID_PATTERN}$`, "u"))
+  .toLowerCase();
 
 export function commentFullname(id: string): string {
   return `${COMMENT_FULLNAME_PREFIX}${id}`;
@@ -40,8 +41,15 @@ export const SentCommentId = z
   .transform(withoutFullnamePrefix)
   .pipe(CommentId);
 
+function canonicalOrSent(id: string): string {
+  const bare = withoutFullnamePrefix(id);
+  const parsed = CommentId.safeParse(bare);
+
+  return parsed.success ? parsed.data : bare;
+}
+
 export const ModelCommentId = z
   .string()
   .max(SENT_ID_MAX)
-  .transform(withoutFullnamePrefix)
+  .transform(canonicalOrSent)
   .pipe(z.string().max(SENT_ID_MAX));

@@ -84,7 +84,7 @@ function ofComment(
   walked: readonly Walked[],
   requested: string,
 ): ParsedThread {
-  const at = walked.findIndex((entry) => entry.comment?.id.toLowerCase() === requested);
+  const at = walked.findIndex((entry) => entry.comment?.id === requested);
   const root = walked[at];
 
   if (root?.comment === undefined || root.comment === null) {
@@ -146,7 +146,7 @@ export function parseRedditThread(answers: ThreadAnswers, ref: Readonly<RedditRe
     const ids = new Set<string>();
     const first = walk(
       children,
-      ref.commentId === undefined ? `t3_${post.id}` : firstParentOf(children),
+      ref.commentId === undefined ? `t3_${post.id.toLowerCase()}` : firstParentOf(children),
       post.id,
     );
 

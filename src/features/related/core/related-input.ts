@@ -21,6 +21,7 @@ export interface PickItem {
   readonly summary: string;
   readonly tags: readonly string[];
   readonly storedTags: string | null;
+  readonly storedTopic: string;
 }
 
 export const VersionSchema = z
@@ -28,6 +29,7 @@ export const VersionSchema = z
     id: z.number().int().positive(),
     digest: z.number().int().positive(),
     storedTags: z.string().nullable(),
+    storedTopic: z.string(),
   })
   .readonly();
 
@@ -39,14 +41,20 @@ interface Versions {
 }
 
 export function versionOf(item: Readonly<PickItem>): Version {
-  return { id: item.id, digest: item.digest, storedTags: item.storedTags };
+  return {
+    id: item.id,
+    digest: item.digest,
+    storedTags: item.storedTags,
+    storedTopic: item.storedTopic,
+  };
 }
 
 export function versionsHold({ source, sent }: Readonly<Versions>): SQL {
-  const reads = [source, ...sent].map(({ id, digest, storedTags: tags }) => ({
+  const reads = [source, ...sent].map(({ id, digest, storedTags: tags, storedTopic: topic }) => ({
     id,
     task: digest,
     tags,
+    topic,
   }));
 
   return sql`(select count(*) from (${unchangedDigests(reads)})) = ${reads.length}`;
@@ -80,6 +88,7 @@ function pickItem(row: Readonly<StoredDigest>, digest: Readonly<Digest>): PickIt
     summary,
     tags,
     storedTags: row.tags,
+    storedTopic: row.topic,
   };
 }
 
@@ -105,7 +114,7 @@ export async function readPick(db: Database, itemId: number): Promise<PickRead> 
 
     return {
       kind: "unreadable",
-      source: { id: itemId, digest: row.taskId, storedTags: row.tags },
+      source: { id: itemId, digest: row.taskId, storedTags: row.tags, storedTopic: row.topic },
     };
   }
 

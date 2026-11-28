@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { executeClaimed } from "../src/core/compose/jobs.ts";
-import { parseStoredDigest } from "../src/core/contract/digest-schema.ts";
+import { ModelDigestSchema, parseStoredDigest } from "../src/core/contract/digest-schema.ts";
 import { DIGEST_ANSWER, KIND_CASES, caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, openJobOf } from "./bot-kinds-fixtures.ts";
 import { jobRow, libraryDump, taskRow, topicPage } from "./bot-task-rows.ts";
@@ -134,7 +134,7 @@ describe("a Topic overview that comes back unchanged", () => {
 });
 
 describe("a Digest that keeps a comment id the bot was not sent", () => {
-  it("is accepted and published without that id", async () => {
+  it("is accepted and published without that id, keeps a sent id named in upper case, and folds no other character into an id", async () => {
     const instance = await botInstance();
 
     try {
@@ -144,7 +144,7 @@ describe("a Digest that keeps a comment id the bot was not sent", () => {
 
       const lenient = {
         ...digest,
-        fits: () => ({ ...DIGEST_ANSWER, keptComments: ["t1_c1", "t1_c9"] }),
+        fits: () => ({ ...DIGEST_ANSWER, keptComments: ["T1_C1", "t1_c9"] }),
       };
 
       const sent = await answeredAs(instance, { kindCase: lenient, job });
@@ -154,6 +154,10 @@ describe("a Digest that keeps a comment id the bot was not sent", () => {
       const result = taskRow(instance, sent.id).result;
       assert.ok(result !== null);
       assert.deepEqual(parseStoredDigest(result).keptComments, ["c1"]);
+      assert.deepEqual(
+        ModelDigestSchema.parse({ ...DIGEST_ANSWER, keptComments: ["\u212A1", "C2"] }).keptComments,
+        ["\u212A1", "c2"],
+      );
 
       const { comments } = await instance.detail(owner);
 
