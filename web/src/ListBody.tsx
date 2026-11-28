@@ -7,6 +7,7 @@ import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { More } from "./list-paging.ts";
 import type { ListState } from "./list-state.ts";
 import { LoadMore } from "./LoadMore.tsx";
+import { SharedItem } from "./SharedItem.tsx";
 import { EMPTY_LIST, LOADING_LABEL, LOAD_FAILED } from "./text.ts";
 import { useNearEnd } from "./use-near-end.ts";
 
@@ -98,8 +99,36 @@ interface RowProps {
   readonly attended: () => void;
   readonly tryAgain: (item: Item) => void;
   readonly open: (id: number) => void;
-  readonly named: number | null;
+  readonly moving: boolean;
   readonly toggleRead: (item: Item) => void;
+}
+
+function ListedRow({
+  item,
+  eager,
+  loadedAt,
+  shared,
+}: Readonly<{ item: Item; eager: boolean; loadedAt: number; shared: Readonly<RowProps> }>) {
+  const row = (
+    <ItemRow
+      item={item}
+      now={loadedAt}
+      cardImages={shared.cardImages}
+      eager={eager}
+      isOpen={item.id === shared.openId}
+      attention={item.id === shared.attention?.id ? shared.attention : null}
+      attended={shared.attended}
+      tryAgain={shared.tryAgain}
+      open={shared.open}
+      toggleRead={shared.toggleRead}
+    />
+  );
+
+  return shared.moving && item.id !== shared.openId ? (
+    <SharedItem id={item.id}>{row}</SharedItem>
+  ) : (
+    row
+  );
 }
 
 function ItemList({
@@ -119,19 +148,7 @@ function ItemList({
     <ol ref={rows} role="list" className="items" aria-labelledby={RESULTS_ID}>
       {items.map((item, index) => (
         <li key={item.id}>
-          <ItemRow
-            item={item}
-            now={loadedAt}
-            cardImages={shared.cardImages}
-            eager={index < EAGER_ROWS}
-            isOpen={item.id === shared.openId}
-            named={item.id === shared.named}
-            attention={item.id === shared.attention?.id ? shared.attention : null}
-            attended={shared.attended}
-            tryAgain={shared.tryAgain}
-            open={shared.open}
-            toggleRead={shared.toggleRead}
-          />
+          <ListedRow item={item} eager={index < EAGER_ROWS} loadedAt={loadedAt} shared={shared} />
         </li>
       ))}
       {loadingMore ? <GhostItems /> : null}

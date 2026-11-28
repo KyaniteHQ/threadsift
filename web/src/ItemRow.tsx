@@ -11,12 +11,11 @@ import { revealInPane } from "./reveal.ts";
 import { useInternalLink } from "./routing.ts";
 import { tagHue } from "./tag-hue.ts";
 
-function rowClasses(item: Readonly<Item>, isOpen: boolean, named: boolean): string {
+function rowClasses(item: Readonly<Item>, isOpen: boolean): string {
   return [
     "it",
     ...(item.readState === "unread" ? ["unread"] : []),
     ...(isOpen ? ["open"] : []),
-    ...(named ? ["vt-src"] : []),
     ...(item.title === null ? ["it-link-only"] : []),
     ...(item.status === "processing" ? ["it-proc"] : []),
   ].join(" ");
@@ -162,7 +161,6 @@ export const ItemRow = memo(function ItemRow({
   cardImages,
   eager,
   isOpen,
-  named,
   attention,
   attended,
   tryAgain,
@@ -174,7 +172,6 @@ export const ItemRow = memo(function ItemRow({
   cardImages: boolean;
   eager: boolean;
   isOpen: boolean;
-  named: boolean;
   attention: Attention;
   attended: () => void;
   tryAgain: (item: Item) => void;
@@ -189,7 +186,7 @@ export const ItemRow = memo(function ItemRow({
   useAttention(row, link, attention, attended);
 
   return (
-    <article ref={row} className={rowClasses(item, isOpen, named)} data-key={item.id}>
+    <article ref={row} className={rowClasses(item, isOpen)} data-key={item.id}>
       <KeptBar item={item} />
       <div className="it-strip">
         <ReadDot item={item} ids={ids} toggleRead={toggleRead} />

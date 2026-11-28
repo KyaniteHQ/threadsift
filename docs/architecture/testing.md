@@ -35,6 +35,10 @@ The smoke spec drives Chromium through the main flows of the app on both install
 
 The live spec is the `live` Playwright project. [Testing](../testing.md) and [CI, releases and rollback](ci-releases-and-rollback.md), Live check, say how to run it and what it needs. Set `GITHUB_TOKEN` in the environment to avoid GitHub's anonymous limit.
 
+## Reader motion check
+
+The motion spec is the `motion` Playwright project on the Worker target. It watches every view transition the page starts and counts, in Grid Sheet, Grid Page and the list under 760 px, the opens whose card grows into the Reader and the closes by Escape and by browser Back that run back into it, then the view transitions under reduced motion. [Web app](web-app.md), Reader, Motion, says how the motion works, and [Testing](../testing.md) gives the command.
+
 ## What no check covers
 
 - The Extension in a real browser.

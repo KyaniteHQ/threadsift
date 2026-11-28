@@ -376,8 +376,7 @@ a.btn { text-decoration: none; }
 .side-prev { left: calc((100% - var(--sheet-now)) / 2 - var(--target) - var(--s3)); }
 .side-next { right: calc((100% - var(--sheet-now)) / 2 - var(--target) - var(--s3)); }
 /* open and close: the card and the reader share one name while the view changes */
-.app.vt .it.vt-src, .app.vt .reader-slot { view-transition-name: lib-item; }
-::view-transition-group(lib-item) { animation-duration: var(--dur-move); animation-timing-function: var(--ease-move); }
+::view-transition-group(.lib-item) { animation-duration: var(--dur-move); animation-timing-function: var(--ease-move); }
 ::view-transition-old(root), ::view-transition-new(root) { animation-duration: var(--dur-fade); }
 
 /* 8. Reader ----------------------------------------------------------------

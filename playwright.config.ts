@@ -50,6 +50,7 @@ export default defineConfig({
   use: { baseURL: BASE_URL, trace: "retain-on-failure" },
   projects: [
     { name: "smoke", testMatch: "smoke.spec.ts" },
+    { name: "motion", testMatch: "reader-motion.spec.ts", timeout: 300_000 },
     {
       name: "live",
       testMatch: "live.spec.ts",

@@ -1,4 +1,4 @@
-import { type MouseEvent, type RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import { type MouseEvent, useCallback, useEffect, useRef } from "react";
 import { z } from "zod";
 
 import { itemIdOf } from "../../src/core/contract/item-path.ts";
@@ -21,20 +21,12 @@ export const PROPOSALS_PATH = "/proposals";
 
 export const RESET_PATH = "/reset";
 
-export interface RouteWrites {
-  readonly show: (path: string) => void;
+export interface Route {
+  readonly path: string;
+  readonly openId: number | null;
   readonly navigate: (to: string) => void;
   readonly replace: (to: string) => void;
   readonly leave: () => void;
-}
-
-export type BackClose = (arrived: string) => boolean;
-
-export interface Route extends RouteWrites {
-  readonly path: string;
-  readonly openId: number | null;
-  readonly atOnce: RouteWrites;
-  readonly takeBackClose: (close: BackClose) => () => void;
 }
 
 export const LIBRARY_PATH = "/";
@@ -101,41 +93,44 @@ function usePopstate(show: (path: string) => void): void {
   }, [show]);
 }
 
-function useBackClose() {
-  const backCloseRef = useRef<BackClose | null>(null);
+function useClosing(replace: Route["replace"], setPath: (path: string) => void) {
+  const leaving = useRef<Leaving | null>(null);
 
-  const takeBackClose = useCallback((close: BackClose) => {
-    backCloseRef.current = close;
-
-    return () => {
-      if (backCloseRef.current === close) backCloseRef.current = null;
-    };
-  }, []);
-
-  return { backCloseRef, takeBackClose };
-}
-
-function useArrive(
-  leavingRef: RefObject<Leaving | null>,
-  backCloseRef: RefObject<BackClose | null>,
-  { replace, show }: RouteWrites,
-) {
-  return useCallback(
+  const arrive = useCallback(
     (arrived: string) => {
-      const wasLeaving = waiting(leavingRef.current);
-      leavingRef.current = null;
+      const wasLeaving = waiting(leaving.current);
+      leaving.current = null;
 
       if (wasLeaving && itemIdOf(arrived) !== null) replace(LIBRARY_PATH);
-      else if (wasLeaving || backCloseRef.current?.(arrived) !== true) show(arrived);
+      else setPath(arrived);
     },
-    [backCloseRef, leavingRef, replace, show],
+    [replace, setPath],
   );
+
+  const closeItem = useCallback(() => {
+    if (onItem()) replace(LIBRARY_PATH);
+  }, [replace]);
+
+  const leave = useCallback(() => {
+    const pending = leaving.current;
+
+    if (!onItem() || (waiting(pending) && pending.address === window.location.href)) return;
+
+    if (openedFromLibrary()) {
+      leaving.current = { address: window.location.href, at: performance.now() };
+      window.history.back();
+      setPath(LIBRARY_PATH);
+    } else {
+      replace(LIBRARY_PATH);
+    }
+  }, [replace, setPath]);
+
+  return { arrive, closeItem, leave };
 }
 
-function useWrites(
-  leavingRef: RefObject<Leaving | null>,
-  setPath: (path: string) => void,
-): RouteWrites {
+export function usePath() {
+  const [path, setPath] = useScreenState(currentPath);
+
   const navigate = useCallback(
     (to: string) => {
       if (addressOf(to) === addressOf(window.location.href)) return;
@@ -154,41 +149,11 @@ function useWrites(
     [setPath],
   );
 
-  const leave = useCallback(() => {
-    const pending = leavingRef.current;
+  const { arrive, closeItem, leave } = useClosing(replace, setPath);
 
-    if (!onItem() || (waiting(pending) && pending.address === window.location.href)) return;
+  usePopstate(arrive);
 
-    if (openedFromLibrary()) {
-      leavingRef.current = { address: window.location.href, at: performance.now() };
-      window.history.back();
-      setPath(LIBRARY_PATH);
-    } else {
-      replace(LIBRARY_PATH);
-    }
-  }, [leavingRef, replace, setPath]);
-
-  return useMemo(
-    () => ({ show: setPath, navigate, replace, leave }),
-    [setPath, navigate, replace, leave],
-  );
-}
-
-export function usePath() {
-  const [path, setPath, setPathAtOnce] = useScreenState(currentPath);
-  const leavingRef = useRef<Leaving | null>(null);
-  const writes = useWrites(leavingRef, setPath);
-  const atOnce = useWrites(leavingRef, setPathAtOnce);
-  const { replace } = writes;
-  const { backCloseRef, takeBackClose } = useBackClose();
-
-  const closeItem = useCallback(() => {
-    if (onItem()) replace(LIBRARY_PATH);
-  }, [replace]);
-
-  usePopstate(useArrive(leavingRef, backCloseRef, writes));
-
-  return { path, ...writes, atOnce, takeBackClose, closeItem };
+  return { path, navigate, replace, leave, closeItem };
 }
 
 export function hasModifier({
