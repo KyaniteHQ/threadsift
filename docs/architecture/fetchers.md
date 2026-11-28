@@ -270,9 +270,13 @@ Once a UTC day while a token is saved, the schedule runs `readXApiUsage`. It cla
 While the constant `X_API_PROVIDER_DIGESTS` is `false` in the source, no text read through the X API reaches a Provider in any AI task. One function, `providerMayRead`, holds the rule: an Item whose current thread came through the X API (`threads.x_api_read`) is left out of the input of each task that sends Item text to a Provider.
 
 - A Digest: the Item gets none from the Provider, and a Digest job opened before the X API read ends without a Provider call. A Digest that a caller sends with the Paste still publishes, without a Provider call.
-- Related Items: the Item is neither the source of a pick nor a candidate.
+- Related Items: the Item is neither the source of a pick nor a candidate. No pick job opens for it, and a pick job opened earlier ends without a Provider call.
 - A Topic page overview: the Item's Digest is not part of the overview input, and the Item is not counted as an Item the overview leaves out.
 - The weekly Proposals: the Item's Tags, Topic and Summary are not part of the input.
+- The catalog of Topic and Tag names that a Digest of another Item carries: a name that only such Items use is left out. A later Digest may spell that Topic or Tag again, and `catalogKey` still joins the two.
+- The Provider comparison tool skips the Item as `provider-may-not-read` ([Providers](../guides/providers.md), Compare Providers).
+
+The Vault mirror is not a Provider and stays outside the rule: it writes the Item's text to the owner's own repository.
 
 The reason is the step that sends post text to a Provider ([X developer terms](decisions-and-evidence.md#x-developer-terms)).
 
