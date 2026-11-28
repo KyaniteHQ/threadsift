@@ -6,7 +6,7 @@ import { DAY_MS } from "../src/core/contract/time-units.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { exportedZip, firstLongText, savedLibrary } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { paste } from "./library-fixtures.ts";
+import { paste, until } from "./library-fixtures.ts";
 import {
   gaveUpInFiles,
   movedToPhase,
@@ -226,7 +226,14 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     const id = await undone(t);
 
     assert.deepEqual(await listedKeys(target.core.files, "items/"), []);
-    assert.deepEqual(await listedKeys(target.core.files, `restores/${String(id)}/`), []);
+    assert.deepEqual(
+      await until(
+        "the parts are deleted after the cancel commits",
+        () => listedKeys(target.core.files, `restores/${String(id)}/`),
+        (keys) => keys.length === 0,
+      ),
+      [],
+    );
   });
 
   it("frees the library for a new upload once an undo is done", async (t) => {
