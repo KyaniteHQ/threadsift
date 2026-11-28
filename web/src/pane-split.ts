@@ -167,10 +167,14 @@ export class PaneSplits {
     for (const pane of PANES) {
       app.style.setProperty(WIDTH_TOKENS[pane], `${String(drawn[pane])}px`);
       const handle = this.#handles.get(pane);
+
+      if (handle === undefined) continue;
+
       const range = rangeOf(pane, bounds, room, drawn);
-      handle?.setAttribute("aria-valuenow", String(drawn[pane]));
-      handle?.setAttribute("aria-valuemin", String(range.min));
-      handle?.setAttribute("aria-valuemax", String(range.max));
+      handle.hidden = range.min >= range.max;
+      handle.setAttribute("aria-valuenow", String(drawn[pane]));
+      handle.setAttribute("aria-valuemin", String(range.min));
+      handle.setAttribute("aria-valuemax", String(range.max));
     }
   }
 
