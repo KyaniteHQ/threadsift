@@ -7,11 +7,11 @@ import { accept } from "./accept-fixtures.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { answeredAs, botInstance, jobRow, openJobOf, taskRow } from "./bot-kinds-fixtures.ts";
 import { claimedAgain } from "./grok-bot-provider-walk.ts";
-import { paste } from "./library-fixtures.ts";
+import { paste, until } from "./library-fixtures.ts";
 import { proposeTopics } from "./topic-accept-fixtures.ts";
 
 describe("Accept while the merged-away Topic has an overview answer in flight", () => {
-  it("refuses the stale overview store and publishes one overview for the merged Topic", async () => {
+  it("closes the job whose answer is in flight, refuses its store and publishes one overview for the merged Topic", async () => {
     const instance = await botInstance();
 
     try {
@@ -35,9 +35,18 @@ describe("Accept while the merged-away Topic has an overview answer in flight", 
       await executeClaimed(instance.core, sent.job);
 
       assert.equal(taskRow(instance, sent.id).refusal, "stale");
-      assert.equal(jobRow(instance, job.id).attempts, 0);
+      assert.equal(jobRow(instance, job.id).state, "done");
       assert.equal(instance.database.count("select count(*) as n from topic_pages"), 0);
-      const fresh = await claimedAgain(instance, job);
+      const opened = instance.database.count(
+        "select coalesce(max(id), 0) as n from jobs where kind = 'topic_overview' and state <> 'done'",
+      );
+      assert.ok(opened > job.id, "the merge opened an overview job for the merged Topic");
+      await until(
+        "the job loop has ended its attempt at the new job",
+        () => jobRow(instance, opened).state,
+        (state): state is "queued" => state === "queued",
+      );
+      const fresh = await claimedAgain(instance, { ...job, id: opened });
       const answeredFresh = await answeredAs(instance, { kindCase: overview, job: fresh });
       await executeClaimed(instance.core, answeredFresh.job);
 

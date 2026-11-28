@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { groupedNumber } from "../src/core/contract/format.ts";
+import { HeaderSecretSchema, SECRET_INPUT_MAX } from "../src/core/contract/secret-input.ts";
 import { CEILING, type Caps, MICROS_PER_USD, usd } from "./x-api-probe-cost.ts";
 import {
   FIELD_NAMES,
@@ -59,8 +61,8 @@ function probeInputOf(): ProbeInput {
     throw new Refusal(`X_API_PROBE is not a probe; the probes are ${PROBES.join(", ")}`);
   const known = probe.data;
 
-  if (known === "S4" || known === "S5" || known === "S6" || known === "S7")
-    throw new Refusal(`probe ${known} is not defined yet; this task runs S1, S2 and S3`);
+  if (known === "S6" || known === "S7")
+    throw new Refusal(`probe ${known} is not defined yet; this task runs S1 to S5`);
   const [first = "", second = "", third = ""] = postIds(known);
 
   switch (known) {
@@ -76,6 +78,9 @@ function probeInputOf(): ProbeInput {
     }
     case "S3":
       return { probe: known, deletedId: first, protectedId: second, suspendedId: third };
+    case "S4":
+    case "S5":
+      return { probe: known, postId: first };
     default:
       return known satisfies never;
   }
@@ -128,7 +133,10 @@ function modeOf(input: ProbeInput, plan: readonly PlannedRequest[]): Mode {
     "set it from the owner's secret store in this shell's environment only",
   );
 
-  if (/\s/u.test(token)) throw new Refusal("X_API_BEARER_TOKEN holds whitespace");
+  if (!HeaderSecretSchema.safeParse(token).success)
+    throw new Refusal(
+      `X_API_BEARER_TOKEN must be 1 to ${groupedNumber(SECRET_INPUT_MAX)} printable ASCII characters with no space`,
+    );
   const runsDir = required(
     "X_API_RUNS_DIR",
     "give an absolute folder that git ignores or that sits outside every git work tree, such as the runs folder in the owner's private folder",

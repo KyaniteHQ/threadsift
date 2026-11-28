@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import {
   type XReaderChoice,
   XSettingsViewSchema,
@@ -34,11 +35,13 @@ describe("the X settings report the reader of X links and let the owner choose i
 
   after(() => instance.close());
 
-  it("answers auto, all three choices and no reader on a container without the grok CLI or a Grok Bot", async () => {
+  it("answers auto, all four choices and no reader on a container without the grok CLI or a Grok Bot", async () => {
     assert.deepEqual(await instance.read("GET", PATH, XSettingsViewSchema), {
       reader: "auto",
-      choices: ["auto", "grok-bot", "grok-cli"],
+      choices: ["auto", "grok-bot", "grok-cli", "x-api"],
       bot: "not-configured",
+      api: "none",
+      auto: { reader: null, because: "no-reader" },
       fetcher: null,
       state: "not-installed",
       version: null,
@@ -55,6 +58,7 @@ describe("the X settings report the reader of X links and let the owner choose i
   it("saves each choice, reads it back, and returns to auto", async () => {
     assert.equal(await chosenAs(instance, "grok-bot"), "grok-bot");
     assert.equal(await chosenAs(instance, "grok-cli"), "grok-cli");
+    assert.equal(await chosenAs(instance, "x-api"), "x-api");
     assert.equal(await chosenAs(instance, "auto"), "auto");
   });
 
@@ -75,7 +79,7 @@ describe("the X settings report the reader of X links and let the owner choose i
   });
 });
 
-describe("on the Worker the choice of the grok CLI is not offered and is refused", () => {
+describe("on the Worker the choice of the grok CLI is not offered, is refused, and a saved one reads as itself", () => {
   let instance: Instance;
 
   before(async () => {
@@ -85,24 +89,39 @@ describe("on the Worker the choice of the grok CLI is not offered and is refused
 
   after(() => instance.close());
 
-  it("offers auto and grok-bot only", async () => {
+  it("offers auto, grok-bot and x-api only", async () => {
     const answer = await instance.sendWithPublicOnlyAiAndNoXFetcher("GET", PATH);
     const view = XSettingsViewSchema.parse(JSON.parse(answer.body));
 
     assert.deepEqual(
       [view.choices, view.state, view.fetcher],
-      [["auto", "grok-bot"], "worker", null],
+      [["auto", "grok-bot", "x-api"], "worker", null],
     );
   });
 
-  it("reports auto when the saved choice is the grok CLI, which this install cannot offer", async () => {
-    await instance.send("PUT", PATH, { reader: "grok-cli" });
+  it("reads a saved grok CLI choice as itself, and a pasted X link gets the grok CLI note and no X API read even with an X API token saved", async () => {
+    try {
+      await instance.send("PUT", PATH, { reader: "grok-cli" });
+      await instance.send("PUT", "/api/settings/x-api", { token: "synthetic-bearer-token" });
 
-    const answer = await instance.sendWithPublicOnlyAiAndNoXFetcher("GET", PATH);
+      const answer = await instance.sendWithPublicOnlyAiAndNoXFetcher("GET", PATH);
+      const view = XSettingsViewSchema.parse(JSON.parse(answer.body));
 
-    assert.equal(XSettingsViewSchema.parse(JSON.parse(answer.body)).reader, "auto");
+      assert.deepEqual(
+        [view.reader, view.api, view.choices],
+        ["grok-cli", "saved", ["auto", "grok-bot", "x-api"]],
+      );
 
-    await instance.send("PUT", PATH, { reader: "auto" });
+      const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
+        url: "https://x.com/someone/status/321",
+      });
+
+      await instance.settledItem(item.id);
+      assert.equal((await instance.detail(item.id)).xNote, "cli-not-installed");
+    } finally {
+      await instance.send("DELETE", "/api/settings/x-api");
+      await instance.send("PUT", PATH, { reader: "auto" });
+    }
   });
 
   it("refuses grok-cli with 400 and saves nothing, and accepts grok-bot", async () => {

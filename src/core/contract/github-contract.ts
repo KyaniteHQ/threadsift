@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { SecretInputSchema } from "./secret-input.ts";
+import { HeaderSecretSchema } from "./secret-input.ts";
 import { WholeCount } from "./whole-count.ts";
 
-export const GithubTokenInputSchema = z.object({ token: SecretInputSchema });
+export const GithubTokenInputSchema = z.object({ token: HeaderSecretSchema });
 
 export type GithubTokenInput = z.infer<typeof GithubTokenInputSchema>;
 

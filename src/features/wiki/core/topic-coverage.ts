@@ -1,5 +1,6 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
+import { providerMayRead } from "../../../core/kernel/digest-source.ts";
 import { jobOpen } from "../../../core/kernel/job-tables.ts";
 import { digests, items, jobs, topicPages, topics } from "../../../core/kernel/schema.ts";
 
@@ -53,7 +54,7 @@ export function inputsHold(
 }
 
 function uncoveredFrom(topicId: TopicRef): SQL {
-  return sql`from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} and ${notBuiltFrom(topicId, sql`member.id`, sql`kept.task_id`)}`;
+  return sql`from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} and ${notBuiltFrom(topicId, sql`member.id`, sql`kept.task_id`)} and ${providerMayRead(sql`member.id`)}`;
 }
 
 export function hasUncovered(topicId: TopicRef): SQL {
@@ -65,11 +66,11 @@ export function uncoveredCount(topicId: TopicRef): SQL {
 }
 
 export function digestedCount(topicId: TopicRef): SQL {
-  return sql`(select count(*) from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId})`;
+  return sql`(select count(*) from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} and ${providerMayRead(sql`member.id`)})`;
 }
 
 export function openOverviewJob(topicId: TopicRef): SQL {
-  return sql`(select open_overview.id from ${jobs} as open_overview join ${items} as owner on owner.id = open_overview.item_id where open_overview.kind = 'topic_overview' and ${jobOpen(sql`open_overview.state`)} and owner.topic_id = ${topicId} order by open_overview.id limit 1)`;
+  return sql`(select open_overview.id from ${jobs} as open_overview where open_overview.kind = 'topic_overview' and ${jobOpen(sql`open_overview.state`)} and open_overview.topic_id = ${topicId} order by open_overview.id limit 1)`;
 }
 
 export function hasOpenOverview(topicId: TopicRef): SQL {

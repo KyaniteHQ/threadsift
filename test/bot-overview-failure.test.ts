@@ -46,7 +46,7 @@ describe("a Topic overview that gave up after the third unanswered send marks th
     assert.equal(taskRow(instance, sent.id).state, "failed");
   });
 
-  it("still marks the Topic of the owner Item when the job never sent a bot task", async () => {
+  it("marks the Topic the job was opened for when the job never sent a bot task", async () => {
     instance.database.exec("delete from topic_pages");
 
     const job = await openJobOf(instance, {
@@ -54,6 +54,8 @@ describe("a Topic overview that gave up after the third unanswered send marks th
       itemId: 102,
       attempts: THIRD_SEND,
     });
+
+    instance.database.exec("update items set topic_id = 2 where id = 102");
 
     await exhaust(instance.core, job, HANDLERS.topic_overview, THIRD_SEND + 1);
 

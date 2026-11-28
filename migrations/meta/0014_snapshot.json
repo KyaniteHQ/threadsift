@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "2c0f05c5-2cb9-4f89-ac9e-a15c202ea76e",
+  "id": "96f6a234-821e-48f3-8ebb-044655ed2c07",
   "prevId": "ffd2f411-a34f-4c60-9ccd-cafba1c190db",
   "tables": {
     "agent_tokens": {
@@ -307,35 +307,6 @@
         "catalog_is_one_row": {
           "name": "catalog_is_one_row",
           "value": "\"catalog_version\".\"id\" = 1"
-        }
-      }
-    },
-    "database_identity": {
-      "name": "database_identity",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "value": {
-          "name": "value",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "database_identity_is_one_row": {
-          "name": "database_identity_is_one_row",
-          "value": "\"database_identity\".\"id\" = 1"
         }
       }
     },
@@ -793,6 +764,10 @@
         "guards_outcome": {
           "name": "guards_outcome",
           "value": "\"guards\".\"ok\" <> 3"
+        },
+        "guards_budget": {
+          "name": "guards_budget",
+          "value": "\"guards\".\"ok\" <> 4"
         }
       }
     },

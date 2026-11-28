@@ -1,8 +1,9 @@
+import type { BudgetSpent } from "../../../core/contract/agent-token-contract.ts";
 import type { Digest } from "../../../core/contract/digest-schema.ts";
 import type { ImportCursor, ImportWrite } from "../../../core/contract/import-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { type Closed, whileOpen } from "../../../core/kernel/restore-hold.ts";
-import type { Budgeted } from "../../access/core/agent-token-budget.ts";
+import { type Budgeted, budgetAnswered } from "../../access/core/agent-token-budget.ts";
 import type { Caller } from "../../access/core/caller.ts";
 import { admitted } from "../../item/core/admission.ts";
 import type { ListedItemRow } from "../../item/core/item-selection.ts";
@@ -27,6 +28,20 @@ interface BatchDone extends Entries {
   readonly import: ImportCursor | null;
 }
 
+export interface CutShort extends BudgetSpent {
+  readonly entries: readonly BatchEntry[];
+}
+
+function savedEntry(
+  ports: Ports,
+  link: Readonly<BatchLink>,
+  caller: Caller,
+): Promise<Budgeted<BatchEntry | Closed>> {
+  return caller.kind === "owner"
+    ? pasteOne(ports, link, caller)
+    : budgetAnswered(ports.db, caller.id, () => pasteOne(ports, link, caller));
+}
+
 async function pasteOne(
   ports: Ports,
   { url, digest }: Readonly<BatchLink>,
@@ -45,16 +60,16 @@ async function pasteEach(
   ports: Ports,
   links: readonly BatchLink[],
   caller: Caller,
-): Promise<Entries | Closed> {
+): Promise<Budgeted<Entries | Closed | CutShort>> {
   const entries: BatchEntry[] = [];
 
   for (const link of links) {
     // oxlint-disable-next-line eslint/no-await-in-loop -- Links are saved one after the other, in the order given.
-    const entry = await pasteOne(ports, link, caller);
+    const entry = await savedEntry(ports, link, caller);
 
-    if ("kind" in entry) return entry;
-
-    entries.push(entry);
+    if (!("kind" in entry)) entries.push(entry);
+    else if (entry.kind === "budget-spent") return { ...entry, entries };
+    else return entry;
   }
 
   return { kind: "done", entries };
@@ -65,7 +80,7 @@ export async function pasteLinksThenSaveCursor(
   links: readonly BatchLink[],
   caller: Caller,
   cursor: Readonly<ImportWrite> | undefined,
-): Promise<Budgeted<BatchDone | Closed> | Closed> {
+): Promise<Budgeted<BatchDone | Closed | CutShort> | Closed> {
   const pasted = await admitted(
     ports,
     caller,

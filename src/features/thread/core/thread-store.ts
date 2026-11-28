@@ -72,7 +72,8 @@ function headerInsert(
     linkedUrl,
     postLink,
     followUps,
-  }: Readonly<Pick<StoredThread, "reported" | "linkedUrl" | "postLink" | "followUps">>,
+    xApiRead,
+  }: Readonly<Pick<StoredThread, "reported" | "linkedUrl" | "postLink" | "followUps" | "xApiRead">>,
   archivedAt: number | null,
 ) {
   return db.insert(threads).select(
@@ -86,6 +87,7 @@ function headerInsert(
         linkedUrl: sql<string | null>`${linkedUrl}`.as("linked_url"),
         postLink: sql<string | null>`${postLink}`.as("post_link"),
         followUps: sql<number>`${followUps ?? 0}`.as("follow_ups"),
+        xApiRead: sql<boolean>`${xApiRead ? 1 : 0}`.as("x_api_read"),
       })
       .from(sql`(select 1)`)
       .where(sql`1`),

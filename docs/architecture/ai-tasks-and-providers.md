@@ -247,12 +247,12 @@ A result kind is one `defineAiKind` call, or `defineBasedAiKind` when the model 
 
 `overviewAtBot` is true while another running `topic_overview` task for the Topic is answered or still before its deadline. The overview kind declares it twice.
 
-- `defer` reads the Topic of the claimed Item before `prepare`. Grok Bot defers `topic-busy` for 15 seconds (`BUSY_RETRY_MS`) without an attempt while `overviewAtBot` is true.
+- `defer` reads the Topic the claimed job names before `prepare`. Grok Bot defers `topic-busy` for 15 seconds (`BUSY_RETRY_MS`) without an attempt while `overviewAtBot` is true.
 - `holds` takes the Topic from the prepared Context and also states that the overview's inputs hold. The framework adds it and the Grok Bot flag to the `holds` of the task insert, so the insert names the Topic of the Context it stores, even when the Item moved to another Topic between the two reads.
 - The model executor ignores both; its insert holds on the job's claim and the loaded settings revision instead (Start). The guard counts an unsent task too, because its job resends after a crash.
 - When the task is applied, a deferred job reads fresh inputs and sends only if a coverage gap remains.
 
-When the job gives up, `overviewGaveUp` writes `gave-up` for the Topic named in the context of the job's latest task, because its owner Item can move to another Topic before then. The marker is skipped when the Topic is gone or its page revision is newer than the one the task was sent with.
+When the job gives up, `overviewGaveUp` writes `gave-up` for the Topic named in the context of the job's latest task, and for the Topic the job names (`jobs.topic_id`) when no task has the job id. Neither depends on the Topic of the owner Item, which can move to another Topic while the job is open. The marker is skipped when the Topic is gone or its page revision is newer than the one the task was sent with.
 
 When supplied content or an X link answer closes the Item's jobs, `supersededTasks` fails every running task `stale`, because the input was replaced. The `answering` option of `closeItemJobs` names the task an X link answer completes, so the close leaves it running.
 

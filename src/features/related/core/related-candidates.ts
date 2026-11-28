@@ -2,6 +2,7 @@ import { asc, sql } from "drizzle-orm";
 
 import { searchTerms } from "../../../core/contract/search-terms.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { providerMayRead } from "../../../core/kernel/digest-source.ts";
 import { hasDigest } from "../../../core/kernel/digest-stored.ts";
 import { searchParts } from "../../../core/kernel/schema.ts";
 import { PART_GROUPS } from "../../item/core/search-part-groups.ts";
@@ -27,7 +28,7 @@ function scoredParts(sourceId: number, terms: readonly string[]) {
     sql`, `,
   );
 
-  return sql`(with scored as materialized (select ${searchParts.itemId} as item_id, bm25(search_index) as score from search_index join ${searchParts} on ${searchParts.id} = search_index.rowid where search_index match ${query} and ${searchParts.kind} in (${kinds}) and ${searchParts.itemId} <> ${sourceId} and ${hasDigest(searchParts.itemId)}) select item_id, score from scored) as ranked`;
+  return sql`(with scored as materialized (select ${searchParts.itemId} as item_id, bm25(search_index) as score from search_index join ${searchParts} on ${searchParts.id} = search_index.rowid where search_index match ${query} and ${searchParts.kind} in (${kinds}) and ${searchParts.itemId} <> ${sourceId} and ${hasDigest(searchParts.itemId)} and ${providerMayRead(searchParts.itemId)}) select item_id, score from scored) as ranked`;
 }
 
 export async function candidateIds(

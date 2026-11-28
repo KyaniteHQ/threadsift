@@ -15,6 +15,15 @@ export const X_READ_NOTES = [
   "cli-unconfirmed",
   "cli-usage-limit",
   "cli-unreachable",
+  "api-not-set-up",
+  "api-key-unopened",
+  "api-key-rejected",
+  "api-not-enrolled",
+  "api-ip-blocked",
+  "api-out-of-credits",
+  "api-refused",
+  "api-unreachable",
+  "api-answer-unreadable",
   ...X_FETCH_RETRY_NOTES,
   "x-answer-refused",
   "x-fewer-replies",
@@ -30,3 +39,5 @@ export type XFetchRetryNote = (typeof X_FETCH_RETRY_NOTES)[number];
 export function isXFetchRetryNote(note: XReadNote | null): note is XFetchRetryNote {
   return X_FETCH_RETRY_NOTES.some((retryNote) => retryNote === note);
 }
+
+export const X_POST_ABSENT = { status: "status", note: "x-post-absent" } as const;

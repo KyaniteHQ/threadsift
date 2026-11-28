@@ -1,5 +1,5 @@
 import { statusIdOf } from "../../../core/contract/links.ts";
-import type { XReadNote } from "../../../core/contract/x-read-note.ts";
+import { X_POST_ABSENT, type XReadNote } from "../../../core/contract/x-read-note.ts";
 import { StatusIdSchema, type XThreadValue } from "../../../core/contract/x-wire.ts";
 import { report } from "../../../core/kernel/failure-log.ts";
 import { isLastAttempt, retryDelayMs } from "../../../core/kernel/job-retry.ts";
@@ -52,8 +52,6 @@ interface XSource {
   readonly attempts: number;
 }
 
-const POST_ABSENT = { status: "status", note: "x-post-absent" } as const;
-
 function readAgain({ attempts }: Readonly<XSource>): Fetched {
   return {
     status: "waiting",
@@ -74,7 +72,7 @@ async function absentOr(
   signal: AbortSignal,
   otherwise: () => Fetched,
 ): Promise<Fetched> {
-  return (await shownOnX(network, statusId, signal)) === "absent" ? POST_ABSENT : otherwise();
+  return (await shownOnX(network, statusId, signal)) === "absent" ? X_POST_ABSENT : otherwise();
 }
 
 async function concluded(

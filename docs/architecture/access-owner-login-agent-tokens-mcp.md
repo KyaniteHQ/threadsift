@@ -154,7 +154,8 @@ One random token per connected agent: `tsa_` and 32 random bytes in base64url, s
 - The owner's session and tokens with no budget have no cap. A new token starts at 200 Items a day (`DEFAULT_TOKEN_BUDGET`).
 - Known links, short-link aliases included, do not count. A short link whose alias ends at a Reddit share link counts as possibly new, whatever Item sits under the short link, because the next Paste resolves it again and can add an Item.
 - A limited request reads the count once before saving and is refused whole when its possibly new Items would cross the cap. A refusal answers 429 with `code: budget-spent` and `Retry-After` until the next UTC midnight.
-- Two requests at the same moment can read the same count and both pass, exceeding the limit by one request's links. A batch holds up to `BATCH_LINKS_MAX` (100) links. A held link deleted during a batch and a batch that crosses midnight are not checked again. This is enough for one owner's agents.
+- Each Item insert of an agent token checks the count again in its own batch, in a guard right before the insert (`dailyBudgetGuard`), so requests of one token at the same moment never pass the limit together. The guard passes when the library already holds the link, so a promoted failed Item, a refresh and a keep add nothing and are never refused. It refuses when the token no longer exists, so a token revoked during a request never saves as if it had no budget.
+- A refused insert fails the `budget` guard. `withinBudget` then answers 401 `unknown-token` when the token is gone, and otherwise 429 with `Retry-After` until the UTC midnight after the refusal. A batch that another request overtook stops at that link: its 429 holds `results` for the links saved before it, and its import cursor stays.
 
 ## Secrets at rest
 

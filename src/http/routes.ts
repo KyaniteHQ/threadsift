@@ -27,6 +27,7 @@ import { registerLogRoute } from "../features/wiki/http/log-route.ts";
 import { registerProposalRoutes } from "../features/wiki/http/proposal-routes.ts";
 import { registerTopicIndexRoute } from "../features/wiki/http/topic-index-route.ts";
 import { registerTopicRoutes } from "../features/wiki/http/topic-routes.ts";
+import { registerXApiRoutes } from "../features/x/http/x-api-routes.ts";
 import { registerXRoutes } from "../features/x/http/x-routes.ts";
 
 export function registerRoutes(app: OpenAPIHono, ports: Ports): void {
@@ -57,6 +58,7 @@ export function registerRoutes(app: OpenAPIHono, ports: Ports): void {
     registerRedditRoutes,
     registerRedditAccountRoutes,
     registerXRoutes,
+    registerXApiRoutes,
     registerShareRoutes,
   ]) {
     register(app, ports);

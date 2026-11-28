@@ -108,11 +108,11 @@ Threadsift hands X links to Grok Bot, which reads the posts and replies and save
 
 Open Settings, find Grok Bot, paste the routine's webhook address and key, press **Save**, then press **Test**.
 
-The X posts section in Settings chooses the reader for X links: Auto (the default), Grok Bot or the grok CLI. Auto sends a pasted link to the saved bot when its settings can send. Otherwise the container fetches it with the grok CLI when that is set up, and the link stays a Link-only Item when it is not. [Fetchers](../architecture/fetchers.md), X, holds the rules of each choice.
+The X posts section in Settings chooses the reader for X links: Auto (the default), Grok Bot or the grok CLI. Auto sends a pasted link to the saved bot when its settings can send. Otherwise the container fetches it with the grok CLI when that is set up. Otherwise Threadsift reads it through the X API when an X API Bearer token is saved, which can spend the owner's X API credit. No Settings screen saves the token yet: `PUT /api/settings/x-api` saves it with a spend limit for each Item on each UTC day and one for each UTC day ([Fetchers](../architecture/fetchers.md), X API). With none of them, the link stays a Link-only Item. [Fetchers](../architecture/fetchers.md), X, holds the rules of each choice.
 
 ## Use the grok CLI for X posts on the container
 
-When no usable Grok Bot is saved, or when you choose the grok CLI in the X posts section, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. The image ships no grok CLI, and nothing in the app installs it. Everything stays in the folder `/data/grok` of the volume. The Cloudflare Worker install has no such tool, so a pasted X link stays a Link-only Item there unless a Grok Bot is saved.
+When no usable Grok Bot is saved, or when you choose the grok CLI in the X posts section, Threadsift can fetch a pasted X post and its replies on the container by running the grok command-line tool (the grok CLI) on the server. The image ships no grok CLI, and nothing in the app installs it. Everything stays in the folder `/data/grok` of the volume. The Cloudflare Worker install has no such tool, so there a pasted X link needs a Grok Bot or an X API token saved through `PUT /api/settings/x-api`, and stays a Link-only Item without either.
 
 1. Install the grok CLI into the volume (the image has `curl` for the installer):
 
@@ -162,7 +162,7 @@ The comparison tool runs the same Digest task through several Providers and reco
 
 Workers AI bills by use. Leave `CLOUDFLARE_WORKERS_AI_TOKEN` unset in a comparison run, so that the `workers-ai` row records `workers-ai-credentials-missing` and no call is sent. No comparison run calls Workers AI, the owner's included.
 
-1. Choose 20 Items from the owner's library. Put their numeric Item ids, or their original or normalized URLs, in a JSON array outside every git checkout.
+1. Choose 20 Items from the owner's library. An Item whose thread came through the X API is skipped as `provider-may-not-read` while the constant `X_API_PROVIDER_DIGESTS` is `false`, because no text read through the X API goes to a Provider. Put their numeric Item ids, or their original or normalized URLs, in a JSON array outside every git checkout.
 2. Make an output folder outside every git checkout, and keep the Item list there as `items.json`. Capture the inputs from the container's SQLite database, with read access to the data volume:
 
    ```sh

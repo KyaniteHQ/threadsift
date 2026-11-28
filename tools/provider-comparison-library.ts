@@ -23,6 +23,9 @@ export async function libraryReader(dataDir: string) {
       const [item] = await digestInput(db, itemId);
 
       if (item === undefined) return { kind: "unavailable", reason: "item-not-found" } as const;
+
+      if (!item.providerMayRead)
+        return { kind: "unavailable", reason: "provider-may-not-read" } as const;
       const storedText = await postTextOf(files, itemId, item);
 
       if (item.postTextKey !== null && storedText === null)

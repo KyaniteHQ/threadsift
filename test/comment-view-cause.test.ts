@@ -1,12 +1,14 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import { botInstance, chooseGrokBot } from "./bot-task-fixtures.ts";
 import { atClock } from "./clock-fixtures.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { saveProvider, until } from "./library-fixtures.ts";
 import { causeOf, readerOf, threadOf } from "./reader-thread-fixtures.ts";
 import { restoreLibrary } from "./restore-fixtures.ts";
+import { X_LINK, authored } from "./x-thread-fixtures.ts";
 
 const RETRY_STEP_MS = 150_000;
 
@@ -87,6 +89,35 @@ describe("the Reader does not say that no Provider is saved once the Grok Bot is
       cause: "pending",
       count: { filter: "unfiltered", shown: 3, total: 6 },
     });
+  });
+});
+
+describe("the Reader says no Digest will filter an Item read through the X API", () => {
+  let instance: Instance;
+
+  before(async () => {
+    instance = await botInstance();
+  });
+
+  after(() => instance.close());
+
+  it("names 'x-api-read' in place of 'no-provider', and keeps it once the Grok Bot is the Provider", async () => {
+    const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
+      url: X_LINK,
+      content: JSON.stringify(authored()),
+    });
+    const { view } = readerOf(() => instance);
+
+    await instance.settledItem(item.id);
+    assert.equal(causeOf(await view(item.id)), "no-provider");
+
+    instance.database.exec("update threads set x_api_read = 1");
+    assert.equal(causeOf(await view(item.id)), "x-api-read");
+
+    const chosen = await chooseGrokBot(instance);
+
+    assert.equal(chosen.status, 200, chosen.body);
+    assert.equal(causeOf(await view(item.id)), "x-api-read");
   });
 });
 

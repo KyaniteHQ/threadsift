@@ -4,7 +4,7 @@ import type { Database } from "../../../core/kernel/database.ts";
 import { markDigest } from "../../../core/kernel/digest-marker.ts";
 import { opening } from "../../../core/kernel/job-rows.ts";
 import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
-import { providerSet } from "../../../core/kernel/provider-saved.ts";
+import { providerReads } from "../../../core/kernel/provider-saved.ts";
 import { digests, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import { commentPartWrites, digestPartWrites } from "../../item/core/search.ts";
@@ -30,7 +30,7 @@ function wikiAfterDigest(db: Database, itemId: number) {
       kind: "related_pick",
       address: sql`${items.originalUrl}`,
       now,
-      where: and(eq(items.id, itemId), providerSet()) ?? sql`0`,
+      where: and(eq(items.id, itemId), providerReads(items.id)) ?? sql`0`,
     }),
     wokenBotWaits(db, { moved: { kind: "library" }, now }),
   ];

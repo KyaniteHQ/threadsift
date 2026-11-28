@@ -6,7 +6,7 @@ import { among } from "../../../core/kernel/sql-expressions.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import type { UnitContext, UnitPlan } from "./merge-unit.ts";
 import { topicLinked, topicMoves } from "./topic-moves.ts";
-import { continuingOverview, overviewRemoved } from "./topic-overview-run.ts";
+import { continuingOverview, overviewJobsFollow, overviewRemoved } from "./topic-overview-run.ts";
 
 export async function planTopicUnit({
   db,
@@ -18,7 +18,11 @@ export async function planTopicUnit({
 
   return {
     moving: sql`(select count(*) from ${items} where ${items.topicId} = ${from.id} and ${among(items.id, linked.itemIds)})`,
-    moves: [...topicMoves(db, from.id, into.id, linked), overviewRemoved(db, from.id, gone)],
+    moves: [
+      ...topicMoves(db, from.id, into.id, linked),
+      overviewRemoved(db, from.id, gone),
+      ...overviewJobsFollow(db, { loser: from.id, survivor: into.id }, gone),
+    ],
     cursor: null,
     before: [
       ...STALE.topicMerged(db, { from: from.id, gone }),
