@@ -3,6 +3,7 @@ import { MAX_ATTEMPTS } from "../../src/core/contract/job-contract.ts";
 import type {
   RestoreErrorCode,
   RestoreFailure,
+  RestoreRefusal,
   RunningPhase,
 } from "../../src/core/contract/restore-contract.ts";
 import { filled } from "./filled.ts";
@@ -110,10 +111,30 @@ const GAVE_UP_NO_ZIP = `The restore stopped after a step failed ${String(MAX_ATT
 
 const GAVE_UP_EMPTY = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times. The library is still empty. Resume restore tries again from the last finished step. Cancel restore ends the restore so you can choose the zip again.`;
 
-const OTHER_RELEASE_AFTER_RECORDS =
-  "The restore stopped because this instance now runs a different release of Threadsift from the one that made the zip. Some records are already restored. Nothing new can be saved in the library until the restore is cancelled. Cancel restore removes those records and any items saved after the restore stopped. Then restore a new export made with this release.";
-
 const GAVE_UP_EMPTY_NO_ZIP = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times. The library is still empty, and the export zip is no longer on this instance. Cancel restore ends the restore so you can choose the zip again.`;
+
+const OTHER_RELEASE_HELD =
+  "The restore stopped partway because this instance now runs a different release of Threadsift from the one that made the zip. Nothing new can be saved in the library until the restore is cancelled. Cancel restore removes anything the restore wrote. Then restore a new export made with this release.";
+
+function heldRefusalLabel(failure: RestoreRefusal): string {
+  switch (failure) {
+    case "other-release":
+      return OTHER_RELEASE_HELD;
+    case "incomplete-upload":
+    case "not-a-zip":
+    case "unsupported-compression":
+    case "bad-entry-name":
+    case "no-manifest":
+    case "format":
+    case "unknown-table":
+    case "unknown-column":
+    case "missing-column":
+    case "crc":
+      return REFUSAL_TEXT[failure];
+    default:
+      return failure satisfies never;
+  }
+}
 
 export function refusalLabel(code: RestoreErrorCode): string {
   return REFUSAL_TEXT[code];
@@ -133,9 +154,8 @@ export function failureLabel(
     holdsLibrary: boolean;
   }>,
 ): string {
-  if (failure === "other-release" && holdsLibrary) return OTHER_RELEASE_AFTER_RECORDS;
-
-  if (failure !== "gave-up") return REFUSAL_TEXT[failure];
+  if (failure !== "gave-up")
+    return holdsLibrary ? heldRefusalLabel(failure) : REFUSAL_TEXT[failure];
 
   if (cancelFailed) return CANCEL_STOPPED;
 
