@@ -109,6 +109,8 @@ function useVerify(view: AiView, { run, refuse }: Readonly<Pick<AiPhase, "run" |
     run(provider === GROK_BOT_PROVIDER ? "waiting" : "verifying", async (): Promise<Outcome> => {
       const response = await verifyAi();
 
+      if (response.kind === "restoring") return { kind: "error", text: AI_TEXT.verifyRestoring };
+
       return response.kind === "done"
         ? { kind: "ok", text: AI_TEXT.verified, digest: response.digest }
         : { kind: "error", text: refusalText(response, provider, view.publicOnly) };

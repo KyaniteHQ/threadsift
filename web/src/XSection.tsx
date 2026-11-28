@@ -1,12 +1,12 @@
 import { useCallback, useState } from "react";
 
-import type { XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
+import type { XReaderChoice, XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Command } from "./Command.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { RadioChoice } from "./RadioChoice.tsx";
 import type { Loaded } from "./settings-load-types.ts";
-import { useSaveOnPick } from "./use-save-on-pick.ts";
+import { type Saved, useSaveOnPick } from "./use-save-on-pick.ts";
 import { fetchXSettings, saveXReader } from "./x-api.ts";
 import {
   BOT_STATES,
@@ -59,11 +59,15 @@ function Note({ view }: Readonly<{ view: XSettingsView }>) {
   }
 }
 
+async function saveReader(reader: XReaderChoice): Promise<Saved<XSettingsView>> {
+  return { kind: "saved", view: await saveXReader(reader) };
+}
+
 function ReaderChoice({
   view,
   changed,
 }: Readonly<{ view: XSettingsView; changed: (view: XSettingsView) => void }>) {
-  const form = useSaveOnPick(saveXReader, changed, X_TEXT.failed);
+  const form = useSaveOnPick(saveReader, changed, X_TEXT.failed);
 
   return (
     <div className="stack" aria-busy={form.busy}>

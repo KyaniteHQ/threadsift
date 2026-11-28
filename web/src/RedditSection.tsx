@@ -8,9 +8,15 @@ import { saveRedditSettings } from "./reddit-api.ts";
 import { REDDIT_TEXT } from "./reddit-text.ts";
 import { ArchiveFillContext, REDDIT_ACCOUNT_SECTION } from "./RedditAccountSection.tsx";
 import type { SettingsLoad } from "./settings-load-types.ts";
-import { useSaveOnPick } from "./use-save-on-pick.ts";
+import { type Saved, useSaveOnPick } from "./use-save-on-pick.ts";
 
-const saveArchiveFill = (archiveFill: boolean) => saveRedditSettings({ archiveFill });
+async function saveArchiveFill(archiveFill: boolean): Promise<Saved<RedditSettings>> {
+  const answer = await saveRedditSettings({ archiveFill });
+
+  return answer.kind === "saved"
+    ? { kind: "saved", view: answer.settings }
+    : { kind: "refused", text: REDDIT_TEXT.restoring };
+}
 
 const LABEL_ID = "reddit-archive-label";
 

@@ -23,6 +23,7 @@ export interface TopicReady {
   readonly items: readonly TopicItem[];
   readonly next: string | null;
   readonly more: More;
+  readonly writeRefused: boolean;
 }
 
 export type TopicState =
@@ -38,7 +39,7 @@ const FAILED: TopicState = { status: "failed" };
 const MISSING: TopicState = { status: "missing" };
 
 function readyFrom(page: Readonly<TopicPage>): TopicReady {
-  return { status: "ready", ...page, more: "idle" };
+  return { status: "ready", ...page, more: "idle", writeRefused: false };
 }
 
 function attempt(key: string, cursor: string | null, signal: AbortSignal) {
@@ -146,16 +147,27 @@ function useOverviewPoll(
   });
 }
 
+function withWriteRefused(now: TopicState, writeRefused: boolean): TopicState {
+  return now.status === "ready" ? { ...now, writeRefused } : now;
+}
+
 function useWriteOverview(key: string, setState: SetState, reload: () => Promise<void>) {
   const { guard } = useGuard();
 
   return useCallback((): void => {
     guard(async () => {
-      try {
-        const overview = await retryTopicOverview(key);
+      setState((now) => withWriteRefused(now, false));
 
-        if (overview === null) await reload();
-        else setState((now) => (now.status === "ready" ? { ...now, overview } : now));
+      try {
+        const retry = await retryTopicOverview(key);
+
+        if (retry.outcome === "started") {
+          setState((now) => (now.status === "ready" ? { ...now, overview: retry.overview } : now));
+        } else if (retry.outcome === "restoring") {
+          setState((now) => withWriteRefused(now, true));
+        } else {
+          await reload();
+        }
       } catch {
         await reload();
       }

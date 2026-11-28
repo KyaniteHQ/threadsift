@@ -9,10 +9,12 @@ import {
   ProposalPageSchema,
   ProposalStateSchema,
 } from "../../src/core/contract/proposal-contract.ts";
+import { RESTORING_CODE } from "../../src/core/contract/restore-contract.ts";
 import { call, parsedFrom, parsedOrGone, post, withCursor } from "./calls.ts";
+import { isRestoring } from "./unavailable.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
-const BUSY = ["merge-busy", "no-provider"] as const satisfies readonly Acceptance[];
+const BUSY = ["merge-busy", "no-provider", RESTORING_CODE] as const satisfies readonly Acceptance[];
 
 export type Busy = (typeof BUSY)[number];
 
@@ -51,6 +53,8 @@ export async function sendAccept(id: number): Promise<Acceptance> {
       post(DATABASE_WRITE_DEADLINE_MS),
       `/api/proposals/${String(id)}/accept`,
     );
+
+    if (await isRestoring(response)) return RESTORING_CODE;
 
     const body: unknown = await response.json().catch(() => null);
 

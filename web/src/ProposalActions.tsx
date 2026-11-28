@@ -27,6 +27,7 @@ export interface RowControls {
 const BUSY_NOTES = {
   "merge-busy": PROPOSAL_WORDS.mergeBusy,
   "no-provider": PROPOSAL_WORDS.noProvider,
+  restoring: PROPOSAL_WORDS.restoring,
 } as const satisfies Record<Busy, string>;
 
 interface NoteTexts {

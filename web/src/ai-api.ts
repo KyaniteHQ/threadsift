@@ -13,6 +13,7 @@ import {
   type ConnectStartInput,
 } from "../../src/core/contract/openrouter-contract.ts";
 import { call, callOk, parsedBody, parsedFrom, post, put } from "./calls.ts";
+import { isRestoring } from "./unavailable.ts";
 import {
   AI_SAVE_DEADLINE_MS,
   AI_VERIFY_DEADLINE_MS,
@@ -48,8 +49,16 @@ export async function saveAiSettings(input: Readonly<AiSettingsInput>): Promise<
   return { kind: "grok-bot-unready", code: unready.data.code };
 }
 
-export function verifyAi(): Promise<VerifyResult> {
-  return parsedFrom(post(AI_VERIFY_DEADLINE_MS), "/api/settings/ai/verify", VerifyResultSchema);
+type Verification = VerifyResult | { readonly kind: "restoring" };
+
+export async function verifyAi(): Promise<Verification> {
+  const response = await callOk(post(AI_VERIFY_DEADLINE_MS), "/api/settings/ai/verify", {
+    tolerates: [503],
+  });
+
+  if (await isRestoring(response)) return { kind: "restoring" };
+
+  return parsedBody(response, VerifyResultSchema);
 }
 
 type ConnectStart =

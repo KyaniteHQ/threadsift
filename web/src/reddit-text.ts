@@ -11,5 +11,7 @@ export const REDDIT_TEXT = {
     "A Reddit link added without the extension stays a link-only item unless a connected Reddit account reads it. Use the extension to save the thread.",
   loadFailed: "Couldn’t load the Reddit archive fill setting. Reload the page.",
   failed: "Couldn’t save the setting. Try again.",
+  restoring:
+    "Couldn’t save the setting because a restore is running. Pick On or Off again once it finishes.",
   saving: "Saving…",
 } as const;

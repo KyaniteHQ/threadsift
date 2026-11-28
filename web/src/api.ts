@@ -42,6 +42,7 @@ export type SaveResult =
   | { readonly outcome: "invalid" }
   | { readonly outcome: "private" }
   | { readonly outcome: "restoring" }
+  | { readonly outcome: "digest-restoring" }
   | {
       readonly outcome: "saved";
       readonly known: boolean;
@@ -111,15 +112,23 @@ export async function fetchTopicPage(
   return page === null ? { outcome: "missing" } : { outcome: "found", page };
 }
 
-export async function retryTopicOverview(key: string): Promise<Overview | null> {
-  const answer = await parsedOrNull(
-    post(DATABASE_WRITE_DEADLINE_MS),
-    `${topicApiPath(key)}/overview`,
-    OverviewRetryResponseSchema,
-    409,
-  );
+export type OverviewRetry =
+  | { readonly outcome: "started"; readonly overview: Overview }
+  | { readonly outcome: "refused" }
+  | { readonly outcome: "restoring" };
 
-  return answer === null ? null : answer.overview;
+export async function retryTopicOverview(key: string): Promise<OverviewRetry> {
+  const response = await callOk(post(DATABASE_WRITE_DEADLINE_MS), `${topicApiPath(key)}/overview`, {
+    tolerates: [409, 503],
+  });
+
+  if (response.status === 409) return { outcome: "refused" };
+
+  if (await isRestoring(response)) return { outcome: "restoring" };
+
+  const { overview } = await parsedBody(response, OverviewRetryResponseSchema);
+
+  return { outcome: "started", overview };
 }
 
 export async function saveLink(url: string): Promise<SaveResult> {
@@ -149,14 +158,16 @@ export async function removeItem(id: number): Promise<void> {
   await callOk(del(DATABASE_WRITE_DEADLINE_MS), `/api/items/${id}`, { tolerates: [404] });
 }
 
-export async function regenerateDigest(id: number): Promise<Item> {
-  return (
-    await parsedFrom(
-      post(DATABASE_WRITE_DEADLINE_MS),
-      `/api/items/${id}/digest`,
-      ItemResponseSchema,
-    )
-  ).item;
+export async function regenerateDigest(id: number): Promise<SaveResult> {
+  const response = await callOk(post(DATABASE_WRITE_DEADLINE_MS), `/api/items/${id}/digest`, {
+    tolerates: [503],
+  });
+
+  if (await isRestoring(response)) return { outcome: "digest-restoring" };
+
+  const { item } = await parsedBody(response, ItemResponseSchema);
+
+  return { outcome: "saved", known: true, refreshed: false, item };
 }
 
 export type SaveTarget =

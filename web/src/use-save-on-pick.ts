@@ -2,8 +2,12 @@ import { useCallback, useMemo } from "react";
 
 import { outcomeOf, useActionFlow } from "./use-settings-action.ts";
 
+export type Saved<View> =
+  | { readonly kind: "saved"; readonly view: View }
+  | { readonly kind: "refused"; readonly text: string };
+
 export function useSaveOnPick<Value, View>(
-  save: (value: Value) => Promise<View>,
+  save: (value: Value) => Promise<Saved<View>>,
   changed: (view: View) => void,
   failedText: string,
 ) {
@@ -12,7 +16,11 @@ export function useSaveOnPick<Value, View>(
   const pick = useCallback(
     (value: Value) => {
       void run("save", async () => {
-        changed(await save(value));
+        const saved = await save(value);
+
+        if (saved.kind === "refused") return { kind: "error", text: saved.text };
+
+        changed(saved.view);
 
         return null;
       });

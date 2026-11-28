@@ -5,6 +5,8 @@ export const TOPIC_PAGE = {
   overviewHeading: "Overview",
   overviewPending: "Writing overview…",
   overviewFailed: "Couldn’t write the overview.",
+  overviewRestoring:
+    "Couldn’t write the overview because a restore is running. Try again after it finishes.",
   overviewNone: "No overview yet",
   writeOverview: "Write overview",
   noProvider:

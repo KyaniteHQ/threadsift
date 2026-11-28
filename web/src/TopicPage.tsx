@@ -33,6 +33,7 @@ function Body({
             overview={state.overview}
             itemCount={state.topic.itemCount}
             write={write}
+            writeRefused={state.writeRefused}
           />
           <KnownDisagreements disagreements={state.disagreements} />
           <TopicItemsSection state={state} loadMore={loadMore} />

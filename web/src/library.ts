@@ -70,15 +70,8 @@ function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonl
 function useSave(reads: Reads, setList: SetList) {
   return useCallback(
     async (target: SaveTarget): Promise<SaveResult> => {
-      const result: SaveResult =
-        target.kind === "paste"
-          ? await saveLink(target.url)
-          : {
-              outcome: "saved",
-              known: true,
-              refreshed: false,
-              item: await regenerateDigest(target.id),
-            };
+      const result =
+        target.kind === "paste" ? await saveLink(target.url) : await regenerateDigest(target.id);
 
       if (result.outcome !== "saved") return result;
 
