@@ -150,7 +150,7 @@ A Restore that a refusal of the check ended does not block an upload. The Restor
 - A Restore that is past its upload (`running`, `failed`, `cancelled` or `done`) gives `409 not-uploading`, also when a Cancel ends it between the reads of the start. `restore-open` belongs to `POST /api/restore` alone.
 - A live Vault mirror lease gives `409 vault-busy`. The uploaded parts stay ready for retry.
 - The same guarded batch deletes the `ai_tasks` rows that no Digest names (`deletedUndigestedTasks`), such as the task of a Verify that the owner pressed on the empty Instance. The zip holds only the tasks that Digests name. An insert that repeats a key is dropped, so a task left on the Instance would take the id of a zip task, and the restored Digest would name the wrong row.
-- A Verify pressed after Start answers 503 `restoring` and writes no task, because `insertTask` writes through the Restore hold (While it runs). The delete at Start and the hold together keep every zip task's id.
+- A Verify pressed after Start answers 503 `restoring` and writes no task, because `insertTask` writes through the Restore hold ([While it runs](#while-it-runs)). The delete at Start and the hold together keep every zip task's id.
 - A Grok Bot answer that arrives for a deleted task finds no row. A Verify that still waits reads its answer only from a row with a callback hash, and a restored task has none, so it answers `unreachable` instead of taking the zip's task as its answer.
 - The upload comes before the job chain, which has the phases `check`, `tables`, `files`, `search`, `highlights` and `finish` (`RESTORE_PHASES` also lists `upload`), and `undoing` while a Cancel runs.
 
