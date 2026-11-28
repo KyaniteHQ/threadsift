@@ -1,8 +1,9 @@
 import { type RefObject, useLayoutEffect } from "react";
 
 import { READ_DEADLINE_MS } from "./calls.ts";
+import { useDatabase } from "./database-context.ts";
 import { useArrivals } from "./place-arrival.ts";
-import { anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts";
+import { type PlaceOwner, anchorAt, keepPlace, placeOf, scrollToAnchor } from "./reading-place.ts";
 
 const SAVE_DELAY_MS = 400;
 
@@ -11,14 +12,14 @@ type Phase =
   | { readonly kind: "watching"; readonly watching: AbortController }
   | { readonly kind: "closed" };
 
-function startWatching(slot: HTMLElement, itemId: number): AbortController {
+function startWatching(slot: HTMLElement, owner: PlaceOwner): AbortController {
   const watching = new AbortController();
   const { signal } = watching;
   let timer = 0;
 
   const save = (): void => {
     window.clearTimeout(timer);
-    keepPlace(itemId, anchorAt(slot));
+    keepPlace(owner, anchorAt(slot));
   };
 
   const onScroll = (): void => {
@@ -33,8 +34,8 @@ function startWatching(slot: HTMLElement, itemId: number): AbortController {
   return watching;
 }
 
-function restorePlace(slot: HTMLElement, itemId: number): void {
-  const anchor = placeOf(itemId);
+function restorePlace(slot: HTMLElement, owner: PlaceOwner): void {
+  const anchor = placeOf(owner);
 
   if (anchor !== null) scrollToAnchor(slot, anchor);
 }
@@ -86,12 +87,12 @@ function watchOwnerScroll(slot: HTMLElement, signal: AbortSignal): () => boolean
   return () => moved || scrolledByOwner();
 }
 
-function waitForFonts(slot: HTMLElement, itemId: number): () => void {
+function waitForFonts(slot: HTMLElement, owner: PlaceOwner): () => void {
   const waiting = new AbortController();
   let phase: Phase = { kind: "waiting", ownerMoved: watchOwnerScroll(slot, waiting.signal) };
 
   const keepMoved = (): void => {
-    if (phase.kind === "waiting" && phase.ownerMoved()) keepPlace(itemId, anchorAt(slot));
+    if (phase.kind === "waiting" && phase.ownerMoved()) keepPlace(owner, anchorAt(slot));
   };
 
   const restore = (): void => {
@@ -99,8 +100,8 @@ function waitForFonts(slot: HTMLElement, itemId: number): () => void {
 
     waiting.abort();
     window.clearTimeout(deadline);
-    if (!phase.ownerMoved()) restorePlace(slot, itemId);
-    phase = { kind: "watching", watching: startWatching(slot, itemId) };
+    if (!phase.ownerMoved()) restorePlace(slot, owner);
+    phase = { kind: "watching", watching: startWatching(slot, owner) };
   };
 
   const deadline = window.setTimeout(restore, READ_DEADLINE_MS);
@@ -122,12 +123,12 @@ function waitForFonts(slot: HTMLElement, itemId: number): () => void {
   };
 }
 
-function watchAfterFonts(slot: HTMLElement, itemId: number, arriving: boolean): () => void {
+function watchAfterFonts(slot: HTMLElement, owner: PlaceOwner, arriving: boolean): () => void {
   slot.scrollTop = 0;
 
-  if (!arriving) return waitForFonts(slot, itemId);
+  if (!arriving) return waitForFonts(slot, owner);
 
-  const watching = startWatching(slot, itemId);
+  const watching = startWatching(slot, owner);
 
   return () => {
     watching.abort();
@@ -140,10 +141,13 @@ export function useReadingPlace(
   ready: boolean,
 ): void {
   const { pending } = useArrivals();
+  const database = useDatabase();
 
   useLayoutEffect(() => {
     const element = slot.current;
 
-    return ready && element !== null ? watchAfterFonts(element, itemId, pending()) : undefined;
-  }, [slot, itemId, ready, pending]);
+    return ready && element !== null
+      ? watchAfterFonts(element, { database, itemId }, pending())
+      : undefined;
+  }, [slot, database, itemId, ready, pending]);
 }

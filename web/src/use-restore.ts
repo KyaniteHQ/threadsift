@@ -1,6 +1,7 @@
 import { type RefObject, useCallback, useEffect, useState } from "react";
 
 import type { RestoreStatus } from "../../src/core/contract/restore-contract.ts";
+import { useDatabase, useDatabaseRecheck } from "./database-context.ts";
 import { cancelRestore, fetchRestoreStatus, resumeRestore } from "./restore-api.ts";
 import { RESTORE_TEXT } from "./restore-text.ts";
 import { type Progress, type StatusRead, uploadZip } from "./restore-upload.ts";
@@ -50,6 +51,15 @@ function useStatus() {
   });
 
   return { view, loadFailed: view === null && loadFailed, refresh };
+}
+
+function useRecheckAfterRestore(view: RestoreStatus | null) {
+  const recheck = useDatabaseRecheck();
+  const finished = view?.state === "done" ? view.id : null;
+
+  useEffect(() => {
+    if (finished !== null) recheck();
+  }, [finished, recheck]);
 }
 
 type Action = "choose" | "cancel" | "resume";
@@ -102,12 +112,18 @@ export function useRestore() {
   const { flow, run } = useActionFlow<Action>(FAILED);
   const latest = useLatest(view);
   const { cancel, resume } = useEnding(latest, refresh, run);
+  const database = useDatabase();
+
+  useRecheckAfterRestore(view);
 
   const choose = useCallback(
     (file: Readonly<File>) => {
       const upload = async () => {
         try {
-          return await uploadZip(file, latest.current, { progress: setProgress, refresh });
+          return await uploadZip(database, file, latest.current, {
+            progress: setProgress,
+            refresh,
+          });
         } finally {
           setProgress(null);
         }
@@ -115,7 +131,7 @@ export function useRestore() {
 
       void run("choose", upload);
     },
-    [latest, refresh, run],
+    [database, latest, refresh, run],
   );
 
   return {

@@ -4,7 +4,9 @@ import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import {
+  NEW_DATABASE_IDENTITY,
   type RestoreRow,
+  databaseIdentity,
   hasSubject,
   proposals,
   restoreRuns,
@@ -98,6 +100,7 @@ export function finishUnit(
     ...jobKeyWrites(db),
     ...singletonResets(db, manifest),
     ...proposalsWithoutSubject(db, run),
+    db.update(databaseIdentity).set({ value: NEW_DATABASE_IDENTITY }),
   ];
 
   return endedUnit(

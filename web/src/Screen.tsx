@@ -1,3 +1,4 @@
+import { DatabaseContext, type SignedInDatabase } from "./database-context.ts";
 import { FieldAnnouncer } from "./FieldAnnouncer.tsx";
 import { NavigateContext } from "./navigate-context.ts";
 import type { Route } from "./routing.ts";
@@ -56,12 +57,17 @@ function ScreenContent({
   }
 }
 
-export function Screen(props: Parameters<typeof ScreenContent>[0]) {
+export function Screen({
+  database,
+  ...props
+}: Readonly<Parameters<typeof ScreenContent>[0] & { database: SignedInDatabase | null }>) {
   return (
     <NavigateContext value={props.route.navigate}>
-      <FieldAnnouncer>
-        <ScreenContent {...props} />
-      </FieldAnnouncer>
+      <DatabaseContext value={database}>
+        <FieldAnnouncer>
+          <ScreenContent {...props} />
+        </FieldAnnouncer>
+      </DatabaseContext>
     </NavigateContext>
   );
 }

@@ -9,7 +9,7 @@ import {
   startedSession,
 } from "../../../http/session-cookie.ts";
 import { heldScopes } from "../../../http/token-scopes.ts";
-import { anonymousState, checkSetupCode, login, setUpOwner } from "../core/owner.ts";
+import { anonymousState, checkSetupCode, login, setUpOwner, signedInState } from "../core/owner.ts";
 import { endSession } from "../core/sessions.ts";
 import { changeBudget, createToken, listTokens, revokeToken } from "../core/tokens.ts";
 import {
@@ -28,9 +28,12 @@ import { registerPasswordRoutes } from "./password-routes.ts";
 
 function registerSetupRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(sessionRoute, async (c) =>
-    (await ownerHasSession(c, ports))
-      ? c.json({ state: "signed-in" } as const, 200)
-      : c.json(await anonymousState(ports), 200),
+    c.json(
+      (await ownerHasSession(c, ports))
+        ? await signedInState(ports.db)
+        : await anonymousState(ports),
+      200,
+    ),
   );
 
   app.openapi(setupCodeRoute, async (c) => {

@@ -1,25 +1,17 @@
-type Chosen = Readonly<Pick<File, "name" | "size" | "lastModified">>;
+import { RESTORE_FINGERPRINTS, readEntry, writeEntry } from "./database-storage.ts";
 
-function keyOf(id: number): string {
-  return `threadsift.restore.${String(id)}`;
-}
+type Chosen = Readonly<Pick<File, "name" | "size" | "lastModified">>;
 
 function fingerprintOf({ name, size, lastModified }: Chosen): string {
   return `${name}|${String(size)}|${String(lastModified)}`;
 }
 
-export function rememberFingerprint(id: number, file: Chosen): void {
-  try {
-    localStorage.setItem(keyOf(id), fingerprintOf(file));
-  } catch {}
+export function rememberFingerprint(database: string, id: number, file: Chosen): void {
+  writeEntry(RESTORE_FINGERPRINTS, database, id, fingerprintOf(file));
 }
 
-export function matchesFingerprint(id: number, file: Chosen): boolean {
-  try {
-    const stored = localStorage.getItem(keyOf(id));
+export function matchesFingerprint(database: string, id: number, file: Chosen): boolean {
+  const stored = readEntry(RESTORE_FINGERPRINTS, database, id);
 
-    return stored === null || stored === fingerprintOf(file);
-  } catch {
-    return true;
-  }
+  return stored === null || stored === fingerprintOf(file);
 }

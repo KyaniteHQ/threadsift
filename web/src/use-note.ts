@@ -1,6 +1,7 @@
 import { type Dispatch, type RefObject, useCallback, useEffect, useReducer, useRef } from "react";
 
 import type { NoteView } from "../../src/core/contract/note-contract.ts";
+import { useDatabase } from "./database-context.ts";
 import { putNote } from "./keeping-api.ts";
 import { draftOf, keepDraft } from "./note-draft.ts";
 import {
@@ -54,11 +55,12 @@ function view(state: Readonly<NoteState>) {
 }
 
 function useKeptDraft(itemId: number, { saved, draft }: Readonly<NoteState>, dirty: boolean) {
+  const database = useDatabase();
   const { revision } = saved;
 
   useEffect(() => {
-    keepDraft(itemId, dirty ? { body: draft, revision } : null);
-  }, [itemId, dirty, draft, revision]);
+    keepDraft(database, itemId, dirty ? { body: draft, revision } : null);
+  }, [database, itemId, dirty, draft, revision]);
 }
 
 export function useNote(
@@ -66,8 +68,9 @@ export function useNote(
   initial: Readonly<NoteView>,
   field: RefObject<HTMLTextAreaElement | null>,
 ) {
+  const database = useDatabase();
   const [state, dispatch] = useReducer(noteReducer, initial, (saved) =>
-    noteStart(saved, draftOf(itemId)),
+    noteStart(saved, draftOf(database, itemId)),
   );
 
   const send = useSend(itemId, state.draft, dispatch, field);

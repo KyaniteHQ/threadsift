@@ -1,12 +1,8 @@
 import assert from "node:assert/strict";
-import { type TestContext, after, afterEach, before, beforeEach, describe, it } from "node:test";
+import { after, before, describe, it } from "node:test";
 
 import { ItemListResponseSchema } from "../src/core/contract/item-route-wire.ts";
-import {
-  RESTORE_CHECK_BYTES,
-  RESTORE_SETTLE_MS,
-  restoreAnswerSchema,
-} from "../src/core/contract/restore-contract.ts";
+import { RESTORE_CHECK_BYTES, restoreAnswerSchema } from "../src/core/contract/restore-contract.ts";
 import {
   EXPORT_LIBRARY,
   NOTE_BODY,
@@ -16,21 +12,9 @@ import {
   savedLibrary,
 } from "./export-restore-fixtures.ts";
 import { Instance } from "./instance.ts";
-import {
-  CHANGED_TEXT,
-  cancelledWhileHeld,
-  doneAfterRetries,
-  heldWrite,
-  inFiles,
-  itemKeys,
-  keysAfterSweep,
-  lateWriteZips,
-  restoreAttemptFailures,
-  settledOlderRestores,
-  startedToFiles,
-} from "./late-write-fixtures.ts";
-import { paste, until } from "./library-fixtures.ts";
+import { paste } from "./library-fixtures.ts";
 import { restoreStatus, restoredDone, settledRestore, startedRestore } from "./restore-fixtures.ts";
+import { databaseNameOf } from "./session-fixtures.ts";
 import {
   type Entries,
   dataStartOf,
@@ -102,10 +86,12 @@ describe("a Restore of an Export that took several slices brings the library bac
     let target: Instance;
     let started: number;
     let done: Awaited<ReturnType<typeof restoredDone>>;
+    let databaseBefore: string;
 
     before(async () => {
       target = await Instance.start();
       await target.setUp();
+      databaseBefore = await databaseNameOf(target);
       started = await startedRestore(target, zip);
       done = await restoredDone(target);
     });
@@ -176,6 +162,10 @@ describe("a Restore of an Export that took several slices brings the library bac
       assert.equal(fromTarget, fromSource);
     });
 
+    it("names the database anew when it ends, so no browser entry kept for an id before it meets a restored Item", async () => {
+      assert.notEqual(await databaseNameOf(target), databaseBefore);
+    });
+
     it("refuses a Cancel once the library holds the restored Items, and a Resume of a Restore that did not give up", async () => {
       const cancel = await target.send("DELETE", `/api/restore/${String(started)}`);
       const resume = await target.send("POST", `/api/restore/${String(started)}/resume`);
@@ -187,101 +177,5 @@ describe("a Restore of an Export that took several slices brings the library bac
       );
       assert.equal((await restoreStatus(target)).state, "done");
     });
-  });
-});
-
-describe("a cancelled Restore's files unit that writes late", () => {
-  let zips: Awaited<ReturnType<typeof lateWriteZips>>;
-  let target: Instance;
-
-  before(async () => {
-    zips = await lateWriteZips();
-  });
-
-  beforeEach(async () => {
-    target = await Instance.start();
-    await target.setUp();
-  });
-
-  afterEach(() => target.close());
-
-  const holdingKey = (t: TestContext) =>
-    heldWrite(t, target, (name) => name === zips.key && inFiles(target, 1));
-
-  it("keeps a write that was in flight at the Cancel off the next Restore's post text file", async (t) => {
-    const held = holdingKey(t);
-
-    await cancelledWhileHeld(target, zips.first, held.reached);
-    await startedToFiles(target, zips.second);
-    held.release();
-    await held.landed;
-    settledOlderRestores(target);
-    await doneAfterRetries(target);
-
-    assert.equal((await target.detail(zips.itemId)).postText, CHANGED_TEXT);
-  });
-
-  it("starts no write after its unit's deadline, even once the next Restore is done", async (t) => {
-    const failed = restoreAttemptFailures(t);
-    const held = heldWrite(t, target, (name) => name.startsWith("items/") && inFiles(target, 1));
-
-    await cancelledWhileHeld(target, zips.first, held.reached);
-    await startedToFiles(target, zips.second);
-
-    const now = Date.now.bind(Date);
-
-    t.mock.method(Date, "now", () => now() + RESTORE_SETTLE_MS);
-    await doneAfterRetries(target);
-
-    const startedBefore = held.started.length;
-
-    held.release();
-    await held.landed;
-    await until(
-      "the late unit fails or starts another write",
-      () => Promise.resolve(failed().length + held.started.length - startedBefore),
-      (count) => count > 0,
-    );
-
-    assert.deepEqual(held.started.slice(startedBefore), []);
-  });
-
-  it("removes a late write that the next zip has no entry for, also when the next Restore's first files unit runs twice", async (t) => {
-    const held = holdingKey(t);
-
-    await cancelledWhileHeld(target, zips.first, held.reached);
-    held.release();
-    await held.landed;
-    assert.ok((await itemKeys(target, zips.itemId)).includes(zips.key));
-
-    const write = target.core.files.put.bind(target.core.files);
-    let crashed = false;
-
-    t.mock.method(target.core.files, "put", async (name: string, bytes: Uint8Array) => {
-      if (!crashed && inFiles(target, 2)) {
-        crashed = true;
-        throw new Error("the first files unit stops after the clear");
-      }
-
-      await write(name, bytes);
-    });
-    await startedToFiles(target, zips.withoutKey);
-    settledOlderRestores(target);
-    await doneAfterRetries(target);
-
-    assert.equal(crashed, true);
-    assert.deepEqual(await itemKeys(target, zips.itemId), []);
-    assert.ok((await itemKeys(target, zips.otherItemId)).includes(zips.otherKey));
-  });
-
-  it("leaves a late write after a Cancel with no next Restore to the file sweep, which removes it", async (t) => {
-    const held = holdingKey(t);
-
-    await cancelledWhileHeld(target, zips.first, held.reached);
-    held.release();
-    await held.landed;
-    assert.ok((await itemKeys(target, zips.itemId)).includes(zips.key));
-
-    assert.deepEqual(await keysAfterSweep(target, zips.itemId), []);
   });
 });

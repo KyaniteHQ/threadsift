@@ -18,45 +18,57 @@ const AnchorSchema = z.object({
 
 const PairsSchema = z.array(z.tuple([WholeCount, AnchorSchema]));
 
+const EarlierPlacesSchema = z
+  .union([
+    PairsSchema,
+    z
+      .record(z.string(), AnchorSchema)
+      .transform((record) =>
+        Object.entries(record).map(([id, anchor]): [number, Anchor] => [Number(id), anchor]),
+      )
+      .pipe(PairsSchema),
+  ])
+  .transform((places) => ({ database: null, places }));
+
 const PlacesSchema = z.union([
-  PairsSchema,
-  z
-    .record(z.string(), AnchorSchema)
-    .transform((record) =>
-      Object.entries(record).map(([id, anchor]): [number, Anchor] => [Number(id), anchor]),
-    )
-    .pipe(PairsSchema),
+  z.object({ database: z.string().min(1), places: PairsSchema }),
+  EarlierPlacesSchema,
 ]);
 
 export type Anchor = z.infer<typeof AnchorSchema>;
 
 type Place = Readonly<z.infer<typeof PairsSchema>[number]>;
 
-function readPlaces(): readonly Place[] {
-  try {
-    const stored = sessionStorage.getItem(STORAGE_KEY);
+export interface PlaceOwner {
+  readonly database: string;
+  readonly itemId: number;
+}
 
-    return stored === null ? [] : PlacesSchema.parse(JSON.parse(stored));
+function readPlaces(database: string): readonly Place[] {
+  try {
+    const stored = PlacesSchema.parse(JSON.parse(sessionStorage.getItem(STORAGE_KEY) ?? "null"));
+
+    return stored.database === null || stored.database === database ? stored.places : [];
   } catch {
     return [];
   }
 }
 
-function writePlaces(places: readonly Place[]): void {
+function writePlaces(database: string, places: readonly Place[]): void {
   try {
-    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(places));
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify({ database, places }));
   } catch {}
 }
 
-export function placeOf(itemId: number): Anchor | null {
-  return readPlaces().find(([id]) => id === itemId)?.[1] ?? null;
+export function placeOf({ database, itemId }: PlaceOwner): Anchor | null {
+  return readPlaces(database).find(([id]) => id === itemId)?.[1] ?? null;
 }
 
-export function keepPlace(itemId: number, anchor: Readonly<Anchor> | null): void {
-  const others = readPlaces().filter(([id]) => id !== itemId);
+export function keepPlace({ database, itemId }: PlaceOwner, anchor: Readonly<Anchor> | null) {
+  const others = readPlaces(database).filter(([id]) => id !== itemId);
   const kept = anchor === null ? others : [...others, [itemId, anchor] as const];
 
-  writePlaces(kept.slice(-PLACES_MAX));
+  writePlaces(database, kept.slice(-PLACES_MAX));
 }
 
 function topOf(slot: HTMLElement): number {

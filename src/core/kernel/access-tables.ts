@@ -15,6 +15,17 @@ export const owner = sqliteTable(
   (table) => [check("owner_is_one_row", sql`${table.id} = 1`)],
 );
 
+export const databaseIdentity = sqliteTable(
+  "database_identity",
+  {
+    id: integer("id").primaryKey(),
+    value: text("value").notNull(),
+  },
+  (table) => [check("database_identity_is_one_row", sql`${table.id} = 1`)],
+);
+
+export const NEW_DATABASE_IDENTITY = sql<string>`lower(hex(randomblob(16)))`;
+
 export const sessions = sqliteTable("sessions", {
   digest: text("digest").primaryKey(),
   expiresAt: integer("expires_at").notNull(),

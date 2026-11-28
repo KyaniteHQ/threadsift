@@ -1,6 +1,7 @@
 import { useCallback } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
+import { useDatabase } from "./database-context.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { Writes } from "./library.ts";
 import { keepDraft } from "./note-draft.ts";
@@ -25,6 +26,7 @@ export function useDeletion({
 }>): (item: Item) => Promise<void> {
   const { leave } = route;
   const opened = useLatest(route.openId);
+  const database = useDatabase();
 
   return useCallback(
     async (item: Item): Promise<void> => {
@@ -33,7 +35,7 @@ export function useDeletion({
       let left = false;
 
       const survivor = await remove(item.id, (next) => {
-        keepDraft(item.id, null);
+        keepDraft(database, item.id, null);
 
         if (opened.current !== item.id) return;
 
@@ -47,6 +49,6 @@ export function useDeletion({
         appOf()?.querySelector<HTMLElement>(PASTE_FIELD)?.focus();
       }
     },
-    [announce, appOf, attend, leave, opened, remove],
+    [announce, appOf, attend, database, leave, opened, remove],
   );
 }

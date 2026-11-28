@@ -10,7 +10,7 @@ import {
 import type { Database } from "../../../core/kernel/database.ts";
 import { guardedBatch } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { owner } from "../../../core/kernel/schema.ts";
+import { UninitializedDatabase, databaseIdentity, owner } from "../../../core/kernel/schema.ts";
 import { type LockedOut, type Refused, badPassword, refused } from "./access-refusal.ts";
 import { type StartedSession, prepareSession, sessionWrites } from "./sessions.ts";
 import { type Attempt, settleAttempt } from "./throttle.ts";
@@ -52,6 +52,19 @@ export async function anonymousState(
   return (await hasOwner(ports.db))
     ? { state: "signed-out" }
     : { state: "setup", code: checkConfiguredCode(ports.config.setupCode, SETUP_CODE_MIN).status };
+}
+
+export async function signedInState(
+  db: Database,
+): Promise<{ readonly state: "signed-in"; readonly database: string }> {
+  const [identity] = await db
+    .select({ value: databaseIdentity.value })
+    .from(databaseIdentity)
+    .where(sql`${databaseIdentity.id} = 1`);
+
+  if (identity === undefined) throw new UninitializedDatabase("database_identity");
+
+  return { state: "signed-in", database: identity.value };
 }
 
 export async function checkSetupCode(ports: Ports, code: string): Promise<SetupRefusal | null> {
