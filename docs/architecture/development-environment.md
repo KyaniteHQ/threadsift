@@ -33,15 +33,15 @@ The npm `@playwright/test` version must match nixpkgs' `playwright-driver`, so t
 
 ## README screenshots
 
-`node tools/readme-images/build.ts` makes every screenshot in the README again and writes it to `docs/assets`. It needs ImageMagick (`magick`) on the `PATH`, which the dev shell does not provide, and free ports 5430 and 5431. A run takes about 40 seconds.
+`node tools/readme-images/build.ts` makes every screenshot the README shows again. It needs ImageMagick with WebP support (`magick`) on the `PATH`, which the dev shell does not provide. The tool checks for `magick` before it builds the app, and it replaces the images only after the last one succeeds.
 
-1. It runs `pnpm run build`, then starts the container target on `127.0.0.1` with an empty temporary data folder. Its environment holds only `PATH`, the port, a setup code and a new secret key.
-2. It saves a made-up library through `POST /api/items`: Reddit threads, X posts and articles, each with a caller-sent Digest, so no Provider writes a Digest (`ITEMS` and its library modules). Article pictures are generated gradients of the accent colours.
-3. A Topic overview and a Related Items pick need a Provider, so it saves an OpenAI-compatible Provider that points at a stub on `127.0.0.1`. The stub answers those two AI tasks with fixed text. It calls no model, and nothing is billed. It keeps the Highlights through the Reader in Chromium, as an owner does.
-4. It captures each view in `SHOTS` in Chromium at a scale of 2, in Light and Dark, and the three Topic pages in `STYLE_SHOTS`.
-5. It frames each capture in a page that loads the design tokens: two glows of the Moss and Teal accents over `--bg`, and a window with a corner radius of `--s3` and a soft shadow. ImageMagick writes the page as lossless WebP.
+The tool starts the Node target on a free port with an empty temporary data folder, a random owner password and a random setup code. The Instance listens on all interfaces until the run ends. It gets a `PATH` that holds only the directory of the Node binary and a temporary `HOME`, so it finds none of the AI command-line tools installed on your machine.
 
-The screenshots are not part of the gate. After a change to a screen, to the library or to the frame, run the command and commit the new files in `docs/assets` with the change.
+Every made-up Item in `ITEMS` carries a caller-sent Digest, so no Provider writes a Digest. A Topic overview and a Related Items pick need a Provider, so the tool saves an OpenAI-compatible Provider that points at a stub on the loopback address. The stub answers those two AI tasks with fixed text. It calls no model, and nothing is billed. The run sends no data to a host outside your machine: it finishes in a network namespace that holds only the loopback interface, where Chromium's one outside call, a UDP `connect` that tests for an IPv6 route, sends nothing. The names in the library cannot exist on the real sites: X handles longer than 15 characters, Reddit user names longer than 20, subreddit names longer than 21, and the name of a made-up publication as an article's author.
+
+The browser time zone is UTC and its clock is fixed to the start of the run, and the posts are dated relative to that time. The Reader therefore reads "3d ago" for the Reddit thread on any run date. A run before January 4 (UTC) stops, because the label would then show a year.
+
+The screenshots are not part of the gate. After a change to a screen, to the library data or to the look of the frame, run the command and commit the changed images with the change.
 
 ## Podman storage and signature policy
 

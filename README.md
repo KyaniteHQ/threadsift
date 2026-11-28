@@ -13,9 +13,9 @@ v1 is not released, so do not use Threadsift for real yet.
 
 ## What it does
 
-### Read a thread by its useful part
+### Read the Summary and Kept comments
 
-An agent writes a Digest for each Item: a clean title, a Topic, up to 3 Tags, a two-line Summary and Key points. For a Reddit or X thread, the agent also keeps only the comments that add something. A Kept comment adds a fact, a fix, a working link or command, first-hand experience or a real counterargument. Once a thread has a Digest, the Reader shows the Kept comments, and the Kept strip reads like `Kept 5 of 64`.
+An agent writes a Digest for each Item that has text: a clean title, a Topic, up to 3 Tags, a two-line Summary and Key points. For a Reddit or X thread, the agent also keeps only the comments that add something. A Kept comment adds a fact, a fix, a working link or command, first-hand experience or a real counterargument. Once a thread has a Digest, the Reader shows the Kept comments, and the Kept strip reads like `Kept 5 of 64`.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/reader-dark.webp">
@@ -31,7 +31,7 @@ Search covers the title, the post text, the Kept comments, the Summary, the Tags
   <img src="docs/assets/grid-light.webp" alt="The library in the Grid layout: filters above a grid of cards, each card with its Kept strip, its title and, for an article, a picture.">
 </picture>
 
-### Keep what matters
+### Highlights and Notes
 
 In the Reader, select a passage from the post text or a comment to keep it as a Highlight. Write one Note on any Item. The Highlights page lists every Highlight and Note, newest first, and each one links back to its place in the Reader.
 
@@ -42,7 +42,7 @@ In the Reader, select a passage from the post text or a comment to keep it as a 
 
 ### Let the agent keep a wiki of the library
 
-As Items arrive, the agent writes an overview for each Topic page and picks up to five Related Items for each new Item. The Index lists the Topics, and the Log records each change. Read how these parts fit together in the [library wiki guide](docs/wiki.md). Each week, the agent checks the library and may propose changes, such as merging two Tags. You choose which of those [Proposals](docs/proposals.md) to accept.
+As Items arrive, the agent writes an overview for each Topic page and picks up to five Related Items for each new Item. The Index lists the Topics, and the Log lists the published Digests, Topic overviews and accepted merges. Read how these parts fit together in the [library wiki guide](docs/wiki.md). Each week, the agent checks the library and may propose changes, such as merging two Tags. You choose which of those [Proposals](docs/proposals.md) to accept.
 
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/assets/topic-dark.webp">
@@ -51,7 +51,7 @@ As Items arrive, the agent writes an overview for each Topic page and picks up t
 
 ### Choose a look
 
-Settings has 11 [Styles](docs/design/styles.md) and four Themes: Light, Dark, Sepia and System, which follows your device. The screenshot shows the same Topic page in three Styles.
+Settings has 11 [Styles](docs/design/styles.md) and 4 Themes: Light, Dark, Sepia and System, which follows your device. The screenshot shows the same Topic page in three Styles.
 
 | Library · Light | Monocle · Sepia | Modal · Dark |
 | --- | --- | --- |
@@ -59,7 +59,7 @@ Settings has 11 [Styles](docs/design/styles.md) and four Themes: Light, Dark, Se
 
 <img src="docs/assets/styles.webp" alt="The Home servers Topic page in the Library Style with the Light Theme, in the Monocle Style with the Sepia Theme, and in the Modal Style with the Dark Theme.">
 
-## Save from wherever you are
+## Ways to save a link
 
 - Paste a link into the box at the top of the library. Pasting a link you already saved refreshes that Item.
 - Import a pasted or uploaded list of links at `/import`.
@@ -67,7 +67,7 @@ Settings has 11 [Styles](docs/design/styles.md) and four Themes: Light, Dark, Se
 - Save a Reddit thread or a web page from your own browser tab with the Extension. The Extension works in desktop Chrome and Firefox. For a Reddit thread, it reads the post and its comments through your signed-in tab.
 - Send links from a script with the HTTP API and an agent token you create in Settings. `/api/openapi.json` on your Instance describes the REST routes.
 - Let an agent search, read and add Items over MCP at `/mcp`. The agent uses its own agent token.
-- Send X links to Grok Bot. Grok Bot reads each post, its replies, its photos and the posts it quotes, and saves them back to Threadsift. The [Threadsift bot guide](bot/README.md) says how to install the bot.
+- Send X links to your Threadsift bot. The bot reads each post, its replies, its photos and the posts it quotes, and saves them back to Threadsift. The [Threadsift bot guide](bot/README.md) says how to install the bot.
 
 ## Bring your own AI
 
@@ -84,12 +84,12 @@ Pick a Provider in Settings to run the agent. Both install targets support Anthr
 
 You need a GitHub account, `openssl`, and a Cloudflare account on the Workers Paid plan with R2 turned on.
 
-1. Open [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release) and select your GitHub account.
+1. Open [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/kyanitehq/threadsift/tree/release) and choose your GitHub account.
 2. Choose a project name and names for the D1 database, R2 bucket and Queue. Use names your account does not already have.
 3. Select **Create private Git repository**.
 4. Run `openssl rand -hex 32` and paste the result into `THREADSIFT_SECRET_KEY`. Keep a private backup of the key for the lifetime of the Instance.
 5. Run `openssl rand -hex 16` and paste the result into `SETUP_CODE`.
-6. Keep the build command `pnpm run build` and the deploy command `pnpm run deploy`. Select **Deploy**. When the build finishes, open the Worker URL. Enter the setup code on the setup page and choose an owner password.
+6. Keep the build command `pnpm run build` and the deploy command `pnpm run deploy`. Choose **Deploy**. When the build finishes, open the Worker URL. Enter the setup code on the setup page and choose an owner password.
 
 See the guide for the [full deploy steps](docs/guides/self-hosting.md#deploy-with-the-cloudflare-button), [update setup](docs/guides/self-hosting.md#update-a-cloudflare-copy), and [expired GitHub authorization fix](docs/guides/self-hosting.md#fix-an-expired-github-authorization).
 

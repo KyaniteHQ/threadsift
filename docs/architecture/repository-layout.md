@@ -28,7 +28,7 @@ The deploy button builds from the repository root, because a monorepo subdirecto
 | `test/` | the core tests, which run the real app in process |
 | `smoke/` | the Playwright specs for both targets, and the live check |
 | `migrations/` | the database migrations |
-| `tools/` | the build and check scripts, `tools/oxlint/` for the lint rule plugins, and `tools/copy/` for the script that writes every text a user reads in the product |
+| `tools/` | the build and check scripts, `tools/oxlint/` for the lint rule plugins, `tools/copy/` for the script that writes every text a user reads in the product, and `tools/readme-images/` for the script that makes the README screenshots ([Development environment](development-environment.md#readme-screenshots)) |
 | `docs/` | the docs |
 | `.claude/` | the agents, their skills, the lint hook ([Changing code](../agents/changing-code.md)) and the settings that keep Impeccable's account features off, connect the `x-docs` MCP server without a prompt and deny its `submit_feedback` tool |
 | `.codex/` | the Codex hooks: the Impeccable check after an edit and its design pass when a turn ends; the Codex config that keeps Impeccable's account features off and adds the `x-docs` MCP server with its two read tools |
