@@ -131,8 +131,11 @@ function heldRefusalLabel(failure: RestoreRefusal): string {
     case "missing-column":
     case "crc":
       return REFUSAL_TEXT[failure];
-    default:
-      return failure satisfies never;
+    default: {
+      const exhaustive: never = failure;
+
+      return exhaustive;
+    }
   }
 }
 
