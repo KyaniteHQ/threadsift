@@ -9,7 +9,7 @@ import { bytesOfKey, exportKeys, itemTextAt, postTextKey } from "./file-store-fi
 import type { Instance } from "./instance.ts";
 import { pasteInOrder, until, inOrder } from "./library-fixtures.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
-import { directoryOf } from "./zip-fixtures.ts";
+import { directoryOf, entriesOf, manifestOf } from "./zip-fixtures.ts";
 
 export const MARKED_PASSAGE = "quartz seam";
 
@@ -152,6 +152,10 @@ export async function downloadedZip(instance: Instance, id: number): Promise<Uin
   assert.equal(download.status, 200);
 
   return new Uint8Array(await download.arrayBuffer());
+}
+
+export async function downloadedManifest(instance: Instance, id: number) {
+  return manifestOf(await entriesOf(await downloadedZip(instance, id)));
 }
 
 export async function exportedZip(instance: Instance): Promise<Uint8Array> {
