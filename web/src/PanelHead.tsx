@@ -8,13 +8,13 @@ export function PanelHead({
   close,
 }: Readonly<{ modal: boolean; titleId: string; title: string; close: () => void }>) {
   return modal ? (
-    <div className="st-head">
-      <h2 className="st-title" id={titleId}>
+    <div className="pnl-head">
+      <h2 className="pnl-title" id={titleId}>
         {title}
       </h2>
       <button
         type="button"
-        className="st-close"
+        className="pnl-close"
         data-focus-key="close"
         aria-label={CLOSE_LABEL}
         onClick={close}

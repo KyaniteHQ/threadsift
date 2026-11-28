@@ -166,7 +166,7 @@ export function useAiFields(view: AiView) {
     useModelFields(offered?.model ?? "", savedEffort);
   const { setChoice, ...cli } = useCliChoice(savedChoice, provider, recommendations, clearError);
   const key = useField();
-  const models = useModelList(provider, baseUrl.value, key.value);
+  const models = useModelList(provider, baseUrl.value, key.value, view.revision);
 
   const changeProvider = useChangeProvider(
     {

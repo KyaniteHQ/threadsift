@@ -22,7 +22,7 @@ function Skipped({ reason, skipped }: Readonly<{ reason: SkipReason; skipped: Sk
   const more = skipped.count - skipped.first.length;
 
   return (
-    <div className="flat-note imp-skipped">
+    <div className="flat-note">
       <p>{skippedLabel(reason, skipped.count)}</p>
       <p className="label">{skippedLead(reason)}</p>
       <ul role="list" className="imp-lines">

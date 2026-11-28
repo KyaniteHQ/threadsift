@@ -23,74 +23,98 @@ interface InputKind {
   readonly placeholder?: string | undefined;
 }
 
-function describedBy(...ids: readonly (string | null)[]): string | undefined {
-  const present = ids.filter((id) => id !== null);
+export function joined(...parts: readonly (string | null | undefined)[]): string | undefined {
+  const present = parts.filter((part) => part !== null && part !== undefined);
 
   return present.length === 0 ? undefined : present.join(" ");
 }
 
-function checkedUnder(kind: InputKind, value: string) {
-  return `${kind.type} ${kind.required === true} ${kind.pattern ?? ""} ${value}`;
+function inputRule(kind: InputKind) {
+  return `${kind.type} ${kind.required === true} ${kind.pattern ?? ""}`;
 }
+
+type Checked = HTMLInputElement | HTMLSelectElement;
 
 const UNCHECKED = { under: null, missing: false } as const;
 
-function useBrowserCheck(kind: InputKind, value: string) {
+function useBrowserCheck(rule: string, value: string) {
   const [check, setCheck] = useState<{ under: string | null; missing: boolean }>(UNCHECKED);
-  const rejected = check.under === checkedUnder(kind, value);
+  const rejected = check.under === `${rule} ${value}`;
   const missing = rejected && check.missing;
 
   const reject = useCallback(
-    (event: SyntheticEvent<HTMLInputElement>) => {
-      const input = event.currentTarget;
+    (event: SyntheticEvent<Checked>) => {
+      const control = event.currentTarget;
 
-      setCheck({ under: checkedUnder(kind, input.value), missing: input.validity.valueMissing });
+      setCheck({ under: `${rule} ${control.value}`, missing: control.validity.valueMissing });
     },
-    [kind],
+    [rule],
   );
 
   const sync = useCallback(
-    (event: SyntheticEvent<HTMLInputElement>) => {
-      const input = event.currentTarget;
-      const invalid = input.matches(":user-invalid");
-      const empty = invalid && input.validity.valueMissing;
+    (event: SyntheticEvent<Checked>) => {
+      const control = event.currentTarget;
+      const invalid = control.matches(":user-invalid");
+      const empty = invalid && control.validity.valueMissing;
 
-      setCheck({ under: invalid ? checkedUnder(kind, input.value) : null, missing: empty });
+      setCheck({ under: invalid ? `${rule} ${control.value}` : null, missing: empty });
 
       return empty;
     },
-    [kind],
+    [rule],
   );
 
   return { rejected, missing, reject, sync } as const;
 }
 
-type BrowserCheck = ReturnType<typeof useBrowserCheck>;
+export function useRequiredCheck(
+  { label, error, rule }: Readonly<{ label: string; error: string | null; rule: string }>,
+  value: string,
+) {
+  const id = useId();
+  const browser = useBrowserCheck(rule, value);
+  const voice = useRequiredVoice(browser.missing, error === null ? FIELD_TEXT.spoken(label) : null);
+  const { sync } = browser;
+
+  const check = useCallback(
+    (event: SyntheticEvent<Checked>) => {
+      voice(sync(event));
+    },
+    [sync, voice],
+  );
+
+  return {
+    id,
+    errorId: `${id}-error`,
+    needId: error === null && browser.missing ? `${id}-need` : null,
+    invalid: error !== null || browser.rejected,
+    reject: browser.reject,
+    check,
+  } as const;
+}
+
+type RequiredCheck = ReturnType<typeof useRequiredCheck>;
 
 function Input({
   field,
-  id,
   kind,
   described,
-  browser,
-  voice,
+  required,
   left,
 }: Readonly<{
   field: FieldState;
-  id: string;
   kind: InputKind;
   described: string | undefined;
-  browser: BrowserCheck;
-  voice: ReturnType<typeof useRequiredVoice>;
+  required: RequiredCheck;
   left: ((value: string) => void) | undefined;
 }>) {
-  const { ref, value, error, change } = field;
-  const { edit, blur } = useFieldEvents(browser, voice, change, left);
+  const { ref, value, change } = field;
+  const { edit, blur } = useFieldEvents(required.check, change, left);
 
   return (
     <input
       ref={ref}
-      id={id}
+      id={required.id}
       name={kind.name}
       type={kind.type}
       autoComplete={kind.autoComplete}
@@ -104,9 +128,9 @@ function Input({
       required={kind.required}
       pattern={kind.pattern}
       value={value}
-      aria-invalid={error !== null || browser.rejected}
+      aria-invalid={required.invalid}
       aria-describedby={described}
-      onInvalid={browser.reject}
+      onInvalid={required.reject}
       onBlur={blur}
       onChange={edit}
     />
@@ -130,14 +154,12 @@ export function FormField({
   marked?: boolean;
   left?: ((value: string) => void) | undefined;
 }>) {
-  const id = useId();
-  const spoken = field.error === null ? FIELD_TEXT.spoken(label) : null;
-  const browser = useBrowserCheck(kind, field.value);
-  const voice = useRequiredVoice(browser.missing, spoken);
-  const errorId = `${id}-error`;
-  const failed = field.error !== null;
+  const required = useRequiredCheck(
+    { label, error: field.error, rule: inputRule(kind) },
+    field.value,
+  );
+  const { id, errorId, needId } = required;
   const helpId = help === undefined ? null : `${id}-help`;
-  const needId = !failed && browser.missing ? `${id}-need` : null;
 
   return (
     <div className="fld">
@@ -150,11 +172,9 @@ export function FormField({
       <div className="field">
         <Input
           field={field}
-          browser={browser}
-          voice={voice}
-          id={id}
+          required={required}
           kind={kind}
-          described={describedBy(helpId, failed ? errorId : null, needId)}
+          described={joined(helpId, field.error === null ? null : errorId, needId)}
           left={left}
         />
         {children}
@@ -164,7 +184,7 @@ export function FormField({
   );
 }
 
-function FieldFeedback({
+export function FieldFeedback({
   error,
   errorId,
   needId,
@@ -207,20 +227,10 @@ function FieldLabel({
 }
 
 function useFieldEvents(
-  browser: BrowserCheck,
-  voice: ReturnType<typeof useRequiredVoice>,
+  check: RequiredCheck["check"],
   change: FieldState["change"],
   left: ((value: string) => void) | undefined,
 ) {
-  const { sync } = browser;
-
-  const check = useCallback(
-    (event: SyntheticEvent<HTMLInputElement>) => {
-      voice(sync(event));
-    },
-    [sync, voice],
-  );
-
   const blur = useCallback(
     (event: SyntheticEvent<HTMLInputElement>) => {
       check(event);

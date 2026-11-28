@@ -8,6 +8,8 @@ export interface LoadedRows {
   readonly more: More;
 }
 
+export const CHILD_ROWS = ":scope > *";
+
 interface Waiting {
   readonly from: number;
   readonly focus: FocusWatch;
@@ -16,7 +18,7 @@ interface Waiting {
 export function useFocusNewRows(
   list: RefObject<HTMLElement | null>,
   { count, more }: Readonly<LoadedRows>,
-  { link, row = ":scope > *" }: Readonly<{ link: string; row?: string | undefined }>,
+  { link, row }: Readonly<{ link: string; row: string }>,
 ): (from: number | null) => void {
   const waiting = useRef<Waiting | null>(null);
 

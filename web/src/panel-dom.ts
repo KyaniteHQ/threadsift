@@ -5,7 +5,7 @@ export type PanelRefs = Readonly<{
   panel: RefObject<HTMLDialogElement | null>;
 }>;
 
-export const PANEL_CLASS = "st-pop";
+export const PANEL_CLASS = "pnl";
 
 export const PANEL_SELECTOR = `dialog.${PANEL_CLASS}`;
 

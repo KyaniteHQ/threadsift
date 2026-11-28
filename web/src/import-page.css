@@ -77,9 +77,11 @@
   align-items: center;
   gap: var(--s2) var(--s3);
 }
-.app[data-bp~="phone"] .imp-file .btn,
 .app[data-bp~="phone"] .imp-actions .btn {
   flex: 1 1 auto;
+}
+.app[data-bp~="phone"] .imp-file .btn {
+  inline-size: 100%;
 }
 .imp-summary {
   display: flex;
@@ -130,10 +132,11 @@
 .imp-bar::-moz-progress-bar {
   background: var(--acc);
 }
-.imp-counts {
+.imp-progress {
   font-variant-numeric: tabular-nums;
 }
 .imp-counts {
+  font-variant-numeric: tabular-nums;
   display: flex;
   flex-wrap: wrap;
   gap: var(--s1) var(--s4);

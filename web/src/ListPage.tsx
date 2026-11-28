@@ -1,12 +1,13 @@
 import { type MouseEvent, type ReactNode, useCallback, useRef } from "react";
 
+import { EmptyState } from "./EmptyState.tsx";
 import { Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
-import { PageEmpty } from "./PageEmpty.tsx";
 import { PageFrame } from "./PageFrame.tsx";
+import type { Place } from "./PlaceLink.tsx";
 import type { PagedPage } from "./read-through.ts";
 import { RetryNotice } from "./RetryRegions.tsx";
-import { type LoadedRows, useFocusNewRows } from "./use-focus-new-rows.ts";
+import { CHILD_ROWS, type LoadedRows, useFocusNewRows } from "./use-focus-new-rows.ts";
 import type { Paged, PagedReady } from "./use-paged-read.ts";
 
 interface ListText {
@@ -25,7 +26,7 @@ export interface Listing<Page extends PagedPage, Row> {
   readonly head: (ready: PagedReady<Page>) => string;
   readonly intro?: string;
   readonly emptyLine: (ready: PagedReady<Page>) => string;
-  readonly emptyFoot?: (ready: PagedReady<Page>) => ReactNode;
+  readonly emptyLink: (ready: PagedReady<Page>) => Place | null;
   readonly rows: (ready: PagedReady<Page>) => readonly Row[];
 }
 
@@ -65,7 +66,7 @@ function useRowFocus<Page extends PagedPage, Row>(
   const list = useRef<HTMLElement>(null);
   const expectFocus = useFocusNewRows(list, loaded, {
     link: listing.focus,
-    row: listing.rowSelector,
+    row: listing.rowSelector ?? CHILD_ROWS,
   });
 
   const listRef = useCallback((node: HTMLElement | null) => {
@@ -134,9 +135,12 @@ function Body<Page extends PagedPage, Row>({
       return null;
     case "ready":
       return listing.rows(state).length === 0 ? (
-        <PageEmpty heading={listing.text.emptyHeading} line={listing.emptyLine(state)}>
-          {listing.emptyFoot?.(state)}
-        </PageEmpty>
+        <EmptyState
+          place="page"
+          heading={listing.text.emptyHeading}
+          line={listing.emptyLine(state)}
+          link={listing.emptyLink(state)}
+        />
       ) : (
         <Rows ready={state} loadMore={loadMore} {...shown} />
       );

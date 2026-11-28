@@ -56,8 +56,6 @@ function keyedWidth(event: KeyboardEvent, now: number, bounds: Bounds, max: numb
       return bounds.min;
     case "End":
       return max;
-    case "Enter":
-      return bounds.initial;
     default:
       return null;
   }
@@ -261,6 +259,13 @@ export class PaneSplits {
 
     if (this.#mounted === null || this.#drag.kind === "dragging" || modified) return;
 
+    if (event.key === "Enter") {
+      event.preventDefault();
+      this.#reset(pane);
+
+      return;
+    }
+
     const { bounds, lib } = this.#mounted;
     const max = maxOf(pane, bounds, this.#room(lib), this.#drawn);
     const width = keyedWidth(event, this.#drawn[pane], bounds[pane], max);
@@ -275,7 +280,8 @@ export class PaneSplits {
   #reset(pane: Pane): void {
     if (this.#mounted === null || this.#drag.kind === "dragging") return;
 
-    this.#choose(pane, this.#mounted.bounds[pane].initial);
+    this.#saved = { ...this.#saved, [pane]: this.#mounted.bounds[pane].initial };
+    this.#apply();
     saveWidths(this.#saved);
   }
 }

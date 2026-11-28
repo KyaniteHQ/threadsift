@@ -3,6 +3,7 @@ import type { HighlightsList } from "../../src/core/contract/highlights-page-wir
 import { filled } from "./filled.ts";
 import { type Filters, isFiltered, isSearching } from "./filters.ts";
 import { matchedCount } from "./list-counts.ts";
+import { plural } from "./plural.ts";
 
 export const ITEM_HEAD = {
   one: "1 item, {unread} unread",
@@ -13,41 +14,14 @@ export const ITEM_HEAD = {
   matchingTextOne: "{shown} of 1 item matching “{text}”",
 } as const;
 
-const HIGHLIGHTS_ONLY = {
-  matching: "{shown} of {total} highlights",
-  matchingText: "{shown} of {total} highlights matching “{text}”",
-  matchingOne: "{shown} of 1 highlight",
-  matchingTextOne: "{shown} of 1 highlight matching “{text}”",
+const KIND_NOUNS = {
+  highlights: { one: "highlight", many: "highlights" },
+  notes: { one: "note", many: "notes" },
+  both: { one: "highlights and notes", many: "highlights and notes" },
 } as const;
 
-const NOTES_ONLY = {
-  matching: "{shown} of {total} notes",
-  matchingText: "{shown} of {total} notes matching “{text}”",
-  matchingOne: "{shown} of 1 note",
-  matchingTextOne: "{shown} of 1 note matching “{text}”",
-} as const;
-
-const BOTH_MATCHING = "{shown} of {total} highlights and notes";
-const BOTH_MATCHING_TEXT = "{shown} of {total} highlights and notes matching “{text}”";
-
-const HIGHLIGHTS_AND_NOTES = {
-  matching: BOTH_MATCHING,
-  matchingText: BOTH_MATCHING_TEXT,
-  matchingOne: BOTH_MATCHING,
-  matchingTextOne: BOTH_MATCHING_TEXT,
-} as const;
-
-const KIND_TOTALS = {
-  highlights: { one: "1 highlight", many: "{highlights} highlights" },
-  notes: { one: "1 note", many: "{notes} notes" },
-  both: {
-    one: { one: "1 highlight, 1 note", many: "1 highlight, {notes} notes" },
-    many: {
-      one: "{highlights} highlights, 1 note",
-      many: "{highlights} highlights, {notes} notes",
-    },
-  },
-} as const;
+const KIND_MATCHING = "{shown} of {total} {kind}";
+const KIND_MATCHING_TEXT = "{shown} of {total} {kind} matching “{text}”";
 
 type HeadWords = Readonly<Record<keyof typeof ITEM_HEAD, string>>;
 
@@ -78,21 +52,19 @@ export function headLabel(
 
 type Kinds = Readonly<Pick<HighlightsList["counts"], "highlights" | "notes">>;
 
-const oneOrMany = (count: number) => (count === 1 ? "one" : "many");
-
 function kindTotals({ highlights, notes }: Kinds): string {
-  const values = { highlights: groupedNumber(highlights), notes: groupedNumber(notes) };
-
-  if (notes === 0) return filled(KIND_TOTALS.highlights[oneOrMany(highlights)], values);
-  if (highlights === 0) return filled(KIND_TOTALS.notes[oneOrMany(notes)], values);
-
-  return filled(KIND_TOTALS.both[oneOrMany(highlights)][oneOrMany(notes)], values);
+  return [
+    highlights === 0 ? null : plural(highlights, "1 highlight", "{count} highlights"),
+    notes === 0 ? null : plural(notes, "1 note", "{count} notes"),
+  ]
+    .filter((part) => part !== null)
+    .join(", ");
 }
 
-function matchWords({ highlights, notes }: Kinds): MatchWords {
-  if (notes === 0) return HIGHLIGHTS_ONLY;
+function kindOf({ highlights, notes }: Kinds): keyof typeof KIND_NOUNS {
+  if (notes === 0) return "highlights";
 
-  return highlights === 0 ? NOTES_ONLY : HIGHLIGHTS_AND_NOTES;
+  return highlights === 0 ? "notes" : "both";
 }
 
 export function highlightsHeadText(
@@ -104,11 +76,12 @@ export function highlightsHeadText(
   if (!isFiltered(filters)) return kindTotals(counts);
 
   const text = isSearching(filters) ? filters.q.trim() : "";
-  const values = {
+  const nouns = KIND_NOUNS[kindOf(counts)];
+
+  return filled(text === "" ? KIND_MATCHING : KIND_MATCHING_TEXT, {
     shown: groupedNumber(matchedCount(counts, filters)),
     total: groupedNumber(counts.total),
+    kind: counts.total === 1 ? nouns.one : nouns.many,
     text,
-  };
-
-  return filled(matchTemplate(matchWords(counts), counts.total, text), values);
+  });
 }

@@ -24,7 +24,7 @@ function PageHead({
   useFocusOnMount(heading, ready);
 
   return (
-    <header className="pg-head">
+    <div className="pg-head">
       {back === null ? null : (
         <InternalLink className="fl-link pg-back" to={BACK_LINKS[back].href}>
           {BACK_LINKS[back].label}
@@ -33,7 +33,7 @@ function PageHead({
       <h1 ref={heading} className="pg-title" tabIndex={-1}>
         {title}
       </h1>
-    </header>
+    </div>
   );
 }
 

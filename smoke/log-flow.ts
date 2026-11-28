@@ -2,6 +2,7 @@ import { type Locator, type Page, expect } from "@playwright/test";
 
 import { LogPageSchema } from "../src/core/contract/log-contract.ts";
 import { PAGE_SIZE } from "../src/core/contract/paging.ts";
+import { localDate } from "../web/src/log-date.ts";
 import { LOG_CHANGES, LOG_PAGE } from "../web/src/log-text.ts";
 import { DELETE_CONFIRM, DELETE_LABEL } from "../web/src/reader-text.ts";
 import { LOAD_MORE, RETRY_LABEL } from "../web/src/text.ts";
@@ -61,7 +62,7 @@ async function expectCells(
   await expect(row.locator(".lg-details")).toHaveText(cells.details.join(""));
 }
 
-async function openLogFromPanel(page: Page): Promise<void> {
+async function openLogFromMasthead(page: Page): Promise<void> {
   await openFromMasthead(page, LOG_PAGE.masthead);
   await expect(page).toHaveURL(/\/log$/u);
   await expect(page).toHaveTitle("Log, Threadsift");
@@ -81,8 +82,12 @@ export async function logFlow(page: Page): Promise<void> {
     tags: LOGGED.tags,
   });
 
-  await openLogFromPanel(page);
-  await expectCells(rows(page).first(), {
+  await openLogFromMasthead(page);
+
+  const today = page.locator("tbody").first();
+
+  await expect(today.locator(".lg-day h3")).toHaveText(localDate(Date.now()));
+  await expectCells(today.locator("tr.lg-row").first(), {
     change: LOG_CHANGES.ingest,
     subject: LONG_TITLE,
     details: [LOGGED.topic, ...LOGGED.tags],

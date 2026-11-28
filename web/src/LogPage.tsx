@@ -3,16 +3,15 @@ import { type FrameProps, type Listing, ListPage } from "./ListPage.tsx";
 import { localDate } from "./log-date.ts";
 import { LOG_COLUMNS, LOG_PAGE, logEmptyLine, logSince } from "./log-text.ts";
 import { LogRow } from "./LogRow.tsx";
-import { LibraryLink } from "./PageEmpty.tsx";
 import { useLogPage } from "./use-log-page.ts";
 
 const LISTING: Listing<LogContent, LogEntry> = {
   text: LOG_PAGE,
-  focus: ".lg-link",
+  focus: '.lg-link, .lg-subject[tabindex="-1"]',
   rowSelector: "tr.lg-row",
   head: ({ startedAt }) => logSince(localDate(startedAt)),
   emptyLine: ({ startedAt }) => logEmptyLine(localDate(startedAt)),
-  emptyFoot: () => <LibraryLink />,
+  emptyLink: () => "library",
   rows: ({ entries }) => entries,
 };
 
@@ -22,18 +21,17 @@ interface Day {
 }
 
 function daysOf(entries: readonly LogEntry[]): readonly Day[] {
-  return entries.reduce<Day[]>((days, entry) => {
+  const days: { date: string; entries: LogEntry[] }[] = [];
+
+  for (const entry of entries) {
     const date = localDate(entry.at);
     const last = days.at(-1);
 
-    if (last?.date === date) {
-      days[days.length - 1] = { date, entries: [...last.entries, entry] };
-    } else {
-      days.push({ date, entries: [entry] });
-    }
+    if (last?.date === date) last.entries.push(entry);
+    else days.push({ date, entries: [entry] });
+  }
 
-    return days;
-  }, []);
+  return days;
 }
 
 function LogTable({ rows, listRef }: Readonly<FrameProps<LogEntry>>) {

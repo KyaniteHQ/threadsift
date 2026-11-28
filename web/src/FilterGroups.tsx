@@ -70,7 +70,7 @@ export function Segments<Key extends string>({
   pick: (key: Key | null) => void;
 }>) {
   return (
-    <fieldset className={bar ? "fl-g" : wrap ? "fl-seg fl-wrap" : "fl-seg"} aria-label={name}>
+    <fieldset className={bar ? "fl-g" : wrap ? "fl-seg fl-cells" : "fl-seg"} aria-label={name}>
       {bar ? (
         <span className="label" aria-hidden="true">
           {name}

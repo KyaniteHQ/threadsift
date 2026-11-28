@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { type ChangeEvent, type RefObject, useCallback, useRef, useState } from "react";
 
 import type {
   ModelOption,
@@ -6,10 +6,11 @@ import type {
 } from "../../src/core/contract/ai-settings-contract.ts";
 import { isCliProvider } from "../../src/core/contract/provider-families.ts";
 import { AI_TEXT } from "./ai-text.ts";
-import { AiSelect, joined } from "./AiSelect.tsx";
-import { FormField } from "./FormField.tsx";
+import { AiSelect } from "./AiSelect.tsx";
+import { FormField, joined } from "./FormField.tsx";
 import { MODEL_FILTER_OVER, ModelFilter, modelsMatching } from "./ModelFilter.tsx";
 import { ANOTHER_MODEL, type useAiFields } from "./use-ai-fields.ts";
+import { EFFORT_CONTROLS, MODEL_CONTROLS, useFocusAcrossSwap } from "./use-focus-across-swap.ts";
 import type { ModelListState } from "./use-model-list.ts";
 
 type Fields = ReturnType<typeof useAiFields>;
@@ -38,10 +39,27 @@ function statusOf(list: ModelListState): string | undefined {
   return answer.kind === "failed" ? AI_TEXT.modelsFailed : UNLISTED_TEXT[answer.reason];
 }
 
-function isTyped(fields: Fields, options: readonly ModelOption[]): boolean {
-  const { value } = fields.model;
+function typedModel(value: string, typed: boolean, options: readonly ModelOption[]): boolean {
+  return typed || !(value === "" || options.some(({ id }) => id === value));
+}
 
-  return fields.modelTyped || !(value === "" || options.some(({ id }) => id === value));
+function isTyped(fields: Fields, options: readonly ModelOption[]): boolean {
+  return typedModel(fields.model.value, fields.modelTyped, options);
+}
+
+function modelOf(
+  value: string,
+  typed: boolean,
+  {
+    options,
+    recommended,
+  }: Readonly<{ options: readonly ModelOption[]; recommended: string | undefined }>,
+): ModelOption | undefined {
+  if (typedModel(value, typed, options)) return undefined;
+
+  if (value !== "") return options.find(({ id }) => id === value);
+
+  return options.find(({ id }) => id === recommended) ?? options[0];
 }
 
 interface PickerProps {
@@ -51,46 +69,6 @@ interface PickerProps {
   readonly marked: boolean;
   readonly disabled: boolean;
   readonly help: string | undefined;
-}
-
-const MODEL_CONTROLS: ReadonlySet<string | null> = new Set(["model", "modelChoice"]);
-
-function useFocusAcrossSwap(mode: string, controls: () => readonly (HTMLElement | null)[]) {
-  const lastFocused = useRef<string | null>(null);
-  const shownMode = useRef(mode);
-
-  useEffect(() => {
-    const focused = () => {
-      lastFocused.current = document.activeElement?.getAttribute("name") ?? null;
-    };
-    const leaving = ({ relatedTarget }: Readonly<{ relatedTarget: unknown }>) => {
-      if (relatedTarget instanceof Element)
-        lastFocused.current = relatedTarget.getAttribute("name");
-    };
-
-    document.addEventListener("focusin", focused, true);
-    document.addEventListener("focusout", leaving, true);
-
-    return () => {
-      document.removeEventListener("focusin", focused, true);
-      document.removeEventListener("focusout", leaving, true);
-    };
-  }, []);
-
-  useLayoutEffect(() => {
-    const swapped = shownMode.current !== mode;
-
-    shownMode.current = mode;
-
-    if (!swapped || document.activeElement !== document.body) return;
-
-    if (!MODEL_CONTROLS.has(lastFocused.current)) return;
-
-    const shown = controls().filter((control) => control !== null);
-    const same = shown.find((control) => control.getAttribute("name") === lastFocused.current);
-
-    (same ?? shown[0])?.focus();
-  }, [mode, controls]);
 }
 
 function modelModeOf(options: readonly ModelOption[] | null, typed: boolean) {
@@ -123,7 +101,7 @@ export function ModelPicker({ fields, list, kind, marked, disabled, help }: Pick
 
   const [query, changeQuery] = useModelQuery(fields.provider);
 
-  useFocusAcrossSwap(modelModeOf(options, typed), controls);
+  useFocusAcrossSwap(modelModeOf(options, typed), MODEL_CONTROLS, controls);
 
   if (options === null)
     return (
@@ -147,12 +125,27 @@ export function ModelPicker({ fields, list, kind, marked, disabled, help }: Pick
         disabled={disabled}
         required={kind.required === true}
         marked={marked}
+        change={modelChange(fields, options)}
       />
       {typed ? (
         <FormField field={field} label={AI_TEXT.otherModelLabel} kind={kind} marked={marked} />
       ) : null}
     </>
   );
+}
+
+function modelChange(fields: Fields, options: readonly ModelOption[]) {
+  return (event: ChangeEvent<HTMLSelectElement>) => {
+    const { value } = event.target;
+    const chosen = modelOf(value, value === ANOTHER_MODEL, {
+      options,
+      recommended: fields.recommendation?.model,
+    });
+    const levels = chosen?.efforts;
+
+    fields.changeModel(event);
+    if (levels !== undefined && !levels.includes(fields.effort.value)) fields.effort.set("");
+  };
 }
 
 function withChosen(
@@ -176,6 +169,7 @@ function ModelSelect({
   disabled,
   required,
   marked,
+  change,
 }: Readonly<{
   fields: Fields;
   options: readonly ModelOption[];
@@ -185,6 +179,7 @@ function ModelSelect({
   disabled: boolean;
   required: boolean;
   marked: boolean;
+  change: (event: ChangeEvent<HTMLSelectElement>) => void;
 }>) {
   return (
     <AiSelect
@@ -197,7 +192,7 @@ function ModelSelect({
       error={typed ? null : fields.model.error}
       required={required}
       marked={marked}
-      change={fields.changeModel}
+      change={change}
     >
       {isCliProvider(fields.provider) ? (
         <option value="">{AI_TEXT.defaultModel}</option>
@@ -216,20 +211,21 @@ function ModelSelect({
   );
 }
 
-function chosenModel(fields: Fields, options: readonly ModelOption[]): ModelOption | undefined {
-  if (isTyped(fields, options)) return undefined;
-
-  const { value } = fields.model;
-
-  if (value !== "") return options.find(({ id }) => id === value);
-
-  return options.find(({ id }) => id === fields.recommendation?.model) ?? options[0];
-}
-
 export function EffortPicker({ fields, list, kind, marked, disabled, help }: PickerProps) {
   const options = listedOf(list);
-  const levels = options === null ? undefined : chosenModel(fields, options)?.efforts;
+  const levels =
+    options === null
+      ? undefined
+      : modelOf(fields.model.value, fields.modelTyped, {
+          options,
+          recommended: fields.recommendation?.model,
+        })?.efforts;
   const { value } = fields.effort;
+  const select = useRef<HTMLSelectElement>(null);
+  const { ref: input } = fields.effort;
+  const controls = useCallback(() => [select.current, input.current], [input]);
+
+  useFocusAcrossSwap(levels === undefined ? "text" : "list", EFFORT_CONTROLS, controls);
 
   if (levels === undefined)
     return (
@@ -246,6 +242,7 @@ export function EffortPicker({ fields, list, kind, marked, disabled, help }: Pic
 
   return (
     <AiSelect
+      selectRef={select}
       name="effort"
       label={AI_TEXT.effort}
       value={value}

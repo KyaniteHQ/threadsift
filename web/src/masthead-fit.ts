@@ -1,28 +1,65 @@
-import { type RefObject, useLayoutEffect } from "react";
+import { type RefObject, useLayoutEffect, useMemo, useState } from "react";
 
 import { NOTHING } from "../../src/core/contract/nothing.ts";
+import { pixelsOf } from "./css-length.ts";
 import { watchBar } from "./use-bar-fit.ts";
 
 const SHORT = "short";
 
-function fitRow(bar: HTMLElement): void {
-  bar.classList.remove(SHORT);
-  bar.classList.toggle(SHORT, bar.scrollWidth > bar.clientWidth);
+interface Crowded {
+  readonly signature: string;
+  readonly needs: number;
 }
 
-export function useRowFit(bar: RefObject<HTMLElement | null>, watching: boolean): void {
+function overflows(bar: HTMLElement): boolean {
+  return bar.scrollWidth > bar.clientWidth;
+}
+
+function inRem(bar: HTMLElement, width: number): number {
+  const rem = pixelsOf(getComputedStyle(bar.ownerDocument.documentElement).fontSize) ?? 1;
+
+  return width / rem;
+}
+
+function fitRow(bar: HTMLElement): boolean {
+  bar.classList.remove(SHORT);
+  bar.classList.toggle(SHORT, overflows(bar));
+
+  return overflows(bar);
+}
+
+export function useRowFit(
+  bar: RefObject<HTMLElement | null>,
+  watching: boolean,
+  signature: string,
+): boolean {
+  const [crowded, setCrowded] = useState<Crowded | null>(null);
+  const needs = crowded?.signature === signature ? crowded.needs : null;
+  const fit = useMemo(() => ({ watching, signature, needs }), [watching, signature, needs]);
+
   useLayoutEffect(() => {
     const element = bar.current;
 
-    if (element === null || !watching) return NOTHING;
+    if (element === null || !fit.watching) return NOTHING;
 
-    const unwatch = watchBar(element, () => {
-      fitRow(element);
-    });
+    const refit = () => {
+      if (fit.needs !== null) {
+        if (inRem(element, element.clientWidth) >= fit.needs) setCrowded(null);
+      } else if (fitRow(element)) {
+        setCrowded({ signature: fit.signature, needs: inRem(element, element.scrollWidth) });
+      }
+    };
+    const unwatch = watchBar(element, refit);
+    const parts = new ResizeObserver(refit);
+
+    for (const part of element.children) parts.observe(part);
 
     return () => {
       unwatch();
+      parts.disconnect();
       element.classList.remove(SHORT);
     };
-  }, [bar, watching]);
+  }, [bar, fit]);
+
+  return watching && needs !== null;
 }

@@ -16,15 +16,16 @@ export function Masthead({
   const { look, place } = shell;
   const bar = useRef<HTMLElement>(null);
   const lookPanel = usePanelState();
-  useRowFit(bar, !look.narrow);
+  const crowded = useRowFit(bar, !look.narrow, JSON.stringify(look.settings));
+  const menu = look.narrow || crowded;
 
   return (
     <header ref={bar} className="masthead" inert={inert} data-covered={hidden || undefined}>
       <MastheadBrand home={place === "library"} />
-      {look.narrow ? null : <PrimaryNav place={place} className="mh-nav" />}
+      {menu ? null : <PrimaryNav place={place} className="mh-nav" />}
       <div className="mh-end">
         <LookPanel look={look} panel={lookPanel} />
-        <OwnerMenu shell={shell} />
+        <OwnerMenu shell={shell} menu={menu} />
       </div>
     </header>
   );
