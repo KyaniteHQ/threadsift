@@ -24,9 +24,9 @@ export const RESET_PATH = "/reset";
 export interface Route {
   readonly path: string;
   readonly openId: number | null;
-  readonly navigate: (to: string, type?: string) => void;
-  readonly replace: (to: string, type?: string) => void;
-  readonly leave: (type?: string) => void;
+  readonly navigate: (to: string) => void;
+  readonly replace: (to: string) => void;
+  readonly leave: () => void;
 }
 
 export const LIBRARY_PATH = "/";
@@ -93,7 +93,7 @@ function usePopstate(show: (path: string) => void): void {
   }, [show]);
 }
 
-function useClosing(replace: Route["replace"], setPath: (path: string, type?: string) => void) {
+function useClosing(replace: Route["replace"], setPath: (path: string) => void) {
   const leaving = useRef<Leaving | null>(null);
 
   const arrive = useCallback(
@@ -111,22 +111,19 @@ function useClosing(replace: Route["replace"], setPath: (path: string, type?: st
     if (onItem()) replace(LIBRARY_PATH);
   }, [replace]);
 
-  const leave = useCallback(
-    (type?: string) => {
-      const pending = leaving.current;
+  const leave = useCallback(() => {
+    const pending = leaving.current;
 
-      if (!onItem() || (waiting(pending) && pending.address === window.location.href)) return;
+    if (!onItem() || (waiting(pending) && pending.address === window.location.href)) return;
 
-      if (openedFromLibrary()) {
-        leaving.current = { address: window.location.href, at: performance.now() };
-        window.history.back();
-        setPath(LIBRARY_PATH, type);
-      } else {
-        replace(LIBRARY_PATH, type);
-      }
-    },
-    [replace, setPath],
-  );
+    if (openedFromLibrary()) {
+      leaving.current = { address: window.location.href, at: performance.now() };
+      window.history.back();
+      setPath(LIBRARY_PATH);
+    } else {
+      replace(LIBRARY_PATH);
+    }
+  }, [replace, setPath]);
 
   return { arrive, closeItem, leave };
 }
@@ -135,19 +132,19 @@ export function usePath() {
   const [path, setPath] = useScreenState(currentPath);
 
   const navigate = useCallback(
-    (to: string, type?: string) => {
+    (to: string) => {
       if (addressOf(to) === addressOf(window.location.href)) return;
 
       window.history.pushState({ from: window.location.pathname }, "", to);
-      setPath(pathOf(to), type);
+      setPath(pathOf(to));
     },
     [setPath],
   );
 
   const replace = useCallback(
-    (to: string, type?: string) => {
+    (to: string) => {
       window.history.replaceState(window.history.state, "", to);
-      setPath(pathOf(to), type);
+      setPath(pathOf(to));
     },
     [setPath],
   );

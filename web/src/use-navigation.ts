@@ -3,7 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
-import { READER_MOVE, useMotionAllowed } from "./reader-motion.ts";
+import { useMotionAllowed } from "./reader-motion.ts";
 import { type Route, onItem } from "./routing.ts";
 import { useSharedArrival } from "./share-handoff.ts";
 import { useCardReturn } from "./use-card-return.ts";
@@ -35,14 +35,14 @@ export function useNavigation({
       focusTitleOf(null);
       attend({ id, focus: !covers });
 
-      if (onItem() && shown.current === null) replace(itemPath(id), READER_MOVE);
-      else navigate(itemPath(id), READER_MOVE);
+      if (onItem() && shown.current === null) replace(itemPath(id));
+      else navigate(itemPath(id));
     },
     [attend, covers, navigate, replace, shown],
   );
 
   const close = useCallback(() => {
-    if (openId !== null) leave(READER_MOVE);
+    if (openId !== null) leave();
   }, [leave, openId]);
 
   useSharedArrival(list.status === "ready", open);
