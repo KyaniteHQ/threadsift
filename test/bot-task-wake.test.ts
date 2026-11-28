@@ -3,7 +3,8 @@ import { describe, it } from "node:test";
 
 import { accept, propose } from "./accept-fixtures.ts";
 import { botInstance, jobRow, openJobOf, sentTask, taskRow } from "./bot-kinds-fixtures.ts";
-import { relatedLibrary, unblock } from "./bot-task-fixtures.ts";
+import { answerOf, picksFor, relatedLibrary, unblock } from "./bot-task-fixtures.ts";
+import { answered } from "./bot-task-http.ts";
 import { applied, sentRelatedTask, step } from "./bot-task-lifecycle.ts";
 import { endsStale, waitingOn } from "./bot-wait-fixtures.ts";
 import type { Instance } from "./instance.ts";
@@ -97,6 +98,28 @@ describe("a write that moves the input of a job waiting on the Grok Bot makes th
 
       await accepted(instance, proposeTopics(instance, ["Lattices", "Reading"]));
       await endsStale(instance, taskId);
+    }));
+
+  it("a stored Digest leaves the due time of a job whose task the bot has answered", () =>
+    inInstance(async (instance) => {
+      const library = await relatedLibrary(instance);
+      const sent = await sentRelatedTask(instance, library.source);
+
+      await waitingOn(instance, sent.job);
+
+      const answer = await answered(instance, sent, answerOf(picksFor(library.candidates[0])));
+
+      assert.equal(answer.status, 204, answer.text);
+
+      const due = jobRow(instance, sent.job.id).next_attempt_at;
+      const other = await paste(instance, "other", { title: "Garden soil", tags: ["soil"] });
+
+      await until(
+        "the other Item holds its Digest",
+        () => instance.database.count("select count(*) as n from digests where item_id = ?", other),
+        (stored) => stored === 1,
+      );
+      assert.equal(jobRow(instance, sent.job.id).next_attempt_at, due);
     }));
 
   it("an input that moves after the attempt read it and before its deferral commits leaves the job due at once", () =>
