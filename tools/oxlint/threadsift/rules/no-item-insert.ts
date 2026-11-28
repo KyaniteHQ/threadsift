@@ -5,10 +5,10 @@ export const noItemInsertRule = defineRule({
     type: "problem",
     docs: {
       description:
-        "Refuse insert(items), so every insert into the items table goes through itemInsert, which carries the Restore guard.",
+        "Refuse insert(items), so every insert into the items table goes through itemInsert, which pairs it with the Daily budget guard.",
     },
     messages: {
-      door: "Insert an Item through itemInsert (src/features/item/core/item-rows.ts). It puts the Restore guard in front of the insert, so a Restore that holds the library refuses the Item (docs/architecture/export-backup-and-restore.md, While it runs).",
+      door: "Insert an Item through itemInsert (src/features/item/core/item-rows.ts). It returns the Daily budget guard and the insert as a pair. Commit both through heldBatch, which puts the Restore guard first, so a spent agent token and a Restore that holds the library both refuse the Item (docs/architecture/access-owner-login-agent-tokens-mcp.md; docs/architecture/export-backup-and-restore.md, While it runs).",
     },
   },
   createOnce(context) {
