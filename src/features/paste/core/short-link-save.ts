@@ -1,10 +1,10 @@
 import { eq, sql } from "drizzle-orm";
 
 import { type Link, parseLink, redditRefOf } from "../../../core/contract/links.ts";
-import { guardHolds, guards, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
+import { guardHolds } from "../../../core/kernel/guards.ts";
 import type { AliasedItem } from "../../../core/kernel/link-naming.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import { heldBatch } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import type { ShortLinkResolution } from "../../fetch/core/fetch-link.ts";
@@ -49,29 +49,27 @@ export interface ShortLinkPaste {
   readonly addedByToken: Paste["addedByToken"];
 }
 
-const PROMOTED_ITEM = 8;
+const PROMOTED_ITEM = 6;
 
-const KEPT_ITEM = 2;
+const KEPT_ITEM = 0;
 
 async function promotedAndKept(ports: Ports, resolved: Readonly<Resolved>): Promise<Saved | null> {
   const { paste, link } = resolved;
   const { db } = ports;
   const noRival = holdsNoRival(db, resolved, link);
 
-  const promoted = await unlessRefused(() => {
-    const promotable = promotableFailedItem(db, resolved, link.normalizedUrl);
-    const changed = sql`(${items.source}, ${items.kind}) is not (${link.source}, ${link.kind})`;
-
-    return db.batch([
-      restoreGuard(db),
-      insertGuard(db, noRival),
+  const promotable = promotableFailedItem(db, resolved, link.normalizedUrl);
+  const changed = sql`(${items.source}, ${items.kind}) is not (${link.source}, ${link.kind})`;
+  const promoted = await heldBatch(
+    db,
+    [
       ...STALE.itemChanged(db, sql`${promotable} and ${changed}`),
       ...promotionClosingJobs(db, resolved, link),
       recordAlias(db, resolved, paste.address, link),
       itemRead(db, eq(items.normalizedUrl, link.normalizedUrl)),
-      db.delete(guards),
-    ]);
-  });
+    ] as const,
+    noRival,
+  );
 
   const item = promoted?.[PROMOTED_ITEM][0];
 
@@ -120,14 +118,7 @@ async function saveKept(
     return writeQueued(ports, paste, stale, { guard: holds, after: [] });
   }
 
-  const kept = await unlessRefused(() =>
-    db.batch([
-      restoreGuard(db),
-      insertGuard(db, holds),
-      itemRead(db, eq(items.id, stale.id)),
-      db.delete(guards),
-    ]),
-  );
+  const kept = await heldBatch(db, [itemRead(db, eq(items.id, stale.id))] as const, holds);
 
   const item = kept?.[KEPT_ITEM][0];
 

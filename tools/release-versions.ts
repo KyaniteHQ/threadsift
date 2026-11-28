@@ -124,15 +124,15 @@ const IMAGE: VersionFile = {
 };
 
 export const APP = packageFile("package.json");
-export const COMPARED_FILES: readonly VersionFile[] = [APP, IMAGE];
-export const RELEASE_FILES: readonly VersionFile[] = [
-  ...COMPARED_FILES,
+export const VERSION_FILES: readonly VersionFile[] = [
+  APP,
+  IMAGE,
   packageFile("extension/package.json"),
 ];
 
 export function versionDifferences(read: (path: string) => string): readonly string[] {
   const app = APP.read(read(APP.path));
-  return COMPARED_FILES.flatMap((file) => {
+  return VERSION_FILES.flatMap((file) => {
     const version = file.read(read(file.path));
     return compare(version, app) === 0
       ? []

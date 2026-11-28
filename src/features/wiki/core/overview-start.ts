@@ -1,17 +1,19 @@
 import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { guardedWrite, refusedByGuard } from "../../../core/kernel/guards.ts";
+import { refusedByGuard } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { enqueueRows } from "../../../core/kernel/job-rows.ts";
 import { providerSet } from "../../../core/kernel/provider-saved.ts";
+import { type Closed, heldBatch, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { digests, items } from "../../../core/kernel/schema.ts";
 import { hasOpenOverview, openOverviewJob } from "./topic-coverage.ts";
 import { openingOverview, overviewOpened } from "./topic-overview-run.ts";
 
 type OverviewStart =
   | { readonly kind: "started" | "no-provider" | "no-items" | "stale" }
-  | { readonly kind: "open"; readonly jobId: number };
+  | { readonly kind: "open"; readonly jobId: number }
+  | Closed;
 
 function newestOwner(topicId: number): SQL {
   return sql`(select owner.id from ${items} as owner join ${digests} as kept on kept.item_id = owner.id where owner.topic_id = ${topicId} order by owner.saved_at desc, owner.id desc limit 1)`;
@@ -48,18 +50,21 @@ export async function startOverview(
   const { db } = ports;
 
   try {
-    const queued = await guardedWrite(
-      db,
-      sql`${overviewStartable(topicId)} and ${when}`,
-      openingOverview(db, newestOwner(topicId)),
-      [...after, overviewOpened(db, topicId)],
-    );
+    return await whileOpen(async (): Promise<OverviewStart> => {
+      const written = await heldBatch(
+        db,
+        [openingOverview(db, newestOwner(topicId)), ...after, overviewOpened(db, topicId)] as const,
+        sql`${overviewStartable(topicId)} and ${when}`,
+      );
 
-    if (queued === null) return await refusalOf(ports, topicId);
+      if (written === null) return refusalOf(ports, topicId);
 
-    await enqueueRows(ports, queued);
+      const [queued] = written;
 
-    return { kind: "started" };
+      await enqueueRows(ports, queued);
+
+      return { kind: "started" };
+    });
   } catch (error) {
     if (refusedByGuard(error)) return { kind: "stale" };
 

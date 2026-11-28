@@ -20,7 +20,14 @@ import { HOP_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import { SECOND_MS } from "../../../core/contract/time-units.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { accessNote, accessRefusals, jsonBody, jsonRequest } from "../../../http/openapi.ts";
+import {
+  accessNote,
+  accessRefusals,
+  jsonBody,
+  jsonRequest,
+  restoringResponse,
+} from "../../../http/openapi.ts";
+import { restoring } from "../../../http/refusals.ts";
 import { verifyProvider } from "../../bot/core/bot-verify.ts";
 import { readAiSettings, saveAiSettings } from "../core/ai-settings.ts";
 import { listModels } from "../core/provider-models.ts";
@@ -63,6 +70,7 @@ const saveRoute = createRoute({
       ErrorResponseSchema,
       `The settings changed while this save was prepared (\`error: ${SETTINGS_CHANGED}\`). Nothing from this save was written; send it again.`,
     ),
+    503: restoringResponse("the settings are not saved and no Digest job is queued."),
   },
 });
 
@@ -77,6 +85,7 @@ const verifyRoute = createRoute({
       VerifyResultSchema,
       `The verified Digest or a safe refusal category. With \`grok-bot\` as the Provider the request waits for the bot's answer for up to ${String(VERIFY_WAIT_MS / SECOND_MS)} seconds, then answers \`timeout\` and closes the task.`,
     ),
+    503: restoringResponse("no verification runs."),
   },
 });
 
@@ -117,6 +126,8 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: GROK_BOT_FIRST, code: saved.code } as const, 400);
       case "changed":
         return c.json({ error: SETTINGS_CHANGED }, 409);
+      case "restoring":
+        return restoring(c);
       default: {
         const exhaustive: never = saved;
 
@@ -131,5 +142,9 @@ export function registerAiRoutes(app: OpenAPIHono, ports: Ports): void {
       ? c.json({ error: "This Instance does not offer that Provider" }, 400)
       : c.json(listed, 200);
   });
-  app.openapi(verifyRoute, async (c) => c.json(await verifyProvider(ports, c.req.raw.signal), 200));
+  app.openapi(verifyRoute, async (c) => {
+    const verified = await verifyProvider(ports, c.req.raw.signal);
+
+    return verified.kind === "restoring" ? restoring(c) : c.json(verified, 200);
+  });
 }

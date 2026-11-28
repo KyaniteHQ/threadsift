@@ -22,7 +22,7 @@ function missingFile(key: string, itemId: number): ExportFileMissing {
 type ItemPorts = Pick<Ports, "db" | "files">;
 
 interface Place {
-  readonly skip: number;
+  readonly resume: PartialItem | null;
   readonly used: number;
 }
 
@@ -50,25 +50,30 @@ async function readEach(
 interface Chosen {
   readonly head: readonly ZipFile[];
   readonly stored: readonly StoredFile[];
-  readonly next: number | null;
+  readonly written: readonly string[] | null;
 }
 
-function headOf({ note, postText }: Readonly<ItemFilePlan>): readonly ZipFile[] {
-  return [
-    {
-      name: itemFileKey(note.id, noteFileName(note.title)),
-      bytes: TEXT.encode(itemNote(note, { links: [], omittedImages: [] })),
-    },
-    ...(postText === null ? [] : [{ name: postText.key, bytes: TEXT.encode(postText.text) }]),
-  ];
+function noteFile(note: ItemFilePlan["note"]): ZipFile {
+  return {
+    name: itemFileKey(note.id, noteFileName(note.title)),
+    bytes: TEXT.encode(itemNote(note, { links: [], omittedImages: [] })),
+  };
 }
 
-function fitting(sizes: readonly number[], skip: number, used: number): number {
+function headOf({ note, postText }: Readonly<ItemFilePlan>, resume: PartialItem | null) {
+  const written = resume?.written ?? [];
+  const post =
+    postText === null || written.includes(postText.key)
+      ? []
+      : [{ name: postText.key, bytes: TEXT.encode(postText.text) }];
+
+  return resume === null ? [noteFile(note), ...post] : post;
+}
+
+function fitting(sizes: readonly number[], used: number): number {
   let total = used;
 
-  const refused = sizes.findIndex((size, at) => {
-    if (at < skip) return false;
-
+  const refused = sizes.findIndex((size) => {
     if (total !== 0 && total + size > EXPORT_SLICE_BYTES) return true;
 
     total += size;
@@ -76,19 +81,28 @@ function fitting(sizes: readonly number[], skip: number, used: number): number {
     return false;
   });
 
-  return refused === -1 ? Math.max(skip, sizes.length) : refused;
+  return refused === -1 ? sizes.length : refused;
 }
 
-function choose(plan: Readonly<ItemFilePlan>, { skip, used }: Readonly<Place>): Chosen {
-  const head = headOf(plan);
-  const sizes = [...head.map(({ bytes }) => bytes.length), ...plan.stored.map(({ size }) => size)];
-  const at = fitting(sizes, skip, used);
-  const headCount = head.length;
+function choose(plan: Readonly<ItemFilePlan>, { resume, used }: Readonly<Place>): Chosen {
+  const before = resume?.written ?? [];
+  const pendingHead = headOf(plan, resume);
+  const pendingStored = plan.stored.filter(({ key }) => !before.includes(key));
+  const sizes = [
+    ...pendingHead.map(({ bytes }) => bytes.length),
+    ...pendingStored.map(({ size }) => size),
+  ];
+  const at = fitting(sizes, used);
+  const chosenHead = pendingHead.slice(0, at);
+  const chosenStored = pendingStored.slice(0, Math.max(0, at - pendingHead.length));
 
   return {
-    head: head.slice(skip, at),
-    stored: plan.stored.slice(Math.max(0, skip - headCount), Math.max(0, at - headCount)),
-    next: at < sizes.length ? at : null,
+    head: chosenHead,
+    stored: chosenStored,
+    written:
+      at < sizes.length
+        ? [...before, ...chosenHead.map(({ name }) => name), ...chosenStored.map(({ key }) => key)]
+        : null,
   };
 }
 
@@ -98,7 +112,7 @@ type Gathered =
   | {
       readonly kind: "ready";
       readonly files: readonly ZipFile[];
-      readonly next: number | null;
+      readonly written: readonly string[] | null;
     };
 
 async function gather(
@@ -117,7 +131,7 @@ async function gather(
 
   return images.kind === "missing"
     ? images
-    : { kind: "ready", files: [...chosen.head, ...images.files], next: chosen.next };
+    : { kind: "ready", files: [...chosen.head, ...images.files], written: chosen.written };
 }
 
 async function itemEntries(
@@ -160,8 +174,8 @@ async function takeEach(
 
   if (id === undefined) return taking;
 
-  const skip = taker.resume?.id === id ? taker.resume.entries : 0;
-  const gathered = await itemEntries(ports, id, { skip, used: taking.usedBytes });
+  const resume = taker.resume?.id === id ? taker.resume : null;
+  const gathered = await itemEntries(ports, id, { resume, used: taking.usedBytes });
 
   if (gathered.kind === "gone") {
     return takeEach(ports, taker, rest, { ...taking, count: taking.count + 1, last: id });
@@ -177,10 +191,10 @@ async function takeEach(
     count: taking.count + 1,
   };
 
-  if (gathered.next !== null) {
+  if (gathered.written !== null) {
     return {
       ...counted,
-      partial: gathered.next > 0 ? { id, entries: gathered.next } : null,
+      partial: gathered.written.length > 0 ? { id, written: gathered.written } : null,
       full: true,
     };
   }
