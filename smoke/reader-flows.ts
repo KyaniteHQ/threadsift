@@ -1,8 +1,13 @@
 import { type Page, type Route, expect } from "@playwright/test";
 
 import { ReadStateRequestSchema } from "../src/core/contract/item-route-wire.ts";
-import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
-import { itemDetail, savedItem, savedTopicItem } from "./saved-item.ts";
+import { NOTE_TITLE } from "../src/core/contract/reader-text.ts";
+import { SETTINGS } from "../web/src/access-text.ts";
+import { NOTE_RESTORING, NOTE_SAVE, OP_LABEL, RELATED } from "../web/src/reader-text.ts";
+import { REDDIT_TEXT } from "../web/src/reddit-text.ts";
+import { ADD_LABEL, PASTE_LABEL, noticeDetail } from "../web/src/text.ts";
+import { itemDetail, savedItem, savedTopicItem, whileRestoreHolds } from "./saved-item.ts";
+import { openSettings } from "./screen-checks.ts";
 
 const THREAD_ID = "3000000000000000001";
 
@@ -146,4 +151,49 @@ export async function markReadTwice(page: Page): Promise<void> {
   expect((await itemDetail(page.request, id)).readState).toBe("unread");
 
   await page.unroute(listReads, holdListRead);
+}
+
+const HELD_NOTE = "Written while a restore holds the library.";
+
+const HELD_LINK = "https://example.com/guides/held-by-a-restore";
+
+async function heldNoteSave(page: Page): Promise<void> {
+  const note = page.getByRole("textbox", { name: NOTE_TITLE, exact: true });
+
+  await note.fill(HELD_NOTE);
+  await page.getByRole("button", { name: NOTE_SAVE, exact: true }).click();
+  await expect(page.getByText(NOTE_RESTORING, { exact: true })).toBeVisible();
+  await expect(note).toHaveValue(HELD_NOTE);
+}
+
+async function heldPaste(page: Page): Promise<void> {
+  const field = page.getByRole("textbox", { name: PASTE_LABEL });
+
+  await field.fill(HELD_LINK);
+  await page.getByRole("button", { name: ADD_LABEL }).click();
+  await expect(
+    page.getByText(noticeDetail("restoring", "paste") ?? "", { exact: true }),
+  ).toBeVisible();
+  await expect(field).toHaveValue(HELD_LINK);
+}
+
+async function heldSettingPick(page: Page): Promise<void> {
+  await openSettings(page);
+  await page.getByRole("link", { name: SETTINGS.instanceSettings }).click();
+
+  const choice = page.getByRole("radiogroup", { name: REDDIT_TEXT.fieldLabel });
+  const was = await choice.getByRole("radio", { checked: true }).getAttribute("id");
+
+  await choice.getByRole("radio", { checked: false }).click();
+  await expect(page.getByText(REDDIT_TEXT.restoring, { exact: true })).toBeVisible();
+  await expect(choice.getByRole("radio", { checked: true })).toHaveAttribute("id", was ?? "");
+}
+
+export async function refusedWhileRestoreHolds(page: Page): Promise<void> {
+  await whileRestoreHolds(async () => {
+    await heldNoteSave(page);
+    await heldPaste(page);
+    await heldSettingPick(page);
+  });
+  await page.goto("/");
 }
