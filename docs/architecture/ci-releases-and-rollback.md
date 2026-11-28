@@ -157,6 +157,17 @@ The migration that renamed the thread tables copies `reddit_comments` into `thre
   For a container, run the same `select` on a copy of its database file. An empty result lets the migration run. For each row it returns, take an Export, delete that Item in the Reader (its Highlights and Note go with it), deploy, and Paste its link again.
 - A Restore that runs. The migration changes the record files of an Export, so a Restore that still runs when the deploy applies the migration ends `failed` with `other-release`, and the rows it wrote stay until the owner cancels it ([Export, backup and restore](export-backup-and-restore.md)). Let a running Restore end before the merge.
 
+### Dry run of a migration
+
+`node tools/migration-dry-run.ts <database file> [--rollback <sql file>]` copies the database with `VACUUM INTO`, applies the pending files of `migrations/` to the copy as the container does at start, and prints what changed: each schema object added, removed or changed, and for each table the rows before and after, the rows that changed in the columns both versions have, and how many rows each added column fills. With `--rollback`, it then runs that SQL on the migrated copy and says whether the schema and the rows equal the original. It never writes the source and deletes the copy. Pass a copy of a container's database file, or a database built for the run. Not verified: a file built from `wrangler d1 export`.
+
+### The Topic of an overview job
+
+The migration that added `jobs.topic_id` sets it on each open `topic_overview` job to the Topic of the job's owner Item, the Topic the job would have read at its next claim. An open job whose owner Item has no Topic keeps null and ends without a run, as it did before.
+
+- Window. The Worker that is still live writes no `topic_id`, so an overview job it opens between the migration and the end of `wrangler deploy` has none and ends without a run. That Topic runs again at its next Digest, Try again or weekly overview-gap check.
+- Rollback. An older build writes `jobs` rows without `topic_id`, which the column allows, so running the older build needs no data from before the migration. It may then open a second overview job for an Item that already has one, because the open-job index no longer covers that kind.
+
 ### Names and variables
 
 - Names. `env.live` in the Worker configuration names the Worker `threadsift-live` (the top-level name plus `-live`), the D1 database `threadsift-live`, the Queue `threadsift-live-jobs` as producer and consumer, the bucket `threadsift-live-files` and the `AI` binding. An environment inherits `main`, `assets`, `triggers`, `limits` and `alias`, but not bindings or variables ([Wrangler environments](https://developers.cloudflare.com/workers/wrangler/environments/), [configuration](https://developers.cloudflare.com/workers/wrangler/configuration/)). It carries no `database_id`, because `wrangler d1 migrations apply --remote` looks the database up by `database_name` through the Cloudflare API. It sets `workers_dev` and inherits the top-level observability settings, including `redact_query_string`. The database and the Queue exist already. For a new Instance in another account, `pnpm run deploy --secrets-file <file>` creates the missing D1 database before migrations, and Wrangler creates the bucket and Queue during the deploy ([Cloudflare deploy button](cloudflare-deploy-button.md)).

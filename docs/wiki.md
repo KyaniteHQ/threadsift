@@ -46,7 +46,7 @@ A key that no Topic has and no `topic-merge` Pin holds answers 404. A key held o
 
 - A Provider is saved.
 - The Topic has an Item with a Digest.
-- No `topic_overview` job that is not `done` belongs to any Item of the Topic.
+- No `topic_overview` job that is not `done` names the Topic (`jobs.topic_id`).
 
 The batch picks the owner of the new job inside one SQL subquery (the Topic's Item with a Digest, newest `saved_at`, then `id`), and both the guard and the job insert use it, because an owner picked before the batch could leave the Topic in between. After the guard, the batch inserts the job and clears the failure marker.
 
@@ -65,7 +65,7 @@ On `open`, Try again clears the failure marker only while the open job that the 
 
 The state is derived and never stored. An open `topic_overview` job makes it `pending`. Otherwise the failure marker makes it `failed`, and otherwise it is `idle`. The overview run code is the only writer of `topic_pages.failure`.
 
-A Digest publication, a continuing run and a Topic merge open a job and leave a stored marker alone, so a Topic can be `pending` with a marker still stored. When a job gives up, the marker goes to the Topic of the job's latest `topic_overview` task, unless a newer revision is stored. When no task has the job id, it goes to the Topic of the job's owner Item, because a job can give up at its claim with no attempt in hand.
+A Digest publication, a continuing run and a Topic merge open a job and leave a stored marker alone, so a Topic can be `pending` with a marker still stored. When a job gives up, the marker goes to the Topic of the job's latest `topic_overview` task, unless a newer revision is stored. When no task has the job id, it goes to the Topic the job names, because a job can give up at its claim with no attempt in hand.
 
 ### One overview run at the bot per Topic
 

@@ -5,7 +5,6 @@ import {
   type OverviewRead,
   overviewPrompt,
   readOverview,
-  topicOfItem,
 } from "./topic-overview-input.ts";
 import { idleOutcome, keptOutcome } from "./topic-overview-write.ts";
 
@@ -38,13 +37,9 @@ async function readyOverview(db: Database, topicId: number): Promise<OverviewPre
   return { kind: "ask", topicId, read, prompt };
 }
 
-export async function preparedOverview(
+export function preparedOverview(
   db: Database,
-  job: Readonly<ClaimedJob>,
+  { topicId }: Readonly<ClaimedJob>,
 ): Promise<OverviewPrepared> {
-  const topicId = await topicOfItem(db, job.itemId);
-
-  if (topicId === null) return settled({ writes: [] });
-
-  return readyOverview(db, topicId);
+  return topicId === null ? Promise.resolve(settled({ writes: [] })) : readyOverview(db, topicId);
 }

@@ -69,7 +69,7 @@ export function digestedCount(topicId: TopicRef): SQL {
 }
 
 export function openOverviewJob(topicId: TopicRef): SQL {
-  return sql`(select open_overview.id from ${jobs} as open_overview join ${items} as owner on owner.id = open_overview.item_id where open_overview.kind = 'topic_overview' and ${jobOpen(sql`open_overview.state`)} and owner.topic_id = ${topicId} order by open_overview.id limit 1)`;
+  return sql`(select open_overview.id from ${jobs} as open_overview where open_overview.kind = 'topic_overview' and ${jobOpen(sql`open_overview.state`)} and open_overview.topic_id = ${topicId} order by open_overview.id limit 1)`;
 }
 
 export function hasOpenOverview(topicId: TopicRef): SQL {

@@ -10,6 +10,7 @@ import {
   failureOf,
   gapRows,
   jobOwners,
+  jobTopicsOf,
   overviewJobStatement,
   overviewJobs,
   pasteTopics,
@@ -64,7 +65,7 @@ describe("Accept of an overview-gap row chooses the run's owner from the Topic a
     assert.deepEqual(gapRows(instance), []);
   });
 
-  it("answers not-current when the newest Item arrived with a run still open from its old Topic, and inserts nothing silently", async () => {
+  it("starts a run for the Topic when its newest Item arrived with a run still open for its old Topic, and leaves that run on the old Topic", async () => {
     const [arriving] = made["Origin"] ?? [];
 
     assert.ok(arriving !== undefined);
@@ -75,13 +76,11 @@ describe("Accept of an overview-gap row chooses the run's owner from the Topic a
     );
 
     const id = proposeGap(instance, "Arrival");
-    const jobs = overviewJobs(instance);
     const answer = await accept(instance, id);
 
-    assert.deepEqual([answer.status, answer.body], [409, body("not-current")]);
-    assert.deepEqual(overviewJobs(instance), jobs);
-    assert.deepEqual(rowStates(instance).at(-1), [id, "open"]);
-    removeProposals(instance);
+    assert.equal(answer.status, 200);
+    assert.deepEqual(jobTopicsOf(instance, arriving), ["Origin", "Arrival"]);
+    assert.deepEqual(gapRows(instance), []);
   });
 
   it("answers not-current when a run is queued on another Item of the Topic after the row was read", async () => {

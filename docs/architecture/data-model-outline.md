@@ -107,7 +107,8 @@ An attempt counts itself in `throttles` before it is checked (`admit`), and a su
 
 - **`jobs`.**
   - `address` is the link a fetch reads, which can differ from the Item's normalized URL.
-  - A unique index allows one open job per Item and kind.
+  - A unique index allows one open job per Item and kind (`jobs_one_open_per_item_kind`), except for `topic_overview`.
+  - `topic_id` is the Topic a `topic_overview` job works for, set when the job opens, and null for every other kind. `jobs_one_open_overview_per_item_topic` allows one open overview job per Item and Topic, so an Item that moved to another Topic can own a job for each. Deleting the Topic sets it to null, and a job with no Topic ends without a run.
   - `item_id` is null only for an `export` or `restore` job, because neither has an owner Item (`jobs_owner_check`).
   - `page` holds the JSON of a page the Extension sent. A save sets it when it queues the fetch job, and it is cleared when the job ends, a newer save replaces it, or `closeItemJobs` closes the job, so no page text outlives its job. An Export carries no job rows, and a Restore starts with no open jobs.
 - **`ai_tasks`.** `job_id` is a plain integer with no foreign key, because the Item's cascade already removes the task. A task that is `running` with `answered_at` set holds an answer that waits to be applied. A `failed` task with the refusal `provider-busy` and `answered_at` set is a bot error that no claim has charged yet.
@@ -369,7 +370,7 @@ For up to `MERGE_ITEMS` Item ids and, independently, up to `MERGE_ITEMS` Log ent
 
 A unit closes only when neither collection has rows left, because Digest publication keeps adding Log entries for a Topic, so a Topic with few Items can have more than one unit of Log references. `topicMoves` does not repoint Proposals or Pins, and Accept keeps its own Proposal row to the last batch, because the row carries the continuation, the count and the unit revision.
 
-The closing writes join the last unit. They make one opening attempt for the survivor's overview (`continuingOverview`), bump `catalog_version` once and delete the loser, each only when no Item and no Log entry names the loser. The opening attempt is not a promise of exactly one job. The open-job index is on Item and kind, so a job of either Topic's owner Item can already be open, and a job takes its Topic from its owner Item when it starts, so a queued job of the loser's owner follows its Item into the survivor. The chain that one attempt starts is long for a big merge, because a run covers at most 40 Items (`ADDED_READ_LIMIT`). A merge that moved 600 Items needed 16 jobs and 16 model calls on Claude Code.
+The closing writes join the last unit. They make one opening attempt for the survivor's overview (`continuingOverview`), bump `catalog_version` once and delete the loser, each only when no Item and no Log entry names the loser. The opening attempt is not a promise of exactly one job. A job of the survivor can already be open, and the last unit moves each open overview job of the loser to the survivor (`overviewJobsFollow`), unless its owner Item already has an open job for the survivor, so a queued job of the loser's owner follows its Item into the survivor. The chain that one attempt starts is long for a big merge, because a run covers at most 40 Items (`ADDED_READ_LIMIT`). A merge that moved 600 Items needed 16 jobs and 16 model calls on Claude Code.
 
 ## Deleting an Item
 

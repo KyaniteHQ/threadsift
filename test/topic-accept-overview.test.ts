@@ -10,7 +10,13 @@ import {
 import { accept } from "./accept-fixtures.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { saveProvider, until } from "./library-fixtures.ts";
-import { jobOwners, pasteTopics, queueOverview, storePage } from "./overview-gap-fixtures.ts";
+import {
+  jobOwners,
+  jobTopicsOf,
+  pasteTopics,
+  queueOverview,
+  storePage,
+} from "./overview-gap-fixtures.ts";
 import { proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
@@ -73,7 +79,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
       );
     }));
 
-  it("adds none when the survivor's owner Item already has a queued job", () =>
+  it("moves the queued job of the survivor's owner Item to the survivor and adds none", () =>
     withLibrary({ provider: true }, async ({ instance, loserItems }) => {
       const [owner] = loserItems;
 
@@ -83,6 +89,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
         200,
       );
       assert.deepEqual(jobOwners(instance), [owner]);
+      assert.deepEqual(jobTopicsOf(instance, owner), ["Survivor"]);
     }));
 
   it("opens the owner Item's job although a non-owner Item of each Topic has a queued job", () =>

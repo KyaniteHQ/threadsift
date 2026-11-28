@@ -242,9 +242,3 @@ export function overviewPrompt(read: Readonly<OverviewRead>): OverviewPrompt {
     mustChange: current === null,
   };
 }
-
-export async function topicOfItem(db: Database, itemId: number): Promise<number | null> {
-  const [row] = await db.select({ topicId: items.topicId }).from(items).where(eq(items.id, itemId));
-
-  return row?.topicId ?? null;
-}

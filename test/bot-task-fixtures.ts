@@ -110,6 +110,16 @@ interface QueuedJob {
   readonly attemptGeneration?: number | null;
 }
 
+function topicOf(instance: Instance, itemId: number): number | null {
+  const [row] = instance.database.rows(
+    z.object({ topic_id: z.number().nullable() }),
+    "select topic_id from items where id = ?",
+    itemId,
+  );
+
+  return row?.topic_id ?? null;
+}
+
 async function queuedJob(
   instance: Instance,
   {
@@ -132,6 +142,7 @@ async function queuedJob(
       staleRequeues,
       attemptGeneration,
       nextAttemptAt: 0,
+      topicId: kind === "topic_overview" ? topicOf(instance, itemId) : null,
     })
     .returning({ id: jobs.id });
 

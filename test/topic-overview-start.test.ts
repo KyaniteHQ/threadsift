@@ -6,6 +6,7 @@ import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import { caseOf } from "./bot-kinds-cases.ts";
 import { botInstance, jobRow, openJobOf, selectGrokBot, sentTask } from "./bot-kinds-fixtures.ts";
 import { digestOfToken, taskRows } from "./bot-task-rows.ts";
+import { seedTopics } from "./disagreement-fixtures.ts";
 import { lockedWriter } from "./locked-writer.ts";
 
 describe("a second overview job for a Topic that has a task at the bot", () => {
@@ -52,6 +53,32 @@ describe("a second overview job for a Topic that has a task at the bot", () => {
       );
       assert.equal(taskRows(instance, "job_id = ?", second.id).length, 0);
       assert.notEqual(jobRow(instance, second.id).state, "done");
+    } finally {
+      await instance.close();
+    }
+  });
+});
+
+describe("an overview job whose owner Item moved to another Topic", () => {
+  it("asks about the Topic it was opened for", async () => {
+    const instance = await botInstance();
+
+    try {
+      await caseOf("topic_overview").library(instance);
+      seedTopics(instance, { 2: "Beta" });
+      await selectGrokBot(instance);
+      const job = await openJobOf(instance, { kind: "topic_overview", itemId: 101 });
+
+      instance.database.exec("update items set topic_id = 2 where id = 101");
+      await executeClaimed(instance.core, job);
+
+      assert.equal(
+        instance.database.count(
+          "select json_extract(context, '$.topicId') as n from ai_tasks where job_id = ? order by id desc limit 1",
+          job.id,
+        ),
+        1,
+      );
     } finally {
       await instance.close();
     }

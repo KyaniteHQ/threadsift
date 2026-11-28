@@ -248,7 +248,7 @@ A result kind is one `defineAiKind` call, or `defineBasedAiKind` when the model 
 - The model executor ignores both. The guard counts an unsent task too, because its job resends after a crash.
 - When the task is applied, a deferred job reads fresh inputs and sends only if a coverage gap remains.
 
-When the job gives up, `overviewGaveUp` writes `gave-up` for the Topic named in the context of the job's latest task, because its owner Item can move to another Topic before then. The marker is skipped when the Topic is gone or its page revision is newer than the one the task was sent with.
+When the job gives up, `overviewGaveUp` writes `gave-up` for the Topic named in the context of the job's latest task, and for the Topic the job names (`jobs.topic_id`) when no task has the job id. Neither depends on the Topic of the owner Item, which can move to another Topic while the job is open. The marker is skipped when the Topic is gone or its page revision is newer than the one the task was sent with.
 
 When supplied content or an X link answer closes the Item's jobs, `supersededTasks` fails every running task `stale`, because the input was replaced. The `answering` option of `closeItemJobs` names the task an X link answer completes, so the close leaves it running.
 

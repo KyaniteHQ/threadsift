@@ -114,6 +114,15 @@ export function openingJob(
   return opening(db, { kind, address, now, page, where: eq(items.normalizedUrl, normalizedUrl) });
 }
 
+interface QueuedFields {
+  readonly kind: JobKind;
+  readonly address: string | Readonly<SQLWrapper>;
+  readonly attempts?: number | undefined;
+  readonly waitReason?: WaitReason | null | undefined;
+  readonly page?: string | null | Readonly<SQLWrapper> | undefined;
+  readonly topicId?: number | Readonly<SQLWrapper> | null | undefined;
+}
+
 function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
   itemId: ItemId,
   {
@@ -122,15 +131,9 @@ function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
     nextAttemptAt,
     attempts = 0,
     waitReason = null,
-    page,
-  }: Readonly<{
-    kind: JobKind;
-    address: string | Readonly<SQLWrapper>;
-    nextAttemptAt: number;
-    attempts?: number | undefined;
-    waitReason?: WaitReason | null | undefined;
-    page: string | null | Readonly<SQLWrapper>;
-  }>,
+    page = null,
+    topicId = null,
+  }: Readonly<QueuedFields & { nextAttemptAt: number }>,
 ) {
   return {
     id: sql<null>`null`.as("id"),
@@ -146,43 +149,19 @@ function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
     claimExpires: sql<null>`null`.as("claim_expires"),
     waitReason: sql<WaitReason | null>`${waitReason}`.as("wait_reason"),
     page: sql<string | null>`${page}`.as("page"),
+    topicId: sql<number | null>`${topicId}`.as("topic_id"),
   };
 }
 
 export function opening(
   db: Database,
-  {
-    kind,
-    address,
-    now,
-    where,
-    attempts,
-    waitReason,
-    page = null,
-  }: Readonly<{
-    kind: JobKind;
-    address: string | Readonly<SQLWrapper>;
-    now: number;
-    attempts?: number;
-    waitReason?: WaitReason;
-    where: Readonly<SQLWrapper>;
-    page?: string | null | undefined;
-  }>,
+  { now, where, ...fields }: Readonly<QueuedFields & { now: number; where: Readonly<SQLWrapper> }>,
 ) {
   return db
     .insert(jobs)
     .select(
       db
-        .select(
-          queuedRow(items.id, {
-            kind,
-            address,
-            nextAttemptAt: now,
-            attempts,
-            waitReason,
-            page,
-          }),
-        )
+        .select(queuedRow(items.id, { ...fields, nextAttemptAt: now }))
         .from(items)
         .where(sql`${where}`),
     )
@@ -234,7 +213,6 @@ export function openingUnowned(
             kind,
             address: sql`${addressPrefix(kind)} || ${owner.id}`,
             nextAttemptAt: Date.now(),
-            page: sql`null`,
           }),
         )
         .from(owner)

@@ -99,7 +99,7 @@ export const overviewJobStatement = (
   itemId: number,
   state: keyof typeof OPEN_JOBS = "queued",
 ): string =>
-  `insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires) select 'topic_overview', id, original_url, ${OPEN_JOBS[state]} from items where id = ${String(itemId)}`;
+  `insert into jobs (kind, item_id, address, state, attempts, stale_requeues, next_attempt_at, claim_expires, topic_id) select 'topic_overview', id, original_url, ${OPEN_JOBS[state]}, topic_id from items where id = ${String(itemId)}`;
 
 export function queueOverview(
   instance: Instance,
@@ -113,6 +113,15 @@ export const body = (error: string) => JSON.stringify({ error });
 
 export const jobOwners = (instance: Instance) =>
   overviewJobs(instance).map(({ item_id }) => item_id);
+
+export const jobTopicsOf = (instance: Instance, itemId: number) =>
+  instance.database
+    .rows(
+      z.object({ name: z.string() }),
+      "select topics.name as name from jobs join topics on topics.id = jobs.topic_id where jobs.kind = 'topic_overview' and jobs.item_id = ? order by jobs.id",
+      itemId,
+    )
+    .map(({ name }) => name);
 
 export const rowStates = (instance: Instance) =>
   gapRows(instance).map(({ id, state }) => [id, state]);

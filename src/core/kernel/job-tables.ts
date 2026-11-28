@@ -4,14 +4,18 @@ import { check, index, integer, sqliteTable, text, uniqueIndex } from "drizzle-o
 import {
   JOB_KINDS,
   JOB_STATES,
+  type JobKind,
   type JobState,
   UNOWNED_JOB_KINDS,
   WAIT_REASONS,
 } from "../contract/job-contract.ts";
+import { topics } from "./catalog-tables.ts";
 import { items } from "./item-tables.ts";
 import { listed, literal } from "./schema-checks.ts";
 
 const DONE = "done" satisfies JobState;
+
+const TOPIC_OVERVIEW = "topic_overview" satisfies JobKind;
 
 export function jobIs(state: JobState): SQL {
   return sql`${jobs.state} = ${literal(state)}`;
@@ -37,6 +41,7 @@ export const jobs = sqliteTable(
     claimExpires: integer("claim_expires"),
     waitReason: text("wait_reason", { enum: WAIT_REASONS }),
     page: text("page"),
+    topicId: integer("topic_id").references(() => topics.id, { onDelete: "set null" }),
   },
   (table) => [
     check(
@@ -49,7 +54,10 @@ export const jobs = sqliteTable(
     ),
     uniqueIndex("jobs_one_open_per_item_kind")
       .on(table.itemId, table.kind)
-      .where(jobOpen(table.state)),
+      .where(sql`${jobOpen(table.state)} and ${table.kind} <> ${literal(TOPIC_OVERVIEW)}`),
+    uniqueIndex("jobs_one_open_overview_per_item_topic")
+      .on(table.itemId, table.topicId)
+      .where(sql`${jobOpen(table.state)} and ${table.kind} = ${literal(TOPIC_OVERVIEW)}`),
     index("jobs_state_next_attempt").on(table.state, table.nextAttemptAt),
   ],
 );
