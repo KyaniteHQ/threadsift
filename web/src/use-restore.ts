@@ -94,6 +94,8 @@ function useEnding(
   return { cancel, resume };
 }
 
+export type RestoreRead = () => Promise<StatusRead>;
+
 export function useRestore() {
   const { view, loadFailed, refresh } = useStatus();
   const [progress, setProgress] = useState<Progress | null>(null);
@@ -119,6 +121,7 @@ export function useRestore() {
   return {
     view,
     loadFailed,
+    refresh,
     progress,
     acting: runningAction(flow),
     result: outcomeOf(flow),

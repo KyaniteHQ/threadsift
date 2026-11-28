@@ -6,6 +6,7 @@ import { ReaderHead, ReaderLoading } from "./ReaderColumn.tsx";
 import { ReaderContent, ReaderNotices } from "./ReaderContent.tsx";
 import { drawsMarkdown } from "./ReaderOriginal.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
+import type { RetryOpened } from "./use-list-actions.ts";
 import { useReadingPlace } from "./use-reading-place.ts";
 
 const TEXT_FAILED: DetailState = { status: "failed" };
@@ -41,7 +42,7 @@ export function ReaderBody({
   now: number;
   titleId: string;
   focusTitle: boolean;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
 }>) {
   const textReady = useTextReady(state);
   const shown = textReady ? state : TEXT_FAILED;

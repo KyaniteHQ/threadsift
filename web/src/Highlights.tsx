@@ -15,6 +15,7 @@ import { dropHighlight, keepHighlight } from "./keeping-api.ts";
 import {
   KEEP_FAILED,
   KEEP_REFUSED,
+  KEEP_RESTORING,
   KEEP_STALE,
   KEPT_ANNOUNCEMENT,
   REMOVED_ANNOUNCEMENT,
@@ -30,6 +31,7 @@ interface Outcome {
   readonly announce: (text: string) => void;
   readonly fail: (text: string | null) => void;
   readonly dismiss: () => void;
+  readonly reopen: (draft: Readonly<KeepDraft>) => void;
 }
 
 function added(view: HighlightsView, highlight: Readonly<Highlight>): HighlightsView {
@@ -55,32 +57,60 @@ function useSerial() {
 
 type Serial = ReturnType<typeof useSerial>;
 
+function startKeep({ dismiss, announce }: Readonly<Pick<Outcome, "dismiss" | "announce">>) {
+  dismiss();
+  document.getSelection()?.removeAllRanges();
+  announce("");
+}
+
 function useKeep(itemId: number, serial: Serial, actions: DetailActions, outcome: Outcome) {
   const { reload, editHighlights } = actions;
-  const { announce, fail, dismiss } = outcome;
+  const { announce, fail, dismiss, reopen } = outcome;
 
   return useCallback(
-    async ({ target, revision, selector }: Readonly<KeepDraft>): Promise<void> => {
-      dismiss();
-      document.getSelection()?.removeAllRanges();
-      announce("");
+    async (draft: Readonly<KeepDraft>): Promise<void> => {
+      const { target, revision, selector } = draft;
+      startKeep({ dismiss, announce });
 
       const answer = await serial(() =>
         keepHighlight(itemId, { target, revision, selector }).catch(() => null),
       );
 
-      if (answer === null) fail(KEEP_FAILED);
-      else if (answer.outcome === "refused") fail(KEEP_REFUSED);
-      else if (answer.outcome === "changed") {
-        reload();
-        fail(KEEP_STALE);
-      } else {
-        editHighlights((view) => added(view, answer.highlight));
-        fail(null);
-        announce(KEPT_ANNOUNCEMENT);
+      if (answer === null) {
+        fail(KEEP_FAILED);
+
+        return;
+      }
+
+      switch (answer.kind) {
+        case "refused":
+          fail(KEEP_REFUSED);
+
+          return;
+        case "restoring":
+          reopen(draft);
+          fail(KEEP_RESTORING);
+
+          return;
+        case "changed":
+          reload();
+          fail(KEEP_STALE);
+
+          return;
+        case "kept":
+          editHighlights((view) => added(view, answer.highlight));
+          fail(null);
+          announce(KEPT_ANNOUNCEMENT);
+
+          return;
+        default: {
+          const exhaustive: never = answer;
+
+          return exhaustive;
+        }
       }
     },
-    [itemId, serial, reload, editHighlights, announce, fail, dismiss],
+    [itemId, serial, reload, editHighlights, announce, fail, dismiss, reopen],
   );
 }
 
@@ -136,11 +166,12 @@ export function HighlightsProvider({
   announce: (text: string) => void;
   children: ReactNode;
 }>) {
-  const { panel, dismiss, unavailable } = useHighlightPanel(view.revisions);
+  const { panel, dismiss, reopen, unavailable } = useHighlightPanel(view.revisions);
   const [failed, fail] = useState<string | null>(null);
   const { reveal, show } = useReveal(view.items);
   const spans = useSpanIndex(view.items);
-  const { keep, remove } = useHighlightWrites(itemId, actions, { announce, fail, dismiss });
+  const outcome = { announce, fail, dismiss, reopen };
+  const { keep, remove } = useHighlightWrites(itemId, actions, outcome);
 
   const failure = useMemo<Failure | null>(() => {
     if (failed !== null) return { text: failed, reloads: unavailable };

@@ -30,7 +30,7 @@ The helpers are `guardedBatch`, `guardedWrite`, `guardedOpenings` for a batch wh
 
 `pnpm exec drizzle-kit generate` writes the table definitions into the migration folder. Custom SQL holds what Drizzle Kit cannot: the FTS5 table, the triggers, the unordered-pair expression indexes and the singleton seed rows. Drizzle Kit 0.31.11 splits the commas inside an expression index into quoted column names, so those indexes stay in custom SQL.
 
-The current triggers are the three `search_parts` triggers that feed the FTS5 table, the three `settings` triggers that count changes in `ai_settings_revision`, and the five `<kind>_proposals_gone` triggers (Consistency constraints). After a change to `HOLDING` or `OPEN_RUNS` (the Restore standings behind the index `restores_one_open`), run `pnpm exec drizzle-kit generate`. It prints a change when the index needs a new migration.
+The current triggers are the three `search_parts` triggers that feed the FTS5 table, the three `settings` triggers that count changes in `ai_settings_revision`, and the five `<kind>_proposals_gone` triggers (Consistency constraints). After a change to `OPEN_RUNS` (the Restore standings behind the index `restores_one_open`), run `pnpm exec drizzle-kit generate`. It prints a change when the index needs a new migration.
 
 | Target | How migrations apply |
 |---|---|

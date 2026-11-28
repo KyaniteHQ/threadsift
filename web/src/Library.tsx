@@ -37,7 +37,7 @@ export function Library({
           controls={side.reader.controls}
           nav={nav}
           look={look}
-          tryAgain={view.actions.retryItem}
+          tryAgain={view.actions.retryOpened}
           announcement={side.reader.announcement}
         />
       ) : null}

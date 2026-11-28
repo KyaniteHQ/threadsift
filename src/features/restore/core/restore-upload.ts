@@ -4,9 +4,9 @@ import { restorePartKey } from "../../../core/contract/file-keys.ts";
 import { RESTORE_PART_BYTES } from "../../../core/contract/limits.ts";
 import { partLength, partsOf } from "../../../core/contract/restore-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { refusedBy } from "../../../core/kernel/guards.ts";
+import { guards, refusedBy } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { needsParts } from "../../../core/kernel/restore-hold.ts";
+import { needsParts, restoreGuard, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { restoreRuns } from "../../../core/kernel/schema.ts";
 import { libraryIsEmpty, restoreById } from "./restore-state.ts";
 
@@ -29,19 +29,29 @@ export async function createRestore(
   const now = Date.now();
 
   try {
-    const [created] = await db
-      .insert(restoreRuns)
-      .values({
-        state: "uploading",
-        bytes,
-        parts,
-        partBytes: RESTORE_PART_BYTES,
-        createdAt: now,
-        updatedAt: now,
-      })
-      .returning({ id: restoreRuns.id });
+    const created = await whileOpen(async () => {
+      const [, [row]] = await db.batch([
+        restoreGuard(db),
+        db
+          .insert(restoreRuns)
+          .values({
+            state: "uploading",
+            bytes,
+            parts,
+            partBytes: RESTORE_PART_BYTES,
+            createdAt: now,
+            updatedAt: now,
+          })
+          .returning({ id: restoreRuns.id }),
+        db.delete(guards),
+      ]);
 
-    if (created === undefined) throw new Error("The restore insert returned no row");
+      if (row === undefined) throw new Error("The restore insert returned no row");
+
+      return row;
+    });
+
+    if ("kind" in created) return { kind: "restore-open" };
 
     return { kind: "created", id: created.id, partBytes: RESTORE_PART_BYTES };
   } catch (error) {

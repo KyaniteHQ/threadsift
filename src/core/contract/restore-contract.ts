@@ -230,6 +230,7 @@ export const RestoreStatusSchema = z.discriminatedUnion("state", [
     ...Library,
     id: Id,
     failure: z.enum(RESTORE_FAILURES),
+    holdsLibrary: z.boolean(),
     resumable: z.boolean(),
     cancelFailed: z.boolean(),
   }),
