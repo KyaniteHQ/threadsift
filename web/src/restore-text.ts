@@ -110,6 +110,9 @@ const GAVE_UP_NO_ZIP = `The restore stopped after a step failed ${String(MAX_ATT
 
 const GAVE_UP_EMPTY = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times. The library is still empty. Resume restore tries again from the last finished step. Cancel restore ends the restore so you can choose the zip again.`;
 
+const OTHER_RELEASE_AFTER_RECORDS =
+  "The restore stopped because this instance now runs a different release of Threadsift from the one that made the zip. Some records are already restored. Nothing new can be saved in the library until the restore is cancelled. Cancel restore removes those records and any items saved after the restore stopped. Then restore a new export made with this release.";
+
 const GAVE_UP_EMPTY_NO_ZIP = `The restore stopped after a step failed ${String(MAX_ATTEMPTS)} times. The library is still empty, and the export zip is no longer on this instance. Cancel restore ends the restore so you can choose the zip again.`;
 
 export function refusalLabel(code: RestoreErrorCode): string {
@@ -122,8 +125,16 @@ export function failureLabel(
     resumable,
     cancelFailed,
     libraryEmpty,
-  }: Readonly<{ resumable: boolean; cancelFailed: boolean; libraryEmpty: boolean }>,
+    holdsLibrary,
+  }: Readonly<{
+    resumable: boolean;
+    cancelFailed: boolean;
+    libraryEmpty: boolean;
+    holdsLibrary: boolean;
+  }>,
 ): string {
+  if (failure === "other-release" && holdsLibrary) return OTHER_RELEASE_AFTER_RECORDS;
+
   if (failure !== "gave-up") return REFUSAL_TEXT[failure];
 
   if (cancelFailed) return CANCEL_STOPPED;
