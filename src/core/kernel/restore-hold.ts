@@ -74,6 +74,10 @@ export function undoFailed(run: Readonly<Condition>): boolean {
   return inStanding(run, UNDO_FAILED);
 }
 
+export function holding(run: Readonly<Condition>): boolean {
+  return inStanding(run, HOLDING);
+}
+
 export function needsParts(run: Readonly<Condition>): boolean {
   return inStanding(run, NEEDING_PARTS);
 }
@@ -129,6 +133,10 @@ export function heldBatch<Writes extends readonly BatchItem<"sqlite">[]>(
 
 export function whileOpen<Result>(write: () => Promise<Result>): Promise<Result | Closed> {
   return answeringRefusal("restore", write, CLOSED);
+}
+
+export async function unlessHeld<Answer>(db: Database, answer: Answer): Promise<Answer | Closed> {
+  return (await restoreHoldsLibrary(db)) ? CLOSED : answer;
 }
 
 export function isClosed<Result>(

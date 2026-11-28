@@ -1,9 +1,13 @@
+import { is } from "drizzle-orm";
+import { SQLiteInsertBase } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 
 import {
   CreatedTokenResponseSchema,
   TokenListResponseSchema,
 } from "../src/core/contract/access-wire.ts";
+import { parseLink } from "../src/core/contract/links.ts";
+import { saveUnresolved } from "../src/features/paste/core/item-save.ts";
 import type { Instance, Json } from "./instance.ts";
 
 const FIRST_STATUS = 5_000_000_000;
@@ -76,3 +80,32 @@ export function itemsSavedByDay(
     )
     .map(({ day, saved }) => [day, saved] as const);
 }
+
+const ITEM_INSERT = /insert into "items"/u;
+
+export function beforeItemInsertBatch(instance: Instance, staged: () => Promise<void>): void {
+  const { db } = instance.core;
+  const real = db.batch.bind(db);
+
+  Object.defineProperty(db, "batch", {
+    configurable: true,
+    value: async (queries: Parameters<typeof real>[0]) => {
+      if (
+        queries.some((query) => is(query, SQLiteInsertBase) && ITEM_INSERT.test(query.toSQL().sql))
+      ) {
+        Reflect.deleteProperty(db, "batch");
+        await staged();
+      }
+
+      return real(queries);
+    },
+  });
+}
+
+export const savedUnresolved = (instance: Instance, address: string, addedByToken: number | null) =>
+  saveUnresolved(instance.core, {
+    paste: { address, addedByToken },
+    link: parseLink(address),
+    fetched: { status: "unresolved" },
+    existing: "refresh",
+  });

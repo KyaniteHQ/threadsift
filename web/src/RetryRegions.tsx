@@ -11,10 +11,21 @@ interface RegionProps {
 
 function RetryButton({
   buttonClass = "btn",
+  busy = false,
   retry,
-}: Readonly<{ buttonClass?: string | undefined; retry: (() => void) | null }>) {
+}: Readonly<{
+  buttonClass?: string | undefined;
+  busy?: boolean;
+  retry: (() => void) | null;
+}>) {
   return retry === null ? null : (
-    <button type="button" className={buttonClass} onClick={retry}>
+    <button
+      type="button"
+      className={buttonClass}
+      aria-disabled={busy || undefined}
+      aria-busy={busy || undefined}
+      onClick={retry}
+    >
       {RETRY_LABEL}
     </button>
   );
@@ -65,14 +76,15 @@ export function StatusRegion({
   className,
   buttonClass,
   text,
+  busy,
   retry,
-}: Readonly<RegionProps & { retry: () => void }>) {
+}: Readonly<RegionProps & { busy: boolean; retry: () => void }>) {
   return (
     <output className={className}>
       {text === null ? null : (
         <>
           <span className="rd-note">{text}</span>
-          <RetryButton buttonClass={buttonClass} retry={retry} />
+          <RetryButton buttonClass={buttonClass} busy={busy} retry={retry} />
         </>
       )}
     </output>

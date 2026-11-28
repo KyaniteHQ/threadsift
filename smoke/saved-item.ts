@@ -1,3 +1,5 @@
+import { execFile } from "node:child_process";
+
 import { type APIRequestContext, expect } from "@playwright/test";
 import type { ZodType } from "zod";
 
@@ -54,3 +56,54 @@ export const savedTopicItem = (
       keyPoints: [keyPoint],
     },
   });
+
+const PORT = process.env["THREADSIFT_SMOKE_PORT"] ?? "8799";
+
+const DATABASE_COMMAND = {
+  container: [
+    "podman",
+    "exec",
+    `threadsift-smoke-${PORT}`,
+    "node",
+    "-e",
+    "const db = new (require('node:sqlite').DatabaseSync)('/data/threadsift.db'); db.exec('pragma busy_timeout = 5000'); db.exec(process.argv[1]);",
+  ],
+  worker: [
+    "pnpm",
+    "exec",
+    "wrangler",
+    "d1",
+    "execute",
+    "DB",
+    "--local",
+    "--persist-to",
+    ".wrangler/smoke/state",
+    "--command",
+  ],
+} as const;
+
+function runOnDatabase(statement: string): Promise<void> {
+  const target = process.env["THREADSIFT_TARGET"] === "worker" ? "worker" : "container";
+  const [command = "", ...args] = DATABASE_COMMAND[target];
+
+  return new Promise((resolve, reject) => {
+    execFile(command, [...args, statement], { timeout: 60_000 }, (error) => {
+      if (error === null) resolve();
+      else reject(new Error(`${command} could not change the smoke database`, { cause: error }));
+    });
+  });
+}
+
+export async function whileRestoreHolds(act: () => Promise<void>): Promise<void> {
+  const now = String(Date.now());
+
+  await runOnDatabase(
+    `insert into restores (state, phase, failure, restored, bytes, parts, part_bytes, created_at, updated_at) values ('failed', 'files', 'gave-up', '{}', 1, 1, 1, ${now}, ${now})`,
+  );
+
+  try {
+    await act();
+  } finally {
+    await runOnDatabase("delete from restores");
+  }
+}

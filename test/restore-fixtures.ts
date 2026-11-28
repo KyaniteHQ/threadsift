@@ -160,14 +160,16 @@ export async function gaveUpInFiles(t: TestContext, instance: Instance, bytes: U
 export function holdLibrary(
   instance: Instance,
   state: "running" | "failed",
-  failure: "gave-up" | "no-manifest" | null,
+  failure: "gave-up" | "no-manifest" | "other-release" | null,
   phase: "check" | "tables" = "tables",
+  restored = "{}",
 ): void {
   instance.database.exec(
-    "insert into restores (id, state, phase, failure, bytes, parts, part_bytes, created_at, updated_at) values (1, ?, ?, ?, 1, 1, 1, 1, 1) on conflict (id) do update set state = excluded.state, phase = excluded.phase, failure = excluded.failure",
+    "insert into restores (id, state, phase, failure, restored, bytes, parts, part_bytes, created_at, updated_at) values (1, ?, ?, ?, ?, 1, 1, 1, 1, 1) on conflict (id) do update set state = excluded.state, phase = excluded.phase, failure = excluded.failure, restored = excluded.restored",
     state,
     phase,
     failure,
+    restored,
   );
 }
 

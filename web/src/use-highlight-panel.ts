@@ -5,7 +5,7 @@ import { markIds } from "./highlight-ids.ts";
 import { BODY_SELECTOR, keyOf } from "./highlight-target.ts";
 import type { Panel, RemovePanel } from "./highlights-context.ts";
 import { hasModifier } from "./routing.ts";
-import { useSelectionDraft } from "./use-selection-draft.ts";
+import { type KeepDraft, useSelectionDraft } from "./use-selection-draft.ts";
 
 function markOf(event: MouseEvent | KeyboardEvent): HTMLElement | null {
   const target = event.target instanceof Element ? event.target : null;
@@ -32,10 +32,7 @@ function followsLink(event: MouseEvent, mark: Element): boolean {
   return modified && mark.closest("a") !== null;
 }
 
-export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
-  const [draft, setDraft, unavailable] = useSelectionDraft(revisions);
-  const [clicked, setClicked] = useState<Panel | null>(null);
-
+function useMarkPanel(setClicked: (panel: Panel | null) => void): void {
   useEffect(() => {
     const onClick = (event: MouseEvent): void => {
       const next = removePanelOf(event, false);
@@ -67,7 +64,14 @@ export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
       document.removeEventListener("click", onClick);
       document.removeEventListener("keydown", onKeyDown);
     };
-  }, []);
+  }, [setClicked]);
+}
+
+export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
+  const [draft, setDraft, unavailable] = useSelectionDraft(revisions);
+  const [clicked, setClicked] = useState<Panel | null>(null);
+
+  useMarkPanel(setClicked);
 
   const panel = useMemo<Panel | null>(
     () => (draft === null ? clicked : { kind: "keep", key: keyOf(draft.target), draft }),
@@ -79,5 +83,17 @@ export function useHighlightPanel(revisions: HighlightsView["revisions"]) {
     setClicked(null);
   }, [setDraft]);
 
-  return { panel, dismiss, unavailable };
+  const reopen = useCallback(
+    (kept: Readonly<KeepDraft>): void => {
+      const selection = document.getSelection();
+
+      selection?.removeAllRanges();
+      selection?.addRange(kept.range);
+      setClicked(null);
+      setDraft(kept);
+    },
+    [setDraft],
+  );
+
+  return { panel, dismiss, reopen, unavailable };
 }

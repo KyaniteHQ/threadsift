@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type {
   ImportCursor,
@@ -18,23 +18,28 @@ export async function readImport(db: Database, name: string): Promise<ImportStat
   return found;
 }
 
-function cursorWrite(db: Database, { name, cursor, previous }: Readonly<ImportWrite>) {
+function cursorWrite(db: Database, write: Readonly<ImportWrite>) {
+  const { name, cursor } = write;
   const now = Date.now();
   const row = { name, cursor, createdAt: now, updatedAt: now };
+  const moved = { cursor, updatedAt: sql`max(${now}, ${imports.updatedAt} + 1)` };
 
-  if (previous === undefined) {
-    return db
-      .insert(imports)
-      .values(row)
-      .onConflictDoUpdate({ target: imports.name, set: { cursor, updatedAt: now } });
+  if (!("previousUpdatedAt" in write)) {
+    return write.previous === null
+      ? db.insert(imports).values(row).onConflictDoNothing()
+      : db.insert(imports).values(row).onConflictDoUpdate({ target: imports.name, set: moved });
   }
 
-  return previous === null
-    ? db.insert(imports).values(row).onConflictDoNothing()
-    : db
-        .update(imports)
-        .set({ cursor, updatedAt: now })
-        .where(and(eq(imports.name, name), eq(imports.cursor, previous)));
+  return db
+    .update(imports)
+    .set(moved)
+    .where(
+      and(
+        eq(imports.name, name),
+        eq(imports.cursor, write.previous),
+        eq(imports.updatedAt, write.previousUpdatedAt),
+      ),
+    );
 }
 
 async function writtenWhileOpen(db: Database, write: Readonly<ImportWrite>): Promise<boolean> {

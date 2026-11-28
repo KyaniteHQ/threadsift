@@ -25,7 +25,7 @@ interface Write {
   readonly deadline: Deadline;
 }
 
-type Method = "GET" | Write;
+export type Method = "GET" | Write;
 
 export type JsonBody =
   | Readonly<Record<string, string | number | boolean | undefined>>
@@ -41,7 +41,7 @@ interface Call {
   readonly signal?: AbortSignal | undefined;
 }
 
-interface OkCall extends Call {
+export interface OkCall extends Call {
   readonly tolerates?: readonly number[];
 }
 

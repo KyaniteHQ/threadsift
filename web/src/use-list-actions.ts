@@ -7,7 +7,13 @@ import { type ListState, readFor } from "./list-state.ts";
 import { focusListStart, scrollToTop } from "./reveal.ts";
 import type { Route } from "./routing.ts";
 import { useLookup } from "./use-lookup.ts";
-import type { PasteQueue, PasteRequest, SaveOutcome } from "./use-paste.ts";
+import {
+  type PasteQueue,
+  type PasteRequest,
+  type SaveOutcome,
+  attempt,
+  retryTargetOf,
+} from "./use-paste.ts";
 
 function useKeptPlace(list: ListState, retry: () => void, pane: RefObject<HTMLElement | null>) {
   const retried = useRef(false);
@@ -57,7 +63,7 @@ function useSaveAndShow(
     async (target: SaveTarget): Promise<SaveOutcome> => {
       const result = await save(target);
 
-      if (result.outcome !== "saved") return { kind: "notice", notice: result.outcome };
+      if (result.kind !== "saved") return { kind: "notice", notice: result.kind };
 
       if (!result.known && pane.current !== null) {
         scrollToTop(pane.current);
@@ -79,15 +85,12 @@ function usePasteQueue() {
   const sequence = useRef(0);
 
   const retryItem = useCallback((item: Item) => {
-    if (item.retry === null) return;
+    const target = retryTargetOf(item);
+
+    if (target === null) return;
 
     sequence.current += 1;
-    const base = { url: item.originalUrl, seq: sequence.current };
-
-    const queued: PasteRequest =
-      item.retry === "digest"
-        ? { ...base, kind: "digest", id: item.id }
-        : { ...base, kind: "paste" };
+    const queued: PasteRequest = { ...target, seq: sequence.current };
 
     setRequests((current) => [...current, queued]);
   }, []);
@@ -100,6 +103,19 @@ function usePasteQueue() {
   const queue = useMemo<PasteQueue>(() => ({ next, taken }), [next, taken]);
 
   return { queue, retryItem };
+}
+
+export type RetryOpened = (item: Item) => Promise<SaveOutcome | null>;
+
+function useRetryOpened(save: (target: SaveTarget) => Promise<SaveOutcome>): RetryOpened {
+  return useCallback(
+    (item: Item) => {
+      const target = retryTargetOf(item);
+
+      return target === null ? Promise.resolve(null) : attempt(save, target);
+    },
+    [save],
+  );
 }
 
 export function useListActions(
@@ -117,6 +133,7 @@ export function useListActions(
   const { lookupFailed, lookAgain } = useLookup(list, route, actions.know);
 
   const { queue, retryItem } = usePasteQueue();
+  const saveAndShow = useSaveAndShow(actions.save, pane);
 
   const tryAgain = useCallback(
     (item: Item) => {
@@ -134,8 +151,8 @@ export function useListActions(
     lookAgain,
     queue,
     tryAgain,
-    retryItem,
-    saveAndShow: useSaveAndShow(actions.save, pane),
+    retryOpened: useRetryOpened(saveAndShow),
+    saveAndShow,
     retryAndKeepPlace: useKeptPlace(list, actions.retry, pane),
   };
 }
