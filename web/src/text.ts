@@ -135,6 +135,7 @@ export const PAGES_NAV_LABEL = "Library pages";
 export const MENU_LABEL = "Menu";
 export const WORDMARK_LINK_LABEL = "Threadsift, go to the library";
 export const SETTINGS_SECTIONS_LABEL = "Settings sections";
+export const COMMAND_LABEL = "Command";
 
 const OWNER_MENU_LABEL = "{host}, Instance menu";
 const SIGNED_IN_LINE = "Signed in to {host}";

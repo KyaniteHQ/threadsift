@@ -2,6 +2,7 @@ import { GROK_BOT_FIRST, VERIFY_WAIT_MS } from "../../src/core/contract/grok-bot
 import type { CliProvider } from "../../src/core/contract/provider-families.ts";
 import { SECOND_MS } from "../../src/core/contract/time-units.ts";
 import { filled } from "./filled.ts";
+import { plural } from "./plural.ts";
 
 export const AI_TEXT = {
   "key-needed":
@@ -94,6 +95,9 @@ export const AI_TEXT = {
     "Threadsift won’t contact this Base URL, so it can’t list models. Change the address or type the model name.",
   modelsFailed: "Couldn’t load the model list. Type the model name or reload the page.",
   chooseModel: "Choose a model",
+  modelFilter: "Filter models",
+  modelMatchOne: "{count} matching model",
+  modelMatchMany: "{count} matching models",
   otherModel: "Other…",
   otherModelLabel: "Model name",
   defaultModel: "Default",
@@ -198,4 +202,8 @@ export function signedOutSentence(provider: CliProvider): string {
   const { before, command, after } = signedOutParts(provider);
 
   return `${before}${command}${after}`;
+}
+
+export function modelMatchCount(count: number): string {
+  return plural(count, AI_TEXT.modelMatchOne, AI_TEXT.modelMatchMany);
 }

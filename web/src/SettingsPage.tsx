@@ -14,7 +14,7 @@ export function SettingsPage() {
   return (
     <PageFrame title={SETTINGS.title} column="settings">
       <div className="pg-col st-page">
-        <SettingsRail />
+        <SettingsRail ready={loaded !== null} />
         <main className="st-main" aria-busy={loaded === null}>
           {loaded === null ? <PageGhost /> : <SettingsSections loaded={loaded} />}
         </main>

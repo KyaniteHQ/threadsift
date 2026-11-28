@@ -61,8 +61,18 @@
 .fld-err { margin: 0; color: var(--warn); font-size: var(--t-meta); font-weight: 500; }
 [role="alert"]:empty, output:empty { position: absolute; }
 .field input.mono { font-family: var(--f-mono); font-size: var(--t-code); }
-.cmd { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); border: var(--hw) solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); overflow-wrap: anywhere; white-space: pre-wrap; }
+.cmd-w { --fade-to: var(--surface-2); }
+.cmd { margin: 0; padding: var(--code-pad-y) var(--code-pad-x); overflow-x: auto; border: var(--hw) solid var(--line-2); border-radius: var(--r2); background: var(--surface-2); color: var(--text); font-family: var(--f-mono); font-size: var(--t-code); line-height: var(--lh-code); white-space: pre; }
 .cmd code { font: inherit; }
+.sxw { position: relative; }
+.sxw::before, .sxw::after { content: ''; position: absolute; z-index: var(--z-raise); top: 0; bottom: 0; width: calc(var(--s6) + var(--s4)); opacity: 0; pointer-events: none; }
+.sxw::before { left: 0; background: linear-gradient(to left, transparent, var(--fade-to)); }
+.sxw::after { right: 0; background: linear-gradient(to right, transparent, var(--fade-to)); }
+.sxw[data-before="1"]::before, .sxw[data-more="1"]::after { opacity: 1; }
+.cmd-w::before, .cmd-w::after, .md .sxw::before, .md .sxw::after { top: var(--hw); bottom: var(--hw); }
+.cmd-w::before, .md .sxw::before { left: var(--hw); border-radius: var(--r2) 0 0 var(--r2); }
+.cmd-w::after, .md .sxw::after { right: var(--hw); border-radius: 0 var(--r2) var(--r2) 0; }
+@media (prefers-reduced-motion: no-preference) { .sxw::before, .sxw::after { transition: opacity var(--dur-fade); } }
 a.btn { text-decoration: none; }
 .btn-block { align-self: flex-start; }
 .app[data-bp~="phone"] .btn-block { align-self: stretch; }
@@ -98,8 +108,8 @@ a.btn { text-decoration: none; }
 .mh-nav ul { gap: var(--s5); }
 .mh-nav li { display: flex; }
 .nav-link { display: flex; align-items: center; color: var(--muted); font-size: var(--t-meta); font-weight: 500; text-decoration: none; }
-.nav-link:hover, .nav-link[aria-current="page"] { color: var(--text); }
-.nav-link[aria-current="page"] { font-weight: 600; }
+.nav-link:hover, .nav-link:is([aria-current="page"], [aria-current="location"]) { color: var(--text); }
+.nav-link:is([aria-current="page"], [aria-current="location"]) { font-weight: 600; }
 .mh-nav .nav-link { position: relative; }
 .mh-nav .nav-link[aria-current="page"]::after { content: ''; position: absolute; inset-inline: 0; bottom: calc(var(--hw) * -1); height: 2px; background: var(--acc-ink); }
 .mh-end { display: flex; align-items: center; gap: var(--s2); margin-inline-start: auto; }
@@ -213,7 +223,8 @@ a.btn { text-decoration: none; }
 .fl-rail .fl-toggle, [data-bp~="narrow"] .fl-toggle { align-self: stretch; }
 .fl-seg { display: flex; gap: 1px; padding: 2px; border: var(--hw) solid var(--line-2); border-radius: var(--r2); background: var(--rail-seg-bg); }
 .fl-seg-b { flex: 1 1 auto; display: inline-flex; align-items: center; justify-content: center; gap: var(--s1); min-width: var(--seg-h); min-height: var(--seg-h); padding: 0 var(--s2); border: 0; border-radius: var(--r1); background: transparent; color: var(--text); cursor: pointer; font-size: var(--t-meta); white-space: nowrap; }
-.fl-wrap { flex-wrap: wrap; }
+.fl-wrap { display: grid; grid-template-columns: repeat(auto-fill, minmax(max(5.5em, (100% - 2px) / 3), 1fr)); }
+.fl-wrap .fl-seg-b { flex-wrap: wrap; padding-inline: var(--s1); }
 .fl-seg-b:hover { background: var(--surface-2); }
 .fl-seg-b:active { background: var(--press); }
 .fl-seg-b[aria-pressed="true"] { background: var(--seg-on); color: var(--seg-on-fg); font-weight: 600; }
@@ -430,7 +441,8 @@ a.btn { text-decoration: none; }
    changes; it gives up, in order, the key hint, the position text, the button labels, the
    comments total and Back's word. Under 480px every control is 44px. A 2px line along the
    bottom shows how far you have read (--progress, 0 to 1). */
-.rd-bar { --progress: 0; position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--s2); min-height: var(--bar-h); padding: calc((var(--bar-h) - var(--hw) - var(--target)) / 2) var(--reader-pad); border-bottom: var(--hw) solid var(--line); background: var(--reader-bg); }
+.rd-bar { --progress: 0; position: sticky; top: 0; z-index: var(--z-sticky); display: flex; align-items: center; gap: var(--s2); min-height: var(--bar-h); padding-block: calc((var(--bar-h) - var(--hw) - var(--target)) / 2); padding-inline: max(var(--reader-pad), (100% - var(--chars) * var(--cw) * var(--t-read)) / 2); border-bottom: var(--hw) solid var(--line); background: var(--reader-bg); }
+.reader:has(> .rd-col[data-margin="beside"] > .rd-margin:not(:empty)) > .rd-bar { padding-inline: max(var(--reader-pad), (100% - var(--chars) * var(--cw) * var(--t-read) - var(--s6) - var(--margin-w)) / 2); }
 .rd-progress { position: absolute; left: 0; right: 0; bottom: calc(var(--hw) * -1); height: 2px; background: var(--acc); transform: scaleX(var(--progress)); transform-origin: 0 0; pointer-events: none; }
 .rd-back { padding-inline-start: var(--s2); }
 .rd-back.bare { width: var(--ctl-h); padding: 0; }
@@ -571,10 +583,6 @@ button.hl-quote:active { background: var(--press); }
 .md li + li { margin-top: 0.2em; }
 .md li.sub { margin-inline-start: 1.3em; list-style-type: circle; }
 .md blockquote { padding: 0; padding-inline-start: var(--s3); border-inline-start: 3px solid var(--line-2); font-style: italic; }
-/* boxes that scroll sideways (code blocks and wide tables): a fade on the right edge while
-   more is hidden (data-more="1" on the wrapper), and a focus ring, so the arrow keys scroll them */
-.md .sxw { position: relative; }
-.md .sxw[data-more="1"]::after { content: ''; position: absolute; top: var(--hw); right: var(--hw); bottom: var(--hw); width: calc(var(--s6) + var(--s4)); border-radius: 0 var(--r2) var(--r2) 0; background: linear-gradient(to right, transparent, var(--fade-to)); pointer-events: none; }
 /* code blocks: one size, scroll sideways, and fold to --code-show lines behind "Show all N
    lines" when longer than 20 lines */
 .md .code .sxw { --fade-to: var(--surface-2); margin: 0; }

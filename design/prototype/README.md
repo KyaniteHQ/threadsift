@@ -1,6 +1,6 @@
 # Library prototype: List and Grid
 
-This folder is a clickable mockup of the first screens, exported from a visual design tool as a standalone page. It is a reference, not production code. Beside the export, the Quarto brand kit draws the brand direction of the Brand Brief on synthetic Items; [the kit README](kits/README.md) describes it. The app takes its values from [the design system tokens](../system/tokens.css), not from this folder's own tokens, and builds its own components instead of copying the markup.
+This folder is a clickable mockup of the first screens, exported from a visual design tool as a standalone page. It is a reference, not production code. Beside the export, the Quarto brand kit draws the brand direction of the Brand Brief on synthetic Items; [the kit README](kits/README.md) describes it. The app takes its values from [the design system tokens](../system/tokens.css), not from this folder's own tokens, and builds its own components instead of copying the markup. The export still draws a gear button and its panel links. The masthead, the Look panel and the Instance menu follow [the design system](../../DESIGN.md) and the web app, not this export.
 
 `data.json` and `img/` hold the owner's real saves, which include other people's posts, comments and images. Both are gitignored and not in the repository.
 
