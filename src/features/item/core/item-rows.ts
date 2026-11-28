@@ -64,15 +64,29 @@ export function itemInsert(
   ] as const;
 }
 
-export async function guardedItemWrite<Insert extends BatchItem<"sqlite">>(
+type InsertResults<Rest extends readonly unknown[]> = readonly [
+  budget: unknown,
+  inserted: readonly Readonly<{ id: number }>[],
+  ...rest: Rest,
+];
+
+export function insertResults<Rest extends readonly unknown[]>([
+  ,
+  inserted,
+  ...rest
+]: InsertResults<Rest>) {
+  return { inserted, rest };
+}
+
+export async function guardedItemWrite(
   db: Database,
   condition: Readonly<SQLWrapper>,
-  [budgetGuard, insert]: readonly [BatchItem<"sqlite">, Insert],
+  insert: readonly [BatchItem<"sqlite">, BatchItem<"sqlite">],
   rest: readonly BatchItem<"sqlite">[],
 ) {
-  const written = await heldBatch(db, [budgetGuard, insert, ...rest] as const, condition);
+  const written = await heldBatch(db, [...insert, ...rest] as const, condition);
 
-  return written === null ? null : written[1];
+  return written === null ? null : insertResults(written).inserted;
 }
 
 export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
@@ -124,23 +138,24 @@ export interface Around {
   readonly after: Statements;
 }
 
-type RowResults = readonly [
-  unknown,
-  readonly Readonly<{ id: number }>[],
-  unknown,
-  readonly Readonly<{ id: number }>[],
-  readonly Readonly<ListedItemRow>[],
-  ...unknown[],
+type QueuedResults = readonly [
+  reopened: unknown,
+  opened: readonly Readonly<{ id: number }>[],
+  read: readonly Readonly<ListedItemRow>[],
+  ...rest: unknown[],
 ];
 
 async function writtenFrom(
   ports: Ports,
   link: Readonly<Link>,
-  written: RowResults | null,
+  written: InsertResults<QueuedResults> | null,
 ): Promise<Saved | null> {
   if (written === null) return null;
 
-  const [, inserted, , opened, [item]] = written;
+  const {
+    inserted,
+    rest: [, opened, [item]],
+  } = insertResults(written);
 
   await enqueueRows(ports, opened);
 

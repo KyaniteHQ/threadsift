@@ -14,6 +14,7 @@ import {
   type Saved,
   foundItem,
   holdsNoItem,
+  insertResults,
   itemInsert,
   knownItem,
 } from "../../item/core/item-rows.ts";
@@ -37,8 +38,6 @@ interface Failure {
   readonly now: number;
   readonly addedByToken: Paste["addedByToken"];
 }
-
-const INSERTED_ITEM = 2;
 
 const REFRESHED_ITEM = 2;
 
@@ -65,13 +64,13 @@ async function insertedFailure(
     sql`${noAlias} and ${missing}`,
   );
 
-  return inserted === null
-    ? null
-    : {
-        kind: "saved",
-        item: foundItem(inserted[INSERTED_ITEM][0], normalizedUrl),
-        created: true,
-      };
+  if (inserted === null) return null;
+
+  const {
+    rest: [[item]],
+  } = insertResults(inserted);
+
+  return { kind: "saved", item: foundItem(item, normalizedUrl), created: true };
 }
 
 async function refreshedFailure(

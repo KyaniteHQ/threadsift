@@ -114,7 +114,7 @@ export async function answeringRefusal<Result, Answer>(
   try {
     return await run();
   } catch (error) {
-    if (!refusedWith(error, refusal)) throw error;
+    if (refusalOf(error) !== refusal) throw error;
 
     return answer;
   }
