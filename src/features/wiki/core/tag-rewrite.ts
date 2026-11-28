@@ -93,7 +93,7 @@ function readableDigests(
 }
 
 function digestRewrites(db: Database, reading: Readonly<ReturnType<typeof readableDigests>>) {
-  const rewrites = reading.flatMap(({ row, rewritten }) =>
+  return reading.flatMap(({ row, rewritten }) =>
     rewritten === null
       ? []
       : [
@@ -111,10 +111,6 @@ function digestRewrites(db: Database, reading: Readonly<ReturnType<typeof readab
             ),
         ],
   );
-
-  return rewrites.length === 0
-    ? []
-    : [...rewrites, wokenBotWaits(db, { moved: { kind: "library" }, now: Date.now() })];
 }
 
 export async function readRewrite(
@@ -143,11 +139,14 @@ export async function readRewrite(
   );
   const readable = readableDigests(stored, { from, into });
 
+  const moving = sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${from.id} and ${unchanged(itemTags.itemId)})`;
+
   return {
     itemIds,
     last: itemIds.at(-1) ?? 0,
-    moving: sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${from.id} and ${unchanged(itemTags.itemId)})`,
+    moving,
     writes: [
+      wokenBotWaits(db, { moved: { kind: "library" }, now: Date.now(), when: sql`${moving} > 0` }),
       ...STALE.itemChanged(
         db,
         sql`${among(

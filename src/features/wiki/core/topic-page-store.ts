@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { overviewLine } from "../../../core/contract/topic-overview-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
 import { loggedOverview } from "../../../core/kernel/log-writes.ts";
 import { topicPages } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
@@ -53,6 +54,7 @@ export async function storedPage(
   return {
     writes: [
       overviewStored(db, revisedPage(topicId, read, prompt, overview)),
+      wokenBotWaits(db, { moved: { kind: "library" }, now: Date.now() }),
       ...loggedOverview(db, topicId, {
         added: prompt.included.length,
         removed: read.removed.length,
