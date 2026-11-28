@@ -77,7 +77,8 @@
    - text-relative sizes in em: the Markdown rhythm in post text (0.2em to
      1.8em), list indents (1.2em, 1.3em), the position text's width (4.6em),
      the settings label column (7.5em), the empty-state width (34em), the
-     filter rail's column minimum (15em), the 14em flex basis of a text
+     filter rail's column minimum (15em), the 5.5em minimum of a cell in
+     the rail's Source filter, the 14em flex basis of a text
      block that wraps under its neighbour (the settings footnote, a token
      row's name, the revealed token);
    - 1lh, the height of one line of text: a ghost row's line, the list
