@@ -6,7 +6,7 @@ import type { z } from "zod";
 import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
-import { lateCallKeepsCursor } from "./batch-fixtures.ts";
+import { lateCallKeepsCursor, lateCallWithoutUpdatedAtSavesNothing } from "./batch-fixtures.ts";
 import { calls } from "./fetchers/batch.mts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
@@ -140,8 +140,11 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
   });
 
-  it("keeps a cursor that a later run wrote again when a late call sent from the earlier value arrives, and refuses one that sends previous without previousUpdatedAt", () =>
+  it("keeps a cursor that a later run wrote again when a late call sent from the earlier value arrives", () =>
     lateCallKeepsCursor(instance, "list-0123456789abcdef"));
+
+  it("answers 400 and saves no link and no cursor for a late call that sends previous without previousUpdatedAt", () =>
+    lateCallWithoutUpdatedAtSavesNothing(instance, "list-3333333333333333"));
 
   it("keeps that cursor when every save lands in the same millisecond", (t) => {
     const now = Date.now();

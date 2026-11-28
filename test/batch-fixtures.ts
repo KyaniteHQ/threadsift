@@ -39,7 +39,7 @@ async function moveFromRead(instance: Instance, name: string, cursor: string): P
   assert.ok((await savedState(instance, name)).updatedAt > read.updatedAt);
 }
 
-export async function lateCallKeepsCursor(instance: Instance, name: string): Promise<void> {
+async function readAfterReturn(instance: Instance, name: string): Promise<ImportState> {
   await instance.send("POST", "/api/items/batch", {
     links: [linkFor("20")],
     import: { name, cursor: "20", previous: null },
@@ -51,19 +51,36 @@ export async function lateCallKeepsCursor(instance: Instance, name: string): Pro
   await moveFromRead(instance, name, "14");
   await moveFromRead(instance, name, "20");
 
-  const lateWithoutUpdatedAt = await instance.send("POST", "/api/items/batch", {
-    links: [linkFor("7")],
-    import: { name, cursor: "7", previous: finished.cursor },
-  });
+  return finished;
+}
 
-  assert.deepEqual(
-    { status: lateWithoutUpdatedAt.status, cursor: (await savedState(instance, name)).cursor },
-    { status: 400, cursor: "20" },
-  );
-
+export async function lateCallKeepsCursor(instance: Instance, name: string): Promise<void> {
+  const finished = await readAfterReturn(instance, name);
   const late = await guarded(instance, name, "7", finished);
 
   assert.equal(late.status, 200);
   assert.deepEqual(storedImport(late), { name, cursor: "20" });
   assert.equal((await savedState(instance, name)).cursor, "20");
+}
+
+export async function lateCallWithoutUpdatedAtSavesNothing(
+  instance: Instance,
+  name: string,
+): Promise<void> {
+  const finished = await readAfterReturn(instance, name);
+  const before = { items: await instance.itemTotal(), state: await savedState(instance, name) };
+
+  const late = await instance.send("POST", "/api/items/batch", {
+    links: [linkFor("21")],
+    import: { name, cursor: "7", previous: finished.cursor },
+  });
+
+  assert.deepEqual(
+    {
+      status: late.status,
+      items: await instance.itemTotal(),
+      state: await savedState(instance, name),
+    },
+    { status: 400, ...before },
+  );
 }
