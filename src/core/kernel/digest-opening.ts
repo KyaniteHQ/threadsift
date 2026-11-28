@@ -11,18 +11,16 @@ import {
   sql,
 } from "drizzle-orm";
 
-import { expireAiTasks } from "./ai-task-rows.ts";
-import { refusedAs } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { keptNotUpdated } from "./digest-marker.ts";
 import { hasDigestSource } from "./digest-source.ts";
 import { hasDigest } from "./digest-stored.ts";
 import { NOT_FAILED } from "./item-status.ts";
 import { hasOpenJob, opening } from "./job-rows.ts";
-import { grokBotChosen, providerSet } from "./provider-saved.ts";
-import { type JobRow, aiTasks, items } from "./schema.ts";
-
-const OWED_DIGESTS_PER_SWEEP = 20;
+import { wokenBotWaits } from "./job-waiting.ts";
+import { providerSet } from "./provider-saved.ts";
+import { holdsNoRestore } from "./restore-hold.ts";
+import { type JobRow, items } from "./schema.ts";
 
 function eligibleDigest(scope: Readonly<SQLWrapper>) {
   return and(sql`${scope}`, hasDigestSource(), notExists(hasOpenJob("digest"))) ?? sql`0`;
@@ -52,22 +50,12 @@ export function owedDigest(db: Database, job: Readonly<Pick<JobRow, "itemId" | "
   });
 }
 
-export async function sweepDigests(db: Database, now: number): Promise<void> {
-  await expireAiTasks(db, now);
-  await db.batch(
-    owedDigests(db, {
-      provider: grokBotChosen(),
-      limit: OWED_DIGESTS_PER_SWEEP,
-      retried: sql`0`,
-    }),
-  );
-}
-
 export function digestAfterFetch(
   db: Database,
   job: Readonly<{ itemId: number | Readonly<SQLWrapper>; address: string }>,
 ) {
   const configured = or(isNotNull(items.pendingDigest), providerSet()) ?? sql`0`;
+  const now = Date.now();
 
   return [
     db
@@ -77,8 +65,9 @@ export function digestAfterFetch(
     openingDigest(db, {
       scope: and(eq(items.id, job.itemId), configured) ?? sql`0`,
       address: job.address,
-      now: Date.now(),
+      now,
     }),
+    wokenBotWaits(db, { moved: { kind: "item-content", itemId: job.itemId }, now }),
     ...keptNotUpdated(
       db,
       job.itemId,
@@ -87,11 +76,7 @@ export function digestAfterFetch(
   ];
 }
 
-function lastDigestRefusedKey() {
-  return sql`exists (select 1 from ${aiTasks} where ${aiTasks.itemId} = ${items.id} and ${aiTasks.kind} = 'digest' and ${refusedAs("wrong-key")} and ${aiTasks.id} = (select max(latest.id) from ${aiTasks} as latest where latest.item_id = ${items.id} and latest.kind = 'digest'))`;
-}
-
-function owedDigests(
+export function owedDigests(
   db: Database,
   {
     provider,
@@ -109,6 +94,7 @@ function owedDigests(
       NOT_FAILED,
       or(eq(items.digestFailed, false), sql`${retried}`),
       not(hasDigest(items.id)),
+      holdsNoRestore(db),
     ) ?? sql`0`;
 
   return [
@@ -129,12 +115,4 @@ function owedDigests(
       now: Date.now(),
     }),
   ] as const;
-}
-
-export function requeuedDigests(db: Database) {
-  return owedDigests(db, {
-    provider: providerSet(),
-    limit: undefined,
-    retried: lastDigestRefusedKey(),
-  });
 }

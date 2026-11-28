@@ -28,5 +28,5 @@ export async function attemptCaller(
 
   if (taskId === null) return lostClaim(ports.db);
 
-  return publishedByCaller(ports.db, item, digest, { taskId, anchors });
+  return publishedByCaller(ports.db, item, digest, { taskId, jobId: job.id, anchors });
 }

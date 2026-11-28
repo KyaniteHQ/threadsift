@@ -1,5 +1,6 @@
-import { asc, eq, sql } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 
+import { catalogKey } from "../../../core/contract/catalog-key.ts";
 import {
   type Acceptance,
   MERGE_KINDS,
@@ -7,7 +8,8 @@ import {
 } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { proposals } from "../../../core/kernel/schema.ts";
+import { heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
+import { pins, proposals } from "../../../core/kernel/schema.ts";
 import { applyUnit } from "./merge-apply.ts";
 import { recordingFailure } from "./merge-failure.ts";
 import { MERGE } from "./merge-kinds.ts";
@@ -18,12 +20,10 @@ const UNITS_PER_RUN = 50;
 
 type MergeAcceptance = Exclude<Acceptance, "not-current" | "no-provider">;
 
-interface Progress {
-  readonly units: number;
-  readonly ran: boolean;
-}
-
-const NOTHING_RUN: Progress = { units: 0, ran: false };
+type RunAnswer = Extract<
+  MergeAcceptance,
+  "done" | "accepting" | "unknown" | "merge-failed" | "not-open"
+>;
 
 function sideOf(spec: Readonly<MergeKindSpec>, end: "from" | "into") {
   const { table } = spec;
@@ -71,33 +71,54 @@ async function readRow(db: Database, id: number, kind: MergeKind): Promise<Merge
       };
 }
 
+async function pinned(db: Database, { kind, from, into }: Readonly<MergeRow>): Promise<boolean> {
+  const spec: MergeKindSpec = MERGE[kind];
+
+  const [pin] = await db
+    .select({ id: pins.id })
+    .from(pins)
+    .where(
+      and(
+        eq(pins.kind, kind),
+        eq(pins.fromKey, catalogKey(from.name)),
+        eq(spec.pin.column, into.id),
+      ),
+    );
+
+  return pin !== undefined;
+}
+
 async function runUnit(
   ports: JobPorts,
   id: number,
   row: Readonly<MergeRow>,
-  progress: Readonly<Progress>,
-): Promise<"done" | "accepting" | "unknown"> {
+  units: number,
+): Promise<RunAnswer> {
   const outcome = await recordingFailure(ports.db, { id, revision: row.revision }, () =>
-    applyUnit(ports, id, row),
+    whileOpen(() => applyUnit(ports, id, row)),
   );
 
-  return runUnits(ports, id, await readRow(ports.db, id, row.kind), {
-    units: progress.units + 1,
-    ran: progress.ran || outcome === "ran",
-  });
+  if (isClosed(outcome)) return "accepting";
+
+  return runUnits(ports, id, row, await readRow(ports.db, id, row.kind), units + 1);
 }
 
-function runUnits(
+async function runUnits(
   ports: JobPorts,
   id: number,
+  last: Readonly<MergeRow>,
   row: Readonly<MergeRow> | undefined,
-  progress: Readonly<Progress>,
-): Promise<"done" | "accepting" | "unknown"> {
-  if (row?.state !== "accepting") return Promise.resolve(progress.ran ? "done" : "unknown");
+  units: number,
+): Promise<RunAnswer> {
+  if (row === undefined) return (await pinned(ports.db, last)) ? "done" : "unknown";
 
-  if (progress.units === UNITS_PER_RUN) return Promise.resolve("accepting");
+  if (row.state === "open") return "merge-failed";
 
-  return runUnit(ports, id, row, progress);
+  if (row.state !== "accepting") return "not-open";
+
+  if (units === UNITS_PER_RUN) return "accepting";
+
+  return runUnit(ports, id, row, units);
 }
 
 export async function acceptMerge(
@@ -106,10 +127,18 @@ export async function acceptMerge(
   kind: MergeKind,
 ): Promise<MergeAcceptance> {
   const { db } = ports;
-  const [claim] = await proposalClaimed(db, id, kind);
-  const row = await readRow(db, id, kind);
+  const before = await readRow(db, id, kind);
+  const claimed = await whileOpen(() => heldBatch(db, [proposalClaimed(db, id, kind)] as const));
 
-  if (claim !== undefined) return row === undefined ? "done" : runUnit(ports, id, row, NOTHING_RUN);
+  if (isClosed(claimed)) return "restoring";
+
+  const [claim] = claimed?.[0] ?? [];
+  const row = await readRow(db, id, kind);
+  const last = row ?? before;
+
+  if (last === undefined) return "unknown";
+
+  if (claim !== undefined) return runUnits(ports, id, last, row, 0);
 
   if (row === undefined) return "unknown";
 
@@ -128,7 +157,8 @@ export async function continueMerges(ports: JobPorts): Promise<void> {
 
     const merge = MERGE_KINDS.find((each) => each === kind);
 
-    if (merge !== undefined)
-      await runUnits(ports, id, await readRow(ports.db, id, merge), NOTHING_RUN);
+    const row = merge === undefined ? undefined : await readRow(ports.db, id, merge);
+
+    if (row !== undefined) await runUnits(ports, id, row, row, 0);
   }, Promise.resolve());
 }
