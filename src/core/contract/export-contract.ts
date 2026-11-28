@@ -41,15 +41,12 @@ export function isShownFailure(failure: ExportFailure | null): failure is ShownE
   return SHOWN_EXPORT_FAILURES.some((shown) => shown === failure);
 }
 
-const PartialItemSchema = z.union([
-  z
-    .object({
-      id: z.number().int().positive(),
-      written: z.array(z.string().min(1)).min(1).readonly(),
-    })
-    .readonly(),
-  z.object({ id: z.number().int().positive(), entries: WholeCount }).readonly(),
-]);
+const PartialItemSchema = z
+  .object({
+    id: z.number().int().positive(),
+    written: z.array(z.string().min(1)).min(1).readonly(),
+  })
+  .readonly();
 
 export type PartialItem = z.infer<typeof PartialItemSchema>;
 
@@ -69,6 +66,12 @@ export type ExportTally = z.infer<typeof ExportTallySchema>;
 
 export function tallyOf({ tally }: Readonly<{ tally: string }>): ExportTally {
   return ExportTallySchema.parse(JSON.parse(tally));
+}
+
+export function resumableTally({ tally }: Readonly<{ tally: string }>): ExportTally | null {
+  const parsed = ExportTallySchema.safeParse(JSON.parse(tally));
+
+  return parsed.success ? parsed.data : null;
 }
 
 export const NO_TALLY: ExportTally = {

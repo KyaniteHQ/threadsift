@@ -53,14 +53,21 @@ interface Chosen {
   readonly written: readonly string[] | null;
 }
 
-function headOf({ note, postText }: Readonly<ItemFilePlan>): readonly ZipFile[] {
-  return [
-    {
-      name: itemFileKey(note.id, noteFileName(note.title)),
-      bytes: TEXT.encode(itemNote(note, { links: [], omittedImages: [] })),
-    },
-    ...(postText === null ? [] : [{ name: postText.key, bytes: TEXT.encode(postText.text) }]),
-  ];
+function noteFile(note: ItemFilePlan["note"]): ZipFile {
+  return {
+    name: itemFileKey(note.id, noteFileName(note.title)),
+    bytes: TEXT.encode(itemNote(note, { links: [], omittedImages: [] })),
+  };
+}
+
+function headOf({ note, postText }: Readonly<ItemFilePlan>, resume: PartialItem | null) {
+  const written = resume?.written ?? [];
+  const post =
+    postText === null || written.includes(postText.key)
+      ? []
+      : [{ name: postText.key, bytes: TEXT.encode(postText.text) }];
+
+  return resume === null ? [noteFile(note), ...post] : post;
 }
 
 function fitting(sizes: readonly number[], used: number): number {
@@ -77,19 +84,9 @@ function fitting(sizes: readonly number[], used: number): number {
   return refused === -1 ? sizes.length : refused;
 }
 
-function writtenBefore(names: readonly string[], resume: PartialItem | null): readonly string[] {
-  if (resume === null) return [];
-
-  return "written" in resume ? resume.written : names.slice(0, resume.entries);
-}
-
 function choose(plan: Readonly<ItemFilePlan>, { resume, used }: Readonly<Place>): Chosen {
-  const head = headOf(plan);
-  const before = writtenBefore(
-    [...head.map(({ name }) => name), ...plan.stored.map(({ key }) => key)],
-    resume,
-  );
-  const pendingHead = head.filter(({ name }) => !before.includes(name));
+  const before = resume?.written ?? [];
+  const pendingHead = headOf(plan, resume);
   const pendingStored = plan.stored.filter(({ key }) => !before.includes(key));
   const sizes = [
     ...pendingHead.map(({ bytes }) => bytes.length),

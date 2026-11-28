@@ -5,14 +5,26 @@ import { readStoredZip } from "../smoke/zip-read.ts";
 import { ExportStatusSchema } from "../src/core/contract/export-contract.ts";
 import { BACKUP_TABLES } from "../src/core/kernel/backup-tables.ts";
 import {
+  MIB,
+  exportChangedOnRead,
+  imagesOf,
+  instanceWithLongText,
+  notesOf,
+  storeImages,
+} from "./export-refresh-fixtures.ts";
+import {
   EXPORT_LIBRARY,
   type SavedLibrary,
-  type SliceEntry,
   downloadedZip,
   exportPieces,
-  firstLongText,
+  exportWithPostText,
+  assertWithinCap,
+  exactFitBytes,
+  firstTwo,
+  isEntry,
   readyExport,
   savedLibrary,
+  sizeSum,
   sliceEntries,
 } from "./export-restore-fixtures.ts";
 import { bytesOfKey, postTextKey } from "./file-store-fixtures.ts";
@@ -72,16 +84,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
 
       if (at === 0) assert.equal(items.size, 40);
 
-      const [head, ...rest] = slice;
-
-      assert.ok(head !== undefined, `slice ${String(at + 1)} holds an entry`);
-
-      let total = head.size;
-
-      for (const { name, size } of rest) {
-        assert.ok(total + size <= SLICE_BYTES, `${name} passes the slice cap`);
-        total += size;
-      }
+      assertWithinCap(slice, SLICE_BYTES, `slice ${String(at + 1)}`);
     }
   });
 
@@ -161,11 +164,7 @@ describe("an Export of a library too big for one slice is one complete zip", () 
       );
       const isLong = library.longTexts.has(id);
 
-      assert.equal(
-        inFolder.filter((name) => /\/note-[^/]+\.md$/u.test(name)).length,
-        1,
-        `note of ${String(id)}`,
-      );
+      assert.equal(notesOf(entries, id).length, 1, `note of ${String(id)}`);
       assert.equal(inFolder.length, isLong ? 2 : 1, `files of ${String(id)}`);
     }
 
@@ -196,20 +195,6 @@ describe("an Export of a library too big for one slice is one complete zip", () 
   });
 });
 
-const sizeSum = (entries: readonly SliceEntry[]) =>
-  entries.reduce((total, { size }) => total + size, 0);
-
-const isEntry = (entry: SliceEntry | undefined, pattern: RegExp) =>
-  entry !== undefined && pattern.test(entry.name);
-
-function firstTwo(slices: readonly (readonly SliceEntry[])[]) {
-  const [first, second] = slices;
-
-  assert.ok(first !== undefined && second !== undefined, "the Export holds two slices");
-
-  return { first, second };
-}
-
 describe("a slice ends where the next entry of an Item would pass 8 MiB", () => {
   let instance: Instance;
   let note: RegExp;
@@ -217,39 +202,16 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
   let postKey: string;
   let fit: number;
 
-  const BASE_TEXT_BYTES = 1_000_000;
-
-  const exported = async (textBytes: number) => {
-    await instance.core.files.put(postKey, new TextEncoder().encode("x".repeat(textBytes)));
-
-    const ready = await readyExport(instance);
-    const zip = await downloadedZip(instance, ready.id);
-
-    return { zip, slices: await sliceEntries(instance, ready.id, zip) };
-  };
-
-  const exactFit = async () => {
-    const {
-      slices: [single],
-    } = await exported(BASE_TEXT_BYTES);
-
-    assert.ok(single !== undefined, "the Export holds a slice");
-
-    return BASE_TEXT_BYTES + SLICE_BYTES - sizeSum(single.filter((entry) => !isEntry(entry, post)));
-  };
+  const exported = (textBytes: number) => exportWithPostText(instance, postKey, textBytes);
 
   before(async () => {
-    instance = await Instance.start();
-    await instance.setUp();
+    let longId: number;
 
-    const { id: longId } = firstLongText(
-      await savedLibrary(instance, { inlineText: 1, fileText: 1 }),
-    );
-
+    ({ instance, itemId: longId } = await instanceWithLongText());
     postKey = postTextKey(longId);
     note = new RegExp(`/items/${String(longId)}/note-[^/]+\\.md$`, "u");
     post = new RegExp(`/${postKey}$`, "u");
-    fit = await exactFit();
+    fit = await exactFitBytes(instance, postKey, SLICE_BYTES);
   });
 
   after(() => instance.close());
@@ -295,5 +257,40 @@ describe("a slice ends where the next entry of an Item would pass 8 MiB", () => 
       assert.ok(isEntry(slice[0], pattern));
       assert.equal(slice.length, 1);
     }
+  });
+});
+
+describe("an Item changed between two slices of its own entries", () => {
+  let instance: Instance;
+  let itemId: number;
+
+  before(async () => {
+    ({ instance, itemId } = await instanceWithLongText());
+  });
+
+  after(() => instance.close());
+
+  it("holds every image of the refreshed version when a slice wrote the note, the post text and the first old image", async (t) => {
+    const fresh = imagesOf(itemId, 901, 5, MIB);
+    const entries = await exportChangedOnRead(t, instance, imagesOf(itemId, 900, 3, 5 * MIB), () =>
+      storeImages(instance, fresh),
+    );
+
+    for (const { key, bytes } of fresh.images)
+      assertSameBytes(entryOf(entries, `${rootOf(entries)}${key}`), bytes, key);
+  });
+
+  it("holds one note of the Item when its title changes after a slice wrote the note", async (t) => {
+    const retitle = () => {
+      instance.database.exec("update digests set title = 'A new title' where item_id = ?", itemId);
+    };
+    const entries = await exportChangedOnRead(
+      t,
+      instance,
+      imagesOf(itemId, 902, 3, 5 * MIB),
+      retitle,
+    );
+
+    assert.equal(notesOf(entries, itemId).length, 1);
   });
 });
