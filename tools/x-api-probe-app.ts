@@ -59,7 +59,10 @@ async function answersSession(origin: string): Promise<boolean> {
   }
 }
 
-async function waitedForStart(origin: string, { ended, lines }: Readonly<Running>): Promise<void> {
+async function waitedForStart(
+  origin: string,
+  { ended, listening, lines }: Readonly<Running>,
+): Promise<void> {
   const deadline = Date.now() + START_MS;
 
   while (Date.now() < deadline) {
@@ -70,7 +73,7 @@ async function waitedForStart(origin: string, { ended, lines }: Readonly<Running
         `the app ended (${how}) before it answered: ${lines().slice(-5).join(" | ")}`,
       );
     // oxlint-disable-next-line eslint/no-await-in-loop -- The start is polled once a second until the app answers.
-    if ((await answersSession(origin)) && ended() === null) return;
+    if (listening() && (await answersSession(origin)) && ended() === null) return;
     // oxlint-disable-next-line eslint/no-await-in-loop -- The start is polled once a second until the app answers.
     await sleep(POLL_MS);
   }

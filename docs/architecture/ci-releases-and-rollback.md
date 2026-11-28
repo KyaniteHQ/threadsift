@@ -198,7 +198,7 @@ Each Paste carries a caller-sent Digest ([the v1 spec](../spec.md), Agent output
 
 The task refuses S6 and S7, which are not defined yet. Every probe starts and ends with a balance read (`GET /2/usage/credits`).
 
-S4 and S5 start a fresh local Instance with a scratch database and folder, with no grok CLI and no Grok Bot. The Instance listens on 127.0.0.1 only, on a free port that the task picks: the container gets `HOST=127.0.0.1`, and the Worker gets `--ip 127.0.0.1`. The task checks that the Instance it started is still running once the port answers. The Worker serves an empty assets folder inside the scratch folder, because the task calls API routes only, so the task needs no web build.
+S4 and S5 start a fresh local Instance with a scratch database and folder, with no grok CLI and no Grok Bot. The Instance listens on 127.0.0.1 only, on a free port that the task picks: the container gets `HOST=127.0.0.1`, and the Worker gets `--ip 127.0.0.1`. The task sends its first request only after the Instance's own output says it listens on that port: the container's `http-listening` line or wrangler's `Ready on` line. It then checks that the Instance is still running once the port answers, so a different process on the port gets no setup code and no token. The Worker serves an empty assets folder inside the scratch folder, because the task calls API routes only, so the task needs no web build.
 
 - The task saves the token through `PUT /api/settings/x-api`, in the body of a request to the local Instance, which seals it into the scratch database.
 - It sets the Instance's limits: 1 USD per Item for S4 and 0.10 USD for S5, and a day limit 0.20 USD higher for the daily usage read.

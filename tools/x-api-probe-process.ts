@@ -6,6 +6,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 
 import { z } from "zod";
 
+import { parsedJson } from "../src/core/kernel/parsed-json.ts";
+
 export type AppTarget = "container" | "worker";
 
 const KEPT_LOG_LINES = 400;
@@ -56,6 +58,7 @@ export async function freePort(): Promise<number> {
 
 export type Running = {
   readonly ended: () => string | null;
+  readonly listening: () => boolean;
   readonly lines: () => readonly string[];
   readonly stop: () => Promise<void>;
 };
@@ -119,6 +122,18 @@ function endedWithin(exited: Readonly<Promise<void>>, ms: number): Promise<boole
   return Promise.race([exited.then(() => true), sleep(ms, false, { ref: false })]);
 }
 
+const ListeningSchema = z.looseObject({
+  event: z.literal("http-listening"),
+  address: z.literal("127.0.0.1"),
+  port: z.number(),
+});
+
+function listensOn(target: AppTarget, port: number, line: string): boolean {
+  if (target === "worker") return line.includes(`Ready on http://127.0.0.1:${String(port)}`);
+
+  return parsedJson(ListeningSchema, line)?.port === port;
+}
+
 export function running(
   target: AppTarget,
   place: Place,
@@ -146,6 +161,7 @@ export function running(
   child.stderr.setEncoding("utf8").on("data", keep);
   return {
     ended: () => end.how,
+    listening: () => kept.some((line) => listensOn(target, place.port, line)),
     lines: () => [...kept],
     stop: async () => {
       try {
