@@ -1,0 +1,70 @@
+name: extension-stores
+
+on:
+  schedule:
+    - cron: "23 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  newest:
+    if: github.repository == 'KyaniteHQ/threadsift'
+    runs-on: ubuntu-26.04
+    timeout-minutes: 5
+    outputs:
+      tag: ${{ steps.newest.outputs.tag }}
+    steps:
+      - id: newest
+        name: Find the newest stable release tag
+        run: |
+          tag=$(git ls-remote --tags --refs "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" 'v*' |
+            cut -f2 | sed 's|^refs/tags/||' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "Newest stable release tag: ${tag:-none, so no store holds a release of this workflow yet}" >> "$GITHUB_STEP_SUMMARY"
+
+  status:
+    needs: newest
+    if: needs.newest.outputs.tag != ''
+    runs-on: ubuntu-26.04
+    timeout-minutes: 10
+    environment: extension-stores
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: ./.github/actions/setup-devenv
+      - name: Install the store client
+        run: devenv tasks run ci:install
+      - id: google
+        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != ''
+        name: Get a one-hour read-only Chrome Web Store token for the service account
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.CHROME_SERVICE_ACCOUNT_EMAIL }}
+          token_format: access_token
+          access_token_scopes: https://www.googleapis.com/auth/chromewebstore.readonly
+          create_credentials_file: false
+          export_environment_variables: false
+      - name: Read both stores and fail on a rejection, a takedown, a warning or a release 21 days behind
+        env:
+          TAG: ${{ needs.newest.outputs.tag }}
+          CHROME_PUBLISHER_ID: ${{ vars.CHROME_PUBLISHER_ID }}
+          CHROME_EXTENSION_ID: ${{ vars.CHROME_EXTENSION_ID }}
+          CHROME_SERVICE_ACCOUNT_ACCESS_TOKEN: ${{ steps.google.outputs.access_token }}
+          CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL: ${{ secrets.CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL }}
+          CHROME_SERVICE_ACCOUNT_PRIVATE_KEY: ${{ secrets.CHROME_SERVICE_ACCOUNT_PRIVATE_KEY }}
+          FIREFOX_EXTENSION_ID: ${{ vars.FIREFOX_EXTENSION_ID }}
+          FIREFOX_JWT_ISSUER: ${{ secrets.FIREFOX_JWT_ISSUER }}
+          FIREFOX_JWT_SECRET: ${{ secrets.FIREFOX_JWT_SECRET }}
+        run: devenv shell -- node tools/extension-stores.ts status "$TAG"
