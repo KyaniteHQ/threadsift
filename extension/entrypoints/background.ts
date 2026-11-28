@@ -4,6 +4,7 @@ import { defineBackground } from "wxt/utils/define-background";
 import { exclusive, reconcileAccess } from "../lib/access.ts";
 import { syncScripts } from "../lib/content-scripts.ts";
 import { restrictStorage, settleFill } from "../lib/credentials.ts";
+import { removalEndsFill } from "../lib/fill-access.ts";
 import { cancelFills } from "../lib/fill.ts";
 import { logFailure } from "../lib/log.ts";
 import { servePort } from "../lib/worker-ports.ts";
@@ -29,8 +30,8 @@ export default defineBackground({
       void exclusive(reconcileAccess);
     });
     browser.permissions.onAdded.addListener(() => void syncScripts());
-    browser.permissions.onRemoved.addListener(({ origins }) => {
-      if ((origins ?? []).length > 0) cancelFills();
+    browser.permissions.onRemoved.addListener((removed) => {
+      if (removalEndsFill(removed)) cancelFills();
 
       void followAccess();
     });

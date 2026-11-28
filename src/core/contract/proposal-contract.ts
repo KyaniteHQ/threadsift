@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 import { SOURCES } from "./item-contract.ts";
+import type { RESTORING_CODE } from "./restore-contract.ts";
 
 export const MERGE_KINDS = ["tag-merge", "topic-merge"] as const;
 
@@ -128,11 +129,21 @@ export const RejectedSchema = z.object({ state: z.literal("rejected") }).readonl
 
 export const AcceptedSchema = z.object({ state: z.enum(["done", "accepting"]) }).readonly();
 
-export const ACCEPT_REFUSALS = ["not-open", "not-current", "no-provider", "merge-busy"] as const;
+export const ACCEPT_REFUSALS = [
+  "not-open",
+  "not-current",
+  "no-provider",
+  "merge-busy",
+  "merge-failed",
+] as const;
 
 export type AcceptRefusal = (typeof ACCEPT_REFUSALS)[number];
 
-export type Acceptance = z.infer<typeof AcceptedSchema>["state"] | "unknown" | AcceptRefusal;
+export type Acceptance =
+  | z.infer<typeof AcceptedSchema>["state"]
+  | "unknown"
+  | AcceptRefusal
+  | typeof RESTORING_CODE;
 
 export type Proposal = z.infer<typeof ProposalSchema>;
 

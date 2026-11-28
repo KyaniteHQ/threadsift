@@ -1,11 +1,11 @@
-import { type SQLWrapper, and, eq, notExists } from "drizzle-orm";
+import { type SQLWrapper, and, eq, notExists, sql } from "drizzle-orm";
 
 import type { Link } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guards, holdsNoRow, insertGuard, unlessRefused } from "../../../core/kernel/guards.ts";
+import { holdsNoRow, unlessRefused } from "../../../core/kernel/guards.ts";
 import { hasOpenJob } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { restoreGuard } from "../../../core/kernel/restore-hold.ts";
+import { heldBatch } from "../../../core/kernel/restore-hold.ts";
 import { itemAliases, items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
 import {
@@ -38,9 +38,9 @@ interface Failure {
   readonly addedByToken: Paste["addedByToken"];
 }
 
-const INSERTED_ITEM = 5;
+const INSERTED_ITEM = 2;
 
-const REFRESHED_ITEM = 4;
+const REFRESHED_ITEM = 2;
 
 async function insertedFailure(
   db: Database,
@@ -51,7 +51,7 @@ async function insertedFailure(
   const missing = holdsNoItem(db, normalizedUrl);
   const itemKey = eq(items.normalizedUrl, normalizedUrl);
 
-  const entry = itemInsert(db, {
+  const insert = itemInsert(db, {
     link,
     originalUrl: address,
     savedAt: now,
@@ -59,17 +59,10 @@ async function insertedFailure(
     fetched: settle(fetched, null, now),
   });
 
-  const inserted = await unlessRefused(() =>
-    db.batch([
-      entry.restoreGuard,
-      insertGuard(db, noAlias),
-      insertGuard(db, missing),
-      entry.budgetGuard,
-      entry.insert,
-      itemRead(db, itemKey),
-      ...STALE.itemChanged(db, itemKey),
-      db.delete(guards),
-    ]),
+  const inserted = await heldBatch(
+    db,
+    [...insert, itemRead(db, itemKey), ...STALE.itemChanged(db, itemKey)] as const,
+    sql`${noAlias} and ${missing}`,
   );
 
   return inserted === null
@@ -90,22 +83,23 @@ async function refreshedFailure(
 
   if (known === undefined) return null;
 
-  const refreshed = await db.batch([
-    restoreGuard(db),
-    insertGuard(db, noAlias),
-    db
-      .update(items)
-      .set({ pendingDigest: null })
-      .where(and(eq(items.id, known.id), notExists(hasOpenJob("digest")))),
-    db
-      .update(items)
-      .set(settle(fetched, known.title, now))
-      .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
-    itemRead(db, eq(items.id, known.id)),
-    db.delete(guards),
-  ]);
+  const refreshed = await heldBatch(
+    db,
+    [
+      db
+        .update(items)
+        .set({ pendingDigest: null })
+        .where(and(eq(items.id, known.id), notExists(hasOpenJob("digest")))),
+      db
+        .update(items)
+        .set(settle(fetched, known.title, now))
+        .where(and(eq(items.id, known.id), notExists(hasOpenJob()))),
+      itemRead(db, eq(items.id, known.id)),
+    ] as const,
+    noAlias,
+  );
 
-  const [item] = refreshed[REFRESHED_ITEM];
+  const [item] = refreshed?.[REFRESHED_ITEM] ?? [];
 
   return item === undefined ? null : { kind: "saved", item, created: false };
 }

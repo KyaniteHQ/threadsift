@@ -19,8 +19,8 @@
     "docs:impact": "node tools/docs-impact.ts",
     "fmt:check": "oxfmt --check",
     "lint": "oxlint --format=agent",
-    "lint:extension": "pnpm --filter threadsift-extension run lint:firefox",
     "lint:fix": "oxlint --fix --fix-suggestions",
+    "package:extension": "node tools/extension-package.ts",
     "test": "node tools/test-shards.ts"
   },
   "dependencies": {

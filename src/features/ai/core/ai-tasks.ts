@@ -1,4 +1,4 @@
-import { sql } from "drizzle-orm";
+import { type SQLWrapper, sql } from "drizzle-orm";
 
 import {
   type AiConnection,
@@ -11,8 +11,10 @@ import {
 } from "../../../core/contract/ai-contract.ts";
 import { within } from "../../../core/contract/deadline.ts";
 import type { Provider } from "../../../core/contract/provider-families.ts";
+import { CURRENT_REVISION } from "../../../core/kernel/ai-settings-revision.ts";
 import { failedAiTask, insertTask } from "../../../core/kernel/ai-task-rows.ts";
 import { bestEffort, logFailure } from "../../../core/kernel/failure-log.ts";
+import { guardHolds } from "../../../core/kernel/guards.ts";
 import { holding } from "../../../core/kernel/job-rows.ts";
 import type { AiPorts } from "../../../core/kernel/ports.ts";
 import type { JobRow } from "../../../core/kernel/schema.ts";
@@ -28,13 +30,18 @@ interface DoneTask<Result> {
 
 type TaskResult<Result> = DoneTask<Result> | (AiRefused & { readonly taskId: number | null });
 
-interface ClaimLost {
-  readonly kind: "claim-lost";
+type NotStarted = { readonly kind: "claim-lost" } | { readonly kind: "run-again" };
+
+const CLAIM_LOST: NotStarted = { kind: "claim-lost" };
+
+const RUN_AGAIN: NotStarted = { kind: "run-again" };
+
+type OwningJob = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration" | "itemId">>;
+
+interface TaskOwner {
+  readonly job: OwningJob;
+  readonly revision: number;
 }
-
-const CLAIM_LOST: ClaimLost = { kind: "claim-lost" };
-
-type TaskOwner = Readonly<Pick<JobRow, "id" | "attempts" | "attemptGeneration" | "itemId">>;
 
 interface TaskOrigin {
   readonly executor: string;
@@ -66,7 +73,7 @@ function startTask(
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
   origin: Readonly<TaskOrigin>,
-  owner: TaskOwner | null,
+  { itemId, holds }: Readonly<{ itemId: number | null; holds: Readonly<SQLWrapper> }>,
 ) {
   return insertTask(
     ports.db,
@@ -77,13 +84,39 @@ function startTask(
       attempts: input.attempts,
       deadline: Date.now() + AI_DEADLINE_MS,
       ...origin,
-      itemId: owner?.itemId ?? null,
+      itemId,
       jobId: null,
       callbackHash: null,
       context: null,
     },
-    owner === null ? sql`1` : holding(owner),
+    holds,
   );
+}
+
+function settingsAsLoaded(revision: number): SQLWrapper {
+  return sql`${CURRENT_REVISION} = ${revision}`;
+}
+
+function modelTaskHolds(owner: Readonly<TaskOwner> | null): SQLWrapper {
+  return owner === null
+    ? sql`1`
+    : sql`${holding(owner.job)} and ${settingsAsLoaded(owner.revision)}`;
+}
+
+async function notStarted(ports: AiPorts, owner: Readonly<TaskOwner> | null): Promise<NotStarted> {
+  return owner !== null && (await guardHolds(ports.db, holding(owner.job)))
+    ? RUN_AGAIN
+    : CLAIM_LOST;
+}
+
+async function refusedAsLoaded<Refusal>(
+  ports: AiPorts,
+  refusal: Refusal,
+  owner: Readonly<TaskOwner> | null,
+): Promise<Refusal | NotStarted> {
+  return owner === null || (await guardHolds(ports.db, settingsAsLoaded(owner.revision)))
+    ? refusal
+    : RUN_AGAIN;
 }
 
 interface TaskInput {
@@ -106,30 +139,35 @@ export function runAiTask<Result>(
   ai: ModelAi,
   definition: AiTaskDefinition<Result>,
   input: Readonly<TaskInput>,
-  owner: TaskOwner,
+  owner: Readonly<TaskOwner>,
   attempt?: AbortSignal,
-): Promise<TaskResult<Result> | ClaimLost>;
+): Promise<TaskResult<Result> | NotStarted>;
 export async function runAiTask<Result>(
   ports: AiPorts,
   ai: ModelAi,
   definition: AiTaskDefinition<Result>,
   input: Readonly<TaskInput>,
-  owner: TaskOwner | null,
+  owner: Readonly<TaskOwner> | null,
   attempt?: AbortSignal,
-): Promise<TaskResult<Result> | ClaimLost> {
-  if (ai.state !== "ready") return { ...refusedAi(ai.state), taskId: null };
+): Promise<TaskResult<Result> | NotStarted> {
+  if (ai.state !== "ready") {
+    return refusedAsLoaded(ports, { ...refusedAi(ai.state), taskId: null }, owner);
+  }
 
   const config = executionConfig(ports, ai.config);
 
-  if (config?.kind === "refused") return { ...config, taskId: null };
+  if (config?.kind === "refused") return refusedAsLoaded(ports, { ...config, taskId: null }, owner);
   if (config?.kind === "http" && !allowsUrl(ports.ai, config.baseUrl))
-    return { ...refusedAi("refused"), taskId: null };
+    return refusedAsLoaded(ports, { ...refusedAi("refused"), taskId: null }, owner);
   const text = definition.prepareInput(input.text);
 
   const origin = config === null ? unavailableOriginOf(ai.config) : originOf(config);
-  const task = await startTask(ports, definition.kind, text, input, origin, owner);
+  const task = await startTask(ports, definition.kind, text, input, origin, {
+    itemId: owner?.job.itemId ?? null,
+    holds: modelTaskHolds(owner),
+  });
 
-  if (task === null) return CLAIM_LOST;
+  if (task === null) return notStarted(ports, owner);
 
   if (config === null) return failTask(ports, task.id, "provider-unavailable");
 
@@ -208,7 +246,12 @@ export async function startCallerTask(
   kind: string,
   text: string,
   input: Readonly<{ inputRevision: number; attempts: number }>,
-  owner: TaskOwner,
+  owner: OwningJob,
 ) {
-  return (await startTask(ports, kind, text, input, CALLER_ORIGIN, owner))?.id ?? null;
+  const task = await startTask(ports, kind, text, input, CALLER_ORIGIN, {
+    itemId: owner.itemId,
+    holds: holding(owner),
+  });
+
+  return task?.id ?? null;
 }

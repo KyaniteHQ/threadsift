@@ -98,12 +98,12 @@ function refusalOf(cause: unknown): Refusal | null {
   return refusedBy(cause, REFUSALS.outcome) ? "outcome" : null;
 }
 
-export function refusedByGuard(cause: unknown): boolean {
-  return refusalOf(cause) !== null;
-}
-
 export function refusedWith(cause: unknown, refusal: Refusal): boolean {
   return refusalOf(cause) === refusal;
+}
+
+export function refusedByGuard(cause: unknown): boolean {
+  return refusalOf(cause) !== null;
 }
 
 export async function answeringRefusal<Result, Answer>(

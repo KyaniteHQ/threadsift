@@ -50,7 +50,7 @@ The 400, 403, 413 and 415 of each route in `GET /api/openapi.json` come from the
 
 - With no `cursor` it also answers the counts the filter pane shows. Each group's counts apply the search and the other groups' filters but not its own group, so a count equals what choosing that value leaves.
 - Search splits `q` into runs of letters and digits. Each run is a prefix match, and every run must match.
-- The `url` filter finds one Item by its normalized URL. The Extension uses it, with the `fillable` flag, to fill a Link-only Reddit Item.
+- The `url` filter finds the Item a link names, by the rule a Paste reads too. For a short link or a Reddit share link, that is the Item its stored alias names, or the Item under the link itself when it has no alias. For any other link, it is the Item whose normalized URL is the link's. The filter reads only what is stored: a Paste of a short link whose alias ends at a Reddit share link resolves the link again and can reach another Item, which the filter finds only after that Paste. The Extension uses it, with the `fillable` flag, to fill a Link-only Reddit Item.
 - Each Item carries `commentCount`, which counts the comments the Reader shows ([the spec](../spec.md), Comment filter).
 
 ## A Paste
@@ -73,7 +73,7 @@ The 400, 403, 413 and 415 of each route in `GET /api/openapi.json` come from the
 - `results[i]` answers `links[i]` with `added`, `known` or `refused` (a host that is not globally reachable, which does not stop the other links).
 - An invalid entry answers 400 and saves nothing.
 
-`import` is `{name, cursor, previous?}`. The caller picks the `name` and an opaque `cursor`, such as the last bookmark id. When `previous` is sent, the Instance saves the cursor only while the stored one equals it (null means only while nothing is stored).
+`import` is `{name, cursor, previous?, previousUpdatedAt?}`. The caller picks the `name` and an opaque `cursor`, such as the last bookmark id. A `previous` of null saves the cursor only while nothing is stored. A request without `previous` saves it with no guard, so a late one can move a cursor back; the X bookmark sync of the Threadsift bot sends that form, as the only writer of its cursors. A text `previous` comes with `previousUpdatedAt`, the `updatedAt` that `GET /api/imports/{name}` answered with that cursor. The Instance then saves the cursor only while the stored cursor equals `previous` and the stored `updatedAt` equals `previousUpdatedAt`. A cursor that left `previous` and came back to it has a new `updatedAt`, so a late request that sends a text `previous` does not match and cannot move the cursor back. A request that sends a text `previous` without `previousUpdatedAt`, sends `previousUpdatedAt` with `previous` null or absent, or sends another key in `import` answers 400 and saves nothing.
 
 The Instance saves the cursor only after every link has an outcome, so a call that dies half way leaves the old cursor, and the repeat answers `known` for the links already saved. `GET /api/imports/{name}` reads it back, and an agent token calls both ([Data model outline](data-model-outline.md), the import cursor).
 
@@ -89,7 +89,7 @@ The Instance saves the cursor only after every link has an outcome, so a call th
 The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 to an agent token. All Highlight and Note writes answer 403 to an agent token too. `GET /api/highlights` answers one page of the Highlights page and is open to agent tokens.
 
 - `POST /api/items/:id/highlights` answers 409 when the text changed since the owner read it, and 400 with `code` `selector-mismatch` when the passage does not stand at its hint in that text.
-- Its `target.commentId` takes the comment id that `GET /api/items/:id` answers (`CommentId`) and answers 400 for an id with Reddit's `t1_` prefix, which a Digest's `keptComments` still accept. A Reader tab that loaded an Item from a build that stored the prefix sends it, so that tab must be reloaded.
+- Its `target.commentId` takes the comment id that `GET /api/items/:id` answers (`CommentId`), in any letter case, and answers 400 for an id with Reddit's `t1_` prefix, which a Digest's `keptComments` still accept. A Reader tab that loaded an Item from a build that stored the prefix sends it, so that tab must be reloaded.
 - `PUT /api/items/:id/note` takes the Note's `revision` and answers 409 with the stored Note when it moved.
 - `GET /api/highlights` answers its `counts` only when the request has no `cursor`, by the rule of the Item list, so a Load more does not count the library again.
 
@@ -132,5 +132,5 @@ The Web Share Target is a form `POST /share` that the app handles on the server.
 The Export and Restore routes answer 403 to an agent token and 401 with no owner session, because a leaked token must not copy the library in one request.
 
 - One Export exists at a time, and a ready one is kept 24 hours.
-- A Restore starts only into an empty library. While it runs, a write of `POST /api/items` or `POST /api/items/batch` that would store an Item answers 503 with `code: "restoring"`, and the MCP `add` tool returns an error with the same text.
+- A Restore starts only into an empty library. While it runs, a write of `POST /api/items` or `POST /api/items/batch` that would store an Item answers 503 with `code: "restoring"`, and the MCP `add` tool returns an error with the same text. `POST /api/items/{id}/highlights`, `PUT /api/items/{id}/note`, `POST /api/items/{id}/digest`, `POST /api/topics/{key}/overview`, `POST /api/proposals/{id}/accept` (except for a `highlight-lost` row), `POST /api/settings/ai/verify` and `PUT /api/settings/reddit` answer the same 503 ([Export, backup and restore](export-backup-and-restore.md), While it runs).
 - [Export, backup and restore](export-backup-and-restore.md) holds the limits of the download on the Worker.
