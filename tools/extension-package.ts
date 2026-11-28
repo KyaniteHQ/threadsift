@@ -1,11 +1,21 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { delimiter, join, resolve, sep } from "node:path";
+import { delimiter, join, sep } from "node:path";
 
 import { z } from "zod";
 
 import { loadInChromium } from "./extension-chrome-check.ts";
+import {
+  EXTENSION,
+  ROOT,
+  type Release,
+  STORE_FILES,
+  WXT_OUTPUT,
+  extensionRelease,
+  storeFile,
+  zipName,
+} from "./extension-files.ts";
 import {
   BROWSERS,
   type Browser,
@@ -13,9 +23,6 @@ import {
   ManifestPermissionsSchema,
 } from "./extension-listing-check.ts";
 
-const ROOT = resolve(import.meta.dirname, "..");
-const EXTENSION = "extension";
-const WXT_OUTPUT = join(EXTENSION, ".output");
 const LISTING = join(EXTENSION, "store-listing.md");
 const ARCHIVE_MUST_HOLD = ["SOURCE_CODE_REVIEW.md", "README.md"];
 const BUILD_ENV_KEPT = [
@@ -29,7 +36,6 @@ const BUILD_ENV_KEPT = [
 
 const BUILD_SCRIPTS: Readonly<Record<Browser, string>> = { chrome: "zip", firefox: "zip:firefox" };
 
-const PackageSchema = z.object({ name: z.string().min(1), version: z.string().min(1) });
 const ManifestSchema = ManifestPermissionsSchema.extend({ version: z.string().min(1) });
 const LintSchema = z.object({
   summary: z.object({ errors: z.number(), warnings: z.number(), notices: z.number() }),
@@ -37,11 +43,6 @@ const LintSchema = z.object({
 });
 
 class StepFailed extends Error {}
-
-interface Release {
-  readonly name: string;
-  readonly version: string;
-}
 
 interface Spawn {
   readonly cwd: string;
@@ -98,16 +99,6 @@ function buildEnv() {
   });
 
   return { ...Object.fromEntries(kept), PATH: path.join(delimiter) };
-}
-
-function release(): Release {
-  return PackageSchema.parse(
-    JSON.parse(readFileSync(join(ROOT, EXTENSION, "package.json"), "utf8")),
-  );
-}
-
-function zipName({ name, version }: Release, kind: Browser | "sources"): string {
-  return `${name}-${version}-${kind}.zip`;
 }
 
 function unzip(zip: string, folder: string): string {
@@ -209,7 +200,7 @@ function checkArchiveTree(commit: string): void {
 }
 
 async function packageExtension(work: string): Promise<void> {
-  const target = release();
+  const target = extensionRelease();
 
   rmSync(join(ROOT, WXT_OUTPUT), { recursive: true, force: true });
 
@@ -229,7 +220,7 @@ async function packageExtension(work: string): Promise<void> {
   lintFirefox(first.firefox);
   await loadInChromium(first.chrome, manifests.chrome.version, work);
 
-  const sources = join(ROOT, WXT_OUTPUT, zipName(target, "sources"));
+  const sources = storeFile(target, "sources");
   const commit = archivedCommit();
 
   checkArchiveTree(commit);
@@ -259,10 +250,10 @@ async function packageExtension(work: string): Promise<void> {
 }
 
 function removeStoreFiles(): void {
-  const target = release();
+  const target = extensionRelease();
 
-  for (const kind of [...BROWSERS, "sources"] as const) {
-    rmSync(join(ROOT, WXT_OUTPUT, zipName(target, kind)), { force: true });
+  for (const kind of STORE_FILES) {
+    rmSync(storeFile(target, kind), { force: true });
   }
 }
 
