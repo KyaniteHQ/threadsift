@@ -6,6 +6,7 @@ import { delimiter, dirname, isAbsolute, join } from "node:path";
 import { PROBE_MS } from "../../core/contract/request-waits.ts";
 import { errnoCodeOf, withCleanup } from "../../core/kernel/failure-log.ts";
 import { Capture } from "./cli-capture.ts";
+import { holdSlotUntil } from "./cli-slots.ts";
 
 const KILL_GRACE_MS = 5000;
 const STDERR_CAP = 64 * 1024;
@@ -52,23 +53,32 @@ export function signalGroup(pid: number, signal: "SIGTERM" | "SIGKILL"): void {
 
 type Phase = "running" | "stopping" | "exited" | "done";
 
+type Ending = Exclude<UnfinishedEnd["kind"], "spawn-failed">;
+
+interface Outlets {
+  readonly answer: (end: ProcessEnd) => void;
+  readonly free: () => void;
+}
+
 class Execution {
   private readonly child;
   private readonly out: Capture;
   private readonly err: Capture;
   private readonly signal: AbortSignal;
-  private readonly finish: (end: ProcessEnd) => void;
+  private readonly outlets: Outlets;
   private phase: Phase = "running";
-  private overCap = false;
+  private ending: Ending | null = null;
   private exitCode: number | null = null;
+  private answered = false;
   private timer: NodeJS.Timeout | null = null;
   private readonly onAbort = (): void => {
+    this.ending ??= "aborted";
     this.stop();
   };
 
-  constructor(spec: Readonly<ProcessSpec>, signal: AbortSignal, finish: (end: ProcessEnd) => void) {
+  constructor(spec: Readonly<ProcessSpec>, signal: AbortSignal, outlets: Readonly<Outlets>) {
     this.signal = signal;
-    this.finish = finish;
+    this.outlets = outlets;
     this.out = new Capture(spec.stdoutCap, spec.keepStdout);
     this.err = new Capture(STDERR_CAP, true);
 
@@ -102,13 +112,13 @@ class Execution {
       this.exited(code);
     });
     this.child.on("close", (code) => {
-      this.settle(code);
+      this.closed(code);
     });
     signal.addEventListener("abort", this.onAbort, { once: true });
   }
 
   private overflowed(): void {
-    this.overCap = true;
+    this.ending ??= "over-cap";
     this.stop();
   }
 
@@ -135,9 +145,13 @@ class Execution {
 
     this.phase = "exited";
     this.exitCode = code;
+    this.signal.removeEventListener("abort", this.onAbort);
     this.signalChildGroup("SIGKILL");
     this.arm(KILL_GRACE_MS, () => {
       this.abandonPipes();
+    });
+    setImmediate(() => {
+      this.answer();
     });
   }
 
@@ -150,37 +164,58 @@ class Execution {
   private abandonPipes(): void {
     this.child.stdout.destroy();
     this.child.stderr.destroy();
-    this.settle(this.exitCode);
+    this.closed(this.exitCode);
   }
 
   private failedToStart(): void {
     if (this.child.pid !== undefined) return;
-    this.settleWith({ kind: "spawn-failed" });
+    this.answerWith({ kind: "spawn-failed" });
+    this.closed(null);
   }
 
-  private settle(code: number | null): void {
-    if (this.signal.aborted) this.settleWith({ kind: "aborted" });
-    else if (this.overCap) this.settleWith({ kind: "over-cap" });
-    else
-      this.settleWith({ kind: "exited", code, stdout: this.out.text(), stderr: this.err.text() });
+  private answer(): void {
+    this.answerWith(
+      this.ending === null
+        ? { kind: "exited", code: this.exitCode, stdout: this.out.text(), stderr: this.err.text() }
+        : { kind: this.ending },
+    );
   }
 
-  private settleWith(end: ProcessEnd): void {
+  private answerWith(end: ProcessEnd): void {
+    if (this.answered) return;
+
+    this.answered = true;
+    this.signal.removeEventListener("abort", this.onAbort);
+    this.outlets.answer(end);
+  }
+
+  private closed(code: number | null): void {
     if (this.phase === "done") return;
+
+    if (this.phase !== "exited") this.exitCode = code;
 
     this.phase = "done";
 
     if (this.timer !== null) clearTimeout(this.timer);
-    this.signal.removeEventListener("abort", this.onAbort);
-    this.finish(end);
+    this.answer();
+    this.outlets.free();
   }
 }
 
 export function runProcess(spec: Readonly<ProcessSpec>, signal: AbortSignal): Promise<ProcessEnd> {
   if (signal.aborted) return Promise.resolve({ kind: "aborted" });
 
+  const freed = Promise.withResolvers<void>();
+
+  holdSlotUntil(() => freed.promise);
+
   return new Promise((resolve) => {
-    void new Execution(spec, signal, resolve);
+    void new Execution(spec, signal, {
+      answer: resolve,
+      free: () => {
+        freed.resolve();
+      },
+    });
   });
 }
 

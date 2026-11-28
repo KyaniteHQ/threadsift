@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 
 import { entering } from "../../../core/contract/restore-contract.ts";
+import { deletedUndigestedTasks } from "../../../core/kernel/ai-task-rows.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { guardedWrite } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
@@ -44,6 +45,7 @@ function opened(db: Database, id: number) {
       .from(restoreRuns)
       .where(restore),
     openingRestoreJob(db, ready),
+    deletedUndigestedTasks(db, sql`exists (select 1 from ${restoreRuns} where ${ready})`),
     db
       .update(restoreRuns)
       .set({

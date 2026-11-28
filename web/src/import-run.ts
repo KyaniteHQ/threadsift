@@ -24,7 +24,12 @@ export interface Run {
 
 type Step =
   | { readonly kind: "advanced"; readonly progress: Progress }
-  | { readonly kind: "ended"; readonly ending: Ending; readonly saved?: string | null };
+  | {
+      readonly kind: "ended";
+      readonly ending: Ending;
+      readonly saved?: string | null;
+      readonly counts?: Counts;
+    };
 
 interface Place {
   readonly progress: Readonly<Progress>;
@@ -97,15 +102,16 @@ async function stepOf(
 
   if (saved !== written) return { kind: "ended", ending: "stopped", saved };
 
-  const request = nextBatch(links, progress.done, name, saved, IMPORT_BATCH_LINKS);
+  const request = nextBatch(links, progress.done, name, before, IMPORT_BATCH_LINKS);
   const done = progress.done + request.links.length;
   const answer = await postBatch(request);
 
   if (answer.kind === "saved") {
-    return {
-      kind: "advanced",
-      progress: { ...progress, done, counts: summed(progress.counts, answer.counts) },
-    };
+    const counts = summed(progress.counts, answer.counts);
+
+    return answer.stored === request.import.cursor
+      ? { kind: "advanced", progress: { ...progress, done, counts } }
+      : { kind: "ended", ending: "stopped", saved: answer.stored, counts };
   }
 
   if (answer.kind !== "unanswered") return ended(answer.kind);
@@ -139,8 +145,9 @@ async function batches(
     if (step.kind === "ended") {
       const last = step.saved === undefined ? written : step.saved;
       const done = step.saved === undefined ? progress.done : doneOf(step.saved);
+      const counts = step.counts ?? progress.counts;
 
-      return { ...progress, done, ending: step.ending, seen: resumeOf(last, links.length) };
+      return { ...progress, done, counts, ending: step.ending, seen: resumeOf(last, links.length) };
     }
 
     progress = step.progress;

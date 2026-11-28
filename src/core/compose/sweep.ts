@@ -3,7 +3,7 @@ import { cleanExports } from "../../features/export/core/export-cleanup.ts";
 import { cleanRestoreParts } from "../../features/restore/core/restore-parts.ts";
 import { continueMerges } from "../../features/wiki/core/merge-accept.ts";
 import { weeklyStages } from "../../features/wiki/core/proposal-kinds.ts";
-import { sweepDigests } from "../kernel/digest-opening.ts";
+import { sweepDigests } from "../kernel/digest-sweep.ts";
 import { logFailure } from "../kernel/failure-log.ts";
 import { restoreHoldsLibrary } from "../kernel/restore-hold.ts";
 import { cleanFiles } from "./file-cleanup.ts";
@@ -43,7 +43,7 @@ function stagesOf(ports: JobPorts, now: number): readonly Stage[] {
   ];
 }
 
-const WHILE_RESTORING: ReadonlySet<string> = new Set(["enqueue", "restores"]);
+const WHILE_RESTORING: ReadonlySet<string> = new Set(["enqueue", "exports", "restores"]);
 
 export async function sweep(ports: JobPorts): Promise<void> {
   let first: { readonly error: unknown } | undefined;

@@ -14,6 +14,8 @@ import { item, topicNameOf, topicPin } from "./pin-fixtures.ts";
 
 const published = { title: "T", topic: "ML", tags: [], summary: "S", keyPoints: ["K"] };
 
+const NO_JOB_ID = 0;
+
 const runningTask = (id: number, itemId: number) =>
   `insert into ai_tasks (id, kind, inputs, input_revision, executor, attempts, deadline, state, item_id)
      values (${String(id)}, 'digest', '{}', 0, 'caller', 1, 0, 'running', ${String(itemId)});`;
@@ -31,7 +33,11 @@ describe("each publication path refuses its batch when a Topic Pin appeared afte
 
     assert.ok(input);
 
-    const outcome = await publishedByCaller(database.db, input, published, { taskId, anchors });
+    const outcome = await publishedByCaller(database.db, input, published, {
+      taskId,
+      jobId: NO_JOB_ID,
+      anchors,
+    });
 
     assert.ok("writes" in outcome);
 

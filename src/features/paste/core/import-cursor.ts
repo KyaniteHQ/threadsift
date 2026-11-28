@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type {
   ImportCursor,
@@ -6,8 +6,7 @@ import type {
   ImportWrite,
 } from "../../../core/contract/import-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { guardedWrite } from "../../../core/kernel/guards.ts";
-import { type Closed, holdsNoRestore } from "../../../core/kernel/restore-hold.ts";
+import { type Closed, heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { imports } from "../../../core/kernel/schema.ts";
 
 export async function readImport(db: Database, name: string): Promise<ImportState | undefined> {
@@ -19,29 +18,35 @@ export async function readImport(db: Database, name: string): Promise<ImportStat
   return found;
 }
 
-function cursorWrite(db: Database, { name, cursor, previous }: Readonly<ImportWrite>) {
+function cursorWrite(db: Database, write: Readonly<ImportWrite>) {
+  const { name, cursor } = write;
   const now = Date.now();
   const row = { name, cursor, createdAt: now, updatedAt: now };
+  const moved = { cursor, updatedAt: sql`max(${now}, ${imports.updatedAt} + 1)` };
 
-  if (previous === undefined) {
-    return db
-      .insert(imports)
-      .values(row)
-      .onConflictDoUpdate({ target: imports.name, set: { cursor, updatedAt: now } });
+  if (write.previous === undefined) {
+    return db.insert(imports).values(row).onConflictDoUpdate({ target: imports.name, set: moved });
   }
 
-  return previous === null
-    ? db.insert(imports).values(row).onConflictDoNothing()
-    : db
-        .update(imports)
-        .set({ cursor, updatedAt: now })
-        .where(and(eq(imports.name, name), eq(imports.cursor, previous)));
+  if (write.previous === null) return db.insert(imports).values(row).onConflictDoNothing();
+
+  const { previous } = write;
+  const previousUpdatedAt = "previousUpdatedAt" in write ? write.previousUpdatedAt : undefined;
+
+  return db
+    .update(imports)
+    .set(moved)
+    .where(
+      and(
+        eq(imports.name, name),
+        eq(imports.cursor, previous),
+        previousUpdatedAt === undefined ? undefined : eq(imports.updatedAt, previousUpdatedAt),
+      ),
+    );
 }
 
 async function writtenWhileOpen(db: Database, write: Readonly<ImportWrite>): Promise<boolean> {
-  const written = await guardedWrite(db, holdsNoRestore(db), cursorWrite(db, write), []);
-
-  return written !== null;
+  return !isClosed(await whileOpen(() => heldBatch(db, [cursorWrite(db, write)] as const)));
 }
 
 export async function saveImport(
