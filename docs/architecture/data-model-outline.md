@@ -190,7 +190,7 @@ Not verified: the phone's own selection menu (iOS Safari, Android Chrome), the r
 | Failed refresh, or a result that publishes no content | Rows, files and text stay as they were. |
 | Refresh with no images, or a change to Other | Every row of the Item is deleted and every file goes. |
 | A thread published over the Item (`publishSupplied`) | Every row of the Item is deleted in the publishing batch, and the cleanup pass removes the files that no row names. |
-| An X thread published by the check job (`x_verify`) | The photos in its post text are stored like an Article's. A photo that is still there keeps its row, one that is gone loses it with its file, and a post with no photo removes every row. |
+| An X thread published by the check job (`x_verify`) or by the X API route | The photos in its post text are stored like an Article's. A photo that is still there keeps its row, one that is gone loses it with its file, and a post with no photo removes every row. |
 | Delete of the Item | The cascade deletes the rows and the prefix delete removes the files. |
 | Export and Restore | The records carry the ids, the file keys and the video URLs as stored, so a Restore keeps every row and link. The Export also writes each `stored` image as `items/<id>/<file name>` beside the Item's note, and `itemNote` rewrites the file-route links of the Item's own images to that bare file name. |
 | Merge of two copies | Not built. Two Items never share rows, because the match key holds `item_id`. |

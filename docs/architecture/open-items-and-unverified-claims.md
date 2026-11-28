@@ -149,7 +149,7 @@ Not verified: which reader the deployed Worker's rule chose for the bot's X link
 
 ### Cause notes
 
-An Item's `xNote` has 16 values (`X_READ_NOTES`). The container checks observed 5 on a real Item: `cli-signed-out`, `cli-failed`, `x-unconfirmed`, `bot-failed` and `x-post-absent`. `bot-not-set-up` and `cli-not-installed` need a container with no bot settings or with the CLI removed. The other nine need these conditions:
+An Item's `xNote` has 26 values (`X_READ_NOTES`): 17 for the Grok Bot and the grok CLI and 9 `api-*` notes for the X API reader, whose causes the X API outcomes table in [Fetchers](fetchers.md#outcomes-and-notes) lists. The container checks observed 5 on a real Item: `cli-signed-out`, `cli-failed`, `x-unconfirmed`, `bot-failed` and `x-post-absent`. `bot-not-set-up` and `cli-not-installed` need a container with no bot settings or with the CLI removed. The other ten need these conditions:
 
 | Cause note | Live condition |
 |---|---|
@@ -179,7 +179,7 @@ Not verified:
 
 ### X API reader
 
-No run has sent a request to X through the Instance's reader yet. Probes S4 and S5 are prepared and wait for the owner's go ([CI, releases and rollback](ci-releases-and-rollback.md#x-api-probe)). Runs against a refused local port and synthetic answers show the planner, the counter, the mapper and the notes.
+No run has sent a request to X through the Instance's reader yet. Probes S4 and S5 are prepared and wait for the owner's go ([CI, releases and rollback](ci-releases-and-rollback.md#x-api-probe)). The core tests of the planner, the counter and its charge rule, the mapper and the notes show them on literal X answers. The S4 and S5 dry runs (`X_API_DRY_RUN=1`) run the local Instance against a port that never connects.
 
 Not verified:
 
@@ -187,7 +187,11 @@ Not verified:
 - That X answers a full-archive search with `start_time` set to the post's own time for a post older than 30 days. X's docs say it does ([decisions and evidence](decisions-and-evidence.md#full-archive-search-window)).
 - The worst case of a lookup, 4 posts and 4 users. It counts one referenced post for each of X's 3 reference types, and no run has measured an answer near it.
 - The price of `GET /2/usage/tweets` and `GET /2/usage/credits`. The Instance counts each at 0.20 USD.
-- Whether a request with no answer was billed. The Instance counts it at its worst case.
+- Whether a request with no answer, a 5xx answer or a 200 of an unknown shape was billed. The Instance counts each at its worst case.
+
+Not built:
+
+- The daily check of stored X posts that [X developer terms](decisions-and-evidence.md#x-developer-terms) chose. No job checks a stored post against X, so a post deleted on X stays in the library until the owner deletes the Item. The X API reader stores up to 40 replies of other authors for each post, so this covers more X content than the other readers store.
 
 ## Ingest pipeline on the Worker
 

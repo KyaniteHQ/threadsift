@@ -78,9 +78,9 @@ The table splits the second point in two: a stored post and a shown post.
 | Point | Published answer | Choice |
 |---|---|---|
 | What a deletion on X reaches | No published answer | Hosted X Items are Link-only |
-| How current a stored post must be | Answered for stored posts: no check interval, removal within 24 hours of a request | Daily check of stored posts |
+| How current a stored post must be | Answered for stored posts: no check interval, removal within 24 hours of a request | Daily check of stored posts, not built yet ([Open items](open-items-and-unverified-claims.md#x-api-reader)) |
 | How current a shown post must be | No published answer | Hosted X Items are Link-only; a self-hosted Instance shows the stored post |
-| Post text sent to a Provider for a Digest | Training ban does not cover it; third-party limit applies; X asks that the use case list the step | The Digest waits until the owner decides what counts as X's approval of the step |
+| Post text sent to a Provider for a Digest | Training ban does not cover it; third-party limit applies; X asks that the use case list the step | The Digest of an Item read through the X API waits until the owner decides what counts as X's approval of the step |
 | When pay-per-use needs Enterprise | No published end-user threshold | Hosted X Items are Link-only |
 | A public demo of other authors' posts | No published answer | The demo shows only the owner's posts |
 

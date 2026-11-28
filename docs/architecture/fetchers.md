@@ -203,7 +203,7 @@ The container image sets `THREADSIFT_GROK_AUTO_UPDATE=true`, and the container t
 
 `fetchedByXApi` reads the post through X's own API with the owner's Bearer token, on both targets. `xRouteOf` opens the sealed token once per fetch job and passes it in the route. Each request goes with `originFetch` to `THREADSIFT_X_API_ORIGIN`, so the reader needs no port of its own. The default is `https://api.x.com`. Another value must be an https origin, or http on a loopback host.
 
-The answer is X's own data, so this route skips the check against X. `apiPublished` publishes the thread at once, with the same fewer-replies refusal and `holdsAtLeastStored` precondition as the other readers. The read shares the fetch job's deadline of 120 s (`X_FETCH_DEADLINE_MS`), and each request waits at most 15 s (`REQUEST_DEADLINE_MS`).
+The answer is X's own data, so this route skips the check against X. `apiPublished` publishes the thread at once, with the same fewer-replies refusal and `holdsAtLeastStored` precondition as the other readers. The read shares the fetch job's deadline of 120 s (`FETCH_DEADLINE_MS`), and each request waits at most 15 s (`REQUEST_DEADLINE_MS`).
 
 The planner (`nextRequest`) picks one request at a time from what the read holds so far:
 
@@ -377,7 +377,7 @@ The post, each quoted post and each reply carry `images`, the addresses of their
 - The X API reader takes photos from the `attachments.media_keys` expansion and keeps a `photo` with its `url` (`photosOf`).
 - Every reader keeps photos only on author-thread replies. A Paste carries none, because `XThreadSchema` takes `images` only empty.
 - The join puts each photo after the text it belongs to: after the post, inside the block quote of its quoted post, and after each follow-up. A post with an open code fence or an open HTML comment, `script`, `pre`, `style` or `textarea` block gets it closed first, or it would swallow the photo. A post of only photos has the tool's `(No text content)` placeholder replaced by an empty text, so X's answer, which holds only the media link, matches. Its title is `@<handle>`.
-- `storeMedia` stores the photos at publish like an Article's images ([Media](data-model-outline.md)), inside the settling step of the `x_verify` publish and its 90 s signal. A photo that cannot be stored, or one past the 20 of the Item (`ITEM_IMAGES_MAX`), becomes the line `A photo was not saved.`.
+- `storeMedia` stores the photos at publish like an Article's images ([Media](data-model-outline.md)), inside the settling step of the `x_verify` publish and its 90 s signal, or of the X API route's publish under the fetch job's 120 s signal (`FETCH_DEADLINE_MS`). A photo that cannot be stored, or one past the 20 of the Item (`ITEM_IMAGES_MAX`), becomes the line `A photo was not saved.`.
 - oEmbed holds the `pic.x.com` link of a post with media. A post with stored photos whose oEmbed answer has no media link loses its photos, and the check records `no-photos:<post id>` in `judged`. Which photo belongs to which post is not checked.
 
 ### Outcomes and notes
