@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { NO_COUNTS } from "./import-api.ts";
-import { type Outcome, type Progress, runImport } from "./import-run.ts";
+import { type Outcome, type Position, type Progress, plannedOf, runImport } from "./import-run.ts";
 import type { Check } from "./use-import-list.ts";
 
 type RunningState = {
@@ -17,7 +17,10 @@ export type RunState =
   | RunningState
   | { readonly phase: "ended"; readonly name: string; readonly outcome: Outcome };
 
-export const NOT_STARTED: Progress = { done: 0, counts: NO_COUNTS, uncounted: 0 };
+export const NOT_STARTED = { counts: NO_COUNTS, uncounted: 0 } as const satisfies Omit<
+  Progress,
+  "done"
+>;
 
 const IDLE: RunState = { phase: "idle" };
 
@@ -27,6 +30,10 @@ export function shownRun(state: RunState, check: Check): RunState {
   return state.phase === "ended" && check.status === "ready" && state.name === check.name
     ? state
     : IDLE;
+}
+
+function started(name: string, progress: Progress): RunningState {
+  return { phase: "running", name, progress, stopping: false, waiting: false };
 }
 
 export function useImportRun(seal: () => void) {
@@ -41,7 +48,7 @@ export function useImportRun(seal: () => void) {
   );
 
   const start = useCallback(
-    (links: readonly string[], name: string, from: Progress) => {
+    (links: readonly string[], name: string, from: Position) => {
       controller.current = new AbortController();
       const { signal } = controller.current;
 
@@ -64,7 +71,7 @@ export function useImportRun(seal: () => void) {
       };
 
       seal();
-      setState({ phase: "running", name, progress: from, stopping: false, waiting: false });
+      setState(started(name, plannedOf(from)));
       void run();
     },
     [seal],

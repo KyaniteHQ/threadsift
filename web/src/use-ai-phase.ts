@@ -1,4 +1,4 @@
-import { type Dispatch, useCallback, useEffect, useReducer } from "react";
+import { type Dispatch, useCallback, useEffect, useReducer, useRef } from "react";
 import { flushSync } from "react-dom";
 
 import type { Digest } from "../../src/core/contract/digest-schema.ts";
@@ -8,7 +8,7 @@ import {
   type ConnectNotice,
 } from "../../src/core/contract/openrouter-contract.ts";
 import { AI_TEXT } from "./ai-text.ts";
-import { useGuard } from "./use-form.ts";
+import { useAfter, useGuard } from "./use-form.ts";
 
 export type Outcome =
   | { readonly kind: "ok"; readonly text: string; readonly digest?: Digest }
@@ -19,6 +19,8 @@ export type Phase = "idle" | "saving" | "verifying" | "waiting" | "connecting" |
 type Working = Exclude<Phase, "idle" | "leaving">;
 
 export const LEAVING = "leaving";
+
+const LEAVE_WAIT_MS = 2000;
 
 const FAILED = {
   saving: AI_TEXT.saveFailed,
@@ -39,7 +41,7 @@ type Event =
   | { readonly kind: "settle"; readonly outcome: Outcome }
   | { readonly kind: "refuse"; readonly outcome: Outcome }
   | { readonly kind: "clear" }
-  | { readonly kind: "restore" };
+  | { readonly kind: "return" };
 
 function noticeOf(search: string): ConnectNotice | null {
   const parsed = ConnectNoticeSchema.safeParse(new URLSearchParams(search).get(NOTICE_PARAMETER));
@@ -66,7 +68,7 @@ function reduce(state: FormState, event: Event): FormState {
     return state.phase === "idle" ? { ...state, outcome: null, notice: null } : state;
   }
 
-  if (event.kind === "restore") {
+  if (event.kind === "return") {
     return state.phase === LEAVING ? { ...state, phase: "idle" } : state;
   }
 
@@ -92,6 +94,39 @@ function useRefusals(dispatch: Dispatch<Event>) {
   return { refuse, clear };
 }
 
+function useLeaveExit(leaving: boolean, dispatch: Dispatch<Event>): () => void {
+  const pending = useRef(false);
+
+  const expire = useCallback(() => {
+    pending.current = true;
+    dispatch({ kind: "return" });
+  }, [dispatch]);
+
+  useAfter(leaving, LEAVE_WAIT_MS, expire);
+
+  useEffect(() => {
+    const onPageShow = (event: Readonly<PageTransitionEvent>): void => {
+      if (!event.persisted) return;
+
+      pending.current = false;
+      dispatch({ kind: "return" });
+    };
+
+    window.addEventListener("pageshow", onPageShow);
+
+    return () => {
+      window.removeEventListener("pageshow", onPageShow);
+    };
+  }, [dispatch]);
+
+  return useCallback(() => {
+    if (!pending.current) return;
+
+    pending.current = false;
+    window.stop();
+  }, []);
+}
+
 export function useAiPhase() {
   const [state, dispatch] = useReducer(reduce, undefined, start);
   const { phase, notice } = state;
@@ -102,23 +137,14 @@ export function useAiPhase() {
     if (noticed) window.history.replaceState(null, "", window.location.pathname);
   }, [noticed]);
 
-  useEffect(() => {
-    const onPageShow = (event: Readonly<PageTransitionEvent>): void => {
-      if (event.persisted) dispatch({ kind: "restore" });
-    };
-
-    window.addEventListener("pageshow", onPageShow);
-
-    return () => {
-      window.removeEventListener("pageshow", onPageShow);
-    };
-  }, []);
+  const stayOnPage = useLeaveExit(phase === LEAVING, dispatch);
 
   const { refuse, clear } = useRefusals(dispatch);
 
   const run = useCallback(
     (next: Working, task: Task) => {
       guard(async () => {
+        stayOnPage();
         dispatch({ kind: "begin", phase: next });
 
         try {
@@ -134,10 +160,10 @@ export function useAiPhase() {
         }
       });
     },
-    [guard],
+    [guard, stayOnPage],
   );
 
-  return { phase, outcome: state.outcome, notice, run, refuse, clear };
+  return { phase, outcome: state.outcome, notice, run, refuse, clear, stayOnPage };
 }
 
 export type AiPhase = ReturnType<typeof useAiPhase>;

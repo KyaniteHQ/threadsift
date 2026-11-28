@@ -36,22 +36,28 @@ export function isSetByStyle(settings: Settings, row: SettingRow): boolean {
 
 export const STORAGE_KEY = "threadsift.settings";
 
-function storedEntries(text: string | null): ReadonlyMap<string, unknown> {
+function storedEntries(text: string): ReadonlyMap<string, unknown> | null {
   try {
-    const parsed: unknown = JSON.parse(text ?? "null");
+    const parsed: unknown = JSON.parse(text);
 
-    return new Map(parsed instanceof Object ? Object.entries(parsed) : []);
+    return parsed instanceof Object ? new Map(Object.entries(parsed)) : null;
   } catch {
-    return new Map();
+    return null;
   }
 }
 
-export function readStored(text: string | null): Settings {
-  const stored = storedEntries(text);
+export function parseStored(text: string | null): Settings | null {
+  const stored = text === null ? null : storedEntries(text);
 
-  return build(
-    (row) => row.options.find((option) => option.id === stored.get(row.key))?.id ?? row.default,
-  );
+  return stored === null
+    ? null
+    : build(
+        (row) => row.options.find((option) => option.id === stored.get(row.key))?.id ?? row.default,
+      );
+}
+
+export function readStored(text: string | null): Settings {
+  return parseStored(text) ?? DEFAULTS;
 }
 
 export function serialize(settings: Settings): string {
