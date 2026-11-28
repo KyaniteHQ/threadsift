@@ -159,6 +159,9 @@ export async function markReadTwice(page: Page): Promise<void> {
   const id = Number(await row.getAttribute("data-key"));
   const path = `/api/items/${String(id)}/read-state`;
 
+  await row.getByRole("link").first().click();
+  await expect(page.locator(".reader .rd-title")).toContainText(THREAD_TITLE);
+
   expect((await itemDetail(page.request, id)).readState).toBe("unread");
 
   await page.route(listReads, holdListRead);
