@@ -2,8 +2,19 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { BatchBudgetRefusalSchema } from "../src/core/contract/batch-wire.ts";
-import { Instance } from "./instance.ts";
-import { addLink, budgetOf, makeToken, xLink } from "./token-budget-fixtures.ts";
+import { refusedWith } from "../src/core/kernel/guards.ts";
+import { Instance, type Json } from "./instance.ts";
+import {
+  addLink,
+  beforeItemInsertBatch,
+  budgetOf,
+  makeToken,
+  savedUnresolved,
+  xLink,
+} from "./token-budget-fixtures.ts";
+import { authored } from "./x-thread-fixtures.ts";
+
+const PAGE = { markdown: "A page of text that an agent read.\n\n".repeat(20), title: "A page" };
 
 function beforeSecondStatementBatch(instance: Instance, staged: () => Promise<void>): () => number {
   const { db } = instance.core;
@@ -81,5 +92,63 @@ describe("requests of one agent token at the same moment add no more Items than 
 
     assert.equal(resent.status, 200);
     assert.equal(await instance.itemTotal(), total);
+  });
+
+  const overtaken = async (body: Json, competitor: number) => {
+    const token = await makeToken(instance, 1);
+    const total = await instance.itemTotal();
+
+    beforeItemInsertBatch(instance, async () => {
+      assert.equal((await addLink(instance, token, competitor)).status, 201);
+    });
+
+    const answer = await instance.sendWithToken(token.value, "POST", "/api/items", body);
+
+    return {
+      answer,
+      added: (await budgetOf(instance, token.id)).added,
+      items: (await instance.itemTotal()) - total,
+    };
+  };
+
+  const doors: readonly (readonly [string, Json, number])[] = [
+    ["the page of an article", { url: "https://example.com/budget-page", page: PAGE }, 30],
+    [
+      "the page of a Reddit post",
+      { url: "https://www.reddit.com/r/test/comments/budget21/a_title/", page: PAGE },
+      31,
+    ],
+    [
+      "an X thread sent with its content",
+      { url: xLink(22), content: [JSON.stringify(authored(xLink(22).split("/").at(-1)))] },
+      32,
+    ],
+  ];
+
+  for (const [door, body, competitor] of doors) {
+    it(`answers 429 to ${door} when another request spends the budget before its batch`, async () => {
+      const { answer, added, items } = await overtaken(body, competitor);
+
+      assert.equal(answer.status, 429, answer.body);
+      assert.equal(items, 1);
+      assert.equal(added, 1);
+    });
+  }
+
+  it("refuses a failed short link of a spent token in its batch and still saves the owner's", async () => {
+    const token = await makeToken(instance, 1);
+
+    assert.equal((await addLink(instance, token, 40)).status, 201);
+
+    const total = await instance.itemTotal();
+
+    await assert.rejects(savedUnresolved(instance, "https://t.co/budgetspent", token.id), (error) =>
+      refusedWith(error, "budget"),
+    );
+    assert.equal(await instance.itemTotal(), total);
+
+    const owner = await savedUnresolved(instance, "https://t.co/budgetowner", null);
+
+    assert.equal(owner?.kind === "saved" && owner.created, true);
   });
 });
