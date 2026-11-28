@@ -37,6 +37,7 @@ export function Library({
           controls={side.reader.controls}
           nav={nav}
           look={look}
+          moving={side.reader.moving}
           tryAgain={view.actions.retryItem}
           announcement={side.reader.announcement}
         />

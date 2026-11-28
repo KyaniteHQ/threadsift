@@ -1,4 +1,4 @@
-import { type MouseEvent, type RefObject, useCallback, useEffect, useMemo, useRef } from "react";
+import { type MouseEvent, useCallback, useEffect, useRef } from "react";
 import { z } from "zod";
 
 import { itemIdOf } from "../../src/core/contract/item-path.ts";
@@ -21,16 +21,12 @@ export const PROPOSALS_PATH = "/proposals";
 
 export const RESET_PATH = "/reset";
 
-export interface RouteWrites {
-  readonly navigate: (to: string) => void;
-  readonly replace: (to: string) => void;
-  readonly leave: () => void;
-}
-
-export interface Route extends RouteWrites {
+export interface Route {
   readonly path: string;
   readonly openId: number | null;
-  readonly atOnce: RouteWrites;
+  readonly navigate: (to: string, type?: string) => void;
+  readonly replace: (to: string, type?: string) => void;
+  readonly leave: (type?: string) => void;
 }
 
 export const LIBRARY_PATH = "/";
@@ -97,76 +93,70 @@ function usePopstate(show: (path: string) => void): void {
   }, [show]);
 }
 
-function useArrive(
-  leavingRef: RefObject<Leaving | null>,
-  replace: RouteWrites["replace"],
-  setPath: (path: string) => void,
-) {
-  return useCallback(
+function useClosing(replace: Route["replace"], setPath: (path: string, type?: string) => void) {
+  const leaving = useRef<Leaving | null>(null);
+
+  const arrive = useCallback(
     (arrived: string) => {
-      const wasLeaving = waiting(leavingRef.current);
-      leavingRef.current = null;
+      const wasLeaving = waiting(leaving.current);
+      leaving.current = null;
 
       if (wasLeaving && itemIdOf(arrived) !== null) replace(LIBRARY_PATH);
       else setPath(arrived);
     },
-    [leavingRef, replace, setPath],
+    [replace, setPath],
   );
-}
-
-function useWrites(
-  leavingRef: RefObject<Leaving | null>,
-  setPath: (path: string) => void,
-): RouteWrites {
-  const navigate = useCallback(
-    (to: string) => {
-      if (addressOf(to) === addressOf(window.location.href)) return;
-
-      window.history.pushState({ from: window.location.pathname }, "", to);
-      setPath(pathOf(to));
-    },
-    [setPath],
-  );
-
-  const replace = useCallback(
-    (to: string) => {
-      window.history.replaceState(window.history.state, "", to);
-      setPath(pathOf(to));
-    },
-    [setPath],
-  );
-
-  const leave = useCallback(() => {
-    const pending = leavingRef.current;
-
-    if (!onItem() || (waiting(pending) && pending.address === window.location.href)) return;
-
-    if (openedFromLibrary()) {
-      leavingRef.current = { address: window.location.href, at: performance.now() };
-      window.history.back();
-      setPath(LIBRARY_PATH);
-    } else {
-      replace(LIBRARY_PATH);
-    }
-  }, [leavingRef, replace, setPath]);
-
-  return useMemo(() => ({ navigate, replace, leave }), [navigate, replace, leave]);
-}
-
-export function usePath() {
-  const [path, setPath, setPathAtOnce] = useScreenState(currentPath);
-  const leavingRef = useRef<Leaving | null>(null);
-  const writes = useWrites(leavingRef, setPath);
-  const atOnce = useWrites(leavingRef, setPathAtOnce);
-  const { replace } = writes;
 
   const closeItem = useCallback(() => {
     if (onItem()) replace(LIBRARY_PATH);
   }, [replace]);
 
-  usePopstate(useArrive(leavingRef, replace, setPath));
+  const leave = useCallback(
+    (type?: string) => {
+      const pending = leaving.current;
 
-  return { path, ...writes, atOnce, closeItem };
+      if (!onItem() || (waiting(pending) && pending.address === window.location.href)) return;
+
+      if (openedFromLibrary()) {
+        leaving.current = { address: window.location.href, at: performance.now() };
+        window.history.back();
+        setPath(LIBRARY_PATH, type);
+      } else {
+        replace(LIBRARY_PATH, type);
+      }
+    },
+    [replace, setPath],
+  );
+
+  return { arrive, closeItem, leave };
+}
+
+export function usePath() {
+  const [path, setPath] = useScreenState(currentPath);
+
+  const navigate = useCallback(
+    (to: string, type?: string) => {
+      if (addressOf(to) === addressOf(window.location.href)) return;
+
+      window.history.pushState({ from: window.location.pathname }, "", to);
+      setPath(pathOf(to), type);
+    },
+    [setPath],
+  );
+
+  const replace = useCallback(
+    (to: string, type?: string) => {
+      window.history.replaceState(window.history.state, "", to);
+      setPath(pathOf(to), type);
+    },
+    [setPath],
+  );
+
+  const { arrive, closeItem, leave } = useClosing(replace, setPath);
+
+  usePopstate(arrive);
+
+  return { path, navigate, replace, leave, closeItem };
 }
 
 export function hasModifier({

@@ -5,6 +5,7 @@ import { ArrivalsContext, useNewArrivals } from "./place-arrival.ts";
 import { Reader } from "./Reader.tsx";
 import { Placed } from "./ReaderPlaced.tsx";
 import { Placeholder } from "./ReaderPlaceholder.tsx";
+import { SharedItem } from "./SharedItem.tsx";
 import type { SheetNav } from "./Sheet.tsx";
 import type { Announcement as AnnouncementState } from "./use-announcement.ts";
 import { useHeldPanelState } from "./use-panel.ts";
@@ -16,6 +17,7 @@ export function ReaderPane({
   controls,
   nav,
   look,
+  moving,
   tryAgain,
   announcement,
 }: Readonly<{
@@ -23,6 +25,7 @@ export function ReaderPane({
   controls: ReaderControls;
   nav: SheetNav;
   look: Look;
+  moving: boolean;
   tryAgain: (item: Item) => void;
   announcement: AnnouncementState;
 }>) {
@@ -51,7 +54,7 @@ export function ReaderPane({
   return (
     <ArrivalsContext value={arrivals}>
       <Placed place={look.reader} titleId={titleId} nav={nav} announcement={announcement}>
-        {reader}
+        {moving ? <SharedItem id={item.id}>{reader}</SharedItem> : reader}
       </Placed>
     </ArrivalsContext>
   );

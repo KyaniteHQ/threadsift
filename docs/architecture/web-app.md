@@ -90,7 +90,7 @@ The design tokens import no font host. Every face comes from a Fontsource packag
 The Settings, Obsidian, Import, Proposals and Log screens load through React `lazy` from one `LOADERS` table. A new lazy screen goes into `LOADERS`, which also lets the entry module start its chunk when the address names it, so a reload does not wait for the session answer first.
 
 - One `ModuleBoundary` handles only failed module loads. It shows `Unreachable` with Try again, which reloads the page.
-- Set the route and the session view only inside a transition (`useFlow` with `inTransition`). The current screen then stays until the next screen's chunk arrives, and an update outside a transition would hide it behind the fallback ([React, Suspense](https://react.dev/reference/react/Suspense)). The Reader's open and close motion is the one exception, under Reader, Motion.
+- Set the route and the session view only inside a transition (`useFlow` with `inTransition`). The current screen then stays until the next screen's chunk arrives, and an update outside a transition would hide it behind the fallback ([React, Suspense](https://react.dev/reference/react/Suspense)).
 - The Vite config has two `codeSplitting` groups. `zod` holds Zod and its jitless module, so jitless is set before any schema is built. `shared` holds each module that two chunks share, because Rolldown's automatic splitting makes one common chunk per set of importers ([Rolldown, Automatic code splitting](https://rolldown.rs/in-depth/automatic-code-splitting)) and the entry loads all of them before first paint.
 - After a change to these groups, run `pnpm build` and count the `modulepreload` links in the built `index.html`. Each one is a file that the first paint waits for.
 
@@ -174,12 +174,14 @@ Rows and the Reader appear when their data arrives, and the page accepts reflow 
 
 ### Motion
 
-`useReaderMotion` owns the open and close motion of a covering Reader (Grid Sheet, Grid Page and every layout under 760 px). Its state is one value, and a table holds its transitions: idle, opening, growing, closing and returning.
+A covering Reader (Grid Sheet, Grid Page and every layout under 760 px) grows from its card and runs back into it through React's `<ViewTransition>` ([React, ViewTransition](https://react.dev/reference/react/ViewTransition)). React starts the view transition itself when a transition commits, so the route writes stay inside `startTransition`.
 
-- The browser captures the new state when the view transition's update callback returns ([View Transitions, the update callback](https://drafts.csswg.org/css-view-transitions-1/#dom-document-startviewtransition)). `flushSync` does not commit an update inside `startTransition`, so the callback writes the route through `atOnce`, which commits in the same call. Both states stay on the library screen; the Reader's Markdown chunk suspends inside the Reader's own boundary, which shows the pending Reader.
-- The row or card carries `vt-src`, and with it the shared name `lib-item`, in the old state of an open and the new state of a close. The Reader slot carries the name otherwise while a motion runs. Each captured state then holds one element under the name, because two make the browser abort the transition.
-- An open or close during a motion starts a new run, and a late commit or end of the earlier run changes nothing.
-- An open while an Item is already open, reduced motion and a browser without the View Transitions API change the address with no motion.
+- React animates a shared element only between a named boundary that unmounts and one with the same name that mounts in the same commit, and refuses two mounted boundaries with one name. `SharedItem` therefore names the boundary per Item, wraps each listed row except the open one, and wraps the Reader slot. An open removes the row's boundary as the slot's mounts, and a close does the reverse, so the row's content mounts again on each.
+- The open and close writes carry the transition type `READER_MOVE` (`addTransitionType`). The page's own cross-fade runs only under that type, because a step with j, k, Previous or Next also moves a boundary, from the row it reaches to the one it leaves, and React then starts a view transition with nothing to animate.
+- React skips view transitions that start inside a `popstate` event ([React, ViewTransition](https://react.dev/reference/react/ViewTransition), Building View Transition enabled routers). The route sets the path from `popstate` in a later task, so a browser Back that closes the Reader runs it back into its card too.
+- Under reduced motion, and in the List pane, nothing is wrapped, so no view transition starts.
+- Two opens before the first commits leave one history entry: an open whose address is already an Item that the screen does not show yet replaces that entry.
+- `devenv tasks run --show-output motion:worker` counts, in each covering place, the opens that grow, the closes by Escape and by browser Back that run back, and the view transitions under reduced motion.
 
 ### Loading and staleness
 

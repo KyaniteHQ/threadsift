@@ -1,13 +1,14 @@
-import { startTransition, useCallback, useState } from "react";
+import { addTransitionType, startTransition, useCallback, useState } from "react";
 
 export function useScreenState<Value>(initial: Value | (() => Value)) {
   const [value, setValue] = useState(initial);
 
-  const show = useCallback((next: Value) => {
+  const show = useCallback((next: Value, type?: string) => {
     startTransition(() => {
+      if (type !== undefined) addTransitionType(type);
       setValue(next);
     });
   }, []);
 
-  return [value, show, setValue] as const;
+  return [value, show] as const;
 }
