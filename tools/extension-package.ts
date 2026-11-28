@@ -6,7 +6,12 @@ import { delimiter, join, resolve, sep } from "node:path";
 import { z } from "zod";
 
 import { loadInChromium } from "./extension-chrome-check.ts";
-import { checkListing, ManifestPermissionsSchema } from "./extension-listing-check.ts";
+import {
+  BROWSERS,
+  type Browser,
+  checkListing,
+  ManifestPermissionsSchema,
+} from "./extension-listing-check.ts";
 
 const ROOT = resolve(import.meta.dirname, "..");
 const EXTENSION = "extension";
@@ -21,10 +26,6 @@ const BUILD_ENV_KEPT = [
   "COREPACK_HOME",
   "pnpm_config_store_dir",
 ];
-
-const BROWSERS = ["chrome", "firefox"] as const;
-
-type Browser = (typeof BROWSERS)[number];
 
 const BUILD_SCRIPTS: Readonly<Record<Browser, string>> = { chrome: "zip", firefox: "zip:firefox" };
 
@@ -140,7 +141,7 @@ function builtZips(root: string, into: string, target: Release): Record<Browser,
 
 type Manifest = z.infer<typeof ManifestSchema>;
 
-function checkedManifest(folder: string, target: Release, browser: Browser): Manifest {
+function checkedManifest(folder: string, target: Release): Manifest {
   const manifest = ManifestSchema.safeParse(
     JSON.parse(readFileSync(join(folder, "manifest.json"), "utf8")),
   );
@@ -155,21 +156,7 @@ function checkedManifest(folder: string, target: Release, browser: Browser): Man
     throw new StepFailed(`${folder}/manifest.json reads ${version}, the package ${target.version}`);
   }
 
-  process.stdout.write(`${zipName(target, browser)}: manifest version ${version}\n`);
-
   return manifest.data;
-}
-
-function checkManifests(first: Readonly<Record<Browser, string>>, target: Release): string {
-  const chrome = checkedManifest(first.chrome, target, "chrome");
-  const firefox = checkedManifest(first.firefox, target, "firefox");
-
-  checkListing(join(ROOT, LISTING), [
-    { browser: "chrome", part: "Chrome Web Store, Privacy practices", manifest: chrome },
-    { browser: "firefox", part: "Firefox Add-ons", manifest: firefox },
-  ]);
-
-  return chrome.version;
 }
 
 function lintFirefox(folder: string): void {
@@ -227,10 +214,20 @@ async function packageExtension(work: string): Promise<void> {
   rmSync(join(ROOT, WXT_OUTPUT), { recursive: true, force: true });
 
   const first = builtZips(ROOT, join(work, "first"), target);
-  const chromeVersion = checkManifests(first, target);
+  const manifests = {
+    chrome: checkedManifest(first.chrome, target),
+    firefox: checkedManifest(first.firefox, target),
+  };
+  const justified = checkListing(LISTING, readFileSync(join(ROOT, LISTING), "utf8"), manifests);
+
+  for (const browser of BROWSERS) {
+    process.stdout.write(
+      `${zipName(target, browser)}: manifest version ${manifests[browser].version}, ${LISTING} gives a reason for each of its ${String(justified[browser])} permission entries\n`,
+    );
+  }
 
   lintFirefox(first.firefox);
-  await loadInChromium(first.chrome, chromeVersion, work);
+  await loadInChromium(first.chrome, manifests.chrome.version, work);
 
   const sources = join(ROOT, WXT_OUTPUT, zipName(target, "sources"));
   const commit = archivedCommit();

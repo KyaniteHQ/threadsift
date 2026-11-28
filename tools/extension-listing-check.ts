@@ -1,9 +1,25 @@
-import { readFileSync } from "node:fs";
-
+import remarkParse from "remark-parse";
+import { unified } from "unified";
 import { z } from "zod";
 
-const HOST_PERMISSIONS = "Host permissions";
+export const BROWSERS = ["chrome", "firefox"] as const;
+
+export type Browser = (typeof BROWSERS)[number];
+
+const REASON_PLACES: Readonly<
+  Record<Browser, { readonly part: string; readonly section: string; readonly named: boolean }>
+> = {
+  chrome: {
+    part: "Chrome Web Store, Privacy practices",
+    section: "Permission justifications",
+    named: false,
+  },
+  firefox: { part: "Firefox Add-ons", section: "Description", named: true },
+};
+
+const OPTIONAL_HOSTS = "Optional host permissions";
 const NO_DATA_COLLECTED = "none";
+const PROCESSOR = unified().use(remarkParse);
 
 const Names = z.array(z.string()).readonly().default([]);
 
@@ -12,6 +28,10 @@ export const ManifestPermissionsSchema = z.object({
   optional_permissions: Names,
   host_permissions: Names,
   optional_host_permissions: Names,
+  content_scripts: z
+    .array(z.object({ matches: Names }).readonly())
+    .readonly()
+    .default([]),
   browser_specific_settings: z
     .object({
       gecko: z
@@ -30,69 +50,103 @@ export const ManifestPermissionsSchema = z.object({
 
 type ManifestPermissions = z.infer<typeof ManifestPermissionsSchema>;
 
-class ListingCheckFailed extends Error {}
+type Piece =
+  | { readonly kind: "heading"; readonly depth: number; readonly text: string }
+  | { readonly kind: "text"; readonly value: string }
+  | { readonly kind: "other" };
 
-function manifestEntries({
-  permissions,
-  optional_permissions: optional,
-  host_permissions: hosts,
-  optional_host_permissions: optionalHosts,
-  browser_specific_settings: settings,
-}: Readonly<ManifestPermissions>): readonly string[] {
-  const data = settings?.gecko?.data_collection_permissions;
+function manifestEntries(manifest: Readonly<ManifestPermissions>): readonly string[] {
+  const data = manifest.browser_specific_settings?.gecko?.data_collection_permissions;
   const named = [
-    ...permissions,
-    ...optional,
+    ...manifest.permissions,
+    ...manifest.optional_permissions,
     ...(data?.required ?? []).filter((name) => name !== NO_DATA_COLLECTED),
     ...(data?.optional ?? []),
   ].map((name) => `\`${name}\``);
+  const required = new Set([
+    ...manifest.host_permissions,
+    ...manifest.content_scripts.flatMap(({ matches }) => matches),
+  ]);
 
-  return hosts.length + optionalHosts.length > 0 ? [...named, HOST_PERMISSIONS] : named;
+  return [
+    ...named,
+    ...[...required].map((pattern) => `Required host permission \`${pattern}\``),
+    ...(manifest.optional_host_permissions.length > 0 ? [OPTIONAL_HOSTS] : []),
+  ];
 }
 
-function partHeadings(listing: string, part: string): ReadonlySet<string> | null {
-  const lines = listing.split("\n");
-  const start = lines.indexOf(`## ${part}`);
+function piecesOf(listing: string): readonly Piece[] {
+  return PROCESSOR.parse(listing).children.map((block): Piece => {
+    if (block.type === "heading") {
+      const text = block.children
+        .map((child) => {
+          if (child.type === "text") return child.value;
 
-  if (start === -1) return null;
+          return child.type === "inlineCode" ? `\`${child.value}\`` : "";
+        })
+        .join("")
+        .trim();
 
-  const headings = new Set<string>();
-  let fenced = false;
+      return { kind: "heading", depth: block.depth, text };
+    }
 
-  for (const line of lines.slice(start + 1)) {
-    if (line.startsWith("```")) fenced = !fenced;
-    else if (!fenced && line.startsWith("## ")) break;
-    else if (!fenced && /^#{3,6} /u.test(line)) headings.add(line.replace(/^#+ /u, "").trim());
+    return block.type === "code" && block.lang === "text"
+      ? { kind: "text", value: block.value.trim() }
+      : { kind: "other" };
+  });
+}
+
+function reasonsIn(pieces: readonly Piece[], part: string, section: string): Map<string, string> {
+  const reasons = new Map<string, string>();
+  let place: readonly [string | null, string | null] = [null, null];
+  let waiting: string | null = null;
+
+  for (const piece of pieces) {
+    if (piece.kind === "text" && waiting !== null) reasons.set(waiting, piece.value);
+
+    if (piece.kind === "heading" && piece.depth <= 3) {
+      place = piece.depth === 3 ? [place[0], piece.text] : [piece.text, null];
+    }
+
+    waiting =
+      piece.kind === "heading" && piece.depth === 4 && place[0] === part && place[1] === section
+        ? piece.text
+        : null;
   }
 
-  return headings;
+  return reasons;
 }
 
-interface StorePart {
-  readonly browser: string;
-  readonly part: string;
-  readonly manifest: ManifestPermissions;
+function plain(entry: string): string {
+  return entry.replaceAll("`", "");
 }
 
-export function checkListing(listingFile: string, stores: readonly StorePart[]): void {
-  const listing = readFileSync(listingFile, "utf8");
+export function checkListing(
+  file: string,
+  listing: string,
+  manifests: Readonly<Record<Browser, Readonly<ManifestPermissions>>>,
+): Readonly<Record<Browser, number>> {
+  const pieces = piecesOf(listing);
+  const counts = { chrome: 0, firefox: 0 };
 
-  for (const { browser, part, manifest } of stores) {
-    const headings = partHeadings(listing, part);
+  for (const browser of BROWSERS) {
+    const { part, section, named } = REASON_PLACES[browser];
+    const reasons = reasonsIn(pieces, part, section);
+    const entries = manifestEntries(manifests[browser]);
+    const missing = entries.filter((entry) => {
+      const reason = reasons.get(entry) ?? "";
 
-    if (headings === null) throw new ListingCheckFailed(`${listingFile} has no "## ${part}" part`);
-
-    const entries = manifestEntries(manifest);
-    const missing = entries.filter((entry) => !headings.has(entry));
+      return reason === "" || (named && !reason.startsWith(`${plain(entry)}: `));
+    });
 
     if (missing.length > 0) {
-      throw new ListingCheckFailed(
-        `${listingFile}, ${part}, has no heading for ${missing.join(", ")} of the ${browser} manifest`,
+      throw new Error(
+        `${file}: ${part}, ${section}, gives no reason for ${missing.map((entry) => `"#### ${entry}"`).join(", ")} of the ${browser} manifest: each heading needs a text block right under it${named ? " that starts with the heading's name and a colon" : ""}`,
       );
     }
 
-    process.stdout.write(
-      `${part}: a heading for each of the ${String(entries.length)} permission entries of the ${browser} manifest\n`,
-    );
+    counts[browser] = entries.length;
   }
+
+  return counts;
 }
