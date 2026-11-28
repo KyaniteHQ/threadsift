@@ -18,7 +18,6 @@ Read this page before you write, change or delete a test. It overrides broader t
 | `node --test test/<file>` | One test file. |
 | `devenv tasks run ci:gate` | The gate without the browser smoke. The CI `check` job runs the same tasks and removes the files on the docs-only skip list after `ci:check` ([CI, releases and rollback](architecture/ci-releases-and-rollback.md#gate)). `devenv test` is not the gate, because it starts the dev `processes`. |
 | `devenv tasks run smoke:worker`, `devenv tasks run smoke:container` | The browser smoke on each install target. |
-| `devenv tasks run --show-output motion:worker` | The Reader motion check on the Worker target, by hand: it counts the opens that grow and the closes that run back in each covering place. The gate does not run it. |
 | `devenv tasks run image:build` | Builds the image that the start check runs, tagged `localhost/threadsift:publish` (one tag for every checkout). |
 | `tools/start-check.sh <image>` | The start check. |
 | `devenv tasks run live:worker`, `devenv tasks run live:container` | The live check, by hand before a release. |

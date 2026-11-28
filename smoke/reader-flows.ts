@@ -1,5 +1,7 @@
 import { type Page, expect } from "@playwright/test";
+import { z } from "zod";
 
+import { STORAGE_KEY } from "../design/system/settings.ts";
 import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
 import { itemDetail, savedItem, savedTopicItem } from "./saved-item.ts";
 
@@ -137,4 +139,149 @@ export async function readXThread(page: Page): Promise<void> {
     },
   });
   await expectStoredAuthor(page, STATUS_TITLE);
+}
+
+const MotionsSchema = z.array(
+  z.object({ done: z.boolean(), moved: z.array(z.string()), changing: z.number() }),
+);
+
+const MOTION_ITEM = {
+  url: "https://example.com/guides/reader-motion",
+  page: { markdown: "A page the Reader opens from its card.", title: "Opening from a card" },
+  digest: {
+    title: "Opening from a card",
+    topic: "Reading",
+    tags: ["motion"],
+    summary: "The card grows into the Reader.\nClosing runs it back.",
+    keyPoints: ["One shared name per Item"],
+  },
+};
+
+function watchMotion(): void {
+  const start = document.startViewTransition.bind(document);
+  const runs: { done: boolean; moved: readonly string[]; changing: number }[] = [];
+  const write = (): void => {
+    document.documentElement.dataset["motion"] = JSON.stringify(runs);
+  };
+
+  document.startViewTransition = (update) => {
+    const transition = start(update);
+    const moved: readonly string[] = [];
+    const run = { done: false, moved, changing: 0 };
+    runs.push(run);
+    write();
+
+    const end = (): void => {
+      run.done = true;
+      write();
+    };
+    const measure = (): void => {
+      const changing = document.documentElement
+        .getAnimations({ subtree: true })
+        .map((each) => each.effect)
+        .filter((each) => each instanceof KeyframeEffect)
+        .filter((each) => (each.pseudoElement ?? "").startsWith("::view-transition"))
+        .filter((each) => {
+          const frames = each.getKeyframes();
+
+          return ["opacity", "transform", "width", "height"].some(
+            (key) => String(frames.at(0)?.[key]) !== String(frames.at(-1)?.[key]),
+          );
+        });
+
+      run.changing = changing.length;
+      run.moved = changing
+        .map((each) => /^::view-transition-group\((.+)\)$/u.exec(each.pseudoElement ?? "")?.[1])
+        .filter((name): name is string => name !== undefined && name !== "root");
+      write();
+    };
+
+    transition.ready.then(measure, write);
+    transition.finished.then(end, end);
+
+    return transition;
+  };
+}
+
+const motions = async (page: Page) =>
+  MotionsSchema.parse(
+    JSON.parse(await page.evaluate(() => document.documentElement.dataset["motion"] ?? "[]")),
+  );
+
+async function motionOf(page: Page, act: () => Promise<void>, readers: number) {
+  const since = (await motions(page)).length;
+
+  await act();
+  await expect(page.locator(".reader-slot")).toHaveCount(readers);
+  await expect
+    .poll(
+      async () => {
+        const runs = (await motions(page)).slice(since);
+
+        return runs.length > 0 && runs.every((run) => run.done);
+      },
+      { message: "a view transition starts and finishes" },
+    )
+    .toBe(true);
+
+  return (await motions(page)).slice(since);
+}
+
+export async function readerMotion(page: Page): Promise<void> {
+  const id = await savedItem(page.request, MOTION_ITEM);
+  const card = page.locator(`.it[data-key="${String(id)}"] .it-open`);
+  const shared = [[`lib-item-${String(id)}`]];
+  const stored = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
+
+  await page.addInitScript(watchMotion);
+  await page.evaluate(
+    ([key, value]) => {
+      localStorage.setItem(key, value);
+    },
+    [STORAGE_KEY, JSON.stringify({ layout: "grid", openAs: "sheet" })] as const,
+  );
+  await page.goto("/");
+
+  const opened = await motionOf(page, () => card.click(), 1);
+  const escaped = await motionOf(page, () => page.keyboard.press("Escape"), 0);
+  await motionOf(page, () => card.click(), 1);
+  const backed = await motionOf(
+    page,
+    async () => {
+      await page.goBack();
+    },
+    0,
+  );
+
+  expect(
+    opened.map((run) => run.moved),
+    "the open grows only this Item's card",
+  ).toEqual(shared);
+  expect(
+    escaped.map((run) => run.moved),
+    "Escape runs the Reader back into it",
+  ).toEqual(shared);
+  expect(
+    backed.map((run) => run.moved),
+    "Back runs the Reader back into it",
+  ).toEqual(shared);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const reduced = await motionOf(page, () => card.click(), 1);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".reader-slot")).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+
+  expect(
+    reduced.map((run) => run.changing),
+    "reduced motion animates nothing",
+  ).toEqual([0]);
+
+  await page.evaluate(
+    ([key, value]) => {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    },
+    [STORAGE_KEY, stored] as const,
+  );
 }

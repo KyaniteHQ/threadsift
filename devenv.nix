@@ -196,10 +196,6 @@ in
       after = [ "web:build" ];
       exec = playwright "THREADSIFT_TARGET=worker" "smoke";
     };
-    "motion:worker" = {
-      after = [ "web:build" ];
-      exec = playwright "THREADSIFT_TARGET=worker" "motion";
-    };
     "smoke:container" = {
       after = [
         "ci:install"
