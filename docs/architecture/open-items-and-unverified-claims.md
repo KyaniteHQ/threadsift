@@ -253,6 +253,7 @@ A local run with the real app on loopback, the bot script in a shell and a stand
 - whether the skill loads at the owner's next message when that message is not about Threadsift, and whether the skill tool takes a skill of about 28 KB read from a file;
 - whether the main conversation posts a routine run's one-time alert when the owner is away, and whether a routine run posts the `refused`, `older` and `routines` alerts that its prompt allows as "the one-time alerts the skill allows";
 - whether the Bot's shell tool waits the up to 120 seconds that the update after a task or a sync can take.
+- how long a Grok Bot shell call may run before it is stopped, and whether a stopped call sends SIGTERM first: the script waits 20 seconds for a task's lock, a guess, and a task command can take about 200 seconds with the update after it.
 
 The tag `bot-v14` is not pushed yet. Until the owner pushes it, every bot of this release prints `waits bot-v14` for an Instance that expects it, and the release workflow refuses an Instance release that expects it.
 
