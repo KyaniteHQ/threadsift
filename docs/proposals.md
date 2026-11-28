@@ -148,6 +148,8 @@ The `proposals` and `topic-proposals` sweep stages claim the `scheduled_runs` ro
 
 Each stage opens one job in the same batch as its claim, and the newest Item with a Digest owns the job. A stage opens no job when that owner Item already has an open job of that kind. The two claims are independent, so a stage or a job that fails in one check does not skip the other check. The input holds pairs of Tags or Topics that have an Item and no row yet (see [The reads of the run](#the-reads-of-the-run)).
 
+The job's input is the set of Tags or Topics it sent, and its result stores only while each of them still exists (`sentExist`). Only the merge unit that retires a merged-away Tag or Topic removes one, and that unit makes a job that waits on the Grok Bot for this input due in the same batch ([Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md#waiting-for-a-vendor)).
+
 ## The weekly Highlight check
 
 The `highlight-proposals` sweep stage claims `highlight_proposals` on the same rule and under the same conditions as the other stages: a Provider is saved and at least one Item has a Digest. The condition is shared so that the page's empty state stays true, because that state says the weekly check needs a Provider. The stage is one `db.batch` of three statements:
@@ -198,6 +200,8 @@ One guarded batch stores the result. Its guard holds while the AI task is runnin
 4. It completes the AI task.
 
 When the guard fails, the batch writes nothing, the task fails as `stale`, and the job runs again without spending an attempt. A Topic that was touched but not sent stays touched for the next week.
+
+Three writes move that membership text: a stored Digest, a delete that removed an Item, and a Topic merge that moves Items. Each makes a disagreement job that waits on the Grok Bot due ([Jobs, leases and the schedule](architecture/jobs-leases-and-the-schedule.md#waiting-for-a-vendor)). A stored Digest and a delete do it in their own batch. A Topic merge does it only in the unit that retires the merged-away Topic. A merge of more than one unit (more than 500 Items or 500 Log entries) therefore wakes the job one or more batches after its first unit moved the input.
 
 ### What hides and deletes a row
 
