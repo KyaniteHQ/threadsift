@@ -16,9 +16,14 @@ import type { Database } from "../../../core/kernel/database.ts";
 import { listedKeys } from "../../../core/kernel/file-pages.ts";
 import type { FileStore } from "../../../core/kernel/file-store.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { cancelling, resumable, undoFailed } from "../../../core/kernel/restore-hold.ts";
-import { type RestoreRow, restoreRuns } from "../../../core/kernel/schema.ts";
-import { SWEEP_CLAIMED_AT } from "../../../core/kernel/sweep-claim.ts";
+import {
+  NEWEST_RESTORE,
+  RESUMABLE_RESTORE,
+  cancelling,
+  undoFailed,
+} from "../../../core/kernel/restore-hold.ts";
+import { type RestoreRow, restoreRuns, scheduledRuns } from "../../../core/kernel/schema.ts";
+import { SWEEP_TASK } from "../../../core/kernel/sweep-claim.ts";
 
 const CopyPhaseSchema = z.enum(COPY_RESTORE_PHASES);
 
@@ -66,7 +71,9 @@ async function receivedParts(
   });
 }
 
-export const PARTS_KEPT = sql`${restoreRuns.updatedAt} >= ${SWEEP_CLAIMED_AT} - ${RESTORE_PARTS_KEEP_MS}`;
+const SWEEP_CLAIMED_AT = sql`coalesce((select ${scheduledRuns.lastRunAt} from ${scheduledRuns} where ${scheduledRuns.task} = ${SWEEP_TASK}), 0)`;
+
+export const KEPT_FOR_RESUME = sql`${RESUMABLE_RESTORE} and ${NEWEST_RESTORE} and ${restoreRuns.updatedAt} >= ${SWEEP_CLAIMED_AT} - ${RESTORE_PARTS_KEEP_MS}`;
 
 export async function keepsEveryPart(
   { db, files }: Pick<JobPorts, "db" | "files">,
@@ -75,7 +82,7 @@ export async function keepsEveryPart(
   const kept = await db
     .select({ id: restoreRuns.id })
     .from(restoreRuns)
-    .where(and(eq(restoreRuns.id, run.id), PARTS_KEPT));
+    .where(and(eq(restoreRuns.id, run.id), KEPT_FOR_RESUME));
 
   return kept.length > 0 && (await holdsEveryPart(files, run));
 }
@@ -135,7 +142,7 @@ async function failedStatus(
     libraryEmpty,
     id,
     failure: run.failure,
-    resumable: resumable(run) && (await keepsEveryPart(ports, run)),
+    resumable: await keepsEveryPart(ports, run),
     cancelFailed: undoFailed(run),
   };
 }

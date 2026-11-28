@@ -11,10 +11,9 @@ import { report } from "../../../core/kernel/failure-log.ts";
 import { deleteMatching, removeUnder } from "../../../core/kernel/file-pages.ts";
 import type { FileStore } from "../../../core/kernel/file-store.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { NEWEST_RESTORE, RESUMABLE_RESTORE } from "../../../core/kernel/restore-hold.ts";
 import { restoreRuns } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
-import { PARTS_KEPT } from "./restore-state.ts";
+import { KEPT_FOR_RESUME } from "./restore-state.ts";
 
 export function removeParts(files: FileStore, id: number) {
   return removeUnder(files, restoreFilesPrefix(id));
@@ -53,10 +52,7 @@ async function holdingParts(db: Database, keys: readonly string[]): Promise<Read
     .where(
       and(
         among(restoreRuns.id, owners),
-        or(
-          inArray(restoreRuns.state, ["uploading", "running"]),
-          and(RESUMABLE_RESTORE, NEWEST_RESTORE, PARTS_KEPT),
-        ),
+        or(inArray(restoreRuns.state, ["uploading", "running"]), KEPT_FOR_RESUME),
       ),
     );
 
