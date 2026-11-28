@@ -22,6 +22,7 @@ import {
   survivorOf,
   withKnown,
   withRead,
+  withReadState,
   withoutItem,
 } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
@@ -84,13 +85,20 @@ function useSave(reads: Reads, setList: SetList) {
   );
 }
 
-function useSetRead(reads: Reads) {
+function useSetRead(setList: SetList, upkeep: Readonly<Upkeep>) {
+  const { reads, unfiltered } = upkeep;
+
   return useCallback(
     async (id: number, readState: ReadState): Promise<void> => {
-      await putReadState(id, readState);
+      const answered = await putReadState(id, readState);
+
+      flushSync(() => {
+        setList((current) => withReadState(current, id, answered.readState, unfiltered.current));
+      });
+
       reads.reload();
     },
-    [reads],
+    [reads, setList, unfiltered],
   );
 }
 
@@ -124,7 +132,7 @@ export function useLibrary() {
   const unfiltered = useLatest(!isFiltered(filters));
   const upkeep = { reads, unfiltered, latest };
   const save = useSave(reads, setList);
-  const setRead = useSetRead(reads);
+  const setRead = useSetRead(setList, upkeep);
   const remove = useRemove(setList, upkeep);
   usePolling(list, setList, upkeep);
 

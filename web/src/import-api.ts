@@ -12,7 +12,7 @@ export interface Counts {
 }
 
 type BatchAnswer =
-  | { readonly kind: "saved"; readonly counts: Counts }
+  | { readonly kind: "saved"; readonly counts: Counts; readonly stored: string | null }
   | { readonly kind: "network" | "rejected" }
   | Restoring
   | { readonly kind: "unanswered" };
@@ -46,9 +46,13 @@ export async function postBatch(request: Readonly<ImportRequest>): Promise<Batch
 
     if (!response.ok) return { kind: "rejected" };
 
-    const { results } = await parsedBody(response, BatchResponseSchema);
+    const { results, import: stored } = await parsedBody(response, BatchResponseSchema);
 
-    return { kind: "saved", counts: countsOf(results.map(({ outcome }) => outcome)) };
+    return {
+      kind: "saved",
+      counts: countsOf(results.map(({ outcome }) => outcome)),
+      stored: stored?.cursor ?? null,
+    };
   } catch (error) {
     return {
       kind:
