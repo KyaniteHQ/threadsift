@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lt, or } from "drizzle-orm";
+import { and, eq, inArray, lt, or } from "drizzle-orm";
 
 import {
   RESTORE_FILES_ROOT,
@@ -14,6 +14,7 @@ import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { NEWEST_RESTORE, RESUMABLE_RESTORE } from "../../../core/kernel/restore-hold.ts";
 import { restoreRuns } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
+import { PARTS_KEPT } from "./restore-state.ts";
 
 export function removeParts(files: FileStore, id: number) {
   return removeUnder(files, restoreFilesPrefix(id));
@@ -54,11 +55,7 @@ async function holdingParts(db: Database, keys: readonly string[]): Promise<Read
         among(restoreRuns.id, owners),
         or(
           inArray(restoreRuns.state, ["uploading", "running"]),
-          and(
-            RESUMABLE_RESTORE,
-            NEWEST_RESTORE,
-            gte(restoreRuns.updatedAt, Date.now() - RESTORE_PARTS_KEEP_MS),
-          ),
+          and(RESUMABLE_RESTORE, NEWEST_RESTORE, PARTS_KEPT),
         ),
       ),
     );

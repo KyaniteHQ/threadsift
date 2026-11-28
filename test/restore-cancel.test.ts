@@ -13,6 +13,7 @@ import {
   restoreProgress,
   restoreStatus,
   restoredDone,
+  resumedWhileDeleting,
   failedAfterRetries,
   settledRestore,
   startedRestore,
@@ -258,7 +259,7 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     assert.equal(target.database.rowCount("items"), 0);
   });
 
-  it("deletes the parts of a Restore that gave up 24 hours after its last update, and then refuses to resume it", async (t) => {
+  it("deletes the parts of a Restore that gave up 24 hours after its last update, and refuses a Resume from the moment the sweep starts", async (t) => {
     const id = await gaveUpInFiles(t, target, zip);
 
     const keys = `restores/${String(id)}/`;
@@ -272,13 +273,15 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     };
 
     assert.deepEqual(await sweptAt(now - DAY_MS), [`${keys}part-1`]);
+
+    const resumed = resumedWhileDeleting(t, target, id);
+
     assert.deepEqual(await sweptAt(now - DAY_MS - 1), []);
 
-    assert.equal((await settledRestore(target, ["failed"])).resumable, false);
-
-    const resume = await send("POST", id, "/resume");
+    const resume = await resumed;
 
     assert.equal(resume.status, 400);
+    assert.equal((await settledRestore(target, ["failed"])).resumable, false);
     assert.equal(RestoreErrorSchema.parse(JSON.parse(resume.body)).code, "incomplete-upload");
     unblockItemFiles(target);
     assert.equal((await send("DELETE", id)).status, 202);

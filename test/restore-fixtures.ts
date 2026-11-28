@@ -157,6 +157,19 @@ export async function gaveUpInFiles(t: TestContext, instance: Instance, bytes: U
   return id;
 }
 
+export function resumedWhileDeleting(t: TestContext, instance: Instance, id: number) {
+  const { files } = instance.core;
+  const deleteNow = files.delete.bind(files);
+  const resumed = Promise.withResolvers<Awaited<ReturnType<Instance["send"]>>>();
+  const deleting = t.mock.method(files, "delete", async (doomed: readonly string[]) => {
+    deleting.mock.restore();
+    resumed.resolve(await instance.send("POST", `/api/restore/${String(id)}/resume`));
+    await deleteNow(doomed);
+  });
+
+  return resumed.promise;
+}
+
 export function holdLibrary(
   instance: Instance,
   state: "running" | "failed",

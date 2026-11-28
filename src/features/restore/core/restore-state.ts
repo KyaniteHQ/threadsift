@@ -1,4 +1,4 @@
-import { desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { restoreFilesPrefix } from "../../../core/contract/file-keys.ts";
@@ -9,6 +9,7 @@ import {
   RESTORED_FILES,
   type RestoreStatus,
   COPY_RESTORE_PHASES,
+  RESTORE_PARTS_KEEP_MS,
 } from "../../../core/contract/restore-contract.ts";
 import { BACKUP_TABLES, backupTable } from "../../../core/kernel/backup-tables.ts";
 import type { Database } from "../../../core/kernel/database.ts";
@@ -17,6 +18,7 @@ import type { FileStore } from "../../../core/kernel/file-store.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { cancelling, resumable, undoFailed } from "../../../core/kernel/restore-hold.ts";
 import { type RestoreRow, restoreRuns } from "../../../core/kernel/schema.ts";
+import { SWEEP_CLAIMED_AT } from "../../../core/kernel/sweep-claim.ts";
 
 const CopyPhaseSchema = z.enum(COPY_RESTORE_PHASES);
 
@@ -64,6 +66,20 @@ async function receivedParts(
   });
 }
 
+export const PARTS_KEPT = sql`${restoreRuns.updatedAt} >= ${SWEEP_CLAIMED_AT} - ${RESTORE_PARTS_KEEP_MS}`;
+
+export async function keepsEveryPart(
+  { db, files }: Pick<JobPorts, "db" | "files">,
+  run: Readonly<Pick<RestoreRow, "id" | "parts">>,
+): Promise<boolean> {
+  const kept = await db
+    .select({ id: restoreRuns.id })
+    .from(restoreRuns)
+    .where(and(eq(restoreRuns.id, run.id), PARTS_KEPT));
+
+  return kept.length > 0 && (await holdsEveryPart(files, run));
+}
+
 export async function holdsEveryPart(
   files: Pick<FileStore, "list">,
   { id, parts }: Readonly<Pick<RestoreRow, "id" | "parts">>,
@@ -106,7 +122,7 @@ async function uploadingStatus(
 }
 
 async function failedStatus(
-  { files }: Pick<StatusPorts, "files">,
+  ports: Pick<StatusPorts, "db" | "files">,
   run: Readonly<RestoreRow>,
   libraryEmpty: boolean,
 ): Promise<RestoreStatus> {
@@ -119,7 +135,7 @@ async function failedStatus(
     libraryEmpty,
     id,
     failure: run.failure,
-    resumable: resumable(run) && (await holdsEveryPart(files, run)),
+    resumable: resumable(run) && (await keepsEveryPart(ports, run)),
     cancelFailed: undoFailed(run),
   };
 }

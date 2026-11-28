@@ -11,8 +11,10 @@ import { restoreRuns } from "../../../core/kernel/schema.ts";
 import { fenceVault, vaultIdleAt } from "../../vault/core/vault-state.ts";
 import {
   EMPTY_LIBRARY,
+  PARTS_KEPT,
   holdsEveryPart,
   isNewestRestore,
+  keepsEveryPart,
   libraryIsEmpty,
   restoreById,
 } from "./restore-state.ts";
@@ -111,9 +113,9 @@ export async function resumeRestore(ports: JobPorts, id: number): Promise<Resume
 
   if (!resumable(run)) return { kind: "not-resumable" };
 
-  if (!(await holdsEveryPart(ports.files, run))) return { kind: "incomplete-upload" };
+  if (!(await keepsEveryPart(ports, run))) return { kind: "incomplete-upload" };
 
-  const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${RESUMABLE_RESTORE}`;
+  const waiting = sql`${restoreRuns.id} = ${id} and ${NEWEST_RESTORE} and ${RESUMABLE_RESTORE} and ${PARTS_KEPT}`;
 
   const written = await guardedWrite(
     db,
