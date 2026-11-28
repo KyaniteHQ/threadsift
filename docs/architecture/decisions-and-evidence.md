@@ -15,6 +15,7 @@ Contents: [Product decisions](#product-decisions), [Design review](#design-revie
 - **Obsidian.** The mirror is one-way, as Readwise's Obsidian sync is: the owner reads in Obsidian and edits Highlights and Notes in Threadsift. Vault repositories on other Git hosts are not in the first release ([the spec](../spec.md)).
 - **Design of new screens.** Every screen the first design lacks is built from the design system to match the existing screens. The building agent checks each from screenshots in every theme before it lands, and decides the approval.
 - **One codebase.** EdgeEver and Open Managed Agents already ship one app on both targets.
+- **Export start during a Restore.** The start is refused, not queued until the Restore ends. A Restore that gave up holds the library until the owner cancels it, and Cancel empties the restored tables, so a queued export would zip an empty library. The owner already holds the zip being restored.
 - **Token budget default.** A new token starts at 200 Items a day. This is the maintainer's choice, not a measured value.
 
 ## Design review

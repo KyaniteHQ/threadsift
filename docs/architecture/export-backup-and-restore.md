@@ -90,7 +90,10 @@ The slices read the live database over minutes, so a row written between two sli
 
 ### One at a time, kept 24 hours
 
-The partial unique index `exports_one_live` allows one `running` or `ready` row, so a second start while one runs answers 409. A start while one is `ready` marks the old row `failed` with `replaced` and removes its objects. A start while a Restore holds the library answers 503 with `code: "restoring"` and keeps a `ready` export. The start batch begins with `restoreGuard` (see While it runs), because an export of a half-restored library would hold only the tables the Restore has written so far and still read as a full backup.
+The partial unique index `exports_one_live` allows one `running` or `ready` row, so a second start while one runs answers 409. A start while one is `ready` marks the old row `failed` with `replaced` and removes its objects. An export of a half-restored library would hold only the tables the Restore has written so far, and it would still read as a full backup. So the two never overlap:
+
+- A start while a Restore holds the library answers 503 with `code: "restoring"`, also while another export runs. It writes through `heldBatch` ([While it runs](#while-it-runs)), so a `ready` export is not replaced.
+- A Restore start marks a `running` export `failed` with `cancelled` in its own start batch. The export's next slice then fails its guarded commit and deletes what it wrote.
 
 | State | Removed by the sweep stage `exports` |
 |---|---|
@@ -222,7 +225,7 @@ Provider keys, the password, sessions and agent tokens are not in the zip, so th
 
 ### While it runs
 
-A write that adds a record to a table the zip brings back answers 503 with `code: "restoring"`. The new record would take an id or a key the zip holds, and the Restore's later window of that table would leave the zip's row out as a repeated key. The hold covers the writes made while it stands. An AI task written before the Restore started, such as a Provider Verify on the empty library, keeps its id, and the zip's AI task with the same id is left out.
+A write that adds a record to a table the zip brings back answers 503 with `code: "restoring"`. The new record would take an id or a key the zip holds, and the Restore's later window of that table would leave the zip's row out as a repeated key. An Export start answers the same 503, because its zip would copy a half-restored library ([Export](#export)). The hold covers the writes made while it stands. An AI task written before the Restore started, such as a Provider Verify on the empty library, keeps its id, and the zip's AI task with the same id is left out.
 
 - Requests that store no Item answer their own refusal. `POST /api/items` and `POST /api/items/batch` read no Restore state before they write, so a refused host answers 400, a batch of only refused links without a cursor answers 200, a token over its Daily budget answers 429, and an unknown token answers 401. A short link is resolved over the network before its write is refused.
 - The guard does not rely on a check that a write can outrun. Every write the hold refuses commits through `heldBatch`, the one door in the Restore hold module, and no other module builds a batch with `restoreGuard`. `heldBatch` puts `restoreGuard` in front of the writes, so a batch that a Restore holds off rolls back whole, as every guarded batch does ([Database and search](database-and-search.md), Guarded batches).
@@ -230,7 +233,7 @@ A write that adds a record to a table the zip brings back answers 503 with `code
 - `restoreGuard` fails with its own refusal (`guards_restore`). `whileOpen` answers `restoring` when a write fails with it, and it rethrows every other failure without reading the predicate again.
 - Every batch that holds `restoreGuard` starts with it, before the guards of its own condition, so a write that lost a race for another reason, such as an Item that already exists, does not hide the hold, and a batch of known links is refused too.
 - The Restore's own inserts (`insertRows`) take no guard, because they are not a Paste.
-- These writes answer the same 503: storing an Item, saving the Import cursor, keeping a Highlight, saving a Note, accepting a Proposal of any kind but `highlight-lost`, and queuing a Digest or a Topic overview again. A Provider Verify, a Provider save and a save of the Reddit setting answer it too.
+- These writes answer the same 503: storing an Item, saving the Import cursor, keeping a Highlight, saving a Note, accepting a Proposal of any kind but `highlight-lost`, and queuing a Digest or a Topic overview again. A Provider Verify, a Provider save, a save of the Reddit setting and an Export start answer it too.
 - Each of them adds a record whose id or key the zip may hold: an Item, a Highlight id, the Note of an Item, a Pin, a Log entry or an AI task. Each writes through `heldBatch` and answers through `whileOpen` ([Database and search](database-and-search.md), Guarded batches).
 - Reads, deletes, a Read state, a Reject and the removal of a lost Highlight take no key, so they work meanwhile.
 - The Restore always writes the Reddit setting: it inserts the zip's row, or the finishing slice clears the table when the zip holds none (`singleton: "reset"`). A save of that setting during the hold would be replaced either way, so it is refused.
