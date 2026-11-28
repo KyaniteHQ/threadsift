@@ -9,6 +9,7 @@ import { failedLoadMore, logFlow } from "./log-flow.ts";
 import {
   markReadTwice,
   readXThread,
+  readerMotion,
   readerWithoutProvider,
   retryStaleReader,
 } from "./reader-flows.ts";
@@ -120,6 +121,8 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     retryStaleReader(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
     readSavedPage(page));
+  await test.step("open a card in Grid with Sheet: the card grows into the Reader, Escape and Back run it back into the same card, and reduced motion animates nothing", () =>
+    readerMotion(page));
   await test.step("import a list of three links from the settings panel and find its Items", () =>
     importList(page));
   await test.step("paste the same list after a reload and be told it was fully imported", () =>

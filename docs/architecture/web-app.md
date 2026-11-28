@@ -172,6 +172,20 @@ Rows and the Reader appear when their data arrives, and the page accepts reflow 
 - Layout change. A change of Layout clears the open Item in the same event (`onLayoutChange`). From the panel, List opens its first unread Item on its own and, in Grid, that Item would cover the panel that just changed the Layout. From another tab, the open Item was opened for the old Layout, as a List pane or a Grid page or sheet, so the tab returns to the library in the new Layout.
 - Paste card in Grid. From 760 px the card floats under the header, as [the design system](../../DESIGN.md) (Elevation & Depth) says. A card in the page flow would move every card down and back up on each Paste.
 
+### Motion
+
+A covering Reader (Grid Sheet, Grid Page and every layout under 760 px) grows from its card and runs back into it through React's `<ViewTransition>` ([React, ViewTransition](https://react.dev/reference/react/ViewTransition)). React starts the view transition itself when a transition commits, so the route writes stay inside `startTransition` and need no motion state of their own.
+
+- React pairs two named boundaries only when one unmounts and one with the same name mounts in the same commit. Two mounted boundaries with one name get a development error, and the browser then skips the transition.
+- `SharedItem` names the boundary per Item. It wraps the covering Reader slot, keyed by the Item, and one listed card: the card the Reader opens from or last showed. No card is wrapped while an Item is open.
+- An open wraps its card in an urgent update before the route write commits. The route write then removes the card's boundary as the slot's mounts, and a close mounts the card's boundary again as the slot's unmounts.
+- A step with j, k, Previous or Next swaps the keyed slot while no card carries a name, so nothing pairs and the Reader stays still. A step reads the open Item from the address, so a press that comes before the previous step commits moves on from the Item that step asked for. Escape and the arrow keys read the address too, so an Escape right after a click closes the Item the click opened.
+- React animates only the named boundaries and hides the page's own snapshot (it animates `::view-transition-group(root)` to opacity 0 and turns off its pointer events). The page behind the card changes at once while the card moves. It takes no input while a covering Reader is open, and Page hides it.
+- React skips view transitions that start inside a `popstate` event ([React, ViewTransition](https://react.dev/reference/react/ViewTransition), Building View Transition enabled routers). The route sets the path from `popstate` in a later task, so a browser Back that closes the Reader runs it back into its card too.
+- Under reduced motion the view transition still starts, and a `prefers-reduced-motion: reduce` rule turns off every view-transition animation. In the List pane nothing is wrapped.
+- Two opens before the first commits leave one history entry: `openItem` replaces an address that is already an Item the screen has not shown yet.
+- View transitions and `view-transition-class` are Baseline Newly available since 2025-10-14 ([MDN, View Transition API](https://developer.mozilla.org/en-US/docs/Web/API/View_Transition_API)). Without the API React commits at once with no motion. Safari 18.0 and 18.1 have view transitions but not the class, so they drop the `.lib-item` rule and run the browser's default duration in place of `--dur-move`.
+
 ### Loading and staleness
 
 When `useItemDetail` fails to read `GET /api/items/:id` again and the Reader still holds an answer for the same Item, it keeps the body and marks the copy `earlier`. The Reader then shows `READER_STALE` and Try again above the Summary, so the header (from the list) and a body from an earlier read are never shown as one current Item.

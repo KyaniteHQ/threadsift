@@ -1,58 +1,25 @@
-import { type Page, type Route, expect } from "@playwright/test";
+import { type Page, expect } from "@playwright/test";
 
+import { STORAGE_KEY } from "../design/system/settings.ts";
 import { ReadStateRequestSchema } from "../src/core/contract/item-route-wire.ts";
 import { OP_LABEL, READER_STALE, RELATED } from "../web/src/reader-text.ts";
 import { RETRY_LABEL } from "../web/src/text.ts";
+import { holdListRead, listReads, refuseLater } from "./held-reads.ts";
+import {
+  FACT,
+  FIRST_COPY,
+  FIRST_TEXT,
+  STALE_LINK,
+  STALE_TITLE,
+  STATUS_LINK,
+  STATUS_POST,
+  STATUS_TITLE,
+  THREAD,
+  THREAD_LINK,
+  THREAD_TITLE,
+} from "./reader-items.ts";
+import { MOTION_ITEM, motionOf, watchMotion } from "./reader-motion-flow.ts";
 import { itemDetail, itemStatus, savedItem, savedTopicItem } from "./saved-item.ts";
-
-const THREAD_ID = "3000000000000000001";
-
-const THREAD_LINK = `https://x.com/oldname/status/${THREAD_ID}`;
-
-const STATUS_ID = "3000000000000000002";
-
-const STATUS_LINK = `https://x.com/i/status/${STATUS_ID}`;
-
-const STATUS_TITLE = "A status link that names no handle";
-
-const THREAD_TITLE = "Online backups for a busy database file";
-
-const FACT = "Run sqlite3 app.db '.backup copy.db', then run PRAGMA integrity_check on the copy.";
-
-const reply = (id: string, parentId: string, author: string, text: string) => ({
-  id,
-  parentId,
-  author,
-  text,
-  postedAt: "2026-03-04T10:00:00Z",
-  likes: 2,
-});
-
-const THREAD = {
-  post: {
-    id: THREAD_ID,
-    author: "someone",
-    text: "How do you back up a SQLite file while the app is writing to it?",
-    postedAt: "2026-03-04T09:00:00Z",
-    replies: 3,
-  },
-  replies: [
-    reply("3000000000000000011", THREAD_ID, "bob", FACT),
-    reply("3000000000000000012", "3000000000000000011", "Someone", "That also works from Python."),
-    reply("3000000000000000013", THREAD_ID, "carol", "lol"),
-  ],
-};
-
-const STATUS_POST = {
-  post: {
-    id: STATUS_ID,
-    author: "someone",
-    text: "Does the online backup command lock the database while it copies?",
-    postedAt: "2026-03-05T09:00:00Z",
-    replies: 0,
-  },
-  replies: [],
-};
 
 async function expectStoredAuthor(page: Page, title: string): Promise<void> {
   await page.goto("/");
@@ -141,29 +108,6 @@ export async function readXThread(page: Page): Promise<void> {
   await expectStoredAuthor(page, STATUS_TITLE);
 }
 
-const STALE_LINK = "https://example.com/guides/stale-reader";
-
-const STALE_TITLE = "A page the Reader keeps an earlier copy of";
-
-const FIRST_COPY = "The first copy of a page that the Reader keeps on screen.";
-
-const FIRST_TEXT = Array.from({ length: 24 }, () => FIRST_COPY).join("\n\n");
-
-const REFUSED_READ_MS = 1000;
-
-async function refuseLater(route: Route): Promise<void> {
-  if (route.request().method() !== "GET") {
-    await route.fallback();
-
-    return;
-  }
-
-  await new Promise<void>((wait) => {
-    setTimeout(wait, REFUSED_READ_MS);
-  });
-  await route.abort("connectionrefused");
-}
-
 async function pressM(page: Page, id: number): Promise<void> {
   const written = page.waitForResponse(
     (response) => new URL(response.url()).pathname === `/api/items/${String(id)}/read-state`,
@@ -229,18 +173,63 @@ export async function retryStaleReader(page: Page): Promise<void> {
   await expect(page.locator("article.it").filter({ hasText: STALE_TITLE })).toHaveCount(0);
 }
 
-const LIST_READ_HOLD_MS = 1500;
+export async function readerMotion(page: Page): Promise<void> {
+  const id = await savedItem(page.request, MOTION_ITEM);
+  const card = page.locator(`.it[data-key="${String(id)}"] .it-open`);
+  const shared = [[`lib-item-${String(id)}`]];
+  const stored = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
 
-const listReads = (url: URL) => url.pathname === "/api/items";
+  await page.addInitScript(watchMotion);
+  await page.evaluate(
+    ([key, value]) => {
+      localStorage.setItem(key, value);
+    },
+    [STORAGE_KEY, JSON.stringify({ layout: "grid", openAs: "sheet" })] as const,
+  );
+  await page.goto("/");
 
-async function holdListRead(route: Route): Promise<void> {
-  if (route.request().method() === "GET") {
-    await new Promise<void>((wait) => {
-      setTimeout(wait, LIST_READ_HOLD_MS);
-    });
-  }
+  const opened = await motionOf(page, () => card.click(), 1);
+  const escaped = await motionOf(page, () => page.keyboard.press("Escape"), 0);
+  await motionOf(page, () => card.click(), 1);
+  const backed = await motionOf(
+    page,
+    async () => {
+      await page.goBack();
+    },
+    0,
+  );
 
-  await route.fallback();
+  expect(
+    opened.map((run) => run.moved),
+    "the open grows only this Item's card",
+  ).toEqual(shared);
+  expect(
+    escaped.map((run) => run.moved),
+    "Escape runs the Reader back into it",
+  ).toEqual(shared);
+  expect(
+    backed.map((run) => run.moved),
+    "Back runs the Reader back into it",
+  ).toEqual(shared);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const reduced = await motionOf(page, () => card.click(), 1);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".reader-slot")).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+
+  expect(
+    reduced.map((run) => run.changing),
+    "reduced motion animates nothing",
+  ).toEqual([0]);
+
+  await page.evaluate(
+    ([key, value]) => {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    },
+    [STORAGE_KEY, stored] as const,
+  );
 }
 
 export async function markReadTwice(page: Page): Promise<void> {
