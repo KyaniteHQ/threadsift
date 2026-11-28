@@ -10,7 +10,8 @@ import {
 
 export const SessionStateSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("setup"), code: z.enum(SETUP_CODE_STATUSES) }),
-  z.object({ state: z.enum(["signed-out", "signed-in"]) }),
+  z.object({ state: z.literal("signed-out") }),
+  z.object({ state: z.literal("signed-in"), database: z.string().min(1) }),
 ]);
 
 export const SetupCodeRequestSchema = z.object({ code: z.string() });

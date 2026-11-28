@@ -53,7 +53,7 @@ export const sessionRoute = createRoute({
   responses: {
     200: jsonBody(
       SessionStateSchema,
-      "`setup` while no owner exists, with `code` saying whether the Instance has a usable setup code (`set`, `missing` or `short`), else `signed-in` or `signed-out`.",
+      "`setup` while no owner exists, with `code` saying whether the Instance has a usable setup code (`set`, `missing` or `short`), else `signed-out`, or `signed-in` with `database`, a random value that names this database and never repeats in another, so the web app can keep its browser storage apart per database.",
     ),
   },
 });

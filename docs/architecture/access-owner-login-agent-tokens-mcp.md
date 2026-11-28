@@ -16,6 +16,7 @@ The setup code keeps a stranger from claiming a fresh public Instance.
 - Every refusal from the setup, login, change and reset handlers carries one `code` in the error body, named in `REFUSAL_CODES`. The gate's 403 for a foreign origin or content type runs before those handlers and carries none. The web client reads `code` and never guesses from the status.
 - While no owner exists, `GET /api/session` also answers `code` (`set`, `missing` or `short`, from `anonymousState`), so the setup page opens on the block that names the fix. The field reveals only what the 503 already reveals, and it is absent once an owner exists.
 - The single `owner` row makes a second setup a 409.
+- For a signed-in owner, `GET /api/session` also answers `database`, the value of `database_identity` (`signedInState`). The web app keys the browser storage it keeps per Item or per Restore by it ([Data model outline](data-model-outline.md), The Note).
 
 ## Owner login and sessions
 

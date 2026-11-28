@@ -87,6 +87,7 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
 |---|---|
 | `owner` | The owner's password hash, one row. |
 | `sessions` | One row per session, keyed by the session's digest. |
+| `database_identity` | One row with a random value that the migration that creates the table writes, so each database has its own. It names the database to the web app's browser storage (`GET /api/session`). An Export leaves it out, so a Restore keeps the value of the database it fills. |
 | `agent_tokens` | One row per agent token: digest, scopes and Daily budget. |
 | `spent_reset_codes` | The digests of used reset codes. |
 | `throttles` | At most one row each for `setup`, `login` and `reset`. |
@@ -236,7 +237,7 @@ The owner's one free-text Note per Item.
 
 **Search.** One `search_parts` row of kind `note` per nonempty Note, with a null `highlight_id`. The write replaces it in the Note's own batch, so a replace never leaves two parts and a clear leaves none.
 
-**In the Reader.** `useNote` keeps the saved Note apart from the draft, so a refresh cannot move text under the owner. A revision conflict shows a panel that preserves both versions. If a save committed but its answer was lost, the next save shows the panel even when the texts match. `exceedsNoteLimit` counts code points, the test the Instance applies, because a field's `maxLength` counts UTF-16 units. The Reader keeps the draft and its revision in `localStorage` under `threadsift.note-draft.<items.id>`, so a reload preserves it. An Item deleted elsewhere can leave an unused draft, because ids are never reused.
+**In the Reader.** `useNote` keeps the saved Note apart from the draft, so a refresh cannot move text under the owner. A revision conflict shows a panel that preserves both versions. If a save committed but its answer was lost, the next save shows the panel even when the texts match. `exceedsNoteLimit` counts code points, the test the Instance applies, because a field's `maxLength` counts UTF-16 units. The Reader keeps the draft and its revision in `localStorage` under `threadsift.note-draft.<database>.<items.id>`, so a reload preserves it. `<database>` is the `database` value of `GET /api/session`, because the browser's storage belongs to the origin, and a new database at the same origin starts its ids at 1 again. When the web app learns the value, it deletes the drafts and Restore fingerprints stored under another one, and until it learns it, it reads and keeps no draft. An Item deleted elsewhere can leave an unused draft, because ids are never reused within one database.
 
 ## The Highlights page
 

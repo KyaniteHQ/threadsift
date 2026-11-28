@@ -16,7 +16,8 @@ type ExclusionReason =
   | "provider-choice"
   | "work-in-flight"
   | "derived"
-  | "carried-in-manifest";
+  | "carried-in-manifest"
+  | "names-the-database";
 
 const EXCLUDED_TABLES = {
   vault_settings: "secret",
@@ -50,6 +51,7 @@ const EXCLUDED_TABLES = {
   search_index_idx: "derived",
   d1_migrations: "carried-in-manifest",
   sqlite_sequence: "carried-in-manifest",
+  database_identity: "names-the-database",
 } as const satisfies Readonly<Record<string, ExclusionReason>>;
 
 const NamesSchema = z.array(z.object({ name: z.string() }));

@@ -1,6 +1,10 @@
 import type { Session } from "./access-api.ts";
 
-export type View = Session | { readonly state: "loading" } | { readonly state: "unreachable" };
+export type View =
+  | Session
+  | { readonly state: "signed-in" }
+  | { readonly state: "loading" }
+  | { readonly state: "unreachable" };
 
 type SessionFlow =
   | { readonly kind: "settled"; readonly view: View }

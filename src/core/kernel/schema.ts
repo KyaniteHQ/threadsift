@@ -1,6 +1,7 @@
 export {
   type AgentTokenRow,
   agentTokens,
+  databaseIdentity,
   owner,
   sessions,
   spentResetCodes,

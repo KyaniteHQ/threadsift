@@ -157,6 +157,10 @@ The migration that renamed the thread tables copies `reddit_comments` into `thre
   For a container, run the same `select` on a copy of its database file. An empty result lets the migration run. For each row it returns, take an Export, delete that Item in the Reader (its Highlights and Note go with it), deploy, and Paste its link again.
 - A Restore that runs. The migration changes the record files of an Export, so a Restore that still runs when the deploy applies the migration ends `failed` with `other-release`, and the rows it wrote stay until the owner cancels it ([Export, backup and restore](export-backup-and-restore.md)). Let a running Restore end before the merge.
 
+### The database identity
+
+The migration that added `database_identity` writes one random value per database. An older build never reads the table, so a rollback needs no data from before it. The older web app keys Note drafts by Item id alone again. It never reads the drafts kept under the new keys, and the next update reads them again.
+
 ### Names and variables
 
 - Names. `env.live` in the Worker configuration names the Worker `threadsift-live` (the top-level name plus `-live`), the D1 database `threadsift-live`, the Queue `threadsift-live-jobs` as producer and consumer, the bucket `threadsift-live-files` and the `AI` binding. An environment inherits `main`, `assets`, `triggers`, `limits` and `alias`, but not bindings or variables ([Wrangler environments](https://developers.cloudflare.com/workers/wrangler/environments/), [configuration](https://developers.cloudflare.com/workers/wrangler/configuration/)). It carries no `database_id`, because `wrangler d1 migrations apply --remote` looks the database up by `database_name` through the Cloudflare API. It sets `workers_dev` and inherits the top-level observability settings, including `redact_query_string`. The database and the Queue exist already. For a new Instance in another account, `pnpm run deploy --secrets-file <file>` creates the missing D1 database before migrations, and Wrangler creates the bucket and Queue during the deploy ([Cloudflare deploy button](cloudflare-deploy-button.md)).
