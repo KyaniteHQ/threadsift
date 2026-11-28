@@ -48,6 +48,7 @@ describe("the check refuses a zip it cannot trust before it writes a record", ()
       libraryEmpty: true,
       id,
       failure: code,
+      holdsLibrary: false,
       resumable: false,
       cancelFailed: false,
     });

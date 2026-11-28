@@ -51,7 +51,7 @@ export const LIBRARY_NOT_EMPTY =
   "The library holds Items, Topics, Tags, Log entries, Proposals, Pins or Import cursors, so nothing can be restored into it.";
 
 export const OPEN =
-  "Another restore is waiting for its upload, is running, or failed after giving up and still holds the library.";
+  "Another restore is waiting for its upload or holds the library: it is running, or it failed after it wrote records.";
 
 export const PAST_UPLOAD = {
   error: "The restore is past its upload",
@@ -73,9 +73,9 @@ export const SUPERSEDED = {
   code: "superseded" as const,
 };
 
-export const STATUS_DESCRIPTION = `The newest restore, or \`{ "state": "none" }\`. \`libraryEmpty\` is true when the library holds no Item, Topic, Tag, Log entry, Proposal, Pin or Import cursor; a restore can start only then, and only while no other restore is open, which means it waits for its upload, runs, or failed with \`gave-up\`. \`uploading\` lists the \`received\` parts, so a client that reloaded sends the missing ones. \`running\` carries the \`phase\` (${PHASE_NAMES}) and the counts ${COUNTS}. \`cancelling\` has no counts. \`done\` carries the same counts. \`failed\` carries a \`failure\` word: a refusal code (${REFUSAL_NAMES}), or \`gave-up\` (a unit failed ${String(MAX_ATTEMPTS)} times). \`cancelFailed\` is true when the failed run was a cancel. \`resumable\` is true for \`gave-up\` of a run that was not a cancel, while every part of the zip is still stored, and a refusal keeps no part. \`cancelled\` has no counts.`;
+export const STATUS_DESCRIPTION = `The newest restore, or \`{ "state": "none" }\`. \`libraryEmpty\` is true when the library holds no Item, Topic, Tag, Log entry, Proposal, Pin or Import cursor; a restore can start only then, and only while no other restore is open, which means it waits for its upload or holds the library. \`uploading\` lists the \`received\` parts, so a client that reloaded sends the missing ones. \`running\` carries the \`phase\` (${PHASE_NAMES}) and the counts ${COUNTS}. \`cancelling\` has no counts. \`done\` carries the same counts. \`failed\` carries a \`failure\` word: a refusal code (${REFUSAL_NAMES}), or \`gave-up\` (a unit failed ${String(MAX_ATTEMPTS)} times). \`holdsLibrary\` is true while the failed run still holds the library: after \`gave-up\`, or after a refusal that came once records were written; the library then takes no Paste and no second upload until the run is resumed or cancelled. \`cancelFailed\` is true when the failed run was a cancel. \`resumable\` is true for \`gave-up\` of a run that was not a cancel, while every part of the zip is still stored, and a refusal keeps no part. \`cancelled\` has no counts.`;
 
-export const START_DESCRIPTION = `The restore was waiting for its start, the library is still empty and every part has arrived, so it is \`running\` in its \`check\` phase. Jobs go through the phases ${PHASES} \`POST /api/items\` and \`POST /api/items/batch\` answer 503 while it runs and while it is \`failed\` with \`gave-up\`, until it is resumed or cancelled.`;
+export const START_DESCRIPTION = `The restore was waiting for its start, the library is still empty and every part has arrived, so it is \`running\` in its \`check\` phase. Jobs go through the phases ${PHASES} \`POST /api/items\` and \`POST /api/items/batch\` answer 503 while it holds the library: while it runs, and while it is \`failed\` with \`gave-up\` or failed after it wrote records, until it is resumed or cancelled.`;
 
 export const PARTS_MISSING = {
   error: "Some parts of the upload have not arrived",
