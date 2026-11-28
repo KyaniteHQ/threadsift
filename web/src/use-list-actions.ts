@@ -57,7 +57,7 @@ function useSaveAndShow(
     async (target: SaveTarget): Promise<SaveOutcome> => {
       const result = await save(target);
 
-      if (result.outcome !== "saved") return { kind: "notice", notice: result.outcome };
+      if (result.kind !== "saved") return { kind: "notice", notice: result.kind };
 
       if (!result.known && pane.current !== null) {
         scrollToTop(pane.current);
@@ -74,22 +74,44 @@ function useSaveAndShow(
   );
 }
 
+export type RefusedRetry = Pick<SaveTarget, "kind" | "url">;
+
 function usePasteQueue() {
   const [requests, setRequests] = useState<readonly PasteRequest[]>([]);
+  const [refusedRetry, setRefusedRetry] = useState<RefusedRetry | null>(null);
   const sequence = useRef(0);
 
-  const retryItem = useCallback((item: Item) => {
+  const enqueue = useCallback((item: Item, reader: boolean) => {
     if (item.retry === null) return;
 
     sequence.current += 1;
-    const base = { url: item.originalUrl, seq: sequence.current };
+    const base = { url: item.originalUrl, seq: sequence.current, reader };
 
     const queued: PasteRequest =
       item.retry === "digest"
         ? { ...base, kind: "digest", id: item.id }
         : { ...base, kind: "paste" };
 
+    setRefusedRetry(null);
     setRequests((current) => [...current, queued]);
+  }, []);
+
+  const retryListed = useCallback(
+    (item: Item) => {
+      enqueue(item, false);
+    },
+    [enqueue],
+  );
+
+  const retryOpened = useCallback(
+    (item: Item) => {
+      enqueue(item, true);
+    },
+    [enqueue],
+  );
+
+  const refused = useCallback(({ kind, url }: Readonly<SaveTarget>) => {
+    setRefusedRetry({ kind, url });
   }, []);
 
   const taken = useCallback((seq: number) => {
@@ -97,9 +119,9 @@ function usePasteQueue() {
   }, []);
 
   const next = requests[0] ?? null;
-  const queue = useMemo<PasteQueue>(() => ({ next, taken }), [next, taken]);
+  const queue = useMemo<PasteQueue>(() => ({ next, taken, refused }), [next, taken, refused]);
 
-  return { queue, retryItem };
+  return { queue, retryListed, retryOpened, refusedRetry };
 }
 
 export function useListActions(
@@ -116,14 +138,14 @@ export function useListActions(
   const { attention, attend, attended } = useOpenItem(list, actions.query, route);
   const { lookupFailed, lookAgain } = useLookup(list, route, actions.know);
 
-  const { queue, retryItem } = usePasteQueue();
+  const { queue, retryListed, retryOpened, refusedRetry } = usePasteQueue();
 
   const tryAgain = useCallback(
     (item: Item) => {
       attend({ id: item.id, focus: true });
-      retryItem(item);
+      retryListed(item);
     },
-    [attend, retryItem],
+    [attend, retryListed],
   );
 
   return {
@@ -134,7 +156,8 @@ export function useListActions(
     lookAgain,
     queue,
     tryAgain,
-    retryItem,
+    retryOpened,
+    refusedRetry,
     saveAndShow: useSaveAndShow(actions.save, pane),
     retryAndKeepPlace: useKeptPlace(list, actions.retry, pane),
   };

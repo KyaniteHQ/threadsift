@@ -35,16 +35,15 @@ import {
   withCursor,
 } from "./calls.ts";
 import { type Filters, queryOf } from "./filters.ts";
-import { isRestoring } from "./unavailable.ts";
+import { RESTORING, type Restoring, callUnlessRestoring, isRestoring } from "./unavailable.ts";
 import { DATABASE_WRITE_DEADLINE_MS, PASTE_DEADLINE_MS } from "./write-deadlines.ts";
 
 export type SaveResult =
-  | { readonly outcome: "invalid" }
-  | { readonly outcome: "private" }
-  | { readonly outcome: "restoring" }
-  | { readonly outcome: "digest-restoring" }
+  | { readonly kind: "invalid" }
+  | { readonly kind: "private" }
+  | Restoring
   | {
-      readonly outcome: "saved";
+      readonly kind: "saved";
       readonly known: boolean;
       readonly refreshed: boolean;
       readonly item: Item;
@@ -112,46 +111,46 @@ export async function fetchTopicPage(
   return page === null ? { outcome: "missing" } : { outcome: "found", page };
 }
 
-export type OverviewRetry =
-  | { readonly outcome: "started"; readonly overview: Overview }
-  | { readonly outcome: "refused" }
-  | { readonly outcome: "restoring" };
+type OverviewRetry =
+  | { readonly kind: "started"; readonly overview: Overview }
+  | { readonly kind: "refused" }
+  | Restoring;
 
 export async function retryTopicOverview(key: string): Promise<OverviewRetry> {
-  const response = await callOk(post(DATABASE_WRITE_DEADLINE_MS), `${topicApiPath(key)}/overview`, {
-    tolerates: [409, 503],
-  });
+  const response = await callUnlessRestoring(
+    post(DATABASE_WRITE_DEADLINE_MS),
+    `${topicApiPath(key)}/overview`,
+    { tolerates: [409] },
+  );
 
-  if (response.status === 409) return { outcome: "refused" };
+  if (isRestoring(response)) return RESTORING;
 
-  if (await isRestoring(response)) return { outcome: "restoring" };
+  if (response.status === 409) return { kind: "refused" };
 
   const { overview } = await parsedBody(response, OverviewRetryResponseSchema);
 
-  return { outcome: "started", overview };
+  return { kind: "started", overview };
 }
 
 export async function saveLink(url: string): Promise<SaveResult> {
-  const response = await callOk(post(PASTE_DEADLINE_MS), "/api/items", {
+  const response = await callUnlessRestoring(post(PASTE_DEADLINE_MS), "/api/items", {
     json: { url },
-    tolerates: [400, 503],
+    tolerates: [400],
   });
+
+  if (isRestoring(response)) return RESTORING;
 
   if (response.status === 400) {
     const { fetch: refusal } = await parsedBody(response, ErrorResponseSchema);
 
-    return { outcome: refusal === "refused" ? "private" : "invalid" };
-  }
-
-  if (await isRestoring(response)) {
-    return { outcome: "restoring" };
+    return { kind: refusal === "refused" ? "private" : "invalid" };
   }
 
   const { item } = await parsedBody(response, SavedItemResponseSchema);
 
   const known = response.status !== 201;
 
-  return { outcome: "saved", known, refreshed: refreshedOf(known, item.fetch), item };
+  return { kind: "saved", known, refreshed: refreshedOf(known, item.fetch), item };
 }
 
 export async function removeItem(id: number): Promise<void> {
@@ -159,15 +158,16 @@ export async function removeItem(id: number): Promise<void> {
 }
 
 export async function regenerateDigest(id: number): Promise<SaveResult> {
-  const response = await callOk(post(DATABASE_WRITE_DEADLINE_MS), `/api/items/${id}/digest`, {
-    tolerates: [503],
-  });
+  const response = await callUnlessRestoring(
+    post(DATABASE_WRITE_DEADLINE_MS),
+    `/api/items/${id}/digest`,
+  );
 
-  if (await isRestoring(response)) return { outcome: "digest-restoring" };
+  if (isRestoring(response)) return RESTORING;
 
   const { item } = await parsedBody(response, ItemResponseSchema);
 
-  return { outcome: "saved", known: true, refreshed: false, item };
+  return { kind: "saved", known: true, refreshed: false, item };
 }
 
 export type SaveTarget =

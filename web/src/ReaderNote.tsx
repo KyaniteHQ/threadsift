@@ -1,8 +1,10 @@
-import { useCallback } from "react";
+import { use, useCallback } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { noteOf, offersFetchRetry, rejectsToken } from "./paste-card.ts";
-import { NOTICES, RETRY_LABEL, failureTitleOf } from "./text.ts";
+import { RefusedRetryContext } from "./refused-retry.ts";
+import { AlertRegion } from "./RetryRegions.tsx";
+import { NOTICES, RETRY_LABEL, failureTitleOf, restoringNote } from "./text.ts";
 import { WaitText } from "./WaitText.tsx";
 
 function noteTextOf(item: Readonly<Item>): string | null {
@@ -21,6 +23,8 @@ export function Note({
   withRetry,
   tryAgain,
 }: Readonly<{ item: Item; text: string; withRetry: boolean; tryAgain: (item: Item) => void }>) {
+  const refused = use(RefusedRetryContext);
+
   const retry = useCallback(() => {
     tryAgain(item);
   }, [item, tryAgain]);
@@ -33,6 +37,7 @@ export function Note({
       <button type="button" className="btn btn-block" onClick={retry}>
         {RETRY_LABEL}
       </button>
+      <AlertRegion text={refused === null ? null : restoringNote(refused)} retry={null} />
     </div>
   );
 }

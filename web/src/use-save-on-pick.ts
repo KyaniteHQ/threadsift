@@ -1,15 +1,13 @@
 import { useCallback, useMemo } from "react";
 
+import { type Restoring, isRestoring } from "./unavailable.ts";
 import { outcomeOf, useActionFlow } from "./use-settings-action.ts";
 
-export type Saved<View> =
-  | { readonly kind: "saved"; readonly view: View }
-  | { readonly kind: "refused"; readonly text: string };
-
-export function useSaveOnPick<Value, View>(
-  save: (value: Value) => Promise<Saved<View>>,
+export function useSaveOnPick<Value, View extends object>(
+  save: (value: Value) => Promise<View | Restoring>,
   changed: (view: View) => void,
   failedText: string,
+  restoringText: string = failedText,
 ) {
   const { flow, run } = useActionFlow(useMemo(() => ({ save: failedText }), [failedText]));
 
@@ -18,14 +16,14 @@ export function useSaveOnPick<Value, View>(
       void run("save", async () => {
         const saved = await save(value);
 
-        if (saved.kind === "refused") return { kind: "error", text: saved.text };
+        if (isRestoring(saved)) return { kind: "error", text: restoringText };
 
-        changed(saved.view);
+        changed(saved);
 
         return null;
       });
     },
-    [changed, run, save],
+    [changed, restoringText, run, save],
   );
 
   const outcome = outcomeOf(flow);

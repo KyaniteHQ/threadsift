@@ -122,10 +122,10 @@ export const AI_TEXT = {
   loadFailed: "Couldn’t load AI settings. Reload the page to try again.",
   saveFailed: "Couldn’t save provider settings. Try again.",
   saveRestoring:
-    "Couldn’t save provider settings because a restore is running. Try Save again once the restore finishes.",
+    "Couldn’t save provider settings because a restore holds the library. Press Save again after it finishes, or after you resume or cancel it in Backup.",
   verifyFailed: "Couldn’t verify the provider. Try again.",
   verifyRestoring:
-    "Couldn’t verify the provider because a restore is running. Try Verify again once the restore finishes.",
+    "Couldn’t verify the provider because a restore holds the library. Press Verify again after it finishes, or after you resume or cancel it in Backup.",
   "secret-missing":
     "THREADSIFT_SECRET_KEY is missing, invalid or changed on this instance. Set it in the container environment or as a Worker secret to 32 random bytes (64 hex characters). If keys were already saved with an earlier secret key, restore that key instead. Then reload the page.",
   "wrong-key": "The provider rejected the API key. Check the key and save again.",

@@ -15,6 +15,7 @@ import { dropHighlight, keepHighlight } from "./keeping-api.ts";
 import {
   KEEP_FAILED,
   KEEP_REFUSED,
+  KEEP_RESTORING,
   KEEP_STALE,
   KEPT_ANNOUNCEMENT,
   REMOVED_ANNOUNCEMENT,
@@ -69,15 +70,34 @@ function useKeep(itemId: number, serial: Serial, actions: DetailActions, outcome
         keepHighlight(itemId, { target, revision, selector }).catch(() => null),
       );
 
-      if (answer === null) fail(KEEP_FAILED);
-      else if (answer.outcome === "refused") fail(KEEP_REFUSED);
-      else if (answer.outcome === "changed") {
-        reload();
-        fail(KEEP_STALE);
-      } else {
-        editHighlights((view) => added(view, answer.highlight));
-        fail(null);
-        announce(KEPT_ANNOUNCEMENT);
+      if (answer === null) {
+        fail(KEEP_FAILED);
+
+        return;
+      }
+
+      switch (answer.kind) {
+        case "refused":
+          fail(KEEP_REFUSED);
+
+          return;
+        case "restoring":
+          fail(KEEP_RESTORING);
+
+          return;
+        case "changed":
+          reload();
+          fail(KEEP_STALE);
+
+          return;
+        case "kept":
+          editHighlights((view) => added(view, answer.highlight));
+          fail(null);
+          announce(KEPT_ANNOUNCEMENT);
+
+          return;
+        default:
+          return answer satisfies never;
       }
     },
     [itemId, serial, reload, editHighlights, announce, fail, dismiss],

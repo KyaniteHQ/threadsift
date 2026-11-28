@@ -27,7 +27,6 @@ export interface RowControls {
 const BUSY_NOTES = {
   "merge-busy": PROPOSAL_WORDS.mergeBusy,
   "no-provider": PROPOSAL_WORDS.noProvider,
-  restoring: PROPOSAL_WORDS.restoring,
 } as const satisfies Record<Busy, string>;
 
 interface NoteTexts {
@@ -48,6 +47,8 @@ function notesOf(row: RowState, applying: boolean): NoteTexts {
       };
     case "busy":
       return { alert: null, status: BUSY_NOTES[row.busy] };
+    case "restoring":
+      return { alert: null, status: PROPOSAL_WORDS.restoring };
     case "pressing":
     case "idle":
       return NO_NOTES;

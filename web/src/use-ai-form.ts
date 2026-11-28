@@ -58,11 +58,33 @@ function failureText(
   provider: Provider,
   publicOnly: boolean,
 ): string {
-  if (response.kind === "refused") return refusalText(response, provider, publicOnly);
+  switch (response.kind) {
+    case "refused":
+      return refusalText(response, provider, publicOnly);
+    case "restoring":
+      return AI_TEXT.saveRestoring;
+    case "grok-bot-unready":
+      return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
+    default:
+      return response satisfies never;
+  }
+}
 
-  if (response.kind === "restoring") return AI_TEXT.saveRestoring;
-
-  return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
+function verifyOutcome(
+  response: Awaited<ReturnType<typeof verifyAi>>,
+  provider: Provider,
+  publicOnly: boolean,
+): Outcome {
+  switch (response.kind) {
+    case "done":
+      return { kind: "ok", text: AI_TEXT.verified, digest: response.digest };
+    case "refused":
+      return { kind: "error", text: refusalText(response, provider, publicOnly) };
+    case "restoring":
+      return { kind: "error", text: AI_TEXT.verifyRestoring };
+    default:
+      return response satisfies never;
+  }
 }
 
 function holdsUnreadableKey({ secretReady, settings }: Readonly<AiView>): boolean {
@@ -108,15 +130,9 @@ function useVerify(view: AiView, { run, refuse }: Readonly<Pick<AiPhase, "run" |
 
     if (provider === undefined) return;
 
-    run(provider === GROK_BOT_PROVIDER ? "waiting" : "verifying", async (): Promise<Outcome> => {
-      const response = await verifyAi();
-
-      if (response.kind === "restoring") return { kind: "error", text: AI_TEXT.verifyRestoring };
-
-      return response.kind === "done"
-        ? { kind: "ok", text: AI_TEXT.verified, digest: response.digest }
-        : { kind: "error", text: refusalText(response, provider, view.publicOnly) };
-    });
+    run(provider === GROK_BOT_PROVIDER ? "waiting" : "verifying", async () =>
+      verifyOutcome(await verifyAi(), provider, view.publicOnly),
+    );
   }, [unavailable, provider, view.publicOnly, run, refuse]);
 
   return {

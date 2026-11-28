@@ -12,6 +12,6 @@ export const REDDIT_TEXT = {
   loadFailed: "Couldn’t load the Reddit archive fill setting. Reload the page.",
   failed: "Couldn’t save the setting. Try again.",
   restoring:
-    "Couldn’t save the setting because a restore is running. Pick On or Off again once it finishes.",
+    "Couldn’t save the setting because a restore holds the library. Pick On or Off again after it finishes, or after you resume or cancel it in Backup.",
   saving: "Saving…",
 } as const;

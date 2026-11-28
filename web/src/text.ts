@@ -20,21 +20,17 @@ export type NoticeKey =
   | "invalid"
   | "failed"
   | "restoring"
-  | "digest-restoring"
   | "title-kept"
   | XNoticeKey
   | "private";
 
 export const INPUT_ERRORS: ReadonlySet<NoticeKey> = new Set(["empty", "invalid", "private"]);
 
-const RESTORING_TITLE = "Couldn’t save during a restore";
-
 export const NOTICES: Readonly<Record<NoticeKey, string>> = {
   empty: "Paste a link first.",
   invalid: "Links must start with https:// or http://.",
   failed: "Couldn’t save this link.",
-  restoring: RESTORING_TITLE,
-  "digest-restoring": RESTORING_TITLE,
+  restoring: "Couldn’t save during a restore",
   refused:
     "Saved without a title. This link leads to an address that isn’t reachable from the public internet.",
   unsupported: "Saved without a title. This link redirected to an address that isn’t a web page.",
@@ -53,9 +49,18 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
   private: "Can’t save this link",
 };
 
+export const RESTORING_DETAILS = {
+  paste:
+    "Nothing was saved. Paste the link again after the restore finishes, or resume or cancel it in Backup in Settings.",
+  digest:
+    "Nothing was saved. Press Try again on the item after the restore finishes, or after you resume or cancel it in Backup in Settings.",
+} as const;
+
+export function restoringNote(target: keyof typeof RESTORING_DETAILS): string {
+  return `${NOTICES.restoring}. ${RESTORING_DETAILS[target]}`;
+}
+
 export const NOTICE_DETAILS: Readonly<Partial<Record<NoticeKey, string>>> = {
-  restoring: "Nothing was saved. Paste the link again after the restore finishes.",
-  "digest-restoring": "Nothing was saved. Use Try again on the item after the restore finishes.",
   private: "Its address can’t be reached from the public internet, so the instance won’t fetch it.",
 };
 

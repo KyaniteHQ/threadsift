@@ -8,15 +8,9 @@ import { saveRedditSettings } from "./reddit-api.ts";
 import { REDDIT_TEXT } from "./reddit-text.ts";
 import { ArchiveFillContext, REDDIT_ACCOUNT_SECTION } from "./RedditAccountSection.tsx";
 import type { SettingsLoad } from "./settings-load-types.ts";
-import { type Saved, useSaveOnPick } from "./use-save-on-pick.ts";
+import { useSaveOnPick } from "./use-save-on-pick.ts";
 
-async function saveArchiveFill(archiveFill: boolean): Promise<Saved<RedditSettings>> {
-  const answer = await saveRedditSettings({ archiveFill });
-
-  return answer.kind === "saved"
-    ? { kind: "saved", view: answer.settings }
-    : { kind: "refused", text: REDDIT_TEXT.restoring };
-}
+const saveArchiveFill = (archiveFill: boolean) => saveRedditSettings({ archiveFill });
 
 const LABEL_ID = "reddit-archive-label";
 
@@ -31,7 +25,7 @@ function ArchiveFillRow({
   view,
   changed,
 }: Readonly<{ view: RedditSettings; changed: (view: RedditSettings) => void }>) {
-  const form = useSaveOnPick(saveArchiveFill, changed, REDDIT_TEXT.failed);
+  const form = useSaveOnPick(saveArchiveFill, changed, REDDIT_TEXT.failed, REDDIT_TEXT.restoring);
 
   return (
     <div className="stack" aria-busy={form.busy}>

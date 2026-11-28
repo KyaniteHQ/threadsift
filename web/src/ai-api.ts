@@ -12,8 +12,8 @@ import {
   ConnectStartResponseSchema,
   type ConnectStartInput,
 } from "../../src/core/contract/openrouter-contract.ts";
-import { call, callOk, parsedBody, parsedFrom, post, put } from "./calls.ts";
-import { isRestoring } from "./unavailable.ts";
+import { call, parsedBody, parsedFrom, post, put } from "./calls.ts";
+import { RESTORING, type Restoring, callUnlessRestoring, isRestoring } from "./unavailable.ts";
 import {
   AI_SAVE_DEADLINE_MS,
   AI_VERIFY_DEADLINE_MS,
@@ -33,15 +33,15 @@ type GrokBotUnready = z.infer<typeof GrokBotUnreadySchema>;
 type AiSave =
   | z.infer<typeof AiSaveResponseSchema>
   | { readonly kind: "grok-bot-unready"; readonly code: GrokBotUnready["code"] }
-  | { readonly kind: "restoring" };
+  | Restoring;
 
 export async function saveAiSettings(input: Readonly<AiSettingsInput>): Promise<AiSave> {
-  const response = await callOk(put(AI_SAVE_DEADLINE_MS), "/api/settings/ai", {
+  const response = await callUnlessRestoring(put(AI_SAVE_DEADLINE_MS), "/api/settings/ai", {
     json: input,
-    tolerates: [400, 503],
+    tolerates: [400],
   });
 
-  if (await isRestoring(response)) return { kind: "restoring" };
+  if (isRestoring(response)) return RESTORING;
 
   if (response.status !== 400) return parsedBody(response, AiSaveResponseSchema);
 
@@ -52,14 +52,15 @@ export async function saveAiSettings(input: Readonly<AiSettingsInput>): Promise<
   return { kind: "grok-bot-unready", code: unready.data.code };
 }
 
-type Verification = VerifyResult | { readonly kind: "restoring" };
+type Verification = VerifyResult | Restoring;
 
 export async function verifyAi(): Promise<Verification> {
-  const response = await callOk(post(AI_VERIFY_DEADLINE_MS), "/api/settings/ai/verify", {
-    tolerates: [503],
-  });
+  const response = await callUnlessRestoring(
+    post(AI_VERIFY_DEADLINE_MS),
+    "/api/settings/ai/verify",
+  );
 
-  if (await isRestoring(response)) return { kind: "restoring" };
+  if (isRestoring(response)) return RESTORING;
 
   return parsedBody(response, VerifyResultSchema);
 }

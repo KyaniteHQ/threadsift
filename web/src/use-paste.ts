@@ -30,12 +30,15 @@ export type SaveOutcome =
 
 export type Save = (target: SaveTarget) => Promise<SaveOutcome>;
 
-export type PasteRequest = SaveTarget & { readonly seq: number };
+export type PasteRequest = SaveTarget & { readonly seq: number; readonly reader: boolean };
 
 export interface PasteQueue {
   readonly next: PasteRequest | null;
   readonly taken: (seq: number) => void;
+  readonly refused: (target: SaveTarget) => void;
 }
+
+type Origin = "field" | "card" | "queue" | "reader";
 
 const FAILED: SaveOutcome = { kind: "notice", notice: "failed" };
 const EMPTY: SaveOutcome = { kind: "notice", notice: "empty" };
@@ -48,7 +51,9 @@ async function attempt(save: Save, target: SaveTarget): Promise<SaveOutcome> {
   }
 }
 
-function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Shown {
+function shownOf(outcome: Readonly<SaveOutcome>, target: SaveTarget, seq: number): Shown {
+  const { url } = target;
+
   return outcome.kind === "item"
     ? {
         kind: "item",
@@ -58,7 +63,11 @@ function shownOf(outcome: Readonly<SaveOutcome>, url: string, seq: number): Show
         url,
         seq,
       }
-    : { kind: "notice", key: outcome.notice, url, seq };
+    : { kind: "notice", key: outcome.notice, target: target.kind, url, seq };
+}
+
+function isRefusedRetry(origin: Origin, outcome: Readonly<SaveOutcome>): boolean {
+  return origin === "reader" && outcome.kind === "notice" && outcome.notice === "restoring";
 }
 
 type SaveInputs = Readonly<{
@@ -68,16 +77,31 @@ type SaveInputs = Readonly<{
   focusField: () => void;
   release: () => void;
   open: (id: number) => void;
+  refused: PasteQueue["refused"];
 }>;
 
-function useSaveValue({ save, setValue, setShown, focusField, release, open }: SaveInputs) {
+function useSaveValue({
+  save,
+  setValue,
+  setShown,
+  focusField,
+  release,
+  open,
+  refused,
+}: SaveInputs) {
   const sequence = useRef(0);
 
   return useCallback(
-    async (target: SaveTarget, origin: "field" | "card" | "queue") => {
+    async (target: SaveTarget, origin: Origin) => {
       const { url } = target;
       setShown(null);
       const outcome = url === "" ? EMPTY : await attempt(save, target);
+
+      if (isRefusedRetry(origin, outcome)) {
+        refused(target);
+
+        return;
+      }
 
       if (outcome.kind === "item") {
         setValue((current) => (current.trim() === url ? "" : current));
@@ -85,15 +109,15 @@ function useSaveValue({ save, setValue, setShown, focusField, release, open }: S
       }
 
       sequence.current += 1;
-      setShown(shownOf(outcome, url, sequence.current));
+      setShown(shownOf(outcome, target, sequence.current));
 
       if (origin === "field" && outcome.kind === "item" && outcome.known) {
         open(outcome.itemId);
-      } else if (origin !== "queue") {
+      } else if (origin === "field" || origin === "card") {
         focusField();
       }
     },
-    [focusField, open, release, save, setShown, setValue],
+    [focusField, open, refused, release, save, setShown, setValue],
   );
 }
 
@@ -148,10 +172,12 @@ type PasteOptions = Readonly<{
 function usePasteSaving({
   value,
   shown,
-  queue: { next, taken },
+  queue: { next, taken, refused },
   ...inputs
-}: Readonly<SaveInputs & { value: string; shown: Readonly<Shown> | null; queue: PasteQueue }>) {
-  const saveValue = useSaveValue(inputs);
+}: Readonly<
+  Omit<SaveInputs, "refused"> & { value: string; shown: Readonly<Shown> | null; queue: PasteQueue }
+>) {
+  const saveValue = useSaveValue({ ...inputs, refused });
   const { busy: saving, guard } = useGuard();
 
   const submit = useCallback(
@@ -174,8 +200,8 @@ function usePasteSaving({
     }
   }, [guard, saveValue, shown]);
 
-  const run = useEffectEvent((target: SaveTarget) => {
-    guard(() => saveValue(target, "queue"));
+  const run = useEffectEvent((request: PasteRequest) => {
+    guard(() => saveValue(request, request.reader ? "reader" : "queue"));
   });
 
   useEffect(() => {

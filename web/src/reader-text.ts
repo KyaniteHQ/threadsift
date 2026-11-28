@@ -81,6 +81,8 @@ export const RELATED = { title: "Related items", untitled: UNTITLED } as const;
 export const KEPT_ANNOUNCEMENT = "Highlight kept";
 export const REMOVED_ANNOUNCEMENT = "Highlight removed";
 export const KEEP_FAILED = "Couldn’t keep this highlight. Select the passage again.";
+export const KEEP_RESTORING =
+  "Couldn’t keep this highlight: a restore holds the library. Select and keep the passage once it finishes, or resume or cancel it in Backup in Settings.";
 export const KEEP_REFUSED =
   "Couldn’t keep this highlight. Select a smaller passage without pictures, footnotes or code.";
 export const SELECT_FAILED = "Can’t keep passages right now because part of the page didn’t load.";
@@ -92,6 +94,8 @@ export const KEEP_STALE =
 export const NOTE_SAVE = "Save";
 export const NOTE_SAVED = "Saved";
 export const NOTE_FAILED = "Couldn’t save this note. Your text is still in the field. Try again.";
+export const NOTE_RESTORING =
+  "Couldn’t save: a restore holds the library; your note stays in the field. Save again after it finishes, or resume or cancel it in Backup in Settings.";
 export const NOTE_TOO_LONG = `This note is over the limit of ${groupedNumber(NOTE_MAX_CODE_POINTS)} characters. Shorten it to save.`;
 export const NOTE_CHANGED = "This note changed in another tab or device.";
 export const NOTE_NEWER_EMPTY = "The newer version is empty.";

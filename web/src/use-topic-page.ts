@@ -23,7 +23,6 @@ export interface TopicReady {
   readonly items: readonly TopicItem[];
   readonly next: string | null;
   readonly more: More;
-  readonly writeRefused: boolean;
 }
 
 export type TopicState =
@@ -39,7 +38,7 @@ const FAILED: TopicState = { status: "failed" };
 const MISSING: TopicState = { status: "missing" };
 
 function readyFrom(page: Readonly<TopicPage>): TopicReady {
-  return { status: "ready", ...page, more: "idle", writeRefused: false };
+  return { status: "ready", ...page, more: "idle" };
 }
 
 function attempt(key: string, cursor: string | null, signal: AbortSignal) {
@@ -147,32 +146,47 @@ function useOverviewPoll(
   });
 }
 
-function withWriteRefused(now: TopicState, writeRefused: boolean): TopicState {
-  return now.status === "ready" ? { ...now, writeRefused } : now;
-}
-
-function useWriteOverview(key: string, setState: SetState, reload: () => Promise<void>) {
+function useWriteOverview(
+  key: string,
+  {
+    setState,
+    state,
+    reload,
+  }: Readonly<{ setState: SetState; state: TopicState; reload: () => Promise<void> }>,
+) {
   const { guard } = useGuard();
+  const [refusedFor, setRefusedFor] = useState<Overview | null>(null);
+  const latest = useLatest(state);
 
-  return useCallback((): void => {
+  const write = useCallback((): void => {
     guard(async () => {
-      setState((now) => withWriteRefused(now, false));
+      setRefusedFor(null);
 
       try {
         const retry = await retryTopicOverview(key);
 
-        if (retry.outcome === "started") {
-          setState((now) => (now.status === "ready" ? { ...now, overview: retry.overview } : now));
-        } else if (retry.outcome === "restoring") {
-          setState((now) => withWriteRefused(now, true));
-        } else {
-          await reload();
+        switch (retry.kind) {
+          case "started":
+            setState((now) =>
+              now.status === "ready" ? { ...now, overview: retry.overview } : now,
+            );
+            break;
+          case "restoring":
+            if (latest.current.status === "ready") setRefusedFor(latest.current.overview);
+            break;
+          case "refused":
+            await reload();
+            break;
+          default:
+            retry satisfies never;
         }
       } catch {
         await reload();
       }
     });
-  }, [guard, key, reload, setState]);
+  }, [guard, key, latest, reload, setState]);
+
+  return { write, refused: state.status === "ready" && state.overview === refusedFor };
 }
 
 export function useTopicPage(key: string, replace: Route["replace"]) {
@@ -180,7 +194,11 @@ export function useTopicPage(key: string, replace: Route["replace"]) {
   const ticket = useTicket();
   const first = useFirstRead(key, setState, ticket);
   const loadMore = useLoadMore(key, { setState, ticket, state });
-  const writeOverview = useWriteOverview(key, setState, first);
+  const { write: writeOverview, refused: writeRefused } = useWriteOverview(key, {
+    setState,
+    state,
+    reload: first,
+  });
 
   useEffect(() => {
     void first();
@@ -194,5 +212,5 @@ export function useTopicPage(key: string, replace: Route["replace"]) {
   useOverviewPoll(key, { setState, ticket, state });
   useSurvivorAddress(state.status === "ready" ? state.topic.key : null, key, replace);
 
-  return { state, retry, loadMore, writeOverview };
+  return { state, retry, loadMore, writeOverview, writeRefused };
 }

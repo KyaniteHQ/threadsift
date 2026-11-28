@@ -9,12 +9,12 @@ import {
   ProposalPageSchema,
   ProposalStateSchema,
 } from "../../src/core/contract/proposal-contract.ts";
-import { RESTORING_CODE } from "../../src/core/contract/restore-contract.ts";
+import type { RESTORING_CODE } from "../../src/core/contract/restore-contract.ts";
 import { call, parsedFrom, parsedOrGone, post, withCursor } from "./calls.ts";
-import { isRestoring } from "./unavailable.ts";
+import { type Restoring, isRestoring, unlessRestoring } from "./unavailable.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
-const BUSY = ["merge-busy", "no-provider", RESTORING_CODE] as const satisfies readonly Acceptance[];
+const BUSY = ["merge-busy", "no-provider"] as const satisfies readonly Acceptance[];
 
 export type Busy = (typeof BUSY)[number];
 
@@ -22,7 +22,9 @@ export type Failure = "accept" | "reject";
 
 const RefusalSchema = z.object({ error: z.enum(ACCEPT_REFUSALS) });
 
-export function isBusy(outcome: Acceptance): outcome is Busy {
+export type Answer = Exclude<Acceptance, typeof RESTORING_CODE> | Restoring;
+
+export function isBusy(outcome: Answer): outcome is Busy {
   return BUSY.some((busy) => busy === outcome);
 }
 
@@ -47,14 +49,13 @@ export async function sendReject(id: number): Promise<"rejected" | "unknown"> {
   }
 }
 
-export async function sendAccept(id: number): Promise<Acceptance> {
+export async function sendAccept(id: number): Promise<Answer> {
   try {
-    const response = await call(
-      post(DATABASE_WRITE_DEADLINE_MS),
-      `/api/proposals/${String(id)}/accept`,
+    const response = await unlessRestoring(
+      await call(post(DATABASE_WRITE_DEADLINE_MS), `/api/proposals/${String(id)}/accept`),
     );
 
-    if (await isRestoring(response)) return RESTORING_CODE;
+    if (isRestoring(response)) return response;
 
     const body: unknown = await response.json().catch(() => null);
 

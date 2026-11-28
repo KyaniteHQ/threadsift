@@ -6,7 +6,7 @@ import {
 import type { NoteSaveResult } from "./keeping-api.ts";
 import type { NoteDraft } from "./note-draft.ts";
 
-type NoteAttempt = "idle" | "saving" | "failed" | "saved";
+type NoteAttempt = "idle" | "saving" | "failed" | "restoring" | "saved";
 
 export interface NoteState {
   readonly saved: NoteView;
@@ -46,15 +46,25 @@ function answered(
 ): NoteState {
   if (answer === null) return { ...state, attempt: "failed" };
 
-  if (answer.outcome === "newer") return { ...state, attempt: "idle", newer: answer.note };
+  switch (answer.kind) {
+    case "restoring":
+      return { ...state, attempt: "restoring" };
+    case "newer":
+      return { ...state, attempt: "idle", newer: answer.note };
+    case "saved":
+      return {
+        ...state,
+        attempt: "saved",
+        saved: answer.note,
+        newer: null,
+        draft: state.draft === body ? (answer.note.body ?? "") : state.draft,
+      };
+    default: {
+      const exhaustive: never = answer;
 
-  return {
-    ...state,
-    attempt: "saved",
-    saved: answer.note,
-    newer: null,
-    draft: state.draft === body ? (answer.note.body ?? "") : state.draft,
-  };
+      return exhaustive;
+    }
+  }
 }
 
 export function noteReducer(state: Readonly<NoteState>, action: Readonly<NoteAction>): NoteState {

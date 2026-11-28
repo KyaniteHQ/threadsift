@@ -73,7 +73,7 @@ function useSave(reads: Reads, setList: SetList) {
       const result =
         target.kind === "paste" ? await saveLink(target.url) : await regenerateDigest(target.id);
 
-      if (result.outcome !== "saved") return result;
+      if (result.kind !== "saved") return result;
 
       setList((current) => withKnown(current, result.item));
       reads.reload();

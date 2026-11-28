@@ -18,7 +18,13 @@ function Body({
   state,
   loadMore,
   write,
-}: Readonly<{ state: TopicState; loadMore: () => void; write: () => void }>) {
+  writeRefused,
+}: Readonly<{
+  state: TopicState;
+  loadMore: () => void;
+  write: () => void;
+  writeRefused: boolean;
+}>) {
   switch (state.status) {
     case "loading":
       return <Loading />;
@@ -33,7 +39,7 @@ function Body({
             overview={state.overview}
             itemCount={state.topic.itemCount}
             write={write}
-            writeRefused={state.writeRefused}
+            writeRefused={writeRefused}
           />
           <KnownDisagreements disagreements={state.disagreements} />
           <TopicItemsSection state={state} loadMore={loadMore} />
@@ -45,7 +51,10 @@ function Body({
 }
 
 export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; route: Route }>) {
-  const { state, retry, loadMore, writeOverview } = useTopicPage(topicKey, route.replace);
+  const { state, retry, loadMore, writeOverview, writeRefused } = useTopicPage(
+    topicKey,
+    route.replace,
+  );
   const name = state.status === "ready" ? state.topic.name : "";
   usePageName(name);
 
@@ -58,7 +67,7 @@ export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; rout
           text={TOPIC_PAGE.loadFailed}
           action={retry}
         />
-        <Body state={state} loadMore={loadMore} write={writeOverview} />
+        <Body state={state} loadMore={loadMore} write={writeOverview} writeRefused={writeRefused} />
       </main>
     </div>
   );
