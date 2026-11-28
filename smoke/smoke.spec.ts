@@ -3,11 +3,17 @@ import { type Locator, type Page, expect, test } from "@playwright/test";
 import { ADD_LABEL, CARD_TITLES, PASTE_LABEL } from "../web/src/text.ts";
 import { instanceMenuFlow, setUp, signOutAndIn } from "./access-flow.ts";
 import { expectAnswerHeaders, watchContext } from "./document-checks.ts";
-import { importList, importListAgain } from "./import-flow.ts";
+import { importList, importListAgain, startStaleList } from "./import-flow.ts";
 import { type TopicCase, openIndex, openTopicPage, phoneRailTarget } from "./index-flow.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
-import { markReadTwice, readXThread, readerWithoutProvider } from "./reader-flows.ts";
-import { savedItem } from "./saved-item.ts";
+import { readerMotion, refusedWhileRestoreHolds } from "./reader-covered-flows.ts";
+import {
+  markReadTwice,
+  readXThread,
+  readSavedPage,
+  readerWithoutProvider,
+  retryStaleReader,
+} from "./reader-flows.ts";
 import { settingsSteps } from "./settings-steps.ts";
 
 const X_LINK = "https://x.com/someone/status/1234567890";
@@ -22,6 +28,13 @@ const SENTENCE =
   "Copying the database file while the writer is busy can tear a page, so take the copy with the online backup command instead.";
 
 const ARTICLE_TEXT = Array.from({ length: 8 }, () => SENTENCE).join("\n\n");
+
+const ARTICLE = {
+  link: ARTICLE_LINK,
+  title: ARTICLE_TITLE,
+  text: ARTICLE_TEXT,
+  sentence: SENTENCE,
+};
 
 const DOTTED_TOPIC: TopicCase = {
   link: "https://example.com/guides/node-streams",
@@ -79,22 +92,7 @@ async function pasteXLink(page: Page): Promise<void> {
   ).toBeVisible();
 }
 
-async function readSavedPage(page: Page): Promise<void> {
-  await savedItem(page.request, {
-    url: ARTICLE_LINK,
-    page: { markdown: ARTICLE_TEXT, title: ARTICLE_TITLE, author: "Ada Example" },
-  });
-  await page.reload();
-  await page
-    .locator("article.it")
-    .filter({ hasText: ARTICLE_TITLE })
-    .getByRole("link")
-    .first()
-    .click();
-  await expect(page.locator(".reader")).toContainText(SENTENCE);
-}
-
-test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload and calls it already saved when pasted again, marks an Item read and unread again with two presses of m, opens a saved page in the Reader, imports a list of links once, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, lists the Digests it published on the Log, and shows no Related Items without a Provider", async ({
+test("a new Instance is set up, signed out of and into again, keeps a pasted X link across a reload and calls it already saved when pasted again, keeps an earlier copy in the Reader through a failed Try again, marks an Item read and unread again with two presses of m, opens a saved page in the Reader, shows the presses a held restore refuses, imports a list of links once and sends no batch for a list another page imported since its check, and opens the Topic pages of a dotted name and of a name made only of dots, lists its Topics on the Index, lists the Digests it published on the Log, and shows no Related Items without a Provider", async ({
   page,
   browser,
 }) => {
@@ -111,12 +109,20 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
   await test.step("save an X thread and read its Kept replies", () => readXThread(page));
   await test.step("press m twice while the list reloads slowly, and send read and then unread", () =>
     markReadTwice(page));
+  await test.step("keep an earlier copy in the Reader through a failed Try again, ignore a second press while it reads, and close the Reader when the Item is gone", () =>
+    retryStaleReader(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
-    readSavedPage(page));
+    readSavedPage(page, ARTICLE));
+  await test.step("open a card in Grid with Sheet: the card grows into the Reader, Escape and Back run it back into the same card, and reduced motion animates nothing", () =>
+    readerMotion(page));
+  await test.step("while a restore holds the library, a Note save, a Paste and the Reddit archive fill choice each say so, and the note, the link and the choice stay as they were", () =>
+    refusedWhileRestoreHolds(page));
   await test.step("import a list of three links from the Instance menu and find its Items", () =>
     importList(page));
   await test.step("paste the same list after a reload and be told it was fully imported", () =>
     importListAgain(page));
+  await test.step("press Start import on a second page whose list another page has imported since its check, and be told it was fully imported with no batch sent", () =>
+    startStaleList(page));
   await test.step("open the Topic page from the Reader and reload it on its address", () =>
     openTopicPage(page, DOTTED_TOPIC, ARTICLE_TEXT));
   await test.step("open a Topic made only of dots, which needs the tilde address", () =>

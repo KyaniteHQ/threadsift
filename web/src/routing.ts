@@ -1,7 +1,7 @@
-import { type MouseEvent, useCallback, useEffect, useRef } from "react";
+import { type MouseEvent, useCallback, useEffect, useLayoutEffect, useRef } from "react";
 import { z } from "zod";
 
-import { itemIdOf } from "../../src/core/contract/item-path.ts";
+import { itemIdOf, itemPath } from "../../src/core/contract/item-path.ts";
 import { useScreenState } from "./use-screen-state.ts";
 
 export const SETTINGS_PATH = "/settings";
@@ -25,11 +25,14 @@ export const PROPOSALS_PATH = "/proposals";
 
 export const RESET_PATH = "/reset";
 
+export type ItemWrite = "open" | "step";
+
 export interface Route {
   readonly path: string;
   readonly openId: number | null;
   readonly navigate: (to: string) => void;
   readonly replace: (to: string) => void;
+  readonly openItem: (id: number, write: ItemWrite) => void;
   readonly leave: () => void;
 }
 
@@ -132,6 +135,24 @@ function useClosing(replace: Route["replace"], setPath: (path: string) => void) 
   return { arrive, closeItem, leave };
 }
 
+function useOpenItem(path: string, navigate: Route["navigate"], replace: Route["replace"]) {
+  const shown = useRef(path);
+
+  useLayoutEffect(() => {
+    shown.current = path;
+  }, [path]);
+
+  return useCallback(
+    (id: number, write: ItemWrite) => {
+      const unseen = itemIdOf(shown.current) === null;
+
+      if (onItem() && (write === "step" || unseen)) replace(itemPath(id));
+      else navigate(itemPath(id));
+    },
+    [navigate, replace],
+  );
+}
+
 export function usePath() {
   const [path, setPath] = useScreenState(currentPath);
 
@@ -153,11 +174,12 @@ export function usePath() {
     [setPath],
   );
 
+  const openItem = useOpenItem(path, navigate, replace);
   const { arrive, closeItem, leave } = useClosing(replace, setPath);
 
   usePopstate(arrive);
 
-  return { path, navigate, replace, leave, closeItem };
+  return { path, navigate, replace, openItem, leave, closeItem };
 }
 
 export function hasModifier({

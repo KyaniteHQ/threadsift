@@ -85,11 +85,11 @@ const PLAN_NOTICE =
 
 const FAILED = {
   restoring:
-    "Import stopped at {done} of {total} because a restore is running. Start the import again when the restore finishes.",
+    "Import stopped at {done} of {total} because a restore holds the library. The links before that point are saved; import the rest once the restore has finished or been cancelled in Backup in Settings.",
   network: "Import stopped at {done} of {total} because the instance couldn’t be reached.",
   rejected: "Import stopped at {done} of {total} because the instance didn’t accept a batch.",
   unconfirmed:
-    "Import stopped at {done} of {total} because the instance didn’t confirm that the last batch was saved. Continue sends that batch again, and links already saved count as known.",
+    "Import stopped at {done} of {total} because the instance didn’t confirm that the last batch was saved. Continue checks how far the instance got, then starts with the next link if that batch was saved, or sends it again if not. Links already saved count as known.",
 } as const;
 
 const UNCOUNTED_ONE =

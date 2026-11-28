@@ -49,8 +49,26 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
   private: "Can’t save this link",
 };
 
+const RESTORING_DETAILS = {
+  paste:
+    "Nothing was saved. Press Add again once the restore has finished or been cancelled in Backup in Settings.",
+  retry:
+    "Nothing was saved. Press Try again once the restore has finished or been cancelled in Backup in Settings.",
+} as const;
+
+export type Press = keyof typeof RESTORING_DETAILS;
+
+export function noticeDetail(key: NoticeKey, press: Press): string | null {
+  return key === "restoring" ? RESTORING_DETAILS[press] : (NOTICE_DETAILS[key] ?? null);
+}
+
+export function noticeLine(key: NoticeKey, press: Press): string {
+  const detail = noticeDetail(key, press);
+
+  return detail === null ? NOTICES[key] : `${NOTICES[key]}. ${detail}`;
+}
+
 export const NOTICE_DETAILS: Readonly<Partial<Record<NoticeKey, string>>> = {
-  restoring: "Nothing was saved. Paste the link again after the restore finishes.",
   private: "Its address can’t be reached from the public internet, so the instance won’t fetch it.",
 };
 

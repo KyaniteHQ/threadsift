@@ -58,9 +58,39 @@ function failureText(
   provider: Provider,
   publicOnly: boolean,
 ): string {
-  if (response.kind === "refused") return refusalText(response, provider, publicOnly);
+  switch (response.kind) {
+    case "refused":
+      return refusalText(response, provider, publicOnly);
+    case "restoring":
+      return AI_TEXT.saveRestoring;
+    case "grok-bot-unready":
+      return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
+    default: {
+      const exhaustive: never = response;
 
-  return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
+      return exhaustive;
+    }
+  }
+}
+
+function verifyOutcome(
+  response: Awaited<ReturnType<typeof verifyAi>>,
+  provider: Provider,
+  publicOnly: boolean,
+): Outcome {
+  switch (response.kind) {
+    case "done":
+      return { kind: "ok", text: AI_TEXT.verified, digest: response.digest };
+    case "refused":
+      return { kind: "error", text: refusalText(response, provider, publicOnly) };
+    case "restoring":
+      return { kind: "error", text: AI_TEXT.verifyRestoring };
+    default: {
+      const exhaustive: never = response;
+
+      return exhaustive;
+    }
+  }
 }
 
 function holdsUnreadableKey({ secretReady, settings }: Readonly<AiView>): boolean {
@@ -106,13 +136,9 @@ function useVerify(view: AiView, { run, refuse }: Readonly<Pick<AiPhase, "run" |
 
     if (provider === undefined) return;
 
-    run(provider === GROK_BOT_PROVIDER ? "waiting" : "verifying", async (): Promise<Outcome> => {
-      const response = await verifyAi();
-
-      return response.kind === "done"
-        ? { kind: "ok", text: AI_TEXT.verified, digest: response.digest }
-        : { kind: "error", text: refusalText(response, provider, view.publicOnly) };
-    });
+    run(provider === GROK_BOT_PROVIDER ? "waiting" : "verifying", async () =>
+      verifyOutcome(await verifyAi(), provider, view.publicOnly),
+    );
   }, [unavailable, provider, view.publicOnly, run, refuse]);
 
   return { verifyNow, verifyReason: unavailable };
@@ -219,9 +245,9 @@ function useSave(
 }
 
 export function useAiForm(view: AiView, saved: (value: AiView) => void) {
-  const fields = useAiFields(view);
-  const { provider, baseUrl } = fields;
   const flow = useAiPhase();
+  const fields = useAiFields(view, flow.stayOnPage);
+  const { provider, baseUrl } = fields;
 
   const { verifyNow, verifyReason } = useVerify(view, flow);
   const { submit, saveReason } = useSave(view, fields, flow, saved);

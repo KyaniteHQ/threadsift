@@ -54,20 +54,27 @@ function Lines({ overview }: Readonly<{ overview: Overview }>) {
   ));
 }
 
-function Status({ overview, write }: Readonly<{ overview: Overview; write: () => void }>) {
+function Status({
+  overview,
+  write,
+  writeRefused,
+}: Readonly<{ overview: Overview; write: () => void; writeRefused: boolean }>) {
+  const failed = overview.state === "failed";
+  const refusal = writeRefused ? TOPIC_PAGE.overviewRestoring : null;
+
   return (
     <>
       <output className="rd-note">
         {overview.state === "pending" ? TOPIC_PAGE.overviewPending : null}
       </output>
-      <AlertRegion
-        className="tp-status"
-        text={overview.state === "failed" ? TOPIC_PAGE.overviewFailed : null}
-        retry={write}
-      />
-      {overview.state === "pending" || overview.state === "failed" ? null : (
+      {overview.state === "pending" || failed ? null : (
         <Unwritten overview={overview} write={write} />
       )}
+      <AlertRegion
+        className="tp-status"
+        text={refusal ?? (failed ? TOPIC_PAGE.overviewFailed : null)}
+        retry={failed ? write : null}
+      />
     </>
   );
 }
@@ -98,16 +105,18 @@ export function TopicOverview({
   overview,
   itemCount,
   write,
+  writeRefused,
 }: Readonly<{
   overview: Overview;
   itemCount: number;
   write: () => void;
+  writeRefused: boolean;
 }>) {
   return (
     <section className="tp-box tp-overview">
       <h2 className="label">{TOPIC_PAGE.overviewHeading}</h2>
       {overview.text === null ? null : <Lines overview={overview} />}
-      <Status overview={overview} write={write} />
+      <Status overview={overview} write={write} writeRefused={writeRefused} />
       {overview.text === null ? null : (
         <p className="rd-note">{builtFromLabel(overview.builtFrom, itemCount)}</p>
       )}

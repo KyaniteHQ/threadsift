@@ -229,6 +229,13 @@ function CommentTree({
   );
 }
 
+export function drawsCommentText(comments: Readonly<ItemDetail["comments"]>): boolean {
+  return (
+    commentsSectionOf(comments.view) !== null &&
+    comments.nodes.some((node) => node.kind === "comment")
+  );
+}
+
 export function Comments({
   item,
   detail,

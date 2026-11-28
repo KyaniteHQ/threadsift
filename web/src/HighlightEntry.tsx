@@ -20,7 +20,7 @@ function Passage({ entry, id }: Readonly<{ entry: Entry; id: string }>) {
       <QuoteText text={entry.text} />
     </blockquote>
   ) : (
-    <p id={id} className="hp-text" dir="auto">
+    <p id={id} className="passage" dir="auto">
       {entry.text}
     </p>
   );

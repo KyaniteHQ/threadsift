@@ -33,7 +33,7 @@ export interface Listing<Page extends PagedPage, Row> {
 interface Source<Page extends PagedPage> {
   readonly state: Paged<Page>;
   readonly retry: () => Promise<void>;
-  readonly loadMore: () => void;
+  readonly loadMore: () => boolean;
 }
 
 export interface FrameProps<Row> {
@@ -82,15 +82,14 @@ function Rows<Page extends PagedPage, Row>({
   listing,
   draw,
   Frame,
-}: Readonly<{ ready: PagedReady<Page>; loadMore: () => void } & Shown<Page, Row>>) {
+}: Readonly<{ ready: PagedReady<Page>; loadMore: () => boolean } & Shown<Page, Row>>) {
   const rows = listing.rows(ready);
   const { length } = rows;
   const { listRef, expectFocus } = useRowFocus(listing, { count: length, more: ready.more });
 
   const more = useCallback(
     (event: MouseEvent<HTMLButtonElement>) => {
-      loadMore();
-      expectFocus(event.detail === 0 ? length : null);
+      if (loadMore()) expectFocus(event.detail === 0 ? length : null);
     },
     [expectFocus, length, loadMore],
   );
@@ -113,7 +112,7 @@ function Rows<Page extends PagedPage, Row>({
         <LoadMore
           more={ready.more}
           failedText={listing.text.loadMoreFailed}
-          disabled={ready.more === "loading"}
+          disabled={ready.more === "loading" || ready.rereading}
           loadMore={more}
         />
       )}
@@ -125,7 +124,7 @@ function Body<Page extends PagedPage, Row>({
   state,
   loadMore,
   ...shown
-}: Readonly<{ state: Paged<Page>; loadMore: () => void } & Shown<Page, Row>>) {
+}: Readonly<{ state: Paged<Page>; loadMore: () => boolean } & Shown<Page, Row>>) {
   const { listing } = shown;
 
   switch (state.status) {

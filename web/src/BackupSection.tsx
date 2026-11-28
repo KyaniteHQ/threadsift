@@ -9,6 +9,7 @@ import { BACKUP_ID } from "./routing.ts";
 import { SettingsResult } from "./SettingsForm.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useBackup } from "./use-backup.ts";
+import { useRestore } from "./use-restore.ts";
 
 const STATUS_TEXT = {
   none: null,
@@ -54,7 +55,8 @@ function BackupForm({
   view,
   changed,
 }: Readonly<{ view: ExportStatus; changed: (view: ExportStatus) => void }>) {
-  const { busy, result, start, stop, remove } = useBackup(view, changed);
+  const restore = useRestore();
+  const { busy, result, start, stop, remove } = useBackup(view, changed, restore.refresh);
   const blocked = busy !== null;
   const startable = view.state === "none" || view.state === "failed";
   const removable = view.state === "ready" || view.state === "failed";
@@ -93,7 +95,7 @@ function BackupForm({
         ) : null}
       </div>
       <SettingsResult outcome={result} />
-      <RestoreBlock />
+      <RestoreBlock restore={restore} />
     </>
   );
 }

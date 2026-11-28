@@ -15,6 +15,7 @@ Contents: [Product decisions](#product-decisions), [Design review](#design-revie
 - **Obsidian.** The mirror is one-way, as Readwise's Obsidian sync is: the owner reads in Obsidian and edits Highlights and Notes in Threadsift. Vault repositories on other Git hosts are not in the first release ([the spec](../spec.md)).
 - **Design of new screens.** Every screen the first design lacks is built from the design system to match the existing screens. The building agent checks each from screenshots in every theme before it lands, and decides the approval.
 - **One codebase.** EdgeEver and Open Managed Agents already ship one app on both targets.
+- **Export start during a Restore.** The start is refused, not queued until the Restore ends. A Restore that gave up holds the library until the owner cancels it, and Cancel empties the restored tables, so a queued export would zip an empty library. The owner already holds the zip being restored.
 - **Token budget default.** A new token starts at 200 Items a day. This is the maintainer's choice, not a measured value.
 
 ## Design review
@@ -301,3 +302,15 @@ Measured on 2026-11-27 on the container target, on an image built from commit `d
 | Playwright `click()`, with the slot's `scroll-padding-top` set to 0 | 844 px | 1 | block 25, fraction 0.898, offset 0 | 4000 |
 
 Each focus that reached a control of the Reader bar moved the slot up by half its height, 422 px at 844 px and 350 px at 700 px. The gear in the table is the Reader bar's Look settings control at commit `d6543208`. In the Shift+Tab run every press moved the slot again, from 4000 to 3578, 3156, 2734, 2312 and 1890. In the runs with a Playwright `click()`, the slot's `scrollTop` was already 3578 at the click's `pointerdown`. Before its first press, a Playwright pointer action sends the DevTools Protocol command `DOM.scrollIntoViewIfNeeded` for its target. Its retries call `scrollIntoView` with the alignments `end`, `center` and `start` ([`_retryPointerAction`, Playwright v1.64.1](https://github.com/microsoft/playwright/blob/v1.64.1/packages/playwright-core/src/server/dom.ts)).
+
+## A navigation that never commits
+
+Measured on 2026-11-28 in Playwright's Chromium 156.0.8078.4, on two loopback servers, with Playwright scripts that the repository does not keep. The page called `location.assign` to the other server and listened for `beforeunload`, `pagehide` and `visibilitychange` on `window` and for `navigate`, `navigateerror` and `navigatesuccess` on `window.navigation`.
+
+| How the navigation ended | Events the page saw | Page after 2 s |
+|---|---|---|
+| Playwright `route.abort("aborted")` (`net::ERR_ABORTED`) | `navigate`, `beforeunload` | the same document |
+| An answer with status 204 | `navigate`, `beforeunload` | the same document |
+| CDP `Page.stopLoading`, which stands in for the Stop button | `navigate`, `beforeunload`, `navigateerror` | the same document |
+
+A second script started a navigation to a server that answers after 4 s and called `window.stop()` 0.5 s later. A `fetch` to the page's own origin sent right after the stop answered 200 in 13 ms. 6 s after the start the page was still the same document and had seen no `pagehide`. Without `window.stop()`, the same navigation committed.

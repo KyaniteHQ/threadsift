@@ -109,6 +109,7 @@ interface Resets {
   readonly setModelTyped: (typed: boolean) => void;
   readonly clearError: () => void;
   readonly clearKey: () => void;
+  readonly stayOnPage: () => void;
 }
 
 function useChangeProvider(
@@ -121,10 +122,12 @@ function useChangeProvider(
     setModelTyped,
     clearError,
     clearKey,
+    stayOnPage,
   }: Readonly<Resets>,
 ) {
   return useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
+      stayOnPage();
       const next = ProviderSchema.parse(event.target.value);
       const saved = next === provider;
       setProvider(next);
@@ -147,11 +150,19 @@ function useChangeProvider(
       setModelTyped,
       clearError,
       clearKey,
+      stayOnPage,
     ],
   );
 }
 
-export function useAiFields(view: AiView) {
+function savedCliOf(offered: AiView["settings"]) {
+  return {
+    effort: offered && "effort" in offered ? offered.effort : "",
+    choice: offered && "choice" in offered ? offered.choice : undefined,
+  };
+}
+
+export function useAiFields(view: AiView, stayOnPage: () => void) {
   const { settings, providers, recommendations } = view;
   const offered = settings !== null && providers.includes(settings.provider) ? settings : null;
 
@@ -160,8 +171,7 @@ export function useAiFields(view: AiView) {
   );
 
   const baseUrl = useField(null, offered?.provider === "openai-compatible" ? offered.baseUrl : "");
-  const savedEffort = offered && "effort" in offered ? offered.effort : "";
-  const savedChoice = offered && "choice" in offered ? offered.choice : undefined;
+  const { effort: savedEffort, choice: savedChoice } = savedCliOf(offered);
   const { model, effort, modelTyped, setModelTyped, changeModel, changeEffort, clearError } =
     useModelFields(offered?.model ?? "", savedEffort);
   const { setChoice, ...cli } = useCliChoice(savedChoice, provider, recommendations, clearError);
@@ -183,6 +193,7 @@ export function useAiFields(view: AiView) {
       setModelTyped,
       clearError,
       clearKey: key.clear,
+      stayOnPage,
     },
   );
 
