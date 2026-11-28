@@ -51,7 +51,7 @@ const batchRoute = createRoute({
     ),
     503: jsonBody(
       UnavailableResponseSchema,
-      "While a restore runs (`code` is `restoring`), nothing is saved.",
+      "While a restore holds the library (`code` is `restoring`), nothing is saved.",
     ),
   },
 });

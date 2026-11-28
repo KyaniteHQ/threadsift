@@ -15,7 +15,7 @@ import type { Database } from "../../../core/kernel/database.ts";
 import { listedKeys } from "../../../core/kernel/file-pages.ts";
 import type { FileStore } from "../../../core/kernel/file-store.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { cancelling, resumable, undoFailed } from "../../../core/kernel/restore-hold.ts";
+import { cancelling, holding, resumable, undoFailed } from "../../../core/kernel/restore-hold.ts";
 import { type RestoreRow, restoreRuns } from "../../../core/kernel/schema.ts";
 
 const CopyPhaseSchema = z.enum(COPY_RESTORE_PHASES);
@@ -119,6 +119,7 @@ async function failedStatus(
     libraryEmpty,
     id,
     failure: run.failure,
+    holdsLibrary: holding(run),
     resumable: resumable(run) && (await holdsEveryPart(files, run)),
     cancelFailed: undoFailed(run),
   };

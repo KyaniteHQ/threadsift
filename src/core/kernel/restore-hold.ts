@@ -66,6 +66,10 @@ export function undoFailed(run: Readonly<Condition>): boolean {
   return inStanding(run, UNDO_FAILED);
 }
 
+export function holding(run: Readonly<Condition>): boolean {
+  return inStanding(run, HOLDING);
+}
+
 export function needsParts(run: Readonly<Condition>): boolean {
   return inStanding(run, NEEDING_PARTS);
 }

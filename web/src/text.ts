@@ -50,7 +50,8 @@ export const NOTICES: Readonly<Record<NoticeKey, string>> = {
 };
 
 export const NOTICE_DETAILS: Readonly<Partial<Record<NoticeKey, string>>> = {
-  restoring: "Nothing was saved. Paste the link again after the restore finishes.",
+  restoring:
+    "Nothing was saved. Paste the link again after the restore finishes, or if it stopped, resume or cancel it in Backup in Settings first.",
   private: "Its address can’t be reached from the public internet, so the instance won’t fetch it.",
 };
 

@@ -54,7 +54,7 @@ const saveItemRoute = createRoute({
     ),
     503: jsonBody(
       UnavailableResponseSchema,
-      "A restore is running (`code` is `restoring`), so the link is not saved. Reads and deletes work meanwhile. Send the link again when the restore has finished.",
+      "A restore holds the library (`code` is `restoring`): it runs, or it failed after it wrote records and waits to be resumed or cancelled. The link is not saved. Reads and deletes work meanwhile. Send the link again when the restore has finished or was cancelled.",
     ),
   },
 });

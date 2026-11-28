@@ -160,7 +160,7 @@ function offersPicker(view: RestoreStatus): boolean {
     case "cancelling":
       return false;
     case "failed":
-      return view.failure !== "gave-up";
+      return !view.holdsLibrary;
     case "none":
     case "uploading":
     case "done":
