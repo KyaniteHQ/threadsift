@@ -21,7 +21,7 @@ export const ImportSchema = z.object({
 export const GuardedImportSchema = z.strictObject({
   ...ImportSchema.shape,
   previous: z.string().min(1).max(IMPORT_CURSOR_MAX),
-  previousUpdatedAt: z.number().int().optional(),
+  previousUpdatedAt: z.number().int(),
 });
 
 export const UnguardedImportSchema = z.strictObject({
