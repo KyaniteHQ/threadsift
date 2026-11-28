@@ -31,6 +31,18 @@ Corepack comes from the unmodified `pkgs.corepack`, whose launcher uses Node 24.
 
 The npm `@playwright/test` version must match nixpkgs' `playwright-driver`, so the shell takes the browsers from nixpkgs. The `playwright-driver.browsers` override turns off Firefox and WebKit, because both smoke specs and the Extension's package command drive Chromium only. The shell keeps Chromium, its headless shell and ffmpeg. The override cuts the profile's closure by about 1 GiB.
 
+## README screenshots
+
+`node tools/readme-images/build.ts` makes every screenshot the README shows again. It needs ImageMagick with WebP support (`magick`) on the `PATH`, which the dev shell does not provide. The tool checks for `magick` before it builds the app, and it replaces the images only after the last one succeeds.
+
+The tool starts the Node target on a free port with an empty temporary data folder, a random owner password and a random setup code. The Instance listens on all interfaces until the run ends. It gets a `PATH` that holds only the directory of the Node binary and a temporary `HOME`, so it finds none of the AI command-line tools installed on your machine.
+
+Every made-up Item in `ITEMS` carries a caller-sent Digest, so no Provider writes a Digest. A Topic overview and a Related Items pick need a Provider, so the tool saves an OpenAI-compatible Provider that points at a stub on the loopback address. The stub answers those two AI tasks with fixed text. It calls no model, and nothing is billed. The run sends no data to a host outside your machine: it finishes in a network namespace that holds only the loopback interface, where Chromium's one outside call, a UDP `connect` that tests for an IPv6 route, sends nothing. The names in the library cannot exist on the real sites: X handles longer than 15 characters, Reddit user names longer than 20, subreddit names longer than 21, and the name of a made-up publication as an article's author.
+
+The browser time zone is UTC and its clock is fixed to the start of the run, and the posts are dated relative to that time. The Reader therefore reads "3d ago" for the Reddit thread on any run date. A run before January 4 (UTC) stops, because the label would then show a year.
+
+The screenshots are not part of the gate. After a change to a screen, to the library data or to the look of the frame, run the command and commit the changed images with the change.
+
 ## Podman storage and signature policy
 
 - Storage. `CONTAINERS_STORAGE_CONF` points at a `storage.conf` that holds only an empty `[storage]` table. With the variable set, Podman reads no other `storage.conf`, so rootless Podman keeps its default paths on every host. Without it, Podman 6 takes `graphroot` from the host's `/etc/containers/storage.conf` for rootless runs too, and the GitHub `ubuntu-26.04` runner's file names `/var/lib/containers/storage`, which the runner user cannot write. The variable also hides your own `~/.config/containers/storage.conf` inside the shell. The source is `Options` in [containers/container-libs, storage v1.64.2](https://github.com/podman-container-tools/container-libs/blob/storage/v1.64.2/storage/types/options.go#L142), the storage version of Podman 6.1.4.

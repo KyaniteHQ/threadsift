@@ -35,7 +35,7 @@ A live run proved part of each behaviour below, and other checks remain open. [O
 | [Export, backup and restore](architecture/export-backup-and-restore.md) | The library zip and its Restore |
 | [Container image](architecture/container-image.md) | The image and its start-up |
 | [Cloudflare deploy button](architecture/cloudflare-deploy-button.md) | The deploy path and the update workflow |
-| [Development environment](architecture/development-environment.md) | devenv, tasks, hooks |
+| [Development environment](architecture/development-environment.md) | devenv, tasks, hooks, the README screenshots |
 | [Lint and format](architecture/lint-and-format.md) | The tools and their rules |
 | [Dependency updates](architecture/dependency-updates.md) | The update bot and its schedule |
 | [CI, releases and rollback](architecture/ci-releases-and-rollback.md) | The gate, the release, the live deploy |

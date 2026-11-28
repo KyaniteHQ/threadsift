@@ -1,0 +1,53 @@
+html,
+body {
+  margin: 0;
+}
+
+.stage {
+  position: relative;
+  display: flex;
+  width: fit-content;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s5);
+  box-sizing: border-box;
+  padding: calc(var(--s6) * 2);
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.glow {
+  position: absolute;
+  inset: 0;
+}
+
+.glow.a {
+  background: radial-gradient(
+    70% 90% at 0% 0%,
+    color-mix(in oklab, var(--acc) 42%, transparent),
+    transparent 70%
+  );
+}
+
+.glow.b {
+  background: radial-gradient(
+    70% 90% at 100% 100%,
+    color-mix(in oklab, var(--acc) 38%, transparent),
+    transparent 70%
+  );
+}
+
+.window {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--s3);
+  box-shadow:
+    0 0 0 1px color-mix(in oklab, var(--text) 14%, transparent),
+    0 2px 6px oklch(0 0 0 / 0.08),
+    0 24px 60px oklch(0 0 0 / 0.3);
+}
+
+.window img {
+  display: block;
+}
