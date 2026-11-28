@@ -31,7 +31,7 @@ function useSend(
       sending.current = false;
       dispatch({ kind: "answer", answer, body: draft });
 
-      if (resolving && answer?.outcome === "saved") field.current?.focus();
+      if (resolving && answer?.kind === "saved") field.current?.focus();
     },
     [itemId, draft, dispatch, field],
   );
@@ -45,6 +45,7 @@ function view(state: Readonly<NoteState>) {
     newer: state.newer,
     pending,
     failed: state.attempt === "failed",
+    held: state.attempt === "restoring",
     justSaved: state.attempt === "saved" && !dirty,
     tooLong,
     canSave,

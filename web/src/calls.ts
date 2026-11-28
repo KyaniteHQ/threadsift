@@ -25,7 +25,7 @@ interface Write {
   readonly deadline: Deadline;
 }
 
-type Method = "GET" | Write;
+export type Method = "GET" | Write;
 
 export type JsonBody =
   | Readonly<Record<string, string | number | boolean | undefined>>
@@ -41,7 +41,7 @@ interface Call {
   readonly signal?: AbortSignal | undefined;
 }
 
-interface OkCall extends Call {
+export interface OkCall extends Call {
   readonly tolerates?: readonly number[];
 }
 
@@ -116,7 +116,7 @@ export async function call(
   return response;
 }
 
-function unexpected(method: Method, path: string, status: number): Error {
+export function unexpected(method: Method, path: string, status: number): Error {
   return new Error(`${methodOf(method)} ${path} answered ${status}`);
 }
 

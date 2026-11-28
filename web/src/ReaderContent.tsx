@@ -8,6 +8,7 @@ import { Agent } from "./ReaderColumn.tsx";
 import { Original } from "./ReaderOriginal.tsx";
 import { AlertRegion, StatusRegion } from "./RetryRegions.tsx";
 import type { Copy, DetailActions, DetailState } from "./use-item-detail.ts";
+import type { RetryOpened } from "./use-list-actions.ts";
 
 function copyOf(state: DetailState): Copy | null {
   return state.status === "ready" ? state.copy : null;
@@ -63,7 +64,7 @@ export function ReaderContent({
   state: Extract<DetailState, { status: "ready" }>;
   actions: DetailActions;
   announce: (text: string) => void;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
   now: number;
 }>) {
   return (

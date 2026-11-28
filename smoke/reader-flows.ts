@@ -19,7 +19,14 @@ import {
   THREAD_TITLE,
 } from "./reader-items.ts";
 import { MOTION_ITEM, motionOf, watchMotion } from "./reader-motion-flow.ts";
-import { itemDetail, itemStatus, savedItem, savedTopicItem } from "./saved-item.ts";
+import { heldNoteSave, heldPaste, heldSettingPick } from "./restore-hold-flow.ts";
+import {
+  itemDetail,
+  itemStatus,
+  savedItem,
+  savedTopicItem,
+  whileRestoreHolds,
+} from "./saved-item.ts";
 
 async function expectStoredAuthor(page: Page, title: string): Promise<void> {
   await page.goto("/");
@@ -268,4 +275,21 @@ export async function markReadTwice(page: Page): Promise<void> {
   expect((await itemDetail(page.request, id)).readState).toBe("unread");
 
   await page.unroute(listReads, holdListRead);
+}
+
+export async function refusedWhileRestoreHolds(page: Page): Promise<void> {
+  await page.goto("/");
+  await page
+    .locator("article.it")
+    .filter({ hasText: THREAD_TITLE })
+    .getByRole("link")
+    .first()
+    .click();
+
+  await whileRestoreHolds(async () => {
+    await heldNoteSave(page);
+    await heldPaste(page);
+    await heldSettingPick(page);
+  });
+  await page.goto("/");
 }

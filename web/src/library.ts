@@ -79,17 +79,10 @@ function usePolling(
 function useSave(reads: Reads, setList: SetList) {
   return useCallback(
     async (target: SaveTarget): Promise<SaveResult> => {
-      const result: SaveResult =
-        target.kind === "paste"
-          ? await saveLink(target.url)
-          : {
-              outcome: "saved",
-              known: true,
-              refreshed: false,
-              item: await regenerateDigest(target.id),
-            };
+      const result =
+        target.kind === "paste" ? await saveLink(target.url) : await regenerateDigest(target.id);
 
-      if (result.outcome !== "saved") return result;
+      if (result.kind !== "saved") return result;
 
       setList((current) => withKnown(current, result.item));
       reads.reload();

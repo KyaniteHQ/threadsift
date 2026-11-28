@@ -8,6 +8,7 @@ import { Placeholder } from "./ReaderPlaceholder.tsx";
 import { SharedItem } from "./SharedItem.tsx";
 import type { SheetNav } from "./Sheet.tsx";
 import type { Announcement as AnnouncementState } from "./use-announcement.ts";
+import type { RetryOpened } from "./use-list-actions.ts";
 import { useHeldPanelState } from "./use-panel.ts";
 import type { ReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
@@ -38,7 +39,7 @@ export function ReaderPane({
   controls: ReaderControls;
   nav: SheetNav;
   look: Look;
-  tryAgain: (item: Item) => void;
+  tryAgain: RetryOpened;
   announcement: AnnouncementState;
 }>) {
   const slot = useRef<HTMLDivElement>(null);
