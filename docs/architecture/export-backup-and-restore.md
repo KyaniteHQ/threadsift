@@ -90,7 +90,7 @@ The slices read the live database over minutes, so a row written between two sli
 
 ### One at a time, kept 24 hours
 
-The partial unique index `exports_one_live` allows one `running` or `ready` row, so a second start while one runs answers 409. A start while one is `ready` marks the old row `failed` with `replaced` and removes its objects.
+The partial unique index `exports_one_live` allows one `running` or `ready` row, so a second start while one runs answers 409. A start while one is `ready` marks the old row `failed` with `replaced` and removes its objects. A start while a Restore holds the library answers 503 with `code: "restoring"` and keeps a `ready` export. The start batch begins with `restoreGuard` (see While it runs), because an export of a half-restored library would hold only the tables the Restore has written so far and still read as a full backup.
 
 | State | Removed by the sweep stage `exports` |
 |---|---|

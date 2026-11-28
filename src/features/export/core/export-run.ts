@@ -1,28 +1,15 @@
 import { and, desc, eq } from "drizzle-orm";
 
-import {
-  type ExportStatus,
-  NO_TALLY,
-  isShownFailure,
-} from "../../../core/contract/export-contract.ts";
+import { type ExportStatus, isShownFailure } from "../../../core/contract/export-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { refusedBy } from "../../../core/kernel/guards.ts";
 import { closeRunJobs } from "../../../core/kernel/job-close.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { enqueueRows } from "../../../core/kernel/job-rows.ts";
 import { type ExportRow, exportRuns } from "../../../core/kernel/schema.ts";
-import { removeExport, removeQuietly } from "./export-cleanup.ts";
+import { removeExport } from "./export-cleanup.ts";
 import { exportRootName } from "./export-format.ts";
-import { openingExportJob } from "./export-job.ts";
 import { storedZip, zipSize } from "./export-zip.ts";
 
-const ONE_LIVE_EXPORT = /UNIQUE constraint failed: (?:index 'exports_one_live'|exports\.)/u;
-
-type StartedExport =
-  | { readonly kind: "started"; readonly id: number }
-  | { readonly kind: "running" };
-
-async function newestExport(db: Database): Promise<ExportRow | null> {
+export async function newestExport(db: Database): Promise<ExportRow | null> {
   const [newest] = await db.select().from(exportRuns).orderBy(desc(exportRuns.id)).limit(1);
 
   return newest ?? null;
@@ -34,49 +21,6 @@ function shown(run: Readonly<ExportRow>): boolean {
     run.state === "ready" ||
     (run.state === "failed" && isShownFailure(run.failure))
   );
-}
-
-export async function startExport(ports: JobPorts): Promise<StartedExport> {
-  const { db } = ports;
-  const live = await newestExport(db);
-
-  if (live?.state === "running") return { kind: "running" };
-
-  const now = Date.now();
-  const replaced = live?.state === "ready" ? live.id : null;
-
-  try {
-    const [, [started], [opened]] = await db.batch([
-      db
-        .update(exportRuns)
-        .set({ state: "failed", failure: "replaced", updatedAt: now })
-        .where(eq(exportRuns.state, "ready")),
-      db
-        .insert(exportRuns)
-        .values({
-          state: "running",
-          createdAt: now,
-          updatedAt: now,
-          tally: JSON.stringify(NO_TALLY),
-        })
-        .returning({ id: exportRuns.id }),
-      openingExportJob(db, eq(exportRuns.state, "running")),
-    ]);
-
-    if (started === undefined || opened === undefined) {
-      throw new Error("The export batch returned no row");
-    }
-
-    await enqueueRows(ports, [opened]);
-
-    if (replaced !== null) await removeQuietly(ports, replaced);
-
-    return { kind: "started", id: started.id };
-  } catch (error) {
-    if (refusedBy(error, ONE_LIVE_EXPORT)) return { kind: "running" };
-
-    throw error;
-  }
 }
 
 export async function exportStatus(db: Database): Promise<ExportStatus> {

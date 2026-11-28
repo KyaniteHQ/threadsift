@@ -1,6 +1,9 @@
 import { createRoute, z, type OpenAPIHono } from "@hono/zod-openapi";
 
-import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
+import {
+  ErrorResponseSchema,
+  UnavailableResponseSchema,
+} from "../../../core/contract/error-wire.ts";
 import {
   EXPORT_KEEP_MS,
   EXPORT_DOWNLOAD_PATH,
@@ -9,6 +12,7 @@ import {
   StartedExportSchema,
 } from "../../../core/contract/export-contract.ts";
 import { MAX_ATTEMPTS } from "../../../core/contract/job-contract.ts";
+import { RESTORING_CODE } from "../../../core/contract/restore-contract.ts";
 import { HOUR_MS, MINUTE_MS } from "../../../core/contract/time-units.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
@@ -22,7 +26,8 @@ import {
 import { notFound } from "../../../http/refusals.ts";
 import { IdParamSchema } from "../../../http/route-input.ts";
 import { zipStream } from "../core/export-download.ts";
-import { deleteExport, exportStatus, readyExport, startExport } from "../core/export-run.ts";
+import { deleteExport, exportStatus, readyExport } from "../core/export-run.ts";
+import { startExport } from "../core/export-start.ts";
 
 const ZipBytesSchema = z.string().openapi({ format: "binary" });
 
@@ -48,8 +53,18 @@ const startRoute = createRoute({
       ErrorResponseSchema,
       "An export is running already. Wait for it, or delete it with `DELETE /api/export`.",
     ),
+    503: jsonBody(
+      UnavailableResponseSchema,
+      "A Restore holds the library (`code` is `restoring`), so no export starts and a ready export stays. Start the export after the Restore has finished or been cancelled.",
+    ),
   },
 });
+
+const HELD_START = {
+  error:
+    "A restore holds the library, so no export starts until the restore has finished or been cancelled.",
+  code: RESTORING_CODE,
+} as const;
 
 const statusRoute = createRoute({
   method: "get",
@@ -102,9 +117,16 @@ export function registerExportRoutes(app: OpenAPIHono, ports: Ports): void {
   app.openapi(startRoute, async (c) => {
     const started = await startExport(ports);
 
-    return started.kind === "started"
-      ? c.json({ id: started.id }, 202)
-      : c.json({ error: "An export is running already" }, 409);
+    switch (started.kind) {
+      case "started":
+        return c.json({ id: started.id }, 202);
+      case "running":
+        return c.json({ error: "An export is running already" }, 409);
+      case "restoring":
+        return c.json(HELD_START, 503);
+      default:
+        return started satisfies never;
+    }
   });
 
   app.openapi(statusRoute, async (c) => c.json(await exportStatus(ports.db), 200));
