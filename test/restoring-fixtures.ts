@@ -1,4 +1,3 @@
-import { UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import {
   PASTE_RESTORING_REFUSAL,
   RESTORING_REFUSAL,
@@ -14,10 +13,6 @@ import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 export const HELD = { status: 503, body: RESTORING_REFUSAL };
 
 export const PASTE_HELD = { status: 503, body: PASTE_RESTORING_REFUSAL };
-
-export function refusal(answer: Answer) {
-  return { status: answer.status, body: UnavailableResponseSchema.parse(JSON.parse(answer.body)) };
-}
 
 const RECORDS = [
   ["highlights", "1 = 1"],

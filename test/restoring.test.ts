@@ -10,7 +10,7 @@ import {
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { redditAddressOf, threadOf } from "./reader-thread-fixtures.ts";
-import { holdLibrary } from "./restore-fixtures.ts";
+import { holdLibrary, refusal } from "./restore-fixtures.ts";
 import {
   closing,
   HELD,
@@ -18,7 +18,6 @@ import {
   ownerLibrary,
   PASTE_HELD,
   recordsOf,
-  refusal,
   savedUnresolved,
   throughDoors,
 } from "./restoring-fixtures.ts";

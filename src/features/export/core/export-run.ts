@@ -7,9 +7,10 @@ import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { type ExportRow, exportRuns } from "../../../core/kernel/schema.ts";
 import { removeExport } from "./export-cleanup.ts";
 import { exportRootName } from "./export-format.ts";
+import { endedExport } from "./export-job.ts";
 import { storedZip, zipSize } from "./export-zip.ts";
 
-export async function newestExport(db: Database): Promise<ExportRow | null> {
+async function newestExport(db: Database): Promise<ExportRow | null> {
   const [newest] = await db.select().from(exportRuns).orderBy(desc(exportRuns.id)).limit(1);
 
   return newest ?? null;
@@ -82,11 +83,7 @@ export async function deleteExport(ports: JobPorts): Promise<DeletedExport> {
 
   if (run.state === "running") {
     const [stopped] = await db.batch([
-      db
-        .update(exportRuns)
-        .set({ state: "failed", failure: "cancelled", updatedAt: Date.now() })
-        .where(and(eq(exportRuns.id, run.id), eq(exportRuns.state, "running")))
-        .returning({ id: exportRuns.id }),
+      endedExport(db, eq(exportRuns.id, run.id), "cancelled").returning({ id: exportRuns.id }),
       closeRunJobs(db, "export", run.id),
     ]);
 

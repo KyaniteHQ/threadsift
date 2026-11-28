@@ -6,7 +6,7 @@ import { z } from "zod";
 import { parseLink } from "../src/core/contract/links.ts";
 import { whileOpen } from "../src/core/kernel/restore-hold.ts";
 import { Instance } from "./instance.ts";
-import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
+import { whileHeld } from "./restore-fixtures.ts";
 import {
   EXISTING,
   FAILED,
@@ -221,17 +221,11 @@ describe("a Paste of a stale alias writes nothing that another Paste or a Restor
 
       if (moves) await repasted(instance, short, resolvedTo(redditPost("keptrestoremoved")));
 
-      holdLibrary(instance, "running", null);
+      const answer = await whileHeld(instance, () =>
+        whileOpen(() => repastedFrom(instance, short, FAILED, snapshot, "keep")),
+      );
 
-      try {
-        const answer = await whileOpen(() =>
-          repastedFrom(instance, short, FAILED, snapshot, "keep"),
-        );
-
-        assert.deepEqual(answer, { kind: "restoring" });
-      } finally {
-        releaseLibrary(instance);
-      }
+      assert.deepEqual(answer, { kind: "restoring" });
 
       assert.equal(itemsAt(instance, stale.share), moves ? 0 : 1);
     });

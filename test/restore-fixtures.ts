@@ -5,7 +5,6 @@ import type { TestContext } from "node:test";
 
 import { z } from "zod";
 
-import { UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import {
   RestoreStatusSchema,
   type RestoreStatus,
@@ -176,8 +175,17 @@ export function releaseLibrary(instance: Instance): void {
   instance.database.exec("delete from restores where id = 1");
 }
 
-export async function whileHeld<Seen>(instance: Instance, run: () => Promise<Seen>): Promise<Seen> {
-  holdLibrary(instance, "running", null);
+export async function whileHeld<Seen>(
+  instance: Instance,
+  run: () => Promise<Seen>,
+  failure: "gave-up" | null = null,
+): Promise<Seen> {
+  assert.equal(
+    instance.database.rowCount("restores"),
+    0,
+    "whileHeld stages Restore 1 on an Instance that holds no Restore",
+  );
+  holdLibrary(instance, failure === null ? "running" : "failed", failure);
 
   try {
     return await run();
@@ -186,11 +194,10 @@ export async function whileHeld<Seen>(instance: Instance, run: () => Promise<See
   }
 }
 
-export function refusalCode(answer: Answer) {
-  return {
-    status: answer.status,
-    code: UnavailableResponseSchema.parse(JSON.parse(answer.body)).code,
-  };
+const RefusalBodySchema = z.object({ error: z.string(), code: z.string() });
+
+export function refusal(answer: Answer) {
+  return { status: answer.status, body: RefusalBodySchema.parse(JSON.parse(answer.body)) };
 }
 
 export async function restoreLibrary({

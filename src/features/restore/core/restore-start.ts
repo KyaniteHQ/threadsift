@@ -1,7 +1,6 @@
 import { eq, sql } from "drizzle-orm";
 
 import { entering } from "../../../core/contract/restore-contract.ts";
-import { deletedUndigestedTasks } from "../../../core/kernel/ai-task-rows.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { guardedWrite } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
@@ -9,6 +8,7 @@ import { enqueueRows } from "../../../core/kernel/job-rows.ts";
 import { NEWEST_RESTORE, RESUMABLE_RESTORE, resumable } from "../../../core/kernel/restore-hold.ts";
 import { restoreRuns } from "../../../core/kernel/schema.ts";
 import { fenceVault, vaultIdleAt } from "../../vault/core/vault-state.ts";
+import { clearedAtStart } from "./restore-start-clearing.ts";
 import {
   EMPTY_LIBRARY,
   holdsEveryPart,
@@ -38,6 +38,7 @@ function opened(db: Database, id: number) {
   const restore = eq(restoreRuns.id, id);
   const idle = vaultIdleAt(now);
   const ready = sql`${restore} and ${restoreRuns.state} = 'uploading' and ${EMPTY_LIBRARY} and ${idle}`;
+  const starting = sql`exists (select 1 from ${restoreRuns} where ${ready})`;
 
   return db.batch([
     db
@@ -45,7 +46,7 @@ function opened(db: Database, id: number) {
       .from(restoreRuns)
       .where(restore),
     openingRestoreJob(db, ready),
-    deletedUndigestedTasks(db, sql`exists (select 1 from ${restoreRuns} where ${ready})`),
+    ...clearedAtStart(db, starting),
     db
       .update(restoreRuns)
       .set({

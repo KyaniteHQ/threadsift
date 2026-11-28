@@ -4,11 +4,10 @@ import { NO_TALLY } from "../../../core/contract/export-contract.ts";
 import { refusedBy } from "../../../core/kernel/guards.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { enqueueRows } from "../../../core/kernel/job-rows.ts";
-import { type Closed, restoreGuard, whileOpen } from "../../../core/kernel/restore-hold.ts";
-import { exportRuns, guards } from "../../../core/kernel/schema.ts";
+import { type Closed, heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
+import { exportRuns } from "../../../core/kernel/schema.ts";
 import { removeQuietly } from "./export-cleanup.ts";
 import { openingExportJob } from "./export-job.ts";
-import { newestExport } from "./export-run.ts";
 
 const ONE_LIVE_EXPORT = /UNIQUE constraint failed: (?:index 'exports_one_live'|exports\.)/u;
 
@@ -17,16 +16,24 @@ type StartedExport =
   | { readonly kind: "running" }
   | Closed;
 
-async function started(ports: JobPorts, now: number): Promise<StartedExport> {
+type Started =
+  | Exclude<StartedExport, { readonly kind: "started" }>
+  | {
+      readonly kind: "started";
+      readonly id: number;
+      readonly replaced: readonly number[];
+    };
+
+async function started(ports: JobPorts, now: number): Promise<Started> {
   const { db } = ports;
 
   try {
-    const [, , [run], [opened]] = await db.batch([
-      restoreGuard(db),
+    const written = await heldBatch(db, [
       db
         .update(exportRuns)
         .set({ state: "failed", failure: "replaced", updatedAt: now })
-        .where(eq(exportRuns.state, "ready")),
+        .where(eq(exportRuns.state, "ready"))
+        .returning({ id: exportRuns.id }),
       db
         .insert(exportRuns)
         .values({
@@ -37,8 +44,8 @@ async function started(ports: JobPorts, now: number): Promise<StartedExport> {
         })
         .returning({ id: exportRuns.id }),
       openingExportJob(db, eq(exportRuns.state, "running")),
-      db.delete(guards),
-    ]);
+    ] as const);
+    const [replaced, [run], [opened]] = written ?? [[], [], []];
 
     if (run === undefined || opened === undefined) {
       throw new Error("The export batch returned no row");
@@ -46,7 +53,7 @@ async function started(ports: JobPorts, now: number): Promise<StartedExport> {
 
     await enqueueRows(ports, [opened]);
 
-    return { kind: "started", id: run.id };
+    return { kind: "started", id: run.id, replaced: replaced.map(({ id }) => id) };
   } catch (error) {
     if (refusedBy(error, ONE_LIVE_EXPORT)) return { kind: "running" };
 
@@ -55,13 +62,11 @@ async function started(ports: JobPorts, now: number): Promise<StartedExport> {
 }
 
 export async function startExport(ports: JobPorts): Promise<StartedExport> {
-  const live = await newestExport(ports.db);
-
-  if (live?.state === "running") return { kind: "running" };
-
   const outcome = await whileOpen(() => started(ports, Date.now()));
 
-  if (outcome.kind === "started" && live?.state === "ready") await removeQuietly(ports, live.id);
+  if (isClosed(outcome) || outcome.kind !== "started") return outcome;
 
-  return outcome;
+  await Promise.all(outcome.replaced.map((id) => removeQuietly(ports, id)));
+
+  return { kind: "started", id: outcome.id };
 }
