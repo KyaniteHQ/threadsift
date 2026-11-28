@@ -1,6 +1,7 @@
-import { count, eq, inArray, sql } from "drizzle-orm";
+import { and, count, eq, inArray, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
+import { providerMayRead } from "../../../core/kernel/digest-source.ts";
 import { itemTags, items, tags, topics } from "../../../core/kernel/schema.ts";
 import type { SentSubject, TagSubject, TopicSubject } from "./proposal-sent.ts";
 
@@ -45,7 +46,7 @@ export const TOPICS_OF_TAG: SentNames<TagSubject> = {
         .from(itemTags)
         .innerJoin(items, eq(items.id, itemTags.itemId))
         .innerJoin(topics, eq(topics.id, items.topicId))
-        .where(inArray(itemTags.tagId, ids))
+        .where(and(inArray(itemTags.tagId, ids), providerMayRead(items.id)))
         .groupBy(itemTags.tagId, topics.id),
     ),
   subject: (base, names) => ({ ...base, topics: names }),
@@ -64,7 +65,7 @@ export const TAGS_OF_TOPIC: SentNames<TopicSubject> = {
         .from(items)
         .innerJoin(itemTags, eq(itemTags.itemId, items.id))
         .innerJoin(tags, eq(tags.id, itemTags.tagId))
-        .where(inArray(items.topicId, ids))
+        .where(and(inArray(items.topicId, ids), providerMayRead(items.id)))
         .groupBy(items.topicId, tags.id),
     ),
   subject: (base, names) => ({ ...base, tags: names }),

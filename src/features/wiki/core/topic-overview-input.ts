@@ -7,6 +7,7 @@ import {
   citedIds,
 } from "../../../core/contract/topic-overview-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { providerMayRead } from "../../../core/kernel/digest-source.ts";
 import { readStoredDigest } from "../../../core/kernel/digest-stored.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
 import { digests, items, topicPages, topics } from "../../../core/kernel/schema.ts";
@@ -97,6 +98,7 @@ function addedRows(db: Database, topicId: number) {
       and(
         eq(items.topicId, topicId),
         notBuiltFrom(topicId, sql`${items.id}`, sql`${digests.taskId}`),
+        providerMayRead(items.id),
       ),
     )
     .orderBy(desc(digests.createdAt), desc(items.id));

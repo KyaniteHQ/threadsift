@@ -1,4 +1,4 @@
-import { and, isNotNull, isNull, not, or, sql, type SQL } from "drizzle-orm";
+import { and, isNotNull, isNull, or, sql, type SQL, type SQLWrapper } from "drizzle-orm";
 
 import { X_API_PROVIDER_DIGESTS } from "../contract/x-api-contract.ts";
 import { items, threadComments, threads } from "./schema.ts";
@@ -25,16 +25,17 @@ export function hasDigestContent() {
   return or(...digestContent()) ?? sql`0`;
 }
 
-function readByXApi(): SQL {
-  return sql`exists (select 1 from ${threads} where ${threads.itemId} = ${items.id} and ${threads.generation} = ${items.generation} and ${threads.xApiRead} = 1)`;
-}
-
-function providerMayRead(): SQL {
+export function providerMayRead(itemId: Readonly<SQLWrapper>): SQL {
   return X_API_PROVIDER_DIGESTS
     ? sql`1`
-    : (or(isNotNull(items.pendingDigest), not(readByXApi())) ?? sql`0`);
+    : sql`not exists (select 1 from ${threads} join ${items} as read_item on read_item.id = ${threads.itemId} and read_item.generation = ${threads.generation} where ${threads.itemId} = ${itemId} and ${threads.xApiRead} = 1)`;
 }
 
 export function hasDigestSource() {
-  return and(or(...digestContent(), hasCandidateLink()), providerMayRead()) ?? sql`0`;
+  return (
+    and(
+      or(...digestContent(), hasCandidateLink()),
+      or(isNotNull(items.pendingDigest), providerMayRead(items.id)),
+    ) ?? sql`0`
+  );
 }

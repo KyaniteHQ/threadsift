@@ -13,6 +13,7 @@ import {
 import { z } from "zod";
 
 import type { Database } from "../../../core/kernel/database.ts";
+import { providerMayRead } from "../../../core/kernel/digest-source.ts";
 import { digestField } from "../../../core/kernel/digest-stored.ts";
 import { logFailure } from "../../../core/kernel/failure-log.ts";
 import { digests, items, topicChecks, topics } from "../../../core/kernel/schema.ts";
@@ -31,11 +32,11 @@ import { digestedCount } from "./topic-coverage.ts";
 const TOPICS_PAGE = 20;
 
 export function membersOf(topicId: Readonly<SQLWrapper>): SQL<string | null> {
-  return sql`(select group_concat(newest.id || ':' || newest.digest, ',' order by newest.id) from (select member.id as id, kept.task_id as digest from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} order by member.saved_at desc, member.id desc limit ${DISAGREEMENT_ITEMS}) as newest)`;
+  return sql`(select group_concat(newest.id || ':' || newest.digest, ',' order by newest.id) from (select member.id as id, kept.task_id as digest from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} and ${providerMayRead(sql`member.id`)} order by member.saved_at desc, member.id desc limit ${DISAGREEMENT_ITEMS}) as newest)`;
 }
 
 function newestDigestAt(topicId: Readonly<SQLWrapper>): SQL<number> {
-  return sql`(select max(kept.created_at) from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId})`;
+  return sql`(select max(kept.created_at) from ${items} as member join ${digests} as kept on kept.item_id = member.id where member.topic_id = ${topicId} and ${providerMayRead(sql`member.id`)})`;
 }
 
 function touched(topicId: Readonly<SQLWrapper>): SQL {
@@ -80,7 +81,13 @@ function newestItemsOf(db: Database, topicIds: readonly number[]) {
     })
     .from(items)
     .innerJoin(digests, eq(digests.itemId, items.id))
-    .where(and(isNotNull(items.topicId), inArray(items.topicId, [...topicIds])))
+    .where(
+      and(
+        isNotNull(items.topicId),
+        inArray(items.topicId, [...topicIds]),
+        providerMayRead(items.id),
+      ),
+    )
     .as("compared");
 
   return db
