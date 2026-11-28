@@ -18,14 +18,18 @@ export const ImportSchema = z.object({
   cursor: z.string().min(1).max(IMPORT_CURSOR_MAX),
 });
 
-export const ImportWriteSchema = ImportSchema.extend({
-  previous: z.string().min(1).max(IMPORT_CURSOR_MAX).nullable().optional(),
+export const GuardedImportSchema = z.strictObject({
+  ...ImportSchema.shape,
+  previous: z.string().min(1).max(IMPORT_CURSOR_MAX),
   previousUpdatedAt: z.number().int().optional(),
-}).refine(
-  ({ previous, previousUpdatedAt }) =>
-    previousUpdatedAt === undefined || (previous ?? null) !== null,
-  { message: "`previousUpdatedAt` needs a text `previous`", path: ["previousUpdatedAt"] },
-);
+});
+
+export const UnguardedImportSchema = z.strictObject({
+  ...ImportSchema.shape,
+  previous: z.null().optional(),
+});
+
+export const ImportWriteSchema = z.union([GuardedImportSchema, UnguardedImportSchema]);
 
 export const ImportStateSchema = ImportSchema.extend({ updatedAt: z.number().int() });
 

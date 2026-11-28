@@ -22,7 +22,12 @@ export interface Run {
 
 type Step =
   | { readonly kind: "advanced"; readonly progress: Progress }
-  | { readonly kind: "ended"; readonly ending: Ending; readonly done?: number };
+  | {
+      readonly kind: "ended";
+      readonly ending: Ending;
+      readonly done?: number;
+      readonly counts?: Counts;
+    };
 
 interface Position {
   readonly progress: Readonly<Progress>;
@@ -79,10 +84,11 @@ async function stepOf(
   const answer = await postBatch(request);
 
   if (answer.kind === "saved") {
-    return {
-      kind: "advanced",
-      progress: { ...progress, done, counts: summed(progress.counts, answer.counts) },
-    };
+    const counts = summed(progress.counts, answer.counts);
+
+    return answer.stored === request.import.cursor
+      ? { kind: "advanced", progress: { ...progress, done, counts } }
+      : { kind: "ended", ending: "stopped", done: doneOf(answer.stored), counts };
   }
 
   if (answer.kind !== "unanswered") return ended(answer.kind);
@@ -113,7 +119,12 @@ export async function runImport(
     const step = await stepOf(links, name, { progress, written }, run);
 
     if (step.kind === "ended") {
-      return { ...progress, done: step.done ?? progress.done, ending: step.ending };
+      return {
+        ...progress,
+        done: step.done ?? progress.done,
+        counts: step.counts ?? progress.counts,
+        ending: step.ending,
+      };
     }
 
     progress = step.progress;

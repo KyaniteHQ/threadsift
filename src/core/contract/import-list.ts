@@ -4,6 +4,7 @@ import { webUrlOf } from "./addresses.ts";
 import type { BatchRequestSchema } from "./batch-wire.ts";
 import { hex, utf8Length } from "./encoding.ts";
 import { splitLines } from "./format.ts";
+import type { ImportSchema, ImportState } from "./import-contract.ts";
 import { BODY_LIMIT_BYTES } from "./limits.ts";
 import { linkIn } from "./shared-link.ts";
 
@@ -51,11 +52,12 @@ type BatchRequest = z.input<typeof BatchRequestSchema>;
 export type ImportRequest = Readonly<{
   links: BatchRequest["links"];
   import: Readonly<
-    Omit<NonNullable<BatchRequest["import"]>, "previous"> & { previous: string | null }
+    z.input<typeof ImportSchema> &
+      ({ previous: null } | { previous: string; previousUpdatedAt: number })
   >;
 }>;
 
-export type SavedCursor = Readonly<{ cursor: string; updatedAt: number }>;
+export type SavedCursor = Readonly<Pick<ImportState, "cursor" | "updatedAt">>;
 
 export type Resume =
   | { readonly kind: "fresh" }
