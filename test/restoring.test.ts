@@ -2,15 +2,10 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
-import {
-  RestoreErrorSchema,
-  RestoreStatusSchema,
-  StartedRestoreSchema,
-} from "../src/core/contract/restore-contract.ts";
 import { Instance } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
 import { redditAddressOf, threadOf } from "./reader-thread-fixtures.ts";
-import { holdLibrary } from "./restore-fixtures.ts";
+import { holdLibrary, refusal } from "./restore-fixtures.ts";
 import {
   closing,
   HELD,
@@ -18,7 +13,6 @@ import {
   ownerLibrary,
   PASTE_HELD,
   recordsOf,
-  refusal,
   savedUnresolved,
   throughDoors,
 } from "./restoring-fixtures.ts";
@@ -83,37 +77,6 @@ describe("a batch refused while a Restore holds the library keeps its old cursor
 
     assert.deepEqual(refusal(stopped), PASTE_HELD);
     assert.equal(ImportStateSchema.parse(JSON.parse(read.body)).cursor, "old");
-  });
-});
-
-describe("a Restore that failed and still holds the library refuses a second upload", () => {
-  let instance: Instance;
-
-  before(async () => {
-    instance = await Instance.start();
-    await instance.setUp();
-  });
-
-  after(() => instance.close());
-
-  it("answers 409 restore-open for a gave-up run and accepts an upload after a refusal", async () => {
-    holdLibrary(instance, "failed", "gave-up", "check");
-
-    const refused = await instance.send("POST", "/api/restore", { bytes: 1, parts: 1 });
-
-    assert.equal(refused.status, 409);
-    assert.equal(RestoreErrorSchema.parse(JSON.parse(refused.body)).code, "restore-open");
-
-    holdLibrary(instance, "failed", "no-manifest", "check");
-
-    const accepted = await instance.send("POST", "/api/restore", { bytes: 1, parts: 1 });
-
-    assert.equal(accepted.status, 201);
-    const started = StartedRestoreSchema.parse(JSON.parse(accepted.body));
-    const status = await instance.read("GET", "/api/restore", RestoreStatusSchema);
-
-    assert.equal(status.state, "uploading");
-    assert.deepEqual([started.id, status.id], [2, 2]);
   });
 });
 

@@ -12,7 +12,7 @@ import {
   entering,
 } from "../src/core/contract/restore-contract.ts";
 import { exportedZip } from "./export-restore-fixtures.ts";
-import type { Instance } from "./instance.ts";
+import type { Answer, Instance } from "./instance.ts";
 import { loggedAttempts, untilRetried } from "./job-fixtures.ts";
 import { until } from "./library-fixtures.ts";
 
@@ -160,19 +160,46 @@ export async function gaveUpInFiles(t: TestContext, instance: Instance, bytes: U
 export function holdLibrary(
   instance: Instance,
   state: "running" | "failed",
-  failure: "gave-up" | "no-manifest" | null,
+  failure: "gave-up" | "no-manifest" | "other-release" | null,
   phase: "check" | "tables" = "tables",
+  restored = "{}",
 ): void {
   instance.database.exec(
-    "insert into restores (id, state, phase, failure, bytes, parts, part_bytes, created_at, updated_at) values (1, ?, ?, ?, 1, 1, 1, 1, 1) on conflict (id) do update set state = excluded.state, phase = excluded.phase, failure = excluded.failure",
+    "insert into restores (id, state, phase, failure, restored, bytes, parts, part_bytes, created_at, updated_at) values (1, ?, ?, ?, ?, 1, 1, 1, 1, 1) on conflict (id) do update set state = excluded.state, phase = excluded.phase, failure = excluded.failure, restored = excluded.restored",
     state,
     phase,
     failure,
+    restored,
   );
 }
 
 export function releaseLibrary(instance: Instance): void {
   instance.database.exec("delete from restores where id = 1");
+}
+
+export async function whileHeld<Seen>(
+  instance: Instance,
+  run: () => Promise<Seen>,
+  failure: "gave-up" | null = null,
+): Promise<Seen> {
+  assert.equal(
+    instance.database.rowCount("restores"),
+    0,
+    "whileHeld stages Restore 1 on an Instance that holds no Restore",
+  );
+  holdLibrary(instance, failure === null ? "running" : "failed", failure);
+
+  try {
+    return await run();
+  } finally {
+    releaseLibrary(instance);
+  }
+}
+
+const RefusalBodySchema = z.object({ error: z.string(), code: z.string() });
+
+export function refusal(answer: Answer) {
+  return { status: answer.status, body: RefusalBodySchema.parse(JSON.parse(answer.body)) };
 }
 
 export async function restoreLibrary({

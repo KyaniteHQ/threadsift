@@ -4,7 +4,17 @@ import {
   RestoreStatusSchema,
   StartedRestoreSchema,
 } from "../../src/core/contract/restore-contract.ts";
-import { NO_DEADLINE, call, callOk, del, parsedBody, parsedFrom, post, put } from "./calls.ts";
+import {
+  NO_DEADLINE,
+  call,
+  callOk,
+  del,
+  parsedBody,
+  parsedFrom,
+  post,
+  put,
+  unexpected,
+} from "./calls.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/restore";
@@ -55,13 +65,15 @@ export async function sendPart(
 }
 
 export async function startRestore(id: number): Promise<Readonly<{ kind: "started" }> | Refused> {
-  const response = await call(post(NO_DEADLINE), `${ENDPOINT}/${String(id)}/start`);
+  const method = post(NO_DEADLINE);
+  const path = `${ENDPOINT}/${String(id)}/start`;
+  const response = await call(method, path);
 
   if (response.ok) return { kind: "started" };
 
   if (response.status === 400 || response.status === 409) return refusalOf(response);
 
-  throw new Error(`POST ${ENDPOINT}/${String(id)}/start answered ${String(response.status)}`);
+  throw unexpected(method, path, response.status);
 }
 
 export async function cancelRestore(id: number): Promise<void> {

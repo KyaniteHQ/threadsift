@@ -126,6 +126,10 @@
 .sec h2 {
   margin: 0;
 }
+.pg-col > section.sec + section.sec {
+  padding-block-start: var(--s5);
+  border-block-start: var(--hw) solid var(--line);
+}
 .pg :is(p, li, legend, label) {
   text-wrap: pretty;
 }

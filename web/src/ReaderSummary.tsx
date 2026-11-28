@@ -1,27 +1,43 @@
+import { useId } from "react";
+
 import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
-import type { Item } from "../../src/core/contract/item-wire.ts";
 import { KEY_POINTS_LABEL, SUMMARY_LABEL } from "../../src/core/contract/reader-text.ts";
 import { keyed } from "./keyed.ts";
 import { tagHue } from "./tag-hue.ts";
 import { TopicLink } from "./TopicLink.tsx";
 
-export function ReaderSummary({
-  item,
+export function ReaderFiled({
+  topic,
   digest,
-}: Readonly<{ item: Item; digest: NonNullable<ItemDetail["digest"]> }>) {
+}: Readonly<{ topic: string | null; digest: ItemDetail["digest"] }>) {
+  const tags = digest?.tags ?? [];
+  if (topic === null && tags.length === 0) return null;
+
   return (
-    <aside className="rd-agent" aria-label={SUMMARY_LABEL}>
-      <p className="rd-filed">
-        {item.digestTopic === null ? null : <TopicLink name={item.digestTopic} />}
+    <p className="rd-filed">
+      {topic === null ? null : <TopicLink name={topic} />}
+      {tags.length === 0 ? null : (
         <span className="tags">
-          {keyed(digest.tags).map(({ key, text }) => (
+          {keyed(tags).map(({ key, text }) => (
             <span key={key} className="tag" data-tag={tagHue(text)}>
               <i className="tag-dot" />
               {text}
             </span>
           ))}
         </span>
-      </p>
+      )}
+    </p>
+  );
+}
+
+export function ReaderSummary({ digest }: Readonly<{ digest: NonNullable<ItemDetail["digest"]> }>) {
+  const labelId = useId();
+
+  return (
+    <aside className="rd-agent" aria-labelledby={labelId}>
+      <h3 id={labelId} className="label">
+        {SUMMARY_LABEL}
+      </h3>
       <p className="rd-summary">{digest.summary}</p>
       <h3 className="label">{KEY_POINTS_LABEL}</h3>
       <ul role="list" className="rd-points">

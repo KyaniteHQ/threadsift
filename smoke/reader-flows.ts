@@ -1,40 +1,43 @@
-import { type Page, type Route, expect } from "@playwright/test";
+import { type Page, expect } from "@playwright/test";
 
+import { STORAGE_KEY } from "../design/system/settings.ts";
 import { ReadStateRequestSchema } from "../src/core/contract/item-route-wire.ts";
-import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
-import { itemDetail, savedItem, savedTopicItem } from "./saved-item.ts";
+import { OP_LABEL, READER_STALE, RELATED } from "../web/src/reader-text.ts";
+import { RETRY_LABEL } from "../web/src/text.ts";
+import { holdListRead, listReads, refuseLater } from "./held-reads.ts";
+import {
+  FACT,
+  FIRST_COPY,
+  FIRST_TEXT,
+  STALE_LINK,
+  STALE_TITLE,
+  STATUS_LINK,
+  STATUS_POST,
+  STATUS_TITLE,
+  THREAD,
+  THREAD_LINK,
+  THREAD_TITLE,
+} from "./reader-items.ts";
+import { MOTION_ITEM, motionOf, watchMotion } from "./reader-motion-flow.ts";
+import { heldNoteSave, heldPaste, heldSettingPick } from "./restore-hold-flow.ts";
+import {
+  itemDetail,
+  itemStatus,
+  savedItem,
+  savedTopicItem,
+  whileRestoreHolds,
+} from "./saved-item.ts";
 
-const THREAD_ID = "3000000000000000001";
+async function expectStoredAuthor(page: Page, title: string): Promise<void> {
+  await page.goto("/");
+  await page.locator("article.it").filter({ hasText: title }).getByRole("link").first().click();
 
-const THREAD_LINK = `https://x.com/Someone/status/${THREAD_ID}`;
+  const meta = page.locator(".reader .rd-meta");
 
-const THREAD_TITLE = "Online backups for a busy database file";
-
-const FACT = "Run sqlite3 app.db '.backup copy.db', then run PRAGMA integrity_check on the copy.";
-
-const reply = (id: string, parentId: string, author: string, text: string) => ({
-  id,
-  parentId,
-  author,
-  text,
-  postedAt: "2026-03-04T10:00:00Z",
-  likes: 2,
-});
-
-const THREAD = {
-  post: {
-    id: THREAD_ID,
-    author: "someone",
-    text: "How do you back up a SQLite file while the app is writing to it?",
-    postedAt: "2026-03-04T09:00:00Z",
-    replies: 3,
-  },
-  replies: [
-    reply("3000000000000000011", THREAD_ID, "bob", FACT),
-    reply("3000000000000000012", "3000000000000000011", "Someone", "That also works from Python."),
-    reply("3000000000000000013", THREAD_ID, "carol", "lol"),
-  ],
-};
+  await expect(meta.locator(".rd-part", { hasText: /^@someone$/u })).toHaveCount(1);
+  await expect(meta).not.toContainText("oldname");
+  await expect(meta).not.toContainText("x.com");
+}
 
 interface PastedCase {
   readonly topic: {
@@ -91,32 +94,158 @@ export async function readXThread(page: Page): Promise<void> {
 
   const reader = page.locator(".reader");
 
-  await expect(reader.locator(".rd-src span", { hasText: /@someone/iu })).toHaveCount(1);
   await expect(reader).toContainText(FACT);
   await expect(reader).toContainText("Likes: 2");
   await expect(reader.locator(".cm-author", { hasText: "@bob" })).toHaveCount(1);
   await expect(reader.locator(".op")).toHaveText(OP_LABEL);
   await expect(reader).not.toContainText("Arctic Shift");
+  await expectStoredAuthor(page, THREAD_TITLE);
+
+  await savedItem(page.request, {
+    url: STATUS_LINK,
+    content: JSON.stringify(STATUS_POST),
+    digest: {
+      title: STATUS_TITLE,
+      topic: "Databases",
+      tags: ["sqlite"],
+      summary: "The backup command copies pages while the app writes.",
+      keyPoints: ["Writers wait only for the page being copied"],
+    },
+  });
+  await expectStoredAuthor(page, STATUS_TITLE);
 }
 
-const LIST_READ_HOLD_MS = 1500;
+async function pressM(page: Page, id: number): Promise<void> {
+  const written = page.waitForResponse(
+    (response) => new URL(response.url()).pathname === `/api/items/${String(id)}/read-state`,
+  );
 
-const listReads = (url: URL) => url.pathname === "/api/items";
+  await page.keyboard.press("m");
+  await written;
+}
 
-async function holdListRead(route: Route): Promise<void> {
-  if (route.request().method() === "GET") {
-    await new Promise<void>((wait) => {
-      setTimeout(wait, LIST_READ_HOLD_MS);
-    });
-  }
+export async function retryStaleReader(page: Page): Promise<void> {
+  const id = await savedItem(page.request, {
+    url: STALE_LINK,
+    page: { markdown: FIRST_TEXT, title: STALE_TITLE },
+  });
+  const reader = page.locator(".reader");
 
-  await route.fallback();
+  await page.goto(`/items/${String(id)}`);
+  await expect(reader).toContainText(FIRST_COPY);
+
+  const detail = (url: URL) => url.pathname === `/api/items/${String(id)}`;
+  const reads: string[] = [];
+
+  page.on("request", (request) => {
+    if (request.method() === "GET" && detail(new URL(request.url()))) reads.push(request.url());
+  });
+  await page.route(detail, refuseLater);
+
+  const refreshed = await page.request.post("/api/items", {
+    data: {
+      url: STALE_LINK,
+      page: { markdown: FIRST_TEXT.replaceAll("first", "later"), title: STALE_TITLE },
+    },
+  });
+
+  expect(refreshed.ok()).toBe(true);
+  await expect.poll(async () => (await itemStatus(page.request, id)).status).toBe("ready");
+
+  await pressM(page, id);
+
+  const staleLine = reader.locator(".rd-orig").filter({ hasText: READER_STALE });
+  const retry = staleLine.getByRole("button", { name: RETRY_LABEL });
+
+  await expect(retry).toBeVisible();
+  await pressM(page, id);
+
+  const before = reads.length;
+
+  await retry.click();
+  await expect(retry).toHaveAttribute("aria-busy", "true");
+  await retry.click({ force: true });
+  await expect(retry).not.toHaveAttribute("aria-busy", "true");
+  await expect(reader).toContainText(FIRST_COPY);
+  expect(reads.length - before).toBe(1);
+
+  await page.unroute(detail, refuseLater);
+  const removed = await page.request.delete(`/api/items/${String(id)}`, {
+    headers: { origin: new URL(page.url()).origin },
+  });
+
+  expect(removed.status()).toBe(204);
+  await retry.click();
+  await expect(page).toHaveURL(/\/$/u);
+  await expect(page.locator("article.it").filter({ hasText: STALE_TITLE })).toHaveCount(0);
+}
+
+export async function readerMotion(page: Page): Promise<void> {
+  const id = await savedItem(page.request, MOTION_ITEM);
+  const card = page.locator(`.it[data-key="${String(id)}"] .it-open`);
+  const shared = [[`lib-item-${String(id)}`]];
+  const stored = await page.evaluate((key) => localStorage.getItem(key), STORAGE_KEY);
+
+  await page.addInitScript(watchMotion);
+  await page.evaluate(
+    ([key, value]) => {
+      localStorage.setItem(key, value);
+    },
+    [STORAGE_KEY, JSON.stringify({ layout: "grid", openAs: "sheet" })] as const,
+  );
+  await page.goto("/");
+
+  const opened = await motionOf(page, () => card.click(), 1);
+  const escaped = await motionOf(page, () => page.keyboard.press("Escape"), 0);
+  await motionOf(page, () => card.click(), 1);
+  const backed = await motionOf(
+    page,
+    async () => {
+      await page.goBack();
+    },
+    0,
+  );
+
+  expect(
+    opened.map((run) => run.moved),
+    "the open grows only this Item's card",
+  ).toEqual(shared);
+  expect(
+    escaped.map((run) => run.moved),
+    "Escape runs the Reader back into it",
+  ).toEqual(shared);
+  expect(
+    backed.map((run) => run.moved),
+    "Back runs the Reader back into it",
+  ).toEqual(shared);
+
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  const reduced = await motionOf(page, () => card.click(), 1);
+  await page.keyboard.press("Escape");
+  await expect(page.locator(".reader-slot")).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: "no-preference" });
+
+  expect(
+    reduced.map((run) => run.changing),
+    "reduced motion animates nothing",
+  ).toEqual([0]);
+
+  await page.evaluate(
+    ([key, value]) => {
+      if (value === null) localStorage.removeItem(key);
+      else localStorage.setItem(key, value);
+    },
+    [STORAGE_KEY, stored] as const,
+  );
 }
 
 export async function markReadTwice(page: Page): Promise<void> {
   const row = page.locator("article.it").filter({ hasText: THREAD_TITLE });
   const id = Number(await row.getAttribute("data-key"));
   const path = `/api/items/${String(id)}/read-state`;
+
+  await row.getByRole("link").first().click();
+  await expect(page.locator(".reader .rd-title")).toContainText(THREAD_TITLE);
 
   expect((await itemDetail(page.request, id)).readState).toBe("unread");
 
@@ -146,4 +275,21 @@ export async function markReadTwice(page: Page): Promise<void> {
   expect((await itemDetail(page.request, id)).readState).toBe("unread");
 
   await page.unroute(listReads, holdListRead);
+}
+
+export async function refusedWhileRestoreHolds(page: Page): Promise<void> {
+  await page.goto("/");
+  await page
+    .locator("article.it")
+    .filter({ hasText: THREAD_TITLE })
+    .getByRole("link")
+    .first()
+    .click();
+
+  await whileRestoreHolds(async () => {
+    await heldNoteSave(page);
+    await heldPaste(page);
+    await heldSettingPick(page);
+  });
+  await page.goto("/");
 }

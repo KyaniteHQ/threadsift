@@ -2,14 +2,16 @@ import { useCallback, useRef, useState } from "react";
 
 import type { Proposal } from "../../src/core/contract/proposal-contract.ts";
 import { stateAfterWaiting } from "./proposal-check.ts";
-import { type Busy, type Failure, isBusy, sendAccept, sendReject } from "./proposals-api.ts";
+import { type Answer, type Busy, type Failure, sendAccept, sendReject } from "./proposals-api.ts";
 import { PROPOSAL_WORDS, acceptedAnnouncement, rejectedAnnouncement } from "./proposals-text.ts";
+import type { Restoring } from "./unavailable.ts";
 
 export type RowState =
   | { readonly kind: "idle" }
   | { readonly kind: "pressing" }
   | { readonly kind: "failed"; readonly failure: Failure }
-  | { readonly kind: "busy"; readonly busy: Busy };
+  | { readonly kind: "busy"; readonly busy: Busy }
+  | Restoring;
 
 const IDLE: RowState = { kind: "idle" };
 
@@ -32,18 +34,43 @@ async function check(proposal: Readonly<Proposal>, action: Failure): Promise<Res
   };
 }
 
+function afterAnswer(proposal: Readonly<Proposal>, answer: Answer): Result | Promise<Result> {
+  switch (answer) {
+    case "done":
+      return { row: IDLE, text: acceptedAnnouncement(proposal) };
+    case "accepting":
+      return { row: IDLE, text: null };
+    case "merge-busy":
+    case "no-provider":
+      return { row: { kind: "busy", busy: answer }, text: null };
+    case "not-current":
+      return { row: IDLE, text: PROPOSAL_WORDS.alreadyDecided };
+    case "not-open":
+    case "merge-failed":
+    case "unknown":
+      return check(proposal, "accept");
+    default: {
+      const exhaustive: never = answer;
+
+      return exhaustive;
+    }
+  }
+}
+
 async function accept(proposal: Readonly<Proposal>): Promise<Result> {
   const outcome = await sendAccept(proposal.id);
 
-  if (outcome === "done") return { row: IDLE, text: acceptedAnnouncement(proposal) };
+  switch (outcome.kind) {
+    case "restoring":
+      return { row: outcome, text: null };
+    case "answer":
+      return afterAnswer(proposal, outcome.answer);
+    default: {
+      const exhaustive: never = outcome;
 
-  if (outcome === "accepting") return { row: IDLE, text: null };
-
-  if (isBusy(outcome)) return { row: { kind: "busy", busy: outcome }, text: null };
-
-  if (outcome === "not-current") return { row: IDLE, text: PROPOSAL_WORDS.alreadyDecided };
-
-  return check(proposal, "accept");
+      return exhaustive;
+    }
+  }
 }
 
 async function reject(proposal: Readonly<Proposal>): Promise<Result> {

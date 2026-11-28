@@ -4,7 +4,14 @@ import type { ExportStatus } from "../../src/core/contract/export-contract.ts";
 import { deleteExport, fetchExportStatus, startExport } from "./export-api.ts";
 import { EXPORT_TEXT } from "./export-text.ts";
 import { usePolling } from "./use-polling.ts";
-import { type Task, outcomeOf, useAction, useActionFlow } from "./use-settings-action.ts";
+import type { RestoreRead } from "./use-restore.ts";
+import {
+  type Outcome,
+  type Task,
+  outcomeOf,
+  useAction,
+  useActionFlow,
+} from "./use-settings-action.ts";
 import { type Ticket, useTicket } from "./use-ticket.ts";
 
 type Action = "start" | "stop" | "remove";
@@ -31,22 +38,42 @@ function useReader(changed: Changed, ticket: Ticket) {
   }, [changed, ticket]);
 }
 
-function settled(call: () => Promise<void>, ticket: Ticket, refresh: () => Promise<void>): Task {
+const HELD_START: Outcome = { kind: "error", text: EXPORT_TEXT.startRestoring };
+
+async function refreshed(refresh: () => Promise<void>): Promise<Outcome | null> {
+  try {
+    await refresh();
+
+    return null;
+  } catch {
+    return { kind: "error", text: EXPORT_TEXT.loadFailed };
+  }
+}
+
+function startTask(ticket: Ticket, refresh: () => Promise<void>, restoreRead: RestoreRead): Task {
   return async () => {
     ticket.take();
-    await call();
 
-    try {
-      await refresh();
+    if ((await startExport()) === "restoring") {
+      await restoreRead();
 
-      return null;
-    } catch {
-      return { kind: "error", text: EXPORT_TEXT.loadFailed };
+      return HELD_START;
     }
+
+    return refreshed(refresh);
   };
 }
 
-export function useBackup(view: ExportStatus, changed: Changed) {
+function removalTask(ticket: Ticket, refresh: () => Promise<void>): Task {
+  return async () => {
+    ticket.take();
+    await deleteExport();
+
+    return refreshed(refresh);
+  };
+}
+
+export function useBackup(view: ExportStatus, changed: Changed, restoreRead: RestoreRead) {
   const { flow, run } = useActionFlow<Action>(FAILED);
   const ticket = useTicket();
   const refresh = useReader(changed, ticket);
@@ -58,10 +85,10 @@ export function useBackup(view: ExportStatus, changed: Changed) {
   const start = useAction({
     run,
     action: "start",
-    task: useMemo(() => settled(startExport, ticket, refresh), [ticket, refresh]),
+    task: useMemo(() => startTask(ticket, refresh, restoreRead), [ticket, refresh, restoreRead]),
   });
 
-  const removal = useMemo(() => settled(deleteExport, ticket, refresh), [ticket, refresh]);
+  const removal = useMemo(() => removalTask(ticket, refresh), [ticket, refresh]);
   const stop = useAction({ run, action: "stop", task: removal });
   const remove = useAction({ run, action: "remove", task: removal });
 

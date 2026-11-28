@@ -148,14 +148,15 @@ body{margin:0}
 
 <div class="rd-col">
 <header class="rd-head">
-<p class="rd-src"><span class="src">{{sourceLabel}}</span><span>{{item.where}}</span><span>{{byline}}</span><span>{{item.postedLabel}}</span><span>{{item.savedLabel}}</span></p>
 <h2 class="rd-title" id="{{titleId}}" tabindex="-1">{{item.title}}</h2>
+<p class="rd-src"><span class="src">{{sourceLabel}}</span><span>{{item.where}}</span><span>{{byline}}</span><span>{{item.postedLabel}}</span><span>{{item.savedLabel}}</span></p>
+<p class="rd-filed"><span class="rd-topic">{{item.topic}}</span><span class="tags"><sc-for list="{{item.tagView}}" as="t" hint-placeholder-count="3"><span class="tag" style="--tag-h: {{t.hue}}"><i class="tag-dot"></i>{{t.name}}</span></sc-for></span></p>
 <p class="rd-meta"><sc-for list="{{meta}}" as="m" hint-placeholder-count="2"><span>{{m}}</span></sc-for></p>
 <sc-if value="{{hintBelow}}" hint-placeholder-val="{{ false }}"><p class="rd-hint-below" aria-hidden="true">{{hintBelow}}</p></sc-if>
 </header>
 
 <aside class="rd-agent" aria-label="Summary">
-<p class="rd-filed"><span class="rd-topic">{{item.topic}}</span><span class="tags"><sc-for list="{{item.tagView}}" as="t" hint-placeholder-count="3"><span class="tag" style="--tag-h: {{t.hue}}"><i class="tag-dot"></i>{{t.name}}</span></sc-for></span></p>
+<h3 class="label">Summary</h3>
 <p class="rd-summary">{{item.summary}}</p>
 <h3 class="label">Key points</h3>
 <ul class="rd-points"><sc-for list="{{item.points}}" as="pt" hint-placeholder-count="3"><li>{{pt}}</li></sc-for></ul>

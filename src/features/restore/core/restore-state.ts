@@ -20,6 +20,7 @@ import {
   NEWEST_RESTORE,
   RESUMABLE_RESTORE,
   cancelling,
+  holding,
   undoFailed,
 } from "../../../core/kernel/restore-hold.ts";
 import { type RestoreRow, restoreRuns, scheduledRuns } from "../../../core/kernel/schema.ts";
@@ -142,6 +143,7 @@ async function failedStatus(
     libraryEmpty,
     id,
     failure: run.failure,
+    holdsLibrary: holding(run),
     resumable: await keepsEveryPart(ports, run),
     cancelFailed: undoFailed(run),
   };

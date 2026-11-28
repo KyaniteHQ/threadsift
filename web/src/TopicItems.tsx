@@ -52,7 +52,7 @@ export const TopicItemRow = memo(function TopicItemRow({
             <bdi dir="auto">{item.title}</bdi>
           </InternalLink>
         </h2>
-        <p id={summaryId} className="rl-sum" dir="auto">
+        <p id={summaryId} className="rl-sum tp-sum" dir="auto">
           {item.summary}
         </p>
         {flagged ? <p className="label">{TOPIC_PAGE.notInOverview}</p> : null}
