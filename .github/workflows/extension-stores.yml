@@ -14,7 +14,7 @@ defaults:
 
 jobs:
   newest:
-    if: github.repository == 'KyaniteHQ/threadsift'
+    if: github.repository == 'KyaniteHQ/threadsift' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-26.04
     timeout-minutes: 5
     outputs:
@@ -23,8 +23,8 @@ jobs:
       - id: newest
         name: Find the newest stable release tag
         run: |
-          tag=$(git ls-remote --tags --refs "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" 'v*' |
-            cut -f2 | sed 's|^refs/tags/||' | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V | tail -n 1 || true)
+          refs=$(git ls-remote --tags --refs "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY" 'v*')
+          tag=$(cut -f2 <<< "$refs" | sed 's|^refs/tags/||' | { grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' || true; } | sort -V | tail -n 1)
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "Newest stable release tag: ${tag:-none, so no store holds a release of this workflow yet}" >> "$GITHUB_STEP_SUMMARY"
 

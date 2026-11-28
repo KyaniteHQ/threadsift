@@ -58,7 +58,9 @@ jobs:
         with:
           name: extension-files
           path: extension/.output/*.zip
+          include-hidden-files: true
           if-no-files-found: error
+          overwrite: true
           retention-days: 7
 
   build:
@@ -234,13 +236,13 @@ jobs:
           NOTES_START_TAG: ${{ steps.plan.outputs.notes_start_tag }}
         run: |
           read -r -a names <<< "$RELEASE_FILES"
-          expected=$(printf '%s\n' "${names[@]}" | sed '/^$/d' | sort)
+          expected=$(printf '%s\n' "${names[@]}" | sort)
           uploaded() {
             gh release view "$TAG" --json assets --jq '.assets[] | select(.state == "uploaded") | .name' | sort
           }
           mkdir -p "$RUNNER_TEMP/release-files"
           [ "$(find "$RUNNER_TEMP/release-files" -mindepth 1 -maxdepth 1 -printf '%f\n' | sort)" = "$expected" ] || {
-            echo "The release files folder does not hold exactly the files the plan names: ${RELEASE_FILES:-none}" >&2
+            echo "The release files folder does not hold exactly the files the plan names: $RELEASE_FILES" >&2
             exit 1
           }
           files=()
@@ -250,7 +252,7 @@ jobs:
           if draft=$(gh release view "$TAG" --json isDraft --jq .isDraft 2> "$RUNNER_TEMP/release-view.err"); then
             if [ "$draft" = false ]; then
               [ "$(uploaded)" = "$expected" ] || {
-                echo "The published GitHub Release $TAG does not carry exactly the files the plan names: ${RELEASE_FILES:-none}" >&2
+                echo "The published GitHub Release $TAG does not carry exactly the files the plan names: $RELEASE_FILES" >&2
                 exit 1
               }
               echo "The GitHub Release $TAG is already published with the files the plan names"
@@ -265,7 +267,7 @@ jobs:
           [ -z "$NOTES_START_TAG" ] || options+=(--notes-start-tag "$NOTES_START_TAG")
           gh release create "$TAG" "${options[@]}" "${files[@]}"
           [ "$(uploaded)" = "$expected" ] || {
-            echo "The draft of $TAG does not list every file the plan names as uploaded, so it stays a draft: ${RELEASE_FILES:-none}" >&2
+            echo "The draft of $TAG does not list every file the plan names as uploaded, so it stays a draft: $RELEASE_FILES" >&2
             exit 1
           }
           gh release edit "$TAG" --draft=false --latest="$MOVE_RELEASE"
@@ -274,7 +276,8 @@ jobs:
     needs: [extension, publish]
     if: >-
       !cancelled() && github.repository == 'KyaniteHQ/threadsift' && needs.extension.result == 'success' &&
-      (github.event_name == 'workflow_dispatch' || needs.publish.outputs.submit_stores == 'true')
+      ((github.event_name == 'push' && needs.publish.result == 'success' && needs.publish.outputs.submit_stores == 'true') ||
+      (github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main'))
     runs-on: ubuntu-26.04
     timeout-minutes: 20
     environment: extension-stores
