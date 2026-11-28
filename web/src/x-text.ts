@@ -25,6 +25,10 @@ export const X_TEXT = {
   noteSearch:
     "The grok CLI can also read public web pages through xAI’s search. Sign in with a Grok account used only for this instance.",
   noteWorker: "On Cloudflare, pasted X links stay link-only unless a Grok Bot is set up.",
+  noteWorkerWithApi:
+    "On Cloudflare, pasted X links are read by the Grok Bot when one is set up, otherwise by the X API with the saved token.",
+  autoWithApi:
+    "Auto uses the Grok Bot only when its address is saved, Threadsift allows that address, and its saved key can be opened. Otherwise it uses the grok CLI if it’s installed. When neither can be used, Auto uses the X API with the saved token, which can spend X API credit. With none available, the link stays link-only.",
   loadFailed: "Couldn’t load these settings. Reload the page.",
   installCommand:
     "podman exec -it -e HOME=/data/grok -e GROK_BIN_DIR=/data/grok/bin <container> bash -c 'curl -fsSL https://x.ai/cli/install.sh | bash'",
@@ -40,13 +44,13 @@ export const READER_LABELS = {
 } as const satisfies Readonly<Record<XReaderChoice, string>>;
 
 export const READER_HELP = {
-  auto: "Auto uses the Grok Bot only when its address is saved, Threadsift allows that address, and its saved key can be opened. Otherwise it uses the grok CLI if it’s installed. If neither can be used and a token is saved, it uses the X API, which spends your X API credit. With none available, the link stays link-only.",
+  auto: "Auto uses the Grok Bot only when its address is saved, Threadsift allows that address, and its saved key can be opened. Otherwise it uses the grok CLI if it’s installed. With neither, the link stays link-only.",
   "grok-bot":
     "Only the Grok Bot reads X links. If it can’t be used, the link stays link-only and the grok CLI is never tried.",
   "grok-cli":
     "Only the grok CLI reads X links. If it can’t be used, the link stays link-only and the Grok Bot is never tried.",
   "x-api":
-    "Only the X API reads X links, and each read spends your X API credit. If it can’t be used, the link stays link-only and the other readers are never tried.",
+    "Only the X API reads X links. A read can spend X API credit. If the X API can’t be used, the link stays link-only and the other readers are never tried.",
 } as const satisfies Readonly<Record<XReaderChoice, string>>;
 
 export const BOT_STATES = {
@@ -98,11 +102,11 @@ export const X_NOTICES: Readonly<Record<XNoticeKey, string>> = {
   "cli-failed":
     "Threadsift didn’t get a usable answer from the grok CLI, so this post couldn’t be read. Any earlier copy was kept. Try pasting the link again.",
   "api-not-set-up":
-    "No X API Bearer token is saved, so this post couldn’t be read. Because X API is chosen, the other readers weren’t tried. Any earlier copy was kept. Save a token or change the reader in Settings, X posts, then paste the link again.",
+    "Couldn’t read this post because X API is the chosen reader and no Bearer token is saved. The other readers weren’t tried. Any earlier copy was kept. Save a token with PUT /api/settings/x-api or change the reader in Settings, X posts. Then paste the link again.",
   "api-key-unopened":
-    "The saved X API Bearer token couldn’t be opened, so this post couldn’t be read. Any earlier copy was kept. Replace the token or change the reader in Settings, X posts, then paste the link again.",
+    "Couldn’t open the saved X API Bearer token because the instance’s secret key changed or is missing. This post wasn’t read. Any earlier copy was kept. Save the token again with PUT /api/settings/x-api or change the reader in Settings, X posts. Then paste the link again.",
   "api-key-rejected":
-    "X rejected the saved Bearer token, so this post couldn’t be read. Any earlier copy was kept. Replace the token in Settings, X posts, then paste the link again.",
+    "X rejected the saved Bearer token, so this post couldn’t be read. Any earlier copy was kept. Save a working token with PUT /api/settings/x-api, then paste the link again.",
   "api-not-enrolled":
     "X says your developer app isn’t in the pay-per-use package, so this post couldn’t be read. Any earlier copy was kept. Move the app to pay-per-use in X’s developer console, then paste the link again.",
   "api-ip-blocked":

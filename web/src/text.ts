@@ -112,8 +112,9 @@ export const WAITING = {
   },
   "x-api-budget": {
     title: "Waiting for the next UTC day…",
-    until: "Today’s X API spend limit is used up. Threadsift will try again {when}.",
-    due: "Today’s X API spend limit is used up. Threadsift will try again.",
+    until:
+      "The amount left under today’s X API spend limits can’t cover the next request to X. Threadsift will try again {when}.",
+    due: "The amount left under today’s X API spend limits can’t cover the next request to X. Threadsift will try again.",
   },
   "x-api-rate": {
     title: "Waiting for X…",

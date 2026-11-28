@@ -17,7 +17,7 @@ import type { XFetcher } from "../../../core/kernel/x-fetcher-port.ts";
 import { grokBotConnection } from "../../ai/core/grok-bot-ready.ts";
 import { xApiTokenState } from "./x-api-token.ts";
 
-type ChoicePorts = Pick<Ports, "db" | "xFetcher" | "ai">;
+type ChoicePorts = Pick<Ports, "db">;
 
 type SettingsPorts = Pick<Ports, "db" | "secrets" | "xFetcher" | "ai">;
 
@@ -57,9 +57,7 @@ export async function chosenXReader(ports: Readonly<ChoicePorts>): Promise<XRead
     .from(xSettings)
     .where(eq(xSettings.id, 1));
 
-  const saved = row?.reader ?? "auto";
-
-  return offeredReaders(ports).includes(saved) ? saved : "auto";
+  return row?.reader ?? "auto";
 }
 
 async function saveXReader(
