@@ -25,6 +25,10 @@ export const X_TEXT = {
   noteSearch:
     "The grok CLI can also read public web pages through xAI’s search. Sign in with a Grok account used only for this instance.",
   noteWorker: "On Cloudflare, pasted X links stay link-only unless a Grok Bot is set up.",
+  noteWorkerCli:
+    "On Cloudflare, pasted X links stay link-only because there is no grok CLI. Choose another reader.",
+  noteWorkerApi:
+    "On Cloudflare, only the X API reads pasted X links, using the saved token. The Grok Bot is never tried.",
   noteWorkerWithApi:
     "On Cloudflare, pasted X links are read by the Grok Bot when one is set up, otherwise by the X API with the saved token.",
   autoWithApi:

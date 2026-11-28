@@ -30,7 +30,7 @@ export const GITHUB_TEXT = {
   removing: "Removing token…",
   removed: "Token removed",
   removeNothing: "No token saved",
-  invalidToken: `Enter a token up to ${groupedNumber(SECRET_INPUT_MAX)} characters long, with no spaces or line breaks.`,
+  invalidToken: `Enter a token of at most ${groupedNumber(SECRET_INPUT_MAX)} characters, using letters, digits and punctuation only. Spaces, line breaks, and accented or other non-ASCII characters aren’t allowed.`,
   notConfigured: "Save a token first.",
   wrongToken: "GitHub rejected the token. Check it and save it again.",
   unreachable: "Couldn’t reach GitHub. Check the connection and try again.",

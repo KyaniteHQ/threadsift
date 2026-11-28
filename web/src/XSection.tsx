@@ -110,10 +110,26 @@ function ReaderChoice({
   );
 }
 
-function CliRows({ view }: Readonly<{ view: XSettingsView }>) {
-  if (view.state === "worker") {
-    return <p>{view.api === "saved" ? X_TEXT.noteWorkerWithApi : X_TEXT.noteWorker}</p>;
+function workerNote(view: Readonly<XSettingsView>): string {
+  switch (view.reader) {
+    case "grok-cli":
+      return X_TEXT.noteWorkerCli;
+    case "x-api":
+      return X_TEXT.noteWorkerApi;
+    case "auto":
+      return view.api === "saved" ? X_TEXT.noteWorkerWithApi : X_TEXT.noteWorker;
+    case "grok-bot":
+      return X_TEXT.noteWorker;
+    default: {
+      const exhaustive: never = view.reader;
+
+      return exhaustive;
+    }
   }
+}
+
+function CliRows({ view }: Readonly<{ view: XSettingsView }>) {
+  if (view.state === "worker") return <p>{workerNote(view)}</p>;
 
   return (
     <>
