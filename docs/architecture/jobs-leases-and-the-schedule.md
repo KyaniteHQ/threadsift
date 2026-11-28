@@ -75,9 +75,15 @@ A handler that must wait returns a deferred outcome (`DeferredOutcome`): an abso
 - `queueLater` sets the job `queued` with `next_attempt_at` at that time and stores `jobs.wait_reason`, in the guarded batch that checks the claim. The due time and the Item-facing reason therefore commit together or not at all.
 - A deferred outcome can also carry `writes`, extra statements that commit in the same guarded batch.
 - The queue message is only a wake-up. `claim` takes a queued row only when `next_attempt_at <= now`, so an early or duplicate delivery claims nothing, and a restart keeps the stored time.
-- `waitingFor` is the one definition of a waiting job (`queued` with a wait reason). The Item's wait view, the Reddit turn queue and the switch away from the Grok Bot Provider build on it, and `wokenJobs` makes the matching jobs due. `wakeWaitingFetches` runs the writes that end a wait together with that wake in one batch and then queues every due `fetch` job that waits for that reason.
+- `waitingFor` is the one definition of a waiting job (`queued` with a wait reason). The Item's wait view, the Reddit turn queue, the switch away from the Grok Bot Provider and `wokenBotWaits` build on it, and `wokenJobs` makes the matching jobs due. `wakeWaitingFetches` runs the writes that end a wait together with that wake in one batch and then queues every due `fetch` job that waits for that reason.
 - The Worker clamps the message delay to 86,400 seconds, the Queues maximum ([JavaScript APIs](https://developers.cloudflare.com/queues/configuration/javascript-apis/): "Must be an integer between 0 and 86400"). The sweep delivers a row that is due later than that.
 - A job that waits for the Grok Bot's answer defers the same way, with the reason `grok-bot`, until the task's deadline. The result route makes it due at once when the answer arrives ([AI tasks and Providers](ai-tasks-and-providers.md), Grok Bot). The fetch job of an X link is such a job, and a full in-flight cap defers it 60 seconds with the same reason.
+- A write that moves the input of a job whose sent task has no answer yet makes that job due in the same batch (`wokenBotWaits`). It changes only a job that still waits, so an answered job or a job that is already due keeps its time. New content for an Item wakes that Item's `digest` job.
+- These writes wake every such job of the kinds that read more than one Item (every kind but `fetch`, `digest` and `x_verify`), because their inputs span the library: a stored Digest, a delete that removed an Item, the unit of a Tag or Topic merge that retires the merged-away Tag or Topic, and a stored Topic page. A merge wakes only at that last unit, because every merge reaches it ([Proposals](../proposals.md), Who runs the units) and a job woken by an earlier unit would send its task again on a half-merged library.
+- The deferral that sends a job to its task's deadline is due at once instead when the kind's `current` no longer holds or reads NULL. A wake cannot reach a job that still holds its claim, so this covers an input that moved while the job sent its task.
+- A woken job runs at the next claim of due rows. A job of the Item whose own job moved the input runs when that job queues its Item's jobs. Every other woken job runs at the container loop's next check for due rows, every 5 s, or at the Worker's sweep, every minute ([Jobs](#jobs)). A delete does not queue the jobs it wakes, and a merge queues only the jobs it opens.
+- The claim runs the kind's `current`. A stale task fails `stale` and the job runs on the current input. A task that is still current waits again, with no attempt spent and no second task, so a wake by a write that moved nothing the job reads costs one claim of each waiting job, and at most 10 jobs wait (`GROK_BOT_IN_FLIGHT`).
+- A caller-sent Digest that replaces a waiting job's input publishes without that claim check, and its batch fails the job's sent task `stale`.
 
 ## One Item status rule
 
@@ -95,6 +101,7 @@ One module owns every write that closes a job row. `closeJob` closes the claimed
 
 - The `closing` of the Digest declaration (`owedDigest`) follows it in that batch. It opens the Digest that a pending caller-sent Digest still owes, when that Digest differs from the one the job claimed.
 - `closeRunJobs` closes the open jobs of one Export or Restore by address.
+- `closeVerifyJob` closes the open `x_verify` job of an Item in the batch of `queuedVerification`, which then opens a new one, so a newer X answer never shares a job, or its file keys, with the check it replaces.
 - A save that supplies content closes the Item's open `fetch` and `x_verify` jobs and deletes its `x_verifications` row through `closeItemJobs`. It takes no `holding` guard, so a running fetch loses its claim and writes nothing.
 - Give-up and exhaustion use the same path, so the paste card's Added state and the New marker wait until both jobs end.
 - A Digest failure never discards fetched content or an earlier Digest.
@@ -140,7 +147,7 @@ Every ending that stores the failure marker from an attempt's own read of the It
 
 ### Attempts belong to a generation
 
-Every claim of a Digest job stores the Item's generation in `jobs.attempt_generation`. A claim that finds a different stored generation starts the count at 0, so content that moved since the last attempt gets its own 3 attempts. Content moves after a refresh, a supplied thread or a crashed claim. A job that runs out of attempts closes through `exhaust`, whose batch commits only while the Item still has that generation (the Digest declaration's `input`). When the Item moved in between, the job goes back to `queued` with its attempts, and the next claim starts the count again. The failure marker is never written for content that had no attempt.
+Every claim of a Digest job stores the Item's generation in `jobs.attempt_generation`. A claim that finds a different stored generation starts the count at 0, so content that moved since the last attempt gets its own 3 attempts. Content moves after a refresh, a supplied thread or a crashed claim. A job that runs out of attempts closes through `exhaust`, whose batch commits only while the Item still has that generation (the Digest declaration's `input`). When the Item moved in between, the job goes back to `queued` with its attempts, and the next claim starts the count again. The failure marker is never written for content that had no attempt. An `x_verify` job declares `x_verifications.revision` as its input, but no claim of one finds a different revision: a newer X answer for the Item (`queuedVerification`) closes the open `x_verify` job and opens another in the same batch. The count of a job that writes files therefore never goes back, and its file keys never repeat ([Files](files.md)).
 
 ### A caller-sent Digest that arrives mid-attempt
 
@@ -237,7 +244,7 @@ The two weekly checks that call no model (lost Highlights, Topics whose overview
 
 One tick claims each due task in `scheduled_runs` and enqueues jobs. Cloudflare calls the tick from a Cron Trigger every minute, and the container calls it from a timer every 60 seconds. The tick calls no model, because a Cron Trigger under an hourly interval gets 30 seconds of CPU ([Workers limits](https://developers.cloudflare.com/workers/platform/limits/)).
 
-- Spacing. The tick sweeps at most once in 30 seconds (`TICK_SPACING_MS`), claimed in `scheduled_runs` so two ticks do not both sweep. A stored time more than one spacing ahead of the clock counts as old, because the clock moved back, so a step back of an hour on the container's host does not stop the sweeps for that hour.
+- Spacing. The tick sweeps at most once in 30 seconds (`TICK_SPACING_MS`), claimed in `scheduled_runs` so two ticks do not both sweep. A stored time more than one spacing ahead of the clock counts as old, because the clock moved back, so a step back of an hour on the container's host does not stop the sweeps for that hour. The Restore parts rule reads the newest `sweep` claim as its clock ([Export, backup and restore](export-backup-and-restore.md), Cancel and resume).
 - Vault. After the sweep, the tick runs the Vault mirror, also when the sweep failed. A failure inside the mirror is logged as `vault-mirror-failed`, and one that escapes it as `vault-tick-failed`. Neither fails the tick.
 - Limit. The sweep enqueues at most 100 due rows (`SWEEP_LIMIT`) in one `sendBatch` call, which takes up to 100 messages and one `delaySeconds` for the batch ([Queues docs, JavaScript APIs](https://developers.cloudflare.com/queues/configuration/javascript-apis/)).
 - Failures. A stage that throws is logged as `sweep-stage-failed` with its name, and the later stages still run. The sweep then throws the first error. The tick rethrows it after the Vault mirror ran, so the Worker's scheduled handler rejects and the container's job loop logs `job-loop-failed`.
@@ -255,7 +262,7 @@ The sweep runs its stages one after another. The re-queue of due jobs comes firs
 | `restores` | cleans Restore parts |
 | `files` | runs one page of the file cleanup (`cleanFiles`; [Files](files.md)) |
 
-While a Restore runs or has failed with `gave-up`, only `enqueue` and `restores` run.
+While a Restore holds the library (`HOLDS_LIBRARY`; [Export, backup and restore](export-backup-and-restore.md), While it runs), only `enqueue`, `exports` and `restores` run, because they write no library record.
 
 ## Container restart
 

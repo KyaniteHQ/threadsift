@@ -2,6 +2,7 @@ import { eq } from "drizzle-orm";
 
 import type { RedditSettings } from "../../../core/contract/reddit-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { type Closed, heldBatch, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { redditSettings } from "../../../core/kernel/schema.ts";
 
 type SettingsPorts = Pick<Ports, "db">;
@@ -19,14 +20,18 @@ export async function readRedditSettings(ports: Readonly<SettingsPorts>): Promis
   return { archiveFill: await archiveFillIsOn(ports) };
 }
 
-export async function saveRedditSettings(
+export function saveRedditSettings(
   { db }: Readonly<SettingsPorts>,
   { archiveFill }: Readonly<RedditSettings>,
-): Promise<RedditSettings> {
-  await db
-    .insert(redditSettings)
-    .values({ id: 1, archiveFill })
-    .onConflictDoUpdate({ target: redditSettings.id, set: { archiveFill } });
+): Promise<RedditSettings | Closed> {
+  return whileOpen(async () => {
+    await heldBatch(db, [
+      db
+        .insert(redditSettings)
+        .values({ id: 1, archiveFill })
+        .onConflictDoUpdate({ target: redditSettings.id, set: { archiveFill } }),
+    ] as const);
 
-  return { archiveFill };
+    return { archiveFill };
+  });
 }

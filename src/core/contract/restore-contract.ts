@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { CLAIM_MARGIN_MS } from "./job-contract.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
 import { DAY_MS } from "./time-units.ts";
 import { WholeCount } from "./whole-count.ts";
@@ -21,6 +22,18 @@ export const RESTORE_PHASES = ["upload", ...RUNNING_RESTORE_PHASES] as const;
 
 export const RESTORING_CODE = "restoring";
 
+export const PASTE_RESTORING_REFUSAL = {
+  error:
+    "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.",
+  code: RESTORING_CODE,
+} as const;
+
+export const RESTORING_REFUSAL = {
+  error:
+    "The library is being restored and saves nothing new until the restore has finished. Reads and deletes work meanwhile.",
+  code: RESTORING_CODE,
+} as const;
+
 export type RunningPhase = (typeof COPY_RESTORE_PHASES)[number];
 
 export const RESTORE_MAX_BYTES = 50_000_000_000;
@@ -28,6 +41,8 @@ export const RESTORE_MAX_BYTES = 50_000_000_000;
 const RESTORE_MAX_PARTS = Math.ceil(RESTORE_MAX_BYTES / RESTORE_PART_BYTES);
 
 export const RESTORE_UNIT_DEADLINE_MS = 600_000;
+
+export const RESTORE_SETTLE_MS = RESTORE_UNIT_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 export const RESTORE_PARTS_KEEP_MS = DAY_MS;
 

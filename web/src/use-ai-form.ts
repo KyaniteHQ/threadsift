@@ -225,9 +225,9 @@ function useSave(
 }
 
 export function useAiForm(view: AiView, saved: (value: AiView) => void) {
-  const fields = useAiFields(view);
-  const { provider, baseUrl, model } = fields;
   const flow = useAiPhase();
+  const fields = useAiFields(view, flow.stayOnPage);
+  const { provider, baseUrl, model } = fields;
 
   const { verifyNow, verifyBlocked, verifyHint } = useVerify(view, flow);
   const { submit, saveBlocked } = useSave(view, fields, flow, saved);

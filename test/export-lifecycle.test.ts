@@ -5,7 +5,7 @@ import { ExportStatusSchema, StartedExportSchema } from "../src/core/contract/ex
 import { DAY_MS, MINUTE_MS } from "../src/core/contract/time-units.ts";
 import {
   type SavedLibrary,
-  downloadedZip,
+  downloadedManifest,
   firstLongText,
   readyExport,
   savedLibrary,
@@ -13,8 +13,8 @@ import {
 import { bytesOfKey, exportKeys, postTextKey, strayExportObject } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { loggedAttempts, untilRetried } from "./job-fixtures.ts";
+import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
 import { nextSweep, sweptWith } from "./weekly-claim-fixtures.ts";
-import { entriesOf, manifestOf } from "./zip-fixtures.ts";
 
 describe("one Export exists at a time and a stopped slice is retried, then given up", () => {
   let instance: Instance;
@@ -93,7 +93,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
     assert.notEqual(again.id, id);
     assert.equal(
-      manifestOf(await entriesOf(await downloadedZip(instance, again.id))).tables["items"]?.rows,
+      (await downloadedManifest(instance, again.id)).tables["items"]?.rows,
       library.ids.length,
     );
   });
@@ -156,6 +156,17 @@ describe("one Export exists at a time and a stopped slice is retried, then given
     assert.ok((await exportKeys(instance, ready.id)).length > 0);
 
     await sweptAfter("finished_at", ready.id, DAY_MS + 1);
+    assert.deepEqual(await status(), { state: "none" });
+    assert.deepEqual(await exportKeys(instance, ready.id), []);
+  });
+
+  it("removes a ready Export at the first sweep past its 24 hours while a Restore that gave up holds the library", async () => {
+    const ready = await readyExport(instance);
+
+    holdLibrary(instance, "failed", "gave-up");
+    await sweptAfter("finished_at", ready.id, DAY_MS + 1);
+    releaseLibrary(instance);
+
     assert.deepEqual(await status(), { state: "none" });
     assert.deepEqual(await exportKeys(instance, ready.id), []);
   });

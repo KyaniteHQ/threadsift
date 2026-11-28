@@ -112,7 +112,7 @@ describe("the parsers turn literal input into the values the library stores", ()
     );
   });
 
-  it("turns an Arctic Shift comment tree into the stored rows and drops what the archive saw deleted later", () => {
+  it("turns an Arctic Shift comment tree into the stored rows, with every id and parent id in lower case, and drops what the archive saw deleted later", () => {
     const post = {
       data: [
         {
@@ -148,7 +148,12 @@ describe("the parsers turn literal input into the values the library stores", ()
           { retrieved_2nd_on: 1_700_000_900 },
         ),
         archiveComment("c5", "t1_c0", "I keep two copies.", ""),
-        archiveComment("C7", "t3_abc123", "Check the restore.", ""),
+        archiveComment(
+          "C7",
+          "t3_abc123",
+          "Check the restore.",
+          archiveListing(archiveComment("c8", "t1_C7", "Restore it to a scratch copy first.", "")),
+        ),
         archiveComment("c6", "t1_C0", "I check both copies.", ""),
       ],
     };
@@ -179,7 +184,8 @@ describe("the parsers turn literal input into the values the library stores", ()
         ["c4", "c2", 2, false, null],
         ["c5", "c0", 1, true, "I keep two copies."],
         ["c6", "c0", 1, true, "I check both copies."],
-        ["C7", null, 0, true, "Check the restore."],
+        ["c7", null, 0, true, "Check the restore."],
+        ["c8", "c7", 1, true, "Restore it to a scratch copy first."],
       ],
     );
   });
