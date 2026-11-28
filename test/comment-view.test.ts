@@ -43,10 +43,10 @@ describe("the Reader shows the comments that pass the script's first step until 
     assert.deepEqual(row?.commentCount, { filter: "unfiltered", shown: 3, total: 6 });
   });
 
-  it("shows the Kept comments, the stub of a dropped parent once a Digest covers the thread", async () => {
+  it("shows the Kept comments, named in any letter case, the stub of a dropped parent once a Digest covers the thread", async () => {
     const id = await paste("kept1", {
       content: threadOf("kept1"),
-      digest: { ...DIGEST, keptComments: ["c3"] },
+      digest: { ...DIGEST, keptComments: ["T1_C3"] },
     });
 
     const row = await listed(id);
@@ -95,7 +95,7 @@ describe("the Reader shows the comments that pass the script's first step until 
     assert.equal((await listed(id))?.commentCount, null);
   });
 
-  it("lets the owner keep a Highlight on a comment the Reader shows, refuses one on a comment it does not show, and keeps the shown one after a Digest drops it", async () => {
+  it("lets the owner keep a Highlight on a comment the Reader shows, named in any letter case, refuses one on a comment it does not show, and keeps the shown one after a Digest drops it", async () => {
     const id = await paste("mark1", { content: threadOf("mark1") });
     const detail = await instance.detail(id);
     const path = `/api/items/${String(id)}/highlights`;
@@ -120,6 +120,15 @@ describe("the Reader shows the comments that pass the script's first step until 
     });
 
     assert.equal(prefixed.status, 400, prefixed.body);
+
+    const upper = await instance.send("POST", path, {
+      target: { kind: "comment", commentId: "C1" },
+      revision,
+      selector,
+    });
+
+    assert.equal(upper.status, 200, upper.body);
+    assert.equal(upper.body, shown.body);
 
     const hidden = await instance.send("POST", path, {
       target: { kind: "comment", commentId: "c5" },

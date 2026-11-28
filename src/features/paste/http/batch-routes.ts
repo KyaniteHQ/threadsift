@@ -1,10 +1,7 @@
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 
 import { BatchRequestSchema, BatchResponseSchema } from "../../../core/contract/batch-wire.ts";
-import {
-  ErrorResponseSchema,
-  UnavailableResponseSchema,
-} from "../../../core/contract/error-wire.ts";
+import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import {
   BATCH_LINKS_MAX,
   IMPORT_CURSOR_MAX,
@@ -19,6 +16,7 @@ import {
   budgetRefusal,
   jsonBody,
   jsonRequest,
+  restoringResponse,
 } from "../../../http/openapi.ts";
 import { refusing } from "../../../http/refusals.ts";
 import { callerOf, requirePasteScopes } from "../../../http/token-scopes.ts";
@@ -49,10 +47,7 @@ const batchRoute = createRoute({
       ErrorResponseSchema,
       `The error names the entry's index, as \`links.2.url\`. Nothing is saved and the cursor stays.`,
     ),
-    503: jsonBody(
-      UnavailableResponseSchema,
-      "While a restore holds the library (`code` is `restoring`), nothing is saved.",
-    ),
+    503: restoringResponse("nothing is saved and the cursor stays."),
   },
 });
 

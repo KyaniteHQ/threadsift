@@ -16,8 +16,9 @@ import {
   jsonBody,
   jsonRequest,
   noContent,
+  restoringResponse,
 } from "../../../http/openapi.ts";
-import { notFound } from "../../../http/refusals.ts";
+import { notFound, restoring } from "../../../http/refusals.ts";
 import { HighlightParamsSchema, IdParamSchema } from "../../../http/route-input.ts";
 import { createHighlight, removeHighlight } from "../core/highlights.ts";
 import { registerHighlightsPageRoute } from "./highlights-page-route.ts";
@@ -59,6 +60,7 @@ const createHighlightRoute = createRoute({
       ErrorResponseSchema,
       "`revision` is not the revision of the target any more, because a refresh or a new Digest changed the text. Nothing is saved. Read `GET /api/items/{id}`, take `highlights.revisions.post` (or `.comments` for a comment) and the text it shows, and select the passage again.",
     ),
+    503: restoringResponse("the Highlight is not saved."),
   },
 });
 
@@ -97,6 +99,8 @@ export function registerHighlightRoutes(app: OpenAPIHono, ports: Ports): void {
         return c.json({ highlight: created.highlight }, 200);
       case "created":
         return c.json({ highlight: created.highlight }, 201);
+      case "restoring":
+        return restoring(c);
       default: {
         const exhaustive: never = created;
 

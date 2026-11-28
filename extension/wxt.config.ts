@@ -3,14 +3,18 @@ import { basename, dirname } from "node:path";
 import type { Plugin } from "vite";
 import { defineConfig } from "wxt";
 
+import { GECKO_ID } from "./lib/gecko-id.ts";
 import { LOOPBACK_HOSTS } from "./lib/loopback-hosts.ts";
 import { TEXT } from "./lib/text.ts";
 
 const HOSTS = ["https://*/*", ...LOOPBACK_HOSTS.map((host) => `http://${host}/*`)];
 
 const GECKO = {
-  id: "{5d3f6c1e-8a47-4c2b-9e0d-3b7a41c9f2a6}",
-  data_collection_permissions: { required: ["websiteContent", "authenticationInfo"] },
+  id: GECKO_ID,
+  data_collection_permissions: {
+    required: ["websiteContent", "authenticationInfo"],
+    optional: ["browsingActivity"],
+  },
 };
 
 const PAGE_TITLES = new Map([
@@ -34,6 +38,7 @@ const pageTitles: Plugin = {
 };
 
 export default defineConfig({
+  zip: { zipSources: false },
   vite: () => ({ plugins: [pageTitles] }),
   manifest: ({ browser }) => {
     const manifest = {
