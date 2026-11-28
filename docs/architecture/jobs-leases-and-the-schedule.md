@@ -95,6 +95,7 @@ One module owns every write that closes a job row. `closeJob` closes the claimed
 
 - The `closing` of the Digest declaration (`owedDigest`) follows it in that batch. It opens the Digest that a pending caller-sent Digest still owes, when that Digest differs from the one the job claimed.
 - `closeRunJobs` closes the open jobs of one Export or Restore by address.
+- `closeVerifyJob` closes the open `x_verify` job of an Item in the batch of `queuedVerification`, which then opens a new one, so a newer X answer never shares a job, or its file keys, with the check it replaces.
 - A save that supplies content closes the Item's open `fetch` and `x_verify` jobs and deletes its `x_verifications` row through `closeItemJobs`. It takes no `holding` guard, so a running fetch loses its claim and writes nothing.
 - Give-up and exhaustion use the same path, so the paste card's Added state and the New marker wait until both jobs end.
 - A Digest failure never discards fetched content or an earlier Digest.
