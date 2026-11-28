@@ -30,7 +30,7 @@ function modeOf(look: Readonly<Look>): ReaderControls["mode"] {
 export interface ReaderState {
   readonly open: (id: number) => void;
   readonly close: () => void;
-  readonly moving: boolean;
+  readonly readerCard: number | null;
   readonly step: (direction: 1 | -1) => void;
   readonly toggleRead: ReaderControls["toggleRead"];
   readonly controls: ReaderControls;
@@ -103,7 +103,7 @@ export function useReaderControls({
   return {
     open: navigation.open,
     close: navigation.close,
-    moving: navigation.moving,
+    readerCard: navigation.readerCard,
     step: navigation.step,
     toggleRead,
     controls,

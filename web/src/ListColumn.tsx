@@ -41,7 +41,7 @@ function LibraryList({
         clearAll={view.clearAll}
         clearLabel={clearLabelOf(library.filters)}
         open={side.reader.open}
-        moving={side.reader.moving}
+        readerCard={side.reader.readerCard}
         toggleRead={side.reader.toggleRead}
         more={library.more}
       />

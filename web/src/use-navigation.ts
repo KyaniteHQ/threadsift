@@ -1,14 +1,19 @@
 import { useCallback, useMemo, useState } from "react";
 
-import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
-import { useMotionAllowed } from "./reader-motion.ts";
-import { type Route, onItem } from "./routing.ts";
+import type { Route } from "./routing.ts";
 import { useSharedArrival } from "./share-handoff.ts";
 import { useCardReturn } from "./use-card-return.ts";
-import { useLatest } from "./use-latest.ts";
 import { type LibraryDom, neighbour, useStep } from "./use-step.ts";
+
+function useReaderCard(openId: number | null) {
+  const [card, setCard] = useState(openId);
+
+  if (openId !== null && openId !== card) setCard(openId);
+
+  return [openId === null ? card : null, setCard] as const;
+}
 
 export function useNavigation({
   list,
@@ -23,27 +28,20 @@ export function useNavigation({
   dom: LibraryDom;
   covers: boolean;
 }>) {
-  const { openId, navigate, replace, leave } = route;
+  const { openId, openItem, leave } = route;
   const { appOf } = dom;
   const [titleFocus, focusTitleOf] = useState<number | null>(null);
-  const shown = useLatest(openId);
-  const motionAllowed = useMotionAllowed();
-  const moving = covers && motionAllowed;
+  const [readerCard, pickCard] = useReaderCard(openId);
 
   const open = useCallback(
     (id: number) => {
       focusTitleOf(null);
       attend({ id, focus: !covers });
-
-      if (onItem() && shown.current === null) replace(itemPath(id));
-      else navigate(itemPath(id));
+      pickCard(id);
+      openItem(id, "open");
     },
-    [attend, covers, navigate, replace, shown],
+    [attend, covers, openItem, pickCard],
   );
-
-  const close = useCallback(() => {
-    if (openId !== null) leave();
-  }, [leave, openId]);
 
   useSharedArrival(list.status === "ready", open);
 
@@ -55,5 +53,12 @@ export function useNavigation({
   const next = neighbour(list, openId, 1) !== null;
   const steps = useMemo(() => ({ previous, next }), [previous, next]);
 
-  return { open, close, step, titleFocus, steps, moving };
+  return {
+    open,
+    close: leave,
+    step,
+    titleFocus,
+    steps,
+    readerCard: covers ? readerCard : null,
+  };
 }

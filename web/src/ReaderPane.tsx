@@ -1,4 +1,4 @@
-import { useId, useRef } from "react";
+import { type ReactNode, useId, useRef } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { ArrivalsContext, useNewArrivals } from "./place-arrival.ts";
@@ -12,12 +12,25 @@ import { useHeldPanelState } from "./use-panel.ts";
 import type { ReaderControls } from "./use-reader-controls.ts";
 import type { Look } from "./use-root.ts";
 
+function CoveringItem({
+  id,
+  pane,
+  children,
+}: Readonly<{ id: number; pane: boolean; children: ReactNode }>) {
+  if (pane) return children;
+
+  return (
+    <SharedItem key={id} id={id}>
+      {children}
+    </SharedItem>
+  );
+}
+
 export function ReaderPane({
   item,
   controls,
   nav,
   look,
-  moving,
   tryAgain,
   announcement,
 }: Readonly<{
@@ -25,7 +38,6 @@ export function ReaderPane({
   controls: ReaderControls;
   nav: SheetNav;
   look: Look;
-  moving: boolean;
   tryAgain: (item: Item) => void;
   announcement: AnnouncementState;
 }>) {
@@ -54,7 +66,9 @@ export function ReaderPane({
   return (
     <ArrivalsContext value={arrivals}>
       <Placed place={look.reader} titleId={titleId} nav={nav} announcement={announcement}>
-        {moving ? <SharedItem id={item.id}>{reader}</SharedItem> : reader}
+        <CoveringItem id={item.id} pane={look.reader === "pane"}>
+          {reader}
+        </CoveringItem>
       </Placed>
     </ArrivalsContext>
   );

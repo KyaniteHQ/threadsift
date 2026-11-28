@@ -99,7 +99,7 @@ interface RowProps {
   readonly attended: () => void;
   readonly tryAgain: (item: Item) => void;
   readonly open: (id: number) => void;
-  readonly moving: boolean;
+  readonly readerCard: number | null;
   readonly toggleRead: (item: Item) => void;
 }
 
@@ -124,11 +124,7 @@ function ListedRow({
     />
   );
 
-  return shared.moving && item.id !== shared.openId ? (
-    <SharedItem id={item.id}>{row}</SharedItem>
-  ) : (
-    row
-  );
+  return item.id === shared.readerCard ? <SharedItem id={item.id}>{row}</SharedItem> : row;
 }
 
 function ItemList({

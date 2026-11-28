@@ -76,6 +76,7 @@ Threadsift has two aims:
 ## Settings, look and layout
 
 - **Layout and reader.** Both are app settings, saved per browser. "Layout: List or Grid": List is three panes (filters, item list, reader); Grid is a card grid. "Open items as: Page or Sheet" applies to Grid: Page grows the card into a full-page reader, Sheet opens a centred sheet over the dimmed grid. Under 760px wide, items always open full screen.
+- **Motion.** In Grid and under 760px, opening an Item grows its card into the reader, and closing it with Escape, Close or the browser's Back runs the reader back into the same card. j, k, Previous and Next keep the reader still. Under reduced motion nothing moves.
 - **Look settings.** Font (6 pairs), Text size (Small, Medium, Large), Text width (Narrow, Medium, Wide), Density (Compact, Comfortable, Roomy), Comment style (Indented lines, Cards, Rail), Accent (5 colours), Tag style (Chips, Text, Dots) and Card images (On, Off). Defaults: Schibsted Grotesk with Commit Mono, Medium text size, Medium width, Compact, Indented lines, Moss, Dots, images on.
 - **Reset look.** It resets only the Look settings, Style included. Layout, Open items as and Theme stay, and the panel says so in visible text.
 - **Card images.** Off hides the card picture only, never the reader's, and does not load the card pictures at all.
