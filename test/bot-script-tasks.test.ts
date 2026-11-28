@@ -90,7 +90,7 @@ describe("the script opens, answers and reports a task and prints one word for e
     );
   });
 
-  it("answers already-open and changes nothing for a second event of a task that is open, and keeps the first token for an event whose token the Instance refuses", async () => {
+  it("answers already-open and changes nothing for a second event with the credential of an open task, and keeps the open task's files for another credential that the Instance refuses", async () => {
     const task = await world.result();
     const foreign = await world.intake();
     const id = String(task.id);
@@ -100,12 +100,12 @@ describe("the script opens, answers and reports a task and prints one word for e
     const opened = world.folder.fileOf(task.id, "task.json");
 
     assert.equal(await world.opened(task, "related_pick"), "already-open");
-    assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "already-open");
+    assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "unauthorized");
     assert.equal(world.folder.fileOf(task.id, "task.json"), opened);
     assert.equal(world.folder.fileOf(task.id, "token"), task.token);
 
     ageBy(join(world.folder.taskFolder(task.id), "task.json"), justBefore(HOUR));
-    assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "already-open");
+    assert.equal(await world.opened(task, "related_pick"), "already-open");
 
     ageBy(join(world.folder.taskFolder(task.id), "task.json"), justPast(HOUR));
     assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "unauthorized");

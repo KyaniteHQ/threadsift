@@ -321,7 +321,7 @@ PY
     echo already-done
     exit 0
   fi
-  if [[ -f "$folder/task.json" && ! -f "$folder/done" && -n "$(find "$folder/task.json" -maxdepth 0 -mmin -60)" ]]; then
+  if [[ -f "$folder/task.json" && ! -f "$folder/done" && -f "$folder/token" && "$(< "$folder/token")" == "$token" && -n "$(find "$folder/task.json" -maxdepth 0 -mmin -60)" ]]; then
     echo already-open
     exit 0
   fi
