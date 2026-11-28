@@ -79,9 +79,11 @@ while IFS= read -r other; do
   fi
 done < <(grep -E "$stable_pattern" <<< "$tags" || true)
 
+extension=$(jq --exit-status --raw-output .name "$root/extension/package.json") ||
+  fail "extension/package.json names no package; the Extension files of the release are named after it"
 image_tags=$version
 move_release=false
-release_files=()
+release_files=("$extension-$version-chrome.zip" "$extension-$version-firefox.zip" "$extension-$version-sources.zip")
 decisions=()
 moving() {
   local name=$1 newer=$2
@@ -111,6 +113,16 @@ elif [[ -n $newer_any ]]; then
 else
   decisions+=("move     branch release to the commit of $tag")
   move_release=true
+fi
+
+submit_stores=false
+if [[ $candidate == true ]]; then
+  decisions+=("stay     Extension stores: a release candidate never reaches a store")
+elif [[ -n $newer_any ]]; then
+  decisions+=("stay     Extension stores: $newer_any is newer, and a store refuses a version below the one it holds")
+else
+  decisions+=("submit   the Extension $version to the Chrome Web Store and Firefox Add-ons")
+  submit_stores=true
 fi
 
 if [[ $candidate == true ]]; then
@@ -156,17 +168,14 @@ since=
 [[ $candidate == true || -z $previous ]] || since=", and the pull requests since $previous"
 printf '%s\n' "${decisions[@]}"
 echo "create   $kind \"$title\"$marks, with the notes of \"$section\" in $(basename "$changelog")$since"
-if ((${#release_files[@]} == 0)); then
-  echo "attach   no file"
-else
-  echo "attach   ${release_files[*]}"
-fi
+echo "attach   ${release_files[*]}"
 
 if [[ -n $outputs ]]; then
   {
     echo "version=$version"
     echo "image_tags=$image_tags"
     echo "move_release=$move_release"
+    echo "submit_stores=$submit_stores"
     echo "prerelease=$candidate"
     echo "release_files=${release_files[*]}"
     echo "title=$title"

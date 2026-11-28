@@ -14,12 +14,11 @@ import {
 import { publish, type ReleasePlan } from "./release-publish.ts";
 import {
   APP,
-  COMPARED_FILES,
   FIRST_STABLE,
-  RELEASE_FILES,
   ROOT,
   ReleaseError,
   TAG_PREFIX,
+  VERSION_FILES,
   compare,
   format,
   newest,
@@ -105,7 +104,7 @@ function versionOfTag(tag: string): Version {
 }
 
 function versionEdits(read: (path: string) => string, version: Version): ReleasePlan["edits"] {
-  return RELEASE_FILES.map((file) => {
+  return VERSION_FILES.map((file) => {
     const before = read(file.path);
     return {
       path: file.path,
@@ -167,7 +166,7 @@ function check(): void {
   }
   const app = APP.read(read(APP.path));
   process.stdout.write(
-    `versions agree at ${format(app)}: ${COMPARED_FILES.map((file) => file.path).join(", ")}\n`,
+    `versions agree at ${format(app)}: ${VERSION_FILES.map((file) => file.path).join(", ")}\n`,
   );
   if (app.patch === 0) {
     return;
