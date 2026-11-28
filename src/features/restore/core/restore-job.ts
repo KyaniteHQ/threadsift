@@ -10,10 +10,11 @@ import { partSource } from "./restore-source.ts";
 import { restoreById } from "./restore-state.ts";
 
 async function attemptUnit(ports: JobPorts, job: Readonly<ClaimedRestore>): Promise<JobOutcome> {
+  const deadline = Date.now() + RESTORE_UNIT_DEADLINE_MS;
   const run = await unownedRun("restore", job.address, (id) => restoreById(ports.db, id));
 
   return run?.state === "running"
-    ? phaseUnit(ports, run, partSource(ports.files, run))
+    ? phaseUnit(ports, run, partSource(ports.files, run), deadline)
     : { writes: [] };
 }
 
