@@ -57,7 +57,7 @@ export function OwnerMenuBody({
   follow,
 }: Readonly<{ shell: Shell; host: string; withPages: boolean; follow: () => void }>) {
   return (
-    <div className="st-body om-body">
+    <div className="pnl-body om-body">
       {withPages ? <PrimaryNav place={shell.place} className="om-nav" onFollow={follow} /> : null}
       <p className="om-who">{signedInLine(host)}</p>
       <ul role="list" className="om-list">

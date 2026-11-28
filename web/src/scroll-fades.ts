@@ -13,18 +13,20 @@ function sideways(scroller: HTMLElement) {
 }
 
 function makeFocusable(scroller: HTMLElement, wide: boolean): void {
-  const label = scroller.dataset["label"];
+  const { label, labelledby: labelledBy } = scroller.dataset;
+  const naming = labelledBy === undefined ? "aria-label" : "aria-labelledby";
+  const name = labelledBy ?? label;
 
-  if (label === undefined) return;
+  if (name === undefined) return;
 
   if (wide) {
     scroller.tabIndex = 0;
     scroller.setAttribute("role", "region");
-    scroller.setAttribute("aria-label", label);
+    scroller.setAttribute(naming, name);
   } else {
     scroller.removeAttribute("tabindex");
     scroller.removeAttribute("role");
-    scroller.removeAttribute("aria-label");
+    scroller.removeAttribute(naming);
   }
 }
 

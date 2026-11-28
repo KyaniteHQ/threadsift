@@ -1,7 +1,7 @@
 import { type Locator, type Page, expect, test } from "@playwright/test";
 
 import { ADD_LABEL, CARD_TITLES, PASTE_LABEL } from "../web/src/text.ts";
-import { setUp, signOutAndIn } from "./access-flow.ts";
+import { instanceMenuFlow, setUp, signOutAndIn } from "./access-flow.ts";
 import { expectAnswerHeaders, watchContext } from "./document-checks.ts";
 import { importList, importListAgain } from "./import-flow.ts";
 import { type TopicCase, openIndex, openTopicPage, phoneRailTarget } from "./index-flow.ts";
@@ -111,7 +111,7 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
   await test.step("save an X thread and read its Kept replies", () => readXThread(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
     readSavedPage(page));
-  await test.step("import a list of three links from the settings panel and find its Items", () =>
+  await test.step("import a list of three links from the Instance menu and find its Items", () =>
     importList(page));
   await test.step("paste the same list after a reload and be told it was fully imported", () =>
     importListAgain(page));
@@ -119,12 +119,14 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     openTopicPage(page, DOTTED_TOPIC, ARTICLE_TEXT));
   await test.step("open a Topic made only of dots, which needs the tilde address", () =>
     openTopicPage(page, DOTS_ONLY_TOPIC, ARTICLE_TEXT));
-  await test.step("follow the settings panel's Index link, see a Topic with its count, open its page from the row, and visit the Index signed out", () =>
+  await test.step("follow the masthead's Index link, see a Topic with its count, open its page from the row, and visit the Index signed out", () =>
     openIndex(page, browser, INDEXED_TOPIC, ARTICLE_TEXT));
-  await test.step("follow the settings panel's Log link, see ingest above topic, open the Item and the Topic page, reload, see a phone-width line wrap with two links at least 44px across and tall, open the Log and Item at their trailing-slash addresses, and delete the Item", () =>
+  await test.step("follow the masthead's Log link, see ingest above topic, open the Item and the Topic page, reload, see a phone-width line wrap with two links at least 44px across and tall, open the Log and Item at their trailing-slash addresses, and delete the Item", () =>
     logFlow(page));
   await test.step("a failed Load more on the Log keeps its rows and Try again reads the next page", () =>
     failedLoadMore(page));
+  await test.step("the Instance menu names the host and its five entries, and Agent tokens and Backup open their Settings sections", () =>
+    instanceMenuFlow(page));
   await settingsSteps(page);
   await test.step("a Pasted Item with a Digest and no Provider shows no Related Items section", () =>
     readerWithoutProvider(page, {

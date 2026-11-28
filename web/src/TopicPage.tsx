@@ -46,10 +46,11 @@ function Body({
 export function TopicPage({ topicKey, route }: Readonly<{ topicKey: string; route: Route }>) {
   const { state, retry, loadMore, writeOverview } = useTopicPage(topicKey, route.replace);
   const name = state.status === "ready" ? state.topic.name : "";
+  const title = state.status === "missing" ? TOPIC_PAGE.notFoundHeading : name;
   usePageName(name);
 
   return (
-    <PageFrame title={name} ready={state.status !== "loading"} back="index">
+    <PageFrame title={title} ready={title !== ""} back="index">
       <main className="pg-col rl-col" aria-busy={state.status === "loading"}>
         <RetryNotice
           failed={state.status === "failed"}

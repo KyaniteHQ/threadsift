@@ -3,6 +3,7 @@ import { useCallback, useState } from "react";
 import type { XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Command } from "./Command.tsx";
+import { DescriptionRow } from "./DescriptionRow.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
 import { RadioChoice } from "./RadioChoice.tsx";
 import type { Loaded } from "./settings-load-types.ts";
@@ -98,24 +99,17 @@ function ReaderChoice({
   );
 }
 
-function State({ name, children }: Readonly<{ name: string; children: string }>) {
-  return (
-    <div>
-      <dt className="label">{name}</dt>
-      <dd>{children}</dd>
-    </div>
-  );
-}
-
 function CliStates({ view }: Readonly<{ view: XSettingsView }>) {
   if (view.state === "worker") return null;
 
   return (
     <>
-      <State name={X_TEXT.cliLabel}>{X_STATES[view.state]}</State>
-      {view.version === null ? null : <State name={X_TEXT.versionLabel}>{view.version}</State>}
+      <DescriptionRow name={X_TEXT.cliLabel} value={X_STATES[view.state]} />
+      {view.version === null ? null : (
+        <DescriptionRow name={X_TEXT.versionLabel} value={view.version} />
+      )}
       {view.refusedUpdate === null ? null : (
-        <State name={X_TEXT.refusedLabel}>{view.refusedUpdate.version}</State>
+        <DescriptionRow name={X_TEXT.refusedLabel} value={view.refusedUpdate.version} />
       )}
     </>
   );
@@ -124,7 +118,7 @@ function CliStates({ view }: Readonly<{ view: XSettingsView }>) {
 function States({ view }: Readonly<{ view: XSettingsView }>) {
   return (
     <dl className="st-states">
-      <State name={X_TEXT.botLabel}>{BOT_STATES[view.bot]}</State>
+      <DescriptionRow name={X_TEXT.botLabel} value={BOT_STATES[view.bot]} />
       <CliStates view={view} />
     </dl>
   );
@@ -167,13 +161,11 @@ export const X_SECTION: SectionSpec<XSettingsView> = {
 
 export function useXRefresh(initial: Loaded<XSettingsView>) {
   const [x, setX] = useState(initial);
-  const [version, setVersion] = useState(0);
 
   const refresh = useCallback(() => {
     void fetchXSettings().then(
       (view) => {
         setX({ kind: "ready", view });
-        setVersion((current) => current + 1);
 
         return null;
       },
@@ -181,5 +173,5 @@ export function useXRefresh(initial: Loaded<XSettingsView>) {
     );
   }, []);
 
-  return { x, version, refresh };
+  return { x, refresh };
 }

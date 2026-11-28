@@ -8,7 +8,7 @@ const HighlightCountsSchema = FilterCountsSchema.pick({
   topics: true,
   tags: true,
 }).extend({
-  total: z.number().int(),
+  total: z.number().int().min(0),
   highlights: z.number().int().min(0),
   notes: z.number().int().min(0),
 });

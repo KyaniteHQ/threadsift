@@ -1,11 +1,11 @@
 import { type MouseEvent, type RefObject, useCallback } from "react";
 
+import { EmptyState } from "./EmptyState.tsx";
 import { type Filters, isEmptyResult } from "./filters.ts";
 import { HighlightEntry } from "./HighlightEntry.tsx";
 import { HIGHLIGHTS_PAGE } from "./highlights-page-text.ts";
 import { ListHead, Notice, RESULTS_ID, Skeleton } from "./ListBody.tsx";
 import { LoadMore } from "./LoadMore.tsx";
-import { LibraryLink, PageEmpty } from "./PageEmpty.tsx";
 import { CLEAR_ALL } from "./text.ts";
 import { useFocusNewEntries } from "./use-highlights-focus.ts";
 import { type PageState, type Ready, canLoadMore } from "./use-highlights-page.ts";
@@ -110,9 +110,12 @@ export function HighlightsBody({
   if (state.status === "loading") return <Loading />;
 
   return state.counts.total === 0 ? (
-    <PageEmpty heading={HIGHLIGHTS_PAGE.emptyHeading} line={HIGHLIGHTS_PAGE.emptyLine}>
-      <LibraryLink />
-    </PageEmpty>
+    <EmptyState
+      place="page"
+      heading={HIGHLIGHTS_PAGE.emptyHeading}
+      line={HIGHLIGHTS_PAGE.emptyLine}
+      link="library"
+    />
   ) : (
     <Listed state={state} {...listed} />
   );

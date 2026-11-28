@@ -2,7 +2,8 @@ import { type MouseEvent, useRef } from "react";
 
 import { InternalLink } from "./InternalLink.tsx";
 import { useSidewaysFade } from "./scroll-fades.ts";
-import { SETTINGS_LINKS, type SettingsLink } from "./settings-links.ts";
+import type { SettingsLink } from "./settings-links.ts";
+import { SETTINGS_LINKS } from "./SettingsSections.tsx";
 import { SETTINGS_SECTIONS_LABEL } from "./text.ts";
 import { useSectionInView } from "./use-section-in-view.ts";
 

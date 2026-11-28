@@ -12,7 +12,6 @@ const CatalogSchema = z
         z
           .looseObject({
             slug: z.string(),
-            display_name: z.string().min(1).optional(),
             priority: z.number(),
             visibility: z.string(),
             supported_reasoning_levels: z.array(z.looseObject({ effort: z.string() })),
@@ -26,6 +25,8 @@ const CatalogSchema = z
       .readonly(),
   })
   .readonly();
+
+const LabelSchema = z.string().min(1).optional();
 
 const ToolSchema = z
   .looseObject({
@@ -86,12 +87,20 @@ export function toollessCatalog(stdout: string): ToollessCatalog | null {
   return {
     models: catalog.models
       .toSorted((a, b) => a.priority - b.priority)
-      .map(({ slug, display_name, visibility, supported_reasoning_levels }) => ({
-        visible: visibility === "list",
-        slug,
-        label: display_name,
-        levels: supported_reasoning_levels.map(({ effort }) => effort),
-      })),
+      .flatMap(({ slug, display_name: name, visibility, supported_reasoning_levels }) => {
+        const label = LabelSchema.safeParse(name);
+
+        return label.success
+          ? [
+              {
+                visible: visibility === "list",
+                slug,
+                label: label.data,
+                levels: supported_reasoning_levels.map(({ effort }) => effort),
+              },
+            ]
+          : [];
+      }),
     bytes: JSON.stringify({
       ...catalog,
       models: catalog.models.map((model) => Object.assign({}, model, TOOLLESS)),

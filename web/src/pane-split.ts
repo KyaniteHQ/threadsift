@@ -44,7 +44,7 @@ interface Mounted {
   readonly bounds: PaneBounds;
 }
 
-function keyedWidth(event: KeyboardEvent, now: number, range: Range, initial: number) {
+function keyedWidth(event: KeyboardEvent, now: number, range: Range) {
   const step = event.shiftKey ? SHIFT_STEP : STEP;
 
   switch (event.key) {
@@ -56,8 +56,6 @@ function keyedWidth(event: KeyboardEvent, now: number, range: Range, initial: nu
       return range.min;
     case "End":
       return range.max;
-    case "Enter":
-      return initial;
     default:
       return null;
   }
@@ -262,9 +260,16 @@ export class PaneSplits {
 
     if (this.#mounted === null || this.#drag.kind === "dragging" || modified) return;
 
+    if (event.key === "Enter") {
+      event.preventDefault();
+      this.#reset(pane);
+
+      return;
+    }
+
     const { bounds, lib } = this.#mounted;
     const range = rangeOf(pane, bounds, this.#room(lib), this.#drawn);
-    const width = keyedWidth(event, this.#drawn[pane], range, bounds[pane].initial);
+    const width = keyedWidth(event, this.#drawn[pane], range);
 
     if (width === null) return;
 
@@ -276,7 +281,8 @@ export class PaneSplits {
   #reset(pane: Pane): void {
     if (this.#mounted === null || this.#drag.kind === "dragging") return;
 
-    this.#choose(pane, this.#mounted.bounds[pane].initial);
+    this.#saved = { ...this.#saved, [pane]: this.#mounted.bounds[pane].initial };
+    this.#apply();
     saveWidths(this.#saved);
   }
 }

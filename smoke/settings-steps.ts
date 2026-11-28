@@ -26,9 +26,9 @@ function folderIndexArrived(): Promise<boolean> {
 }
 
 export async function settingsSteps(page: Page): Promise<void> {
-  await test.step("follow the settings panel's Highlights link, see a full page of entries with the Note first, load the oldest Highlight, open its Item at its mark in the Reader, fit a phone width, remove Highlights while the delete is held, keep focus where it moved to and move it to the next entry when it stayed, and see the page empty after the Item is deleted", () =>
+  await test.step("follow the masthead's Highlights link, see a full page of entries with the Note first, load the oldest Highlight, open its Item at its mark in the Reader, fit a phone width, remove Highlights while the delete is held, keep focus where it moved to and move it to the next entry when it stayed, and see the page empty after the Item is deleted", () =>
     highlightsFlow(page));
-  await test.step("follow the settings panel's Proposals link, see the no-Provider empty state with no Accept or Reject, reload on the address, and fit a phone width on the trailing-slash address", () =>
+  await test.step("follow the masthead's Proposals link, see the no-Provider empty state with no Accept or Reject, reload on the address, and fit a phone width on the trailing-slash address", () =>
     proposalsFlow(page));
   await test.step("save a Grok Bot address and key in Settings, see the key marked saved after a reload, see a new address ask for a key, fit a phone width, and remove it", () =>
     grokBotFlow(page));

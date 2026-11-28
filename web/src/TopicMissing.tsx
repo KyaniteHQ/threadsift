@@ -1,15 +1,11 @@
-import { INDEX_PAGE } from "./index-text.ts";
-import { InternalLink } from "./InternalLink.tsx";
-import { PageEmpty } from "./PageEmpty.tsx";
-import { INDEX_PATH } from "./routing.ts";
+import { PlaceLink } from "./PlaceLink.tsx";
 import { TOPIC_PAGE } from "./topic-text.ts";
 
 export function TopicMissing() {
   return (
-    <PageEmpty heading={TOPIC_PAGE.notFoundHeading} line={TOPIC_PAGE.notFoundLine}>
-      <InternalLink className="fl-link" to={INDEX_PATH}>
-        {INDEX_PAGE.masthead}
-      </InternalLink>
-    </PageEmpty>
+    <div className="pg-empty">
+      <p>{TOPIC_PAGE.notFoundLine}</p>
+      <PlaceLink to="index" />
+    </div>
   );
 }

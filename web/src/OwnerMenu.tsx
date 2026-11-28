@@ -47,14 +47,14 @@ function OwnerButton({
   );
 }
 
-export function OwnerMenu({ shell }: Readonly<{ shell: Shell }>) {
+export function OwnerMenu({ shell, menu }: Readonly<{ shell: Shell; menu: boolean }>) {
   const modal = shell.look.narrow;
   const host = window.location.host;
   const idBase = useId();
   const panelId = `${idBase}-menu`;
   const titleId = `${idBase}-title`;
   const { open, toggle, closeToOpener, dismiss, opener, panel } = usePanel(modal, usePanelState());
-  const label = modal ? MENU_LABEL : ownerMenuLabel(host);
+  const label = menu ? MENU_LABEL : ownerMenuLabel(host);
 
   return (
     <div className="pop-anchor">
@@ -64,7 +64,7 @@ export function OwnerMenu({ shell }: Readonly<{ shell: Shell }>) {
         controls={panelId}
         label={label}
         host={host}
-        compact={modal}
+        compact={menu}
         toggle={toggle}
       />
       {open ? (
@@ -75,7 +75,7 @@ export function OwnerMenu({ shell }: Readonly<{ shell: Shell }>) {
           aria-labelledby={titleId}
         >
           <PanelHead modal={modal} titleId={titleId} title={label} close={closeToOpener} />
-          <OwnerMenuBody shell={shell} host={host} withPages={modal} follow={dismiss} />
+          <OwnerMenuBody shell={shell} host={host} withPages={menu} follow={dismiss} />
         </dialog>
       ) : null}
     </div>

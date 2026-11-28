@@ -27,7 +27,7 @@ const StoredWidth = z.unknown().transform((value) => {
   return parsed.success ? parsed.data : null;
 });
 
-const StoredSchema = z.object({ rail: StoredWidth, list: StoredWidth });
+const StoredSchema = z.object({ rail: StoredWidth.optional(), list: StoredWidth.optional() });
 
 type Length = (token: string) => number | null;
 
@@ -49,7 +49,7 @@ export function readBounds(): PaneBounds | null {
   return rail === null || list === null || readerMin === null ? null : { rail, list, readerMin };
 }
 
-export function initialWidths(bounds: PaneBounds): Widths {
+function initialWidths(bounds: PaneBounds): Widths {
   return { rail: bounds.rail.initial, list: bounds.list.initial };
 }
 

@@ -1,28 +1,34 @@
-import { type ChangeEvent, type ReactNode, type RefObject, useEffect, useId, useRef } from "react";
+import {
+  type ChangeEvent,
+  type ReactNode,
+  type RefObject,
+  useCallback,
+  useEffect,
+  useRef,
+} from "react";
 
+import { FieldFeedback, joined, useRequiredCheck } from "./FormField.tsx";
 import { FIELD_TEXT } from "./text.ts";
 
-export function joined(...parts: readonly (string | undefined)[]): string | undefined {
-  const present = parts.filter((part) => part !== undefined);
-
-  return present.length === 0 ? undefined : present.join(" ");
-}
+type Check = ReturnType<typeof useRequiredCheck>;
 
 function SelectFrame({
-  id,
   label,
   mark,
   help,
   error,
+  check,
   children,
 }: Readonly<{
-  id: string;
   label: string;
   mark: boolean;
   help: string | undefined;
-  error: string | null;
+  error: string | null | undefined;
+  check: Check;
   children: ReactNode;
 }>) {
+  const { id, errorId, needId } = check;
+
   return (
     <div className="fld">
       <label className="label" htmlFor={id}>
@@ -35,9 +41,9 @@ function SelectFrame({
         </p>
       )}
       {children}
-      <p className="fld-err" id={`${id}-error`} role="alert">
-        {error}
-      </p>
+      {error === undefined ? null : (
+        <FieldFeedback error={error} errorId={errorId} needId={needId} />
+      )}
     </div>
   );
 }
@@ -56,6 +62,34 @@ function useFocusOnError(
   return select;
 }
 
+function useChecked(
+  check: Check["check"],
+  change: (event: ChangeEvent<HTMLSelectElement>) => void,
+  disabled: boolean,
+) {
+  return useCallback(
+    (event: ChangeEvent<HTMLSelectElement>) => {
+      check(event);
+      if (!disabled) change(event);
+    },
+    [check, change, disabled],
+  );
+}
+
+interface SelectProps {
+  readonly name: string;
+  readonly label: string;
+  readonly value: string;
+  readonly children: ReactNode;
+  readonly help?: string | undefined;
+  readonly disabled: boolean;
+  readonly change: (event: ChangeEvent<HTMLSelectElement>) => void;
+  readonly error?: string | null;
+  readonly required?: boolean;
+  readonly marked?: boolean;
+  readonly selectRef?: RefObject<HTMLSelectElement | null>;
+}
+
 export function AiSelect({
   name,
   label,
@@ -64,28 +98,22 @@ export function AiSelect({
   help,
   disabled,
   change,
-  error = null,
+  error,
   required = false,
   marked = false,
   selectRef,
-}: Readonly<{
-  name: string;
-  label: string;
-  value: string;
-  children: ReactNode;
-  help?: string | undefined;
-  disabled: boolean;
-  change: (event: ChangeEvent<HTMLSelectElement>) => void;
-  error?: string | null;
-  required?: boolean;
-  marked?: boolean;
-  selectRef?: RefObject<HTMLSelectElement | null>;
-}>) {
-  const id = useId();
-  const select = useFocusOnError(error, selectRef);
+}: SelectProps) {
+  const shown = error ?? null;
+  const select = useFocusOnError(shown, selectRef);
+  const check = useRequiredCheck(
+    { label, error: shown, rule: `select ${String(required)}` },
+    value,
+  );
+  const changed = useChecked(check.check, change, disabled);
+  const { id } = check;
 
   return (
-    <SelectFrame id={id} label={label} mark={marked && required} help={help} error={error}>
+    <SelectFrame label={label} mark={marked && required} help={help} error={error} check={check}>
       <select
         ref={select}
         id={id}
@@ -93,13 +121,16 @@ export function AiSelect({
         className="st-sel"
         value={value}
         required={required}
-        aria-invalid={error !== null}
+        aria-invalid={check.invalid || undefined}
         aria-describedby={joined(
-          help === undefined ? undefined : `${id}-help`,
-          error === null ? undefined : `${id}-error`,
+          help === undefined ? null : `${id}-help`,
+          shown === null ? null : check.errorId,
+          check.needId,
         )}
         aria-disabled={disabled || undefined}
-        onChange={disabled ? undefined : change}
+        onInvalid={check.reject}
+        onBlur={check.check}
+        onChange={changed}
       >
         {children}
       </select>

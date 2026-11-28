@@ -12,13 +12,12 @@ import {
   type HttpProvider,
   PROVIDERS,
   hasKind,
-  keyApplies,
   withoutTrailingSlashes,
 } from "../../../core/contract/provider-families.ts";
 import { HOP_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import { readCapped } from "../../../core/kernel/capped.ts";
 import type { SettingsPorts } from "../../../core/kernel/ports.ts";
-import { loadAiConfig } from "./ai-load.ts";
+import { loadSavedKey } from "./ai-load.ts";
 import { allowsUrl, providersOf, runnerFor } from "./ai-run.ts";
 import { aiTransport } from "./ai-transport.ts";
 import { LISTINGS, type Page } from "./provider-model-pages.ts";
@@ -104,7 +103,7 @@ async function collected(
 
   const rest = await collected(fetching, page.after, pagesLeft - 1);
 
-  return "kind" in rest ? page.models : [...page.models, ...rest];
+  return "kind" in rest ? rest : [...page.models, ...rest];
 }
 
 const BY_LABEL = new Intl.Collator("en", { sensitivity: "base", numeric: true });
@@ -123,19 +122,6 @@ function listedFromProvider(models: readonly ModelOption[]): ModelList {
   };
 }
 
-async function savedKey(
-  ports: SettingsPorts,
-  scope: Readonly<{ provider: HttpProvider; baseUrl: string }>,
-): Promise<string | undefined> {
-  const { saved, sealer } = await loadAiConfig(ports);
-
-  if (saved === undefined || saved.sealedKey === null || sealer === null) return undefined;
-
-  if (!keyApplies(saved, scope)) return undefined;
-
-  return (await sealer.open(saved.sealedKey)) ?? undefined;
-}
-
 async function listedOverHttp(
   ports: SettingsPorts,
   input: Readonly<ModelListRequest> & { readonly provider: HttpProvider },
@@ -150,7 +136,7 @@ async function listedOverHttp(
 
   if (!allowsUrl(ports.ai, base)) return unlisted("refused");
 
-  const key = input.key ?? (await savedKey(ports, { provider, baseUrl: base }));
+  const key = input.key ?? (await loadSavedKey(ports, { provider, baseUrl: base }));
 
   if (key === undefined && !LISTINGS[provider].listsWithoutKey) return unlisted("key-needed");
 

@@ -79,7 +79,7 @@ export function LookPanel({ look, panel: state }: Readonly<{ look: Look; panel: 
             title={LOOK_SETTINGS_LABEL}
             close={closeToOpener}
           />
-          <div className="st-body">
+          <div className="pnl-body">
             <SettingsRows
               settings={settings}
               themeNote={themeNote}

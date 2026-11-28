@@ -1,5 +1,7 @@
 import { isRefusedHost, resolveUrl } from "./addresses.ts";
 
+const QUERY_OR_FRAGMENT_MARK = /[?#]/u;
+
 export function allowedAiUrl(address: string, publicOnly: boolean): boolean {
   const url = resolveUrl(address);
 
@@ -7,8 +9,7 @@ export function allowedAiUrl(address: string, publicOnly: boolean): boolean {
     url === null ||
     url.username !== "" ||
     url.password !== "" ||
-    url.hash !== "" ||
-    url.search !== ""
+    QUERY_OR_FRAGMENT_MARK.test(address)
   ) {
     return false;
   }

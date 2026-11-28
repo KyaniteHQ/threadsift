@@ -1,7 +1,8 @@
 /* =====================================================================
    tokens.css: the Library's design tokens, the one source for every value
    in its design system. Every component uses these with no fallback values;
-   the app's script only sets attributes on the app's root.
+   the app's script only sets attributes, and in List the two widths
+   --rail-w and --list-w, on the app's root.
 
    1. Fixed tokens: type, line heights, spacing, controls, icons, layers,
       motion.
@@ -10,7 +11,7 @@
       by an attribute on the app's root.
    3. Layouts: List and Grid (data-layout).
    4. Themes: Light, Dark and Sepia (data-theme).
-   5. Widths: the breakpoints and grid columns, and the values that change at
+   5. Widths: the breakpoints, and the values that change at
       each width (data-bp).
    6. Styles: the Style blocks come after the Theme and derived-token rules
       so their fonts and palettes win by source order. A rule before them gives
@@ -88,7 +89,7 @@
      the revealed token in a field-high box, the margin that centres a tag's dot on the first line
      of its name, and a tag's corner radius (half a line plus its padding
      and hairline border, so a wrapped Chips name stays inside the pill);
-   - 100vw in the maximum width of the Look panel, the owner menu and a confirmation
+   - 100vw in the maximum width of the Look panel, the Instance menu and a confirmation
      dialog;
    - the 2px underline offset of links and text buttons, and the 1px side
      padding of a highlighted match;
@@ -119,17 +120,17 @@
   --dot: 10px; --mark: 8px; --kept-h: 3px; --sep: 2px; --tint: 9%; --av: 26px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
   --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the masthead's Menu, the read mark on phones, empty states */
   --pop-w: 25rem;                     /* the Look panel, and the widest Highlight popover */
-  --menu-w: 17rem;                    /* the owner menu */
+  --menu-w: 17rem;
   --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */
   --tag-c: 0.13;                      /* tag colour chroma; lightness per theme (--tag-l), hue per tag (data-tag) */
   --reader-pad: var(--s6); --code-pad-y: 10px; --code-pad-x: 12px;
-  --margin-w: 320px;                  /* the Reader's margin column beside the reading column, in a wide Reader */
-  --bar-h: 56px;                      /* the reader bar, and the phone settings sheet's header: one row, its bottom line included */
-  --mast-h: 48px;                     /* the masthead over every signed-in screen, its bottom line included */
-  --host-max: 22ch;                   /* the Instance host on the owner menu button, cut with an end ellipsis */
-  --page-col: 880px; --page-settings: 1120px;   /* the column of a page under the masthead, and of the Settings page */
+  --margin-w: 320px;
+  --bar-h: 56px;                      /* the reader bar, and a phone panel sheet's header: one row, its bottom line included */
+  --mast-h: 48px;
+  --host-max: 22ch;
+  --page-col: 880px; --page-settings: 1120px;
   --import-form-w: 640px;
-  --settings-rail: 200px; --sec-head-w: 280px; --sec-body-w: 560px;   /* the Settings page: its section links, and a section's heading and fields */
+  --settings-rail: 200px; --sec-head-w: 280px; --sec-body-w: 560px;
   --sec-name-w: 140px;
   --fold-show: 6;                     /* lines a folded comment shows */
   --note-lines: 3;                    /* lines the Reader's Note field shows before it grows with its text */
@@ -140,14 +141,14 @@
   /* layers, bottom to top */
   --z-raise: 1;                       /* a card's whole-card link */
   --z-sticky: 3;                      /* the reader bar and the sheet's key hint */
-  --z-split: 4;                       /* the List panes' handles, over the reader bar */
+  --z-split: 4;
   --z-float: 6;                       /* the paste card over the grid */
-  --z-mast: 10;                       /* the masthead, whose panels float over the panes */
+  --z-mast: 10;
   --z-reader: 20;                     /* the full-page reader */
   --z-scrim: 20;                      /* the dimmed grid behind the sheet */
   --z-sheet: 21;                      /* the sheet */
   --z-sheet-nav: 22;                  /* the sheet's side buttons */
-  --z-popover: 40;                    /* the Look panel, the owner menu and the focused skip button */
+  --z-popover: 40;                    /* the Look panel, the Instance menu and the focused skip button */
   --vh: 100dvh;
 }
 @font-face { font-family: 'Schibsted Grotesk Fallback'; src: local('Arial Bold'), local('Arial-BoldMT'), local('Liberation Sans Bold'), local('LiberationSans-Bold'), local('Arimo Bold'), local('Arimo-Bold'); font-weight: 100 900; size-adjust: 102.9%; ascent-override: 94.95%; descent-override: 25.07%; line-gap-override: 0%; }
@@ -309,14 +310,13 @@
 :root, [data-layout] {
   --display-base: 1.5rem;
   --thumb: 40px; --rail-w: 264px; --list-min: 300px; --list-w: 420px;
-  /* the List panes' handles: each pane's bounds, the room the Reader always keeps, and the
-     handle's hit area for a fine and a coarse pointer */
+  --paste-min: 280px; --paste-w: 420px;
   --rail-min: 200px; --rail-max: 400px; --list-max: 640px; --reader-min: 480px;
   --split-hit: 9px; --split-hit-coarse: 24px;
 }
 [data-layout="grid"] {
   --display-base: 1.875rem;
-  --img-ratio: 16 / 10; --grid-max: 2560px; --card-min: 320px; --paste-min: 280px; --paste-w: 420px;
+  --img-ratio: 16 / 10; --grid-max: 2560px; --card-min: 320px;
   /* the sheet: its widest, the room kept on each side for its side buttons (a 44px button,
      12px from the sheet, and 16px from the window's edge), and its width now */
   --sheet-w: 760px; --side-gap: calc(var(--target) + var(--s3) + var(--s4));

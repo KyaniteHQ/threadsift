@@ -13,10 +13,10 @@ import {
   STUB_TEXTS,
   handleOf,
 } from "../../src/core/contract/reader-text.ts";
-import { AiSettingsLink } from "./AiSettingsLink.tsx";
 import { useCommentFold } from "./comment-fold.ts";
 import { type Branch, nest } from "./comment-nesting.ts";
 import { useOpenOnReveal } from "./highlights-context.ts";
+import { PlaceLink } from "./PlaceLink.tsx";
 import { PostTextView } from "./post-text-module.ts";
 import {
   ALL_REMOVED,
@@ -263,7 +263,7 @@ function CommentTree({
         {counts === null ? null : <p className="rd-count">{countLabel(counts, "heading")}</p>}
       </div>
       {note === null ? null : <p className="rd-note">{note}</p>}
-      {needsProvider ? <AiSettingsLink /> : null}
+      {needsProvider ? <PlaceLink to="ai-settings" /> : null}
       {branches.length === 0 ? null : <Branches branches={branches} owner={item} first />}
     </section>
   );

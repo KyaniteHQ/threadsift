@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef, useState } from "react";
+import { useEffect, useMemo, useReducer, useRef, useState } from "react";
 
 import {
   type ModelList,
@@ -10,43 +10,26 @@ import { listAiModels } from "./ai-api.ts";
 
 export type ModelAnswer = ModelList | { readonly kind: "failed" };
 
-interface Entry {
-  readonly provider: Provider;
-  readonly asked: number;
-  readonly loading: boolean;
-  readonly answer: ModelAnswer | undefined;
-}
+type Entry =
+  | { readonly kind: "loading" }
+  | { readonly kind: "answered"; readonly answer: ModelAnswer };
 
 type Entries = ReadonlyMap<string, Entry>;
 
 type Event =
-  | {
-      readonly type: "asked";
-      readonly id: string;
-      readonly provider: Provider;
-      readonly asked: number;
-    }
-  | {
-      readonly type: "answered";
-      readonly id: string;
-      readonly asked: number;
-      readonly answer: ModelAnswer;
-    };
+  | { readonly type: "asked"; readonly id: string }
+  | { readonly type: "answered"; readonly id: string; readonly answer: ModelAnswer };
+
+interface TypedKey {
+  readonly key: string;
+  readonly list: string;
+}
 
 function entriesAfter(entries: Readonly<Entries>, event: Readonly<Event>): Entries {
-  const current = entries.get(event.id);
-
-  if (event.type === "asked")
-    return new Map(entries).set(event.id, {
-      provider: event.provider,
-      asked: event.asked,
-      loading: true,
-      answer: current?.answer,
-    });
-
-  if (current?.asked !== event.asked) return entries;
-
-  return new Map(entries).set(event.id, { ...current, loading: false, answer: event.answer });
+  return new Map(entries).set(
+    event.id,
+    event.type === "asked" ? { kind: "loading" } : { kind: "answered", answer: event.answer },
+  );
 }
 
 function hasBaseUrl(provider: Provider): boolean {
@@ -66,18 +49,8 @@ function requestOf(provider: Provider, baseUrl: string, key: string): ModelListR
   return parsed.success ? parsed.data : null;
 }
 
-function shownOf(entries: Readonly<Entries>, id: string, provider: Provider) {
-  const own = entries.get(id);
-
-  if (own === undefined) return { loading: false, answer: undefined };
-
-  if (own.answer !== undefined || !own.loading) return own;
-
-  const latest = [...entries.values()]
-    .filter((entry) => entry.provider === provider && entry.answer !== undefined)
-    .toSorted((a, b) => b.asked - a.asked)[0];
-
-  return { loading: true, answer: latest?.answer };
+function answerId(request: Readonly<ModelListRequest>, revision: number): string {
+  return JSON.stringify([revision, request.provider, request.baseUrl ?? null, request.key ?? null]);
 }
 
 async function answerOf(request: Readonly<ModelListRequest>): Promise<ModelAnswer> {
@@ -88,75 +61,60 @@ async function answerOf(request: Readonly<ModelListRequest>): Promise<ModelAnswe
   }
 }
 
-function useAsk(dispatch: (event: Readonly<Event>) => void) {
-  const asks = useRef(0);
-  const asked = useRef(new Set<string>());
-
-  const ask = useCallback(
-    (target: string, request: Readonly<ModelListRequest>) => {
-      asks.current += 1;
-      const mine = asks.current;
-
-      asked.current.add(target);
-      dispatch({ type: "asked", id: target, provider: request.provider, asked: mine });
-
-      const settle = async () => {
-        dispatch({ type: "answered", id: target, asked: mine, answer: await answerOf(request) });
-      };
-
-      void settle();
-    },
-    [dispatch],
-  );
-
-  const askOnce = useCallback(
-    (target: string, request: Readonly<ModelListRequest>) => {
-      if (!asked.current.has(target)) ask(target, request);
-    },
-    [ask],
-  );
-
-  return { ask, askOnce };
+function sentKey(typed: Readonly<TypedKey> | null, list: string, key: string): string {
+  return typed !== null && typed.list === list && typed.key === key ? key : "";
 }
 
-export function useModelList(provider: Provider, savedBaseUrl: string, key: string) {
+function useAnswers(request: Readonly<ModelListRequest> | null, revision: number) {
   const [entries, dispatch] = useReducer(entriesAfter, new Map<string, Entry>());
-  const [baseUrl, setBaseUrl] = useState(savedBaseUrl);
-  const { ask, askOnce } = useAsk(dispatch);
-  const keyAsked = useRef({ id: "", key: "" });
-  const id = listId(provider, baseUrl);
+  const asked = useRef(new Set<string>());
+  const id = request === null ? null : answerId(request, revision);
 
   useEffect(() => {
-    const request = requestOf(provider, baseUrl, key);
+    if (request === null || id === null || asked.current.has(id)) return;
 
-    if (request !== null) askOnce(id, request);
-  }, [provider, baseUrl, key, id, askOnce]);
+    asked.current.add(id);
+    dispatch({ type: "asked", id });
 
-  const baseUrlLeft = useCallback(
-    (value: string) => {
-      const left = value.trim();
-      const request = requestOf(provider, left, key);
+    const settle = async () => {
+      dispatch({ type: "answered", id, answer: await answerOf(request) });
+    };
 
-      setBaseUrl(left);
-      if (request !== null) askOnce(listId(provider, left), request);
-    },
-    [provider, key, askOnce],
-  );
+    void settle();
+  }, [request, id]);
 
-  const keyLeft = useCallback(
-    (value: string) => {
-      if (keyAsked.current.id === id && keyAsked.current.key === value) return;
+  const entry = id === null ? undefined : entries.get(id);
 
-      keyAsked.current = { id, key: value };
+  return {
+    loading: id !== null && entry?.kind !== "answered",
+    answer: entry?.kind === "answered" ? entry.answer : undefined,
+  } as const;
+}
 
-      const request = requestOf(provider, baseUrl, value);
+export function useModelList(
+  provider: Provider,
+  initialBaseUrl: string,
+  key: string,
+  revision: number,
+) {
+  const [baseUrl, setBaseUrl] = useState(initialBaseUrl);
+  const [typed, setTyped] = useState<TypedKey | null>(null);
+  const list = listId(provider, baseUrl);
+  const sent = sentKey(typed, list, key);
+  const request = useMemo(() => requestOf(provider, baseUrl, sent), [provider, baseUrl, sent]);
+  const { loading, answer } = useAnswers(request, revision);
 
-      if (request !== null) ask(id, request);
-    },
-    [id, provider, baseUrl, ask],
-  );
+  const baseUrlLeft = (value: string) => {
+    setBaseUrl(value.trim());
+  };
 
-  const { loading, answer } = shownOf(entries, id, provider);
+  const keyLeft = (value: string) => {
+    setTyped((last) => {
+      if (value === (last?.key ?? "")) return last;
+
+      return value === "" ? null : { key: value, list };
+    });
+  };
 
   return { loading, answer, baseUrlLeft, keyLeft } as const;
 }

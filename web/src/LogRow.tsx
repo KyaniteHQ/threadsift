@@ -48,6 +48,7 @@ function Tags({ tags }: Readonly<{ tags: readonly string[] }>) {
 interface Cells {
   readonly subject: ReactNode;
   readonly details: ReactNode;
+  readonly linked: boolean;
 }
 
 function cellsOf(entry: Readonly<LogEntry>): Cells {
@@ -62,32 +63,43 @@ function cellsOf(entry: Readonly<LogEntry>): Cells {
             <Tags tags={entry.tags} />
           </span>
         ),
+        linked: true,
       };
     case "topic":
-      return { subject: <TopicRef topic={entry.topic} />, details: null };
+      return { subject: <TopicRef topic={entry.topic} />, details: null, linked: true };
     case "overview":
       return {
         subject: <TopicRef topic={entry.topic} />,
         details: addedRemoved(entry.added, entry.removed),
+        linked: true,
       };
     case "related":
-      return { subject: <ItemLink item={entry.item} />, details: logItemsLabel(entry.picks) };
+      return {
+        subject: <ItemLink item={entry.item} />,
+        details: logItemsLabel(entry.picks),
+        linked: true,
+      };
     case "merge":
     case "merge-topic":
       return {
         subject: <bdi dir="auto">{mergeLabel(entry.from, entry.into)}</bdi>,
         details: logItemsLabel(entry.items),
+        linked: false,
       };
     case "vault-file-skipped":
     case "vault-file-conflict":
-      return { subject: <code className="lg-path">{entry.path}</code>, details: null };
+      return {
+        subject: <code className="lg-path">{entry.path}</code>,
+        details: null,
+        linked: false,
+      };
     default:
       return entry satisfies never;
   }
 }
 
 export const LogRow = memo(function LogRow({ entry }: Readonly<{ entry: LogEntry }>) {
-  const { subject, details } = cellsOf(entry);
+  const { subject, details, linked } = cellsOf(entry);
 
   return (
     <tr className="lg-row">
@@ -95,7 +107,9 @@ export const LogRow = memo(function LogRow({ entry }: Readonly<{ entry: LogEntry
         <time dateTime={new Date(entry.at).toISOString()}>{localTime(entry.at)}</time>
       </td>
       <td className="lg-change">{LOG_CHANGES[entry.action]}</td>
-      <td className="lg-subject">{subject}</td>
+      <td className="lg-subject" tabIndex={linked ? undefined : -1}>
+        {subject}
+      </td>
       <td className="lg-details">{details}</td>
     </tr>
   );

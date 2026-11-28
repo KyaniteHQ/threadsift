@@ -3,13 +3,13 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { NOTHING } from "../../src/core/contract/nothing.ts";
 import { type PanelRefs, watchPopover, watchSheet } from "./panel-dom.ts";
 
-const FIRST_CHOICE = '.st-body input[type="radio"]:checked';
+const FIRST_CHOICE = '.pnl-body input[type="radio"]:checked';
 
-const FIRST_CONTROL = ".st-body :is(a[href], button)";
+const FIRST_CONTROL = ".pnl-body :is(a[href], button)";
 
 const KEYED = "[data-focus-key]";
 
-const BODY = ".st-body";
+const BODY = ".pnl-body";
 
 type View = Readonly<{ open: boolean; refocusOpener: boolean }>;
 

@@ -82,8 +82,10 @@
   gap: var(--s1);
   padding-block: var(--s6) var(--s5);
 }
-.pg-back {
+.app:not([data-bp~="phone"]) .pg-back {
   min-height: auto;
+}
+.pg-back {
   padding-inline: 0;
 }
 .pg-title {
@@ -124,7 +126,11 @@
   top: var(--s5);
 }
 .st-rail ul {
+  display: flex;
   flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
 }
 .st-rail .nav-link {
   position: relative;
@@ -166,6 +172,12 @@
 }
 .app[data-bp~="phone"] .st-rail .nav-link {
   min-height: var(--target);
+}
+@media (forced-colors: active) {
+  .st-rail .nav-link[aria-current="location"]::after {
+    forced-color-adjust: none;
+    background: Highlight;
+  }
 }
 .st-main {
   display: flex;

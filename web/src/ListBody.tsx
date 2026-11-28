@@ -1,8 +1,8 @@
-import { type ReactNode, type RefObject, memo, useEffect, useRef } from "react";
+import { type RefObject, memo, useEffect, useRef } from "react";
 
 import type { Item } from "../../src/core/contract/item-wire.ts";
+import { EmptyState } from "./EmptyState.tsx";
 import { isEmptyResult } from "./filters.ts";
-import { Icon } from "./Icon.tsx";
 import { type Attention, ItemRow } from "./ItemRow.tsx";
 import type { More } from "./list-paging.ts";
 import type { ListState } from "./list-state.ts";
@@ -152,21 +152,6 @@ function MoreRows({ state, more }: Readonly<{ state: More; more: () => void }>) 
   );
 }
 
-export function EmptyState({
-  heading,
-  line,
-  children,
-}: Readonly<{ heading: string; line?: string; children?: ReactNode }>) {
-  return (
-    <div className="empty">
-      <Icon name="tray" className="ic ic-xl" />
-      <h2 tabIndex={-1}>{heading}</h2>
-      {line === undefined ? null : <p>{line}</p>}
-      {children}
-    </div>
-  );
-}
-
 interface ListBodyProps extends RowProps {
   readonly list: ListState;
   readonly clearAll: () => void;
@@ -229,7 +214,7 @@ export const ListBody = memo(function ListBody({
   }
 
   if (exhausted) {
-    return <EmptyState heading={EMPTY_LIST.heading} line={EMPTY_LIST.line} />;
+    return <EmptyState place="library" heading={EMPTY_LIST.heading} line={EMPTY_LIST.line} />;
   }
 
   return <LoadedList list={list} more={more} shared={shared} />;
