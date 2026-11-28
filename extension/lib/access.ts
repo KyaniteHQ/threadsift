@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { REDDIT_HOSTS, holdsRedditConnect, hostPattern, instanceOrigin } from "./config.ts";
 import { settleFill, stored } from "./credentials.ts";
+import { FILL_DATA } from "./fill-access.ts";
 import { logFailure } from "./log.ts";
 import { oneAtATime } from "./one-at-a-time.ts";
 
@@ -40,9 +41,9 @@ async function neededOrigins(): Promise<ReadonlySet<string>> {
   return needed;
 }
 
-async function dropOrigin(origin: string): Promise<boolean> {
+async function drop(remove: () => Promise<boolean>): Promise<boolean> {
   try {
-    if (await browser.permissions.remove({ origins: [origin] })) return true;
+    if (await remove()) return true;
 
     logFailure("access-remove-refused", new Error("permissions.remove resolved false"));
 
@@ -64,7 +65,14 @@ async function reconcile(): Promise<AccessResult> {
     (origin) => !needed.has(origin) && !required.has(origin),
   );
 
-  const dropped = await Promise.all(stale.map((origin) => dropOrigin(origin)));
+  const data = FILL_DATA;
+  const dropData =
+    data !== null && (await stored()).fill !== true && (await browser.permissions.contains(data));
+
+  const dropped = await Promise.all([
+    ...stale.map((origin) => drop(() => browser.permissions.remove({ origins: [origin] }))),
+    ...(dropData ? [drop(() => browser.permissions.remove(data))] : []),
+  ]);
 
   return dropped.every(Boolean) ? "reconciled" : "kept";
 }

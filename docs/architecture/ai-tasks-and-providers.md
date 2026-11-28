@@ -14,11 +14,12 @@ Every model call is an AI task with a kind, inputs, an input revision and a Zod 
 - [The task kinds](#the-task-kinds)
 
 ```text
-job claim
+job claim, then one read of the AI settings and their revision
    |
    v
 start task row (kind, inputs, input revision, deadline)
-   |
+   |   (no row while the settings revision moved and the claim is held:
+   |    the job is due again at once, no attempt counted)
    v
 executor: HTTP, Workers AI binding, Claude Code, Codex, or Grok Bot
    |
@@ -55,7 +56,7 @@ The Grok CLI is not an executor (CLI executors).
 - **Origin.** Each task row stores the Provider, model and executor (`http`, `binding`, `cli`, `grok-bot` or `caller`) of the connection it loaded, a failed Verify included. An empty CLI model is stored as null. A caller-sent Digest task stores the executor `caller` with a null Provider and model.
 - **Owner.** `ai_tasks.item_id` names the Item a task works for. A Digest task carries its Item. The Verify task is the only one that carries null.
 - **Delete.** The key is `ON DELETE CASCADE`, like every other child of `items`. `inputs` holds up to 14,000 bytes of the Item's text, so `SET NULL` would leave that text behind after the Item is gone. `NO ACTION` would make every delete of an Item list its tasks first. SQLite checks a `NO ACTION` key at the end of a statement, so one `DELETE FROM items` removes the Digest and the task it names together, while a delete of that task alone is refused.
-- **Start.** A task starts only while its job still holds its claim, in one `INSERT ... SELECT ... WHERE` on `holding`. When the insert writes no row, the attempt reports the lost claim and makes no Provider call.
+- **Start.** A job's model task starts only while the job still holds its claim and the AI settings revision is the one the attempt loaded, in one `INSERT ... SELECT ... WHERE`. When the insert writes no row, the attempt makes no Provider call: with the claim still held the settings moved, and the job is due again at once without an attempt; without the claim the attempt reports the lost claim. A refusal the attempt decides before the insert, such as a refused base URL, is checked against the revision the same way before it closes the job. A task whose insert committed before the owner changed the settings runs to its end on the Provider it loaded and publishes with that Provider's provenance, because the call is already made and paid. Verify runs without a job and has no such guard.
 - **Verify.** Verify sends no comments, stores `keptComments: []` whatever the model answers, and writes no Item, Topic or Tag.
 - **Deadline.** Every model task has the AI call deadline ([Jobs, leases and the schedule](jobs-leases-and-the-schedule.md), Deadlines, attempts and retries). Grok Bot tasks get one hour (Grok Bot).
 
@@ -196,8 +197,8 @@ The answer is asynchronous. The Instance sends a webhook, the bot reads the task
 
 ### The Provider choice
 
-- **Where it lives.** `grok-bot` is a row of `PROVIDERS` with no field, not a stored `settings.provider`. The flag `use_as_provider` on the `grok_bot_settings` row says Grok Bot is the Provider, and the `settings` row keeps the last real Provider the owner saved. `loadAiConfig` reads the flag, the settings row and the revision in one batch, and the routing and `runAiTask` use that one answer. When the flag is set and the Grok Bot settings are unusable, the kind's own path refuses before any task row, and the stored Provider does not run.
-- **Choosing.** One guarded batch sets the flag and adds 1 to `ai_settings_revision`, because no trigger fires for `grok_bot_settings`. Saving any other Provider writes its `settings` row and clears the flag in one guarded batch. Deleting the Grok Bot settings is refused while the flag is set.
+- **Where it lives.** `grok-bot` is a row of `PROVIDERS` with no field, not a stored `settings.provider`. The flag `use_as_provider` on the `grok_bot_settings` row says Grok Bot is the Provider, and the `settings` row keeps the last real Provider the owner saved. `loadAiConfig` reads the flag, the settings row and the revision in one batch, and the routing and `runAiTask` use that one answer; the insert of a job's model task checks that the revision has not moved since (Start). When the flag is set and the Grok Bot settings are unusable, the kind's own path refuses before any task row, and the stored Provider does not run.
+- **Choosing.** One guarded batch sets the flag and adds 1 to `ai_settings_revision`, because no trigger fires for `grok_bot_settings`. A job that read a model Provider before the choice and inserts its model task after it starts none, because the choice moves the revision that the insert checks (Start). The job then runs again at once without spending an attempt and takes the Grok Bot path. Saving any other Provider writes its `settings` row and clears the flag in one guarded batch. Deleting the Grok Bot settings is refused while the flag is set.
 - **Switching away.** The batch that clears the flag fails every open Grok Bot task of the Provider with the refusal `abandoned` (an `x_intake` task is not one) and makes each job that waits on the bot due now, so the next sweep runs it on the new Provider. A late callback on an abandoned task gets 409, so an answer is never applied after a switch back. A job that read the flag before the switch and inserts its task after it starts none, because `botFace` adds the flag to the `holds` of every task a kind starts. The insert fails like a lost lease, and the job waits `FULL_CAP_DEFER_MS` and then runs on the new Provider.
 - **Verify.** `verifyProvider` starts a `digest` task with the context `{ "verify": true }`, sends it, and waits for the answer for at most `VERIFY_WAIT_MS` (60 seconds). The Worker holds the request as wall time, which has no limit for an HTTP request while the client stays connected ([Workers limits, Duration](https://developers.cloudflare.com/workers/platform/limits/)). The task's own deadline is the window plus one send (`VERIFY_DEADLINE_MS`). A task that is still open when the window passes, or when the caller's request ends (which also ends the webhook send and the pause between two reads), fails `timeout` in a guarded write that loses to an answer stored first. The callback guard knows the task's credential, state and deadline, not the window, so an answer gets 409 once that write has committed or the deadline has passed.
 
@@ -245,7 +246,7 @@ A result kind is one `defineAiKind` call, or `defineBasedAiKind` when the model 
 
 - `defer` reads the Topic of the claimed Item before `prepare`. Grok Bot defers `topic-busy` for 15 seconds (`BUSY_RETRY_MS`) without an attempt while `overviewAtBot` is true.
 - `holds` takes the Topic from the prepared Context and also states that the overview's inputs hold. The framework adds it and the Grok Bot flag to the `holds` of the task insert, so the insert names the Topic of the Context it stores, even when the Item moved to another Topic between the two reads.
-- The model executor ignores both. The guard counts an unsent task too, because its job resends after a crash.
+- The model executor ignores both; its insert holds on the job's claim and the loaded settings revision instead (Start). The guard counts an unsent task too, because its job resends after a crash.
 - When the task is applied, a deferred job reads fresh inputs and sends only if a coverage gap remains.
 
 When the job gives up, `overviewGaveUp` writes `gave-up` for the Topic named in the context of the job's latest task, because its owner Item can move to another Topic before then. The marker is skipped when the Topic is gone or its page revision is newer than the one the task was sent with.

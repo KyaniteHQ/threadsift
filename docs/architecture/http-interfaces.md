@@ -50,7 +50,7 @@ The 400, 403, 413 and 415 of each route in `GET /api/openapi.json` come from the
 
 - With no `cursor` it also answers the counts the filter pane shows. Each group's counts apply the search and the other groups' filters but not its own group, so a count equals what choosing that value leaves.
 - Search splits `q` into runs of letters and digits. Each run is a prefix match, and every run must match.
-- The `url` filter finds one Item by its normalized URL. The Extension uses it, with the `fillable` flag, to fill a Link-only Reddit Item.
+- The `url` filter finds the Item a link names, by the rule a Paste reads too. For a short link or a Reddit share link, that is the Item its stored alias names, or the Item under the link itself when it has no alias. For any other link, it is the Item whose normalized URL is the link's. The filter reads only what is stored: a Paste of a short link whose alias ends at a Reddit share link resolves the link again and can reach another Item, which the filter finds only after that Paste. The Extension uses it, with the `fillable` flag, to fill a Link-only Reddit Item.
 - Each Item carries `commentCount`, which counts the comments the Reader shows ([the spec](../spec.md), Comment filter).
 
 ## A Paste
@@ -89,7 +89,7 @@ The Instance saves the cursor only after every link has an outcome, so a call th
 The owner alone sets Read state, so `PUT /api/items/:id/read-state` answers 403 to an agent token. All Highlight and Note writes answer 403 to an agent token too. `GET /api/highlights` answers one page of the Highlights page and is open to agent tokens.
 
 - `POST /api/items/:id/highlights` answers 409 when the text changed since the owner read it, and 400 with `code` `selector-mismatch` when the passage does not stand at its hint in that text.
-- Its `target.commentId` takes the comment id that `GET /api/items/:id` answers (`CommentId`) and answers 400 for an id with Reddit's `t1_` prefix, which a Digest's `keptComments` still accept. A Reader tab that loaded an Item from a build that stored the prefix sends it, so that tab must be reloaded.
+- Its `target.commentId` takes the comment id that `GET /api/items/:id` answers (`CommentId`), in any letter case, and answers 400 for an id with Reddit's `t1_` prefix, which a Digest's `keptComments` still accept. A Reader tab that loaded an Item from a build that stored the prefix sends it, so that tab must be reloaded.
 - `PUT /api/items/:id/note` takes the Note's `revision` and answers 409 with the stored Note when it moved.
 - `GET /api/highlights` answers its `counts` only when the request has no `cursor`, by the rule of the Item list, so a Load more does not count the library again.
 

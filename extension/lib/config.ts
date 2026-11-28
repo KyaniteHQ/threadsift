@@ -15,10 +15,6 @@ export const REDDIT_PERMISSIONS: Browser.permissions.Permissions = {
   origins: REDDIT_HOSTS,
 };
 
-export function hasRedditAccess(): Promise<boolean> {
-  return browser.permissions.contains({ origins: REDDIT_HOSTS });
-}
-
 export function holdsInstanceAccess(origin: string): Promise<boolean> {
   return browser.permissions.contains({ origins: [hostPattern(origin)] });
 }
