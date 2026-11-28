@@ -12,6 +12,7 @@ import { createAgentToken } from "./mcp-client.ts";
 import { redditAddressOf, threadOf } from "./reader-thread-fixtures.ts";
 import { holdLibrary } from "./restore-fixtures.ts";
 import {
+  closing,
   HELD,
   heldThenReleased,
   ownerLibrary,
@@ -23,8 +24,9 @@ import {
 } from "./restoring-fixtures.ts";
 import {
   claimedJobs,
-  grokBotVerify,
+  grokBotWhileHeld,
   heldMerge,
+  lastAttemptWhileHeld,
   owedDigestJobs,
   weeklyClaims,
 } from "./restoring-runs.ts";
@@ -211,9 +213,9 @@ describe("an owner write that adds a record the zip may hold is refused while a 
   it("answers 503 restoring through each door and adds no record, and takes each write once the run no longer holds", async () => {
     const library = await ownerLibrary();
     const stored = recordsOf(library.instance);
-    const [held, released] = await heldThenReleased(library.instance, () => throughDoors(library));
-
-    await library.instance.close();
+    const [held, released] = await closing(library.instance, () =>
+      heldThenReleased(library.instance, () => throughDoors(library)),
+    );
 
     for (const [door, answer] of held.answers) {
       assert.deepEqual(refusal(answer), HELD, door);
@@ -229,16 +231,20 @@ describe("an owner write that adds a record the zip may hold is refused while a 
     );
   });
 
-  it("answers a Grok Bot Verify 503 restoring and starts no AI task", async () => {
-    const [answer, tasks] = await grokBotVerify();
+  it("answers a Grok Bot Verify and a Grok Bot save 503 restoring and starts no AI task", async () => {
+    const { verify, save, tasks } = await grokBotWhileHeld();
 
-    assert.deepEqual([refusal(answer), tasks], [HELD, 0]);
+    assert.deepEqual([refusal(verify), refusal(save), tasks], [HELD, HELD, 0]);
   });
 });
 
 describe("the background work that adds a record the zip may hold waits while a Restore holds the library", () => {
   it("claims no due job while held and claims it once the run no longer holds", async () => {
     assert.deepEqual(await claimedJobs(), ["none", "digest"]);
+  });
+
+  it("queues a claimed job on its last attempt again with its attempts unchanged when the hold refuses its write", async () => {
+    assert.deepEqual(await lastAttemptWhileHeld(), { claimed: "digest", open: 1, failed: 0 });
   });
 
   it("opens no owed Digest job while held and opens it once the run no longer holds", async () => {

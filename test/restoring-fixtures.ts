@@ -151,6 +151,14 @@ export function savedUnresolved(instance: Instance, short: string) {
   });
 }
 
+export async function closing<Seen>(instance: Instance, run: () => Promise<Seen>): Promise<Seen> {
+  try {
+    return await run();
+  } finally {
+    await instance.close();
+  }
+}
+
 export async function heldThenReleased<Seen>(
   instance: Instance,
   observe: () => Promise<Seen>,
