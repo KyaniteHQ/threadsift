@@ -3,16 +3,15 @@ import { type SQL, eq, notExists, sql } from "drizzle-orm";
 import { catalogKey } from "../../../core/contract/catalog-key.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
-import { enqueueRows, guardedOpenings } from "../../../core/kernel/job-rows.ts";
+import { enqueueRows, openedRows } from "../../../core/kernel/job-rows.ts";
 import { loggedMerge } from "../../../core/kernel/log-writes.ts";
+import { heldBatch } from "../../../core/kernel/restore-hold.ts";
 import { proposals } from "../../../core/kernel/schema.ts";
 import { retired } from "./catalog.ts";
 import { MERGE } from "./merge-kinds.ts";
 import type { MergeKindSpec, MergeRow, Side } from "./merge-unit.ts";
 import { mergePinWrites } from "./pins.ts";
 import { atRevision, unitAdvanced, unitApplied } from "./proposal-lifecycle.ts";
-
-type Outcome = "ran" | "lost";
 
 function unitGuard(id: number, row: Readonly<MergeRow>): SQL {
   const { table, subject, from, into } = MERGE[row.kind];
@@ -42,7 +41,7 @@ export async function applyUnit(
   ports: JobPorts,
   id: number,
   row: Readonly<MergeRow>,
-): Promise<Outcome> {
+): Promise<void> {
   const { db } = ports;
   const spec = MERGE[row.kind];
   const from = recomputed(row.from);
@@ -65,15 +64,13 @@ export async function applyUnit(
     }),
   ];
 
-  const opened = await guardedOpenings(db, unitGuard(id, row), {
-    before: head,
-    opening: plan.wakes,
-    after: retired(db, spec.table, from.id, gone),
-  });
+  const written = await heldBatch(
+    db,
+    [...head, ...plan.wakes, ...retired(db, spec.table, from.id, gone)],
+    unitGuard(id, row),
+  );
 
-  if (opened === null) return "lost";
-
-  await enqueueRows(ports, opened);
-
-  return "ran";
+  if (written !== null) {
+    await enqueueRows(ports, openedRows(written, head.length, plan.wakes.length));
+  }
 }

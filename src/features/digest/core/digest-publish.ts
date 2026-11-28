@@ -1,10 +1,11 @@
 import { eq, sql } from "drizzle-orm";
 
 import type { Digest, ModelDigest } from "../../../core/contract/digest-schema.ts";
+import { supersededTasks } from "../../../core/kernel/ai-task-rows.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobOutcome } from "../../../core/kernel/job-outcome.ts";
 import { MAX_STALE_REQUEUES } from "../../../core/kernel/job-retry.ts";
-import { items } from "../../../core/kernel/schema.ts";
+import { aiTasks, items } from "../../../core/kernel/schema.ts";
 import { storedOutcome } from "../../ai/core/ai-kind-publish.ts";
 import type { Stored } from "../../ai/core/ai-kind-types.ts";
 import {
@@ -128,7 +129,11 @@ export async function publishedByCaller(
   db: Database,
   item: PublishedItem,
   digest: Readonly<Digest>,
-  { taskId, anchors }: Readonly<{ taskId: number; anchors: Readonly<AnchorSnapshot> }>,
+  {
+    taskId,
+    jobId,
+    anchors,
+  }: Readonly<{ taskId: number; jobId: number; anchors: Readonly<AnchorSnapshot> }>,
 ): Promise<JobOutcome> {
   const stored = await digestStored(db, item, digest, {
     taskId,
@@ -136,7 +141,14 @@ export async function publishedByCaller(
     anchors,
   });
 
-  return storedOutcome(db, { current: generationCurrent(item), taskId, answer: digest }, stored);
+  return storedOutcome(
+    db,
+    { current: generationCurrent(item), taskId, answer: digest },
+    {
+      ...stored,
+      writes: [...stored.writes, supersededTasks(db, eq(aiTasks.jobId, jobId))],
+    },
+  );
 }
 
 function catalogGuard(rule: CatalogRule, entries: Parameters<typeof catalogCurrent>[1]) {

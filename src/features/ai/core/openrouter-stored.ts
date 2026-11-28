@@ -5,6 +5,7 @@ import { logFailure, readOrAssume } from "../../../core/kernel/failure-log.ts";
 import { guardHolds } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { grokBotChosen } from "../../../core/kernel/provider-saved.ts";
+import { isClosed } from "../../../core/kernel/restore-hold.ts";
 import { settings } from "../../../core/kernel/schema.ts";
 import { type PreparedSave, saveWithDigests } from "./ai-settings.ts";
 
@@ -25,7 +26,9 @@ export async function reopenedWhileStored(
   row: PreparedRow,
 ): Promise<boolean> {
   try {
-    return await saveWithDigests(ports, storedRow(row), []);
+    const saved = await saveWithDigests(ports, storedRow(row), []);
+
+    return isClosed(saved) ? await holdsSettings(ports.db, row) : saved;
   } catch (error) {
     logFailure("openrouter-connect-digests-failed", {}, error);
 

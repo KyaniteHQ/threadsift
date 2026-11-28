@@ -23,8 +23,12 @@ docs only     -> documentation checks -> aggregate `gate`
 full gate     -> check + smoke(worker) + smoke(container) -> aggregate `gate`
 code on main  -> full gate or matching pull request gate -> deploy (live Worker)
                                                         \-> image (ghcr.io :sha-<sha>, :main)
-tag v*        -> release: plan -> build amd64 + arm64 -> publish index and image tags, move `release`, GitHub Release
+tag v*        -> release: plan -> build amd64 + arm64 --\
+                          Extension files ----------------> publish index and image tags, move `release`, GitHub Release
+                                                           -> stable tag only: Extension stores (environment extension-stores)
 manual        -> live check (Worker and container, environment post-merge)
+manual        -> release: Extension files -> dry run of the Extension stores (environment extension-stores)
+daily         -> Extension store status (environment extension-stores)
 ```
 
 ## Gate
@@ -260,24 +264,59 @@ The release workflow handles version tags and is separate from the gate workflow
 
 `tools/release-plan.sh <tag>` decides what a tag moves, and both the `plan` and the `publish` job call it. It reads the repository's `v*` tags and the root changelog, prints each decision and changes nothing, so it also runs on a machine with no tag pushed. `--changelog <file>` reads another changelog, such as a draft.
 
-| Tag | Image tags | `release` branch | GitHub Release |
-|---|---|---|---|
-| `v1.4.2` | publishes `1.4.2`, moves `1.4`, `1` and `latest` | moves to the tagged commit | a release marked latest |
-| `v1.5.0-rc.1` (any tag with `-`) | publishes `1.5.0-rc.1` only | stays | a prerelease |
+| Tag | Image tags | `release` branch | GitHub Release | Extension stores |
+|---|---|---|---|---|
+| `v1.4.2` | publishes `1.4.2`, moves `1.4`, `1` and `latest` | moves to the tagged commit | a release marked latest | submits `1.4.2` to both, unless a newer stable tag exists |
+| `v1.5.0-rc.1` (any tag with `-`) | publishes `1.5.0-rc.1` only | stays | a prerelease | none |
 
-- Every Cloudflare copy follows the `release` branch, so a release candidate never moves it. An image tag holds at most 128 characters and no `+`, so the plan refuses a longer version and a tag with `+<build>` before anything builds.
+- Every Cloudflare copy follows the `release` branch, so a release candidate never moves it. A release candidate never reaches an Extension store either, because WXT writes `1.0.0-rc.1` as manifest version `1.0.0`, and Chrome refuses a later upload whose version did not rise. An image tag holds at most 128 characters and no `+`, so the plan refuses a longer version and a tag with `+<build>` before anything builds.
 - A moving tag stays when a newer stable tag in its range exists, so a run of an older tag that ends last moves nothing back. A stable tag counts as newer from the moment it is pushed, so a stable tag whose run fails blocks the moving tags of every older tag until it is deleted. Delete it, fix the cause on `main`, and tag again; the plan reads the changelog at the tagged commit, so a fix needs a new tag anyway.
 - A stable release takes its notes from its own section of the root changelog, `## <tag>`, and a release candidate from `## Unreleased`, because the changelog keeps every change since the last stable release there until that release is cut. A minor release's heading may carry a headline for its title, as in `## v1.1.0: <headline>`.
 
 1. The `plan` job runs the plan, writes it to the job summary and fails before any build when the tag or the changelog section is wrong.
 2. A `v*` tag must name a commit on `main`. The build fails before publication when that ancestry check fails.
-3. One build job for each architecture pushes its image by digest with provenance, records the digest, start-checks the digest and, on amd64, runs the container smoke on it.
+3. One build job for each architecture pushes its image by digest with provenance, records the digest, start-checks the digest and, on amd64, runs the container smoke on it. Beside them, the `extension` job runs the Extension's package command ([Extension and Threadsift bot](extension-and-threadsift-bot.md#package-for-the-stores)) and keeps the two store zips and the source archive as the artifact `extension-files`.
 4. The publish job runs the plan again, because a tag pushed while the build ran changes which moving tags move. When `release` moves, it checks that `release` can advance by fast-forward. It validates a dry-run image index (both platforms and two attestation manifests), publishes the version tag and the moving tags in one index, checks that each tag names that index, and moves `release` when the plan says so.
-5. The publish job then creates the GitHub Release as a draft with the files the plan names, checks that the draft lists exactly those files as uploaded, and only then publishes it, because once the repository turns on immutable releases a published release takes no new file ([gh release create](https://cli.github.com/manual/gh_release_create), Immutable Releases). The plan names no release file yet.
+5. The publish job then creates the GitHub Release as a draft with the files the plan names, checks that the draft lists exactly those files as uploaded, and only then publishes it, because once the repository turns on immutable releases a published release takes no new file ([gh release create](https://cli.github.com/manual/gh_release_create), Immutable Releases). The plan names the Extension's three files of the tag's version, so a tag whose Extension carries another version stops here.
+6. For a stable tag with no newer stable tag, and only when `publish` succeeded, the `stores` job then submits those same files to the Chrome Web Store and Firefox Add-ons ([Extension stores](#extension-stores)).
 
 The `release` concurrency group serializes whole runs, and their order is not guaranteed. The publish checkout keeps full history, so later releases advance `release` with a fast-forward push. If publication succeeds but the branch push fails, rerun the failed publish job. It reuses the recorded digests, and creating the same index again is idempotent. Rerun only the failed jobs, never all jobs: a new build pushes new digests, and the publish job then refuses to point the version tag, which never moves, at them. A rerun deletes a draft that an earlier attempt left and creates it again, and passes over a published GitHub Release only when it carries every file the plan names. Each build records its pushed digest before the runtime checks, so those artifacts also identify untagged versions that a failed check leaves for manual cleanup.
 
 Verified on 2026-11-17 with two tag runs ([first](https://github.com/KyaniteHQ/threadsift/actions/runs/44159949236), [second](https://github.com/KyaniteHQ/threadsift/actions/runs/44164286715)): `docker buildx imagetools inspect` showed both platforms and two attestation manifests, the native arm64 start checks answered 200, the fast-forward push advanced `release` to the tagged commit's direct child, and an [ordinary main run](https://github.com/KyaniteHQ/threadsift/actions/runs/44162780681) left it unchanged. No tag has yet run the plan, the moving tags or the GitHub Release steps ([Open items and unverified claims](open-items-and-unverified-claims.md)).
+
+### Extension stores
+
+The `stores` job submits the Extension to the Chrome Web Store and Firefox Add-ons. It runs after `publish` succeeded for a stable tag that no newer stable tag follows, because a store refuses a version below the one it holds, in the environment `extension-stores`, as `node tools/extension-stores.ts submit <tag>`. It uploads the files of the `extension-files` artifact, the same files `publish` attached to the GitHub Release. The command calls `wxt submit`, which is `publish-browser-extension` 6.2.0: for Chrome, Chrome Web Store API v2 `upload`, then `publish`, which submits the version for review and publishes it after approval; for Firefox, Add-ons API v5 `upload`, then a listed version with the source archive. A Chrome review still pending for an earlier version is cancelled first, and Chrome allows 6 cancels a day ([cancel a submission](https://developer.chrome.com/docs/webstore/cancel-review)). Both stores run even when one fails, and the job fails when either upload or submission fails.
+
+Neither store publishes at once. Chrome reviews every upload, "within a few days, but it can take up to a few weeks" ([review process](https://developer.chrome.com/docs/webstore/review-process)). Firefox signs and publishes within 24 hours, or later when it picks the upload for a manual review ([signing and distribution](https://extensionworkshop.com/documentation/publish/signing-and-distribution-overview/)). So the job promises that each stable release is submitted to both stores in its run, not the day the stores show it.
+
+The command refuses a real upload, before it reads any credential, unless the run is a `push` of that tag (`GITHUB_EVENT_NAME` and `GITHUB_REF`), the tag has no `-`, the Extension's package carries the tag's version, and no newer stable tag is on `origin`. It then needs the three files in WXT's output folder and the sign-in values below. It names each missing variable and prints no value. Before `wxt submit`, it reads both stores and leaves out a store that already holds the version: Chrome when its published or submitted revision carries it as `PENDING_REVIEW`, `STAGED`, `PUBLISHED` or `PUBLISHED_TO_TESTERS`, and Firefox when the version exists in any status, because Firefox refuses a version number it already has. So a rerun of the job after one store failed submits only the other, and never cancels a review of the same version. When either read fails, it uploads nothing. After `wxt submit`, it reads each store's state again, prints a table with one row for each store, a failed read included, and adds it to the job summary, as the daily status run does.
+
+- **Manual dry run.** Run the release workflow by hand on `main`, with `dry_run` left on. The `stores` job runs for a manual run on `main` only. Only the `extension` and `stores` jobs run: `extension` builds the files from `main`, and `stores` runs `wxt submit --dry-run`, which signs in to both stores (Chrome `fetchStatus`, the Firefox add-on's detail) and uploads nothing, then reads each store's state. A manual run with `dry_run` off fails at the refusal.
+- **Environment.** `extension-stores` lets only `v*` tags and the default branch deploy, and it has no required reviewer, so a release needs no click. Create it with those rules before the first run that names it, because a run that names a missing environment creates it with no protection rules ([Managing environments](https://docs.github.com/en/actions/how-tos/deploy/configure-and-manage-deployments/manage-environments)). The `stores` job names it for a stable tag and for a manual run on `main`, and the status job only on `main` once a stable tag exists. A manual run on a `v*` tag would run that tag's code with the environment's values and skip the check that the tag's commit is on `main`, so neither job runs for it; protect `v*` tags with a tag ruleset as well, because the environment admits every `v*` tag ([rulesets](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-rulesets/about-rulesets)).
+
+| Name | Kind | Holds |
+|---|---|---|
+| `CHROME_PUBLISHER_ID`, `CHROME_EXTENSION_ID` | variable | the Chrome Web Store publisher and item |
+| `GCP_WORKLOAD_IDENTITY_PROVIDER`, `CHROME_SERVICE_ACCOUNT_EMAIL` | variable | the Google Cloud workload identity provider and the service account the Chrome Developer Dashboard lists |
+| `CHROME_SERVICE_ACCOUNT_CLIENT_EMAIL`, `CHROME_SERVICE_ACCOUNT_PRIVATE_KEY` | secret | the service account's key, only when the store refuses the short-lived token |
+| `FIREFOX_EXTENSION_ID` | variable | the add-on's numeric id on Firefox Add-ons |
+| `FIREFOX_JWT_ISSUER`, `FIREFOX_JWT_SECRET` | secret | the key and secret from the Add-ons API Credentials page |
+
+- **Chrome sign-in.** When `GCP_WORKLOAD_IDENTITY_PROVIDER` is set, `google-github-actions/auth` v3.0.0 (Apache-2.0, Google) trades the run's GitHub OIDC token for a one-hour access token of the service account with the scope `https://www.googleapis.com/auth/chromewebstore`, so the environment stores no Chrome key. Chrome's API accepts a service account, and a short-lived token by impersonation ([service accounts](https://developer.chrome.com/docs/webstore/service-accounts)); whether it accepts this token is not observed yet. Without the provider the step is skipped and the command signs in with the key secrets.
+- **Firefox add-on id.** The Add-ons API v5 add-on and version routes take an add-on id, slug or guid ([Add-ons API](https://mozilla.github.io/addons-server/topics/api/addons.html)). `wxt submit` strips the braces of a guid, and Firefox Add-ons looks a guid up only in the braced form ([`Addon.get_lookup_field`](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/addons/models.py#L1993-L2003)), so the variable holds the numeric `id` that the add-on detail route answers. The status read fails when the add-on's `guid` is not the Extension's Gecko ID.
+- **Firefox sign-in.** Each call carries a JWT signed with HS256 by the secret, valid for at most 5 minutes ([Add-ons API authentication](https://mozilla.github.io/addons-server/topics/api/auth.html)).
+
+### Store status
+
+The `extension-stores` workflow runs every day at 07:23 UTC, and by hand on `main`. Its `newest` job reads the newest stable `v*` tag on `origin`, and fails when `origin` does not answer. While no stable tag exists, the `status` job is skipped. Otherwise it signs in with a read-only Chrome token and runs `node tools/extension-stores.ts status <tag>`, which reads Chrome's `fetchStatus`, the Firefox add-on and its version `<version>`, which the route reads as a version number because it holds a dot ([Add-ons API](https://mozilla.github.io/addons-server/topics/api/addons.html), Version Detail), prints the table and fails, so GitHub mails the owner, when:
+
+- a store read fails, while the table still shows the other store;
+- Chrome took the item down, warned it for a policy violation, or rejected its published or submitted revision;
+- the Firefox add-on's status is `disabled`, `rejected` or `deleted`, the add-on is disabled, or the version's file status is `disabled`, which Firefox uses for a rejected version;
+- a store's public version is not the tag's version 21 days or more after the tag's date, because Chrome's line for contacting support is three weeks ([review process](https://developer.chrome.com/docs/webstore/review-process)). The date is the tagger date of an annotated tag and the commit date of a lightweight one.
+
+Both stores also mail the owner about a rejection. GitHub turns a schedule off after 60 days without activity in a public repository ([`schedule`](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule)).
 
 ### Versions and the release pull request
 
@@ -291,7 +330,7 @@ The command writes the version into:
 - the image's `org.opencontainers.image.version` label, the last line of the `Containerfile` ([OCI annotations](https://github.com/opencontainers/image-spec/blob/v1.1.1/annotations.md));
 - the Extension's `version` in its package manifest, from which WXT 0.21.5 takes the manifest version and, for Chrome, `version_name`.
 
-The bot keeps its own `bot-v<N>` numbering and its own release ([Extension and Threadsift bot](extension-and-threadsift-bot.md), Release), because an installed bot looks for a new release only among the `bot-v` tags, so a shared tag would never reach it. The dry run says so in one line. The bot joins the shared version once its update procedure follows the Instance: that change adds its version file and skill pin to `RELEASE_FILES`, which the command writes, and `COMPARED_FILES`, which the gate compares.
+The bot keeps its own `bot-v<N>` numbering and its own release ([Extension and Threadsift bot](extension-and-threadsift-bot.md), Release), because an installed bot looks for a new release only among the `bot-v` tags, so a shared tag would never reach it. The dry run says so in one line. The bot joins the shared version once its update procedure follows the Instance: that change adds its version file and skill pin to `VERSION_FILES`, which the command writes and the gate compares.
 
 It refuses, with the reason, and changes nothing when:
 
@@ -303,7 +342,7 @@ It refuses, with the reason, and changes nothing when:
 - the root changelog does not hold exactly one `## Unreleased`, or, for a stable release, holds no notes under it or already holds the release's section;
 - `--headline` comes with a release candidate or a patch release.
 
-`pnpm run check:versions`, part of `pnpm run check` and so of the gate, fails when the image label carries another version than the app. While the app's version is a patch release that has no tag yet, it also fails when a migration file differs from the newest stable tag, so a migration merged after the release pull request opened cannot reach the tag. Only then does it read `origin`, fetching the tag's commit when the clone lacks it. The gate does not compare the Extension's version yet.
+`pnpm run check:versions`, part of `pnpm run check` and so of the gate, fails when the image label or the Extension carries another version than the app. While the app's version is a patch release that has no tag yet, it also fails when a migration file differs from the newest stable tag, so a migration merged after the release pull request opened cannot reach the tag. Only then does it read `origin`, fetching the tag's commit when the clone lacks it.
 
 ### Changelog
 
