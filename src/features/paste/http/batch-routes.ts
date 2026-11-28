@@ -54,7 +54,9 @@ const batchRoute = createRoute({
       ErrorResponseSchema,
       `The error names the field it refuses: the entry's index, as \`links.2.url\`, or \`import\` for an \`import\` the rules above refuse. Nothing is saved and the cursor stays.`,
     ),
-    503: restoringResponse("nothing is saved and the cursor stays."),
+    503: restoringResponse(
+      "the batch stops at the link it was saving when the restore began: the links before it stay saved, that link and the ones after it are not saved, and the cursor stays.",
+    ),
   },
 });
 
