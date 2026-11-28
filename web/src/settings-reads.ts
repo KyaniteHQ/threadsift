@@ -1,5 +1,6 @@
 import { fetchTokens } from "./access-api.ts";
 import { fetchAiSettings } from "./ai-api.ts";
+import { fetchBotUpdate } from "./bot-update-api.ts";
 import { fetchExportStatus } from "./export-api.ts";
 import { fetchGithubSettings } from "./github-api.ts";
 import { fetchGrokBotSettings } from "./grok-bot-api.ts";
@@ -20,16 +21,18 @@ async function settled<View>(
 }
 
 export async function readSettings(signal: AbortSignal): Promise<SettingsLoad> {
-  const [ai, backup, github, grokBot, reddit, redditAccount, tokens, x] = await Promise.all([
-    settled(fetchAiSettings, signal),
-    settled(fetchExportStatus, signal),
-    settled(fetchGithubSettings, signal),
-    settled(fetchGrokBotSettings, signal),
-    settled(fetchRedditSettings, signal),
-    settled(fetchRedditAccount, signal),
-    settled(fetchTokens, signal),
-    settled(fetchXSettings, signal),
-  ]);
+  const [ai, backup, botUpdate, github, grokBot, reddit, redditAccount, tokens, x] =
+    await Promise.all([
+      settled(fetchAiSettings, signal),
+      settled(fetchExportStatus, signal),
+      settled(fetchBotUpdate, signal),
+      settled(fetchGithubSettings, signal),
+      settled(fetchGrokBotSettings, signal),
+      settled(fetchRedditSettings, signal),
+      settled(fetchRedditAccount, signal),
+      settled(fetchTokens, signal),
+      settled(fetchXSettings, signal),
+    ]);
 
-  return { ai, backup, github, grokBot, reddit, redditAccount, tokens, x };
+  return { ai, backup, botUpdate, github, grokBot, reddit, redditAccount, tokens, x };
 }

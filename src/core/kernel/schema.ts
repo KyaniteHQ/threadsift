@@ -64,6 +64,8 @@ export { topicChecks, topicPages } from "./topic-tables.ts";
 
 export { vaultSettings, mirrorNotes, mirrorFiles } from "./vault-tables.ts";
 
+export { AUTO_INSTALL_DEFAULT, threadsiftBot } from "./threadsift-bot-tables.ts";
+
 export { xSettings } from "./x-settings-tables.ts";
 
 export { xVerifications } from "./x-verification-tables.ts";

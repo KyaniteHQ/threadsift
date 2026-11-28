@@ -5,7 +5,8 @@ import {
   GrokBotTestSchema,
   GrokBotViewSchema,
 } from "../../src/core/contract/grok-bot-contract.ts";
-import { callOk, del, parsedBody, parsedFrom, post, put } from "./calls.ts";
+import { callOk, del, parsedBody, parsedFrom, post } from "./calls.ts";
+import { savedSetting } from "./setting-save.ts";
 import { DATABASE_WRITE_DEADLINE_MS, HOP_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/grok-bot";
@@ -15,9 +16,7 @@ export function fetchGrokBotSettings(signal?: AbortSignal) {
 }
 
 export function saveGrokBot(input: Readonly<GrokBotInput>) {
-  return parsedFrom(put(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, GrokBotSaveResponseSchema, {
-    json: input,
-  });
+  return savedSetting(ENDPOINT, GrokBotSaveResponseSchema, input);
 }
 
 export async function removeGrokBot() {

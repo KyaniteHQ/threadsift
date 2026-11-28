@@ -16,6 +16,7 @@ type ExclusionReason =
   | "provider-choice"
   | "work-in-flight"
   | "derived"
+  | "bot-state"
   | "carried-in-manifest";
 
 const EXCLUDED_TABLES = {
@@ -34,6 +35,7 @@ const EXCLUDED_TABLES = {
   reddit_account: "secret",
   ai_settings_revision: "provider-choice",
   x_settings: "provider-choice",
+  threadsift_bot: "bot-state",
   jobs: "work-in-flight",
   exports: "work-in-flight",
   restores: "work-in-flight",

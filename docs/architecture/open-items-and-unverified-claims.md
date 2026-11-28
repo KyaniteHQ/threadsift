@@ -244,6 +244,18 @@ Not verified:
 - Whether a routine can read the saved agent token and use it to call Threadsift through the script. This is inferred.
 - Retry accounting against a send the bot accepts. It ran offline with refused sends. The three weekly kinds write no `run.event` report when the bot answers with an error, and the route logs `grok-bot-error`.
 
+### The bot's self-update
+
+A local run with the real app on loopback, the bot script in a shell and a stand-in for raw.githubusercontent.com installed an expected release after a task was answered, refused a release with a changed `SKILL.md` or a changed routine prompt and told it once, refused crafted manifests, told an older expected release once, stayed quiet on an unpublished tag, and told a routine change without touching a routine ([Extension and Threadsift bot](extension-and-threadsift-bot.md#self-update)). No run on a real Bot has shown:
+
+- whether a routine run's call to the Instance, `update` included, waits on an approval card, and whether an Allow rule then lets it run unattended;
+- whether a routine run may replace the script and the two guides on the Bot's computer, and fetch from raw.githubusercontent.com in a child process that runs after the run's own word is printed;
+- whether the skill loads at the owner's next message when that message is not about Threadsift, and whether the skill tool takes a skill of about 28 KB read from a file;
+- whether the main conversation posts a routine run's one-time alert when the owner is away, and whether a routine run posts the `refused`, `older` and `routines` alerts that its prompt allows as "the one-time alerts the skill allows";
+- whether the Bot's shell tool waits the up to 120 seconds that the update after a task or a sync can take.
+
+The tag `bot-v14` is not pushed yet. Until the owner pushes it, every bot of this release prints `waits bot-v14` for an Instance that expects it, and the release workflow refuses an Instance release that expects it.
+
 ## Digests, Kept comments and races
 
 - Task owners: the atomicity of the claim check and the task insert. A revocation between a check and the insert needs a write between the two statements, and the attempt makes none. No trigger can order it, because SQLite fires triggers on writes and a BEFORE INSERT trigger on `ai_tasks` fires after the insert's own WHERE ran. The atomicity rests on the task being one statement. The Worker cannot count Provider requests, because it refuses private and plain HTTP addresses, so its proof of no call is the absence of an `ai_tasks` row.

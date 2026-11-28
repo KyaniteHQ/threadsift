@@ -1,4 +1,5 @@
 import type { Token } from "../../src/core/contract/access-wire.ts";
+import type { BotUpdateView } from "../../src/core/contract/bot-install-contract.ts";
 import type { ExportStatus } from "../../src/core/contract/export-contract.ts";
 import type { GithubSettingsView } from "../../src/core/contract/github-contract.ts";
 import type { GrokBotView } from "../../src/core/contract/grok-bot-contract.ts";
@@ -14,6 +15,7 @@ export type Loaded<View> =
 export interface SettingsLoad {
   readonly ai: Loaded<AiView>;
   readonly backup: Loaded<ExportStatus>;
+  readonly botUpdate: Loaded<BotUpdateView>;
   readonly github: Loaded<GithubSettingsView>;
   readonly grokBot: Loaded<GrokBotView>;
   readonly reddit: Loaded<RedditSettings>;

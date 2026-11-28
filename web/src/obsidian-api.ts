@@ -5,7 +5,8 @@ import {
   type VaultInput,
   type VaultVerifyInput,
 } from "../../src/core/contract/vault-contract.ts";
-import { del, parsedFrom, post, put } from "./calls.ts";
+import { del, parsedFrom, post } from "./calls.ts";
+import { savedSetting } from "./setting-save.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
 const ENDPOINT = "/api/settings/obsidian";
@@ -15,9 +16,7 @@ export function fetchObsidian(signal?: AbortSignal) {
 }
 
 export function saveObsidian(input: Readonly<VaultInput>) {
-  return parsedFrom(put(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, VaultResultSchema, {
-    json: input,
-  });
+  return savedSetting(ENDPOINT, VaultResultSchema, input);
 }
 
 export function verifyObsidian(input: Readonly<VaultVerifyInput>) {

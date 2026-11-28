@@ -73,11 +73,12 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
 | `github_cooldown` | The time before which the Instance sends no GitHub request. |
 | `grok_bot_settings` | The owner's Grok Bot, one row. No row means no Grok Bot is set up. |
 | `x_settings` | The owner's choice of the reader of X links. No row means `auto`. |
+| `threadsift_bot` | Whether the Threadsift bot installs the expected bot release by itself, and the bot's last report of its versions and of a release it refused, with the report's time and the id of the agent token that sent it. No row means automatic install with no report. |
 | `reddit_settings` | The owner's Reddit settings. No row means the archive fill is on. |
 | `reddit_account` | The owner's own Reddit account with its session cookie. |
 | `vault_settings`, `mirror_notes`, `mirror_files` | The Vault target, the lease, the queued note subjects and the per-file checkpoints. See [Vault mirror](vault-mirror.md). |
 
-- **Secrets.** `settings`, `github_settings`, `reddit_account`, `vault_settings` and `grok_bot_settings` hold their secret sealed under `THREADSIFT_SECRET_KEY`. `x_settings` and `reddit_settings` hold none. No route, log or Export returns `reddit_account`.
+- **Secrets.** `settings`, `github_settings`, `reddit_account`, `vault_settings` and `grok_bot_settings` hold their secret sealed under `THREADSIFT_SECRET_KEY`. `x_settings`, `threadsift_bot` and `reddit_settings` hold none. `threadsift_bot` stays out of the Export: the bot reports again at its next run, and a Restore keeps the destination's automatic install choice, which is on when the destination has no row. No route, log or Export returns `reddit_account`.
 - **`settings`.** Only a Claude Code or Codex row can store an effort or use a choice other than `custom`. Grok Bot is not a value of this row. The flag `use_as_provider` on `grok_bot_settings` says Grok Bot is the Provider, and it blocks removing that row. `grok_bot_settings` holds no agent token, references no other table, and stays out of the Export (see [Export, backup and restore](export-backup-and-restore.md)).
 - **`reddit_account`.** The Reddit account module writes the row except `busy_job`, `busy_attempt`, `busy_until` and `queue_head`, which the Reddit queue module writes (The Reddit turn in [Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
 

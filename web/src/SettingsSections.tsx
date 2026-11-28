@@ -1,7 +1,7 @@
 import { AI_SECTION } from "./AiSection.tsx";
 import { BACKUP_SECTION } from "./BackupSection.tsx";
 import { GITHUB_SECTION } from "./GithubSection.tsx";
-import { GROK_BOT_SECTION } from "./GrokBotSection.tsx";
+import { GrokBotSections } from "./GrokBotSection.tsx";
 import { LoadedSection } from "./LoadedSection.tsx";
 import { PasswordSection } from "./PasswordSection.tsx";
 import { RedditSections } from "./RedditSection.tsx";
@@ -23,7 +23,7 @@ export function SettingsSections({
       <LoadedSection {...AI_SECTION} initial={loaded.ai} />
       <LoadedSection key={version} {...X_SECTION} initial={x} />
       <LoadedSection {...GITHUB_SECTION} initial={loaded.github} />
-      <LoadedSection {...GROK_BOT_SECTION} initial={loaded.grokBot} after={refresh} />
+      <GrokBotSections grokBot={loaded.grokBot} botUpdate={loaded.botUpdate} after={refresh} />
       <RedditSections loaded={loaded} />
       <TokensSection initial={loaded.tokens} />
       <LoadedSection {...BACKUP_SECTION} initial={loaded.backup} />
