@@ -1,14 +1,20 @@
 import { type SQL, type SQLWrapper, and, asc, eq, lte, sql } from "drizzle-orm";
 import type { BatchItem } from "drizzle-orm/batch";
 
-import { INTAKE_JOB_KINDS, type WaitReason } from "../contract/job-contract.ts";
+import {
+  GROK_BOT_WAIT,
+  INTAKE_JOB_KINDS,
+  ITEM_JOB_KINDS,
+  type WaitReason,
+} from "../contract/job-contract.ts";
+import { GROK_BOT_EXECUTOR, UNANSWERED } from "./ai-task-state.ts";
 import type { Database } from "./database.ts";
 import { guardedBatch } from "./guards.ts";
 import type { JobPorts } from "./job-outcome.ts";
 import { enqueueRows } from "./job-rows.ts";
 import { jobIs, jobOpen } from "./job-tables.ts";
 import { listed } from "./schema-checks.ts";
-import { items, jobs } from "./schema.ts";
+import { aiTasks, items, jobs } from "./schema.ts";
 
 export function waitingFor(reason?: WaitReason): SQL {
   return reason === undefined
@@ -42,6 +48,37 @@ export function wokenJobs(
 
 export function wokenJob(db: Database, jobId: number, now: number, when?: Readonly<SQLWrapper>) {
   return wokenJobs(db, now, eq(jobs.id, jobId), jobOpen(), when && sql`${when}`);
+}
+
+export type MovedInput =
+  | { readonly kind: "item-content"; readonly itemId: number | Readonly<SQLWrapper> }
+  | { readonly kind: "library" };
+
+function jobsReading(moved: MovedInput): SQL {
+  return moved.kind === "item-content"
+    ? sql`${jobs.kind} = 'digest' and ${jobs.itemId} = ${moved.itemId}`
+    : sql`${jobs.kind} not in (${listed(ITEM_JOB_KINDS)})`;
+}
+
+const AWAITS_ANSWER = sql`exists (select 1 from ${aiTasks} where ${aiTasks.jobId} = ${jobs.id} and ${aiTasks.executor} = ${GROK_BOT_EXECUTOR} and ${UNANSWERED})`;
+
+export function wokenBotWaits(
+  db: Database,
+  {
+    moved,
+    now,
+    when = sql`1`,
+  }: Readonly<{ moved: MovedInput; now: number; when?: Readonly<SQLWrapper> }>,
+) {
+  return wokenJobs(
+    db,
+    now,
+    waitingFor(GROK_BOT_WAIT),
+    sql`${jobs.nextAttemptAt} > ${now}`,
+    AWAITS_ANSWER,
+    jobsReading(moved),
+    sql`${when}`,
+  );
 }
 
 export async function enqueueWoken(
