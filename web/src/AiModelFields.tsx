@@ -1,4 +1,4 @@
-import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef } from "react";
+import { type RefObject, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import type {
   ModelOption,
@@ -8,6 +8,7 @@ import { isCliProvider } from "../../src/core/contract/provider-families.ts";
 import { AI_TEXT } from "./ai-text.ts";
 import { AiSelect, joined } from "./AiSelect.tsx";
 import { FormField } from "./FormField.tsx";
+import { MODEL_FILTER_OVER, ModelFilter, modelsMatching } from "./ModelFilter.tsx";
 import { ANOTHER_MODEL, type useAiFields } from "./use-ai-fields.ts";
 import type { ModelListState } from "./use-model-list.ts";
 
@@ -98,6 +99,19 @@ function modelModeOf(options: readonly ModelOption[] | null, typed: boolean) {
   return typed ? "other" : "list";
 }
 
+function useModelQuery(provider: Fields["provider"]) {
+  const [filter, setFilter] = useState({ provider, query: "" });
+
+  const change = useCallback(
+    (query: string) => {
+      setFilter({ provider, query });
+    },
+    [provider],
+  );
+
+  return [filter.provider === provider ? filter.query : "", change] as const;
+}
+
 export function ModelPicker({ fields, list, kind, marked, disabled, help }: PickerProps) {
   const options = listedOf(list);
   const shownHelp = joined(help, statusOf(list));
@@ -107,6 +121,8 @@ export function ModelPicker({ fields, list, kind, marked, disabled, help }: Pick
   const { ref: input } = field;
   const controls = useCallback(() => [select.current, input.current], [input]);
 
+  const [query, changeQuery] = useModelQuery(fields.provider);
+
   useFocusAcrossSwap(modelModeOf(options, typed), controls);
 
   if (options === null)
@@ -114,11 +130,17 @@ export function ModelPicker({ fields, list, kind, marked, disabled, help }: Pick
       <FormField field={field} label={AI_TEXT.model} kind={kind} marked={marked} help={shownHelp} />
     );
 
+  const filtered = options.length > MODEL_FILTER_OVER;
+  const matching = filtered ? modelsMatching(options, query) : options;
+
   return (
     <>
+      {filtered ? (
+        <ModelFilter query={query} matches={matching.length} change={changeQuery} />
+      ) : null}
       <ModelSelect
         fields={fields}
-        options={options}
+        options={withChosen(matching, options, field.value)}
         typed={typed}
         select={select}
         help={shownHelp}
@@ -131,6 +153,18 @@ export function ModelPicker({ fields, list, kind, marked, disabled, help }: Pick
       ) : null}
     </>
   );
+}
+
+function withChosen(
+  matching: readonly ModelOption[],
+  options: readonly ModelOption[],
+  chosen: string,
+): readonly ModelOption[] {
+  if (matching.some(({ id }) => id === chosen)) return matching;
+
+  const kept = options.find(({ id }) => id === chosen);
+
+  return kept === undefined ? matching : [kept, ...matching];
 }
 
 function ModelSelect({

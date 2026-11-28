@@ -127,7 +127,17 @@
   flex-direction: column;
 }
 .st-rail .nav-link {
+  position: relative;
+  width: fit-content;
   min-height: var(--row-h);
+}
+.st-rail .nav-link[aria-current="location"]::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  bottom: 0;
+  height: 2px;
+  background: var(--acc-ink);
 }
 .app[data-bp~="medium"] .st-page {
   grid-template-columns: minmax(0, 1fr);
@@ -136,14 +146,20 @@
 .app[data-bp~="medium"] .st-rail {
   position: static;
   margin-inline: calc(var(--pg-pad) * -1);
+  border-bottom: var(--hw) solid var(--line);
+}
+.st-rail .sxw {
+  --fade-to: var(--bg);
+}
+.app[data-bp~="medium"] .st-rail .sx {
   padding-inline: var(--pg-pad);
   overflow-x: auto;
   overscroll-behavior-x: contain;
-  border-bottom: var(--hw) solid var(--line);
 }
 .app[data-bp~="medium"] .st-rail ul {
   flex-direction: row;
   gap: var(--s4);
+  width: max-content;
 }
 .app[data-bp~="medium"] .st-rail li {
   flex: none;
@@ -163,6 +179,9 @@
 .st-main > .sec:first-child {
   padding-top: 0;
   border-top: 0;
+}
+.st-main > .sec:last-child {
+  min-height: calc(var(--vh) - var(--mast-h) - var(--s6));
 }
 .sec-head,
 .sec-body {
