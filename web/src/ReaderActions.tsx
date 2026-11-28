@@ -28,15 +28,17 @@ export function ReaderActions({
   controls,
   look,
   panel,
+  beside,
 }: Readonly<{
   item: Item;
   controls: ReaderControls;
   look: Look;
   panel: PanelState;
+  beside: boolean;
 }>) {
   const { mode, toggleRead, remove } = controls;
   const read = item.readState === "read";
-  const comments = item.commentCount;
+  const comments = beside ? null : item.commentCount;
 
   const toggle = useCallback(() => {
     toggleRead(item);
@@ -51,7 +53,12 @@ export function ReaderActions({
       ) : null}
       {comments === null || comments.shown === 0 ? null : <CommentsButton counts={comments} />}
       {mode === "pane" ? null : <LookPanel look={look} panel={panel} />}
-      <button type="button" className="btn rd-act" aria-keyshortcuts="M" onClick={toggle}>
+      <button
+        type="button"
+        className={read ? "btn rd-act" : "btn btn-acc rd-act"}
+        aria-keyshortcuts="M"
+        onClick={toggle}
+      >
         <ReadIcon read={read} />
         <span className="rd-act-l">{read ? MARK_UNREAD : MARK_READ}</span>
       </button>

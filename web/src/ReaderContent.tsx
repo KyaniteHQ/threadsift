@@ -1,14 +1,11 @@
-import { createPortal } from "react-dom";
-
 import type { Item } from "../../src/core/contract/item-wire.ts";
-import { HighlightList } from "./HighlightList.tsx";
 import { HighlightsProvider } from "./Highlights.tsx";
 import type { MarginSlot } from "./margin-column.ts";
-import { NoteBox } from "./NoteBox.tsx";
+import { useSectionIds } from "./reader-sections.ts";
 import { READER_FAILED, READER_STALE } from "./reader-text.ts";
 import { Agent } from "./ReaderColumn.tsx";
 import { Original } from "./ReaderOriginal.tsx";
-import { Related } from "./Related.tsx";
+import { ReaderSide } from "./ReaderSide.tsx";
 import { AlertRegion, StatusRegion } from "./RetryRegions.tsx";
 import type { DetailActions, DetailState } from "./use-item-detail.ts";
 
@@ -51,28 +48,19 @@ export function ReaderContent({
   now: number;
   margin: MarginSlot;
 }>) {
-  const agent = <Agent item={item} detail={state.detail} tryAgain={tryAgain} />;
+  const { detail } = state;
+  const ids = useSectionIds();
 
   return (
     <HighlightsProvider
       itemId={item.id}
-      view={state.detail.highlights}
+      view={detail.highlights}
       actions={actions}
       announce={announce}
     >
-      {margin.beside ? null : agent}
-      <Original item={item} detail={state.detail} now={now} />
-      {margin.node === null
-        ? null
-        : createPortal(
-            <>
-              {margin.beside ? agent : null}
-              <Related entries={state.detail.related} />
-              <HighlightList />
-              <NoteBox key={item.id} itemId={item.id} initial={state.detail.note} />
-            </>,
-            margin.node,
-          )}
+      <Agent item={item} detail={detail} summaryId={ids.summary} tryAgain={tryAgain} />
+      <Original item={item} detail={detail} now={now} ids={ids} />
+      <ReaderSide margin={margin} item={item} detail={detail} ids={ids} />
     </HighlightsProvider>
   );
 }

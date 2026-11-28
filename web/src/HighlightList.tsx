@@ -5,7 +5,7 @@ import { HIGHLIGHTS_TITLE, NOT_FOUND } from "../../src/core/contract/reader-text
 import { watchFocus } from "./focus-watch.ts";
 import { useHighlights } from "./highlights-context.ts";
 import { QuoteText } from "./QuoteText.tsx";
-import { REMOVE_LABEL, removeNamed } from "./reader-text.ts";
+import { NO_HIGHLIGHTS, REMOVE_LABEL, removeNamed } from "./reader-text.ts";
 import { AlertRegion } from "./RetryRegions.tsx";
 import { readerTitleOf } from "./reveal.ts";
 
@@ -61,7 +61,12 @@ function Entry({ highlight }: Readonly<{ highlight: Highlight }>) {
           <p className="rd-note hl-gone">{NOT_FOUND}</p>
         </>
       )}
-      <button type="button" className="btn" aria-label={removeNamed(exact)} onClick={removeIt}>
+      <button
+        type="button"
+        className="btn btn-plain hl-remove"
+        aria-label={removeNamed(exact)}
+        onClick={removeIt}
+      >
         {REMOVE_LABEL}
       </button>
     </li>
@@ -72,7 +77,9 @@ function reloadPage(): void {
   window.location.reload();
 }
 
-export const HighlightList = memo(function HighlightList() {
+export const HighlightList = memo(function HighlightList({
+  selectable,
+}: Readonly<{ selectable: boolean }>) {
   const { items, failure } = useHighlights();
 
   return (
@@ -81,14 +88,18 @@ export const HighlightList = memo(function HighlightList() {
         text={failure?.text ?? null}
         retry={failure?.reloads === true ? reloadPage : null}
       />
-      {items.length === 0 ? null : (
+      {items.length === 0 && !selectable ? null : (
         <section className="rd-hl">
           <h3 className="rd-h">{HIGHLIGHTS_TITLE}</h3>
-          <ul role="list" className="hl-list">
-            {items.map((highlight) => (
-              <Entry key={highlight.id} highlight={highlight} />
-            ))}
-          </ul>
+          {items.length === 0 ? (
+            <p className="hl-none">{NO_HIGHLIGHTS}</p>
+          ) : (
+            <ul role="list" className="hl-list">
+              {items.map((highlight) => (
+                <Entry key={highlight.id} highlight={highlight} />
+              ))}
+            </ul>
+          )}
         </section>
       )}
     </>

@@ -80,11 +80,16 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-export function maxOf(pane: Pane, bounds: PaneBounds, room: Room, drawn: Widths): number {
-  const beside = pane === "list" && room.rail ? drawn.rail : pane === "rail" ? drawn.list : 0;
-  const { min, max } = bounds[pane];
+export interface Range {
+  readonly min: number;
+  readonly max: number;
+}
 
-  return Math.max(min, Math.min(max, room.width - beside - bounds.readerMin));
+export function rangeOf(pane: Pane, bounds: PaneBounds, room: Room, drawn: Widths): Range {
+  const beside = pane === "list" && room.rail ? drawn.rail : pane === "rail" ? drawn.list : 0;
+  const max = Math.max(0, Math.min(bounds[pane].max, room.width - beside - bounds.readerMin));
+
+  return { min: Math.min(bounds[pane].min, max), max };
 }
 
 export function widthOf(
@@ -94,7 +99,9 @@ export function widthOf(
   room: Room,
   drawn: Widths,
 ): number {
-  return Math.round(clamp(wanted, bounds[pane].min, maxOf(pane, bounds, room, drawn)));
+  const { min, max } = rangeOf(pane, bounds, room, drawn);
+
+  return Math.round(clamp(wanted, min, max));
 }
 
 export function drawnWidths(saved: Widths, bounds: PaneBounds, room: Room): Widths {

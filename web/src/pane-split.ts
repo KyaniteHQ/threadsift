@@ -1,11 +1,11 @@
 import {
-  type Bounds,
   type Pane,
   type PaneBounds,
   type Room,
   type Widths,
+  type Range,
   drawnWidths,
-  maxOf,
+  rangeOf,
   readBounds,
   saveWidths,
   savedWidths,
@@ -44,7 +44,7 @@ interface Mounted {
   readonly bounds: PaneBounds;
 }
 
-function keyedWidth(event: KeyboardEvent, now: number, bounds: Bounds, max: number) {
+function keyedWidth(event: KeyboardEvent, now: number, range: Range, initial: number) {
   const step = event.shiftKey ? SHIFT_STEP : STEP;
 
   switch (event.key) {
@@ -53,11 +53,11 @@ function keyedWidth(event: KeyboardEvent, now: number, bounds: Bounds, max: numb
     case "ArrowRight":
       return now + step;
     case "Home":
-      return bounds.min;
+      return range.min;
     case "End":
-      return max;
+      return range.max;
     case "Enter":
-      return bounds.initial;
+      return initial;
     default:
       return null;
   }
@@ -169,9 +169,10 @@ export class PaneSplits {
     for (const pane of PANES) {
       app.style.setProperty(WIDTH_TOKENS[pane], `${String(drawn[pane])}px`);
       const handle = this.#handles.get(pane);
+      const range = rangeOf(pane, bounds, room, drawn);
       handle?.setAttribute("aria-valuenow", String(drawn[pane]));
-      handle?.setAttribute("aria-valuemin", String(bounds[pane].min));
-      handle?.setAttribute("aria-valuemax", String(maxOf(pane, bounds, room, drawn)));
+      handle?.setAttribute("aria-valuemin", String(range.min));
+      handle?.setAttribute("aria-valuemax", String(range.max));
     }
   }
 
@@ -262,8 +263,8 @@ export class PaneSplits {
     if (this.#mounted === null || this.#drag.kind === "dragging" || modified) return;
 
     const { bounds, lib } = this.#mounted;
-    const max = maxOf(pane, bounds, this.#room(lib), this.#drawn);
-    const width = keyedWidth(event, this.#drawn[pane], bounds[pane], max);
+    const range = rangeOf(pane, bounds, this.#room(lib), this.#drawn);
+    const width = keyedWidth(event, this.#drawn[pane], range, bounds[pane].initial);
 
     if (width === null) return;
 

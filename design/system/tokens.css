@@ -62,7 +62,7 @@
      an open Grid card and of a phone reply rail, and the 2px focus ring,
      its offset, the 2px and 3px offsets of the read mark's hover and focus
      rings, the progress line, the line under the masthead's current page
-     link, the line a List pane handle draws and the segmented controls'
+     link and under the Reader's current Contents entry, the line a List pane handle draws and the segmented controls'
      inset;
    - the 1.5 step between a row's title and its byline (one and a half
      --s1, times --k);
@@ -132,6 +132,7 @@
   --settings-rail: 200px; --sec-head-w: 280px; --sec-body-w: 560px;   /* the Settings page: its section links, and a section's heading and fields */
   --sec-name-w: 140px;
   --fold-show: 6;                     /* lines a folded comment shows */
+  --note-lines: 3;                    /* lines the Reader's Note field shows before it grows with its text */
   --code-show: 14;                    /* lines a folded code block shows */
   /* motion: an item growing out of its card and back, and every fade or small turn */
   --dur-move: 280ms; --dur-fade: 200ms; --ease-move: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -291,7 +292,8 @@
 :root, .app, [data-theme], [data-accent] { --acc: oklch(var(--acc-l) var(--acc-c) var(--ah)); --press: color-mix(in oklab, var(--text) 4%, var(--surface-2)); --acc-hover: color-mix(in oklab, var(--acc) 90%, var(--text)); --press-soft: color-mix(in oklab, var(--text) 4%, var(--acc-soft)); }
 
 /* Worked out from the inputs above, declared again on every element where an input can
-   change: the body, title, reading and display sizes, and the reading column. */
+   change: the body, title, reading and display sizes, the measure at an element's own size,
+   and the measure at the reading size, which every part of the Reader shares. */
 :root, .app, [data-layout], [data-theme], [data-font], [data-size], [data-width], [data-density], [data-accent] {
   --t-body: max(var(--t-floor-ui), calc(var(--t-body-base) * var(--tz)));
   --t-title: max(var(--t-floor-ui), calc(var(--t-title-base) * var(--dz) * var(--tz)));
@@ -299,6 +301,7 @@
   --t-display: max(var(--t-floor-ui), calc(var(--display-base) * var(--dz) * var(--display-x)));
   --t-brand: max(var(--t-floor-ui), calc(var(--display-base) * var(--display-x)));
   --measure: calc(var(--chars) * var(--cw) * 1em);
+  --measure-read: calc(var(--chars) * var(--cw) * var(--t-read));
 }
 
 /* 3. Layouts. Each layout's sizes. --------------------------------------- */
