@@ -22,6 +22,7 @@ import {
   survivorOf,
   withKnown,
   withRead,
+  withReadState,
   withoutItem,
 } from "./list-state.ts";
 import { useLatest } from "./use-latest.ts";
@@ -40,10 +41,10 @@ interface Upkeep {
   readonly latest: RefObject<ListState>;
 }
 
-function useOnRead(setList: SetList, upkeep: Readonly<Upkeep>) {
+function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
   const { reads, unfiltered, latest } = upkeep;
 
-  return useCallback(
+  const onRead = useCallback(
     (read: Readonly<Item>) => {
       const was = latest.current.known.find((item) => item.id === read.id);
 
@@ -55,11 +56,6 @@ function useOnRead(setList: SetList, upkeep: Readonly<Upkeep>) {
     },
     [latest, reads, setList, unfiltered],
   );
-}
-
-function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
-  const { reads } = upkeep;
-  const onRead = useOnRead(setList, upkeep);
 
   const onGone = useCallback(
     (id: number) => {
@@ -97,13 +93,19 @@ function useSave(reads: Reads, setList: SetList) {
 }
 
 function useSetRead(setList: SetList, upkeep: Readonly<Upkeep>) {
-  const onRead = useOnRead(setList, upkeep);
+  const { reads, unfiltered } = upkeep;
 
   return useCallback(
     async (id: number, readState: ReadState): Promise<void> => {
-      onRead(await putReadState(id, readState));
+      const answered = await putReadState(id, readState);
+
+      flushSync(() => {
+        setList((current) => withReadState(current, id, answered.readState, unfiltered.current));
+      });
+
+      reads.reload();
     },
-    [onRead],
+    [reads, setList, unfiltered],
   );
 }
 

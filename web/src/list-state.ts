@@ -1,6 +1,7 @@
 import type { Dispatch, SetStateAction } from "react";
 
 import type { FilterCounts } from "../../src/core/contract/filter-counts-contract.ts";
+import type { ReadState } from "../../src/core/contract/item-contract.ts";
 import type { ItemList, ItemPage } from "../../src/core/contract/item-route-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { isEmptyResult } from "./filters.ts";
@@ -114,6 +115,19 @@ export function withRead(
   return current === undefined || sameItem(current, read)
     ? list
     : withItem(list, current, read, unfiltered);
+}
+
+export function withReadState(
+  list: Readonly<ListState>,
+  id: number,
+  readState: ReadState,
+  unfiltered: boolean,
+): ListState {
+  const current = list.known.find((item) => item.id === id);
+
+  return current === undefined || current.readState === readState
+    ? list
+    : withItem(list, current, { ...current, readState }, unfiltered);
 }
 
 export function sameItem(left: Readonly<Item>, right: Readonly<Item>): boolean {
