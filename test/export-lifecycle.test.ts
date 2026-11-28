@@ -5,7 +5,7 @@ import { ExportStatusSchema, StartedExportSchema } from "../src/core/contract/ex
 import { DAY_MS, MINUTE_MS } from "../src/core/contract/time-units.ts";
 import {
   type SavedLibrary,
-  downloadedZip,
+  downloadedManifest,
   firstLongText,
   readyExport,
   savedLibrary,
@@ -13,8 +13,8 @@ import {
 import { bytesOfKey, exportKeys, postTextKey, strayExportObject } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { loggedAttempts, untilRetried } from "./job-fixtures.ts";
+import { refusalCode, whileHeld } from "./restore-fixtures.ts";
 import { nextSweep, sweptWith } from "./weekly-claim-fixtures.ts";
-import { entriesOf, manifestOf } from "./zip-fixtures.ts";
 
 describe("one Export exists at a time and a stopped slice is retried, then given up", () => {
   let instance: Instance;
@@ -75,6 +75,16 @@ describe("one Export exists at a time and a stopped slice is retried, then given
     await failed();
   });
 
+  it("answers 503 restoring to a start while a Restore holds the library and keeps the ready Export", async () => {
+    const ready = await readyExport(instance);
+    const [refused, held] = await whileHeld(instance, async () => [
+      refusalCode(await instance.send("POST", "/api/export")),
+      await status(),
+    ]);
+
+    assert.deepEqual([refused, held], [{ status: 503, code: "restoring" }, ready.status]);
+  });
+
   it("fails with gave-up after 3 attempts at a slice that cannot read a file", async (t) => {
     const attempts = loggedAttempts(t, "export");
     const { status: end } = await failedExport();
@@ -93,7 +103,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
 
     assert.notEqual(again.id, id);
     assert.equal(
-      manifestOf(await entriesOf(await downloadedZip(instance, again.id))).tables["items"]?.rows,
+      (await downloadedManifest(instance, again.id)).tables["items"]?.rows,
       library.ids.length,
     );
   });

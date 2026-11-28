@@ -5,6 +5,7 @@ import type { TestContext } from "node:test";
 
 import { z } from "zod";
 
+import { UnavailableResponseSchema } from "../src/core/contract/error-wire.ts";
 import {
   RestoreStatusSchema,
   type RestoreStatus,
@@ -12,7 +13,7 @@ import {
   entering,
 } from "../src/core/contract/restore-contract.ts";
 import { exportedZip } from "./export-restore-fixtures.ts";
-import type { Instance } from "./instance.ts";
+import type { Answer, Instance } from "./instance.ts";
 import { loggedAttempts, untilRetried } from "./job-fixtures.ts";
 import { until } from "./library-fixtures.ts";
 
@@ -173,6 +174,23 @@ export function holdLibrary(
 
 export function releaseLibrary(instance: Instance): void {
   instance.database.exec("delete from restores where id = 1");
+}
+
+export async function whileHeld<Seen>(instance: Instance, run: () => Promise<Seen>): Promise<Seen> {
+  holdLibrary(instance, "running", null);
+
+  try {
+    return await run();
+  } finally {
+    releaseLibrary(instance);
+  }
+}
+
+export function refusalCode(answer: Answer) {
+  return {
+    status: answer.status,
+    code: UnavailableResponseSchema.parse(JSON.parse(answer.body)).code,
+  };
 }
 
 export async function restoreLibrary({
