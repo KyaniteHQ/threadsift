@@ -6,7 +6,7 @@ import { expectAnswerHeaders, watchContext } from "./document-checks.ts";
 import { importList, importListAgain, startStaleList } from "./import-flow.ts";
 import { type TopicCase, openIndex, openTopicPage, phoneRailTarget } from "./index-flow.ts";
 import { failedLoadMore, logFlow } from "./log-flow.ts";
-import { markReadTwice, readXThread, readerWithoutProvider } from "./reader-flows.ts";
+import { markReadTwice, readXThread, readerMotion, readerWithoutProvider } from "./reader-flows.ts";
 import { savedItem } from "./saved-item.ts";
 import { settingsSteps } from "./settings-steps.ts";
 
@@ -113,6 +113,8 @@ test("a new Instance is set up, signed out of and into again, keeps a pasted X l
     markReadTwice(page));
   await test.step("save a page through the API and read its text in the Reader", () =>
     readSavedPage(page));
+  await test.step("open a card in Grid with Sheet: the card grows into the Reader, Escape and Back run it back into the same card, and reduced motion animates nothing", () =>
+    readerMotion(page));
   await test.step("import a list of three links from the settings panel and find its Items", () =>
     importList(page));
   await test.step("paste the same list after a reload and be told it was fully imported", () =>
