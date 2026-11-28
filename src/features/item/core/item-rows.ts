@@ -11,6 +11,7 @@ import type { Ports } from "../../../core/kernel/ports.ts";
 import { heldBatch } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
+import { dailyBudgetGuard } from "../../access/core/agent-token-budget.ts";
 import { type ListedItemRow, itemRead, itemWhere } from "./item-selection.ts";
 import { type Settled, reopenedFetch } from "./settle.ts";
 
@@ -53,22 +54,39 @@ export function itemInsert(
     fetched?: Readonly<Settled> | undefined;
   }>,
 ) {
-  return db
-    .insert(items)
-    .values({ source, kind, normalizedUrl, originalUrl, savedAt, addedByToken, ...fetched })
-    .onConflictDoNothing({ target: items.normalizedUrl })
-    .returning({ id: items.id });
+  return [
+    dailyBudgetGuard(db, { addedByToken, normalizedUrl, savedAt }),
+    db
+      .insert(items)
+      .values({ source, kind, normalizedUrl, originalUrl, savedAt, addedByToken, ...fetched })
+      .onConflictDoNothing({ target: items.normalizedUrl })
+      .returning({ id: items.id }),
+  ] as const;
 }
 
-export async function guardedItemWrite<Insert extends BatchItem<"sqlite">>(
+type InsertResults<Rest extends readonly unknown[]> = readonly [
+  budget: unknown,
+  inserted: readonly Readonly<{ id: number }>[],
+  ...rest: Rest,
+];
+
+export function insertResults<Rest extends readonly unknown[]>([
+  ,
+  inserted,
+  ...rest
+]: InsertResults<Rest>) {
+  return { inserted, rest };
+}
+
+export async function guardedItemWrite(
   db: Database,
   condition: Readonly<SQLWrapper>,
-  insert: Insert,
+  insert: readonly [BatchItem<"sqlite">, BatchItem<"sqlite">],
   rest: readonly BatchItem<"sqlite">[],
 ) {
-  const written = await heldBatch(db, [insert, ...rest] as const, condition);
+  const written = await heldBatch(db, [...insert, ...rest] as const, condition);
 
-  return written === null ? null : written[0];
+  return written === null ? null : insertResults(written).inserted;
 }
 
 export async function itemAt(db: Database, normalizedUrl: string): Promise<ListedItemRow> {
@@ -120,22 +138,24 @@ export interface Around {
   readonly after: Statements;
 }
 
-type RowResults = readonly [
-  readonly Readonly<{ id: number }>[],
-  unknown,
-  readonly Readonly<{ id: number }>[],
-  readonly Readonly<ListedItemRow>[],
-  ...unknown[],
+type QueuedResults = readonly [
+  reopened: unknown,
+  opened: readonly Readonly<{ id: number }>[],
+  read: readonly Readonly<ListedItemRow>[],
+  ...rest: unknown[],
 ];
 
 async function writtenFrom(
   ports: Ports,
   link: Readonly<Link>,
-  written: RowResults | null,
+  written: InsertResults<QueuedResults> | null,
 ): Promise<Saved | null> {
   if (written === null) return null;
 
-  const [inserted, , opened, [item]] = written;
+  const {
+    inserted,
+    rest: [, opened, [item]],
+  } = insertResults(written);
 
   await enqueueRows(ports, opened);
 
@@ -152,7 +172,7 @@ export async function writeQueued(
   const { insert, rest } = queuedRows(db, paste, link);
 
   if (around === undefined) {
-    return writtenFrom(ports, link, await heldBatch(db, [insert, ...rest] as const));
+    return writtenFrom(ports, link, await heldBatch(db, [...insert, ...rest] as const));
   }
 
   const { guard, before = [], after } = around;
@@ -161,11 +181,11 @@ export async function writeQueued(
     return writtenFrom(
       ports,
       link,
-      await heldBatch(db, [insert, ...rest, ...after] as const, guard),
+      await heldBatch(db, [...insert, ...rest, ...after] as const, guard),
     );
   }
 
-  const written = await heldBatch(db, [...before, insert, ...rest, ...after] as const, guard);
+  const written = await heldBatch(db, [...before, ...insert, ...rest, ...after] as const, guard);
 
   if (written === null) return writtenFrom(ports, link, null);
 
