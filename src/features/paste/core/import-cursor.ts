@@ -24,14 +24,11 @@ function cursorWrite(db: Database, write: Readonly<ImportWrite>) {
   const row = { name, cursor, createdAt: now, updatedAt: now };
   const moved = { cursor, updatedAt: sql`max(${now}, ${imports.updatedAt} + 1)` };
 
-  if (write.previous === undefined) {
-    return db.insert(imports).values(row).onConflictDoUpdate({ target: imports.name, set: moved });
+  if (!("previousUpdatedAt" in write)) {
+    return write.previous === null
+      ? db.insert(imports).values(row).onConflictDoNothing()
+      : db.insert(imports).values(row).onConflictDoUpdate({ target: imports.name, set: moved });
   }
-
-  if (write.previous === null) return db.insert(imports).values(row).onConflictDoNothing();
-
-  const { previous } = write;
-  const previousUpdatedAt = "previousUpdatedAt" in write ? write.previousUpdatedAt : undefined;
 
   return db
     .update(imports)
@@ -39,8 +36,8 @@ function cursorWrite(db: Database, write: Readonly<ImportWrite>) {
     .where(
       and(
         eq(imports.name, name),
-        eq(imports.cursor, previous),
-        previousUpdatedAt === undefined ? undefined : eq(imports.updatedAt, previousUpdatedAt),
+        eq(imports.cursor, write.previous),
+        eq(imports.updatedAt, write.previousUpdatedAt),
       ),
     );
 }

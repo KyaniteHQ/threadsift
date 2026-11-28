@@ -51,6 +51,16 @@ export async function lateCallKeepsCursor(instance: Instance, name: string): Pro
   await moveFromRead(instance, name, "14");
   await moveFromRead(instance, name, "20");
 
+  const lateWithoutUpdatedAt = await instance.send("POST", "/api/items/batch", {
+    links: [linkFor("7")],
+    import: { name, cursor: "7", previous: finished.cursor },
+  });
+
+  assert.deepEqual(
+    { status: lateWithoutUpdatedAt.status, cursor: (await savedState(instance, name)).cursor },
+    { status: 400, cursor: "20" },
+  );
+
   const late = await guarded(instance, name, "7", finished);
 
   assert.equal(late.status, 200);

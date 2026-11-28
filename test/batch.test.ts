@@ -140,7 +140,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
   });
 
-  it("keeps a cursor that a later run wrote again when a late call sent from the earlier value arrives", () =>
+  it("keeps a cursor that a later run wrote again when a late call sent from the earlier value arrives, and refuses one that sends previous without previousUpdatedAt", () =>
     lateCallKeepsCursor(instance, "list-0123456789abcdef"));
 
   it("keeps that cursor when every save lands in the same millisecond", (t) => {
