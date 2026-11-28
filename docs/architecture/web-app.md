@@ -154,7 +154,7 @@ The library reads `GET /api/items/:id/status` for each `processing` Item (`useIt
 ### Writes from the list
 
 - A failed list read, including a reload after a write, shows the load error with Try again (`useListRead`), so the owner never reads stale rows silently.
-- Read state writes go one after another for each Item. A press computes its wanted state from the last wanted state still in flight, so two presses of `m` before the first answer send `read` and then `unread`, and the older answer cannot be the last one applied. `PUT /api/items/:id/read-state` changes no other column, and a Paste refresh and the Digest job never write it.
+- Read state writes go one after another for each Item. A press computes its wanted state from the last wanted state still in flight, so two presses of `m` before the first answer send `read` and then `unread`, and the older answer cannot be the last one applied. The Read state each write answers goes into the list's row as soon as the answer arrives, and only that field changes. The list then reloads after every successful write. A press after the answer reads the new state, even while that reload runs. `PUT /api/items/:id/read-state` changes no other column, and a Paste refresh and the Digest job never write it.
 - Attention never steals focus: an attention that asks for focus waits for its row only while the rows on screen were read for other filters than the ones in use, and once the rows match the filters and none is the row, it is dropped, so a row that appears later never takes focus from the owner (`useOpenItem`).
 
 ### Cold load

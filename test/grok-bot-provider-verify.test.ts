@@ -10,6 +10,7 @@ import {
 } from "./bot-task-fixtures.ts";
 import { answered, errorOf } from "./bot-task-http.ts";
 import { taskRow, taskRows } from "./bot-task-rows.ts";
+import { exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
 import {
   VERIFY_PATH,
   occupyBot,
@@ -17,7 +18,8 @@ import {
   sentVerifyTask,
   verifyingTask,
 } from "./grok-bot-provider-fixtures.ts";
-import type { Instance } from "./instance.ts";
+import { Instance } from "./instance.ts";
+import { restoredDone, startedRestore } from "./restore-fixtures.ts";
 
 describe("Verify with Grok Bot waits for the answer the bot posts and reads the task row", () => {
   let instance: Instance;
@@ -132,5 +134,41 @@ describe("Verify with Grok Bot waits for the answer the bot posts and reads the 
       status: null,
     });
     assert.equal(taskRows(instance).length, known);
+  });
+});
+
+describe("a waiting Verify reads only its own task row", () => {
+  let source: Instance;
+  let target: Instance;
+
+  before(async () => {
+    source = await Instance.start();
+    await source.setUp();
+    await savedLibrary(source, { inlineText: 1, fileText: 0 });
+    target = await botInstance();
+  });
+
+  after(async () => {
+    await source.close();
+    await target.close();
+  });
+
+  it("answers unreachable when its next read finds the zip's task in place of the Verify task", async (t) => {
+    const zip = await exportedZip(source);
+    const task = await sentVerifyTask(target);
+
+    await startedRestore(target, zip);
+    await restoredDone(target);
+    const { result } = await verifyingTask(t, target, task);
+
+    const restoredSameId = target.database.count(
+      "select count(*) as n from ai_tasks where id = ? and callback_hash is null and state = 'done'",
+      task.id,
+    );
+
+    assert.deepEqual(
+      [restoredSameId, VerifyResultSchema.parse(await result)],
+      [1, { kind: "refused", reason: "unreachable", status: null }],
+    );
   });
 });
