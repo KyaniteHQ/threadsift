@@ -10,6 +10,7 @@ import {
   type Paste,
   type Saved,
   guardedItemWrite,
+  insertResults,
   holdsNoItem,
   itemAt,
   knownItem,
@@ -65,7 +66,11 @@ export async function savePaged(
     return inserted === null ? null : savedItem(ports, normalizedUrl, inserted.length > 0);
   }
 
-  const written = await heldBatch(db, [insert, ...writes] as const);
+  const written = await heldBatch(db, [...insert, ...writes] as const);
 
-  return savedItem(ports, normalizedUrl, (written?.[0].length ?? 0) > 0);
+  return savedItem(
+    ports,
+    normalizedUrl,
+    written !== null && insertResults(written).inserted.length > 0,
+  );
 }
