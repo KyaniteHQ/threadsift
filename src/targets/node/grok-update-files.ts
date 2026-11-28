@@ -11,15 +11,14 @@ import {
   rename,
   rm,
   stat,
-  utimes,
 } from "node:fs/promises";
-import { isAbsolute, join, relative } from "node:path";
+import { basename, dirname, isAbsolute, join, relative } from "node:path";
 import { pipeline } from "node:stream/promises";
 
 import { z } from "zod";
 
 import { RefusedUpdateSchema } from "../../core/contract/x-settings-contract.ts";
-import { errnoCodeOf, report, withCleanup } from "../../core/kernel/failure-log.ts";
+import { bestEffort, errnoCodeOf, report, withCleanup } from "../../core/kernel/failure-log.ts";
 import { parsedJson } from "../../core/kernel/parsed-json.ts";
 import type { BinaryIdentity } from "./grok-folders.ts";
 
@@ -97,7 +96,48 @@ async function created(lock: string): Promise<boolean> {
   }
 }
 
-async function linked(existing: string, name: string): Promise<"linked" | "taken" | "gone"> {
+async function orGone<Value>(step: () => Promise<Value>): Promise<Value | null> {
+  try {
+    return await step();
+  } catch (cause) {
+    if (errnoCodeOf(cause) !== "ENOENT") throw cause;
+
+    return null;
+  }
+}
+
+async function sweptOlder(
+  folder: string,
+  prefix: string,
+  now: number,
+  clock: "ctimeMs" | "mtimeMs",
+): Promise<void> {
+  const names = (await readdir(folder)).filter((name) => name.startsWith(prefix));
+
+  await Promise.all(
+    names.map(async (name) => {
+      const path = join(folder, name);
+      const found = await orGone(() => stat(path));
+
+      if (found !== null && now - found[clock] >= STALE_MS) {
+        await rm(path, { recursive: true, force: true });
+      }
+    }),
+  );
+}
+
+interface LockIdentity {
+  readonly ino: bigint;
+  readonly mtimeNs: bigint;
+}
+
+function sameLock(found: Readonly<LockIdentity> | null, stale: Readonly<LockIdentity>): boolean {
+  return found !== null && found.ino === stale.ino && found.mtimeNs === stale.mtimeNs;
+}
+
+const NO_HARD_LINKS = new Set(["EPERM", "EOPNOTSUPP", "EXDEV", "ENOSYS"]);
+
+async function linked(existing: string, name: string): Promise<"linked" | "taken" | "unsupported"> {
   try {
     await link(existing, name);
 
@@ -105,79 +145,86 @@ async function linked(existing: string, name: string): Promise<"linked" | "taken
   } catch (cause) {
     const code = errnoCodeOf(cause);
 
-    if (code === "EEXIST") return "taken";
+    if (code === "EEXIST" || code === "ENOENT") return "taken";
 
-    if (code === "ENOENT") return "gone";
+    if (NO_HARD_LINKS.has(code)) return "unsupported";
 
     throw cause;
   }
 }
 
-function touched(path: string): Promise<void> {
-  const now = new Date();
-
-  return utimes(path, now, now);
+async function withoutLeftover<Result>(path: string, body: () => Promise<Result>): Promise<Result> {
+  try {
+    return await body();
+  } finally {
+    await bestEffort({ event: "grok-update-link-not-removed", fields: {} }, () =>
+      rm(path, { force: true }),
+    );
+  }
 }
 
-async function staleBreakTouched(tomb: string, now: number): Promise<false> {
-  const breaking = await stat(tomb).catch(() => null);
-
-  if (breaking !== null && now - breaking.ctimeMs >= STALE_MS) await touched(tomb);
-
-  return false;
-}
-
-async function brokenStale(
+async function brokenByLink(
   lock: string,
-  stale: Readonly<{ ino: bigint; mtimeNs: bigint }>,
-  now: number,
-): Promise<boolean> {
+  stale: Readonly<LockIdentity>,
+): Promise<boolean | "unsupported"> {
   const tomb = `${lock}.${String(stale.ino)}-${String(stale.mtimeNs)}`;
   const outcome = await linked(lock, tomb);
 
-  if (outcome === "taken") return staleBreakTouched(tomb, now);
+  if (outcome !== "linked") return outcome === "unsupported" ? outcome : false;
 
-  if (outcome === "gone") return false;
+  return withoutLeftover(tomb, async () => {
+    if (!sameLock(await orGone(() => stat(tomb, { bigint: true })), stale)) return false;
 
-  return withCleanup(
-    { event: "grok-update-lock-not-removed", fields: {} },
-    async () => {
-      if ((await stat(tomb, { bigint: true })).ino !== stale.ino) return false;
+    await rm(lock, { force: true });
 
-      await touched(tomb);
-      await rm(lock, { force: true });
+    return created(lock);
+  });
+}
 
-      return created(lock);
-    },
-    () => rm(tomb, { force: true }),
-  );
+const renamingLocks = new Set<string>();
+
+async function brokenByRename(lock: string, stale: Readonly<LockIdentity>): Promise<boolean> {
+  if (!renamingLocks.has(lock)) {
+    renamingLocks.add(lock);
+    report("grok-update-lock-without-hard-links", {});
+  }
+
+  const aside = `${lock}.${randomUUID()}`;
+
+  if ((await orGone(() => rename(lock, aside))) === null) return false;
+
+  return withoutLeftover(aside, async () => {
+    const found = await orGone(() => stat(aside, { bigint: true }));
+
+    if (found === null) return false;
+
+    if (sameLock(found, stale)) return created(lock);
+
+    await rename(aside, lock);
+
+    return false;
+  });
 }
 
 export async function claimed(lock: string, now: number): Promise<boolean> {
+  await sweptOlder(dirname(lock), `${basename(lock)}.`, now, "ctimeMs");
+
   if (await created(lock)) return true;
 
-  const held = await stat(lock, { bigint: true }).catch(() => null);
+  const held = await orGone(() => stat(lock, { bigint: true }));
 
   if (held === null) return created(lock);
 
   if (now - Number(held.mtimeMs) < STALE_MS) return false;
 
-  return brokenStale(lock, { ino: held.ino, mtimeNs: held.mtimeNs }, now);
+  const stale = { ino: held.ino, mtimeNs: held.mtimeNs };
+  const broken = await brokenByLink(lock, stale);
+
+  return broken === "unsupported" ? brokenByRename(lock, stale) : broken;
 }
 
-export async function sweptStaging(folder: string, now: number): Promise<void> {
-  const names = (await readdir(folder)).filter((name) => name.startsWith(STAGING_PREFIX));
-
-  await Promise.all(
-    names.map(async (name) => {
-      const path = join(folder, name);
-      const found = await stat(path).catch(() => null);
-
-      if (found !== null && now - found.mtimeMs >= STALE_MS) {
-        await rm(path, { recursive: true, force: true });
-      }
-    }),
-  );
+export function sweptStaging(folder: string, now: number): Promise<void> {
+  return sweptOlder(folder, STAGING_PREFIX, now, "mtimeMs");
 }
 
 export async function candidateIn(staging: string): Promise<string | null> {
