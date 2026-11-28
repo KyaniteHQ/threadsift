@@ -60,7 +60,7 @@ The container sets them in `webRoutes` and compresses with Hono's `compress` mid
 
 ### Storage and the root
 
-All twelve settings are one JSON object in `localStorage` under `STORAGE_KEY`. `readStored` checks each key on its own, so one bad value falls back alone.
+All twelve settings are one JSON object in `localStorage` under `STORAGE_KEY`. `readStored` checks each key on its own, so one bad value falls back alone. Each tab writes the whole object. A pick or Reset look builds that object from the stored one, and from the tab's own settings only when nothing readable is stored. So a tab never writes back a value that another tab replaced, even before its `storage` event arrives. `useSettings` takes the stored object again on each `storage` event for that key whose new value parses. A removal of the key, or `localStorage.clear()`, in another tab therefore changes nothing in this tab. It also reads the stored object once when it starts to listen, which covers a change made while the page loaded, and again on a `pageshow` from the back/forward cache. A Layout change from another tab closes the open Item (Layout change, below).
 
 `html` carries the same `data-theme`, `data-style` and `data-layout` as the app root (the rows marked `onPage`), so the page canvas resolves the same `--bg` in every Layout and Theme. A blocking classic script (no `defer`, `async` or `type=module`) sets those attributes from the stored object before the first paint, so a stored Dark never draws a Light frame. The build emits it as the hashed file `/assets/theme-script-<hash>.js`, linked from `index.html`. The Content-Security-Policy then needs no inline-script hash and no `'unsafe-inline'` for scripts. The cost is one request before the first paint, which the immutable cache answers on every later load.
 
@@ -169,7 +169,7 @@ Rows and the Reader appear when their data arrives, and the page accepts reflow 
 
 - Sheet is a modal `<dialog>` that holds the Reader's slot and the Previous and Next buttons, because only a descendant of the dialog sits in the top layer above its `::backdrop`.
 - Closing goes through the address like every other close, so Escape, the back gesture (`cancel`) and Close all end in `/`. Opening an Item pushes a history entry that records the path it came from, and j, k, Previous and Next from an open Item replace the entry. A close goes back one entry when that path was the library, and replaces the address with `/` for an Item reached directly, so browser Back never reopens a closed Item. Two fast closes go back one entry, because `history.state` keeps the old `from` until the first Back lands. `leave` holds the conditions.
-- Layout change. A change of Layout from the panel clears the open Item in the same event (`onLayoutChange`), because List opens its first unread Item on its own and, in Grid, that Item would cover the panel that just changed the Layout.
+- Layout change. A change of Layout clears the open Item in the same event (`onLayoutChange`). From the panel, List opens its first unread Item on its own and, in Grid, that Item would cover the panel that just changed the Layout. From another tab, the open Item was opened for the old Layout, as a List pane or a Grid page or sheet, so the tab returns to the library in the new Layout.
 - Paste card in Grid. From 760 px the card floats under the header, as [the design system](../../DESIGN.md) (Elevation & Depth) says. A card in the page flow would move every card down and back up on each Paste.
 
 ### Loading and staleness
