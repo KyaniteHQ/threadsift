@@ -15,6 +15,7 @@ type ExclusionReason =
   | "secret"
   | "provider-choice"
   | "work-in-flight"
+  | "spend-counter"
   | "derived"
   | "carried-in-manifest";
 
@@ -43,8 +44,8 @@ const EXCLUDED_TABLES = {
   file_cleaning: "work-in-flight",
   github_cooldown: "work-in-flight",
   x_verifications: "work-in-flight",
-  x_api_spend: "work-in-flight",
-  x_api_item_spend: "work-in-flight",
+  x_api_spend: "spend-counter",
+  x_api_item_spend: "spend-counter",
   search_parts: "derived",
   search_index: "derived",
   search_index_config: "derived",

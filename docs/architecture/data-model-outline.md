@@ -74,14 +74,14 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
 | `github_cooldown` | The time before which the Instance sends no GitHub request. |
 | `grok_bot_settings` | The owner's Grok Bot, one row. No row means no Grok Bot is set up. |
 | `x_settings` | The owner's choice of the reader of X links. No row means `auto`. |
-| `x_api_settings` | The owner's X API Bearer token and the spend limits per Item and per UTC day, one row. No row, or a null token, means no token is saved. |
+| `x_api_settings` | The owner's X API Bearer token, the spend limit for each Item on each UTC day and the one for each UTC day, one row. No row, or a null token, means no token is saved. |
 | `x_api_spend` | One row per UTC day: the micro-USD reserved and settled for every request to X (reads, Verify and the daily usage read), the posts and users counted, and X's own count of the day's posts from the daily usage read. |
-| `x_api_item_spend` | One row per Item and UTC day: the micro-USD the X API reader reserved and settled for that Item, so the Item limit holds across retries and restarts. It goes with its Item. |
+| `x_api_item_spend` | One row per Item and UTC day: the micro-USD the X API reader reserved and settled for that Item, so the Item limit holds across retries and restarts. It goes with its Item, so a deleted Item's link pasted again starts a new Item counter; the day limit still bounds the day. |
 | `reddit_settings` | The owner's Reddit settings. No row means the archive fill is on. |
 | `reddit_account` | The owner's own Reddit account with its session cookie. |
 | `vault_settings`, `mirror_notes`, `mirror_files` | The Vault target, the lease, the queued note subjects and the per-file checkpoints. See [Vault mirror](vault-mirror.md). |
 
-- **Secrets.** `settings`, `github_settings`, `reddit_account`, `vault_settings`, `grok_bot_settings` and `x_api_settings` hold their secret sealed under `THREADSIFT_SECRET_KEY`. `x_settings` and `reddit_settings` hold none. No route, log or Export returns `reddit_account`.
+- **Secrets.** `settings`, `github_settings`, `reddit_account`, `vault_settings`, `grok_bot_settings` and `x_api_settings` hold their secret sealed under `THREADSIFT_SECRET_KEY`. `x_settings` and `reddit_settings` hold none. The Export leaves out `x_api_settings` as a secret and `x_api_spend` and `x_api_item_spend` as spend counters, so after a Restore the owner saves the token again and both counters start at 0. A Restore on the same UTC day therefore starts the day limit again ([Export, backup and restore](export-backup-and-restore.md#the-backup-list)). No route, log or Export returns `reddit_account`.
 - **`settings`.** Only a Claude Code or Codex row can store an effort or use a choice other than `custom`. Grok Bot is not a value of this row. The flag `use_as_provider` on `grok_bot_settings` says Grok Bot is the Provider, and it blocks removing that row. `grok_bot_settings` holds no agent token, references no other table, and stays out of the Export (see [Export, backup and restore](export-backup-and-restore.md)).
 - **`reddit_account`.** The Reddit account module writes the row except `busy_job`, `busy_attempt`, `busy_until` and `queue_head`, which the Reddit queue module writes (The Reddit turn in [Jobs, leases and the schedule](jobs-leases-and-the-schedule.md)).
 
