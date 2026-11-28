@@ -8,10 +8,10 @@ import type {
 import { GROK_BOT_PROVIDER, hasKind } from "../../../core/contract/provider-families.ts";
 import { CURRENT_REVISION } from "../../../core/kernel/ai-settings-revision.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { requeuedDigests } from "../../../core/kernel/digest-opening.ts";
-import { guardedBatch } from "../../../core/kernel/guards.ts";
+import { requeuedDigests } from "../../../core/kernel/digest-sweep.ts";
 import type { JobWrites } from "../../../core/kernel/job-outcome.ts";
 import type { Ports, SettingsPorts } from "../../../core/kernel/ports.ts";
+import { type Closed, heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { settings } from "../../../core/kernel/schema.ts";
 import { type LoadedAi, type Snapshot, loadAiConfig } from "./ai-load.ts";
 import { type ModelSettingsInput, nextSettings } from "./ai-next-settings.ts";
@@ -90,16 +90,21 @@ type SavedAi =
   | { readonly kind: "changed" }
   | { readonly kind: "recommendation-unavailable" }
   | { readonly kind: "provider-not-offered" }
+  | Closed
   | BotFirst;
 
 export async function saveWithDigests(
   ports: Pick<Ports, "db" | "jobs">,
   guard: SQL,
   writes: JobWrites,
-): Promise<boolean> {
-  const saved = await guardedBatch(ports.db, guard, [...writes, ...requeuedDigests(ports.db)]);
+): Promise<boolean | Closed> {
+  const saved = await whileOpen(async () => {
+    const written = await heldBatch(ports.db, [...writes, ...requeuedDigests(ports.db)], guard);
 
-  if (saved) ports.jobs.wake();
+    return written !== null;
+  });
+
+  if (saved === true) ports.jobs.wake();
 
   return saved;
 }
@@ -115,6 +120,8 @@ export async function saveAiSettings(
   if ("kind" in prepared) return prepared;
 
   const written = await saveWithDigests(ports, prepared.guard, prepared.writes);
+
+  if (isClosed(written)) return written;
 
   if (written) return { kind: "saved", view: await readAiSettings(ports) };
 
