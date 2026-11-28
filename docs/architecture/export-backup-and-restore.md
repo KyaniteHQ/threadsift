@@ -157,7 +157,7 @@ The zip reader imports nothing from Restore. It throws `ZipRefused` with its own
 
 ### Schema version
 
-Restore accepts only an Export of the running migration, because older Export zips are not supported. The manifest's `format` names the zip layout (`EXPORT_FORMAT`) and stays 1 while that layout holds. A migration that changes the columns of a record changes `migration` instead, so Restore refuses an older zip with `other-release` before it reads a record.
+Restore accepts only an Export of the running migration, because older Export zips are not supported. The manifest's `format` names the zip layout (`EXPORT_FORMAT`) and stays 1 while that layout holds. `migration` is the newest migration the Instance applied (`appliedMigration`), so every migration changes it, one that changes no record column included, and Restore refuses an older zip with `other-release` before it reads a record.
 
 - The check validates the manifest before any library record is written.
 - `phaseUnit` compares the manifest's `migration` with the running one again before every unit of the `tables`, `files` and `finish` phases (`verifiedRelease`). The check reads the zip directory and the manifest once, and the unit uses those two reads, so a unit reads each of them once. A Restore that a deploy or a restart moved to a newer migration between two units therefore ends `failed` with `other-release` (and the same log line) before that unit writes, and not `done` with the rows of the changed tables counted as dropped. The rows written before that stay until the owner cancels the Restore.

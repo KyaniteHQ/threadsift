@@ -95,6 +95,7 @@ One module owns every write that closes a job row. `closeJob` closes the claimed
 
 - The `closing` of the Digest declaration (`owedDigest`) follows it in that batch. It opens the Digest that a pending caller-sent Digest still owes, when that Digest differs from the one the job claimed.
 - `closeRunJobs` closes the open jobs of one Export or Restore by address.
+- `closeMatchingJobs` closes the open jobs a condition names and fails their running AI tasks as stale in the same batch. A Topic merge closes the running overview jobs of the merged-away Topic through it, so their runner loses its claim and writes nothing.
 - A save that supplies content closes the Item's open `fetch` and `x_verify` jobs and deletes its `x_verifications` row through `closeItemJobs`. It takes no `holding` guard, so a running fetch loses its claim and writes nothing.
 - Give-up and exhaustion use the same path, so the paste card's Added state and the New marker wait until both jobs end.
 - A Digest failure never discards fetched content or an earlier Digest.
