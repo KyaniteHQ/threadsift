@@ -23,6 +23,7 @@ import { access } from "../../../http/access.ts";
 import {
   accessNote,
   accessRefusals,
+  cacheHeaderList,
   codeList,
   jsonBody,
   jsonRequest,
@@ -49,11 +50,11 @@ const SETUP_ERRORS = {
 export const sessionRoute = createRoute({
   method: "get",
   path: "/api/session",
-  middleware: access("anyone"),
+  middleware: access("anyone", { cache: "no-store" }),
   responses: {
     200: jsonBody(
       SessionStateSchema,
-      "`setup` while no owner exists, with `code` saying whether the Instance has a usable setup code (`set`, `missing` or `short`), else `signed-out`, or `signed-in` with `database`, a random value that names this database and never repeats in another, so the web app can keep its browser storage apart per database.",
+      `\`setup\` while no owner exists, with \`code\` saying whether the Instance has a usable setup code (\`set\`, \`missing\` or \`short\`), else \`signed-out\`, or \`signed-in\` with \`database\`, a random value made when the database is created and made again when a Restore finishes, so the web app can keep its browser storage apart per database. Every answer carries ${cacheHeaderList("no-store")}.`,
     ),
   },
 });

@@ -14,6 +14,7 @@ import {
 import { Instance } from "./instance.ts";
 import { paste } from "./library-fixtures.ts";
 import { restoreStatus, restoredDone, settledRestore, startedRestore } from "./restore-fixtures.ts";
+import { databaseNameOf } from "./session-fixtures.ts";
 import {
   type Entries,
   dataStartOf,
@@ -85,10 +86,12 @@ describe("a Restore of an Export that took several slices brings the library bac
     let target: Instance;
     let started: number;
     let done: Awaited<ReturnType<typeof restoredDone>>;
+    let databaseBefore: string;
 
     before(async () => {
       target = await Instance.start();
       await target.setUp();
+      databaseBefore = await databaseNameOf(target);
       started = await startedRestore(target, zip);
       done = await restoredDone(target);
     });
@@ -157,6 +160,10 @@ describe("a Restore of an Export that took several slices brings the library bac
 
       assert.equal(fromSource, topId + 1);
       assert.equal(fromTarget, fromSource);
+    });
+
+    it("names the database anew when it ends, so no browser entry kept for an id before it meets a restored Item", async () => {
+      assert.notEqual(await databaseNameOf(target), databaseBefore);
     });
 
     it("refuses a Cancel once the library holds the restored Items, and a Resume of a Restore that did not give up", async () => {

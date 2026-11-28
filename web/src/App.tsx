@@ -14,7 +14,7 @@ export function App({ settings }: Readonly<{ settings: Look["settings"] }>) {
   const { path, navigate, replace, leave, closeItem } = usePath();
 
   const { ref, attributes, ...look } = useRoot(closeItem, settings);
-  const { view, ...session } = useSessionView();
+  const { view, database, ...session } = useSessionView();
 
   const route = useMemo(
     () => ({ path, openId: itemIdOf(path), navigate, replace, leave }),
@@ -32,7 +32,14 @@ export function App({ settings }: Readonly<{ settings: Look["settings"] }>) {
       <PageNameContext value={setName}>
         <ShareContext value={handoff}>
           <Suspense fallback={null}>
-            <Screen screen={screen} look={look} arrived={arrived} session={session} route={route} />
+            <Screen
+              screen={screen}
+              look={look}
+              arrived={arrived}
+              session={session}
+              route={route}
+              database={database}
+            />
           </Suspense>
         </ShareContext>
       </PageNameContext>

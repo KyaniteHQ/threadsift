@@ -1,5 +1,6 @@
 export {
   type AgentTokenRow,
+  NEW_DATABASE_IDENTITY,
   agentTokens,
   databaseIdentity,
   owner,

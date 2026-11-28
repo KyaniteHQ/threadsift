@@ -10,7 +10,7 @@ import {
 import type { Database } from "../../../core/kernel/database.ts";
 import { guardedBatch } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
-import { databaseIdentity, owner } from "../../../core/kernel/schema.ts";
+import { UninitializedDatabase, databaseIdentity, owner } from "../../../core/kernel/schema.ts";
 import { type LockedOut, type Refused, badPassword, refused } from "./access-refusal.ts";
 import { type StartedSession, prepareSession, sessionWrites } from "./sessions.ts";
 import { type Attempt, settleAttempt } from "./throttle.ts";
@@ -62,7 +62,7 @@ export async function signedInState(
     .from(databaseIdentity)
     .where(sql`${databaseIdentity.id} = 1`);
 
-  if (identity === undefined) throw new Error("The database has no database_identity row");
+  if (identity === undefined) throw new UninitializedDatabase("database_identity");
 
   return { state: "signed-in", database: identity.value };
 }

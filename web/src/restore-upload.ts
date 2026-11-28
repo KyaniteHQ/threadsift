@@ -41,20 +41,28 @@ function failure(text: string): Outcome {
   return { kind: "error", text };
 }
 
-function resumed(file: Chosen, view: Extract<RestoreStatus, { state: "uploading" }>): Prepared {
+function resumed(
+  database: string,
+  file: Chosen,
+  view: Extract<RestoreStatus, { state: "uploading" }>,
+): Prepared {
   const { id, parts, partBytes, received } = view;
 
-  if (file.size !== view.bytes || !matchesFingerprint(id, file)) {
+  if (file.size !== view.bytes || !matchesFingerprint(database, id, file)) {
     return { kind: "stop", outcome: failure(RESTORE_TEXT.wrongFile) };
   }
 
-  rememberFingerprint(id, file);
+  rememberFingerprint(database, id, file);
 
   return { kind: "ready", target: { id, parts, partBytes, received } };
 }
 
-async function prepare(file: Chosen, view: RestoreStatus | null): Promise<Prepared> {
-  if (view?.state === "uploading") return resumed(file, view);
+async function prepare(
+  database: string,
+  file: Chosen,
+  view: RestoreStatus | null,
+): Promise<Prepared> {
+  if (view?.state === "uploading") return resumed(database, file, view);
 
   const created = await createRestore(file.size, partsOf(file.size));
 
@@ -62,13 +70,13 @@ async function prepare(file: Chosen, view: RestoreStatus | null): Promise<Prepar
     const current = created.code === "restore-open" ? await fetchRestoreStatus() : null;
 
     return current?.state === "uploading"
-      ? resumed(file, current)
+      ? resumed(database, file, current)
       : { kind: "stop", outcome: failure(refusalLabel(created.code)) };
   }
 
   const { id, partBytes } = created;
 
-  rememberFingerprint(id, file);
+  rememberFingerprint(database, id, file);
 
   return {
     kind: "ready",
@@ -122,11 +130,12 @@ async function startedFrom({ id }: Target, { refresh }: UploadSteps): Promise<Ou
 }
 
 export async function uploadZip(
+  database: string,
   file: Chosen,
   view: RestoreStatus | null,
   steps: UploadSteps,
 ): Promise<Outcome | null> {
-  const prepared = await prepare(file, view);
+  const prepared = await prepare(database, file, view);
 
   if (prepared.kind === "stop") return prepared.outcome;
 

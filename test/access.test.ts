@@ -6,6 +6,7 @@ import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ConnectStartResponseSchema } from "../src/core/contract/openrouter-contract.ts";
 import { Instance, PASSWORD, SETUP_CODE, SECRET_KEY } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
+import { databaseNameOf } from "./session-fixtures.ts";
 
 const WRONG_SETUP_CODE = "a-wrong-setup-code-of-sixteen";
 
@@ -13,6 +14,7 @@ const WRONG_PASSWORD = "not the password of the owner";
 
 describe("the owner takes a new Instance from first run to a signed-in session with the setup code", () => {
   let instance: Instance;
+  let database: string;
 
   before(async () => {
     instance = await Instance.start({ fresh: true });
@@ -55,6 +57,10 @@ describe("the owner takes a new Instance from first run to a signed-in session w
     assert.equal(created.status, 204);
     assert.equal(await sessionState(), "signed-in");
     assert.equal((await instance.send("GET", "/api/items")).status, 200);
+
+    database = await databaseNameOf(instance);
+
+    assert.match(database, /^[0-9a-f]{32}$/u);
   });
 
   it("takes no second owner once one exists", async () => {
@@ -85,10 +91,21 @@ describe("the owner takes a new Instance from first run to a signed-in session w
     assert.equal(await sessionState(), "signed-out");
   });
 
-  it("signs in again with the right password", async () => {
+  it("signs in again with the right password, to the database of the same name", async () => {
     assert.equal((await instance.send("POST", "/api/login", { password: PASSWORD })).status, 204);
-    assert.equal(await sessionState(), "signed-in");
+    assert.equal(await databaseNameOf(instance), database);
     assert.equal((await instance.send("GET", "/api/items")).status, 200);
+  });
+
+  it("answers every session check with Cache-Control: no-store and names the database to the owner only", async () => {
+    const owner = await instance.request("/api/session");
+    const anyone = await instance.fetch("/api/session");
+
+    assert.deepEqual(
+      [owner.headers.get("cache-control"), anyone.headers.get("cache-control")],
+      ["no-store", "no-store"],
+    );
+    assert.deepEqual(await anyone.json(), { state: "signed-out" });
   });
 });
 

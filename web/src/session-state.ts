@@ -1,10 +1,6 @@
 import type { Session } from "./access-api.ts";
 
-export type View =
-  | Session
-  | { readonly state: "signed-in" }
-  | { readonly state: "loading" }
-  | { readonly state: "unreachable" };
+export type View = Session | { readonly state: "loading" } | { readonly state: "unreachable" };
 
 type SessionFlow =
   | { readonly kind: "settled"; readonly view: View }
@@ -15,12 +11,10 @@ export type SessionEvent =
   | { readonly kind: "answer"; readonly check: Readonly<AbortController>; readonly view: View }
   | { readonly kind: "unauthorized"; readonly check: Readonly<AbortController> }
   | { readonly kind: "logged-out"; readonly check: Readonly<AbortController> }
-  | { readonly kind: "signed-in" };
+  | { readonly kind: "signed-in"; readonly check: Readonly<AbortController> };
 
 const LOADING: View = { state: "loading" };
 export const UNREACHABLE: View = { state: "unreachable" };
-
-const SIGNED_IN: View = { state: "signed-in" };
 
 function answeredView(shown: View, answered: View): View {
   return shown.state === "signed-in" && answered.state === "unreachable" ? shown : answered;
@@ -39,13 +33,12 @@ export function reduceSession(flow: SessionFlow, event: SessionEvent): SessionFl
         ? { kind: "checking", check: event.check, view: flow.view }
         : flow;
     case "logged-out":
+    case "signed-in":
       return { kind: "checking", check: event.check, view: LOADING };
     case "answer":
       return flow.kind === "checking" && flow.check === event.check
         ? { kind: "settled", view: answeredView(flow.view, event.view) }
         : flow;
-    case "signed-in":
-      return { kind: "settled", view: SIGNED_IN };
     default: {
       const exhaustive: never = event;
 
