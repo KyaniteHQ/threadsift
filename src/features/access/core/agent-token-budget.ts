@@ -10,6 +10,7 @@ import { DAY_MS } from "../../../core/contract/time-units.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { insertGuard, refusedWith } from "../../../core/kernel/guards.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { type Closed, unlessHeld } from "../../../core/kernel/restore-hold.ts";
 import { agentTokens, itemAliases, items } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
 import type { Caller } from "./caller.ts";
@@ -148,7 +149,7 @@ export async function withinBudget<Saved>(
   caller: Readonly<Caller>,
   urls: readonly string[],
   run: () => Promise<Saved>,
-): Promise<Budgeted<Saved>> {
+): Promise<Budgeted<Saved> | Closed> {
   if (caller.kind === "owner") return run();
 
   const [token] = await db
@@ -166,7 +167,9 @@ export async function withinBudget<Saved>(
       possiblyNew(db, urls),
     ]);
 
-    if (newItems > 0 && added + newItems > token.limit) return spentUntilMidnight(now);
+    if (newItems > 0 && added + newItems > token.limit) {
+      return unlessHeld(db, spentUntilMidnight(now));
+    }
   }
 
   return budgetAnswered(db, caller.id, run);
