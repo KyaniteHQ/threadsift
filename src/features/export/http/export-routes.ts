@@ -124,8 +124,11 @@ export function registerExportRoutes(app: OpenAPIHono, ports: Ports): void {
         return c.json({ error: "An export is running already" }, 409);
       case "restoring":
         return c.json(HELD_START, 503);
-      default:
-        return started satisfies never;
+      default: {
+        const exhaustive: never = started;
+
+        return exhaustive;
+      }
     }
   });
 
