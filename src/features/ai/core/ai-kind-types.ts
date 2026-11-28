@@ -77,9 +77,7 @@ export interface AiKindDeclaration<Context, Result, Basis> {
   readonly task: (context: Context) => AiTaskDefinition<Result>;
   readonly current: (context: Context) => SQLWrapper;
   readonly holds?: ((context: Context) => SQLWrapper) | undefined;
-  readonly defer?:
-    | ((db: Database, job: Readonly<ClaimedJob>) => Promise<Deferral | null>)
-    | undefined;
+  readonly defer?: ((job: Readonly<ClaimedJob>) => Deferral | null) | undefined;
   readonly prepare: Prepare<Asked<Context, Basis>>;
   readonly publish: (
     db: Database,

@@ -3,7 +3,6 @@ import { sql } from "drizzle-orm";
 import { defineAiKind } from "../../ai/core/ai-kind.ts";
 import { inputsHold } from "./topic-coverage.ts";
 import { type OverviewContext, ContextSchema, overviewAtBot } from "./topic-overview-context.ts";
-import { topicOfItem } from "./topic-overview-input.ts";
 import { preparedOverview } from "./topic-overview-prepare.ts";
 import { overviewRefused } from "./topic-overview-run.ts";
 import {
@@ -24,11 +23,8 @@ export const topicOverviewKind = defineAiKind({
   task: topicOverviewTask,
   current: overviewCurrent,
   holds: (context) => sql`not ${overviewAtBot(context.topicId)} and ${overviewCurrent(context)}`,
-  defer: async (db, job) => {
-    const topicId = await topicOfItem(db, job.itemId);
-
-    return topicId === null ? null : { busy: overviewAtBot(topicId), wait: "topic-busy" };
-  },
+  defer: ({ topicId }) =>
+    topicId === null ? null : { busy: overviewAtBot(topicId), wait: "topic-busy" },
   prepare: async (ports, job) => {
     const prepared = await preparedOverview(ports.db, job);
 

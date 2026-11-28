@@ -1,12 +1,15 @@
-import { type SQL, type SQLWrapper, and, eq, isNotNull, sql } from "drizzle-orm";
-import type { SubqueryWithSelection } from "drizzle-orm/sqlite-core";
+import { type SQL, type SQLWrapper, and, eq, isNotNull, notExists, sql } from "drizzle-orm";
+import type { BatchItem } from "drizzle-orm/batch";
+import { type SubqueryWithSelection, alias } from "drizzle-orm/sqlite-core";
 
 import type { BuiltFrom, OverviewFailure } from "../../../core/contract/topic-overview-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { closeMatchingJobs } from "../../../core/kernel/job-close.ts";
 import type { ClaimedJob } from "../../../core/kernel/job-outcome.ts";
 import { jobIsOpen, opening } from "../../../core/kernel/job-rows.ts";
+import { jobIs, jobOpen } from "../../../core/kernel/job-tables.ts";
 import { providerSet } from "../../../core/kernel/provider-saved.ts";
-import { aiTasks, items, topicPages, topics } from "../../../core/kernel/schema.ts";
+import { aiTasks, items, jobs, topicPages, topics } from "../../../core/kernel/schema.ts";
 import { coverageGaps } from "./topic-coverage.ts";
 import { overviewContextField } from "./topic-overview-context.ts";
 
@@ -16,6 +19,7 @@ export function openingOverview(db: Database, itemId: number | Readonly<SQLWrapp
     address: sql`${items.originalUrl}`,
     now: Date.now(),
     where: and(eq(items.id, itemId), isNotNull(items.topicId), providerSet()) ?? sql`0`,
+    topicId: sql`${items.topicId}`,
   });
 }
 
@@ -31,7 +35,38 @@ export function continuingOverview(db: Database, topicId: number, when: Readonly
         coverageGaps(topicId),
         when,
       ) ?? sql`0`,
+    topicId,
   });
+}
+
+const heldOverview = alias(jobs, "held_overview");
+
+export function overviewJobsFollow(
+  db: Database,
+  { loser, survivor }: Readonly<{ loser: number; survivor: number }>,
+  when: Readonly<SQLWrapper>,
+): readonly BatchItem<"sqlite">[] {
+  const survivorHeld = db
+    .select({ id: heldOverview.id })
+    .from(heldOverview)
+    .where(
+      and(
+        eq(heldOverview.itemId, jobs.itemId),
+        eq(heldOverview.kind, "topic_overview"),
+        jobOpen(heldOverview.state),
+        eq(heldOverview.topicId, survivor),
+      ),
+    );
+
+  const ofLoser = and(eq(jobs.kind, "topic_overview"), eq(jobs.topicId, loser), when);
+
+  return [
+    ...closeMatchingJobs(db, and(ofLoser, jobIs("running")) ?? sql`0`),
+    db
+      .update(jobs)
+      .set({ topicId: survivor })
+      .where(and(ofLoser, jobIs("queued"), notExists(survivorHeld))),
+  ];
 }
 
 export function overviewOpened(db: Database, topicId: number) {
@@ -103,15 +138,19 @@ function ownedByJob(jobId: number) {
 
 export function overviewGaveUp(
   db: Database,
-  { id, itemId }: Readonly<Pick<ClaimedJob, "id" | "itemId">>,
+  { id, topicId }: Readonly<Pick<ClaimedJob, "id" | "topicId">>,
 ) {
+  const marked = markTopicOverviewFailed(db, id, "gave-up");
+
+  if (topicId === null) return [marked];
+
   const owned = db
-    .select({ topicId: sql<number>`${items.topicId}`.as("topic_id") })
-    .from(items)
-    .where(and(eq(items.id, itemId), isNotNull(items.topicId), sql`not ${ownedByJob(id)}`))
+    .select({ topicId: sql<number>`${topics.id}`.as("topic_id") })
+    .from(topics)
+    .where(and(eq(topics.id, topicId), sql`not ${ownedByJob(id)}`))
     .as("failing");
 
-  return [failed(db, owned, "gave-up"), markTopicOverviewFailed(db, id, "gave-up")];
+  return [failed(db, owned, "gave-up"), marked];
 }
 
 function markTopicOverviewFailed(db: Database, jobId: number, failure: OverviewFailure) {

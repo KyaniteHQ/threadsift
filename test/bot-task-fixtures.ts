@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 
-import { z } from "zod";
+import { sql } from "drizzle-orm";
 
 import { claimNextDue } from "../src/core/compose/jobs.ts";
 import type { JobKind } from "../src/core/contract/job-contract.ts";
 import { bestEffort } from "../src/core/kernel/failure-log.ts";
 import type { ClaimedJob } from "../src/core/kernel/job-outcome.ts";
-import { type JobRow, jobs } from "../src/core/kernel/schema.ts";
+import { type JobRow, items, jobs } from "../src/core/kernel/schema.ts";
 import { newCallbackCredential } from "../src/features/ai/core/callback-credential.ts";
 import { KEY, PATH } from "./grok-bot-fixtures.ts";
 import { type Answer, Instance, type Json, SECRET_KEY } from "./instance.ts";
@@ -139,6 +139,10 @@ async function queuedJob(
       staleRequeues,
       attemptGeneration,
       nextAttemptAt: 0,
+      topicId:
+        kind === "topic_overview"
+          ? sql`(select ${items.topicId} from ${items} where ${items.id} = ${itemId})`
+          : null,
     })
     .returning({ id: jobs.id });
 
@@ -152,11 +156,7 @@ export async function bulkJobs(
   jobCount: number,
   kind: JobKind = "related_pick",
 ): Promise<readonly ClaimedJob[]> {
-  const first =
-    (instance.database.rows(
-      z.object({ id: z.number().nullable() }),
-      "select max(id) as id from items",
-    )[0]?.id ?? 0) + 1;
+  const first = instance.database.count("select coalesce(max(id), 0) + 1 as n from items");
 
   const claims: ClaimedJob[] = [];
 

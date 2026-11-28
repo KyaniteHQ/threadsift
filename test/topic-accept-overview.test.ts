@@ -10,7 +10,14 @@ import {
 import { accept } from "./accept-fixtures.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 import { saveProvider, until } from "./library-fixtures.ts";
-import { jobOwners, pasteTopics, queueOverview, storePage } from "./overview-gap-fixtures.ts";
+import {
+  jobOwners,
+  jobTopicsOf,
+  overviewJobsById,
+  pasteTopics,
+  queueOverview,
+  storePage,
+} from "./overview-gap-fixtures.ts";
 import { proposeTopics, topicId } from "./topic-accept-fixtures.ts";
 
 const IdSchema = z.object({ id: z.number() });
@@ -73,7 +80,7 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
       );
     }));
 
-  it("adds none when the survivor's owner Item already has a queued job", () =>
+  it("moves the queued job of the survivor's owner Item to the survivor and adds none", () =>
     withLibrary({ provider: true }, async ({ instance, loserItems }) => {
       const [owner] = loserItems;
 
@@ -83,6 +90,57 @@ describe("the closing writes of a Topic merge make one attempt to open an overvi
         200,
       );
       assert.deepEqual(jobOwners(instance), [owner]);
+      assert.deepEqual(jobTopicsOf(instance, owner), ["Survivor"]);
+    }));
+
+  it("keeps the survivor's job of an Item that holds one for each Topic, and finishes the merge", () =>
+    withLibrary({ provider: false }, async ({ instance, loserItems }) => {
+      const [owner] = loserItems;
+
+      queueOverview(instance, owner);
+      instance.database.exec(
+        "update items set topic_id = (select id from topics where name = 'Survivor') where id = ?",
+        owner,
+      );
+      queueOverview(instance, owner);
+
+      const survivor = topicId(instance, "Survivor");
+      const [loserJob, survivorJob] = overviewJobsById(instance);
+
+      assert.equal(
+        (await accept(instance, proposeTopics(instance, ["Loser", "Survivor"]))).status,
+        200,
+      );
+      assert.equal(
+        instance.database.count("select count(*) as n from topics where name = 'Loser'"),
+        0,
+      );
+      assert.deepEqual(overviewJobsById(instance), [
+        { ...loserJob, topic_id: null },
+        { ...survivorJob, topic_id: survivor },
+      ]);
+    }));
+
+  it("closes the running job of the loser and opens a job for the survivor", () =>
+    withLibrary({ provider: true }, async ({ instance, loserItems }) => {
+      const [owner] = loserItems;
+
+      queueOverview(instance, owner, "running");
+
+      const [running] = overviewJobsById(instance);
+
+      assert.equal(
+        (await accept(instance, proposeTopics(instance, ["Loser", "Survivor"]))).status,
+        200,
+      );
+
+      const [closed, ...opened] = overviewJobsById(instance);
+
+      assert.deepEqual(closed, { ...running, state: "done", topic_id: null });
+      assert.deepEqual(
+        opened.map(({ topic_id: topic }) => topic),
+        [topicId(instance, "Survivor")],
+      );
     }));
 
   it("opens the owner Item's job although a non-owner Item of each Topic has a queued job", () =>
@@ -151,7 +209,7 @@ describe("the overview a merge leaves behind", () => {
     }));
 });
 
-const OwnerSchema = z.object({ item_id: z.number() });
+const TopicIdSchema = z.object({ topic_id: z.number().nullable() });
 
 describe("the address of a merged-away Topic opens the Topic it was merged into", () => {
   let instance: Instance;
@@ -225,13 +283,11 @@ describe("the address of a merged-away Topic opens the Topic it was merged into"
         OverviewRetryResponseSchema.parse(JSON.parse(answer.body)).overview.provider,
         true,
       );
-      assert.equal(
-        instance.database.rows(
-          OwnerSchema,
-          "select jobs.item_id from jobs join items on items.id = jobs.item_id where jobs.kind = 'topic_overview' and items.topic_id = ?",
-          gamma,
-        ).length > 0,
-        true,
+      assert.deepEqual(
+        instance.database
+          .rows(TopicIdSchema, "select topic_id from jobs where kind = 'topic_overview'")
+          .map(({ topic_id: topic }) => topic),
+        [gamma],
       );
       assert.equal(instance.database.count("select count(*) as n from topics where key = 'ml'"), 0);
     });

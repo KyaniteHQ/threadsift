@@ -43,6 +43,7 @@ Each target applies a migration file whole or not at all. Wrangler 4.166.0 sends
 The deploy applies a migration before it deploys the Worker, so the previous Worker runs for a short time on the new schema. A migration that drops a column or a trigger that the previous Worker still uses needs a deploy while no feature that uses it is running, because there is no compatibility layer. No build older than the one that migrated a database is supported on it.
 
 - SQLite treats each NULL as distinct in a unique index, so `jobs_one_open_per_item_kind` accepts two open `export` jobs with no Item. The partial unique index `exports_one_live` guards the one-live-Export rule instead.
+- For the same reason `jobs_one_open_overview_per_topic_item` accepts two open overview jobs of one Item whose Topic was deleted. Nothing guards that case, and each such job ends without a run.
 - A Restore writes the high-water mark of each `AUTOINCREMENT` counter into `sqlite_sequence` (the manifest's `sequences`). It runs one `UPDATE` of `max(seq, mark)` and one `INSERT ... SELECT` for a table with no row yet, because `sqlite_sequence` has no unique key on `name`.
 
 ## Consistency constraints
