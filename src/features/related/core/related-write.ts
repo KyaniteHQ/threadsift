@@ -1,6 +1,7 @@
-import { eq, not, sql } from "drizzle-orm";
+import { eq, not, or, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
+import { providerMayRead } from "../../../core/kernel/digest-source.ts";
 import { hasDigest } from "../../../core/kernel/digest-stored.ts";
 import { guardedOutcome } from "../../../core/kernel/guarded-outcome.ts";
 import type { JobWrites, SettledOutcome } from "../../../core/kernel/job-outcome.ts";
@@ -31,7 +32,10 @@ function replacedSet(db: Database, sourceId: number, picks: RelatedResult["picks
 }
 
 export function noDigestOutcome(db: Database, itemId: number): SettledOutcome {
-  return guardedOutcome(db, not(hasDigest(itemId)));
+  return guardedOutcome(
+    db,
+    or(not(hasDigest(itemId)), not(providerMayRead(sql`${itemId}`))) ?? sql`0`,
+  );
 }
 
 export function closedOutcome(db: Database, source: Version): SettledOutcome {

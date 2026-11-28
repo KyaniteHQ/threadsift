@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 
-import type { XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
+import type { XReaderChoice, XSettingsView } from "../../src/core/contract/x-settings-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { Command } from "./Command.tsx";
 import type { SectionSpec } from "./LoadedSection.tsx";
@@ -59,6 +59,18 @@ function Note({ view }: Readonly<{ view: XSettingsView }>) {
   }
 }
 
+function shownChoices(view: Readonly<XSettingsView>): readonly XReaderChoice[] {
+  const offered = view.choices.filter((reader) => reader !== "x-api" || view.reader === reader);
+
+  return offered.includes(view.reader) ? offered : [...offered, view.reader];
+}
+
+function readerHelp(view: Readonly<XSettingsView>): string {
+  return view.reader === "auto" && view.api === "saved"
+    ? X_TEXT.autoWithApi
+    : READER_HELP[view.reader];
+}
+
 function ReaderChoice({
   view,
   changed,
@@ -76,7 +88,7 @@ function ReaderChoice({
         aria-labelledby={LABEL_ID}
         aria-describedby={NOTE_ID}
       >
-        {view.choices.map((reader) => (
+        {shownChoices(view).map((reader) => (
           <RadioChoice
             key={reader}
             id={`x-reader-${reader}`}
@@ -90,7 +102,7 @@ function ReaderChoice({
         ))}
       </div>
       <p id={NOTE_ID} className="fld-help">
-        {READER_HELP[view.reader]}
+        {readerHelp(view)}
       </p>
       <output>{form.busy ? X_TEXT.saving : null}</output>
       <Alert text={form.error} />
@@ -98,8 +110,26 @@ function ReaderChoice({
   );
 }
 
+function workerNote(view: Readonly<XSettingsView>): string {
+  switch (view.reader) {
+    case "grok-cli":
+      return X_TEXT.noteWorkerCli;
+    case "x-api":
+      return X_TEXT.noteWorkerApi;
+    case "auto":
+      return view.api === "saved" ? X_TEXT.noteWorkerWithApi : X_TEXT.noteWorker;
+    case "grok-bot":
+      return X_TEXT.noteWorker;
+    default: {
+      const exhaustive: never = view.reader;
+
+      return exhaustive;
+    }
+  }
+}
+
 function CliRows({ view }: Readonly<{ view: XSettingsView }>) {
-  if (view.state === "worker") return <p>{X_TEXT.noteWorker}</p>;
+  if (view.state === "worker") return <p>{workerNote(view)}</p>;
 
   return (
     <>

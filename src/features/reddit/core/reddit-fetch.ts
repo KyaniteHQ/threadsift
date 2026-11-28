@@ -25,7 +25,7 @@ function threadFilled(
       title: known?.title ?? thread.title,
       author: known?.author ?? thread.author,
       community: known?.community ?? thread.community,
-      content: { kind: "thread", thread, archivedAt },
+      content: { kind: "thread", thread: { ...thread, xApiRead: false }, archivedAt },
     },
   };
 }

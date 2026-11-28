@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "4da9a4ba-2ffb-4453-8b40-1acda7b24ffc",
+  "id": "96f6a234-821e-48f3-8ebb-044655ed2c07",
   "prevId": "ffd2f411-a34f-4c60-9ccd-cafba1c190db",
   "tables": {
     "agent_tokens": {
@@ -764,6 +764,10 @@
         "guards_outcome": {
           "name": "guards_outcome",
           "value": "\"guards\".\"ok\" <> 3"
+        },
+        "guards_budget": {
+          "name": "guards_budget",
+          "value": "\"guards\".\"ok\" <> 4"
         }
       }
     },
@@ -1484,13 +1488,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "topic_id": {
-          "name": "topic_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -1498,18 +1495,7 @@
           "name": "jobs_one_open_per_item_kind",
           "columns": ["item_id", "kind"],
           "isUnique": true,
-          "where": "\"jobs\".\"state\" <> 'done' and \"jobs\".\"kind\" <> 'topic_overview'"
-        },
-        "jobs_one_open_overview_per_topic_item": {
-          "name": "jobs_one_open_overview_per_topic_item",
-          "columns": ["topic_id", "item_id"],
-          "isUnique": true,
-          "where": "\"jobs\".\"state\" <> 'done' and \"jobs\".\"kind\" = 'topic_overview'"
-        },
-        "jobs_by_item": {
-          "name": "jobs_by_item",
-          "columns": ["item_id", "kind"],
-          "isUnique": false
+          "where": "\"jobs\".\"state\" <> 'done'"
         },
         "jobs_state_next_attempt": {
           "name": "jobs_state_next_attempt",
@@ -1525,15 +1511,6 @@
           "columnsFrom": ["item_id"],
           "columnsTo": ["id"],
           "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "jobs_topic_id_topics_id_fk": {
-          "name": "jobs_topic_id_topics_id_fk",
-          "tableFrom": "jobs",
-          "tableTo": "topics",
-          "columnsFrom": ["topic_id"],
-          "columnsTo": ["id"],
-          "onDelete": "set null",
           "onUpdate": "no action"
         }
       },

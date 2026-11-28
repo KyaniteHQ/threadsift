@@ -38,6 +38,8 @@ export const WAIT_REASONS = [
   REDDIT_WAIT,
   "x-verify",
   "x-reread",
+  "x-api-budget",
+  "x-api-rate",
 ] as const;
 
 export type JobKind = (typeof JOB_KINDS)[number];

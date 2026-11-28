@@ -3,11 +3,16 @@ import { FETCH_DEADLINE_MS, X_FETCH_DEADLINE_MS } from "../../../core/contract/r
 import { SuppliedPageSchema } from "../../../core/contract/supplied-page.ts";
 import { X_READER_BOT } from "../../../core/contract/x-settings-contract.ts";
 import type { ClaimedJob, JobPorts } from "../../../core/kernel/job-outcome.ts";
-import type { Concluded, Fetched } from "../../media/core/details.ts";
+import type { Concluded } from "../../media/core/details.ts";
 import { fetchedWithThread } from "../../reddit/core/reddit-fetch.ts";
 import { holdsNoThread } from "../../thread/core/thread-store.ts";
-import { type ToVerify, fetchedByX } from "../../x/core/x-fetcher.ts";
-import { type XRoute, noted, xRouteOf } from "../../x/core/x-reader.ts";
+import {
+  type XRead,
+  type XRoute,
+  fetchedByReader,
+  noted,
+  xRouteOf,
+} from "../../x/core/x-reader.ts";
 import { fetchedOfRoute, linkRouteOf, suppliedDetails } from "./fetch-link.ts";
 import { pluginPage } from "./plugin-fetch.ts";
 
@@ -15,7 +20,7 @@ type JobRead =
   | { readonly kind: "bot" }
   | {
       readonly kind: "fetched";
-      readonly fetched: Fetched | ToVerify;
+      readonly fetched: XRead;
       readonly deadline: AbortSignal;
     };
 
@@ -52,12 +57,11 @@ async function fetchedByRoute(
   route: Readonly<LinkRoute>,
   reader: Readonly<XRoute>,
   deadline: AbortSignal,
-): Promise<Fetched | ToVerify> {
+): Promise<XRead> {
   if (route.kind === "reddit") return fetchedWithThread(ports, job, route, deadline);
 
   if (route.kind === "x") {
-    const fetcher = reader.kind === "grok-cli" ? reader.fetcher : null;
-    const read = await fetchedByX(ports, fetcher, job, deadline);
+    const read = await fetchedByReader(ports, reader, job, deadline);
 
     return (
       read ?? noted(await fetchedOfRoute(ports, route, job.address, job.attempts, deadline), reader)
@@ -72,7 +76,7 @@ async function fetchedByLink(
   job: Readonly<ClaimedJob>,
   reader: Readonly<XRoute>,
   deadline: AbortSignal,
-): Promise<Fetched | ToVerify> {
+): Promise<XRead> {
   const route = linkRouteOf(job.address);
 
   return (

@@ -25,6 +25,14 @@ export const X_TEXT = {
   noteSearch:
     "The grok CLI can also read public web pages through xAI’s search. Sign in with a Grok account used only for this instance.",
   noteWorker: "On Cloudflare, pasted X links stay link-only unless a Grok Bot is set up.",
+  noteWorkerCli:
+    "On Cloudflare, pasted X links stay link-only because there is no grok CLI. Choose another reader.",
+  noteWorkerApi:
+    "On Cloudflare, only the X API reads pasted X links, using the saved token. The Grok Bot is never tried.",
+  noteWorkerWithApi:
+    "On Cloudflare, pasted X links are read by the Grok Bot when one is set up, otherwise by the X API with the saved token.",
+  autoWithApi:
+    "Auto uses the Grok Bot only when its address is saved, Threadsift allows that address, and its saved key can be opened. Otherwise it uses the grok CLI if it’s installed. When neither can be used, Auto uses the X API with the saved token, which can spend X API credit. With none available, the link stays link-only.",
   loadFailed: "Couldn’t load these settings. Reload the page.",
   installCommand:
     "podman exec -it -e HOME=/data/grok -e GROK_BIN_DIR=/data/grok/bin <container> bash -c 'curl -fsSL https://x.ai/cli/install.sh | bash'",
@@ -36,6 +44,7 @@ export const READER_LABELS = {
   auto: "Auto",
   "grok-bot": "Grok Bot",
   "grok-cli": "grok CLI",
+  "x-api": "X API",
 } as const satisfies Readonly<Record<XReaderChoice, string>>;
 
 export const READER_HELP = {
@@ -44,6 +53,8 @@ export const READER_HELP = {
     "Only the Grok Bot reads X links. If it can’t be used, the link stays link-only and the grok CLI is never tried.",
   "grok-cli":
     "Only the grok CLI reads X links. If it can’t be used, the link stays link-only and the Grok Bot is never tried.",
+  "x-api":
+    "Only the X API reads X links. A read can spend X API credit. If the X API can’t be used, the link stays link-only and the other readers are never tried.",
 } as const satisfies Readonly<Record<XReaderChoice, string>>;
 
 export const BOT_STATES = {
@@ -94,6 +105,24 @@ export const X_NOTICES: Readonly<Record<XNoticeKey, string>> = {
     "The grok CLI couldn’t reach xAI’s service to read this post. Any earlier copy was kept. Paste the link again later.",
   "cli-failed":
     "Threadsift didn’t get a usable answer from the grok CLI, so this post couldn’t be read. Any earlier copy was kept. Try pasting the link again.",
+  "api-not-set-up":
+    "Couldn’t read this post because X API is the chosen reader and no Bearer token is saved. The other readers weren’t tried. Any earlier copy was kept. Save a token with PUT /api/settings/x-api or change the reader in Settings, X posts. Then paste the link again.",
+  "api-key-unopened":
+    "Couldn’t open the saved X API Bearer token because the instance’s secret key changed or is missing. This post wasn’t read. Any earlier copy was kept. Save the token again with PUT /api/settings/x-api or change the reader in Settings, X posts. Then paste the link again.",
+  "api-key-rejected":
+    "X rejected the saved Bearer token, so this post couldn’t be read. Any earlier copy was kept. Save a working token with PUT /api/settings/x-api, then paste the link again.",
+  "api-not-enrolled":
+    "X says your developer app isn’t in the pay-per-use package, so this post couldn’t be read. Any earlier copy was kept. Move the app to pay-per-use in X’s developer console, then paste the link again.",
+  "api-ip-blocked":
+    "X refused the request to read this post because this instance’s address isn’t on the IP allowlist for your X developer account. Any earlier copy was kept. Add the address in X’s developer console, then paste the link again.",
+  "api-out-of-credits":
+    "Your X developer account has no credit left or has reached its spending limit, so this post couldn’t be read. Any earlier copy was kept. Add credit or raise the limit in X’s developer console, then paste the link again.",
+  "api-refused":
+    "X refused the request to read this post. Any earlier copy was kept. Paste the link again later.",
+  "api-unreachable":
+    "Threadsift couldn’t reach the X API to read this post. Any earlier copy was kept. Paste the link again later.",
+  "api-answer-unreadable":
+    "Threadsift didn’t get a usable answer from the X API, so this post couldn’t be read. Any earlier copy was kept. Paste the link again later.",
   "x-unconfirmed":
     "Threadsift couldn’t check this post on X, or the fetched post didn’t match what X shows. Nothing new was saved, and any earlier copy was kept.",
   "x-answer-refused":

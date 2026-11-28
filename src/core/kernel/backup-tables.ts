@@ -68,6 +68,7 @@ export const BACKUP_TABLES = {
       "linked_url",
       "post_link",
       "follow_ups",
+      "x_api_read",
     ],
     leftOut: [],
   },

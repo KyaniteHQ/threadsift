@@ -1,5 +1,6 @@
-import { sql } from "drizzle-orm";
+import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 
+import { providerMayRead } from "./digest-source.ts";
 import { grokBotSettings } from "./grok-bot-tables.ts";
 import { settings } from "./schema.ts";
 
@@ -9,4 +10,8 @@ export function grokBotChosen() {
 
 export function providerSet() {
   return sql`(exists (select 1 from ${settings} where ${settings.id} = 1) or ${grokBotChosen()})`;
+}
+
+export function providerReads(itemId: Readonly<SQLWrapper>): SQL {
+  return sql`(${providerSet()} and ${providerMayRead(itemId)})`;
 }

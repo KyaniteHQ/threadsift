@@ -7,7 +7,7 @@ import {
   ITEM_FILES_STREAM,
   type ExportTally,
   type PartialItem,
-  tallyOf,
+  resumableTally,
 } from "../../../core/contract/export-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
@@ -227,10 +227,12 @@ export async function buildSlice(
 ): Promise<BuiltSlice | null> {
   const { db } = ports;
   const root = exportRootName(run.createdAt);
-  const before = tallyOf(run);
+  const before = resumableTally(run);
   const position = streamPosition(run.stream);
 
-  if (position === null || (before.list !== "" && before.list !== STREAM_LIST)) return null;
+  if (before === null || position === null || (before.list !== "" && before.list !== STREAM_LIST)) {
+    return null;
+  }
 
   const progress = await fill(ports, {
     root,

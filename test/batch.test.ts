@@ -6,6 +6,7 @@ import type { z } from "zod";
 import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
+import { lateCallKeepsCursor, lateCallWithoutUpdatedAtSavesNothing } from "./batch-fixtures.ts";
 import { calls } from "./fetchers/batch.mts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
@@ -139,6 +140,32 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
   });
 
+  it("keeps a cursor that a later run wrote again when a late call sent from the earlier value arrives", () =>
+    lateCallKeepsCursor(instance, "list-0123456789abcdef"));
+
+  it("answers 400 and saves no link and no cursor for a late call that sends previous without previousUpdatedAt", () =>
+    lateCallWithoutUpdatedAtSavesNothing(instance, "list-3333333333333333"));
+
+  it("keeps that cursor when every save lands in the same millisecond", (t) => {
+    const now = Date.now();
+
+    t.mock.method(Date, "now", () => now);
+
+    return lateCallKeepsCursor(instance, "list-1111111111111111");
+  });
+
+  it("keeps that cursor when the clock steps back before every save", (t) => {
+    let now = Date.now();
+
+    t.mock.method(Date, "now", () => {
+      now -= 1000;
+
+      return now;
+    });
+
+    return lateCallKeepsCursor(instance, "list-2222222222222222");
+  });
+
   it("answers 400 with the entry's index and saves nothing, moving no cursor, when one entry is invalid", async () => {
     const itemsBefore = await instance.itemTotal();
 
@@ -166,7 +193,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
   });
 
-  it("answers 400 for 0 links, 101 links and a malformed import, and saves nothing", async () => {
+  it("answers 400 for 0 links, 101 links, a malformed import, a previousUpdatedAt without a text previous and an unknown import key, and saves nothing", async () => {
     const itemsBefore = await instance.itemTotal();
 
     const refused = [
@@ -175,11 +202,17 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       await batch({ links: links(1), import: { name: "bad name", cursor: "1" } }),
       await batch({ links: links(1), import: { name: "ok", cursor: "" } }),
       await batch({ links: links(1), import: { name: "ok", cursor: "x".repeat(257) } }),
+      await batch({ links: links(1), import: { name: "ok", cursor: "1", previousUpdatedAt: 1 } }),
+      await batch({
+        links: links(1),
+        import: { name: "ok", cursor: "1", previous: null, previousUpdatedAt: 1 },
+      }),
+      await batch({ links: links(1), import: { name: "ok", cursor: "1", since: 1 } }),
     ];
 
     assert.deepEqual(
       refused.map((answer) => answer.status),
-      [400, 400, 400, 400, 400],
+      [400, 400, 400, 400, 400, 400, 400, 400],
     );
     assert.equal(await instance.itemTotal(), itemsBefore);
   });

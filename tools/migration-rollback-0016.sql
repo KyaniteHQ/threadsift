@@ -29,4 +29,4 @@ INSERT INTO `sqlite_sequence` (`name`, `seq`) SELECT 'jobs', `seq` FROM `sqlite_
 DROP TABLE `__migrated_jobs`;
 CREATE UNIQUE INDEX `jobs_one_open_per_item_kind` ON `jobs` (`item_id`,`kind`) WHERE "jobs"."state" <> 'done';
 CREATE INDEX `jobs_state_next_attempt` ON `jobs` (`state`,`next_attempt_at`);
-DELETE FROM `d1_migrations` WHERE `name` = '0014_overview_job_topic.sql';
+DELETE FROM `d1_migrations` WHERE `name` = '0016_overview_job_topic.sql';

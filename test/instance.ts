@@ -26,7 +26,10 @@ interface StartOptions {
   readonly fetchers?: string | undefined;
   readonly secretKey?: string | undefined;
   readonly resetCode?: string | undefined;
+  readonly xApiOrigin?: string;
 }
+
+const UNSENT_X_API_ORIGIN = "http://127.0.0.1:9";
 
 let ownerTemplate: Promise<Uint8Array> | undefined;
 
@@ -109,6 +112,7 @@ export class Instance {
     fetchers,
     secretKey,
     resetCode,
+    xApiOrigin = UNSENT_X_API_ORIGIN,
   }: StartOptions = {}): Promise<Instance> {
     const template = fresh ? undefined : await templateDatabase();
     await using cleanup = new AsyncDisposableStack();
@@ -121,6 +125,7 @@ export class Instance {
       THREADSIFT_SECRET_KEY: secretKey,
       THREADSIFT_PUBLIC_ORIGIN: publicOrigin,
       THREADSIFT_FETCHERS: fetchers,
+      THREADSIFT_X_API_ORIGIN: xApiOrigin,
     });
 
     const node = await startNode(database.db, environment);

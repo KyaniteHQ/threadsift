@@ -22,7 +22,7 @@ const readRoute = createRoute({
     ...accessRefusals(OWNER),
     200: jsonBody(
       XSettingsViewSchema,
-      "Which reader the owner chose for X links (`reader`: `auto`, `grok-bot` or `grok-cli`), the choices this install offers (`choices`; the Worker has no grok CLI and offers `auto` and `grok-bot` only), the state of the Grok Bot (`bot`: `ready`, `not-configured`, `secret-missing` or `refused`), and the grok CLI: its id (`fetcher`, null on the Worker and on a container without the CLI), its state and the version it reported. With `auto`, a ready Grok Bot reads X links, otherwise the grok CLI, otherwise the link stays Link-only. The CLI state is a hint read from the CLI, never a credential.",
+      "Which reader the owner chose for X links (`reader`: `auto`, `grok-bot`, `grok-cli` or `x-api`), the choices this install offers (`choices`; the Worker has no grok CLI and offers `auto`, `grok-bot` and `x-api`), the state of the Grok Bot (`bot`: `ready`, `not-configured`, `secret-missing` or `refused`), the grok CLI: its id (`fetcher`, null on the Worker and on a container without the CLI), its state and the version it reported, whether an X API Bearer token is saved (`api`: `none`, `saved` or `unreadable`), and which reader `auto` uses now and why (`auto.reader` and `auto.because`: `bot-ready`, `cli-installed`, `api-token-saved` or `no-reader`). With `auto`, a ready Grok Bot reads X links, otherwise the grok CLI, otherwise the X API when its token is saved, otherwise the link stays Link-only. The X API spends the owner's X credit. The CLI state is a hint read from the CLI, never a credential.",
     ),
   },
 });
@@ -37,7 +37,7 @@ const saveRoute = createRoute({
     ...accessRefusals(OWNER),
     200: jsonBody(
       XSettingsViewSchema,
-      "The settings after the change. The chosen reader alone reads an X link; when it cannot be used, the Item stays Link-only with a note that names the cause, and the other reader is not tried. A Paste that carries the thread as `content` ignores the choice. The change applies to fetches that start after it.",
+      "The settings after the change. The chosen reader alone reads an X link; when it cannot be used, the Item stays Link-only with a note that names the cause, and no other reader is tried. A Paste that carries the thread as `content` ignores the choice. The change applies to fetches that start after it.",
     ),
     400: jsonBody(
       ErrorResponseSchema,

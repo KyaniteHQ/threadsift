@@ -28,6 +28,7 @@ The manifest lists the record files with their row counts. It also holds the for
 - Secrets, the owner's password hash, sessions, agent token hashes and the working tables are left out, because a restored Instance gets a new password and new tokens and starts with no work in flight.
 - The `ai_tasks` rows that Digests name stay, because `digests.task_id` is NOT NULL and a task's inputs hold the comment ids the agent was shown. A model's or the Grok Bot's task keeps its inputs as sent, so a task sent before the migration that renamed the thread tables still shows `t1_` ids there. Its `result`, and the `inputs` of a caller's task, hold a Digest and carry the bare ids that every stored Digest carries.
 - `d1_migrations` and `sqlite_sequence` are excluded as `carried-in-manifest`.
+- `x_api_spend` and `x_api_item_spend` are excluded as `spend-counter`. A Restore brings no X API token (`x_api_settings` is a secret) and no spend counter, so the owner saves the token again, and the day and Item counters start at 0. A Restore on the same UTC day therefore starts the day limit again. `threads.x_api_read` is exported, so a restored thread that came through the X API stays out of every Provider input.
 - The records hold every stored comment, Kept or not. The Item notes hold Kept comments only.
 
 The backup-tables test fails when a table is in neither the backup list nor the excluded list, when it is in both, or when a column of an included table is in neither set. A migration that adds a table or a column must decide where it belongs. The key order of the lists is not an insert order, because Restore derives the parent order from the foreign keys of the schema.
@@ -39,7 +40,7 @@ A Proposal is two records, its `proposals` row (`records/proposals.<n>.jsonl`) a
 `POST /api/export` inserts the `exports` row and the first job of the kind `export` in one batch. Each slice reads the next rows, closes whole zip entries, writes them as objects of the file store, and returns one checkpoint. The runner commits the checkpoint in the same guarded batch that closes the job and opens the next one. A limit here with no source named is our choice.
 
 - On the container the start expires the claim of every `running` job (`abandonRunning`), and on Cloudflare the sweep takes over a claim that expired.
-- A job that fails 3 attempts ends the export `failed` with `gave-up`. A slice that finds that the table list differs from the one the export started with ends it `failed` with `list-changed`, because resuming would skip or repeat a table without any error. A deploy that changes a table or an exported column in `BACKUP_TABLES` while the export runs causes this.
+- A job that fails 3 attempts ends the export `failed` with `gave-up`. A slice that finds that the table list differs from the one the export started with ends it `failed` with `list-changed`, because resuming would skip or repeat a table without any error. A deploy that changes a table or an exported column in `BACKUP_TABLES` while the export runs causes this. A slice that cannot parse the stored checkpoint also ends the export `failed` with `list-changed`, and the owner starts a new export.
 
 ### Layout in the file store
 
@@ -60,7 +61,7 @@ The slices read `topics` and `tags` first, then the other tables in `BACKUP_TABL
 
 ### Item notes, images and post text
 
-After the last table the slices read the Items by id, at most `EXPORT_SLICE_ITEMS` (40) Items per slice and at most 8 MiB of entries, except that a slice's first entry is taken whatever its size. When the next entry does not fit, the slice ends inside the Item and the checkpoint records how many of its entries are written, so an Item of 20 images of 2 MiB spreads over 5 or more slices.
+After the last table the slices read the Items by id, at most `EXPORT_SLICE_ITEMS` (40) Items per slice and at most 8 MiB of entries, except that a slice's first entry is taken whatever its size. When the next entry does not fit, the slice ends inside the Item, so an Item of 20 images of 2 MiB spreads over 5 or more slices. The checkpoint then records the names of the Item's entries that are written, and the note is always the first of them. The next slice writes no note for that Item. It writes the post text file and the images of the Item's current list whose names are not in the checkpoint.
 
 `choose` counts the entries of an Item that fit in the slice with `fitting`, a scan with `findIndex` and a running total, and not with a `while` loop. On Node 26.13.1 the `while` form returned a wrong `next` after the process had run it for many Items. For an Item whose note fit and whose post text file did not, it returned no `next`, so the slice ended after the note, the next slice started after that Item, and the Export ended `ready` with a zip that lacked the post text file. The core tests of two files in one process (`node --test --test-isolation=none test/export-lifecycle.test.ts test/export-slices.test.ts`) showed it on every run, and it did not appear with Maglev turned off ([measurement](decisions-and-evidence.md#export-entry-count-on-node-26131)). Keep the scan form, and run `pnpm test 4` and the slice boundary tests of the Export before any change to this count or to `entriesOf`, which packs a table's record lines into zip entries in the Export slice module, and `completeLines` in Restore, which count the same way with a first entry that is always taken. A recursive form is not an option, because an Item with thousands of stored files would need one stack frame for each.
 
@@ -80,9 +81,10 @@ Each read of an Item costs 11 D1 statements (the Reader's 10 and the list of sto
 
 ### Items that change during the export
 
-- An Item deleted before its slice reads it is left out.
+- An Item deleted before its slice reads it is left out. An Item deleted between two slices of its own entries keeps in the zip the entries already written.
 - A missing post text file or image makes the slice read the Item again once, because a refresh in between gives the Item new keys. A second miss throws `ExportFileMissing`, so the attempt fails and retries. This re-read is the only protection against a file deleted during an export, and no deletion hold exists.
-- An Item refreshed between two slices of its own entries can leave entries of the old and the new version in the zip.
+- An Item refreshed between two slices of its own entries can leave entries of the old and the new version in the zip. The zip holds one note of the Item and, by name, every post text file and image of the version that the Item's last slice read.
+- An entry already written keeps the content of the slice that wrote it. So the note keeps the title, Summary, Highlights and Note of its slice, and a file whose name stays the same keeps its earlier bytes.
 
 ### Not a snapshot
 
@@ -224,7 +226,7 @@ Provider keys, the password, sessions and agent tokens are not in the zip, so th
 
 A write that adds a record to a table the zip brings back answers 503 with `code: "restoring"`. The new record would take an id or a key the zip holds, and the Restore's later window of that table would leave the zip's row out as a repeated key. The hold covers the writes made while it stands. An AI task written before the Restore started, such as a Provider Verify on the empty library, keeps its id, and the zip's AI task with the same id is left out.
 
-- Requests that store no Item answer their own refusal. `POST /api/items` and `POST /api/items/batch` read no Restore state before they write, so a refused host answers 400, a batch of only refused links without a cursor answers 200, a token over its Daily budget answers 429, and an unknown token answers 401. A short link is resolved over the network before its write is refused.
+- Requests that store no Item answer their own refusal. `POST /api/items` and `POST /api/items/batch` read no Restore state before they write, so a refused host answers 400, a batch of only refused links without a cursor answers 200, and an unknown token answers 401. A token over its Daily budget answers 503 `restoring` while a Restore holds the library, because `withinBudget` reads the hold before it answers 429, so the caller gets the cause it can wait out. A short link is resolved over the network before its write is refused.
 - The guard does not rely on a check that a write can outrun. Every write the hold refuses commits through `heldBatch`, the one door in the Restore hold module, and no other module builds a batch with `restoreGuard`. `heldBatch` puts `restoreGuard` in front of the writes, so a batch that a Restore holds off rolls back whole, as every guarded batch does ([Database and search](database-and-search.md), Guarded batches).
 - `itemInsert` stays the one place that builds an insert into `items`, and its callers commit that insert through `heldBatch`.
 - `restoreGuard` fails with its own refusal (`guards_restore`). `whileOpen` answers `restoring` when a write fails with it, and it rethrows every other failure without reading the predicate again.

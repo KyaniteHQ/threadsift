@@ -3,7 +3,7 @@ import { type SQL, type SQLWrapper, sql } from "drizzle-orm";
 import { type Digest, parseStoredDigest } from "../contract/digest-schema.ts";
 import type { DigestOutcome } from "../contract/item-contract.ts";
 import type { Database } from "./database.ts";
-import { hasDigestSource } from "./digest-source.ts";
+import { hasDigestSource, providerMayRead } from "./digest-source.ts";
 import { hasOpenJob } from "./job-rows.ts";
 import { digests, items, topics } from "./schema.ts";
 import { among } from "./sql-expressions.ts";
@@ -76,7 +76,7 @@ export function unchangedDigests(reads: readonly DigestRead[]): SQL {
   return sql`select json_extract(seen.value, '$.id') from json_each(${JSON.stringify(reads)}) as seen where ${seenIs(digests.taskId, "task")} and ${seenIs(storedTags, "tags")} and (json_type(seen.value, '$.topic') is null or ${seenIs(digests.topic, "topic")})`;
 }
 
-export function storedDigests(db: Database, itemIds: readonly number[]) {
+function digestRows(db: Database, where: SQL) {
   return db
     .select({
       itemId: digests.itemId,
@@ -86,10 +86,21 @@ export function storedDigests(db: Database, itemIds: readonly number[]) {
       topic: digests.topic,
     })
     .from(digests)
-    .where(among(digests.itemId, itemIds));
+    .where(where);
 }
 
-export type StoredDigest = Awaited<ReturnType<typeof storedDigests>>[number];
+export function allStoredDigests(db: Database, itemIds: readonly number[]) {
+  return digestRows(db, among(digests.itemId, itemIds));
+}
+
+export function providerDigests(db: Database, itemIds: readonly number[]) {
+  return digestRows(
+    db,
+    sql`${among(digests.itemId, itemIds)} and ${providerMayRead(digests.itemId)}`,
+  );
+}
+
+export type StoredDigest = Awaited<ReturnType<typeof allStoredDigests>>[number];
 
 export const DIGEST_VIEW_COLUMNS = {
   digestTitle: sql<string | null>`${digests.title}`.as("digest_title"),

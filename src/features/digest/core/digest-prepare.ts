@@ -1,5 +1,5 @@
 import type { Database } from "../../../core/kernel/database.ts";
-import { markDigest, unusableInput } from "../../../core/kernel/digest-marker.ts";
+import { keptNotUpdated, markDigest, unusableInput } from "../../../core/kernel/digest-marker.ts";
 import { report } from "../../../core/kernel/failure-log.ts";
 import { guardedOutcome } from "../../../core/kernel/guarded-outcome.ts";
 import {
@@ -46,6 +46,14 @@ export async function preparedDigest(
   job: Readonly<ClaimedJob>,
   item: Readonly<DigestInput>,
 ): Promise<DigestPrepared> {
+  if (!item.providerMayRead) {
+    return settled(
+      guardedOutcome(ports.db, generationCurrent(item), {
+        writes: keptNotUpdated(ports.db, item.id),
+      }),
+    );
+  }
+
   const filed = await readDigestText(ports, job, item);
 
   if ("outcome" in filed) return settled(filed.outcome);

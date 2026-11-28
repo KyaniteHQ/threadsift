@@ -65,6 +65,7 @@ export const UNFILTERED_NOTES = {
   "no-provider": `${UNFILTERED_LEAD} Save a provider so Threadsift can make one.`,
   "not-run": `${UNFILTERED_LEAD} A provider is saved, but this item has no digest yet.`,
   older: `${UNFILTERED_LEAD} This item’s digest was made from earlier text and doesn’t cover them.`,
+  "x-api-read": `${UNFILTERED_LEAD} This item was read through the X API. Threadsift doesn’t send items read that way to a provider, so no digest will filter them.`,
 } as const satisfies Record<UnfilteredCause, string>;
 
 export const ALL_REMOVED =

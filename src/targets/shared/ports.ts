@@ -2,7 +2,7 @@ import type { AiRuntime } from "../../core/kernel/ai-runtime.ts";
 import type { Ports } from "../../core/kernel/ports.ts";
 import { sealedSecrets } from "../../core/kernel/sealed-secret.ts";
 import { nodeCrypto } from "./crypto.ts";
-import { publicOriginOf } from "./public-origin.ts";
+import { publicOriginOf, xApiOriginOf } from "./public-origin.ts";
 import type { Settings } from "./settings.ts";
 
 export interface TargetAdapters extends Omit<Ports, "config" | "secrets" | "crypto" | "ai"> {
@@ -10,7 +10,7 @@ export interface TargetAdapters extends Omit<Ports, "config" | "secrets" | "cryp
 }
 
 export async function portsOf(
-  { secretKey, zeroOpenRouterPrice, publicOrigin, ...plain }: Readonly<Settings>,
+  { secretKey, zeroOpenRouterPrice, publicOrigin, xApiOrigin, ...plain }: Readonly<Settings>,
   adapters: Readonly<TargetAdapters>,
 ): Promise<Ports> {
   return {
@@ -18,6 +18,10 @@ export async function portsOf(
     ai: { ...adapters.ai, zeroOpenRouterPrice },
     secrets: await sealedSecrets(secretKey),
     crypto: nodeCrypto,
-    config: { ...plain, publicOrigin: publicOriginOf(publicOrigin) },
+    config: {
+      ...plain,
+      publicOrigin: publicOriginOf(publicOrigin),
+      xApiOrigin: xApiOriginOf(xApiOrigin),
+    },
   };
 }

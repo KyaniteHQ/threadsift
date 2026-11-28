@@ -1,6 +1,6 @@
 # Fetchers
 
-A fetcher turns a pasted link into the content of an Item. `readJob` picks one by the link's route (`linkRouteOf`). X has two readers of its own, the Grok Bot and the grok CLI. A number on this page with no source named is our choice, not a measurement.
+A fetcher turns a pasted link into the content of an Item. `readJob` picks one by the link's route (`linkRouteOf`). X has three readers of its own: the Grok Bot, the grok CLI and the X API. A number on this page with no source named is our choice, not a measurement.
 
 Contents: [Article](#article), [GitHub](#github), [Reddit](#reddit), [X](#x), [Other](#other), [One hop](#one-hop), [Plug-ins](#plug-ins), [URLs and short links](#urls-and-short-links), [Private addresses](#private-addresses).
 
@@ -8,7 +8,7 @@ Contents: [Article](#article), [GitHub](#github), [Reddit](#reddit), [X](#x), [O
 fetch job
   |
   +-- the job holds an Extension page ........ publish that page
-  +-- X link ................................. xRouteOf: Grok Bot, grok CLI, or Link-only
+  +-- X link ................................. xRouteOf: Grok Bot, grok CLI, X API, or Link-only
   +-- a plug-in matches (container only) ..... publish the plug-in's page
   +-- Reddit post or comment ................. oEmbed, plus account fetch or archive fill
   +-- GitHub repository ...................... GitHub REST API
@@ -122,12 +122,16 @@ The owner chooses one reader in Settings. `routeOf` decides the route from the c
 
 | Choice | Route |
 |---|---|
-| `auto` (also a missing choice) | The Grok Bot when its settings are saved and its key opens, otherwise the grok CLI when it is installed, otherwise Link-only |
+| `auto` (also a missing choice) | The Grok Bot when its settings are saved and its key opens, otherwise the grok CLI when it is installed, otherwise the X API when a Bearer token is saved, otherwise Link-only |
 | `grok-bot` | The Grok Bot only |
 | `grok-cli` | The grok CLI only |
+| `x-api` | The X API only |
 
-- When the chosen reader cannot be used, the fetch ends a Link-only Item with a note that names the cause (`items.x_note`, `X_READ_NOTES`). The other reader is not tried.
-- `offeredReaders` leaves `grok-cli` out on the Worker, and `chosenXReader` counts a `grok-cli` row from a Node database as `auto`. On Cloudflare without a Grok Bot webhook, an X link becomes a Link-only Item.
+- `autoReaderOf` holds the order of `auto`. `routeOf` and `GET /api/settings/x` both call it, so the `auto` field of the settings answer (the reader `auto` uses now and the reason: `bot-ready`, `cli-installed`, `api-token-saved` or `no-reader`) names the reader the next fetch takes.
+- When the chosen reader cannot be used, the fetch ends a Link-only Item with a note that names the cause (`items.x_note`, `X_READ_NOTES`). No other reader is tried.
+- `offeredReaders` leaves `grok-cli` out on the Worker and offers `x-api` on both targets. `chosenXReader` reads the saved row as it is, so a `grok-cli` row that a Restore brings from a Node database routes to no reader on the Worker and ends Link-only with `cli-not-installed`, even with an X API token saved. Settings, X posts, shows that saved choice as a segment, so it reads as what it is.
+- On Cloudflare an X link goes to the Grok Bot when its webhook is ready, otherwise to the X API when a token is saved, otherwise it becomes a Link-only Item.
+- Settings, X posts, shows the `x-api` segment only while it is the saved choice. The route `PUT /api/settings/x` accepts it on both targets.
 - Each reread follows the current choice, except that while the job has an open Grok Bot task (`hasOpenIntakeTask`), `xRouteOf` keeps the bot route. A failed bot answer is never retried through the CLI.
 - A Paste with `content` ignores the choice, because it makes no fetch job.
 
@@ -195,9 +199,102 @@ The container image sets `THREADSIFT_GROK_AUTO_UPDATE=true`, and the container t
 - A binary in a folder the app cannot write, such as a Nix store path, is not updated (`not-writable`), and the app downloads nothing. The check waits 60 s, and the download 10 minutes, a guess: the update from 1.0.88 to 1.0.92, with its trial, took 24 s in the container on 2026-11-27.
 - Each attempt logs `grok-update` with its outcome and the version the check named.
 
+### X API
+
+`fetchedByXApi` reads the post through X's own API with the owner's Bearer token, on both targets. `xRouteOf` opens the sealed token once per fetch job and passes it in the route. Each request goes with `originFetch` to `THREADSIFT_X_API_ORIGIN`, so the reader needs no port of its own. The default is `https://api.x.com`. Another value must be an https origin, or http on a loopback host.
+
+The answer is X's own data, so this route skips the check against X. `apiPublished` publishes the thread at once, with the same fewer-replies refusal and `holdsAtLeastStored` precondition as the other readers. The read shares the fetch job's deadline of 120 s (`FETCH_DEADLINE_MS`), and each request waits at most 15 s (`REQUEST_DEADLINE_MS`).
+
+The planner (`nextRequest`) picks one request at a time from what the read holds so far:
+
+1. The post: `GET /2/tweets/:id` with its author, its referenced posts and their authors. An answer that lacks the author's user ends the read with `api-answer-unreadable`, so the same lookup is never sent twice.
+2. The Quote chain: one more lookup for each further quoted post, up to 5 quoted posts (`X_QUOTES_MAX`). The first lookup already holds the first quoted post. The read records the id of each post it looked up, so a lookup that returns no post is not sent again.
+3. The replies, by full-archive search (`GET /2/tweets/search/all`) in pages of at most 100. Only a link to a conversation's first post reads replies. A link to a reply reads the reply and its Quote chain and no replies, because a search of the conversation returns the whole conversation, not the replies under the linked post. Every search sends `start_time`, the post's own time to the second, because without it the search covers only the last 30 days ([decisions and evidence](decisions-and-evidence.md#full-archive-search-window)):
+   - A conversation of at most 100 replies: `conversation_id:<id>`, at most 2 pages, until 40 replies (`X_REPLIES_KEPT_MAX`).
+   - A larger conversation: first the author's posts in it (`from:<author>`, the Author thread), then the other authors' replies with `min_likes:100`, `min_likes:10` and `min_likes:1` ([search operators](https://docs.x.com/x-api/posts/search/integrate/operators)), until 40 replies.
+   - Searches go at least 1 s apart, because full-archive search allows 1 request per second ([rate limits](https://docs.x.com/x-api/fundamentals/rate-limits)).
+
+`threadOf` maps the answers to the thread value the grok CLI produces, so the ranking, the cut, the join and the parser are the ones above and below ([Replies kept](#replies-kept)). A reply whose parent is missing stays, and the Reader groups it under a Context stub.
+
+The post text is the `note_tweet` text when X sends one. Each `t.co` link is written out to its address, and `&amp;`, `&lt;` and `&gt;` are decoded, because X escapes them ([data dictionary](https://docs.x.com/x-api/fundamentals/data-dictionary)). Media links are dropped. A quote link is dropped only when the quoted post is in the shown Quote chain. A quote that X did not return, or one past the fifth, keeps its link in the text, so the Reader still shows what the post quoted.
+
+#### Spend limits and the counter
+
+X bills each post and each user an answer returns, 0.005 USD and 0.01 USD ([pricing](https://docs.x.com/x-api/getting-started/pricing)). It does not bill a resource again within the same UTC day, which its pricing page calls a soft guarantee, so the Instance counts every request. Media is counted at 0, because the balance showed no charge for a photo in probe S1. The balance moves in 0.01 USD steps, so a smaller charge would not show ([X API probe](ci-releases-and-rollback.md#x-api-probe)).
+
+- `x_api_settings` holds the sealed token and two limits in micro-USD: for each Item on each UTC day (default 1 USD) and for each UTC day (default 3 USD). Both defaults are our guesses. The Item limit is at least 0.10 USD, so it holds one post lookup at its worst case. The day limit is at least 0.30 USD, so it holds one usage or balance read and one Item limit at its minimum.
+- The worst case of a post lookup is 4 posts and 4 users, 0.06 USD (`X_API_LOOKUP_WORST`): the post, and one referenced post for each of X's 3 reference types (replied to, quoted, reposted), each with its author ([`referenced_tweets`](https://docs.x.com/x-api/fundamentals/data-dictionary)). The reader and the probe use the same bound.
+- Every request to X goes through `meteredGet`. Before it is sent, `reserved` adds its worst case to the day's row of `x_api_spend` and to the Item's row of `x_api_item_spend` in one guarded batch. The batch writes nothing when either sum would pass its limit. So two reads of one Item cannot both pass the Item limit, and a failed write leaves both rows as they were.
+- The Item's row keeps what the Item spent on that UTC day across retries and restarts. The planner plans only requests that fit the rest of the Item limit and of the day limit, and fits a search page to the money left. Below 10 posts, X's smallest page ([full-archive search](https://docs.x.com/x-api/posts/search/quickstart/full-archive-search#common-parameters)), the read stops.
+- A reservation settles on the UTC day it was reserved on. The day is taken after the 1 s wait between searches, just before the reservation. A request that leaves in the moment after 00:00 UTC is therefore counted on the day before. Only the requests in flight at midnight can fall on the wrong day.
+- After the answer, `settled` writes the charge to both rows in one batch. One function, `chargeOf`, decides the charge. The ledger never counts less than X can bill: an answer that X's docs call unbilled counts 0, and every other answer keeps its worst case ([decisions and evidence](decisions-and-evidence.md#what-the-x-api-counter-counts)).
+
+| What happened | Counted |
+|---|---|
+| Never sent: the request was cancelled before it started, or, on the container, the connection was refused or the host name did not resolve (`ECONNREFUSED`, `ENOTFOUND`, `EAI_AGAIN`) | 0 |
+| X answered with a 4xx status | 0 |
+| X answered 200 with a body of the documented shape | the posts in `data`, the distinct posts in `includes.tweets` and `includes.posts`, and the users in `includes.users` |
+| X answered 200 with a body that is not JSON, has no `data`, `errors` or `meta`, holds an `includes` collection the counter does not know, or is a search page whose `result_count` differs from its posts | the worst case |
+| X answered with a 5xx or another status, the answer was cut or could not be read, or no answer came, such as one past the 15 s deadline | the worst case |
+| A usage read or a balance read (Verify) that X answered 200, answered with a 5xx, or did not answer | 0.20 USD |
+
+- The Worker's `fetch` names no cause for a failed connection, so there every request that was started and got no answer keeps its worst case.
+- A usage read and a balance read are not priced on X's pricing page. Each is reserved at 0.20 USD, the highest charge on that page. Verify refuses with `day-limit` when the day has no room left for it.
+- Before the post is read, a limit that leaves no room for the lookup makes the job wait until the next UTC midnight (`x-api-budget`). This holds for the Item's limit and for the day limit.
+- Before the post is read, a 429 makes the job wait until `x-rate-limit-reset`, or 60 s when the header is missing or past (`x-api-rate`). A 402, and a 429 with the `usage-capped` problem, end the Item with `api-out-of-credits`.
+- After the post is read, a limit, a 429 or another failure ends the read with what it holds, and the job is not retried. The thread follows [Partial threads](#partial-threads), so missing replies show as not saved. Several jobs share X's limit of 1 search a second, so a bulk Import can meet a 429 on a search.
+
+#### Outcomes and notes
+
+| X's answer | Note |
+|---|---|
+| No token saved | `api-not-set-up` |
+| A token the Instance cannot open | `api-key-unopened` |
+| 401 | `api-key-rejected` |
+| 402, or 429 with the `usage-capped` problem | `api-out-of-credits` |
+| 403 `client-not-enrolled` or `client-forbidden` | `api-not-enrolled` |
+| 403 for an address not on the IP allowlist | `api-ip-blocked` |
+| Another 4xx | `api-refused` |
+| 5xx, or no answer | `api-unreachable` |
+| An answer that is cut, names another post or holds no thread | `api-answer-unreadable` |
+| 200 with a `resource-not-found` or `not-authorized-for-resource` error for the post | `x-post-absent` |
+
+A deleted, protected or suspended post answers 200 with an error entry and no `data`, as probe S3 measured. Probes S1 to S3 saw only 200 and 503, so the rows for 401, 402, 403 and 429 follow X's docs and have no run ([Open items and unverified claims](open-items-and-unverified-claims.md)). Each read logs `x-api-read` with its requests, posts, users, micro-USD and how it ended, and never the token.
+
+#### The daily usage read
+
+Once a UTC day while a token is saved, the schedule runs `readXApiUsage`. It claims the UTC date in `scheduled_runs` before it opens the token, so only one tick a day reads, and a tick that holds no claim does nothing else. It then reads `GET /2/usage/tweets` through `meteredGet` at 0.20 USD and logs `x-api-usage`. When the day's limit has no room left for those 0.20 USD, it sends nothing and logs `over-limit`, and the claim keeps the next read to the next UTC day. The line holds X's count of yesterday's posts and the Instance's own count of yesterday's posts and users, each apart. X's count is kept in `x_api_spend.x_posts`. The endpoint answered 503 in 3 of 3 probe runs. A failed answer logs `no-data` and stores no X count. A 5xx or a missing answer keeps the 0.20 USD counted, a 4xx counts 0, and in both cases the day's read is used.
+
+#### Digests
+
+While the constant `X_API_PROVIDER_DIGESTS` is `false` in the source, no text read through the X API reaches a Provider in any AI task. One function, `providerMayRead`, holds the rule: an Item whose current thread came through the X API (`threads.x_api_read`) is left out of the input of each task that sends Item text to a Provider.
+
+- A Digest: the Item gets none from the Provider, and a Digest job opened before the X API read ends without a Provider call. A Digest that a caller sends with the Paste still publishes, without a Provider call.
+- Related Items: the Item is neither the source of a pick nor a candidate. No pick job opens for it, and a pick job opened earlier ends without a Provider call.
+- A Topic page overview: the Item's Digest is not part of the overview input, and the Item is not counted as an Item the overview leaves out.
+- The weekly Proposals: the Item's Tags, Topic and Summary are not part of the input.
+- The catalog of Topic and Tag names that a Digest of another Item carries: a name that only such Items use is left out. A later Digest may spell that Topic or Tag again, and `catalogKey` still joins the two.
+- The Provider comparison tool skips the Item as `provider-may-not-read` ([Providers](../guides/providers.md), Compare Providers).
+
+The Vault mirror is not a Provider and stays outside the rule: it writes the Item's text to the owner's own repository.
+
+The reason is the step that sends post text to a Provider ([X developer terms](decisions-and-evidence.md#x-developer-terms)).
+
+#### Settings routes
+
+`/api/settings/x-api` has five routes, all for the signed-in owner only:
+
+- `GET` answers the token state, the limits and today's spend.
+- `PUT` saves the token sealed like the other keys. The token must be 1 to 4,096 printable ASCII characters with no space (`HeaderSecretSchema`), because it goes into the `authorization` header.
+- `DELETE` removes the token and keeps the limits.
+- `PUT /limits` saves the limits.
+- `POST /verify` checks the token with one `GET /2/usage/credits` through `meteredGet` and answers the balance.
+
+No route returns the token.
+
 ### The check against X
 
-Both routes store the parsed thread unverified and unpublished and queue one `x_verify` job (`xVerifyHandler`). The Item shows nothing of the thread until that job publishes it.
+The Grok Bot and grok CLI routes store the parsed thread unverified and unpublished and queue one `x_verify` job (`xVerifyHandler`). The X API route skips this check, because its answer is X's own data. The Item shows nothing of the thread until that job publishes it.
 
 ```text
 CLI or bot answer
@@ -243,9 +340,9 @@ When the check refuses the root of a CLI answer, the job discards the answer and
 
 ### Replies kept
 
-Both readers keep the most important replies by the 80/20 rule the owner chose. The cut runs before the check, so the check asks only for replies the Item keeps.
+Every reader keeps the most important replies by the 80/20 rule the owner chose. The cut runs before the check, so the check asks only for replies the Item keeps.
 
-- Replies rank by likes, then by their own reply count (zero for the bot, which omits it), then by the older id. The cut keeps the smallest set of top replies whose likes reach 80% of all fetched likes (`X_REPLIES_LIKES_PERCENT`), never fewer than 20 (`X_REPLIES_MIN`) and never more than 40 (`X_REPLIES_KEPT_MAX`). When fewer replies qualify than the minimum, both readers keep all of them. The minimum makes the Item read as a discussion, not as its top few, and the maximum bounds a fresh read. Neither number is measured against the Digest ([Decisions and evidence](decisions-and-evidence.md), X replies read by the Grok CLI).
+- Replies rank by likes, then by their own reply count (zero for the bot, which omits it; X's `reply_count` for the X API), then by the older id. The cut keeps the smallest set of top replies whose likes reach 80% of all fetched likes (`X_REPLIES_LIKES_PERCENT`), never fewer than 20 (`X_REPLIES_MIN`) and never more than 40 (`X_REPLIES_KEPT_MAX`). When fewer replies qualify than the minimum, every reader keeps all of them. The minimum makes the Item read as a discussion, not as its top few, and the maximum bounds a fresh read. Neither number is measured against the Digest ([Decisions and evidence](decisions-and-evidence.md), X replies read by the Grok CLI).
 - Author-thread replies (`authorPartsOf`) are not ranked and count toward neither the likes total nor the limits. The cut runs before the check, so when the first follow-up fails, a later one that the cut dropped for few likes is not joined.
 - Bot intake also keeps replies that the Digest names in `keptComments` (the bot's Digest, otherwise the pending one), even below the cut, so a bot read can keep more replies than a CLI read of the same link. Verification still checks every selected reply.
 - A kept reply keeps its fetched ancestors on top of the limit, so the Reader draws the thread above it.
@@ -277,9 +374,10 @@ The post, each quoted post and each reply carry `images`, the addresses of their
 
 - The CLI run copies them from the `Media` lines of the tool results (a video lists only a `video.twimg.com` address, so a video is not kept). The Grok Bot sends photos in its intake answer, which `XBotThreadSchema` takes. No run has read them through the bot's own tools yet ([Open items and unverified claims](open-items-and-unverified-claims.md)).
 - An address is kept only when it equals its parsed form, is an `https://pbs.twimg.com/media/` address and is at most 4,096 bytes (`isXImageUrl`). The join writes each address as a Markdown image, so an address that equals its parsed form cannot carry Markdown into a post the check has already judged. The download refuses a redirect to any address that fails the same rule.
-- Both readers keep photos only on author-thread replies. A Paste carries none, because `XThreadSchema` takes `images` only empty.
+- The X API reader takes photos from the `attachments.media_keys` expansion and keeps a `photo` with its `url` (`photosOf`).
+- Every reader keeps photos only on author-thread replies. A Paste carries none, because `XThreadSchema` takes `images` only empty.
 - The join puts each photo after the text it belongs to: after the post, inside the block quote of its quoted post, and after each follow-up. A post with an open code fence or an open HTML comment, `script`, `pre`, `style` or `textarea` block gets it closed first, or it would swallow the photo. A post of only photos has the tool's `(No text content)` placeholder replaced by an empty text, so X's answer, which holds only the media link, matches. Its title is `@<handle>`.
-- `storeMedia` stores the photos at publish like an Article's images ([Media](data-model-outline.md)), inside the settling step of the `x_verify` publish and its 90 s signal. A photo that cannot be stored, or one past the 20 of the Item (`ITEM_IMAGES_MAX`), becomes the line `A photo was not saved.`.
+- `storeMedia` stores the photos at publish like an Article's images ([Media](data-model-outline.md)), inside the settling step of the `x_verify` publish and its 90 s signal, or of the X API route's publish under the fetch job's 120 s signal (`FETCH_DEADLINE_MS`). A photo that cannot be stored, or one past the 20 of the Item (`ITEM_IMAGES_MAX`), becomes the line `A photo was not saved.`.
 - oEmbed holds the `pic.x.com` link of a post with media. A post with stored photos whose oEmbed answer has no media link loses its photos, and the check records `no-photos:<post id>` in `judged`. Which photo belongs to which post is not checked.
 
 ### Outcomes and notes
@@ -297,7 +395,7 @@ Outcomes map to existing fetch results only. When `structuredOutput` is null, th
 
 ### Sign-in state
 
-`GET /api/settings/x` answers the reader choice and the state of both readers (`readXSettings`).
+`GET /api/settings/x` answers the reader choice, the state of each reader and the reader `auto` uses now (`readXSettings`).
 
 - The first line of `grok models` gives the CLI hint. `You are logged in with grok.com.` is `signed-in`, `You are not authenticated.` is `signed-out`, and any other line or a timeout is `unknown`. `not-proven` is for a different version or a binary that failed the check.
 - **Renewal after the banner.** `grok models` renews an expired login on its own and prints the signed-out line while it does, so after a first `signed-out`, `readSignIn` runs it once more in fresh per-run folders with the same `GROK_AUTH_PATH` and returns that result. Both runs share one 15 s bound, and the version check has its own 15 s in parallel, so both fit the 20 s page deadline.
