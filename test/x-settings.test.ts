@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
 import { CreatedTokenResponseSchema } from "../src/core/contract/access-wire.ts";
+import { SavedItemResponseSchema } from "../src/core/contract/item-route-wire.ts";
 import {
   type XReaderChoice,
   XSettingsViewSchema,
 } from "../src/core/contract/x-settings-contract.ts";
-import { routeOf } from "../src/features/x/core/x-reader.ts";
 import { saveBot } from "./bot-task-fixtures.ts";
 import { Instance, SECRET_KEY } from "./instance.ts";
 
@@ -99,24 +99,29 @@ describe("on the Worker the choice of the grok CLI is not offered, is refused, a
     );
   });
 
-  it("reads a saved grok CLI choice as itself, and routes an X link to no reader with the grok CLI note even with an X API token saved", async () => {
-    await instance.send("PUT", PATH, { reader: "grok-cli" });
-    await instance.send("PUT", "/api/settings/x-api", { token: "synthetic-bearer-token" });
+  it("reads a saved grok CLI choice as itself, and a pasted X link gets the grok CLI note and no X API read even with an X API token saved", async () => {
+    try {
+      await instance.send("PUT", PATH, { reader: "grok-cli" });
+      await instance.send("PUT", "/api/settings/x-api", { token: "synthetic-bearer-token" });
 
-    const answer = await instance.sendWithPublicOnlyAiAndNoXFetcher("GET", PATH);
-    const view = XSettingsViewSchema.parse(JSON.parse(answer.body));
+      const answer = await instance.sendWithPublicOnlyAiAndNoXFetcher("GET", PATH);
+      const view = XSettingsViewSchema.parse(JSON.parse(answer.body));
 
-    assert.deepEqual(
-      [view.reader, view.api, view.choices],
-      ["grok-cli", "saved", ["auto", "grok-bot", "x-api"]],
-    );
-    assert.deepEqual(routeOf(view.reader, { bot: view.bot, cli: null, api: view.api }), {
-      kind: "none",
-      note: "cli-not-installed",
-    });
+      assert.deepEqual(
+        [view.reader, view.api, view.choices],
+        ["grok-cli", "saved", ["auto", "grok-bot", "x-api"]],
+      );
 
-    await instance.send("DELETE", "/api/settings/x-api");
-    await instance.send("PUT", PATH, { reader: "auto" });
+      const { item } = await instance.read("POST", "/api/items", SavedItemResponseSchema, {
+        url: "https://x.com/someone/status/321",
+      });
+
+      await instance.settledItem(item.id);
+      assert.equal((await instance.detail(item.id)).xNote, "cli-not-installed");
+    } finally {
+      await instance.send("DELETE", "/api/settings/x-api");
+      await instance.send("PUT", PATH, { reader: "auto" });
+    }
   });
 
   it("refuses grok-cli with 400 and saves nothing, and accepts grok-bot", async () => {

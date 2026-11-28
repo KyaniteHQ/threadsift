@@ -24,8 +24,6 @@ type OtherRoute =
   | { readonly kind: "grok-cli"; readonly fetcher: XFetcher }
   | { readonly kind: "none"; readonly note: XReadNote | null };
 
-type ChosenRoute = OtherRoute | { readonly kind: typeof X_READER_API };
-
 export type XRoute =
   | OtherRoute
   | {
@@ -35,8 +33,6 @@ export type XRoute =
     };
 
 const BOT: OtherRoute = { kind: X_READER_BOT };
-
-const API: ChosenRoute = { kind: X_READER_API };
 
 const NOTE_OF_API_STATE = {
   none: "api-not-set-up",
@@ -55,14 +51,28 @@ function cliRoute(cli: XFetcher | null, missing: XReadNote | null): OtherRoute {
   return cli === null ? { kind: "none", note: missing } : { kind: "grok-cli", fetcher: cli };
 }
 
-function autoRoute(readers: Readonly<XReaders>): ChosenRoute {
-  switch (autoReaderOf(readers).reader) {
+interface Readers {
+  readonly bot: XBotState;
+  readonly cli: XFetcher | null;
+  readonly api: XApiSaved;
+}
+
+function apiRoute({ auth, limits }: Readonly<XApiSaved>): XRoute {
+  return auth.kind === "token"
+    ? { kind: X_READER_API, token: auth.token, limits }
+    : { kind: "none", note: NOTE_OF_API_STATE[auth.kind] };
+}
+
+function autoRoute(readers: Readonly<Readers>): XRoute {
+  const states: XReaders = { ...readers, api: tokenStateOf(readers.api.auth) };
+
+  switch (autoReaderOf(states).reader) {
     case X_READER_BOT:
       return BOT;
     case "grok-cli":
       return cliRoute(readers.cli, null);
     case X_READER_API:
-      return API;
+      return apiRoute(readers.api);
     case null:
       return NO_READER;
     default:
@@ -70,7 +80,7 @@ function autoRoute(readers: Readonly<XReaders>): ChosenRoute {
   }
 }
 
-export function routeOf(choice: XReaderChoice, readers: Readonly<XReaders>): ChosenRoute {
+function routeOf(choice: XReaderChoice, readers: Readonly<Readers>): XRoute {
   const { bot, cli, api } = readers;
 
   switch (choice) {
@@ -81,7 +91,7 @@ export function routeOf(choice: XReaderChoice, readers: Readonly<XReaders>): Cho
     case "grok-cli":
       return cliRoute(cli, "cli-not-installed");
     case X_READER_API:
-      return api === "saved" ? API : { kind: "none", note: NOTE_OF_API_STATE[api] };
+      return apiRoute(api);
     default: {
       const exhaustive: never = choice;
 
@@ -98,18 +108,13 @@ export async function xRouteOf(
 
   if (await hasOpenIntakeTask(ports.db, job.id)) return BOT;
 
-  const [choice, bot, { auth, limits }] = await Promise.all([
+  const [choice, bot, api] = await Promise.all([
     chosenXReader(ports),
     xBotState(ports),
     loadXApi(ports),
   ]);
-  const route = routeOf(choice, { bot, cli: ports.xFetcher, api: tokenStateOf(auth) });
 
-  if (route.kind !== X_READER_API) return route;
-
-  return auth.kind === "token"
-    ? { kind: X_READER_API, token: auth.token, limits }
-    : { kind: "none", note: NOTE_OF_API_STATE[auth.kind] };
+  return routeOf(choice, { bot, cli: ports.xFetcher, api });
 }
 
 export function noted(fetched: Readonly<Fetched>, route: Readonly<XRoute>): Fetched {
