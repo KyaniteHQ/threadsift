@@ -9,7 +9,7 @@ import { bytesOfKey, exportKeys, itemTextAt, postTextKey } from "./file-store-fi
 import type { Instance } from "./instance.ts";
 import { pasteInOrder, until, inOrder } from "./library-fixtures.ts";
 import { keepPassage, textHolding } from "./lost-highlight-fixtures.ts";
-import { directoryOf } from "./zip-fixtures.ts";
+import { directoryOf, entriesOf, manifestOf } from "./zip-fixtures.ts";
 
 export const MARKED_PASSAGE = "quartz seam";
 
@@ -154,10 +154,23 @@ export async function downloadedZip(instance: Instance, id: number): Promise<Uin
   return new Uint8Array(await download.arrayBuffer());
 }
 
+export async function downloadedManifest(instance: Instance, id: number) {
+  return manifestOf(await entriesOf(await downloadedZip(instance, id)));
+}
+
 export async function exportedZip(instance: Instance): Promise<Uint8Array> {
   const { id } = await readyExport(instance);
 
   return downloadedZip(instance, id);
+}
+
+export async function exportWithPostText(instance: Instance, postKey: string, textBytes: number) {
+  await instance.core.files.put(postKey, new TextEncoder().encode("x".repeat(textBytes)));
+
+  const ready = await readyExport(instance);
+  const zip = await downloadedZip(instance, ready.id);
+
+  return { zip, slices: await sliceEntries(instance, ready.id, zip) };
 }
 
 const PIECE_NAME = /\/(part|dir|tail)-(\d+)/u;
@@ -212,4 +225,42 @@ export async function sliceEntries(
       )
       .map(({ name, size }) => ({ name, size })),
   );
+}
+
+export const sizeSum = (entries: readonly SliceEntry[]) =>
+  entries.reduce((total, { size }) => total + size, 0);
+
+export const isEntry = (entry: SliceEntry | undefined, pattern: RegExp) =>
+  entry !== undefined && pattern.test(entry.name);
+
+export function firstTwo(slices: readonly (readonly SliceEntry[])[]) {
+  const [first, second] = slices;
+
+  assert.ok(first !== undefined && second !== undefined, "the Export holds two slices");
+
+  return { first, second };
+}
+
+export function assertWithinCap(slice: readonly SliceEntry[], cap: number, label: string) {
+  const [head, ...rest] = slice;
+
+  assert.ok(head !== undefined, `${label} holds an entry`);
+
+  let total = head.size;
+
+  for (const { name, size } of rest) {
+    assert.ok(total + size <= cap, `${name} passes the slice cap`);
+    total += size;
+  }
+}
+
+export async function exactFitBytes(instance: Instance, postKey: string, cap: number) {
+  const base = 1_000_000;
+  const {
+    slices: [single],
+  } = await exportWithPostText(instance, postKey, base);
+
+  assert.ok(single !== undefined, "the Export holds a slice");
+
+  return base + cap - sizeSum(single.filter(({ name }) => !name.endsWith(`/${postKey}`)));
 }

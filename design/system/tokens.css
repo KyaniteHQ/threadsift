@@ -39,7 +39,7 @@
    from the data-tag of a tag or of a List row's Topic tile), --progress
    (how far the reader has scrolled, 0 to 1, set on .rd-bar by script),
    --kept (the ratio the kept strip's count reads, shown over total, 0 to 1,
-   inline style on .it-share), --dot-room (the room a row's kept strip
+   inline style on .it-share and .rd-share), --dot-room (the room a row's kept strip
    keeps above and below its line for the read mark's hit area, set on
    .it-strip), --fade-to (the colour a sideways-scrolling box fades into,
    set on its wrapper) and --pop-room (the height a Highlight popover may
@@ -88,7 +88,8 @@
      rule of a quoted Highlight outside the Library Style, and the 1px side
      padding of a highlighted match;
    - percentage widths of loading placeholders: 60% for the second line of a
-     skeleton, and 40% and 70% for a ghost row's lines;
+     skeleton, 40% and 70% for a ghost row's lines, and the 30% accent part
+     of the line under a Summary that is being written;
    - the 1px box that visually hides text kept for screen readers, and the 2px
      side padding of the reader bar's phone position text.
    ===================================================================== */
@@ -111,7 +112,7 @@
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --target: 44px;                     /* the smallest touch target: phone controls, the settings gear, the sheet's side buttons */
   --ctl-h: 34px; --field-h: 40px; --seg-h: 30px; --row-h: 32px; --dot-hit: 28px; --link-pad: 0px;
-  --dot: 10px; --mark: 8px; --kept-h: 3px; --sep: 2px; --tint: 9%; --av: 26px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
+  --dot: 10px; --mark: 8px; --bullet: 6px; --kept-h: 3px; --sep: 2px; --tint: 9%; --av: 26px; --ind: 22px; --ind-max: 25%; --media-max: 560px;
   --ic-s: 15px; --ic: 18px; --ic-m: 20px; --ic-l: 24px; --ic-xl: 40px;   /* icons: small, default, the gear, the read mark on phones, empty states */
   --pop-w: 25rem;                     /* the settings panel under the gear, and the widest Highlight popover */
   --dlg-w: 26rem;                     /* a confirmation dialog, such as Delete */

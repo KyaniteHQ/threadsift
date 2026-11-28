@@ -5,7 +5,10 @@ import {
 } from "../../../core/contract/agent-token-contract.ts";
 import { byteSize } from "../../../core/contract/format.ts";
 import { THREAD_CONTENT_BYTES } from "../../../core/contract/limits.ts";
-import { RESTORING_CODE } from "../../../core/contract/restore-contract.ts";
+import {
+  PASTE_RESTORING_REFUSAL,
+  RESTORING_CODE,
+} from "../../../core/contract/restore-contract.ts";
 import { PAGE_BYTES, type UNSUPPORTED_PAGE_LINK } from "../../../core/contract/supplied-page.ts";
 import type {
   Invalid,
@@ -19,11 +22,11 @@ import { type UnknownToken, retryAfterSeconds } from "../../access/core/agent-to
 
 const REFUSED_HOST = "url: the host is not globally reachable";
 
-const RESTORING =
-  "The library is being restored and takes no new link until the restore has finished. Reads and deletes work meanwhile.";
-
 const BUDGET_SPENT_MESSAGE =
   "This agent token has added its daily budget of Items, so nothing was saved. The budget starts again at 00:00 UTC.";
+
+export const BATCH_CUT_SHORT =
+  "This agent token used up its daily budget of Items while the batch ran. `results` holds the links saved before that, and the import cursor stays. The budget starts again at 00:00 UTC.";
 
 const TOO_LARGE = {
   content: `content: longer than ${byteSize(THREAD_CONTENT_BYTES)}`,
@@ -105,7 +108,7 @@ export function refusalOf(outcome: Readonly<Unsaved>): Refusal {
     }
 
     case "restoring": {
-      return { kind: outcome.kind, status: 503, body: { error: RESTORING, code: RESTORING_CODE } };
+      return { kind: outcome.kind, status: 503, body: PASTE_RESTORING_REFUSAL };
     }
 
     case "refused": {

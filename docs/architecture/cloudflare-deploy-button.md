@@ -4,7 +4,7 @@ The button at the top of the [README](../../README.md) deploys the `release` bra
 
 ## What the button does
 
-The button address ends in `tree/release`. The `release` branch moves only when a release is cut. Cloudflare provisions the D1 database, R2 bucket and Queue that the Worker configuration names. Cloudflare supports deploy buttons for Workers in public repositories on github.com and gitlab.com ([Cloudflare deploy buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/)).
+The button address ends in `tree/release`. The `release` branch moves only when a stable release is cut, never for a release candidate ([CI, releases and rollback](ci-releases-and-rollback.md#releases)). Cloudflare provisions the D1 database, R2 bucket and Queue that the Worker configuration names. Cloudflare supports deploy buttons for Workers in public repositories on github.com and gitlab.com ([Cloudflare deploy buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/)).
 
 The button copies the repository into the deployer's own GitHub account, "where they can continue development after deploying", and writes the provisioned resource ids into that copy's Worker configuration ([Deploy buttons](https://developers.cloudflare.com/workers/platform/deploy-buttons/)).
 

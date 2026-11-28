@@ -277,7 +277,7 @@ describe("Reddit answers decide when a fetch job may take its next turn", () => 
   it("starts the count again after an answer that shows the session works", async () => {
     assert.equal(await refuse("aaa111"), "counted");
     assert.equal(await refuse("bbb222"), "counted");
-    await clearRefusals(instance.core.db, session, NOW);
+    await clearRefusals(instance.core.db, session, { startedAt: NOW }, NOW);
     assert.equal(await refuse("ccc333"), "counted");
     assert.equal(await refuse("ddd444"), "counted");
     assert.equal((await view(instance)).state, "connected");
