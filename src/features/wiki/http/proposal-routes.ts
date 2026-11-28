@@ -12,8 +12,8 @@ import {
 import { ADDED_READ_LIMIT } from "../../../core/contract/topic-overview-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { access } from "../../../http/access.ts";
-import { accessNote, accessRefusals, jsonBody } from "../../../http/openapi.ts";
-import { notFound } from "../../../http/refusals.ts";
+import { accessNote, accessRefusals, jsonBody, restoringResponse } from "../../../http/openapi.ts";
+import { notFound, restoring } from "../../../http/refusals.ts";
 import { IdParamSchema, cursorParam } from "../../../http/route-input.ts";
 import { acceptProposal, rejectProposal } from "../core/proposal-decision.ts";
 import { readProposalPage, readProposalState } from "../core/proposal-page.ts";
@@ -96,6 +96,9 @@ const acceptProposalRoute = createRoute({
       ErrorResponseSchema,
       "The Proposal is not open (`not-open`); the row is not current (`not-current`: the subject changed, or a concurrent Accept already removed the row), because a concurrent Accept removed a lost-Highlight or disagreement row, the Highlight of a `highlight-lost` row is found in its Item again, the Topic of an `overview-gap` row has no Item left that its overview was not built from or already has an overview run open, or an `items-disagree` row names an Item that has a newer Digest or the two Items no longer sit under one Topic; no Provider is saved for an `overview-gap` row (`no-provider`: the row stays open); another Proposal is accepting (`merge-busy`: one merge runs at a time); while this request ran, a unit of the `merges` stage failed before the first unit of this merge committed, and the row is `open` again (`merge-failed`: Accept can run again).",
     ),
+    503: restoringResponse(
+      "the Proposal stays open. A `highlight-lost` row is the removal of a Highlight and is accepted meanwhile.",
+    ),
   },
 });
 
@@ -125,6 +128,8 @@ function registerAccept(app: OpenAPIHono, ports: Ports): void {
     if (outcome === "accepting") return c.json({ state: "accepting" as const }, 202);
 
     if (outcome === "unknown") return notFound(c);
+
+    if (outcome === "restoring") return restoring(c);
 
     const refusal: AcceptRefusal = outcome;
 

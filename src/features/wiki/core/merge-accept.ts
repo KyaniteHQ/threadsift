@@ -8,6 +8,7 @@ import {
 } from "../../../core/contract/proposal-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import type { JobPorts } from "../../../core/kernel/job-outcome.ts";
+import { heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { pins, proposals } from "../../../core/kernel/schema.ts";
 import { applyUnit } from "./merge-apply.ts";
 import { recordingFailure } from "./merge-failure.ts";
@@ -93,7 +94,11 @@ async function runUnit(
   row: Readonly<MergeRow>,
   units: number,
 ): Promise<RunAnswer> {
-  await recordingFailure(ports.db, { id, revision: row.revision }, () => applyUnit(ports, id, row));
+  const outcome = await recordingFailure(ports.db, { id, revision: row.revision }, () =>
+    whileOpen(() => applyUnit(ports, id, row)),
+  );
+
+  if (isClosed(outcome)) return "accepting";
 
   return runUnits(ports, id, row, await readRow(ports.db, id, row.kind), units + 1);
 }
@@ -123,7 +128,11 @@ export async function acceptMerge(
 ): Promise<MergeAcceptance> {
   const { db } = ports;
   const before = await readRow(db, id, kind);
-  const [claim] = await proposalClaimed(db, id, kind);
+  const claimed = await whileOpen(() => heldBatch(db, [proposalClaimed(db, id, kind)] as const));
+
+  if (isClosed(claimed)) return "restoring";
+
+  const [claim] = claimed?.[0] ?? [];
   const row = await readRow(db, id, kind);
   const last = row ?? before;
 
