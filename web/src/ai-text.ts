@@ -121,6 +121,8 @@ export const AI_TEXT = {
   verified: "Digest received",
   loadFailed: "Couldn’t load AI settings. Reload the page to try again.",
   saveFailed: "Couldn’t save provider settings. Try again.",
+  saveRestoring:
+    "Couldn’t save provider settings because a restore is running. Try Save again once the restore finishes.",
   verifyFailed: "Couldn’t verify the provider. Try again.",
   verifyRestoring:
     "Couldn’t verify the provider because a restore is running. Try Verify again once the restore finishes.",

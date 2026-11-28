@@ -60,6 +60,8 @@ function failureText(
 ): string {
   if (response.kind === "refused") return refusalText(response, provider, publicOnly);
 
+  if (response.kind === "restoring") return AI_TEXT.saveRestoring;
+
   return response.code === "secret-missing" ? AI_TEXT["secret-missing"] : AI_TEXT.grokBotFirst;
 }
 

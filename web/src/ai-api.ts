@@ -32,13 +32,16 @@ type GrokBotUnready = z.infer<typeof GrokBotUnreadySchema>;
 
 type AiSave =
   | z.infer<typeof AiSaveResponseSchema>
-  | { readonly kind: "grok-bot-unready"; readonly code: GrokBotUnready["code"] };
+  | { readonly kind: "grok-bot-unready"; readonly code: GrokBotUnready["code"] }
+  | { readonly kind: "restoring" };
 
 export async function saveAiSettings(input: Readonly<AiSettingsInput>): Promise<AiSave> {
   const response = await callOk(put(AI_SAVE_DEADLINE_MS), "/api/settings/ai", {
     json: input,
-    tolerates: [400],
+    tolerates: [400, 503],
   });
+
+  if (await isRestoring(response)) return { kind: "restoring" };
 
   if (response.status !== 400) return parsedBody(response, AiSaveResponseSchema);
 
