@@ -66,6 +66,24 @@ describe("a batch refused while a Restore holds the library keeps its old cursor
 
     assert.equal(ImportStateSchema.parse(JSON.parse(read.body)).cursor, "old");
   });
+
+  it("answers 503 for a batch of refused hosts only and leaves the cursor where it was", async () => {
+    const name = "refused-hosts";
+    const links = [{ url: "http://localhost/private" }];
+
+    holdLibrary(instance, "failed", "no-manifest");
+    await instance.send("POST", "/api/items/batch", { links, import: { name, cursor: "old" } });
+    holdLibrary(instance, "running", null);
+
+    const stopped = await instance.send("POST", "/api/items/batch", {
+      links,
+      import: { name, cursor: "new" },
+    });
+    const read = await instance.send("GET", `/api/imports/${name}`);
+
+    assert.deepEqual(refusal(stopped), PASTE_HELD);
+    assert.equal(ImportStateSchema.parse(JSON.parse(read.body)).cursor, "old");
+  });
 });
 
 describe("a Restore that failed and still holds the library refuses a second upload", () => {
