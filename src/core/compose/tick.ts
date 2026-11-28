@@ -4,9 +4,8 @@ import { mirrorVault } from "../../features/vault/core/vault-mirror.ts";
 import { claimingRun } from "../../features/wiki/core/scheduled-claim.ts";
 import { bestEffort } from "../kernel/failure-log.ts";
 import type { JobPorts } from "../kernel/job-outcome.ts";
+import { SWEEP_TASK } from "../kernel/sweep-claim.ts";
 import { sweep } from "./sweep.ts";
-
-const SWEEP_TASK = "sweep";
 
 const TICK_SPACING_MS = 30_000;
 
