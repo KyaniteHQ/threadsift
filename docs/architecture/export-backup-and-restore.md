@@ -257,7 +257,7 @@ A write that adds a record to a table the zip brings back answers 503 with `code
 
 **The undo.** Any other `running` or `failed` Restore past `check` moves, in one guarded batch, to state `running` with phase `undoing` (`cancelRestore`; `GET /api/restore` shows it as `cancelling`). The same batch closes the open `restore` jobs of that Restore and opens a new one, so the unit in flight finds its cursor changed and writes nothing, and the third failure of an older job cannot end the undo.
 
-Each undo unit deletes up to 500 rows of the first table that still has rows. It deletes by table, not by Restore, so it also deletes every row added to those tables after the Restore failed, such as an Item saved then. The order is:
+Each undo unit deletes up to 500 rows of the first table that still has rows. It deletes by table, not by Restore. The hold keeps every owner write out of those tables until the Cancel, so the undo deletes the restored rows and the result of a job claimed before the hold ([While it runs](#while-it-runs)). The order is:
 
 1. The tables that `items` is rebuilt into, which is `search_parts`. Their foreign keys point at `highlights` and `topics` without a cascade, so rows that a sweep wrote before the failure would make the delete of those tables fail.
 2. The restored tables in the reverse of `RESTORE_ORDER`, one query per table, because D1 refuses a compound `SELECT` of more than a few terms. A unit looks again at every table, so a row that appears in an earlier table is still found.
