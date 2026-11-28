@@ -1,18 +1,10 @@
 import { z } from "zod";
 
-export const BOT_RELEASE_TAG =
-  /^(?:bot-v(?:0|[1-9][0-9]{0,8})|v(?:0|[1-9][0-9]{0,8})\.(?:0|[1-9][0-9]{0,8})\.(?:0|[1-9][0-9]{0,8})(?:-rc\.[1-9][0-9]{0,8})?)$/u;
-
-const SHA256 = /^[0-9a-f]{64}$/u;
-
-const BotReleaseTagSchema = z.string().regex(BOT_RELEASE_TAG);
-
-export type BotReleaseTag = z.infer<typeof BotReleaseTagSchema>;
+const BotReleaseTagSchema = z.string().regex(/^bot-v(?:0|[1-9][0-9]{0,8})$/u);
 
 export const BotReleaseSchema = z.object({
   tag: BotReleaseTagSchema,
-  sumsSha256: z.string().regex(SHA256),
-  skillSha256: z.string().regex(SHA256),
+  manifestSha256: z.string().regex(/^[0-9a-f]{64}$/u),
 });
 
 export type BotRelease = z.infer<typeof BotReleaseSchema>;
@@ -30,18 +22,19 @@ export const BotInstallAnswerSchema = z.object({
   autoInstall: z.boolean(),
 });
 
+export type BotInstallAnswer = z.infer<typeof BotInstallAnswerSchema>;
+
 export const BotUpdateInputSchema = z.object({ autoInstall: z.boolean() });
+
+const Reported = { version: BotReleaseTagSchema, reportedAt: z.number().int() };
 
 export const BotStateSchema = z.discriminatedUnion("state", [
   z.object({ state: z.literal("unreported") }),
-  z.object({ state: z.literal("current"), version: BotReleaseTagSchema }),
-  z.object({ state: z.literal("waits"), version: BotReleaseTagSchema }),
-  z.object({
-    state: z.literal("skill-waits"),
-    version: BotReleaseTagSchema,
-    skill: BotReleaseTagSchema,
-  }),
-  z.object({ state: z.literal("refused"), version: BotReleaseTagSchema }),
+  z.object({ state: z.literal("current"), ...Reported }),
+  z.object({ state: z.literal("waits"), ...Reported }),
+  z.object({ state: z.literal("ahead"), ...Reported }),
+  z.object({ state: z.literal("skill-waits"), ...Reported, skill: BotReleaseTagSchema }),
+  z.object({ state: z.literal("refused"), ...Reported }),
 ]);
 
 export type BotState = z.infer<typeof BotStateSchema>;

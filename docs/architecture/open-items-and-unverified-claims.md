@@ -246,12 +246,15 @@ Not verified:
 
 ### The bot's self-update
 
-A local run with the real app on loopback, the bot script in a shell and a stand-in for raw.githubusercontent.com installed an expected release, refused a release with a changed `SKILL.md` and told it once, and told a routine change without touching a routine ([Extension and Threadsift bot](extension-and-threadsift-bot.md#self-update)). No run on a real Bot has shown:
+A local run with the real app on loopback, the bot script in a shell and a stand-in for raw.githubusercontent.com installed an expected release after a task was answered, refused a release with a changed `SKILL.md` or a changed routine prompt and told it once, refused crafted manifests, told an older expected release once, stayed quiet on an unpublished tag, and told a routine change without touching a routine ([Extension and Threadsift bot](extension-and-threadsift-bot.md#self-update)). No run on a real Bot has shown:
 
 - whether a routine run's call to the Instance, `update` included, waits on an approval card, and whether an Allow rule then lets it run unattended;
-- whether a routine run may replace the script and the two guides on the Bot's computer, and fetch from raw.githubusercontent.com;
+- whether a routine run may replace the script and the two guides on the Bot's computer, and fetch from raw.githubusercontent.com in a child process that runs after the run's own word is printed;
 - whether the skill loads at the owner's next message when that message is not about Threadsift, and whether the skill tool takes a skill of about 28 KB read from a file;
-- whether the main conversation posts a routine run's one-time alert when the owner is away.
+- whether the main conversation posts a routine run's one-time alert when the owner is away, and whether a routine run posts the `refused`, `older` and `routines` alerts that its prompt allows as "the one-time alerts the skill allows";
+- whether the Bot's shell tool waits the up to 120 seconds that the update after a task or a sync can take.
+
+The tag `bot-v14` is not pushed yet. Until the owner pushes it, every bot of this release prints `waits bot-v14` for an Instance that expects it, and the release workflow refuses an Instance release that expects it.
 
 ## Digests, Kept comments and races
 

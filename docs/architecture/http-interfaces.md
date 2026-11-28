@@ -113,7 +113,7 @@ The Test and Verify calls of these sections answer every outcome inside HTTP 200
 
 ## The bot install route
 
-`PUT /api/bot/install` needs the `add` scope, which the Threadsift bot's token has. The bot sends the release of its files, of its skill and the release it refused, and the answer names the release this Instance expects with the hashes of its `SHA256SUMS` and `SKILL.md`, and the owner's automatic install choice ([Extension and Threadsift bot](extension-and-threadsift-bot.md#self-update)). Each report replaces the last one, so a repeated report changes nothing.
+`PUT /api/bot/install` needs an agent token with the `add` scope, which the Threadsift bot's token has, and answers 403 to the owner's session. The bot sends the release of its files, of its skill and the release it refused, and the answer names the release this Instance expects with the hash of its `RELEASE.sha256`, and the owner's automatic install choice ([Extension and Threadsift bot](extension-and-threadsift-bot.md#self-update)). Each report replaces the last one and records its time and the id of the token that sent it, so a repeated report changes only that time. Another client with an `add` token, such as the Extension's, could still send a report, so Settings shows when the last report came.
 
 ## The Grok Bot task routes
 

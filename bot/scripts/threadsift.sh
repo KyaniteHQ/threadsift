@@ -14,11 +14,14 @@ third="${4:-}"
 WRITE_CAP=8388608
 NAME='^[a-z][a-z0-9-]{0,31}-([0-9a-f]{32})\.(json|txt)$'
 ORIGIN='^(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\.0\.0\.1|localhost):[0-9]{1,5})$'
-TAG='^(bot-v(0|[1-9][0-9]{0,8})|v(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})\.(0|[1-9][0-9]{0,8})(-rc\.[1-9][0-9]{0,8})?)$'
+TAG='^bot-v(0|[1-9][0-9]{0,8})$'
 SHA='^[0-9a-f]{64}$'
+FIRST_SELF_UPDATING=14
+UPDATE_DEADLINE=120
 RAW=https://raw.githubusercontent.com/KyaniteHQ/threadsift
 FETCH_CAP=1048576
-SUMMED='setup.md threadsift.sh update.md '
+MANIFEST=RELEASE.sha256
+RELEASED=(CHANGELOG.md SKILL.md setup.md threadsift-bookmarks.md threadsift-webhook.md threadsift.sh update.md)
 ROUTINES=(threadsift-webhook threadsift-bookmarks)
 
 route_of() {
@@ -66,14 +69,12 @@ reason_of() {
 
 work=""
 part=""
-stage=""
 joined=""
 inputs=()
 
 cleanup() {
   [[ -z "$work" ]] || rm -rf -- "${work:?}"
   [[ -z "$part" ]] || rm -f -- "${part:?}"
-  [[ -z "$stage" ]] || rm -rf -- "${stage:?}"
   [[ -z "$joined" ]] || rm -f -- "${joined:?}"
   [[ ${#inputs[@]} -eq 0 ]] || rm -f -- "${inputs[@]}"
 }
@@ -187,29 +188,37 @@ tag_in() {
 
 kept() { printf '%s\n' "$2" > "$1.part" && mv -T -- "$1.part" "$1"; }
 
+sha_of() { sha256sum < "$1" | cut -d' ' -f1; }
+
 staged_tag() {
   local found
-  [[ -f "$HERE/skill/SKILL.md" ]] || return 1
+  [[ -f "$HERE/skill/SKILL.md" && -f "$HERE/state/skill-sha" ]] || return 1
+  [[ "$(sha_of "$HERE/skill/SKILL.md")" == "$(head -c 64 -- "$HERE/state/skill-sha")" ]] || return 1
   found="$(grep -o -m 1 'TAG=[^ ;]*' -- "$HERE/skill/SKILL.md" | head -n 1)" || return 1
   found="${found#TAG=}"
   [[ "$found" =~ $TAG ]] || return 1
   printf '%s' "$found"
 }
 
-again() { bash "$HERE/threadsift.sh" update "$1" > /dev/null 2>&1 || true; }
+again() {
+  command -v timeout > /dev/null || return 0
+  timeout "$UPDATE_DEADLINE" bash "$HERE/threadsift.sh" update "$1" > /dev/null 2>&1 || true
+}
 
 noticed() {
-  local found
-  if found="$(tag_in "$HERE/state/notice-refused")"; then
-    mv -T -- "$HERE/state/notice-refused" "$HERE/state/told-refused"
-    echo "refused $found"
-  elif found="$(tag_in "$HERE/state/notice-routines")"; then
-    rm -f -- "$HERE/state/notice-routines"
-    echo "routines $found"
-  else
-    rm -f -- "$HERE/state/notice-refused" "$HERE/state/notice-routines"
-    echo none
-  fi
+  local kind claimed found
+  mkdir -p -- "$HERE/state"
+  for kind in refused older routines; do
+    claimed="$HERE/state/.claimed-$kind-$$"
+    mv -T -- "$HERE/state/notice-$kind" "$claimed" 2> /dev/null || continue
+    found="$(tag_in "$claimed")" || found=""
+    rm -f -- "$claimed"
+    [[ -n "$found" ]] || continue
+    [[ "$kind" == routines ]] || : > "$HERE/state/told-$kind-$found"
+    echo "$kind $found"
+    return 0
+  done
+  echo none
 }
 
 skill_staged() {
@@ -217,15 +226,19 @@ skill_staged() {
   if found="$(staged_tag)"; then echo "staged $found"; else echo none; fi
 }
 
-skill_saved() {
+skill_saved() (
   local found
   [[ "$1" =~ $TAG ]] || stop bad-input "skill-saved takes the tag skill-staged printed"
-  found="$(staged_tag)" || { echo none; return 0; }
+  mkdir -p -- "$HERE/state"
+  exec 9> "$HERE/state/install.lock"
+  flock -w 30 9 || stop failed "another update holds the install lock"
+  found="$(staged_tag)" || { echo none; exit 0; }
   [[ "$found" == "$1" ]] || stop bad-input "another skill is staged; run skill-staged again"
-  rm -f -- "$HERE/skill/SKILL.md" "$HERE/state/skill-version"
+  rm -f -- "$HERE/skill/SKILL.md" "$HERE/state/skill-sha" "$HERE/state/skill-version"
+  exec 9>&-
   again report
   echo ok
-}
+)
 
 [[ "$command" != mark ]] || { mark_word; exit 0; }
 
@@ -260,7 +273,6 @@ case "$command" in
   search) take "$first" "the query file"; query_file="$taken" ;;
   bookmarks-send) take "$first" "the id file"; ids_file="$taken" ;;
   task-answer) take "$second" "the answer file"; answer_file="$taken" ;;
-  bookmarks-cursor) again auto ;;
   update)
     case "$first" in
       ""|auto|report) ;;
@@ -303,7 +315,6 @@ except Exception:
 PY
   )" || stop bad-input "the event is not a task of this Instance"
   [[ "$parsed" != ping ]] || { echo ping; exit 0; }
-  again auto
   read -r id token _ <<< "$parsed"
   folder_of "$id"
   if [[ -f "$folder/done" && "$(< "$folder/done")" == "$(hash_of "$token")" ]]; then
@@ -480,7 +491,7 @@ elif mode == "topics":
 elif mode == "update":
     expected = body.get("expected")
     ok = isinstance(expected, dict) and isinstance(body.get("autoInstall"), bool) and all(
-        isinstance(expected.get(key), str) for key in ("tag", "sumsSha256", "skillSha256")
+        isinstance(expected.get(key), str) for key in ("tag", "manifestSha256")
     )
 else:
     ok = (
@@ -498,82 +509,155 @@ sys.exit(0 if ok else 1)
 if [[ "$word" == ok && ( "$method" == GET || "$command" == bookmarks-send || "$command" == update ) ]] && ! shaped; then word=failed; fi
 
 fetched() {
-  curl --disable --silent --fail --proto =https --max-redirs 0 --max-time 30 --max-filesize "$FETCH_CAP" \
-    --output "$2" "$RAW/$1" 2> /dev/null
+  local status
+  status="$(curl --disable --silent --proto =https --max-redirs 0 --max-time 15 --max-filesize "$FETCH_CAP" \
+    --output "$2" --write-out '%{http_code}' "$RAW/$1" 2> /dev/null)" || return 1
+  case "$status" in
+    200) return 0 ;;
+    404) return 4 ;;
+    *) return 1 ;;
+  esac
 }
 
-sha_of() { sha256sum < "$1" | cut -d' ' -f1; }
+source_of() {
+  case "$1" in
+    SKILL.md) echo bot/skills/threadsift/SKILL.md ;;
+    threadsift.sh) echo bot/scripts/threadsift.sh ;;
+    threadsift-*.md) echo "bot/routines/$1" ;;
+    *) echo "bot/$1" ;;
+  esac
+}
 
-released() {
-  local tag="$1" sums="$2" skill="$3" old="$4" name
-  routines_changed=no
-  stage="$(mktemp -d "$HERE/.release-XXXXXXXX")" || return 1
-  fetched "$tag/bot/SHA256SUMS" "$stage/SHA256SUMS" || return 1
-  [[ "$(sha_of "$stage/SHA256SUMS")" == "$sums" ]] || return 3
-  [[ "$(cut -d' ' -f3- "$stage/SHA256SUMS" | LC_ALL=C sort | tr '\n' ' ')" == "$SUMMED" ]] || return 3
-  for name in setup.md update.md; do fetched "$tag/bot/$name" "$stage/$name" || return 1; done
-  fetched "$tag/bot/scripts/threadsift.sh" "$stage/threadsift.sh" || return 1
-  (cd "$stage" && sha256sum --check --strict --status SHA256SUMS) || return 3
-  fetched "$tag/bot/skills/threadsift/SKILL.md" "$stage/SKILL.md" || return 1
-  [[ "$(sha_of "$stage/SKILL.md")" == "$skill" ]] || return 3
-  mkdir -- "$stage/routines" "$stage/before" || return 1
+listed() {
+  local line name sum expected
+  declare -gA sums=()
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^([0-9a-f]{64})\ \ ([A-Za-z0-9._-]{1,64})$ ]] || return 1
+    sum="${BASH_REMATCH[1]}"
+    name="${BASH_REMATCH[2]}"
+    [[ "$name" != *..* && -z "${sums[$name]+set}" ]] || return 1
+    sums[$name]="$sum"
+  done < "$1"
+  expected="$(printf '%s\n' "${RELEASED[@]}")"
+  [[ "$(printf '%s\n' "${!sums[@]}" | LC_ALL=C sort)" == "$expected" ]]
+}
+
+prompt_of() { python3 -I -c 'import sys; print(open(sys.argv[1]).read().split("Prompt:\n\n", 1)[1].strip())' "$1" 2> /dev/null; }
+
+routines_changed() {
+  local tag="$1" stage="$2" name prompt
+  [[ "$(tag_in "$HERE/state/pending-routines" || true)" != "$tag" ]] || return 0
   for name in "${ROUTINES[@]}"; do
-    fetched "$tag/bot/routines/$name.md" "$stage/routines/$name.md" || return 1
-    if [[ -f "$HERE/routines/$name.md" ]]; then
-      cp -- "$HERE/routines/$name.md" "$stage/before/$name.md" || continue
-    else
-      fetched "$old/bot/routines/$name.md" "$stage/before/$name.md" || continue
-    fi
-    cmp -s -- "$stage/before/$name.md" "$stage/routines/$name.md" || routines_changed=yes
+    prompt="$(prompt_of "$stage/$name.md")" || return 0
+    [[ -n "$prompt" && -f "$HERE/setup.md" ]] || return 0
+    grep -q -F -- "$prompt" "$HERE/setup.md" || return 0
   done
-  chmod 700 "$stage/threadsift.sh" || return 1
-  mkdir -p -- "$HERE/routines" "$HERE/skill" || return 1
-  for name in setup.md update.md threadsift.sh; do mv -T -- "$stage/$name" "$HERE/$name" || return 1; done
-  for name in "${ROUTINES[@]}"; do mv -T -- "$stage/routines/$name.md" "$HERE/routines/$name.md" || return 1; done
-  staged_tag > /dev/null || kept "$HERE/state/skill-version" "$old" || return 1
-  mv -T -- "$stage/SKILL.md" "$HERE/skill/SKILL.md" || return 1
-  kept "$HERE/VERSION" "$tag" || return 1
-  rm -f -- "$HERE/state/refused"
+  return 1
+}
+
+released() (
+  local tag="$1" manifest="$2" old="$3" name outcome=0
+  for name in sha256sum curl mktemp flock; do command -v "$name" > /dev/null || exit 1; done
+  mkdir -p -- "$HERE/state" "$HERE/routines" "$HERE/skill" || exit 1
+  exec 9> "$HERE/state/install.lock"
+  flock -n 9 || exit 1
+  stage="$(mktemp -d "$HERE/.release-XXXXXXXX")" || exit 1
+  trap 'rm -rf -- "${stage:?}"' EXIT
+  fetched "$tag/bot/$MANIFEST" "$stage/$MANIFEST" || exit $?
+  [[ "$(sha_of "$stage/$MANIFEST")" == "$manifest" ]] || exit 3
+  listed "$stage/$MANIFEST" || exit 5
+  for name in "${RELEASED[@]}"; do
+    fetched "$tag/$(source_of "$name")" "$stage/$name" || outcome=$?
+    [[ "$outcome" == 0 ]] || exit 1
+    [[ "$(sha_of "$stage/$name")" == "${sums[$name]}" ]] || exit 3
+  done
+  if routines_changed "$tag" "$stage"; then kept "$HERE/state/pending-routines" "$tag" || exit 1; else rm -f -- "$HERE/state/pending-routines"; fi
+  chmod 700 "$stage/threadsift.sh" || exit 1
+  for name in CHANGELOG.md setup.md update.md threadsift.sh; do mv -T -- "$stage/$name" "$HERE/$name" || exit 1; done
+  for name in "${ROUTINES[@]}"; do mv -T -- "$stage/$name.md" "$HERE/routines/$name.md" || exit 1; done
+  staged_tag > /dev/null || kept "$HERE/state/skill-version" "$old" || exit 1
+  kept "$HERE/state/skill-sha" "${sums[SKILL.md]}" || exit 1
+  mv -T -- "$stage/SKILL.md" "$HERE/skill/SKILL.md" || exit 1
+  kept "$HERE/VERSION" "$tag" || exit 1
+  rm -f -- "$HERE/state/refused" "$HERE/state/notice-refused" "$HERE/state/notice-older" "$HERE"/state/told-refused-* "$HERE"/state/told-older-*
+)
+
+told_once() {
+  local kind="$1" tag="$2"
+  [[ -e "$HERE/state/told-$kind-$tag" || "$(tag_in "$HERE/state/notice-$kind" || true)" == "$tag" ]] ||
+    kept "$HERE/state/notice-$kind" "$tag" || true
 }
 
 refused_release() {
-  local tag="$1"
+  local tag="$1" mode="$2"
   kept "$HERE/state/refused" "$tag" || true
-  if [[ "$first" == auto ]]; then
-    [[ "$(tag_in "$HERE/state/told-refused" || true)" == "$tag" || "$(tag_in "$HERE/state/notice-refused" || true)" == "$tag" ]] ||
-      kept "$HERE/state/notice-refused" "$tag" || true
+  if [[ "$mode" == auto ]]; then
+    told_once refused "$tag"
   else
-    kept "$HERE/state/told-refused" "$tag" || true
+    : > "$HERE/state/told-refused-$tag" || true
     rm -f -- "$HERE/state/notice-refused"
   fi
 }
 
+stale_notices_dropped() {
+  local kind
+  for kind in refused older; do
+    [[ "$(tag_in "$HERE/state/notice-$kind" || true)" == "$1" ]] || rm -f -- "$HERE/state/notice-$kind"
+  done
+}
+
+routines_told() {
+  local tag="$1" mode="$2"
+  if [[ "$mode" == auto ]]; then
+    [[ "$(tag_in "$HERE/state/pending-routines" || true)" != "$tag" ]] ||
+      mv -T -- "$HERE/state/pending-routines" "$HERE/state/notice-routines" || true
+  elif [[ "$mode" == "" ]]; then
+    rm -f -- "$HERE/state/pending-routines" "$HERE/state/notice-routines"
+  fi
+}
+
 followed() {
-  local tag sums skill auto outcome=0
-  word=failed
-  read -r tag sums skill auto <<< "$(python3 -I -c '
+  local tag="$1" manifest="$2" auto="$3" installed="$4" mode="$5" outcome=0
+  [[ "$tag" =~ $TAG && "$manifest" =~ $SHA && "$installed" =~ $TAG ]] || { echo failed; return 0; }
+  mkdir -p -- "$HERE/state"
+  stale_notices_dropped "$tag"
+  if [[ "$tag" == "$installed" ]]; then
+    routines_told "$tag" "$mode"
+    echo "current $tag"
+    return 0
+  fi
+  if [[ "$mode" != "" ]] && (( ${tag#bot-v} < ${installed#bot-v} )); then
+    [[ "$mode" != auto ]] || told_once older "$tag"
+    echo "older $tag"
+    return 0
+  fi
+  if [[ "$mode" == report || ( "$mode" == auto && "$auto" != on ) ]]; then echo "waits $tag"; return 0; fi
+  (( ${tag#bot-v} >= FIRST_SELF_UPDATING )) || { echo failed; return 0; }
+  released "$tag" "$manifest" "$installed" || outcome=$?
+  case "$outcome" in
+    0)
+      routines_told "$tag" "$mode"
+      again report
+      echo "installed $tag"
+      ;;
+    3)
+      refused_release "$tag" "$mode"
+      again report
+      echo "refused $tag"
+      ;;
+    4) echo "waits $tag" ;;
+    *) echo failed ;;
+  esac
+}
+
+expected_of() {
+  python3 -I -c '
 import json, sys
 
 body = json.load(open(sys.argv[1]))
 expected = body["expected"]
-print(expected["tag"], expected["sumsSha256"], expected["skillSha256"], "on" if body["autoInstall"] else "off")
-' "$response" 2> /dev/null)" || return 0
-  [[ "$tag" =~ $TAG && "$sums" =~ $SHA && "$skill" =~ $SHA ]] || return 0
-  if [[ "$tag" == "$installed" ]]; then word="current $tag"; return 0; fi
-  if [[ "$first" == report || ( "$first" == auto && "$auto" != on ) ]]; then word="waits $tag"; return 0; fi
-  released "$tag" "$sums" "$skill" "$installed" || outcome=$?
-  case "$outcome" in
-    0)
-      [[ "$first" != auto || "$routines_changed" != yes ]] || kept "$HERE/state/notice-routines" "$tag" || true
-      again report
-      word="installed $tag"
-      ;;
-    3)
-      refused_release "$tag"
-      again report
-      word="refused $tag"
-      ;;
-  esac
+print(expected["tag"], expected["manifestSha256"], "on" if body["autoInstall"] else "off")
+' "$1" 2> /dev/null
 }
 
 if [[ "$command" == save && ( "$word" == ok || "$word" == duplicate ) ]]; then
@@ -602,7 +686,13 @@ if [[ "$word" == ok ]]; then
     bookmarks-send)
       word="ok $(python3 -I -c 'import json,sys; r=[each["outcome"] for each in json.load(open(sys.argv[1]))["results"]]; print(r.count("added"), r.count("known"), r.count("refused"))' "$response")"
       ;;
-    update) followed ;;
+    update)
+      if read -r expected_tag manifest auto_on < <(expected_of "$response"); then
+        word="$(followed "$expected_tag" "$manifest" "$auto_on" "$installed" "$first")"
+      else
+        word=failed
+      fi
+      ;;
     task-open)
       kind="$(python3 -I -c 'import json,sys; print(json.load(open(sys.argv[1]))["kind"])' "$response")"
       mkdir -p "$folder"
@@ -625,3 +715,7 @@ case "$command:$word" in
 esac
 
 echo "$word"
+
+case "$command" in
+  bookmarks-cursor|task-answer|task-intake|task-error) again auto ;;
+esac

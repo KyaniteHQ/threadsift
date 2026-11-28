@@ -36,6 +36,8 @@ jobs:
           tools/release-plan.sh "$TAG" > "$RUNNER_TEMP/plan.txt"
           cat "$RUNNER_TEMP/plan.txt"
           printf '~~~text\n%s\n~~~\n' "$(cat "$RUNNER_TEMP/plan.txt")" >> "$GITHUB_STEP_SUMMARY"
+      - name: Check the bot release the Instance expects is published
+        run: tools/bot-release.sh published
 
   build:
     needs: plan

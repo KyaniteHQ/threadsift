@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "db390055-cb23-4c37-af18-270896a3029d",
+  "id": "c281bdee-50c3-4c34-ac5b-eb1ecaeee66b",
   "prevId": "ffd2f411-a34f-4c60-9ccd-cafba1c190db",
   "tables": {
     "agent_tokens": {
@@ -3459,6 +3459,20 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
+        },
+        "reported_at": {
+          "name": "reported_at",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "reported_by": {
+          "name": "reported_by",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
         }
       },
       "indexes": {},
@@ -3472,7 +3486,7 @@
         },
         "threadsift_bot_reported": {
           "name": "threadsift_bot_reported",
-          "value": "(\"threadsift_bot\".\"version\" is null) = (\"threadsift_bot\".\"skill_version\" is null) and (\"threadsift_bot\".\"version\" is not null or \"threadsift_bot\".\"refused\" is null)"
+          "value": "(\"threadsift_bot\".\"version\" is null) = (\"threadsift_bot\".\"skill_version\" is null) and (\"threadsift_bot\".\"version\" is null) = (\"threadsift_bot\".\"reported_at\" is null) and (\"threadsift_bot\".\"version\" is null) = (\"threadsift_bot\".\"reported_by\" is null) and (\"threadsift_bot\".\"version\" is not null or \"threadsift_bot\".\"refused\" is null)"
         }
       }
     },
