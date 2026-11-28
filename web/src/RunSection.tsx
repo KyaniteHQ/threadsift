@@ -1,4 +1,4 @@
-import { type Resume, resumeOf } from "../../src/core/contract/import-list.ts";
+import type { Resume } from "../../src/core/contract/import-list.ts";
 import { Alert } from "./Alert.tsx";
 import type { Outcome, Progress } from "./import-run.ts";
 import {
@@ -53,14 +53,16 @@ function Meter({ progress, total }: Readonly<{ progress: Progress; total: number
 function progressOf(run: RunState): Progress | null {
   if (run.phase === "running") return run.progress;
 
-  return run.phase === "ended" ? run.outcome : null;
+  return run.phase === "ended" && run.outcome.ending !== "complete" ? run.outcome : null;
 }
 
 function alertOf(check: Check, run: RunState, total: number): string | null {
   if (run.phase === "ended") {
     const { ending, done } = run.outcome;
 
-    return ending === "finished" || ending === "stopped" ? null : failedLabel(ending, done, total);
+    return ending === "finished" || ending === "complete" || ending === "stopped"
+      ? null
+      : failedLabel(ending, done, total);
   }
 
   return run.phase === "idle" && check.status === "failed" ? IMPORT.checkFailed : null;
@@ -74,6 +76,8 @@ function resumeLine(resume: Resume, total: number): string | null {
 
 function endedLine({ ending, done }: Readonly<Outcome>, total: number): string | null {
   if (ending === "finished") return IMPORT.finished;
+
+  if (ending === "complete") return IMPORT.resumeComplete;
 
   return ending === "stopped" ? stoppedLabel(done, total) : null;
 }
@@ -112,30 +116,27 @@ function actionOf(
   const { name, resume } = check;
 
   if (run.phase === "ended") {
-    const finished = run.outcome.ending === "finished";
+    const { ending, seen, counts, uncounted } = run.outcome;
+    const again = ending === "finished" || ending === "complete";
 
     return {
-      label: finished ? IMPORT.again : IMPORT.resume,
+      label: again ? IMPORT.again : IMPORT.resume,
       accent: true,
       press: () => {
         runner.start(
           links,
           name,
-          finished
-            ? { progress: NOT_STARTED, seen: COMPLETE }
-            : { progress: run.outcome, seen: resumeOf(String(run.outcome.done), links.length) },
+          again ? { ...NOT_STARTED, seen: COMPLETE } : { counts, uncounted, seen },
         );
       },
     };
   }
 
-  const from = resume.kind === "partial" ? { ...NOT_STARTED, done: resume.done } : NOT_STARTED;
-
   return {
     label: startLabel(resume),
     accent: true,
     press: () => {
-      runner.start(links, name, { progress: from, seen: resume });
+      runner.start(links, name, { ...NOT_STARTED, seen: resume });
     },
   };
 }

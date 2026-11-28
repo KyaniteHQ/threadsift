@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { NO_COUNTS } from "./import-api.ts";
-import { type Outcome, type Position, type Progress, runImport } from "./import-run.ts";
+import { type Outcome, type Position, type Progress, plannedOf, runImport } from "./import-run.ts";
 import type { Check } from "./use-import-list.ts";
 
 type RunningState = {
@@ -17,7 +17,10 @@ export type RunState =
   | RunningState
   | { readonly phase: "ended"; readonly name: string; readonly outcome: Outcome };
 
-export const NOT_STARTED: Progress = { done: 0, counts: NO_COUNTS, uncounted: 0 };
+export const NOT_STARTED = { counts: NO_COUNTS, uncounted: 0 } as const satisfies Omit<
+  Progress,
+  "done"
+>;
 
 const IDLE: RunState = { phase: "idle" };
 
@@ -68,7 +71,7 @@ export function useImportRun(seal: () => void) {
       };
 
       seal();
-      setState(started(name, from.progress));
+      setState(started(name, plannedOf(from)));
       void run();
     },
     [seal],
