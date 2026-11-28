@@ -4,9 +4,11 @@ import {
   COPY_RESTORE_PHASES,
   RESTORE_ANCHOR_BYTES,
   RESTORE_REFUSALS,
+  RESTORE_SETTLE_MS,
   RUN_COUNTS,
   type RunningPhase,
 } from "../../../core/contract/restore-contract.ts";
+import { MINUTE_MS } from "../../../core/contract/time-units.ts";
 import { codeList } from "../../../http/openapi.ts";
 
 const PHASE_WORK = {
@@ -14,7 +16,7 @@ const PHASE_WORK = {
     "reads the whole zip first (a refusal shows in `GET /api/restore` as `failed` with a `failure` code, deletes the parts and writes nothing to the library)",
   tables:
     "restores the records in foreign key order, one bounded unit after another, and keeps the ids of the zip",
-  files: "puts the stored files back",
+  files: `puts the stored files back, after waiting up to ${String(RESTORE_SETTLE_MS / MINUTE_MS)} minutes from the end of an older cancelled Restore and deleting any file left under \`items/\``,
   search: "rebuilds the search index",
   highlights: "anchors each Highlight again in the restored text",
   finish: "sets each table's id counter",

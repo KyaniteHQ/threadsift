@@ -1,6 +1,5 @@
 import { and, eq } from "drizzle-orm";
 
-import { CLAIM_MARGIN_MS } from "../../../core/contract/job-contract.ts";
 import { RESTORE_UNIT_DEADLINE_MS } from "../../../core/contract/restore-contract.ts";
 import type { ClaimedRestore, JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
 import { unownedRun } from "../../../core/kernel/job-rows.ts";
@@ -11,12 +10,11 @@ import { partSource } from "./restore-source.ts";
 import { restoreById } from "./restore-state.ts";
 
 async function attemptUnit(ports: JobPorts, job: Readonly<ClaimedRestore>): Promise<JobOutcome> {
+  const deadline = Date.now() + RESTORE_UNIT_DEADLINE_MS;
   const run = await unownedRun("restore", job.address, (id) => restoreById(ports.db, id));
 
-  if (job.claimExpires === null) throw new Error(`Restore job ${String(job.id)} holds no claim`);
-
   return run?.state === "running"
-    ? phaseUnit(ports, run, partSource(ports.files, run), job.claimExpires - CLAIM_MARGIN_MS)
+    ? phaseUnit(ports, run, partSource(ports.files, run), deadline)
     : { writes: [] };
 }
 
