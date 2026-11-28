@@ -1,15 +1,15 @@
 import { X_POST_ABSENT } from "../../../core/contract/x-read-note.ts";
 import type { Fetched } from "../../media/core/details.ts";
-import { concludedOfRefusal } from "./x-api-answer.ts";
-import { type XApiReads, parsedLookup, parsedPage, rootState, threadOf } from "./x-api-map.ts";
+import { type XApiAnswer, concludedOfRefusal } from "./x-api-answer.ts";
+import { type XApiReads, threadOf } from "./x-api-map.ts";
 import type { XApiRequest } from "./x-api-plan.ts";
-import type { XApiSent } from "./x-api-request.ts";
+import { parsedLookup, parsedPage, rootState } from "./x-api-posts.ts";
 import { nextUtcDayAt } from "./x-api-spend.ts";
 import { ANSWER_REFUSED } from "./x-api-stored.ts";
 
-type Refused = Extract<XApiSent["answer"], { kind: "refused" }>["reason"];
+type Refused = Extract<XApiAnswer, { kind: "refused" }>["reason"];
 
-export type Ending = "done" | "limit" | "answer-refused" | "api-rate-limited" | Refused;
+export type Ending = "done" | "limit" | "api-rate-limited" | Refused;
 
 export type Step =
   | { readonly kind: "read"; readonly reads: XApiReads }
@@ -50,7 +50,7 @@ function quoteStep(reads: Readonly<XApiReads>, postId: string, text: string): St
   const quotesAsked = [...reads.quotesAsked, postId];
 
   return quote === null
-    ? { kind: "finished", why: "answer-refused" }
+    ? { kind: "finished", why: "api-answer-refused" }
     : {
         kind: "read",
         reads: { ...reads, quotesAsked, quoteLookups: [...reads.quoteLookups, quote] },
@@ -66,7 +66,7 @@ function laterStep(reads: Readonly<XApiReads>, request: Readonly<XApiRequest>, t
   const minLikes = request.step === "replies" ? request.minLikes : null;
 
   return page === null
-    ? { kind: "finished", why: "answer-refused" }
+    ? { kind: "finished", why: "api-answer-refused" }
     : {
         kind: "read",
         reads: {
@@ -76,10 +76,7 @@ function laterStep(reads: Readonly<XApiReads>, request: Readonly<XApiRequest>, t
       };
 }
 
-function failedStep(
-  reads: Readonly<XApiReads>,
-  answer: Exclude<XApiSent["answer"], { kind: "ok" }>,
-): Step {
+function failedStep(reads: Readonly<XApiReads>, answer: Exclude<XApiAnswer, { kind: "ok" }>): Step {
   const why = answer.kind === "limited" ? "api-rate-limited" : answer.reason;
 
   if (reads.root !== null) return { kind: "finished", why };
@@ -96,7 +93,7 @@ function failedStep(
 export function appliedStep(
   reads: Readonly<XApiReads>,
   request: Readonly<XApiRequest>,
-  { answer }: Readonly<XApiSent>,
+  answer: Readonly<XApiAnswer>,
 ): Step {
   return answer.kind === "ok" ? laterStep(reads, request, answer.text) : failedStep(reads, answer);
 }

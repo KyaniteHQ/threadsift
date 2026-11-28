@@ -46,7 +46,7 @@ export async function readXApiUsage(ports: Readonly<ReadPorts>, now: number): Pr
     {
       db: ports.db,
       dayLimitMicros: limits.dayLimitMicros,
-      itemId: null,
+      item: null,
       price: { kind: "flat", micros: X_API_USAGE_READ_MICROS },
     },
     {

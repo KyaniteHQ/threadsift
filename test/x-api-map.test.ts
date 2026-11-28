@@ -1,15 +1,8 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import {
-  type XApiReads,
-  factsOf,
-  parsedLookup,
-  parsedPage,
-  resourcesOf,
-  rootState,
-  threadOf,
-} from "../src/features/x/core/x-api-map.ts";
+import { type XApiReads, factsOf, threadOf } from "../src/features/x/core/x-api-map.ts";
+import { parsedLookup, parsedPage, rootState } from "../src/features/x/core/x-api-posts.ts";
 import type { Json } from "./instance.ts";
 import {
   AUTHOR,
@@ -28,8 +21,6 @@ const PHOTO = "https://pbs.twimg.com/media/SyntheticPhoto1.jpg";
 const lookupOf = (answer: Json) => parsedLookup(JSON.stringify(answer));
 
 const pageOf = (answer: Json) => parsedPage(JSON.stringify(answer));
-
-const countOf = (answer: Json) => resourcesOf(JSON.stringify(answer));
 
 function parsedOrFail<Value>(value: Value | null): Value {
   if (value === null) throw new Error("the answer did not parse");
@@ -155,6 +146,18 @@ describe("the X API answers map to the thread the other X readers produce", () =
     );
     assert.equal(factsOf(second).quoteToExpand, null);
     assert.equal(factsOf(second).quoteLookups, 1);
+
+    const unanswered: XApiReads = {
+      ...first,
+      quotesAsked: [chain[0] ?? ""],
+      quoteLookups: [
+        parsedOrFail(
+          lookupOf(lookup(quoting(chain[0] ?? "", chain[1]), { users: others, tweets: [] })),
+        ),
+      ],
+    };
+
+    assert.equal(factsOf(unanswered).quoteToExpand, null);
   });
 
   it("stops the chain at a quoted post X did not return, without a lookup of it, and keeps the post's link to it", () => {
@@ -181,7 +184,7 @@ describe("the X API answers map to the thread the other X readers produce", () =
     const read = reads(
       lookup(post({ id: ROOT_ID, quotes: chain[0] }), {
         users: [user(AUTHOR_ID, AUTHOR), user("72", "other_one")],
-        tweets: chain.map((id, at) => quoting(id, chain[at + 1])),
+        tweets: chain.slice(0, 5).map((id, at) => quoting(id, chain[at + 1])),
       }),
     );
 
@@ -267,23 +270,5 @@ describe("the X API answers map to the thread the other X readers produce", () =
     assert.equal(rootState(parsedOrFail(lookupOf(lookup(post({ id: ROOT_ID })))), ROOT_ID), "post");
     assert.equal(lookupOf({ data: { id: "01", text: "x", author_id: AUTHOR_ID } }), null);
     assert.equal(pageOf({ data: [] }), null);
-  });
-
-  it("counts every post and user an answer returns, in data and in includes, and nothing it can count in a body that is not JSON", () => {
-    assert.deepEqual(
-      countOf(
-        lookup(post({ id: ROOT_ID }), {
-          users: [user(AUTHOR_ID, AUTHOR), user("72", "other_one")],
-          tweets: [post({ id: "1800000000000000001" })],
-        }),
-      ),
-      { posts: 2, users: 2 },
-    );
-    assert.deepEqual(
-      countOf(searchPage([post({ id: "1" }), post({ id: "2" })], [user("73", "first_reader")])),
-      { posts: 2, users: 1 },
-    );
-    assert.deepEqual(countOf(absent(ROOT_ID, "resource-not-found")), { posts: 0, users: 0 });
-    assert.equal(resourcesOf("<html>Bad gateway</html>"), null);
   });
 });

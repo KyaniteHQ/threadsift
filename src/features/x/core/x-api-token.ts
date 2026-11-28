@@ -139,7 +139,7 @@ export async function verifyXApiToken(
     {
       db: ports.db,
       dayLimitMicros: limits.dayLimitMicros,
-      itemId: null,
+      item: null,
       price: { kind: "flat", micros: X_API_USAGE_READ_MICROS },
     },
     { origin: ports.config.xApiOrigin, token: auth.token, path: "/2/usage/credits", signal },

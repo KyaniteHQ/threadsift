@@ -60,7 +60,7 @@ The Drizzle schema lists every column, index and constraint. The rest is here: h
   - `archived_at` is the fill time of an Arctic Shift fill, and null for a thread that the Extension, a `.json` Paste, an X Paste or the connected Reddit account sent.
   - `linked_url` is the candidate link for the Digest's one hop, read for the Item's current generation (`candidateLink`). `post_link` is the address a Reddit link post points at, read from the newest generation. The candidate differs: it skips video and Reddit or X addresses and falls back to the first link of the post text.
   - The foreign key `(item_id, source)` to `items(id, source)` refuses a row that names another Source than its Item.
-  - `x_api_read` marks a thread the X API reader stored, which gets no Digest from the owner's Provider while `X_API_PROVIDER_DIGESTS` is off ([Fetchers](fetchers.md), X API).
+  - `x_api_read` marks a thread the X API reader stored, which no AI task sends to the owner's Provider while the constant `X_API_PROVIDER_DIGESTS` is `false` in the source ([Fetchers](fetchers.md), X API).
 - **`thread_comments`.** `id` and `parent_id` hold the comment id at its Source, lower-cased: Reddit's base-36 comment id without the `t1_` of its fullname, or the status id of an X reply. A `more` stub's id is `more_<position>`, and a comment's `parent_id` is null for a reply to the post. `eligible` is false for a deleted or removed body, `AutoModerator` and a bare agreement such as "this" or "thanks". A Digest publication sets `kept` on eligible rows only and deletes every older generation in the same batch.
 
 ### Settings and integrations

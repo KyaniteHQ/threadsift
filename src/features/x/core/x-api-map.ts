@@ -12,8 +12,6 @@ import {
   shownText,
 } from "./x-api-posts.ts";
 
-export { parsedLookup, parsedPage, resourcesOf, rootState } from "./x-api-posts.ts";
-
 const HANDLE = /^[A-Za-z0-9_]+$/u;
 
 export interface SearchRead {

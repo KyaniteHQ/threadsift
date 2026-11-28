@@ -1,12 +1,15 @@
 import type { Database } from "../../../core/kernel/database.ts";
+import { bestEffort } from "../../../core/kernel/failure-log.ts";
+import type { XApiAnswer } from "./x-api-answer.ts";
 import { type Resources, microsOf } from "./x-api-plan.ts";
-import { type XApiCall, type XApiSent, xApiGet } from "./x-api-request.ts";
-import { type Charge, reserved, settled, utcDayOf } from "./x-api-spend.ts";
+import { resourcesOf } from "./x-api-posts.ts";
+import { type Delivery, type XApiCall, xApiGet } from "./x-api-request.ts";
+import { type Charge, type ItemLimit, reserved, settled, utcDayOf } from "./x-api-spend.ts";
 
 export interface Meter {
   readonly db: Database;
   readonly dayLimitMicros: number;
-  readonly itemId: number | null;
+  readonly item: ItemLimit | null;
   readonly price: Price;
 }
 
@@ -14,40 +17,59 @@ export type Price =
   | { readonly kind: "resources"; readonly worst: Resources }
   | { readonly kind: "flat"; readonly micros: number };
 
+export interface Metered {
+  readonly answer: XApiAnswer;
+  readonly charge: Charge;
+}
+
+const OK = 200;
+
+const CLIENT_ERRORS = { from: 400, below: 500 };
+
+const UNCHARGED: Charge = { micros: 0, posts: 0, users: 0 };
+
 function worstOf(price: Readonly<Price>): Charge {
   return price.kind === "flat"
     ? { micros: price.micros, posts: 0, users: 0 }
     : { micros: microsOf(price.worst), ...price.worst };
 }
 
-const UNCHARGED: Charge = { micros: 0, posts: 0, users: 0 };
+function failed(status: number): boolean {
+  return status >= CLIENT_ERRORS.from && status < CLIENT_ERRORS.below;
+}
 
-function chargeOf(price: Readonly<Price>, { left, counted }: Readonly<XApiSent>): Charge {
-  if (!left) return UNCHARGED;
+export function chargeOf(price: Readonly<Price>, delivery: Readonly<Delivery>): Charge {
+  if (delivery.kind === "not-sent") return UNCHARGED;
 
-  if (price.kind === "flat" || counted === null) return worstOf(price);
+  if (delivery.kind === "unknown") return worstOf(price);
 
-  return { micros: microsOf(counted), ...counted };
+  if (failed(delivery.status)) return UNCHARGED;
+
+  if (delivery.status !== OK || price.kind === "flat") return worstOf(price);
+
+  const counted = resourcesOf(delivery.text);
+
+  return counted === null ? worstOf(price) : { micros: microsOf(counted), ...counted };
 }
 
 export async function meteredGet(
   meter: Readonly<Meter>,
   call: Readonly<XApiCall>,
-): Promise<XApiSent | null> {
-  const worst = worstOf(meter.price);
+): Promise<Metered | null> {
   const reservation = {
     day: utcDayOf(Date.now()),
-    worstMicros: worst.micros,
-    itemId: meter.itemId,
+    worstMicros: worstOf(meter.price).micros,
+    item: meter.item,
   };
 
-  if (!(await reserved(meter.db, { ...reservation, dayLimitMicros: meter.dayLimitMicros }))) {
-    return null;
-  }
+  if (!(await reserved(meter.db, reservation, meter.dayLimitMicros))) return null;
 
-  const sent = await xApiGet(call);
+  const { answer, delivery } = await xApiGet(call);
+  const charge = chargeOf(meter.price, delivery);
 
-  await settled(meter.db, reservation, chargeOf(meter.price, sent));
+  await bestEffort({ event: "x-api-charge-not-settled", fields: { day: reservation.day } }, () =>
+    settled(meter.db, reservation, charge),
+  );
 
-  return sent;
+  return { answer, charge };
 }

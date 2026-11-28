@@ -108,15 +108,39 @@ export function parsedPage(text: string): SearchPage | null {
   return parsedJson(SearchPageSchema, text);
 }
 
-const CountedSchema = z.looseObject({
-  data: z.union([z.array(z.unknown()), z.record(z.string(), z.unknown())]).optional(),
-  includes: z
-    .looseObject({
-      tweets: z.array(z.unknown()).optional(),
-      users: z.array(z.unknown()).optional(),
-    })
-    .optional(),
-});
+const Collection = z.array(z.unknown()).readonly().optional();
+
+const IdsSchema = z
+  .array(z.looseObject({ id: z.string() }))
+  .readonly()
+  .optional();
+
+const CountedSchema = z
+  .looseObject({
+    data: z.union([z.array(z.unknown()), z.record(z.string(), z.unknown())]).optional(),
+    errors: Collection,
+    meta: z.looseObject({ result_count: z.number().int().nonnegative().optional() }).optional(),
+    includes: z
+      .strictObject({
+        tweets: IdsSchema,
+        posts: IdsSchema,
+        users: Collection,
+        media: Collection,
+        polls: Collection,
+        places: Collection,
+        topics: Collection,
+        calls: Collection,
+      })
+      .optional(),
+  })
+  .refine(
+    ({ data, errors, meta }) => data !== undefined || errors !== undefined || meta !== undefined,
+  )
+  .refine(
+    ({ data, meta }) =>
+      meta?.result_count === undefined ||
+      meta.result_count === (Array.isArray(data) ? data.length : data === undefined ? 0 : 1),
+  );
 
 export function resourcesOf(text: string): Resources | null {
   const counted = parsedJson(CountedSchema, text);
@@ -125,11 +149,11 @@ export function resourcesOf(text: string): Resources | null {
 
   const { data, includes } = counted;
   const own = data === undefined ? 0 : Array.isArray(data) ? data.length : 1;
+  const included = new Set(
+    [...(includes?.tweets ?? []), ...(includes?.posts ?? [])].map(({ id }) => id),
+  );
 
-  return {
-    posts: own + (includes?.tweets?.length ?? 0),
-    users: includes?.users?.length ?? 0,
-  };
+  return { posts: own + included.size, users: includes?.users?.length ?? 0 };
 }
 
 export function rootState(lookup: Lookup, statusId: string): "post" | "absent" | "refused" {

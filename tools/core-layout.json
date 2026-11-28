@@ -153,7 +153,9 @@
     "x": [
       "x-api-answer.ts",
       "x-api-map.ts",
+      "x-api-metered.ts",
       "x-api-plan.ts",
+      "x-api-posts.ts",
       "x-api-spend.ts",
       "x-oembed.ts",
       "x-verify-state.ts"

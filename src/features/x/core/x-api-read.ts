@@ -29,7 +29,7 @@ async function stepOf(
 
   if (next.kind !== "request" || answered === null) return { step: unaffordable(reads), tally };
 
-  return { step: appliedStep(reads, next.request, answered.sent), tally: answered.tally };
+  return { step: appliedStep(reads, next.request, answered.sent.answer), tally: answered.tally };
 }
 
 async function readAll(run: Readonly<Run>, statusId: string) {

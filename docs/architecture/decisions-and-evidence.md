@@ -2,7 +2,7 @@
 
 [The spec](../spec.md) states what the app does. This page holds the reasons behind its product decisions and the measured or sourced facts the spec leaves out. A fact here carries the command, address or source that shows it. [Open items and unverified claims](open-items-and-unverified-claims.md) holds a fact no run has proven.
 
-Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [X developer terms](#x-developer-terms), [Full-archive search window](#full-archive-search-window), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131), [Highlights page order](#highlights-page-order), [Reading place at a close](#reading-place-at-a-close).
+Contents: [Product decisions](#product-decisions), [Design review](#design-review), [Reddit](#reddit), [AI providers](#ai-providers), [Grok Bot](#grok-bot), [The hosted product](#the-hosted-product), [X developer terms](#x-developer-terms), [Full-archive search window](#full-archive-search-window), [What the X API counter counts](#what-the-x-api-counter-counts), [The library wiki](#the-library-wiki), [Trigger depth on D1](#trigger-depth-on-d1), [Worker HTML cap](#worker-html-cap), [X replies read by the Grok CLI](#x-replies-read-by-the-grok-cli), [Parse time of a page](#parse-time-of-a-page), [Worker: ports and app built for each request](#worker-ports-and-app-built-for-each-request), [CPU of a login and a fetch job](#cpu-of-a-login-and-a-fetch-job), [Aborted list reads](#aborted-list-reads), [Export entry count on Node 26.13.1](#export-entry-count-on-node-26131), [Highlights page order](#highlights-page-order), [Reading place at a close](#reading-place-at-a-close).
 
 ## Product decisions
 
@@ -95,12 +95,23 @@ The hosted product stores an X Item as a Link-only Item, because X has published
 
 ## Full-archive search window
 
-Every full-archive search of the X API reader sends `start_time` set to the post's own time, cut to the second. X's docs say that without it the search returns posts from the last 30 days only: "By default, results return Posts from the last 30 days" ([full-archive search quickstart](https://docs.x.com/x-api/posts/search/quickstart/full-archive-search#step-2-set-a-time-range)), and "If you want to get Posts that are older than 30 days, you can use the start_time and end_time parameters" ([getting historical posts](https://docs.x.com/tutorials/getting-historical-posts-using-the-full-archive-search-endpoint)). Most saved posts are older than 30 days, so without it the paid search would read no replies and no Author thread.
+Every full-archive search of the X API reader sends `start_time` set to the post's own time, cut to the second. X's docs say that without it the search returns posts from the last 30 days only: "By default, results return Posts from the last 30 days" ([full-archive search quickstart](https://docs.x.com/x-api/posts/search/quickstart/full-archive-search#step-2-set-a-time-range)), and "If you want to get Posts that are older than 30 days, you can use the start_time and end_time parameters" ([getting historical posts](https://docs.x.com/tutorials/getting-historical-posts-using-the-full-archive-search-endpoint)). A saved post read more than 30 days after it was posted would otherwise get a paid search that reads no replies and no Author thread.
 
 - `start_time` over `since_id`: "At most one of `start_time`, `since_id` may be provided" ([Search All Posts](https://docs.x.com/x-api/posts/search-posts-all)). The docs tie the 30-day default to `start_time` only and say nothing about whether `since_id` lifts it, so the reader sends `start_time`.
 - The earliest value: the docs set no minimum for `start_time`. They say the archive starts in March 2006 and the first post is of 2006-03-21 ([full-archive search](https://docs.x.com/x-api/posts/search/quickstart/full-archive-search), [data availability](https://docs.x.com/x-api/enterprise-gnip-2.0/fundamentals/search-api#data-availability-/-important-date)). A post's own time is never earlier, and its replies are never older than it.
 - A post without `created_at` gets no search. The lookup asks for `created_at`, so this does not happen in an answer X documents.
 - No run has sent such a search yet ([Open items](open-items-and-unverified-claims.md#x-api-reader)).
+
+## What the X API counter counts
+
+The Instance's counter never counts less than X can bill, so the day and Item limits bound the real charge.
+
+- X bills reads by what they return: "Charged per resource returned in the response" ([pricing](https://docs.x.com/x-api/getting-started/pricing)).
+- X does not bill a failed request: "Do failed requests count? No. Only successful responses that return data are billed." ([post cap, FAQs](https://docs.x.com/x-api/fundamentals/post-cap#do-failed-requests-count)). So an answer with a 4xx status counts 0, and so does a request that never left.
+- The docs do not say whether a 5xx, a cut answer or a request with no answer is billed. A gateway status can come after X processed the request. These keep the worst case that was reserved.
+- A 200 counts the resources it holds only when its body has the shape X documents. A body of another shape may hold billed resources the counter cannot see, so it keeps the worst case.
+- The usage and balance endpoints are not on the pricing page, so each read is counted at 0.20 USD unless X refused it with a 4xx.
+- A reservation and its charge stay on the UTC day of the reservation. X resets its deduplication at 00:00 UTC ([pricing, Deduplication](https://docs.x.com/x-api/getting-started/pricing)), so a request sent in the moment after midnight is billed on the new day and counted on the day before.
 
 ## The library wiki
 

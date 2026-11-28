@@ -131,7 +131,7 @@ The owner chooses one reader in Settings. `routeOf` decides the route from the c
 - When the chosen reader cannot be used, the fetch ends a Link-only Item with a note that names the cause (`items.x_note`, `X_READ_NOTES`). No other reader is tried.
 - `offeredReaders` leaves `grok-cli` out on the Worker and offers `x-api` on both targets. `chosenXReader` reads the saved row as it is, so a `grok-cli` row that a Restore brings from a Node database routes to no reader on the Worker and ends Link-only with `cli-not-installed`, even with an X API token saved. Settings, X posts, shows that saved choice as a segment, so it reads as what it is.
 - On Cloudflare an X link goes to the Grok Bot when its webhook is ready, otherwise to the X API when a token is saved, otherwise it becomes a Link-only Item.
-- Settings, X posts, shows the `x-api` segment only while it is the saved choice, until the Settings part with the token control lands. The route `PUT /api/settings/x` accepts it on both targets.
+- Settings, X posts, shows the `x-api` segment only while it is the saved choice. The route `PUT /api/settings/x` accepts it on both targets.
 - Each reread follows the current choice, except that while the job has an open Grok Bot task (`hasOpenIntakeTask`), `xRouteOf` keeps the bot route. A failed bot answer is never retried through the CLI.
 - A Paste with `content` ignores the choice, because it makes no fetch job.
 
@@ -220,14 +220,26 @@ The post text is the `note_tweet` text when X sends one. Each `t.co` link is wri
 
 #### Spend limits and the counter
 
-X bills each post and each user an answer returns, 0.005 USD and 0.01 USD ([pricing](https://docs.x.com/x-api/getting-started/pricing)), once per UTC day. Media is counted at 0, because the balance showed no charge for a photo in probe S1. The balance moves in 0.01 USD steps, so a smaller charge would not show ([X API probe](ci-releases-and-rollback.md#x-api-probe)).
+X bills each post and each user an answer returns, 0.005 USD and 0.01 USD ([pricing](https://docs.x.com/x-api/getting-started/pricing)). It does not bill a resource again within the same UTC day, which its pricing page calls a soft guarantee, so the Instance counts every request. Media is counted at 0, because the balance showed no charge for a photo in probe S1. The balance moves in 0.01 USD steps, so a smaller charge would not show ([X API probe](ci-releases-and-rollback.md#x-api-probe)).
 
-- `x_api_settings` holds the sealed token and two limits in micro-USD: per Item (default 1 USD) and per UTC day (default 3 USD). Both defaults are our guesses. The Item limit is at least 0.10 USD, so it holds one post lookup at its worst case. The day limit is at least 0.30 USD, so it holds one usage or balance read and one Item limit at its minimum.
+- `x_api_settings` holds the sealed token and two limits in micro-USD: for each Item on each UTC day (default 1 USD) and for each UTC day (default 3 USD). Both defaults are our guesses. The Item limit is at least 0.10 USD, so it holds one post lookup at its worst case. The day limit is at least 0.30 USD, so it holds one usage or balance read and one Item limit at its minimum.
 - The worst case of a post lookup is 4 posts and 4 users, 0.06 USD (`X_API_LOOKUP_WORST`): the post, and one referenced post for each of X's 3 reference types (replied to, quoted, reposted), each with its author ([`referenced_tweets`](https://docs.x.com/x-api/fundamentals/data-dictionary)). The reader and the probe use the same bound.
-- Every request to X goes through `meteredGet`. Before it is sent, `reserved` adds its worst case to the day's row of `x_api_spend` in one guarded upsert, which writes nothing when the sum would pass the day limit, and adds it to the Item's row of `x_api_item_spend` for that UTC day. The day is taken after the 1 s wait between searches, so a request settles on the day it was sent.
+- Every request to X goes through `meteredGet`. Before it is sent, `reserved` adds its worst case to the day's row of `x_api_spend` and to the Item's row of `x_api_item_spend` in one guarded batch. The batch writes nothing when either sum would pass its limit. So two reads of one Item cannot both pass the Item limit, and a failed write leaves both rows as they were.
 - The Item's row keeps what the Item spent on that UTC day across retries and restarts. The planner plans only requests that fit the rest of the Item limit and of the day limit, and fits a search page to the money left. Below 10 posts, X's smallest page ([full-archive search](https://docs.x.com/x-api/posts/search/quickstart/full-archive-search#common-parameters)), the read stops.
-- After the answer, `settled` replaces the worst case with the posts and users counted. These keep their worst case, because X may have billed them: a 200 whose body is not JSON, an answer that is cut or cannot be read, and a request that got no answer, such as one past the 15 s deadline. A request that never left, because the connection was refused or the host name did not resolve (`ECONNREFUSED`, `ENOTFOUND`, `EAI_AGAIN`), counts 0. Only the container can tell this apart. The Worker's `fetch` names no cause, so there every request with no answer keeps its worst case.
-- A usage read and a balance read (Verify) are not priced on X's pricing page. Each is reserved and counted at 0.20 USD, the highest charge on that page, whatever X answers. Verify refuses with `day-limit` when the day has no room left for it.
+- A reservation settles on the UTC day it was reserved on. The day is taken after the 1 s wait between searches, just before the reservation. A request that leaves in the moment after 00:00 UTC is therefore counted on the day before. Only the requests in flight at midnight can fall on the wrong day.
+- After the answer, `settled` writes the charge to both rows in one batch. One function, `chargeOf`, decides the charge. The ledger never counts less than X can bill: an answer that X's docs call unbilled counts 0, and every other answer keeps its worst case ([decisions and evidence](decisions-and-evidence.md#what-the-x-api-counter-counts)).
+
+| What happened | Counted |
+|---|---|
+| Never sent: the request was cancelled before it started, or, on the container, the connection was refused or the host name did not resolve (`ECONNREFUSED`, `ENOTFOUND`, `EAI_AGAIN`) | 0 |
+| X answered with a 4xx status | 0 |
+| X answered 200 with a body of the documented shape | the posts in `data`, the distinct posts in `includes.tweets` and `includes.posts`, and the users in `includes.users` |
+| X answered 200 with a body that is not JSON, has no `data`, `errors` or `meta`, holds an `includes` collection the counter does not know, or is a search page whose `result_count` differs from its posts | the worst case |
+| X answered with a 5xx or another status, the answer was cut or could not be read, or no answer came, such as one past the 15 s deadline | the worst case |
+| A usage read or a balance read (Verify) that X answered 200, answered with a 5xx, or did not answer | 0.20 USD |
+
+- The Worker's `fetch` names no cause for a failed connection, so there every request that was started and got no answer keeps its worst case.
+- A usage read and a balance read are not priced on X's pricing page. Each is reserved at 0.20 USD, the highest charge on that page. Verify refuses with `day-limit` when the day has no room left for it.
 - Before the post is read, a limit that leaves no room for the lookup makes the job wait until the next UTC midnight (`x-api-budget`). This holds for the Item's limit and for the day limit.
 - Before the post is read, a 429 makes the job wait until `x-rate-limit-reset`, or 60 s when the header is missing or past (`x-api-rate`). A 402, and a 429 with the `usage-capped` problem, end the Item with `api-out-of-credits`.
 - After the post is read, a limit, a 429 or another failure ends the read with what it holds, and the job is not retried. The thread follows [Partial threads](#partial-threads), so missing replies show as not saved. Several jobs share X's limit of 1 search a second, so a bulk Import can meet a 429 on a search.
@@ -251,11 +263,11 @@ A deleted, protected or suspended post answers 200 with an error entry and no `d
 
 #### The daily usage read
 
-Once a UTC day while a token is saved, the schedule runs `readXApiUsage`. It claims the UTC date in `scheduled_runs` before it opens the token, so only one tick a day reads, and a tick that holds no claim does nothing else. It then reads `GET /2/usage/tweets` through `meteredGet` at 0.20 USD and logs `x-api-usage`. When the day's limit has no room left for those 0.20 USD, it sends nothing and logs `over-limit`, and the claim keeps the next read to the next UTC day. The line holds X's count of yesterday's posts and the Instance's own count of yesterday's posts and users, each apart. X's count is kept in `x_api_spend.x_posts`. The endpoint answered 503 in 3 of 3 probe runs, so a failed answer logs `no-data` and changes nothing else.
+Once a UTC day while a token is saved, the schedule runs `readXApiUsage`. It claims the UTC date in `scheduled_runs` before it opens the token, so only one tick a day reads, and a tick that holds no claim does nothing else. It then reads `GET /2/usage/tweets` through `meteredGet` at 0.20 USD and logs `x-api-usage`. When the day's limit has no room left for those 0.20 USD, it sends nothing and logs `over-limit`, and the claim keeps the next read to the next UTC day. The line holds X's count of yesterday's posts and the Instance's own count of yesterday's posts and users, each apart. X's count is kept in `x_api_spend.x_posts`. The endpoint answered 503 in 3 of 3 probe runs. A failed answer logs `no-data` and stores no X count. A 5xx or a missing answer keeps the 0.20 USD counted, a 4xx counts 0, and in both cases the day's read is used.
 
 #### Digests
 
-While `X_API_PROVIDER_DIGESTS` is `false`, no text read through the X API reaches a Provider in any AI task. One function, `providerMayRead`, holds the rule: an Item whose current thread came through the X API (`threads.x_api_read`) is left out of the input of each task that sends Item text to a Provider.
+While the constant `X_API_PROVIDER_DIGESTS` is `false` in the source, no text read through the X API reaches a Provider in any AI task. One function, `providerMayRead`, holds the rule: an Item whose current thread came through the X API (`threads.x_api_read`) is left out of the input of each task that sends Item text to a Provider.
 
 - A Digest: the Item gets none from the Provider, and a Digest job opened before the X API read ends without a Provider call. A Digest that a caller sends with the Paste still publishes, without a Provider call.
 - Related Items: the Item is neither the source of a pick nor a candidate.

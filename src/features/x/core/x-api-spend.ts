@@ -3,6 +3,7 @@ import { and, eq, sql } from "drizzle-orm";
 import { DAY_MS } from "../../../core/contract/time-units.ts";
 import type { XApiSpend } from "../../../core/contract/x-api-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { guardedBatch } from "../../../core/kernel/guards.ts";
 import { xApiItemSpend, xApiSpend } from "../../../core/kernel/schema.ts";
 
 const DAY_LENGTH = "YYYY-MM-DD".length;
@@ -11,12 +12,6 @@ export interface Charge {
   readonly micros: number;
   readonly posts: number;
   readonly users: number;
-}
-
-export interface Reservation {
-  readonly day: string;
-  readonly worstMicros: number;
-  readonly itemId: number | null;
 }
 
 export function utcDayOf(now: number): string {
@@ -45,41 +40,60 @@ export async function itemSpentOn(db: Database, itemId: number, day: string): Pr
   return row?.micros ?? 0;
 }
 
-async function itemAdded(db: Database, day: string, itemId: number | null, micros: number) {
-  if (itemId === null) return;
-
-  await db
-    .insert(xApiItemSpend)
-    .values({ itemId, day, micros: sql`max(0, ${micros})` })
-    .onConflictDoUpdate({
-      target: [xApiItemSpend.itemId, xApiItemSpend.day],
-      set: { micros: sql`max(0, ${xApiItemSpend.micros} + ${micros})` },
-    });
+export interface ItemLimit {
+  readonly id: number;
+  readonly limitMicros: number;
 }
 
-export async function reserved(
+export interface Reservation {
+  readonly day: string;
+  readonly worstMicros: number;
+  readonly item: ItemLimit | null;
+}
+
+function dayMicros(day: string) {
+  return sql`coalesce((select ${xApiSpend.micros} from ${xApiSpend} where ${xApiSpend.day} = ${day}), 0)`;
+}
+
+function itemMicros(item: Readonly<ItemLimit>, day: string) {
+  return sql`coalesce((select ${xApiItemSpend.micros} from ${xApiItemSpend} where ${xApiItemSpend.itemId} = ${item.id} and ${xApiItemSpend.day} = ${day}), 0)`;
+}
+
+function roomFor(reservation: Readonly<Reservation>, dayLimitMicros: number) {
+  const { day, worstMicros, item } = reservation;
+  const dayRoom = sql`${dayMicros(day)} + ${worstMicros} <= ${dayLimitMicros}`;
+
+  return item === null
+    ? dayRoom
+    : sql`${dayRoom} and ${itemMicros(item, day)} + ${worstMicros} <= ${item.limitMicros}`;
+}
+
+export function reserved(
   db: Database,
-  reservation: Readonly<Reservation & { dayLimitMicros: number }>,
+  reservation: Readonly<Reservation>,
+  dayLimitMicros: number,
 ): Promise<boolean> {
-  const { day, worstMicros, dayLimitMicros, itemId } = reservation;
-
-  if (worstMicros > dayLimitMicros) return false;
-
-  const rows = await db
+  const { day, worstMicros, item } = reservation;
+  const dayWrite = db
     .insert(xApiSpend)
     .values({ day, micros: worstMicros })
     .onConflictDoUpdate({
       target: xApiSpend.day,
       set: { micros: sql`${xApiSpend.micros} + ${worstMicros}` },
-      setWhere: sql`${xApiSpend.micros} + ${worstMicros} <= ${dayLimitMicros}`,
-    })
-    .returning({ day: xApiSpend.day });
+    });
 
-  if (rows.length === 0) return false;
+  if (item === null) return guardedBatch(db, roomFor(reservation, dayLimitMicros), [dayWrite]);
 
-  await itemAdded(db, day, itemId, worstMicros);
-
-  return true;
+  return guardedBatch(db, roomFor(reservation, dayLimitMicros), [
+    dayWrite,
+    db
+      .insert(xApiItemSpend)
+      .values({ itemId: item.id, day, micros: worstMicros })
+      .onConflictDoUpdate({
+        target: [xApiItemSpend.itemId, xApiItemSpend.day],
+        set: { micros: sql`${xApiItemSpend.micros} + ${worstMicros}` },
+      }),
+  ]);
 }
 
 export async function settled(
@@ -87,19 +101,30 @@ export async function settled(
   reservation: Readonly<Reservation>,
   charge: Readonly<Charge>,
 ): Promise<void> {
-  const { day, worstMicros, itemId } = reservation;
+  const { day, worstMicros, item } = reservation;
   const change = charge.micros - worstMicros;
-
-  await db
+  const dayWrite = db
     .update(xApiSpend)
     .set({
-      micros: sql`max(0, ${xApiSpend.micros} + ${change})`,
+      micros: sql`${xApiSpend.micros} + ${change}`,
       posts: sql`${xApiSpend.posts} + ${charge.posts}`,
       users: sql`${xApiSpend.users} + ${charge.users}`,
     })
     .where(eq(xApiSpend.day, day));
 
-  await itemAdded(db, day, itemId, change);
+  if (item === null) {
+    await dayWrite;
+
+    return;
+  }
+
+  await db.batch([
+    dayWrite,
+    db
+      .update(xApiItemSpend)
+      .set({ micros: sql`${xApiItemSpend.micros} + ${change}` })
+      .where(and(eq(xApiItemSpend.itemId, item.id), eq(xApiItemSpend.day, day))),
+  ]);
 }
 
 export async function recordXPosts(db: Database, day: string, xPosts: number): Promise<void> {
