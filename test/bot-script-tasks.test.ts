@@ -6,7 +6,7 @@ import { after, before, beforeEach, describe, it } from "node:test";
 
 import { TaskReadSchema } from "../src/features/bot/core/ai-task-read.ts";
 import { DAY, HOUR, ScriptWorld, ageBy, justBefore, justPast } from "./bot-script-world.ts";
-import { pastDeadline, picksFor } from "./bot-task-fixtures.ts";
+import { acceptedByBot, pastDeadline, picksFor } from "./bot-task-fixtures.ts";
 import { answered } from "./bot-task-http.ts";
 import { taskRow } from "./bot-task-rows.ts";
 
@@ -90,7 +90,7 @@ describe("the script opens, answers and reports a task and prints one word for e
     );
   });
 
-  it("answers already-open and changes nothing for a second event of a task that is open, and keeps the first token for an event whose token the Instance refuses", async () => {
+  it("answers already-open for a second event with the credential of an open task, keeps the open task's files for a credential the Instance refuses, and lets a resend with a new credential take over the open task", async () => {
     const task = await world.result();
     const foreign = await world.intake();
     const id = String(task.id);
@@ -100,18 +100,28 @@ describe("the script opens, answers and reports a task and prints one word for e
     const opened = world.folder.fileOf(task.id, "task.json");
 
     assert.equal(await world.opened(task, "related_pick"), "already-open");
-    assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "already-open");
+    assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "unauthorized");
     assert.equal(world.folder.fileOf(task.id, "task.json"), opened);
     assert.equal(world.folder.fileOf(task.id, "token"), task.token);
 
     ageBy(join(world.folder.taskFolder(task.id), "task.json"), justBefore(HOUR));
-    assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "already-open");
+    assert.equal(await world.opened(task, "related_pick"), "already-open");
 
     ageBy(join(world.folder.taskFolder(task.id), "task.json"), justPast(HOUR));
     assert.equal(await world.opened({ id: task.id, token: foreign.token }, "x"), "unauthorized");
     assert.equal(world.folder.fileOf(task.id, "task.json"), opened);
     assert.equal(world.folder.fileOf(task.id, "token"), task.token);
     assert.equal(await world.opened(task, "related_pick"), `ok ${id} related_pick`);
+
+    const resent = acceptedByBot(world.instance, task.id);
+
+    assert.equal(await world.opened(resent, "related_pick"), `ok ${id} related_pick`);
+    assert.equal(await world.opened(task, "related_pick"), "unauthorized");
+    const answer = await world.folder.made("answer", JSON.stringify(picksFor(world.candidate)));
+
+    assert.equal(await run(["task-answer", id, answer]), "ok");
+    assert.notEqual(taskRow(world.instance, task.id).answered_at, null);
+    assert.equal(world.folder.fileOf(task.id, "done"), sha256(resent.token));
   });
 
   it("deletes the folder of a task that was done more than 7 days ago and the folder of a task left open for more than a day when it runs a command", async () => {

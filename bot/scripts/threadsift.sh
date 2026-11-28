@@ -17,6 +17,7 @@ ORIGIN='^(https://[A-Za-z0-9.-]+(:[0-9]{1,5})?|http://(127\.0\.0\.1|localhost):[
 TAG='^bot-v(0|[1-9][0-9]{0,8})$'
 SHA='^[0-9a-f]{64}$'
 FIRST_SELF_UPDATING=14
+TASK_LOCK_WAIT=20
 UPDATE_DEADLINE=120
 RAW=https://raw.githubusercontent.com/KyaniteHQ/threadsift
 FETCH_CAP=1048576
@@ -71,16 +72,24 @@ work=""
 part=""
 joined=""
 inputs=()
+parts=()
+spoken=""
 
 cleanup() {
   [[ -z "$work" ]] || rm -rf -- "${work:?}"
   [[ -z "$part" ]] || rm -f -- "${part:?}"
   [[ -z "$joined" ]] || rm -f -- "${joined:?}"
   [[ ${#inputs[@]} -eq 0 ]] || rm -f -- "${inputs[@]}"
+  [[ ${#parts[@]} -eq 0 ]] || rm -f -- "${parts[@]}"
 }
 trap cleanup EXIT
 
-stop() { echo "$1"; [[ -z "${2:-}" ]] || echo "$2" >&2; exit 2; }
+said() { spoken=yes; printf '%s\n' "$1"; }
+
+interrupted() { [[ -n "$spoken" ]] || said failed; exit 143; }
+trap interrupted TERM INT
+
+stop() { said "$1"; [[ -z "${2:-}" ]] || echo "$2" >&2; exit 2; }
 
 inside() {
   python3 -I -c '
@@ -116,15 +125,40 @@ folder_of() {
 
 hash_of() { printf '%s' "$1" | sha256sum | cut -d' ' -f1; }
 
+part_of() {
+  made="$(mktemp "$1.part.XXXXXX")" || return 1
+  parts+=("$made")
+}
+
 stored_file() {
-  cat -- "$1" > "$2.part" && mv -T -- "$2.part" "$2"
+  local made
+  part_of "$2" && cat -- "$1" > "$made" && mv -T -- "$made" "$2"
+}
+
+opened_with() {
+  [[ -f "$folder/task.json" && ! -f "$folder/done" && -f "$folder/token" ]] || return 1
+  [[ "$(< "$folder/token")" == "$1" && -n "$(find "$folder/task.json" -maxdepth 0 -mmin -60)" ]]
+}
+
+holds_token() { [[ ! -f "$folder/token" || "$(< "$folder/token")" == "$1" ]]; }
+
+task_locked() {
+  if ! command -v flock > /dev/null; then
+    [[ -e "$HERE/state/told-no-flock" ]] && return 0
+    echo "flock is missing, so runs of one task are not ordered" >&2
+    : > "$HERE/state/told-no-flock" || true
+    return 0
+  fi
+  exec 8> "$HERE/tmp/open-$1.lock" || stop failed "the lock of the task cannot be opened"
+  flock -w "$TASK_LOCK_WAIT" 8 &
+  wait "$!" || stop failed "another run held the task for $TASK_LOCK_WAIT seconds"
 }
 
 mark_word() {
   local hex
   hex="$(head -c 16 /dev/urandom | od -An -tx1 | tr -d ' \n')" || true
   [[ "$hex" =~ ^[0-9a-f]{32}$ ]] || stop failed "no random bytes"
-  echo "TS_$hex"
+  said "TS_$hex"
 }
 
 written() {
@@ -147,13 +181,13 @@ written() {
   else
     mv -T -- "$part" "$target" || stop failed "cannot store the file"
   fi
-  echo ok
+  said ok
 }
 
 forgotten() {
   [[ "$1" =~ ^[0-9a-f]{32}$ ]] || stop bad-input "forget takes the hex of a mark"
   rm -f -- "${HERE:?}/tmp/search-$1.json" "${HERE:?}/tmp/topics-$1.json"
-  echo ok
+  said ok
 }
 
 same_address() {
@@ -163,12 +197,13 @@ same_address() {
   typed="$(< "$taken")"
   [[ "$typed" =~ $ORIGIN ]] || stop bad-input "the address must be an https address with the host, a port when it has one, and nothing after it"
   [[ "${THREADSIFT_URL:-}" =~ $ORIGIN ]] || stop not-configured "THREADSIFT_URL must be an https address with no path"
-  if [[ "${typed,,}" == "${THREADSIFT_URL,,}" ]]; then echo ok; else echo differs; fi
+  if [[ "${typed,,}" == "${THREADSIFT_URL,,}" ]]; then said ok; else said differs; fi
 }
 
 pruned_tasks() {
   local tasks="$HERE/tasks"
   find "$HERE/tmp" -maxdepth 1 -type f -mmin +1440 -delete 2> /dev/null || true
+  find "$HERE" -maxdepth 3 -type f -name '*.part.*' -mmin +1440 -delete 2> /dev/null || true
   find "$HERE" -mindepth 1 -maxdepth 1 -type d -name '.release-*' -mmin +1440 -exec rm -rf -- {} + 2> /dev/null || true
   find "$tasks" -mindepth 2 -maxdepth 2 -type f -regextype posix-extended -regex '.*/tasks/[1-9][0-9]{0,15}/done' -mmin +10080 \
     -exec sh -c 'for each; do rm -rf -- "${each%/*}"; done' _ {} + 2> /dev/null || true
@@ -186,7 +221,10 @@ tag_in() {
   printf '%s' "$found"
 }
 
-kept() { printf '%s\n' "$2" > "$1.part" && mv -T -- "$1.part" "$1"; }
+kept() {
+  local made
+  part_of "$1" && printf '%s\n' "$2" > "$made" && mv -T -- "$made" "$1"
+}
 
 sha_of() { sha256sum < "$1" | cut -d' ' -f1; }
 
@@ -215,15 +253,15 @@ noticed() {
     rm -f -- "$claimed"
     [[ -n "$found" ]] || continue
     [[ "$kind" == routines ]] || : > "$HERE/state/told-$kind-$found"
-    echo "$kind $found"
+    said "$kind $found"
     return 0
   done
-  echo none
+  said none
 }
 
 skill_staged() {
   local found
-  if found="$(staged_tag)"; then echo "staged $found"; else echo none; fi
+  if found="$(staged_tag)"; then said "staged $found"; else said none; fi
 }
 
 skill_saved() (
@@ -232,12 +270,12 @@ skill_saved() (
   mkdir -p -- "$HERE/state"
   exec 9> "$HERE/state/install.lock"
   flock -w 30 9 || stop failed "another update holds the install lock"
-  found="$(staged_tag)" || { echo none; exit 0; }
+  found="$(staged_tag)" || { said none; exit 0; }
   [[ "$found" == "$1" ]] || stop bad-input "another skill is staged; run skill-staged again"
   rm -f -- "$HERE/skill/SKILL.md" "$HERE/state/skill-sha" "$HERE/state/skill-version"
   exec 9>&-
   again report
-  echo ok
+  said ok
 )
 
 [[ "$command" != mark ]] || { mark_word; exit 0; }
@@ -252,7 +290,7 @@ case "$command" in
   append) written append "$first"; exit 0 ;;
   notice) noticed; exit 0 ;;
   skill-staged) skill_staged; exit 0 ;;
-  skill-saved) skill_saved "$first"; exit 0 ;;
+  skill-saved) skill_saved "$first"; spoken=yes; exit 0 ;;
 esac
 
 [[ "$command" != task-intake ]] && route_of "$command" || stop bad-input "unknown command"
@@ -314,15 +352,16 @@ except Exception:
     sys.exit(1)
 PY
   )" || stop bad-input "the event is not a task of this Instance"
-  [[ "$parsed" != ping ]] || { echo ping; exit 0; }
+  [[ "$parsed" != ping ]] || { said ping; exit 0; }
   read -r id token _ <<< "$parsed"
   folder_of "$id"
+  task_locked "$id"
   if [[ -f "$folder/done" && "$(< "$folder/done")" == "$(hash_of "$token")" ]]; then
-    echo already-done
+    said already-done
     exit 0
   fi
-  if [[ -f "$folder/task.json" && ! -f "$folder/done" && -n "$(find "$folder/task.json" -maxdepth 0 -mmin -60)" ]]; then
-    echo already-open
+  if opened_with "$token"; then
+    said already-open
     exit 0
   fi
 fi
@@ -347,6 +386,7 @@ if [[ "$command" == task-open ]]; then
 elif [[ "$credential" == task ]]; then
   folder_of "$first"
   id="$first"
+  task_locked "$id"
   [[ -f "$folder/token" ]] || stop bad-input "no token file"
   token="$(< "$folder/token")"
   [[ -f "$folder/task.json" ]] || stop bad-input "run task-open first"
@@ -451,19 +491,20 @@ except Exception as failure:
 PY
     then
       cat "$work/reasons" >&2
-      echo bad-input
+      said bad-input
       exit 2
     fi
     options=(--header "Content-Type: application/json" --data-binary "@$request")
     ;;
 esac
 
-status="$(curl --disable --silent --show-error --max-redirs 0 --max-time 60 \
+curl --disable --silent --show-error --max-redirs 0 --max-time 60 \
   --request "$method" \
   --config <(printf 'header = "Authorization: Bearer %s"\n' "$token") \
   ${options[@]+"${options[@]}"} \
   --output "$response" --write-out '%{http_code}' \
-  "$URL$path" 2>/dev/null)" || status=000
+  "$URL$path" > "$work/status" 2> /dev/null &
+if wait "$!"; then status="$(< "$work/status")"; else status=000; fi
 
 word="$(word_of "$status")"
 
@@ -699,7 +740,7 @@ if [[ "$word" == ok ]]; then
       printf '%s' "$token" > "$work/token"
       stored_file "$work/token" "$folder/token"
       stored_file "$response" "$folder/task.json"
-      rm -f "${folder:?}"/errors.txt
+      rm -f "${folder:?}"/errors.txt "${folder:?}"/done
       word="ok $id $kind"
       ;;
   esac
@@ -707,14 +748,17 @@ fi
 
 case "$command:$word" in
   task-open:closed|task-answer:ok|task-answer:closed|task-intake:ok|task-intake:closed|task-error:ok|task-error:closed)
-    mkdir -p "$folder"
-    printf '%s' "$(hash_of "$token")" > "$work/done"
-    stored_file "$work/done" "$folder/done"
-    rm -f "${folder:?}"/token
+    if holds_token "$token"; then
+      mkdir -p "$folder"
+      printf '%s' "$(hash_of "$token")" > "$work/done"
+      stored_file "$work/done" "$folder/done"
+      rm -f "${folder:?}"/token
+    fi
     ;;
 esac
 
-echo "$word"
+said "$word"
+exec 8>&-
 
 case "$command" in
   bookmarks-cursor|task-answer|task-intake|task-error) again auto ;;
