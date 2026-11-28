@@ -1,5 +1,5 @@
 import { claimNextDue, executeClaimed } from "../src/core/compose/jobs.ts";
-import { sweepDigests } from "../src/core/kernel/digest-opening.ts";
+import { sweepDigests } from "../src/core/kernel/digest-sweep.ts";
 import { continueMerges } from "../src/features/wiki/core/merge-accept.ts";
 import { weeklyStages } from "../src/features/wiki/core/proposal-kinds.ts";
 import { mergeLines } from "./accept-fixtures.ts";

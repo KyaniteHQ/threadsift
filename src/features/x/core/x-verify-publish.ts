@@ -1,5 +1,3 @@
-import { sql } from "drizzle-orm";
-
 import { X_VERIFY_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
 import { report } from "../../../core/kernel/failure-log.ts";
 import type { ClaimedJob, JobPorts, SettledOutcome } from "../../../core/kernel/job-outcome.ts";
@@ -18,7 +16,6 @@ import {
   guarded,
   reopened,
   afterRefusedRoot,
-  revisionHolds,
   unreadableWrites,
 } from "./x-verify-store.ts";
 import { publishableThread } from "./x-verify-thread.ts";
@@ -27,20 +24,13 @@ type Ending = Exclude<Progress, { kind: "asking" }> | { readonly kind: "gave-up"
 
 type Ready = Extract<Progress, { kind: "ready" }>;
 
-function currentRevision(ports: JobPorts, job: Readonly<ClaimedJob>, revision: number) {
-  return { holds: revisionHolds(job.itemId, revision), rebuild: () => rebuilt(ports, job) };
-}
-
 export function withdrawn(
   ports: JobPorts,
   job: Readonly<ClaimedJob>,
   revision: number,
   note: WithdrawnNote = null,
 ): SettledOutcome {
-  return {
-    writes: unreadableWrites(ports.db, job.itemId, revision, note),
-    precondition: currentRevision(ports, job, revision),
-  };
+  return { writes: unreadableWrites(ports.db, job.itemId, revision, note) };
 }
 
 async function rebuilt(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<SettledOutcome> {
@@ -54,7 +44,7 @@ async function rebuilt(ports: JobPorts, job: Readonly<ClaimedJob>): Promise<Sett
   const progress = progressOf(verification.thread, verification.judged);
 
   return progress.kind === "asking"
-    ? { writes: [], continuation: [...reopened(ports.db, job.itemId, job.address)] }
+    ? { writes: [], continuation: [reopened(ports.db, job.itemId, job.address)] }
     : ended(ports, job, verification, progress);
 }
 
@@ -106,10 +96,12 @@ async function published(
     row.digest,
   );
 
-  const unchanged = sql`${revisionHolds(job.itemId, row.revision)} and ${holdsAtLeastStored(job.itemId, repliesOf(thread))}`;
-
-  return guarded(ports.db, { itemId: job.itemId, revision: row.revision }, outcome, unchanged, () =>
-    rebuilt(ports, job),
+  return guarded(
+    ports.db,
+    { itemId: job.itemId, revision: row.revision },
+    outcome,
+    holdsAtLeastStored(job.itemId, repliesOf(thread)),
+    () => rebuilt(ports, job),
   );
 }
 
@@ -125,10 +117,7 @@ export function ended(
     case "refused":
       report("x-verify-refused", { reason: "root" });
 
-      return Promise.resolve({
-        precondition: currentRevision(ports, job, row.revision),
-        writes: afterRefusedRoot(ports.db, job, row),
-      });
+      return Promise.resolve({ writes: afterRefusedRoot(ports.db, job, row) });
     case "gave-up":
       report("x-verify-refused", { reason: "unavailable" });
 
