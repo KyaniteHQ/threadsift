@@ -113,7 +113,7 @@ The work may still be running or may have landed. The screen reads the state fro
 - Landing check. When the request reaches its deadline, `batchLanding` reads the state again, `POLL_MS` after each read ends, until the batch counts as saved: the cursor reaches the batch's end and `updatedAt` is newer than the value read before this attempt, so a cursor that an earlier run left does not count. The wait ends when:
   - the owner presses Stop (an `AbortSignal` ends the pause and the read together, and one last read still counts a batch that landed),
   - `CURSOR_READ_FAILURES_MAX` (3) reads in a row fail, which ends the run as `network`,
-  - `IMPORT_BATCH_PATIENCE_MS` passes, which ends it as `unconfirmed`, the failed state that says the batch did not land, with Continue. The loop checks this bound once per iteration, so the run can end up to about 43 s later (`READ_DEADLINE_MS` plus `POLL_MS` plus `READ_DEADLINE_MS`).
+  - `IMPORT_BATCH_PATIENCE_MS` passes, which ends it as `unconfirmed`, the failed state that says the Instance did not confirm the batch, with Continue. Continue reads the saved cursor first, so it skips the batch when it landed after all and sends it again when it did not. The loop checks this bound once per iteration, so the run can end up to about 43 s later (`READ_DEADLINE_MS` plus `POLL_MS` plus `READ_DEADLINE_MS`).
 - Counts. A batch that landed after its deadline adds nothing to the counts, because only the answer carries them. The run keeps the number of those links in `Progress.uncounted`, and the screen shows `uncountedLabel` under the counts note.
 
 ### What a failed state after a write means
