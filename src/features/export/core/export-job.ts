@@ -69,11 +69,15 @@ function runOf(db: Database, address: string): Promise<ExportRow | null> {
   });
 }
 
-function failure(db: Database, exportId: number, reason: ExportFailure) {
+export function endedExport(db: Database, which: Readonly<SQLWrapper>, reason: ExportFailure) {
   return db
     .update(exportRuns)
     .set({ state: "failed", failure: reason, updatedAt: Date.now() })
-    .where(and(eq(exportRuns.id, exportId), eq(exportRuns.state, "running")));
+    .where(and(sql`${which}`, eq(exportRuns.state, "running")));
+}
+
+function failure(db: Database, exportId: number, reason: ExportFailure) {
+  return endedExport(db, eq(exportRuns.id, exportId), reason);
 }
 
 async function attemptSlice(ports: JobPorts, job: Readonly<ClaimedExport>): Promise<JobOutcome> {

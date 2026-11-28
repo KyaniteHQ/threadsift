@@ -1,19 +1,10 @@
-import {
-  type CSSProperties,
-  type RefObject,
-  memo,
-  useCallback,
-  useEffect,
-  useId,
-  useRef,
-  useState,
-} from "react";
+import { type RefObject, memo, useCallback, useEffect, useId, useRef, useState } from "react";
 
 import { itemPath } from "../../src/core/contract/item-path.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { shownUrl } from "../../src/core/contract/link-place.ts";
 import { Icon } from "./Icon.tsx";
-import { KeptStrip, keptShare } from "./ItemRowLines.tsx";
+import { KeptBar, KeptStrip } from "./ItemRowLines.tsx";
 import { type RowIds, Status, controlName, linkName, rowIds } from "./ItemRowParts.tsx";
 import { ROW_MARK_READ, ROW_MARK_UNREAD } from "./reader-text.ts";
 import { revealInPane } from "./reveal.ts";
@@ -69,10 +60,6 @@ function Tile({ item }: Readonly<{ item: Item }>) {
       <Icon name={`source-${item.source}`} className="ic" />
     </div>
   );
-}
-
-function shareStyle(item: Readonly<Item>): CSSProperties {
-  return Object.fromEntries([["--kept", keptShare(item)]]);
 }
 
 export type Attention = Readonly<{ id: number; focus: boolean }> | null;
@@ -200,7 +187,7 @@ export const ItemRow = memo(function ItemRow({
 
   return (
     <article ref={row} className={rowClasses(item, isOpen)} data-key={item.id}>
-      <span className="it-share" style={shareStyle(item)} aria-hidden="true" />
+      <KeptBar item={item} />
       <div className="it-strip">
         <ReadDot item={item} ids={ids} toggleRead={toggleRead} />
         <KeptStrip item={item} id={ids.meta} />

@@ -8,10 +8,21 @@ type PostTextExports = typeof import("./PostText.tsx");
 
 let loading: Promise<PostTextExports> | null = null;
 
-export function postTextModule(): Promise<PostTextExports> {
+let ready: Promise<boolean> | null = null;
+
+function postTextModule(): Promise<PostTextExports> {
   loading ??= import("./PostText.tsx").catch(unavailable);
 
   return loading;
+}
+
+export function postTextReady(): Promise<boolean> {
+  ready ??= postTextModule().then(
+    () => true,
+    () => false,
+  );
+
+  return ready;
 }
 
 const LazyPostText = lazy(() => postTextModule().then(({ PostText }) => ({ default: PostText })));

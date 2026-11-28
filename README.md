@@ -14,13 +14,13 @@ v1 is not released, so do not use Threadsift for real yet.
 
 ![A Paste of an MDN article on HTTP conditional requests shows its progress. The Reader then displays the Digest with its Summary and Key points.](docs/assets/paste-to-digest.gif)
 
-The recording and screenshots use a library of public links. The recording skips part of the wait for the Digest.
+The recording skips part of the wait for the Digest. The recording and the screenshot at the top use a library of public links; the screenshots further down show made-up Items.
 
 ## Keep Highlights and Notes
 
 Select a passage of the post text or of a comment in the Reader to keep it as a Highlight. You can also write a Note on the Item. The Highlights page gathers both and links back to the Reader.
 
-![Highlights page with saved passages and a Note from the library's public articles](docs/assets/highlights.png)
+![Highlights page with two Highlights and a Note on an article about Hall effect switches](docs/assets/highlights.png)
 
 ## Let the agent keep a wiki of the library
 
@@ -30,7 +30,7 @@ The screenshots show the same Topic page in three Styles: Library, Monocle, and 
 
 | Library · Light | Monocle · Sepia | Modal · Dark |
 | --- | --- | --- |
-| ![Astronomy Topic page in the Library Style and Light Theme](docs/assets/topic-library.png) | ![Astronomy Topic page in the Monocle Style and Sepia Theme](docs/assets/topic-monocle.png) | ![Astronomy Topic page in the Modal Style and Dark Theme](docs/assets/topic-modal.png) |
+| ![Home servers Topic page in the Library Style and Light Theme](docs/assets/topic-library.png) | ![Home servers Topic page in the Monocle Style and Sepia Theme](docs/assets/topic-monocle.png) | ![Home servers Topic page in the Modal Style and Dark Theme](docs/assets/topic-modal.png) |
 
 ## Save from wherever you are
 

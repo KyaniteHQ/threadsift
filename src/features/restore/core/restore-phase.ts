@@ -30,6 +30,7 @@ export function phaseUnit(
   ports: JobPorts,
   run: Readonly<RestoreRow>,
   source: Readonly<ZipSource>,
+  deadline: number,
 ): Promise<JobOutcome> {
   const phase = RunningPhaseSchema.parse(run.phase);
 
@@ -39,7 +40,9 @@ export function phaseUnit(
     case "tables":
       return afterRelease(ports, run, source, (release) => tablesUnit(ports, run, source, release));
     case "files":
-      return afterRelease(ports, run, source, (release) => filesUnit(ports, run, source, release));
+      return afterRelease(ports, run, source, (release) =>
+        filesUnit(ports, run, source, release, deadline),
+      );
     case "search":
       return searchUnit(ports, run);
     case "highlights":

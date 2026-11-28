@@ -68,6 +68,6 @@ export function budgetRefusal<Schema extends ZodType>(whatIsSaved: string, schem
 export function restoringResponse(whatIsSaved: string) {
   return jsonBody(
     UnavailableResponseSchema,
-    `A restore holds the library (\`code\` is \`${RESTORING_CODE}\`), so ${whatIsSaved} Reads and deletes work meanwhile. Send the request again when the restore has finished.`,
+    `A restore holds the library (\`code\` is \`${RESTORING_CODE}\`): it runs, or it failed after it wrote records and waits to be resumed or cancelled. So ${whatIsSaved} Reads and deletes work meanwhile. Send the request again when the restore has finished or was cancelled.`,
   );
 }

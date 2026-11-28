@@ -22,6 +22,8 @@ export const EXPORT_TEXT = {
   running: "Exporting…",
   ready: "Export ready",
   startFailed: "Couldn’t start the export. Try again.",
+  startRestoring:
+    "Couldn’t start the export because a restore isn’t finished. Try again after it finishes, or use Resume restore or Cancel restore first if it stopped.",
   stopFailed: "Couldn’t stop the export. It may still be running. Try again.",
   removeFailed: "Couldn’t delete the export. Try again.",
 } as const;

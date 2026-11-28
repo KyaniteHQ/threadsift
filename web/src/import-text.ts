@@ -82,7 +82,7 @@ const PLAN_NOTICE =
 
 const FAILED = {
   restoring:
-    "Import stopped at {done} of {total} because a restore is running. Start the import again when the restore finishes.",
+    "Import stopped at {done} of {total} because a restore holds the library. The links before that point are saved; import the rest once the restore has finished or been cancelled in Backup in Settings.",
   network: "Import stopped at {done} of {total} because the instance couldn’t be reached.",
   rejected: "Import stopped at {done} of {total} because the instance didn’t accept a batch.",
   unconfirmed:

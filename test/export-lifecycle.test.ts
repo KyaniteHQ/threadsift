@@ -13,7 +13,7 @@ import {
 import { bytesOfKey, exportKeys, postTextKey, strayExportObject } from "./file-store-fixtures.ts";
 import { Instance } from "./instance.ts";
 import { loggedAttempts, untilRetried } from "./job-fixtures.ts";
-import { holdLibrary, releaseLibrary } from "./restore-fixtures.ts";
+import { refusal, whileHeld } from "./restore-fixtures.ts";
 import { nextSweep, sweptWith } from "./weekly-claim-fixtures.ts";
 
 describe("one Export exists at a time and a stopped slice is retried, then given up", () => {
@@ -71,6 +71,28 @@ describe("one Export exists at a time and a stopped slice is retried, then given
     assert.equal(started.status, 202);
     assert.equal((await status()).state, "running");
     assert.equal((await instance.send("POST", "/api/export")).status, 409);
+
+    await failed();
+  });
+
+  it("answers 503 restoring to a start while a Restore holds the library and does not replace the ready Export", async () => {
+    const ready = await readyExport(instance);
+    const [answer, held] = await whileHeld(
+      instance,
+      async () => [await instance.send("POST", "/api/export"), await status()] as const,
+    );
+
+    assert.equal(answer.status, 503);
+    assert.deepEqual([refusal(answer).body.code, held], ["restoring", ready.status]);
+  });
+
+  it("answers 503 restoring, not 409, to a start while an Export runs and a Restore holds the library", async () => {
+    assert.equal((await startedWithoutText()).status, 202);
+    assert.equal((await status()).state, "running");
+    const answer = await whileHeld(instance, () => instance.send("POST", "/api/export"));
+
+    assert.equal(answer.status, 503);
+    assert.equal(refusal(answer).body.code, "restoring");
 
     await failed();
   });
@@ -163,9 +185,7 @@ describe("one Export exists at a time and a stopped slice is retried, then given
   it("removes a ready Export at the first sweep past its 24 hours while a Restore that gave up holds the library", async () => {
     const ready = await readyExport(instance);
 
-    holdLibrary(instance, "failed", "gave-up");
-    await sweptAfter("finished_at", ready.id, DAY_MS + 1);
-    releaseLibrary(instance);
+    await whileHeld(instance, () => sweptAfter("finished_at", ready.id, DAY_MS + 1), "gave-up");
 
     assert.deepEqual(await status(), { state: "none" });
     assert.deepEqual(await exportKeys(instance, ready.id), []);
