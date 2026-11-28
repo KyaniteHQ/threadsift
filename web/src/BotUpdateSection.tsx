@@ -1,12 +1,12 @@
+import { useState } from "react";
+
 import type { BotUpdateView } from "../../src/core/contract/bot-install-contract.ts";
-import type { GrokBotView } from "../../src/core/contract/grok-bot-contract.ts";
 import { Alert } from "./Alert.tsx";
 import { saveBotUpdate } from "./bot-update-api.ts";
 import { BOT_UPDATE_TEXT, botStateText } from "./bot-update-text.ts";
-import { GROK_BOT_SECTION } from "./GrokBotSection.tsx";
-import { LoadedSection, type SectionSpec } from "./LoadedSection.tsx";
+import type { SectionSpec } from "./LoadedSection.tsx";
 import { RadioChoice } from "./RadioChoice.tsx";
-import type { Loaded } from "./settings-load-types.ts";
+import { ageLabel } from "./saved-label.ts";
 import { useSaveOnPick } from "./use-save-on-pick.ts";
 
 const LABEL_ID = "bot-install-label";
@@ -62,6 +62,7 @@ function BotUpdateRows({
   changed,
 }: Readonly<{ view: BotUpdateView; changed: (view: BotUpdateView) => void }>) {
   const { bot } = view;
+  const [now] = useState(Date.now);
 
   return (
     <>
@@ -72,33 +73,21 @@ function BotUpdateRows({
       <p>
         {BOT_UPDATE_TEXT.expectedLabel}: {view.expected}
       </p>
+      {bot.state === "unreported" ? null : (
+        <p>
+          {BOT_UPDATE_TEXT.reportedLabel}: {ageLabel(bot.reportedAt, now)}
+        </p>
+      )}
       <p>{botStateText(bot, view.autoInstall)}</p>
       <InstallChoice view={view} changed={changed} />
     </>
   );
 }
 
-const BOT_UPDATE_SECTION: SectionSpec<BotUpdateView> = {
+export const BOT_UPDATE_SECTION: SectionSpec<BotUpdateView> = {
   id: "threadsift-bot",
   title: BOT_UPDATE_TEXT.sectionTitle,
   intro: BOT_UPDATE_TEXT.intro,
   loadFailed: BOT_UPDATE_TEXT.loadFailed,
   Form: BotUpdateRows,
 };
-
-export function BotSections({
-  grokBot,
-  botUpdate,
-  after,
-}: Readonly<{
-  grokBot: Loaded<GrokBotView>;
-  botUpdate: Loaded<BotUpdateView>;
-  after: (view: GrokBotView) => void;
-}>) {
-  return (
-    <>
-      <LoadedSection {...GROK_BOT_SECTION} initial={grokBot} after={after} />
-      <LoadedSection {...BOT_UPDATE_SECTION} initial={botUpdate} />
-    </>
-  );
-}

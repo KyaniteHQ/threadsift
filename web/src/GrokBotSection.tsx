@@ -1,8 +1,11 @@
+import type { BotUpdateView } from "../../src/core/contract/bot-install-contract.ts";
 import type { GrokBotView } from "../../src/core/contract/grok-bot-contract.ts";
 import { SECRET_INPUT_MAX } from "../../src/core/contract/secret-input.ts";
+import { BOT_UPDATE_SECTION } from "./BotUpdateSection.tsx";
 import { FormField, isMixed, RequiredLegend } from "./FormField.tsx";
 import { GROK_BOT_TEXT, KEY_STATES } from "./grok-bot-text.ts";
-import type { SectionSpec } from "./LoadedSection.tsx";
+import { LoadedSection, type SectionSpec } from "./LoadedSection.tsx";
+import type { Loaded } from "./settings-load-types.ts";
 import { SettingsActions, SettingsForm, SettingsResult } from "./SettingsForm.tsx";
 import type { FieldState } from "./use-form.ts";
 import { useGrokBotForm, GROK_BOT_STATE_ID } from "./use-grok-bot-form.ts";
@@ -102,3 +105,20 @@ export const GROK_BOT_SECTION: SectionSpec<GrokBotView> = {
   loadFailed: GROK_BOT_TEXT.loadFailed,
   Form: GrokBotForm,
 };
+
+export function GrokBotSections({
+  grokBot,
+  botUpdate,
+  after,
+}: Readonly<{
+  grokBot: Loaded<GrokBotView>;
+  botUpdate: Loaded<BotUpdateView>;
+  after: (view: GrokBotView) => void;
+}>) {
+  return (
+    <>
+      <LoadedSection {...GROK_BOT_SECTION} initial={grokBot} after={after} />
+      <LoadedSection {...BOT_UPDATE_SECTION} initial={botUpdate} />
+    </>
+  );
+}
