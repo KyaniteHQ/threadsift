@@ -111,11 +111,16 @@ export interface AnchoredOutcome extends SettledOutcome {
   readonly precondition: Precondition<AnchoredOutcome>;
 }
 
+export interface OpenTask {
+  readonly taskId: number;
+  readonly current: Readonly<SQLWrapper>;
+}
+
 export interface DeferredOutcome {
   readonly deferredUntil: number;
   readonly wait: WaitReason | null;
   readonly countsAttempt: boolean;
-  readonly unlessOpen?: number;
+  readonly unlessOpen?: OpenTask;
   readonly writes?: JobWrites;
 }
 

@@ -4,6 +4,7 @@ import type { WeeklyTask } from "../../../core/contract/proposal-contract.ts";
 import { WEEK_MS } from "../../../core/contract/time-units.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { providerSet } from "../../../core/kernel/provider-saved.ts";
+import { holdsNoRestore } from "../../../core/kernel/restore-hold.ts";
 import { digests, scheduledRuns } from "../../../core/kernel/schema.ts";
 
 export const NEWEST_DIGESTED_ITEM = sql`(select max(${digests.itemId}) from ${digests})`;
@@ -40,7 +41,7 @@ export function claimingWeek(db: Database, now: number, task: WeeklyTask) {
     task,
     now,
     WEEK_MS,
-    sql`${providerSet()} and ${NEWEST_DIGESTED_ITEM} is not null`,
+    sql`${providerSet()} and ${NEWEST_DIGESTED_ITEM} is not null and ${holdsNoRestore(db)}`,
   );
 }
 

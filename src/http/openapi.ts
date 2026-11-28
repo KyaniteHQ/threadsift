@@ -1,7 +1,12 @@
 import type { ZodType } from "zod";
 
 import { BUDGET_SPENT, type Scope } from "../core/contract/agent-token-contract.ts";
-import { BudgetRefusalSchema, ErrorResponseSchema } from "../core/contract/error-wire.ts";
+import {
+  BudgetRefusalSchema,
+  ErrorResponseSchema,
+  UnavailableResponseSchema,
+} from "../core/contract/error-wire.ts";
+import { RESTORING_CODE } from "../core/contract/restore-contract.ts";
 import { CHALLENGES } from "./bearer.ts";
 import { type CacheKind, cacheHeaders } from "./response-headers.ts";
 
@@ -62,4 +67,11 @@ export function budgetRefusal(whatIsSaved: string) {
       `The agent token has added its daily budget of Items. ${whatIsSaved} \`code\` is \`${BUDGET_SPENT}\`, and \`Retry-After\` gives the seconds until 00:00 UTC, when the budget starts again. A link the library already holds is not counted and is still answered. The owner's session has no budget.`,
     ),
   };
+}
+
+export function restoringResponse(whatIsSaved: string) {
+  return jsonBody(
+    UnavailableResponseSchema,
+    `A restore holds the library (\`code\` is \`${RESTORING_CODE}\`), so ${whatIsSaved} Reads and deletes work meanwhile. Send the request again when the restore has finished.`,
+  );
 }

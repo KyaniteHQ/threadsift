@@ -1,6 +1,7 @@
 import { refusedAi } from "../../../core/contract/ai-contract.ts";
 import { GROK_BOT_PROVIDER } from "../../../core/contract/provider-families.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { type Closed, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import { loadAiConfig } from "../../ai/core/ai-load.ts";
 import { sendBotTask } from "../../ai/core/bot-task-send.ts";
 import { VERIFY_OWNER, startBotTask } from "../../ai/core/bot-task-start.ts";
@@ -21,10 +22,15 @@ async function verifiedByBot(ports: VerifyPorts, signal: AbortSignal): Promise<V
   return awaitVerifiedDigest(ports.db, { taskId: task.id, signal });
 }
 
-export async function verifyProvider(ports: VerifyPorts, signal: AbortSignal): Promise<Verified> {
-  const ai = await loadAiConfig(ports);
+export function verifyProvider(
+  ports: VerifyPorts,
+  signal: AbortSignal,
+): Promise<Verified | Closed> {
+  return whileOpen(async () => {
+    const ai = await loadAiConfig(ports);
 
-  return ai.state === GROK_BOT_PROVIDER
-    ? verifiedByBot(ports, signal)
-    : verifyAi(ports, ai, signal);
+    return ai.state === GROK_BOT_PROVIDER
+      ? verifiedByBot(ports, signal)
+      : verifyAi(ports, ai, signal);
+  });
 }

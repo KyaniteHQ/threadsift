@@ -1,5 +1,6 @@
-import { type Page, expect } from "@playwright/test";
+import { type Page, type Route, expect } from "@playwright/test";
 
+import { ReadStateRequestSchema } from "../src/core/contract/item-route-wire.ts";
 import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
 import { itemDetail, savedItem, savedTopicItem } from "./saved-item.ts";
 
@@ -137,4 +138,53 @@ export async function readXThread(page: Page): Promise<void> {
     },
   });
   await expectStoredAuthor(page, STATUS_TITLE);
+}
+
+const LIST_READ_HOLD_MS = 1500;
+
+const listReads = (url: URL) => url.pathname === "/api/items";
+
+async function holdListRead(route: Route): Promise<void> {
+  if (route.request().method() === "GET") {
+    await new Promise<void>((wait) => {
+      setTimeout(wait, LIST_READ_HOLD_MS);
+    });
+  }
+
+  await route.fallback();
+}
+
+export async function markReadTwice(page: Page): Promise<void> {
+  const row = page.locator("article.it").filter({ hasText: THREAD_TITLE });
+  const id = Number(await row.getAttribute("data-key"));
+  const path = `/api/items/${String(id)}/read-state`;
+
+  expect((await itemDetail(page.request, id)).readState).toBe("unread");
+
+  await page.route(listReads, holdListRead);
+
+  const sent: string[] = [];
+  const answered = () =>
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" && new URL(response.url()).pathname === path,
+    );
+
+  page.on("request", (request) => {
+    if (request.method() === "PUT" && new URL(request.url()).pathname === path) {
+      sent.push(ReadStateRequestSchema.parse(request.postDataJSON()).readState);
+    }
+  });
+
+  const first = answered();
+  await page.keyboard.press("m");
+  await first;
+  const second = answered();
+  await page.keyboard.press("m");
+  await second;
+
+  expect(sent).toStrictEqual(["read", "unread"]);
+  expect((await itemDetail(page.request, id)).readState).toBe("unread");
+
+  await page.unroute(listReads, holdListRead);
 }

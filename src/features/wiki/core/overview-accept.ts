@@ -6,7 +6,13 @@ import { startOverview } from "./overview-start.ts";
 import { removedOpen } from "./proposal-lifecycle.ts";
 import { hasUncovered, overviewGap } from "./topic-coverage.ts";
 
-type OverviewGapAcceptance = "done" | "unknown" | "not-open" | "no-provider" | "not-current";
+type OverviewGapAcceptance =
+  | "done"
+  | "unknown"
+  | "not-open"
+  | "no-provider"
+  | "not-current"
+  | "restoring";
 
 function stillOpen(id: number, topicId: number) {
   return sql`exists (select 1 from ${proposals} join ${overviewGapProposals} on ${overviewGapProposals.proposalId} = ${proposals.id} where ${proposals.id} = ${id} and ${proposals.state} = 'open' and ${overviewGapProposals.topicId} = ${topicId}) and ${hasUncovered(topicId)}`;
@@ -34,6 +40,8 @@ export async function acceptOverviewGap(
   });
 
   if (started.kind === "started") return "done";
+
+  if (started.kind === "restoring") return started.kind;
 
   const [now] = await db
     .select({

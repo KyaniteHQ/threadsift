@@ -11,6 +11,10 @@ The `Containerfile` builds on the official `node:26-slim` image, pinned by diges
 
 Operators install the CLIs into the data volume, so no derived image is needed.
 
+## Version label
+
+The image's `org.opencontainers.image.version` label carries the release version, so `podman image inspect` shows which release an image holds. The release command writes it with every other version, and the gate fails when it differs from the app's ([CI, releases and rollback](ci-releases-and-rollback.md#versions-and-the-release-pull-request)).
+
 ## pnpm
 
 The `packageManager` field carries the version and the SHA-512 hash of the pnpm tarball, in the form Corepack defines: `pnpm@<version>+sha512.<hex>`. The hash is the hex form of the `dist.integrity` that the npm registry lists for that version, so `sha512sum` of the downloaded `pnpm-<version>.tgz` equals it. Corepack in the devenv shell checks the same hash when it downloads pnpm, and does not check a copy that is already in its cache.

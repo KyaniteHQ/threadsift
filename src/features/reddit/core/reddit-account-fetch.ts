@@ -115,13 +115,13 @@ async function sessionAnswered(
   if (verdict.answer !== null) await record(run, windowRecordOf(verdict.answer));
 
   if (verdict.verdict === "logged-out") {
-    await expireAccount(ports, held, Date.now());
+    await expireAccount(ports, held, run, Date.now());
 
     return "logged-out";
   }
 
   if (verdict.verdict === "ok") {
-    await clearRefusals(ports.db, held, Date.now());
+    await clearRefusals(ports.db, held, run, Date.now());
 
     return "refused";
   }
@@ -238,7 +238,7 @@ async function afterFirst(
     return FALLBACK;
   }
 
-  await clearRefusals(run.ports.db, run.held, Date.now());
+  await clearRefusals(run.ports.db, run.held, run, Date.now());
 
   return windowFits(first.remaining, hidden)
     ? filledThread(run, first, hidden)
