@@ -1,4 +1,4 @@
-import { type SQL, and, eq, exists, isNull, lte, or, sql } from "drizzle-orm";
+import { type SQL, and, eq, exists, isNull, lt, lte, or, sql } from "drizzle-orm";
 
 import { REDDIT_WAIT } from "../../../core/contract/job-contract.ts";
 import {
@@ -59,6 +59,14 @@ export type AccountSession = Readonly<Pick<AccountRow, "sealedSession">>;
 
 function ofSession({ sealedSession }: AccountSession) {
   return and(eq(redditAccount.id, ACCOUNT_ROW), eq(redditAccount.sealedSession, sealedSession));
+}
+
+export interface AnswerOf {
+  readonly startedAt: number;
+}
+
+function stateOlderThan({ startedAt }: Readonly<AnswerOf>) {
+  return lt(redditAccount.stateAt, startedAt);
 }
 
 export interface WindowRecord {
@@ -136,6 +144,7 @@ export async function connectAccount(
 export async function confirmAccount(
   db: Database,
   session: AccountSession,
+  request: Readonly<AnswerOf>,
   now: number,
 ): Promise<void> {
   await db
@@ -147,7 +156,9 @@ export async function confirmAccount(
       refusedThreads: NO_THREADS,
       refusalsClearedAt: now,
     })
-    .where(ofSession(session));
+    .where(
+      and(ofSession(session), or(eq(redditAccount.state, "connected"), stateOlderThan(request))),
+    );
 }
 
 function expiredSession(db: Database, session: AccountSession): SQL {
@@ -162,6 +173,7 @@ function expiredSession(db: Database, session: AccountSession): SQL {
 export async function expireAccount(
   ports: Readonly<Pick<JobPorts, "db" | "jobs">>,
   session: AccountSession,
+  request: Readonly<AnswerOf>,
   now: number,
 ): Promise<void> {
   await wakeWaitingFetches(ports, REDDIT_WAIT, {
@@ -169,7 +181,9 @@ export async function expireAccount(
       ports.db
         .update(redditAccount)
         .set({ state: "expired", stateAt: now })
-        .where(and(ofSession(session), eq(redditAccount.state, "connected"))),
+        .where(
+          and(ofSession(session), eq(redditAccount.state, "connected"), stateOlderThan(request)),
+        ),
     ],
     when: expiredSession(ports.db, session),
     now,
@@ -189,12 +203,13 @@ export async function disconnectAccount(
 export async function clearRefusals(
   db: Database,
   session: AccountSession,
+  request: Readonly<AnswerOf>,
   now: number,
 ): Promise<void> {
   await db
     .update(redditAccount)
     .set({ refusedCount: 0, refusedThreads: NO_THREADS, refusalsClearedAt: now })
-    .where(ofSession(session));
+    .where(and(ofSession(session), eq(redditAccount.state, "connected"), stateOlderThan(request)));
 }
 
 export async function countRefusal(

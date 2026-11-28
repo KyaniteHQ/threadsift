@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 
 import { type Link, parseLink, redditRefOf } from "../../../core/contract/links.ts";
 import { guardHolds } from "../../../core/kernel/guards.ts";
+import type { AliasedItem } from "../../../core/kernel/link-naming.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { heldBatch } from "../../../core/kernel/restore-hold.ts";
 import { items } from "../../../core/kernel/schema.ts";
@@ -16,7 +17,6 @@ import {
 } from "../../item/core/item-rows.ts";
 import { itemRead } from "../../item/core/item-selection.ts";
 import {
-  type AliasedItem,
   holdsAlias,
   holdsNoFailedItem,
   holdsNoRival,

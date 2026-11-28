@@ -1,14 +1,31 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 import { claimNextDue, dueIds } from "../src/core/compose/jobs.ts";
 import { HOUR_MS } from "../src/core/contract/time-units.ts";
 import type { XThreadValue } from "../src/core/contract/x-wire.ts";
 import { enqueueItemJobs } from "../src/core/kernel/job-rows.ts";
+import { jobOpen } from "../src/core/kernel/job-tables.ts";
 import { jobs, xVerifications } from "../src/core/kernel/schema.ts";
 import { queuedVerification, savedProgress } from "../src/features/x/core/x-verify-store.ts";
 import type { Instance } from "./instance.ts";
 import { xAddressOf } from "./x-intake-fixtures.ts";
 import { allJudged, storedForVerification } from "./x-verify-job-fixtures.ts";
+
+function storedWaiting(instance: Instance, itemId: number, statusId: string, value: XThreadValue) {
+  return storedForVerification(instance, itemId, statusId, value, {
+    judged: allJudged(value),
+    waiting: true,
+  });
+}
+
+function newerAnswer(instance: Instance, itemId: number, statusId: string, value: XThreadValue) {
+  return queuedVerification(instance.core.db, {
+    itemId,
+    address: xAddressOf(statusId),
+    thread: value,
+    digest: null,
+  });
+}
 
 export async function storedUnreadably(
   instance: Instance,
@@ -16,10 +33,7 @@ export async function storedUnreadably(
   statusId: string,
   value: XThreadValue,
 ): Promise<void> {
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
   await instance.core.db
     .update(xVerifications)
     .set({ thread: "{not json" })
@@ -35,25 +49,35 @@ export async function claimedBeforeNewerAnswer(
 ) {
   const { db } = instance.core;
 
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
   await db.update(jobs).set({ attempts: 3 }).where(eq(jobs.itemId, itemId));
 
   const claimed = await claimNextDue(db);
 
   await db.batch([
-    ...queuedVerification(db, {
-      itemId,
-      address: xAddressOf(statusId),
-      thread: value,
-      digest: null,
-    }),
+    ...newerAnswer(instance, itemId, statusId, value),
     savedProgress(db, itemId, 1, allJudged(value), value),
   ]);
 
   return claimed;
+}
+
+export async function claimsAroundNewerAnswer(
+  instance: Instance,
+  itemId: number,
+  statusId: string,
+  value: XThreadValue,
+) {
+  const { db } = instance.core;
+
+  await storedWaiting(instance, itemId, statusId, value);
+
+  const first = await claimNextDue(db);
+
+  await db.update(jobs).set({ claimExpires: 0 }).where(eq(jobs.itemId, itemId));
+  await db.batch([...newerAnswer(instance, itemId, statusId, value)]);
+
+  return [first, await claimNextDue(db)] as const;
 }
 
 export async function dueKindsBesideVerification(
@@ -64,10 +88,7 @@ export async function dueKindsBesideVerification(
 ): Promise<readonly string[]> {
   const { db } = instance.core;
 
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
 
   await db.insert(jobs).values({
     kind: "digest",
@@ -100,24 +121,17 @@ export async function jobAfterNewerAnswer(
 ) {
   const { db } = instance.core;
 
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
   await db
     .update(jobs)
     .set({ attempts: 2, waitReason: "x-verify", nextAttemptAt: Date.now() + HOUR_MS })
     .where(eq(jobs.itemId, itemId));
-  await db.batch([
-    ...queuedVerification(db, {
-      itemId,
-      address: xAddressOf(statusId),
-      thread: value,
-      digest: null,
-    }),
-  ]);
+  await db.batch([...newerAnswer(instance, itemId, statusId, value)]);
 
-  const [job] = await db.select().from(jobs).where(eq(jobs.itemId, itemId));
+  const [job] = await db
+    .select()
+    .from(jobs)
+    .where(and(eq(jobs.itemId, itemId), jobOpen()));
 
   return job;
 }

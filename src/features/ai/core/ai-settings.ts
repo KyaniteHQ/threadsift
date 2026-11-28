@@ -8,7 +8,7 @@ import type {
 import { GROK_BOT_PROVIDER, hasKind } from "../../../core/contract/provider-families.ts";
 import { CURRENT_REVISION } from "../../../core/kernel/ai-settings-revision.ts";
 import type { Database } from "../../../core/kernel/database.ts";
-import { requeuedDigests } from "../../../core/kernel/digest-opening.ts";
+import { requeuedDigests } from "../../../core/kernel/digest-sweep.ts";
 import type { JobWrites } from "../../../core/kernel/job-outcome.ts";
 import type { Ports, SettingsPorts } from "../../../core/kernel/ports.ts";
 import { type Closed, heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";

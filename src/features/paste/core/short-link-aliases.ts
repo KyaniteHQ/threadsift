@@ -17,38 +17,15 @@ import { type Link, parseLink } from "../../../core/contract/links.ts";
 import type { Database } from "../../../core/kernel/database.ts";
 import { holdsNoRow } from "../../../core/kernel/guards.ts";
 import { closeItemJobs } from "../../../core/kernel/job-close.ts";
+import type { AliasedItem } from "../../../core/kernel/link-naming.ts";
 import { itemAliases, items } from "../../../core/kernel/schema.ts";
 
 const holder = alias(items, "holder");
 const rival = alias(itemAliases, "rival");
 
-export interface AliasedItem extends Link {
-  readonly id: number;
-  readonly address: string;
-}
-
 export interface ShortLinkAlias {
   readonly shortLink: string;
   readonly stale: Readonly<AliasedItem> | undefined;
-}
-
-export async function aliasedItem(
-  db: Database,
-  shortLink: string,
-): Promise<AliasedItem | undefined> {
-  const [found] = await db
-    .select({
-      id: items.id,
-      normalizedUrl: items.normalizedUrl,
-      kind: items.kind,
-      source: items.source,
-      address: itemAliases.address,
-    })
-    .from(itemAliases)
-    .innerJoin(items, eq(items.id, itemAliases.itemId))
-    .where(eq(itemAliases.normalizedUrl, shortLink));
-
-  return found;
 }
 
 export function itemAddress({ address, normalizedUrl }: Readonly<AliasedItem>): string {

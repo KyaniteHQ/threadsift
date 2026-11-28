@@ -84,7 +84,7 @@ It reports an `await`, a `for await` or an `await using` that runs before a `cat
 
 ## Whole-repository checks
 
-Lint sees one file at a time, so two scripts read the whole repository. Both are part of `pnpm run check`, so of `ci:gate`.
+Lint sees one file at a time, so three scripts read across files. All three are part of `pnpm run check`, so of `ci:gate`.
 
 ### `pnpm run check:core-layout`
 
@@ -103,11 +103,15 @@ Its import scan is a regular expression, like the one of `threadsift/no-server-v
 
 The script reads every tracked Markdown file except these:
 
-- the dated records (the design reviews, the bot changelog and the Claude Design prompts),
+- the dated records (the design reviews, the root and bot changelogs and the Claude Design prompts),
 - the provenance files of vendored code,
 - the `impeccable` skill and agents, which name the paths of other projects.
 
 It refuses a path, a link, a symbol paired with a path, or a line number that the code no longer matches. The tables `OTHER_PROJECT_SPANS` and `OTHER_PROJECT_SYMBOLS` in the script list, by doc, the spans that name another project's files.
+
+### `pnpm run check:versions`
+
+The release command's `check` fails when the image label carries another version than the app, and while the app's version is an untagged patch release, when a migration file changed since the newest stable tag ([CI, releases and rollback](ci-releases-and-rollback.md#versions-and-the-release-pull-request)).
 
 ### `pnpm docs:impact [base]`
 
