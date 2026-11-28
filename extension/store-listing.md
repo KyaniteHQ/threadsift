@@ -75,7 +75,7 @@ The extension keeps the Threadsift address, the agent token, and whether "Fill s
 #### `webRequest`
 
 ```text
-The browser reports requests only for hosts the extension holds: the Threadsift host and, when the user connects Reddit or turns on "Fill saved Reddit items", reddit.com and its subdomains. The extension listens only to Fetch, XMLHttpRequest and EventSource requests to the Threadsift host, on every port of it, whether the extension or a page of that host sent them. It reads the address, method and tab of each to find its own call, and reads only the network error of that call to report why saving could not reach the instance: address not found, connection refused or timed out, or no secure connection. It does not block, change or read the content of any request.
+The browser reports requests only for hosts the extension holds: the Threadsift host and, when the user connects Reddit or turns on "Fill saved Reddit items", reddit.com and its subdomains. While calling the instance for a save, the address check, the Reddit account state or Fill saved Reddit items, the extension listens only to Fetch, XMLHttpRequest and EventSource requests to the Threadsift host on every port. It stops when the call ends. The browser reports those requests when sent by the extension or a page of a host it holds. The extension reads the address, method, tab and request id of each request, and the request id and error of each failed request. It keeps the error only for its own call, to report why it could not reach the instance: address not found, connection refused or timed out, or no secure connection. It does not block, change or read the content of any request.
 ```
 
 #### `cookies`
@@ -102,7 +102,7 @@ Tick Website content, Web history and Authentication information. Web history co
 
 ### Description
 
-Mozilla advises each add-on to describe why it requests its permissions in its description ([Request the right permissions](https://extensionworkshop.com/documentation/develop/request-the-right-permissions/)), and the Developer Hub has no field per permission. Enter the Detailed description, then the heading line below and the text under each permission heading, in this order, each as its own paragraph. Firefox Add-ons keeps the `description` of an add-on to 15,000 characters ([addons-server add-on model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/addons/models.py#L486)), and the Detailed description with every text below holds 7,145 characters.
+Mozilla advises each add-on to describe why it requests its permissions in its description ([Request the right permissions](https://extensionworkshop.com/documentation/develop/request-the-right-permissions/)), and the Developer Hub has no field per permission. Enter the Detailed description, then the heading line below and the text under each permission heading, in this order, each as its own paragraph. Firefox Add-ons keeps the `description` of an add-on to 15,000 characters ([addons-server add-on model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/addons/models.py#L486)), and the Detailed description with every text below holds 7,347 characters.
 
 ```text
 Reasons for each permission
@@ -129,7 +129,7 @@ storage: Local extension storage holds your Threadsift address, your agent token
 #### `webRequest`
 
 ```text
-webRequest: Firefox reports requests only for hosts you granted. The extension listens only to XMLHttpRequest and Fetch API requests to your Threadsift host, on every port of it, whether the extension or a page of that host sent them. It reads the address, method and tab of each to find its own call, and reads only the network error of that call to explain why saving could not reach your instance: address not found, connection refused or timed out, or no secure connection. It does not block, change or read the content of any request. Firefox shows no prompt for this permission.
+webRequest: Firefox reports requests only for hosts you granted. While calling your instance, the extension listens only to Fetch, XMLHttpRequest and EventSource requests to your Threadsift host on every port, whether the extension or a page of a host it holds sent them. It stops when the call ends. The calls are a save, the address check, the Reddit account state and Fill saved Reddit items. For each request it reads the address, method, tab and request id, and for each failed one the request id and error. It keeps the error only for its own call to explain why it could not reach your instance: address not found, connection refused or timed out, or no secure connection. It does not block, change or read the content of any request. Firefox shows no prompt for this permission.
 ```
 
 #### `cookies`
@@ -164,14 +164,14 @@ browsingActivity: Turning on "Fill saved Reddit items" opens one Firefox prompt 
 
 ### Notes to reviewer
 
-Upload the source archive that the package command writes, with the Firefox zip. Firefox Add-ons keeps the notes to the reviewer to 3,000 characters ([addons-server version model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/versions/models.py#L311)), and the text holds 1,627 characters.
+Upload the source archive that the package command writes, with the Firefox zip. Firefox Add-ons keeps the notes to the reviewer to 3,000 characters ([addons-server version model](https://github.com/mozilla/addons-server/blob/a2900ac9c4fef3c99ba06849f3754e930c2d6894/src/olympia/versions/models.py#L311)), and the text holds 1,802 characters.
 
 ```text
 WXT’s production build bundles and minifies the extension’s code without obfuscation. The source upload is a git archive of the repository with the readable code. SOURCE_CODE_REVIEW.md at its root gives the build environment (Node.js 26, pnpm 12.23.0), commands and how to compare the build with the upload. It explains web-ext lint warnings from two libraries: DANGEROUS_EVAL from zod and UNSAFE_VAR_ASSIGNMENT from defuddle.
 
 To use the extension, run a Threadsift instance (the README shows how in a container). Enter its address and an agent token with Read and Add scopes in the extension’s settings, plus the Reddit scope for Connect Reddit.
 
-For webRequest, the extension listens only to XMLHttpRequest and Fetch API requests on every port of the Threadsift host. It reads address, method and tab to find its own call, reads only its network error, and never blocks, changes or reads request content. Only Connect Reddit and Reconnect ask for the optional cookies permission, which covers every held host, Threadsift included. The extension reads only reddit.com’s reddit_session cookie and sends it only to the saved Threadsift origin. In Firefox, turning on Fill saved Reddit items opens one prompt for optional browsing activity data and, if not yet held, access to reddit.com and its subdomains. Deny leaves Fill off. All host permissions are optional. The extension requests the Threadsift host at each Save settings. One grant covers every port, and the browser prompts only when the host is not yet held.
+For webRequest, when calling the instance, the extension listens only to Fetch, XMLHttpRequest and EventSource requests on every port of the Threadsift host until the call ends. Firefox reports those sent by the extension or a page of a held host. The extension reads each request’s id, address, method and tab, and id and error on failure. It keeps the error only for its own call and never blocks, changes or reads request content. Only Connect Reddit and Reconnect ask for the optional cookies permission, which covers every held host, Threadsift included. The extension reads only reddit.com’s reddit_session cookie and sends it only to the saved Threadsift origin. In Firefox, turning on Fill saved Reddit items opens one prompt for optional browsing activity data and, if not yet held, access to reddit.com and its subdomains. Deny leaves Fill off. All host permissions are optional. The extension requests the Threadsift host at each Save settings. One grant covers every port, and the browser prompts only when the host is not yet held.
 
 The Description gives the reason for every permission and every data collection permission in the manifest.
 ```
