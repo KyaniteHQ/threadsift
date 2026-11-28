@@ -29,6 +29,7 @@ import { useLatest } from "./use-latest.ts";
 
 export interface Writes {
   readonly setRead: (id: number, state: ReadState) => Promise<void>;
+  readonly forget: (id: number) => void;
   readonly remove: (
     id: number,
     whenGone: (survivor: number | null) => void,
@@ -41,7 +42,22 @@ interface Upkeep {
   readonly latest: RefObject<ListState>;
 }
 
-function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonly<Upkeep>): void {
+function useForget(setList: SetList, reads: Reads) {
+  return useCallback(
+    (id: number) => {
+      setList((current) => withoutItem(current, id));
+      reads.reload();
+    },
+    [reads, setList],
+  );
+}
+
+function usePolling(
+  list: Readonly<ListState>,
+  setList: SetList,
+  upkeep: Readonly<Upkeep>,
+  onGone: (id: number) => void,
+): void {
   const { reads, unfiltered, latest } = upkeep;
 
   const onRead = useCallback(
@@ -57,31 +73,16 @@ function usePolling(list: Readonly<ListState>, setList: SetList, upkeep: Readonl
     [latest, reads, setList, unfiltered],
   );
 
-  const onGone = useCallback(
-    (id: number) => {
-      setList((current) => withoutItem(current, id));
-      reads.reload();
-    },
-    [reads, setList],
-  );
-
   useItemPolling(processingIds(list), onRead, onGone, reads.ticket);
 }
 
 function useSave(reads: Reads, setList: SetList) {
   return useCallback(
     async (target: SaveTarget): Promise<SaveResult> => {
-      const result: SaveResult =
-        target.kind === "paste"
-          ? await saveLink(target.url)
-          : {
-              outcome: "saved",
-              known: true,
-              refreshed: false,
-              item: await regenerateDigest(target.id),
-            };
+      const result =
+        target.kind === "paste" ? await saveLink(target.url) : await regenerateDigest(target.id);
 
-      if (result.outcome !== "saved") return result;
+      if (result.kind !== "saved") return result;
 
       setList((current) => withKnown(current, result.item));
       reads.reload();
@@ -141,7 +142,8 @@ export function useLibrary() {
   const save = useSave(reads, setList);
   const setRead = useSetRead(setList, upkeep);
   const remove = useRemove(setList, upkeep);
-  usePolling(list, setList, upkeep);
+  const forget = useForget(setList, reads);
+  usePolling(list, setList, upkeep, forget);
 
   const retry = useCallback(() => {
     setList((current) => ({ status: "loading", known: current.known }));
@@ -152,5 +154,16 @@ export function useLibrary() {
     setList((current) => withKnown(current, item));
   }, []);
 
-  return { list, filters, save, setRead, remove, retry, know, more: reads.more, ...changes };
+  return {
+    list,
+    filters,
+    save,
+    setRead,
+    remove,
+    forget,
+    retry,
+    know,
+    more: reads.more,
+    ...changes,
+  };
 }

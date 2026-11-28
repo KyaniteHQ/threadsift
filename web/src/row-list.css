@@ -53,7 +53,12 @@
 .rl-row .it-meta,
 .hp-it .it-meta {
   gap: var(--s1) var(--s2);
-  font-size: var(--t-meta);
+  line-height: var(--lh-label);
+}
+.rl-row .it-meta .src,
+.hp-it .it-meta .src {
+  color: inherit;
+  font-weight: 400;
 }
 .rl-row .rl-dot {
   flex: none;
@@ -102,6 +107,7 @@
 .rl-sum {
   margin: 0;
   color: var(--muted);
+  font-size: var(--t-meta);
   line-height: var(--lh-ui);
   overflow-wrap: anywhere;
   white-space: pre-line;

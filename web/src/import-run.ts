@@ -1,4 +1,4 @@
-import { doneOf, nextBatch } from "../../src/core/contract/import-list.ts";
+import { type Resume, doneOf, nextBatch, resumeOf } from "../../src/core/contract/import-list.ts";
 import { type Counts, postBatch, readImportState } from "./import-api.ts";
 import { type Landing, batchLanding } from "./import-landing.ts";
 import type { FailedEnding } from "./import-text.ts";
@@ -10,9 +10,11 @@ export interface Progress {
   readonly uncounted: number;
 }
 
-type Ending = "finished" | "stopped" | FailedEnding;
+type Ending = "finished" | "complete" | "stopped" | FailedEnding;
 
-export type Outcome = Progress & { readonly ending: Ending };
+export type Outcome = Progress & { readonly ending: Ending; readonly seen: Resume };
+
+export type Position = Omit<Progress, "done"> & { readonly seen: Resume };
 
 export interface Run {
   readonly report: (progress: Progress) => void;
@@ -22,11 +24,16 @@ export interface Run {
 
 type Step =
   | { readonly kind: "advanced"; readonly progress: Progress }
-  | { readonly kind: "ended"; readonly ending: Ending; readonly done?: number };
+  | {
+      readonly kind: "ended";
+      readonly ending: Ending;
+      readonly saved?: string | null;
+      readonly counts?: Counts;
+    };
 
-interface Position {
+interface Place {
   readonly progress: Readonly<Progress>;
-  readonly written: string | null | undefined;
+  readonly written: string | null;
 }
 
 const ENDING_OF = {
@@ -45,6 +52,29 @@ function summed(before: Counts, batch: Counts): Counts {
 
 const ended = (ending: Ending): Step => ({ kind: "ended", ending });
 
+export function plannedOf({ seen, ...tally }: Readonly<Position>): Progress {
+  return { ...tally, done: seen.kind === "partial" ? seen.done : 0 };
+}
+
+function sameResume(saved: Resume, seen: Resume): boolean {
+  return saved.kind === "partial" && seen.kind === "partial"
+    ? saved.done === seen.done
+    : saved.kind === seen.kind;
+}
+
+async function savedCursor(
+  name: string,
+  signal: AbortSignal,
+): Promise<{ readonly cursor: string | null } | null> {
+  try {
+    const state = await readImportState(name, signal);
+
+    return { cursor: state?.cursor ?? null };
+  } catch {
+    return null;
+  }
+}
+
 async function confirmed(
   attempt: Parameters<typeof batchLanding>[0],
   { waiting, signal }: Readonly<Run>,
@@ -61,7 +91,7 @@ async function confirmed(
 async function stepOf(
   links: readonly string[],
   name: string,
-  { progress, written }: Readonly<Position>,
+  { progress, written }: Readonly<Place>,
   run: Readonly<Run>,
 ): Promise<Step> {
   const before = await readImportState(name, run.signal).catch(() => "failed" as const);
@@ -70,19 +100,18 @@ async function stepOf(
 
   const saved = before?.cursor ?? null;
 
-  if (written !== undefined && saved !== written) {
-    return { kind: "ended", ending: "stopped", done: doneOf(saved) };
-  }
+  if (saved !== written) return { kind: "ended", ending: "stopped", saved };
 
-  const request = nextBatch(links, progress.done, name, saved, IMPORT_BATCH_LINKS);
+  const request = nextBatch(links, progress.done, name, before, IMPORT_BATCH_LINKS);
   const done = progress.done + request.links.length;
   const answer = await postBatch(request);
 
   if (answer.kind === "saved") {
-    return {
-      kind: "advanced",
-      progress: { ...progress, done, counts: summed(progress.counts, answer.counts) },
-    };
+    const counts = summed(progress.counts, answer.counts);
+
+    return answer.stored === request.import.cursor
+      ? { kind: "advanced", progress: { ...progress, done, counts } }
+      : { kind: "ended", ending: "stopped", saved: answer.stored, counts };
   }
 
   if (answer.kind !== "unanswered") return ended(answer.kind);
@@ -97,23 +126,28 @@ async function stepOf(
   };
 }
 
-export async function runImport(
+async function batches(
   links: readonly string[],
   name: string,
-  initial: Progress,
+  start: Readonly<Place>,
   run: Readonly<Run>,
 ): Promise<Outcome> {
-  let progress = initial;
-  let written: string | null | undefined;
+  let { progress, written } = start;
 
   while (progress.done < links.length) {
-    if (run.signal.aborted) return { ...progress, ending: "stopped" };
+    if (run.signal.aborted) {
+      return { ...progress, ending: "stopped", seen: resumeOf(written, links.length) };
+    }
 
     // oxlint-disable-next-line eslint/no-await-in-loop -- Batches go one after the other, so the saved cursor is the last batch that finished.
     const step = await stepOf(links, name, { progress, written }, run);
 
     if (step.kind === "ended") {
-      return { ...progress, done: step.done ?? progress.done, ending: step.ending };
+      const last = step.saved === undefined ? written : step.saved;
+      const done = step.saved === undefined ? progress.done : doneOf(step.saved);
+      const counts = step.counts ?? progress.counts;
+
+      return { ...progress, done, counts, ending: step.ending, seen: resumeOf(last, links.length) };
     }
 
     progress = step.progress;
@@ -121,5 +155,35 @@ export async function runImport(
     run.report(progress);
   }
 
-  return { ...progress, ending: "finished" };
+  return { ...progress, ending: "finished", seen: resumeOf(written, links.length) };
+}
+
+export async function runImport(
+  links: readonly string[],
+  name: string,
+  position: Readonly<Position>,
+  run: Readonly<Run>,
+): Promise<Outcome> {
+  const { seen } = position;
+  const planned = plannedOf(position);
+  const read = await savedCursor(name, run.signal);
+
+  if (read === null) {
+    return { ...planned, ending: run.signal.aborted ? "stopped" : "network", seen };
+  }
+
+  const saved = read.cursor;
+
+  const found = resumeOf(saved, links.length);
+
+  if (sameResume(found, seen))
+    return batches(links, name, { progress: planned, written: saved }, run);
+
+  const progress = { ...planned, done: doneOf(saved) };
+
+  if (found.kind === "complete") return { ...progress, ending: "complete", seen: found };
+
+  run.report(progress);
+
+  return batches(links, name, { progress, written: saved }, run);
 }

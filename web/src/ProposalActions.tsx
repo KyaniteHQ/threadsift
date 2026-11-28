@@ -47,11 +47,16 @@ function notesOf(row: RowState, applying: boolean): NoteTexts {
       };
     case "busy":
       return { alert: null, status: BUSY_NOTES[row.busy] };
+    case "restoring":
+      return { alert: null, status: PROPOSAL_WORDS.restoring };
     case "pressing":
     case "idle":
       return NO_NOTES;
-    default:
-      return row satisfies never;
+    default: {
+      const exhaustive: never = row;
+
+      return exhaustive;
+    }
   }
 }
 

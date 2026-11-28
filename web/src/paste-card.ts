@@ -3,18 +3,19 @@ import type { Item } from "../../src/core/contract/item-wire.ts";
 import { whereOf } from "../../src/core/contract/link-place.ts";
 import {
   CARD_TITLES,
-  NOTICE_DETAILS,
   NOTICES,
   type NoteKey,
   type NoticeKey,
+  type Press,
   failureTitleOf,
+  noticeDetail,
   waitTitle,
 } from "./text.ts";
 import { waitText } from "./wait-text.ts";
 
 export type Shown = Readonly<{ seq: number; url: string }> &
   (
-    | { readonly kind: "notice"; readonly key: NoticeKey }
+    | { readonly kind: "notice"; readonly key: NoticeKey; readonly press: Press }
     | {
         readonly kind: "item";
         readonly itemId: number;
@@ -187,7 +188,7 @@ export function faceOf(shown: Readonly<Shown>, items: readonly Item[]): Face | n
       tone: "tone-warn",
       title: NOTICES[shown.key],
       name: null,
-      note: NOTICE_DETAILS[shown.key] ?? null,
+      note: noticeDetail(shown.key, shown.press),
       wait: null,
       itemTitle: null,
       alert: true,

@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { CLAIM_MARGIN_MS } from "./job-contract.ts";
 import { RESTORE_PART_BYTES } from "./limits.ts";
 import { DAY_MS } from "./time-units.ts";
 import { WholeCount } from "./whole-count.ts";
@@ -40,6 +41,8 @@ export const RESTORE_MAX_BYTES = 50_000_000_000;
 const RESTORE_MAX_PARTS = Math.ceil(RESTORE_MAX_BYTES / RESTORE_PART_BYTES);
 
 export const RESTORE_UNIT_DEADLINE_MS = 600_000;
+
+export const RESTORE_SETTLE_MS = RESTORE_UNIT_DEADLINE_MS + CLAIM_MARGIN_MS;
 
 export const RESTORE_PARTS_KEEP_MS = DAY_MS;
 

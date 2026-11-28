@@ -18,6 +18,7 @@ export interface ReaderControls {
   readonly titleFocus: number | null;
   readonly toggleRead: (item: Item) => void;
   readonly remove: (item: Item) => Promise<void>;
+  readonly forget: (id: number) => void;
   readonly announce: (text: string) => void;
   readonly close: () => void;
   readonly hintPlaced: (inBar: boolean) => void;
@@ -30,6 +31,7 @@ function modeOf(look: Readonly<Look>): ReaderControls["mode"] {
 export interface ReaderState {
   readonly open: (id: number) => void;
   readonly close: () => void;
+  readonly readerCard: number | null;
   readonly step: (direction: 1 | -1) => void;
   readonly toggleRead: ReaderControls["toggleRead"];
   readonly controls: ReaderControls;
@@ -43,6 +45,7 @@ function useControls({
   navigation,
   toggleRead,
   remove,
+  forget,
   announce,
   hintPlaced,
 }: Readonly<{
@@ -50,6 +53,7 @@ function useControls({
   navigation: Readonly<Pick<ReturnType<typeof useNavigation>, "close" | "titleFocus">>;
   toggleRead: ReaderControls["toggleRead"];
   remove: ReaderControls["remove"];
+  forget: ReaderControls["forget"];
   announce: ReaderControls["announce"];
   hintPlaced: ReaderControls["hintPlaced"];
 }>): ReaderControls {
@@ -58,8 +62,18 @@ function useControls({
   const settingsKey = JSON.stringify(look.settings);
 
   return useMemo<ReaderControls>(
-    () => ({ mode, settingsKey, titleFocus, toggleRead, remove, announce, close, hintPlaced }),
-    [announce, close, hintPlaced, mode, remove, settingsKey, titleFocus, toggleRead],
+    () => ({
+      mode,
+      settingsKey,
+      titleFocus,
+      toggleRead,
+      remove,
+      forget,
+      announce,
+      close,
+      hintPlaced,
+    }),
+    [announce, close, forget, hintPlaced, mode, remove, settingsKey, titleFocus, toggleRead],
   );
 }
 
@@ -95,6 +109,7 @@ export function useReaderControls({
     navigation,
     toggleRead,
     remove,
+    forget: writes.forget,
     announce,
     hintPlaced: setHintInBar,
   });
@@ -102,6 +117,7 @@ export function useReaderControls({
   return {
     open: navigation.open,
     close: navigation.close,
+    readerCard: navigation.readerCard,
     step: navigation.step,
     toggleRead,
     controls,

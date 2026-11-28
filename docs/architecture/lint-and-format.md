@@ -64,7 +64,7 @@ It refuses a prose comment. It keeps a shebang and the kinds that [Changing code
 
 ### `threadsift/no-item-insert`
 
-`itemInsert` is the one door for an insert into `items`. The rule is on in `src/**` except the Item rows module that defines `itemInsert`. It refuses a call `<expression>.insert(items)`. `itemInsert` puts the Restore guard in front of the insert, and nothing else refuses an Item while a Restore holds the library ([Export, backup and restore](export-backup-and-restore.md), While it runs).
+`itemInsert` is the one door for an insert into `items`. The rule is on in `src/**` except the Item rows module that defines `itemInsert`. It refuses a call `<expression>.insert(items)`. `itemInsert` returns the Daily budget guard and the insert as a pair, and its callers commit both through `heldBatch`, which puts the Restore guard first. So no Item insert skips the Daily budget of its agent token, and none runs while a Restore holds the library ([Export, backup and restore](export-backup-and-restore.md), While it runs).
 
 The rule matches the identifier `items` as the first argument. It does not see an alias (`const table = items`), nor the registry insert of the Restore (`insertRows`, which takes its table from `spec.table` and writes the Restore's own rows). A scratch `db.insert(items)` in `src/` gets the message that names `itemInsert`.
 
