@@ -55,7 +55,12 @@ export function ReaderActions({
         <ReadIcon read={read} />
         <span className="rd-act-l">{read ? MARK_UNREAD : MARK_READ}</span>
       </button>
-      <a className="btn rd-act" href={item.originalUrl} target="_blank" rel="noopener noreferrer">
+      <a
+        className="btn btn-plain rd-act"
+        href={item.originalUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
         <span className="rd-act-l">{OPEN_LABELS[item.source]}</span>
         <Icon name="external" className="ic" />
       </a>
