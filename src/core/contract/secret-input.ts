@@ -10,5 +10,5 @@ const HEADER_SECRET_RULE = `must be 1 to ${groupedNumber(SECRET_INPUT_MAX)} prin
 
 export const HeaderSecretSchema = z
   .string()
-  .max(SECRET_INPUT_MAX, { error: HEADER_SECRET_RULE })
+  .max(SECRET_INPUT_MAX)
   .regex(HEADER_SAFE_SECRET, { error: HEADER_SECRET_RULE });
