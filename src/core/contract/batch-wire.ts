@@ -1,5 +1,6 @@
 import { z } from "zod";
 
+import { BudgetRefusalSchema } from "./error-wire.ts";
 import { BATCH_LINKS_MAX, ImportSchema, ImportWriteSchema } from "./import-contract.ts";
 import { SavedItemResponseSchema } from "./item-route-wire.ts";
 import { SaveItemRequestSchema } from "./save-wire.ts";
@@ -22,4 +23,8 @@ const ResultSchema = z.union([
 export const BatchResponseSchema = z.object({
   results: z.array(ResultSchema).readonly(),
   import: ImportSchema.nullable(),
+});
+
+export const BatchBudgetRefusalSchema = BudgetRefusalSchema.extend({
+  results: z.array(ResultSchema).readonly().optional(),
 });

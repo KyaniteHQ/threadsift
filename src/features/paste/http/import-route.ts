@@ -23,7 +23,7 @@ const getImportRoute = createRoute({
     ...accessRefusals(READER),
     200: jsonBody(
       ImportStateSchema,
-      "The cursor the last batch call saved under this name, and when it saved it in milliseconds.",
+      "The cursor the last batch call saved under this name, and its `updatedAt` in milliseconds, which a later call sends as `import.previousUpdatedAt`. Each save gives it a new value, which can run ahead of the clock by 1 ms for each save of the row within one millisecond.",
     ),
     404: jsonBody(ErrorResponseSchema, "No batch call saved a cursor under this name."),
   },

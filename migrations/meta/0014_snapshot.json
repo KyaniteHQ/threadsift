@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "55936e2d-065e-4bbd-938a-c9a7f7bd2360",
+  "id": "96f6a234-821e-48f3-8ebb-044655ed2c07",
   "prevId": "ffd2f411-a34f-4c60-9ccd-cafba1c190db",
   "tables": {
     "agent_tokens": {
@@ -764,6 +764,10 @@
         "guards_outcome": {
           "name": "guards_outcome",
           "value": "\"guards\".\"ok\" <> 3"
+        },
+        "guards_budget": {
+          "name": "guards_budget",
+          "value": "\"guards\".\"ok\" <> 4"
         }
       }
     },
@@ -3393,14 +3397,6 @@
           "notNull": true,
           "autoincrement": false,
           "default": 0
-        },
-        "x_api_read": {
-          "name": "x_api_read",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": false
         }
       },
       "indexes": {},
@@ -3796,160 +3792,6 @@
         }
       }
     },
-    "x_api_item_spend": {
-      "name": "x_api_item_spend",
-      "columns": {
-        "item_id": {
-          "name": "item_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "day": {
-          "name": "day",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "micros": {
-          "name": "micros",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "x_api_item_spend_item_id_items_id_fk": {
-          "name": "x_api_item_spend_item_id_items_id_fk",
-          "tableFrom": "x_api_item_spend",
-          "tableTo": "items",
-          "columnsFrom": ["item_id"],
-          "columnsTo": ["id"],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "x_api_item_spend_item_id_day_pk": {
-          "columns": ["item_id", "day"],
-          "name": "x_api_item_spend_item_id_day_pk"
-        }
-      },
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "x_api_item_spend_micros": {
-          "name": "x_api_item_spend_micros",
-          "value": "\"x_api_item_spend\".\"micros\" >= 0"
-        }
-      }
-    },
-    "x_api_settings": {
-      "name": "x_api_settings",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "sealed_token": {
-          "name": "sealed_token",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "item_limit_micros": {
-          "name": "item_limit_micros",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 1000000
-        },
-        "day_limit_micros": {
-          "name": "day_limit_micros",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 3000000
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "x_api_settings_is_one_row": {
-          "name": "x_api_settings_is_one_row",
-          "value": "\"x_api_settings\".\"id\" = 1"
-        },
-        "x_api_settings_limits": {
-          "name": "x_api_settings_limits",
-          "value": "\"x_api_settings\".\"item_limit_micros\" > 0 and \"x_api_settings\".\"day_limit_micros\" >= \"x_api_settings\".\"item_limit_micros\""
-        }
-      }
-    },
-    "x_api_spend": {
-      "name": "x_api_spend",
-      "columns": {
-        "day": {
-          "name": "day",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "micros": {
-          "name": "micros",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "posts": {
-          "name": "posts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "users": {
-          "name": "users",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "x_posts": {
-          "name": "x_posts",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "x_api_spend_counts": {
-          "name": "x_api_spend_counts",
-          "value": "\"x_api_spend\".\"micros\" >= 0 and \"x_api_spend\".\"posts\" >= 0 and \"x_api_spend\".\"users\" >= 0"
-        }
-      }
-    },
     "x_settings": {
       "name": "x_settings",
       "columns": {
@@ -3979,7 +3821,7 @@
         },
         "x_settings_reader": {
           "name": "x_settings_reader",
-          "value": "\"x_settings\".\"reader\" in ('auto', 'grok-bot', 'grok-cli', 'x-api')"
+          "value": "\"x_settings\".\"reader\" in ('auto', 'grok-bot', 'grok-cli')"
         }
       }
     },
