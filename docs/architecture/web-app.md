@@ -124,6 +124,22 @@ Two kinds of request read the request's signal and stop on a disconnect instead.
 
 A read-state write and a token budget save send an absolute value, so one that timed out can still land after a later one and leave the stored value different from the screen until the next read. That needs an Instance that holds one request for more than 20 s and answers the next one first. Every other caller treats any rejection as its screen's failed state with the action offered again. [Changing code](../agents/changing-code.md) says how a repeated write accepts the answer of its first try.
 
+### A write that a Restore holds
+
+A write that a Restore holds off answers 503 with `code: "restoring"` ([Export, backup and restore](export-backup-and-restore.md)). `unlessRestoring` is the one reader of that answer. `callUnlessRestoring` wraps `callOk` for a write, and `postBatch` and `sendAccept` call `unlessRestoring` on the response of `call`. It reads a clone of the body, so a 503 without that code keeps its body, and `callUnlessRestoring` throws the same unexpected-status error as `callOk` for it. A refused write returns `RESTORING`, the one marker that every held write carries in its own result type, and `isRestoring` narrows a result to it. A result type that carries the marker is switched on its `kind` with a `never` default, so a new variant fails the type check.
+
+Each caller maps the marker to a text of its own, never to its generic failure text, and none of them reads the page again, because nothing changed. A Restore holds the library while it runs and after it failed and gave up, and the second state ends only when the owner resumes or cancels it in Backup, so each text names Backup as well as the finish.
+
+- `saveLink` and `regenerateDigest` give the `restoring` notice. The Paste card shows it, and `RESTORING_DETAILS` gives the detail line for the kind of the press. Try again pressed in the Reader runs through the same queue, but `useSaveValue` hands a refused one back as `RefusedRetry`, and `Note` shows it beside the button in a live region. The Paste card sits in the list column, which is `inert` while the Reader covers it, so a notice there would not show.
+- `retryTopicOverview`: `useWriteOverview` keeps the `Overview` that was on screen when the refusal came, and the note shows only while the page holds that same overview, so it never sits beside a pending or a written one.
+- `sendAccept`: the `restoring` state of a Proposals row, shown beside the row's buttons.
+- `verifyAi` and `saveAiSettings`: the result line of the AI section.
+- `saveRedditSettings`: `useSaveOnPick` shows its `restoringText`.
+- `keepHighlight`: the Highlight failure line. `putNote`: the `restoring` attempt of `noteReducer`, which keeps the draft in the field.
+- `postBatch`: the Import run ends with the `restoring` ending.
+
+The server holds no other write the web app sends. Reject, delete, Read state, the X reader choice, and the account, integration, Export and Restore calls read no such answer.
+
 ## Library list
 
 ### Pages and the cursor
@@ -230,8 +246,6 @@ A live region that is inserted together with its text is not reliably announced.
 `useActionFlow` takes one fallback text per action, so a press that fails without a known reason names the button pressed. A Save or Connect button with nothing to act on, and a Verify or Test button that has no help line, keeps `aria-disabled` and still takes the press. `useAction` gets an `Unavailable` text, and a `refuse` event shows it in the section's result line without starting a request and without touching a request already running. A blocked submit button carries `formNoValidate`, so a required empty field does not hide the reason. `SettingsResult` keeps its `<output>` and `role="alert"` elements mounted and empty, and keys the text by press, so a repeated refusal is announced again.
 
 While nothing is saved, the Verify and Test button of the AI, GitHub token, Grok Bot and Reddit account sections stays unavailable, and `SettingsActions` shows the reason as a help line tied to the button with `aria-describedby`, so it is read before any press. The Remove or Disconnect button of the GitHub token, Grok Bot, Reddit account and Obsidian sections does the same while nothing is saved, and the Obsidian page shows that reason in the help line instead of its status line. A row draws one help line for each different reason and ties each button to its own, so Verify and Remove can show two reasons together, and equal reasons show once. A button blocked for the reason a help line states, such as Save on the Obsidian page when the Instance has no sealing key, is tied to it too. A Verify, Test, Remove or Disconnect button with a help line takes no press. A Save button with a help line still submits the form, and the refusal also shows in the result line. For every other blocked reason, such as an unreadable saved value, the press stays refused with the reason in the result line.
-
-A write that a Restore holds off answers 503 with `code: "restoring"` ([Export, backup and restore](export-backup-and-restore.md)), and `isRestoring` is the one reader of that answer. Each caller maps it to a result of its own, never to its generic failure text, and none of them reads the page again, because nothing changed. `saveLink` answers `restoring` and `regenerateDigest` answers `digest-restoring`, and both end as a notice in the Paste card. `retryTopicOverview` answers `restoring`, which sets `writeRefused` in the Topic page state until the next press. `sendAccept` answers `restoring`, which is one of the `Busy` states of a Proposals row. `verifyAi` and `saveAiSettings` answer `restoring` to the AI form, and `saveRedditSettings` answers it to `useSaveOnPick`, which shows the text the Reddit section gives. The Paste card is not mounted in the Reader at narrow widths, so a Try again on a failed Digest pressed there shows its notice once the list opens.
 
 ### GitHub token section
 
