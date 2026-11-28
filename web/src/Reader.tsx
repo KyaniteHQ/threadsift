@@ -54,7 +54,7 @@ function ReaderCol({
   tryAgain: (item: Item) => void;
 }>) {
   const [now] = useState(Date.now);
-  const { state, actions } = useItemDetail(item.id, refreshKey(item));
+  const { state, actions } = useItemDetail(item.id, refreshKey(item), controls.forget);
   const moved = useFocusMoved();
   const focusTitle = !moved && (controls.mode !== "pane" || controls.titleFocus === item.id);
 

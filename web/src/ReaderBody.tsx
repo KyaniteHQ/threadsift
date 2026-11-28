@@ -62,7 +62,11 @@ export function ReaderBody({
         loading={loading}
         tryAgain={tryAgain}
       />
-      <ReaderNotices state={shown} retry={textReady ? actions.retry : reloadPage} />
+      <ReaderNotices
+        state={shown}
+        retry={textReady ? actions.retry : reloadPage}
+        announce={announce}
+      />
       {loading ? <ReaderLoading /> : null}
       {shown.status === "ready" ? <ReaderContent {...content} state={shown} /> : null}
     </>

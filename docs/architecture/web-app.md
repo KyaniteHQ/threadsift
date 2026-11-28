@@ -188,7 +188,12 @@ A covering Reader (Grid Sheet, Grid Page and every layout under 760 px) grows fr
 
 ### Loading and staleness
 
-When `useItemDetail` fails to read `GET /api/items/:id` again and the Reader still holds an answer for the same Item, it keeps the body and marks it `stale`. The Reader then shows `READER_STALE` and Try again above the Summary, so the header (from the list) and a body from an earlier read are never shown as one current Item.
+When `useItemDetail` fails to read `GET /api/items/:id` again and the Reader still holds an answer for the same Item, it keeps the body and marks the copy `earlier`. The Reader then shows `READER_STALE` and Try again above the Summary, so the header (from the list) and a body from an earlier read are never shown as one current Item.
+
+- Try again on that line marks the copy `rereading` and keeps the body. The button keeps its label and takes the disabled look with `aria-busy`, and a press while the read runs does nothing, so no second read starts and no answer is dropped.
+- A read that fails again marks the copy `earlier` again, and the Reader announces `READER_STALE` once more, so the owner hears that the press failed.
+- Try again on the failed line, which holds no body, shows the loading state.
+- A read that answers 404 means the Item is gone. The Reader drops it from the list (`forget`, as the status poll does for a gone Item), the address then finds no Item, and the screen returns to the library, as it does for any address of a deleted Item.
 
 ### Reading place
 
