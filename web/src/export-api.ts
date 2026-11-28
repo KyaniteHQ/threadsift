@@ -1,5 +1,5 @@
 import { ExportStatusSchema } from "../../src/core/contract/export-contract.ts";
-import { callOk, del, parsedFrom, post } from "./calls.ts";
+import { callOk, del, parsedFrom, post, unexpected } from "./calls.ts";
 import { isRestoring } from "./unavailable.ts";
 import { DATABASE_WRITE_DEADLINE_MS } from "./write-deadlines.ts";
 
@@ -13,16 +13,15 @@ export function fetchExportStatus(signal?: AbortSignal) {
   return parsedFrom("GET", ENDPOINT, ExportStatusSchema, { signal });
 }
 
-export async function startExport(): Promise<"started" | "restoring"> {
-  const response = await callOk(post(DATABASE_WRITE_DEADLINE_MS), ENDPOINT, {
-    tolerates: [409, 503],
-  });
+export async function startExport(): Promise<"requested" | "restoring"> {
+  const method = post(DATABASE_WRITE_DEADLINE_MS);
+  const response = await callOk(method, ENDPOINT, { tolerates: [409, 503] });
 
   if (await isRestoring(response)) return "restoring";
 
-  if (response.status === 503) throw new Error("POST /api/export answered 503");
+  if (response.status === 503) throw unexpected(method, ENDPOINT, response.status);
 
-  return "started";
+  return "requested";
 }
 
 export async function deleteExport(): Promise<void> {

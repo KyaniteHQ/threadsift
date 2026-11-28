@@ -116,7 +116,7 @@ export async function call(
   return response;
 }
 
-function unexpected(method: Method, path: string, status: number): Error {
+export function unexpected(method: Method, path: string, status: number): Error {
   return new Error(`${methodOf(method)} ${path} answered ${status}`);
 }
 

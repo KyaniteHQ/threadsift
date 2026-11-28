@@ -17,7 +17,7 @@ import { SettingsResult } from "./SettingsForm.tsx";
 import { SwapButton } from "./SwapButton.tsx";
 import { useFilePicker } from "./use-file-picker.ts";
 import { useHashTarget } from "./use-hash-target.ts";
-import { useRestore } from "./use-restore.ts";
+import type { useRestore } from "./use-restore.ts";
 
 function total(counts: Counts): number {
   return Object.values(counts).reduce((sum, count) => sum + count, 0);
@@ -171,8 +171,10 @@ function offersPicker(view: RestoreStatus): boolean {
   }
 }
 
-export function RestoreBlock() {
-  const { view, loadFailed, progress, acting, result, choose, cancel, resume } = useRestore();
+export function RestoreBlock({
+  restore,
+}: Readonly<{ restore: Readonly<ReturnType<typeof useRestore>> }>) {
+  const { view, loadFailed, progress, acting, result, choose, cancel, resume } = restore;
   const busy = acting !== null;
 
   useHashTarget(view !== null);
