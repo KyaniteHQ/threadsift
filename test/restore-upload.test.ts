@@ -1,22 +1,28 @@
 import assert from "node:assert/strict";
 import { after, before, describe, it } from "node:test";
 
+import { z } from "zod";
+
 import { RestoreErrorSchema, StartedRestoreSchema } from "../src/core/contract/restore-contract.ts";
 import { listedKeys } from "../src/core/kernel/file-pages.ts";
 import { botInstance } from "./bot-task-fixtures.ts";
 import { exportedZip, savedLibrary } from "./export-restore-fixtures.ts";
 import { sentVerifyTask } from "./grok-bot-provider-fixtures.ts";
 import { Instance } from "./instance.ts";
-import { item } from "./pin-fixtures.ts";
 import {
   putPart,
   restoredDone,
   restoreStatus,
   settledRestore,
-  startedRestore,
+  uploadedRestore,
 } from "./restore-fixtures.ts";
 
 const codeOf = (body: string) => RestoreErrorSchema.parse(JSON.parse(body)).code;
+
+const DigestTask = z.object({ item_id: z.number(), task_id: z.number() });
+
+const digestTasks = (instance: Instance) =>
+  instance.database.rows(DigestTask, "select item_id, task_id from digests order by item_id");
 
 describe("an upload that is not whole or not allowed is refused before the check", () => {
   let source: Instance;
@@ -173,14 +179,14 @@ describe("a part that arrives after its Restore left the upload is not kept", ()
   });
 });
 
-describe("a Restore that starts on an Instance with an AI task no Digest names keeps the id of every task in the zip", () => {
+describe("a Restore start deletes the AI tasks no Digest names, so the zip's task keeps its id", () => {
   let source: Instance;
   let target: Instance;
 
   before(async () => {
     source = await Instance.start();
     await source.setUp();
-    source.database.script(item(1, [], []));
+    await savedLibrary(source, { inlineText: 1, fileText: 0 });
     target = await botInstance();
   });
 
@@ -189,23 +195,31 @@ describe("a Restore that starts on an Instance with an AI task no Digest names k
     await target.close();
   });
 
-  it("deletes the Verify task at Start, so the zip's task 1 is restored and the Digest names it", async () => {
+  it("keeps the Verify task through a Start the vault refuses and deletes it at the Start that runs", async () => {
+    const zip = await exportedZip(source);
     const verify = await sentVerifyTask(target);
+    const id = await uploadedRestore(target, zip);
+    const start = () => target.send("POST", `/api/restore/${String(id)}/start`);
 
-    assert.equal(verify.id, 1);
+    target.database.exec(
+      "insert into vault_settings (id, mode, folder, lease_until) values (1, 'folder', '/synthetic-vault', ?)",
+      Number.MAX_SAFE_INTEGER,
+    );
+    const refused = await start();
+    const kept = target.database.count(
+      "select count(*) as n from ai_tasks where id = ?",
+      verify.id,
+    );
 
-    await startedRestore(target, await exportedZip(source));
-
+    target.database.exec("delete from vault_settings");
+    const started = await start();
     const done = await restoredDone(target);
 
-    assert.equal(done.dropped["ai_tasks"], 0);
-    assert.equal(done.restored["ai_tasks"], 1);
-    assert.equal(target.database.count("select count(*) as n from ai_tasks"), 1);
-    assert.equal(
-      target.database.count(
-        "select count(*) as n from ai_tasks where id = 1 and executor = 'caller' and item_id = 1",
-      ),
-      1,
+    assert.deepEqual([refused.status, codeOf(refused.body), kept], [409, "vault-busy", 1]);
+    assert.ok(digestTasks(source).some(({ task_id }) => task_id === verify.id));
+    assert.deepEqual(
+      [started.status, done.dropped["ai_tasks"], digestTasks(target)],
+      [202, 0, digestTasks(source)],
     );
   });
 });
