@@ -49,13 +49,9 @@ export function queuedVerification(
         target: xVerifications.itemId,
         set: { revision: sql`${xVerifications.revision} + 1`, ...fresh },
       }),
-    ...closeVerifyJob(db, itemId),
+    closeVerifyJob(db, itemId),
     reopened(db, itemId, address),
   ];
-}
-
-export function revisionHolds(itemId: number, revision: number | null) {
-  return sql`exists (select 1 from ${xVerifications} where ${xVerifications.itemId} = ${itemId} and ${xVerifications.revision} is ${revision})`;
 }
 
 export function savedProgress(

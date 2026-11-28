@@ -11,16 +11,29 @@ import type { Instance } from "./instance.ts";
 import { xAddressOf } from "./x-intake-fixtures.ts";
 import { allJudged, storedForVerification } from "./x-verify-job-fixtures.ts";
 
+function storedWaiting(instance: Instance, itemId: number, statusId: string, value: XThreadValue) {
+  return storedForVerification(instance, itemId, statusId, value, {
+    judged: allJudged(value),
+    waiting: true,
+  });
+}
+
+function newerAnswer(instance: Instance, itemId: number, statusId: string, value: XThreadValue) {
+  return queuedVerification(instance.core.db, {
+    itemId,
+    address: xAddressOf(statusId),
+    thread: value,
+    digest: null,
+  });
+}
+
 export async function storedUnreadably(
   instance: Instance,
   itemId: number,
   statusId: string,
   value: XThreadValue,
 ): Promise<void> {
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
   await instance.core.db
     .update(xVerifications)
     .set({ thread: "{not json" })
@@ -36,21 +49,13 @@ export async function claimedBeforeNewerAnswer(
 ) {
   const { db } = instance.core;
 
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
   await db.update(jobs).set({ attempts: 3 }).where(eq(jobs.itemId, itemId));
 
   const claimed = await claimNextDue(db);
 
   await db.batch([
-    ...queuedVerification(db, {
-      itemId,
-      address: xAddressOf(statusId),
-      thread: value,
-      digest: null,
-    }),
+    ...newerAnswer(instance, itemId, statusId, value),
     savedProgress(db, itemId, 1, allJudged(value), value),
   ]);
 
@@ -65,22 +70,12 @@ export async function claimsAroundNewerAnswer(
 ) {
   const { db } = instance.core;
 
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
 
   const first = await claimNextDue(db);
 
   await db.update(jobs).set({ claimExpires: 0 }).where(eq(jobs.itemId, itemId));
-  await db.batch([
-    ...queuedVerification(db, {
-      itemId,
-      address: xAddressOf(statusId),
-      thread: value,
-      digest: null,
-    }),
-  ]);
+  await db.batch([...newerAnswer(instance, itemId, statusId, value)]);
 
   return [first, await claimNextDue(db)] as const;
 }
@@ -93,10 +88,7 @@ export async function dueKindsBesideVerification(
 ): Promise<readonly string[]> {
   const { db } = instance.core;
 
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
 
   await db.insert(jobs).values({
     kind: "digest",
@@ -129,22 +121,12 @@ export async function jobAfterNewerAnswer(
 ) {
   const { db } = instance.core;
 
-  await storedForVerification(instance, itemId, statusId, value, {
-    judged: allJudged(value),
-    waiting: true,
-  });
+  await storedWaiting(instance, itemId, statusId, value);
   await db
     .update(jobs)
     .set({ attempts: 2, waitReason: "x-verify", nextAttemptAt: Date.now() + HOUR_MS })
     .where(eq(jobs.itemId, itemId));
-  await db.batch([
-    ...queuedVerification(db, {
-      itemId,
-      address: xAddressOf(statusId),
-      thread: value,
-      digest: null,
-    }),
-  ]);
+  await db.batch([...newerAnswer(instance, itemId, statusId, value)]);
 
   const [job] = await db
     .select()

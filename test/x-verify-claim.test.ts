@@ -94,6 +94,7 @@ describe("a verification job claimed again after a newer answer", () => {
     );
 
     assert.ok(first?.kind === "x_verify" && second?.kind === "x_verify");
+    assert.deepEqual([first.itemId, second.itemId], [itemId, itemId]);
     assert.notEqual(second.attemptKey, first.attemptKey);
     assert.notEqual(second.imagePrefix, first.imagePrefix);
   });
