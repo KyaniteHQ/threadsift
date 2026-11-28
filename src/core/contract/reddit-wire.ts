@@ -29,14 +29,17 @@ export const COMMENT_FIELDS = {
   id: CommentId,
   author: z.string(),
   body: z.string(),
-  parent_id: z.string(),
+  parent_id: z.string().toLowerCase(),
   score: z.number().int().nullish(),
   created_utc: z.number().nonnegative(),
 };
 
 export const MoreChild = z.object({
   kind: z.literal("more"),
-  data: z.object({ parent_id: z.string(), children: z.array(CommentId).default([]) }),
+  data: z.object({
+    parent_id: z.string().toLowerCase(),
+    children: z.array(CommentId).default([]),
+  }),
 });
 
 const Child: z.ZodType<WireChild> = z.lazy(() =>

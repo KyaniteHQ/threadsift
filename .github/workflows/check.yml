@@ -18,7 +18,7 @@ jobs:
           path: ~/.impeccable/bin
           key: impeccable-engine-${{ runner.os }}-${{ runner.arch }}-${{ hashFiles('.claude/skills/impeccable/scripts/VERSION') }}
       - uses: ./.github/actions/setup-devenv
-      - run: devenv tasks run ci:check
+      - run: devenv tasks run ci:check extension:package
       - run: tools/docs-skip.sh delete
       - run: devenv tasks run ci:test ci:build ci:audit design:check
         env:

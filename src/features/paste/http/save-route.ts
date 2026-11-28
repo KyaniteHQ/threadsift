@@ -1,9 +1,6 @@
 import { createRoute, type OpenAPIHono } from "@hono/zod-openapi";
 
-import {
-  ErrorResponseSchema,
-  UnavailableResponseSchema,
-} from "../../../core/contract/error-wire.ts";
+import { ErrorResponseSchema } from "../../../core/contract/error-wire.ts";
 import { SavedItemResponseSchema } from "../../../core/contract/item-route-wire.ts";
 import { SaveItemRequestSchema, SaveRefusalSchema } from "../../../core/contract/save-wire.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
@@ -16,6 +13,7 @@ import {
   budgetRefusal,
   jsonBody,
   jsonRequest,
+  restoringResponse,
 } from "../../../http/openapi.ts";
 import { refusing } from "../../../http/refusals.ts";
 import { callerOf, requirePasteScopes } from "../../../http/token-scopes.ts";
@@ -52,10 +50,7 @@ const saveItemRoute = createRoute({
       ErrorResponseSchema,
       "`page` for a Reddit post or comment whose Item already holds a saved thread from `content`, which is a thread header and so also a thread with no comments or with no published Digest. The saved thread stays, with its Kept comments, and nothing changes. Also `fill: true` for a link whose Item holds a saved thread in that sense or does not exist.",
     ),
-    503: jsonBody(
-      UnavailableResponseSchema,
-      "A restore holds the library (`code` is `restoring`): it runs, or it failed after it wrote records and waits to be resumed or cancelled. The link is not saved. Reads and deletes work meanwhile. Send the link again when the restore has finished or was cancelled.",
-    ),
+    503: restoringResponse("the link is not saved."),
   },
 });
 

@@ -1,6 +1,7 @@
 import { browser } from "wxt/browser";
 
-import { type Config, hasRedditAccess, instanceOrigin } from "./config.ts";
+import { type Config, instanceOrigin } from "./config.ts";
+import { holdsFillAccess } from "./fill-access.ts";
 import { logFailure } from "./log.ts";
 import type { ConfigView } from "./state.ts";
 import { type Stored, StoredSchema } from "./stored-keys.ts";
@@ -40,12 +41,12 @@ async function fillWanted(): Promise<boolean> {
 }
 
 export async function fillActive(): Promise<boolean> {
-  return (await hasRedditAccess()) && (await fillWanted());
+  return (await holdsFillAccess()) && (await fillWanted());
 }
 
 export async function settleFill(): Promise<void> {
   const { fill } = await stored();
-  const granted = await hasRedditAccess();
+  const granted = await holdsFillAccess();
   const settled = fill === true && granted;
 
   if (settled !== fill) await storeFill(settled);

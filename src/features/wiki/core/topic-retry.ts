@@ -1,5 +1,6 @@
 import type { Overview } from "../../../core/contract/topic-overview-contract.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { heldBatch, isClosed, whileOpen } from "../../../core/kernel/restore-hold.ts";
 import type { Side } from "./merge-unit.ts";
 import { startOverview } from "./overview-start.ts";
 import { topicOfKey } from "./topic-lookup.ts";
@@ -8,7 +9,7 @@ import { readTopicOverview } from "./topic-page.ts";
 
 type OverviewRetry =
   | { readonly outcome: "started"; readonly overview: Overview }
-  | { readonly outcome: "unknown-topic" | "no-provider" | "no-items" };
+  | { readonly outcome: "unknown-topic" | "no-provider" | "no-items" | "restoring" };
 
 async function retryingTopic(ports: Ports, topic: Readonly<Side>): Promise<OverviewRetry> {
   const { db } = ports;
@@ -17,12 +18,18 @@ async function retryingTopic(ports: Ports, topic: Readonly<Side>): Promise<Overv
   switch (result.kind) {
     case "no-provider":
     case "no-items":
+    case "restoring":
       return { outcome: result.kind };
     case "stale":
       return retryingTopic(ports, topic);
-    case "open":
-      await overviewRetried(db, topic.id, result.jobId);
+    case "open": {
+      const retried = await whileOpen(() =>
+        heldBatch(db, [overviewRetried(db, topic.id, result.jobId)] as const),
+      );
+
+      if (isClosed(retried)) return { outcome: "restoring" };
       break;
+    }
     case "started":
       break;
     default: {
