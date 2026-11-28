@@ -2,7 +2,6 @@ import { type SQLWrapper, and, asc, eq, sql } from "drizzle-orm";
 
 import type { Database } from "../../../core/kernel/database.ts";
 import { storedWithTopic } from "../../../core/kernel/digest-stored.ts";
-import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
 import { digests, items, logEntries, topics } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
@@ -60,11 +59,6 @@ export function topicMoves(
           sql`${digests.itemId} in (select ${items.id} from ${items} where ${items.topicId} = ${loser})`,
         ),
       ),
-    wokenBotWaits(db, {
-      moved: { kind: "library" },
-      now: Date.now(),
-      when: sql`exists (select 1 from ${items} where ${moving})`,
-    }),
     db.update(items).set({ topicId: survivor }).where(moving),
     db
       .update(logEntries)

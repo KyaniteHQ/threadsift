@@ -13,7 +13,6 @@ import {
   unchangedDigests,
 } from "../../../core/kernel/digest-stored.ts";
 import { report } from "../../../core/kernel/failure-log.ts";
-import { wokenBotWaits } from "../../../core/kernel/job-waiting.ts";
 import { digests, items, itemTags } from "../../../core/kernel/schema.ts";
 import { among } from "../../../core/kernel/sql-expressions.ts";
 import { STALE } from "../../../core/kernel/vault-stale.ts";
@@ -139,14 +138,11 @@ export async function readRewrite(
   );
   const readable = readableDigests(stored, { from, into });
 
-  const moving = sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${from.id} and ${unchanged(itemTags.itemId)})`;
-
   return {
     itemIds,
     last: itemIds.at(-1) ?? 0,
-    moving,
+    moving: sql`(select count(*) from ${itemTags} where ${itemTags.tagId} = ${from.id} and ${unchanged(itemTags.itemId)})`,
     writes: [
-      wokenBotWaits(db, { moved: { kind: "library" }, now: Date.now(), when: sql`${moving} > 0` }),
       ...STALE.itemChanged(
         db,
         sql`${among(
