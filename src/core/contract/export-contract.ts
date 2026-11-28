@@ -41,9 +41,15 @@ export function isShownFailure(failure: ExportFailure | null): failure is ShownE
   return SHOWN_EXPORT_FAILURES.some((shown) => shown === failure);
 }
 
-const PartialItemSchema = z
-  .object({ id: z.number().int().positive(), entries: WholeCount })
-  .readonly();
+const PartialItemSchema = z.union([
+  z
+    .object({
+      id: z.number().int().positive(),
+      written: z.array(z.string().min(1)).min(1).readonly(),
+    })
+    .readonly(),
+  z.object({ id: z.number().int().positive(), entries: WholeCount }).readonly(),
+]);
 
 export type PartialItem = z.infer<typeof PartialItemSchema>;
 
