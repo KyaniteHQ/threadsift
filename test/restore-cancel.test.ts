@@ -22,6 +22,8 @@ import { holdClaim } from "./weekly-claim-fixtures.ts";
 
 const NOT_A_ZIP = new TextEncoder().encode("this is not a zip");
 
+const HELD_LINK = "https://x.com/someone/status/3500000009";
+
 const AnswerSchema = restoreAnswerSchema("superseded", "not-resumable");
 
 describe("the owner cancels, resumes and undoes a Restore", () => {
@@ -183,6 +185,10 @@ describe("the owner cancels, resumes and undoes a Restore", () => {
     assert.deepEqual(restoreProgress(target, id), { ...held, state: "failed" });
     assert.deepEqual(await listedKeys(target.core.files, "items/"), []);
     assert.equal(target.database.rowCount("items"), 2);
+    assert.equal((await target.send("POST", "/api/items", { url: HELD_LINK })).status, 503);
+    assert.equal((await send("DELETE", id)).status, 202);
+    await settledRestore(target, ["cancelled"]);
+    assert.equal((await target.send("POST", "/api/items", { url: HELD_LINK })).status, 201);
   };
 
   it("checks the release again in the tables phase, so a newer migration ends a resumed Restore with other-release and writes nothing further", (t) =>

@@ -75,7 +75,11 @@ function ReaderChoice({
   view,
   changed,
 }: Readonly<{ view: XSettingsView; changed: (view: XSettingsView) => void }>) {
-  const form = useSaveOnPick(saveXReader, changed, X_TEXT.failed);
+  const form = useSaveOnPick({
+    save: saveXReader,
+    changed,
+    texts: { failed: X_TEXT.failed, restoring: X_TEXT.failed },
+  });
 
   return (
     <div className="stack" aria-busy={form.busy}>

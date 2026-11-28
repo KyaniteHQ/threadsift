@@ -2,7 +2,7 @@ import { BatchResponseSchema } from "../../src/core/contract/batch-wire.ts";
 import { type ImportState, ImportStateSchema } from "../../src/core/contract/import-contract.ts";
 import type { ImportRequest } from "../../src/core/contract/import-list.ts";
 import { call, parsedBody, parsedOrNull, post } from "./calls.ts";
-import { isRestoring } from "./unavailable.ts";
+import { RESTORING, type Restoring, isRestoring, unlessRestoring } from "./unavailable.ts";
 import { IMPORT_BATCH_DEADLINE_MS } from "./write-deadlines.ts";
 
 export interface Counts {
@@ -13,7 +13,8 @@ export interface Counts {
 
 type BatchAnswer =
   | { readonly kind: "saved"; readonly counts: Counts; readonly stored: string | null }
-  | { readonly kind: "restoring" | "network" | "rejected" }
+  | { readonly kind: "network" | "rejected" }
+  | Restoring
   | { readonly kind: "unanswered" };
 
 export const NO_COUNTS: Counts = { added: 0, known: 0, refused: 0 };
@@ -37,11 +38,11 @@ function countsOf(outcomes: readonly (keyof Counts)[]): Counts {
 
 export async function postBatch(request: Readonly<ImportRequest>): Promise<BatchAnswer> {
   try {
-    const response = await call(post(IMPORT_BATCH_DEADLINE_MS), "/api/items/batch", {
-      json: request,
-    });
+    const response = await unlessRestoring(
+      await call(post(IMPORT_BATCH_DEADLINE_MS), "/api/items/batch", { json: request }),
+    );
 
-    if (await isRestoring(response)) return { kind: "restoring" };
+    if (isRestoring(response)) return RESTORING;
 
     if (!response.ok) return { kind: "rejected" };
 

@@ -1,7 +1,7 @@
 import type { ItemDetail } from "../../src/core/contract/item-detail-wire.ts";
 import type { Item } from "../../src/core/contract/item-wire.ts";
 import { SECTION_TITLES } from "../../src/core/contract/reader-text.ts";
-import { Comments } from "./Comments.tsx";
+import { Comments, drawsCommentText } from "./Comments.tsx";
 import { POST_KEY } from "./highlight-target.ts";
 import { PostTextView } from "./post-text-module.ts";
 import { FILL_NOTE, NO_POST_TEXT, NO_README, archiveNote } from "./reader-text.ts";
@@ -25,13 +25,21 @@ function missingTextNote(item: Readonly<Item>, hasLink: boolean): string | null 
   return hasLink ? null : NO_POST_TEXT;
 }
 
+function hasPostText(text: string | null): text is string {
+  return text !== null && text.trim() !== "";
+}
+
+export function drawsMarkdown(detail: Readonly<ItemDetail>): boolean {
+  return hasPostText(detail.postText) || drawsCommentText(detail.comments);
+}
+
 export function Original({
   item,
   detail,
   now,
 }: Readonly<{ item: Item; detail: ItemDetail; now: number }>) {
   const text = detail.postText;
-  const hasText = text !== null && text.trim() !== "";
+  const hasText = hasPostText(text);
   const note = hasText ? null : missingTextNote(item, detail.link !== null);
 
   return (

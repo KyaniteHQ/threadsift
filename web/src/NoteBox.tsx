@@ -10,6 +10,7 @@ import {
   NOTE_KEYS,
   NOTE_NEWER_EMPTY,
   NOTE_NEWER_LABEL,
+  NOTE_RESTORING,
   NOTE_SAVE,
   NOTE_SAVED,
   NOTE_TOO_LONG,
@@ -48,6 +49,7 @@ function Newer({
 
 function Refusals({
   failed,
+  held,
   tooLong,
   newer,
   pending,
@@ -55,6 +57,7 @@ function Refusals({
   takeNewer,
 }: Readonly<{
   failed: boolean;
+  held: boolean;
   tooLong: boolean;
   newer: NoteView | null;
   pending: boolean;
@@ -65,6 +68,9 @@ function Refusals({
     <>
       <p className="nt-msg" role="alert">
         {failed ? NOTE_FAILED : null}
+      </p>
+      <p className="nt-msg" role="alert">
+        {held ? NOTE_RESTORING : null}
       </p>
       <p className="nt-msg" role="alert">
         {tooLong ? NOTE_TOO_LONG : null}
@@ -148,6 +154,7 @@ export function NoteBox({ itemId, initial }: Readonly<{ itemId: number; initial:
       <Actions canSave={note.canSave} justSaved={note.justSaved} keys={keys} save={note.save} />
       <Refusals
         failed={note.failed}
+        held={note.held}
         tooLong={note.tooLong}
         newer={note.newer}
         pending={note.pending}

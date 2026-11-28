@@ -1,10 +1,10 @@
 import { useCallback } from "react";
 
-import { itemPath } from "../../src/core/contract/item-path.ts";
+import { itemIdOf } from "../../src/core/contract/item-path.ts";
 import type { Attention } from "./ItemRow.tsx";
 import type { ListState } from "./list-state.ts";
 import { focusNeighbourCard } from "./reveal.ts";
-import { type Route, onItem } from "./routing.ts";
+import { type Route, currentPath } from "./routing.ts";
 
 export function neighbour(list: Readonly<ListState>, openId: number | null, direction: 1 | -1) {
   if (list.status !== "ready") return null;
@@ -37,7 +37,7 @@ function useGoTo({
   dom,
   focusTitleOf,
 }: Pick<Stepping, "route" | "attend" | "dom" | "focusTitleOf">) {
-  const { navigate, replace } = route;
+  const { openItem } = route;
   const { inReader } = dom;
 
   return useCallback(
@@ -45,31 +45,30 @@ function useGoTo({
       const fromReader = inReader();
       focusTitleOf(fromReader ? id : null);
       attend({ id, focus: !fromReader });
-
-      if (onItem()) replace(itemPath(id));
-      else navigate(itemPath(id));
+      openItem(id, "step");
     },
-    [attend, focusTitleOf, inReader, navigate, replace],
+    [attend, focusTitleOf, inReader, openItem],
   );
 }
 
 export function useStep({ list, route, attend, dom, focusTitleOf, covers }: Stepping) {
-  const { openId } = route;
   const { appOf } = dom;
   const goTo = useGoTo({ route, attend, dom, focusTitleOf });
 
   return useCallback(
     (direction: 1 | -1) => {
-      if (openId === null && covers) {
+      const shownId = itemIdOf(currentPath());
+
+      if (shownId === null && covers) {
         focusNeighbourCard(appOf(), direction);
 
         return;
       }
 
-      const id = neighbour(list, openId, direction);
+      const id = neighbour(list, shownId, direction);
 
       if (id !== null) goTo(id);
     },
-    [appOf, covers, goTo, list, openId],
+    [appOf, covers, goTo, list],
   );
 }

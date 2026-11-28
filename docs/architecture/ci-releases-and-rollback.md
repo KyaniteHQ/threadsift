@@ -159,7 +159,7 @@ The migration that renamed the thread tables copies `reddit_comments` into `thre
   ```
 
   For a container, run the same `select` on a copy of its database file. An empty result lets the migration run. For each row it returns, take an Export, delete that Item in the Reader (its Highlights and Note go with it), deploy, and Paste its link again.
-- A Restore that runs. The migration changes the record files of an Export, so a Restore that still runs when the deploy applies the migration ends `failed` with `other-release`, and the rows it wrote stay until the owner cancels it ([Export, backup and restore](export-backup-and-restore.md)). Let a running Restore end before the merge.
+- A Restore that runs. The migration changes the record files of an Export, so a Restore that still runs when the deploy applies the migration ends `failed` with `other-release`, and the rows it wrote stay until the owner cancels it, and the library takes no Paste meanwhile ([Export, backup and restore](export-backup-and-restore.md)). Let a running Restore end before the merge.
 
 ### Dry run of a migration
 
