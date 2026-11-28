@@ -42,5 +42,5 @@ When the account expires, the Extension's popup and settings page show **Reconne
 
 - **Replace.** Paste a new value and choose **Connect**. The waiting links use the new session, oldest first. If Threadsift is reading a link when you connect, the others start once that read ends.
 - **Disconnect.** Choose **Disconnect**. The waiting links become due. Threadsift tries to fill them from the archive when Reddit archive fill is On, and keeps them Link-only when it is Off.
-- **Expiry.** When Reddit says the session is logged out, Settings shows it as expired. Until you connect again, Threadsift tries to fill links from the archive when Reddit archive fill is On, and keeps them Link-only when it is Off. Other refusals from Reddit do not expire the account.
+- **Expiry.** When Reddit says the session is logged out, Settings shows it as expired. Until you connect again, Threadsift tries to fill links from the archive when Reddit archive fill is On, and keeps them Link-only when it is Off. Three different threads that Reddit refuses with a 403, each followed by a refused session check, expire the account too. Other refusals from Reddit do not expire it.
 - **Key changed.** When Settings says the Instance can no longer open the session, follow [Keep the secret key](self-hosting.md#keep-the-secret-key).
