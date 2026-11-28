@@ -74,7 +74,7 @@ async function stepOf(
     return { kind: "ended", ending: "stopped", done: doneOf(saved) };
   }
 
-  const request = nextBatch(links, progress.done, name, saved, IMPORT_BATCH_LINKS);
+  const request = nextBatch(links, progress.done, name, before, IMPORT_BATCH_LINKS);
   const done = progress.done + request.links.length;
   const answer = await postBatch(request);
 

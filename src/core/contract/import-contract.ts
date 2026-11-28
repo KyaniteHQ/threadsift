@@ -20,7 +20,12 @@ export const ImportSchema = z.object({
 
 export const ImportWriteSchema = ImportSchema.extend({
   previous: z.string().min(1).max(IMPORT_CURSOR_MAX).nullable().optional(),
-});
+  previousUpdatedAt: z.number().int().optional(),
+}).refine(
+  ({ previous, previousUpdatedAt }) =>
+    previousUpdatedAt === undefined || (previous ?? null) !== null,
+  { message: "`previousUpdatedAt` needs a text `previous`", path: ["previousUpdatedAt"] },
+);
 
 export const ImportStateSchema = ImportSchema.extend({ updatedAt: z.number().int() });
 

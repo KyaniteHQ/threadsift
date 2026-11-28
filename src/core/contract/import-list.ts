@@ -55,6 +55,8 @@ export type ImportRequest = Readonly<{
   >;
 }>;
 
+export type SavedCursor = Readonly<{ cursor: string; updatedAt: number }>;
+
 export type Resume =
   | { readonly kind: "fresh" }
   | { readonly kind: "partial"; readonly done: number }
@@ -81,21 +83,24 @@ function importRequest(
   links: readonly string[],
   name: string,
   cursor: number,
-  previous: string | null,
+  previous: SavedCursor | null,
 ): ImportRequest {
+  const moving = { name, cursor: String(cursor) };
+
   return {
     links: links.map((url) => ({ url })),
-    import: { name, cursor: String(cursor), previous },
+    import:
+      previous === null
+        ? { ...moving, previous: null }
+        : { ...moving, previous: previous.cursor, previousUpdatedAt: previous.updatedAt },
   };
 }
 
 const ENVELOPE_BYTES = bytesOf(
-  importRequest(
-    [],
-    `${NAME_PREFIX}${"0".repeat(NAME_DIGITS)}`,
-    Number.MAX_SAFE_INTEGER,
-    String(Number.MAX_SAFE_INTEGER),
-  ),
+  importRequest([], `${NAME_PREFIX}${"0".repeat(NAME_DIGITS)}`, Number.MAX_SAFE_INTEGER, {
+    cursor: String(Number.MAX_SAFE_INTEGER),
+    updatedAt: Number.MAX_SAFE_INTEGER,
+  }),
 );
 
 function entryBytes(link: string): number {
@@ -261,7 +266,7 @@ export function nextBatch(
   links: readonly string[],
   from: number,
   name: string,
-  previous: string | null,
+  previous: SavedCursor | null,
   limit: number,
 ): ImportRequest {
   let end = from;

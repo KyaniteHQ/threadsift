@@ -139,6 +139,41 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
   });
 
+  it("keeps a cursor that a later run wrote again when a late call sent from the earlier value arrives", async () => {
+    const name = "list-0123456789abcdef";
+    const at = (cursor: string, previous: Readonly<{ cursor: string; updatedAt: number }>) =>
+      batch({
+        links: [{ url: xLink(3300000000 + Number(cursor)) }],
+        import: { name, cursor, previous: previous.cursor, previousUpdatedAt: previous.updatedAt },
+      });
+
+    await batch({ links: links(1), import: { name, cursor: "20", previous: null } });
+
+    const finished = (await importOf(name)).state;
+
+    assert.ok(finished);
+
+    const moveFromRead = async (cursor: string) => {
+      const read = (await importOf(name)).state;
+
+      assert.ok(read);
+      assert.equal((await at(cursor, read)).status, 200);
+    };
+
+    await moveFromRead("7");
+    await moveFromRead("14");
+    await moveFromRead("20");
+
+    const late = await at("7", finished);
+
+    assert.equal(late.status, 200);
+    assert.deepEqual(BatchResponseSchema.parse(JSON.parse(late.body)).import, {
+      name,
+      cursor: "20",
+    });
+    assert.equal((await importOf(name)).state?.cursor, "20");
+  });
+
   it("answers 400 with the entry's index and saves nothing, moving no cursor, when one entry is invalid", async () => {
     const itemsBefore = await instance.itemTotal();
 
@@ -166,7 +201,7 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
   });
 
-  it("answers 400 for 0 links, 101 links and a malformed import, and saves nothing", async () => {
+  it("answers 400 for 0 links, 101 links, a malformed import and a previousUpdatedAt without a text previous, and saves nothing", async () => {
     const itemsBefore = await instance.itemTotal();
 
     const refused = [
@@ -175,11 +210,16 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
       await batch({ links: links(1), import: { name: "bad name", cursor: "1" } }),
       await batch({ links: links(1), import: { name: "ok", cursor: "" } }),
       await batch({ links: links(1), import: { name: "ok", cursor: "x".repeat(257) } }),
+      await batch({ links: links(1), import: { name: "ok", cursor: "1", previousUpdatedAt: 1 } }),
+      await batch({
+        links: links(1),
+        import: { name: "ok", cursor: "1", previous: null, previousUpdatedAt: 1 },
+      }),
     ];
 
     assert.deepEqual(
       refused.map((answer) => answer.status),
-      [400, 400, 400, 400, 400],
+      [400, 400, 400, 400, 400, 400, 400],
     );
     assert.equal(await instance.itemTotal(), itemsBefore);
   });

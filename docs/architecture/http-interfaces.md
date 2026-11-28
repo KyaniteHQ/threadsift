@@ -73,7 +73,7 @@ The 400, 403, 413 and 415 of each route in `GET /api/openapi.json` come from the
 - `results[i]` answers `links[i]` with `added`, `known` or `refused` (a host that is not globally reachable, which does not stop the other links).
 - An invalid entry answers 400 and saves nothing.
 
-`import` is `{name, cursor, previous?}`. The caller picks the `name` and an opaque `cursor`, such as the last bookmark id. When `previous` is sent, the Instance saves the cursor only while the stored one equals it (null means only while nothing is stored).
+`import` is `{name, cursor, previous?, previousUpdatedAt?}`. The caller picks the `name` and an opaque `cursor`, such as the last bookmark id. When `previous` is sent, the Instance saves the cursor only while the stored one equals it (null means only while nothing is stored). `previousUpdatedAt` is the `updatedAt` that `GET /api/imports/{name}` answered with that cursor. It goes only with a text `previous`, and the Instance then saves only while the stored `updatedAt` equals it too, so a cursor that left the value and came back to it is not taken for the one the caller read.
 
 The Instance saves the cursor only after every link has an outcome, so a call that dies half way leaves the old cursor, and the repeat answers `known` for the links already saved. `GET /api/imports/{name}` reads it back, and an agent token calls both ([Data model outline](data-model-outline.md), the import cursor).
 

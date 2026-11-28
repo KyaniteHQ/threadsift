@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type {
   ImportCursor,
@@ -19,23 +19,30 @@ export async function readImport(db: Database, name: string): Promise<ImportStat
   return found;
 }
 
-function cursorWrite(db: Database, { name, cursor, previous }: Readonly<ImportWrite>) {
+function cursorWrite(
+  db: Database,
+  { name, cursor, previous, previousUpdatedAt }: Readonly<ImportWrite>,
+) {
   const now = Date.now();
   const row = { name, cursor, createdAt: now, updatedAt: now };
+  const moved = { cursor, updatedAt: sql`max(${now}, ${imports.updatedAt} + 1)` };
 
   if (previous === undefined) {
-    return db
-      .insert(imports)
-      .values(row)
-      .onConflictDoUpdate({ target: imports.name, set: { cursor, updatedAt: now } });
+    return db.insert(imports).values(row).onConflictDoUpdate({ target: imports.name, set: moved });
   }
 
   return previous === null
     ? db.insert(imports).values(row).onConflictDoNothing()
     : db
         .update(imports)
-        .set({ cursor, updatedAt: now })
-        .where(and(eq(imports.name, name), eq(imports.cursor, previous)));
+        .set(moved)
+        .where(
+          and(
+            eq(imports.name, name),
+            eq(imports.cursor, previous),
+            previousUpdatedAt === undefined ? undefined : eq(imports.updatedAt, previousUpdatedAt),
+          ),
+        );
 }
 
 async function writtenWhileOpen(db: Database, write: Readonly<ImportWrite>): Promise<boolean> {
