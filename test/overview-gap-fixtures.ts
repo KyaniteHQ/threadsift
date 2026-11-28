@@ -126,6 +126,12 @@ export const jobTopicsOf = (instance: Instance, itemId: number) =>
 export const rowStates = (instance: Instance) =>
   gapRows(instance).map(({ id, state }) => [id, state]);
 
+export const overviewJobsById = (instance: Instance) =>
+  instance.database.rows(
+    z.object({ id: z.number(), topic_id: z.number().nullable(), state: z.string() }),
+    "select id, topic_id, state from jobs where kind = 'topic_overview' order by id",
+  );
+
 export const overviewJobs = (instance: Instance) =>
   instance.database.rows(
     z.object({ id: z.number(), item_id: z.number(), state: z.string() }),

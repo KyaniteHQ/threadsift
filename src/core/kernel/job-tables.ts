@@ -55,9 +55,10 @@ export const jobs = sqliteTable(
     uniqueIndex("jobs_one_open_per_item_kind")
       .on(table.itemId, table.kind)
       .where(sql`${jobOpen(table.state)} and ${table.kind} <> ${literal(TOPIC_OVERVIEW)}`),
-    uniqueIndex("jobs_one_open_overview_per_item_topic")
-      .on(table.itemId, table.topicId)
+    uniqueIndex("jobs_one_open_overview_per_topic_item")
+      .on(table.topicId, table.itemId)
       .where(sql`${jobOpen(table.state)} and ${table.kind} = ${literal(TOPIC_OVERVIEW)}`),
+    index("jobs_by_item").on(table.itemId, table.kind),
     index("jobs_state_next_attempt").on(table.state, table.nextAttemptAt),
   ],
 );

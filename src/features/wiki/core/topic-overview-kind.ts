@@ -23,8 +23,8 @@ export const topicOverviewKind = defineAiKind({
   task: topicOverviewTask,
   current: overviewCurrent,
   holds: (context) => sql`not ${overviewAtBot(context.topicId)} and ${overviewCurrent(context)}`,
-  defer: (_db, { topicId }) =>
-    Promise.resolve(topicId === null ? null : { busy: overviewAtBot(topicId), wait: "topic-busy" }),
+  defer: ({ topicId }) =>
+    topicId === null ? null : { busy: overviewAtBot(topicId), wait: "topic-busy" },
   prepare: async (ports, job) => {
     const prepared = await preparedOverview(ports.db, job);
 

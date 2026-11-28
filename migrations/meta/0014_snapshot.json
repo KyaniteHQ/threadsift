@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "a1c79146-cfb4-487d-8717-55f9a4c1e2c5",
+  "id": "4da9a4ba-2ffb-4453-8b40-1acda7b24ffc",
   "prevId": "ffd2f411-a34f-4c60-9ccd-cafba1c190db",
   "tables": {
     "agent_tokens": {
@@ -1500,11 +1500,16 @@
           "isUnique": true,
           "where": "\"jobs\".\"state\" <> 'done' and \"jobs\".\"kind\" <> 'topic_overview'"
         },
-        "jobs_one_open_overview_per_item_topic": {
-          "name": "jobs_one_open_overview_per_item_topic",
-          "columns": ["item_id", "topic_id"],
+        "jobs_one_open_overview_per_topic_item": {
+          "name": "jobs_one_open_overview_per_topic_item",
+          "columns": ["topic_id", "item_id"],
           "isUnique": true,
           "where": "\"jobs\".\"state\" <> 'done' and \"jobs\".\"kind\" = 'topic_overview'"
+        },
+        "jobs_by_item": {
+          "name": "jobs_by_item",
+          "columns": ["item_id", "kind"],
+          "isUnique": false
         },
         "jobs_state_next_attempt": {
           "name": "jobs_state_next_attempt",

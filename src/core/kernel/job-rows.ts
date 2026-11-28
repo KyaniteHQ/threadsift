@@ -104,7 +104,7 @@ export function openingJob(
     now,
     page,
   }: Readonly<{
-    kind: JobKind;
+    kind: Exclude<JobKind, OverviewKind>;
     address: string;
     normalizedUrl: string;
     now: number;
@@ -114,14 +114,20 @@ export function openingJob(
   return opening(db, { kind, address, now, page, where: eq(items.normalizedUrl, normalizedUrl) });
 }
 
-interface QueuedFields {
-  readonly kind: JobKind;
+type OverviewKind = Extract<JobKind, "topic_overview">;
+
+interface QueuedCommon {
   readonly address: string | Readonly<SQLWrapper>;
   readonly attempts?: number | undefined;
   readonly waitReason?: WaitReason | null | undefined;
   readonly page?: string | null | Readonly<SQLWrapper> | undefined;
-  readonly topicId?: number | Readonly<SQLWrapper> | null | undefined;
 }
+
+type QueuedFields = QueuedCommon &
+  (
+    | { readonly kind: OverviewKind; readonly topicId: number | Readonly<SQLWrapper> }
+    | { readonly kind: Exclude<JobKind, OverviewKind>; readonly topicId?: undefined }
+  );
 
 function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
   itemId: ItemId,
@@ -132,7 +138,7 @@ function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
     attempts = 0,
     waitReason = null,
     page = null,
-    topicId = null,
+    topicId,
   }: Readonly<QueuedFields & { nextAttemptAt: number }>,
 ) {
   return {
@@ -149,7 +155,7 @@ function queuedRow<ItemId extends typeof items.id | SQL.Aliased<null>>(
     claimExpires: sql<null>`null`.as("claim_expires"),
     waitReason: sql<WaitReason | null>`${waitReason}`.as("wait_reason"),
     page: sql<string | null>`${page}`.as("page"),
-    topicId: sql<number | null>`${topicId}`.as("topic_id"),
+    topicId: sql<number | null>`${topicId ?? null}`.as("topic_id"),
   };
 }
 

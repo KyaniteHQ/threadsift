@@ -20,7 +20,7 @@ export async function planTopicUnit({
     moves: [
       ...topicMoves(db, from.id, into.id, linked),
       overviewRemoved(db, from.id, gone),
-      overviewJobsFollow(db, { loser: from.id, survivor: into.id }, gone),
+      ...overviewJobsFollow(db, { loser: from.id, survivor: into.id }, gone),
     ],
     cursor: null,
     before: STALE.topicMerged(db, { from: from.id, gone }),

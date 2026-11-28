@@ -37,6 +37,12 @@ function closeJobs(db: Database, which: Readonly<SQLWrapper> | undefined) {
   return db.update(jobs).set(CLOSED_JOB).where(and(which, jobOpen()));
 }
 
+export function closeMatchingJobs(db: Database, which: Readonly<SQLWrapper>) {
+  const matching = db.select({ id: jobs.id }).from(jobs).where(and(which, jobOpen()));
+
+  return [supersededTasks(db, inArray(aiTasks.jobId, matching)), closeJobs(db, which)] as const;
+}
+
 export function closeRunJobs(db: Database, kind: UnownedJobKind, runId: number) {
   return closeJobs(db, and(eq(jobs.kind, kind), eq(jobs.address, unownedAddress(kind, runId))));
 }

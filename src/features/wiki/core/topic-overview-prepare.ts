@@ -17,7 +17,12 @@ type OverviewPrepared =
       readonly prompt: OverviewPrompt;
     };
 
-async function readyOverview(db: Database, topicId: number): Promise<OverviewPrepared> {
+export async function preparedOverview(
+  db: Database,
+  { topicId }: Readonly<ClaimedJob>,
+): Promise<OverviewPrepared> {
+  if (topicId === null) return settled({ writes: [] });
+
   const read = await readOverview(db, topicId);
 
   if (read === null) return settled(idleOutcome(db, topicId, { unreadable: 0 }));
@@ -35,11 +40,4 @@ async function readyOverview(db: Database, topicId: number): Promise<OverviewPre
   }
 
   return { kind: "ask", topicId, read, prompt };
-}
-
-export function preparedOverview(
-  db: Database,
-  { topicId }: Readonly<ClaimedJob>,
-): Promise<OverviewPrepared> {
-  return topicId === null ? Promise.resolve(settled({ writes: [] })) : readyOverview(db, topicId);
 }

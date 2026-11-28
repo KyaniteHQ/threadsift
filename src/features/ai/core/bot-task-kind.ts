@@ -51,7 +51,7 @@ function preparedFor<Context, Result, Basis>(
   const { defer, holds, prepare, kind } = declaration;
 
   return async (ports, job) => {
-    const deferred = await deferredBy(ports.db, (await defer?.(ports.db, job)) ?? null);
+    const deferred = await deferredBy(ports.db, defer?.(job) ?? null);
 
     if (deferred !== null) return { kind: "settled", outcome: deferred };
 
