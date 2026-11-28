@@ -6,6 +6,7 @@ import type { z } from "zod";
 import { BatchResponseSchema } from "../src/core/contract/batch-wire.ts";
 import { ErrorResponseSchema } from "../src/core/contract/error-wire.ts";
 import { ImportStateSchema } from "../src/core/contract/import-contract.ts";
+import { lateCallKeepsCursor } from "./batch-fixtures.ts";
 import { calls } from "./fetchers/batch.mts";
 import { Instance, type Json } from "./instance.ts";
 import { createAgentToken } from "./mcp-client.ts";
@@ -137,6 +138,29 @@ describe("a routine saves many links in one call and keeps a cursor on the Insta
 
     assert.equal((await importOf("reddit.saved_2")).state?.cursor, "t3_abc");
     assert.equal((await importOf("x-bookmarks")).state?.cursor, "3000000005");
+  });
+
+  it("keeps a cursor that a later run wrote again when a late call sent from the earlier value arrives", () =>
+    lateCallKeepsCursor(instance, "list-0123456789abcdef"));
+
+  it("keeps that cursor when every save lands in the same millisecond", (t) => {
+    const now = Date.now();
+
+    t.mock.method(Date, "now", () => now);
+
+    return lateCallKeepsCursor(instance, "list-1111111111111111");
+  });
+
+  it("keeps that cursor when the clock steps back before every save", (t) => {
+    let now = Date.now();
+
+    t.mock.method(Date, "now", () => {
+      now -= 1000;
+
+      return now;
+    });
+
+    return lateCallKeepsCursor(instance, "list-2222222222222222");
   });
 
   it("answers 400 with the entry's index and saves nothing, moving no cursor, when one entry is invalid", async () => {
