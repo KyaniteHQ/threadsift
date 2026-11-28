@@ -278,6 +278,14 @@ export async function markReadTwice(page: Page): Promise<void> {
 }
 
 export async function refusedWhileRestoreHolds(page: Page): Promise<void> {
+  await page.goto("/");
+  await page
+    .locator("article.it")
+    .filter({ hasText: THREAD_TITLE })
+    .getByRole("link")
+    .first()
+    .click();
+
   await whileRestoreHolds(async () => {
     await heldNoteSave(page);
     await heldPaste(page);
