@@ -251,7 +251,7 @@ A deleted, protected or suspended post answers 200 with an error entry and no `d
 
 #### The daily usage read
 
-Once a UTC day while a token is saved, the schedule runs `readXApiUsage`. It claims the UTC date in `scheduled_runs` before it opens the token, so only one tick a day reads, and a tick that holds no claim does nothing else. It then reads `GET /2/usage/tweets` through `meteredGet` at 0.20 USD and logs `x-api-usage`. The line holds X's count of yesterday's posts and the Instance's own count of yesterday's posts and users, each apart. X's count is kept in `x_api_spend.x_posts`. The endpoint answered 503 in 3 of 3 probe runs, so a failed answer logs `no-data` and changes nothing else.
+Once a UTC day while a token is saved, the schedule runs `readXApiUsage`. It claims the UTC date in `scheduled_runs` before it opens the token, so only one tick a day reads, and a tick that holds no claim does nothing else. It then reads `GET /2/usage/tweets` through `meteredGet` at 0.20 USD and logs `x-api-usage`. When the day's limit has no room left for those 0.20 USD, it sends nothing and logs `over-limit`, and the claim keeps the next read to the next UTC day. The line holds X's count of yesterday's posts and the Instance's own count of yesterday's posts and users, each apart. X's count is kept in `x_api_spend.x_posts`. The endpoint answered 503 in 3 of 3 probe runs, so a failed answer logs `no-data` and changes nothing else.
 
 #### Digests
 
