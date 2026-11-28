@@ -139,7 +139,7 @@ function dueAt(until: number, open: Readonly<OpenTask> | undefined): number | SQ
 
   const now = Date.now();
 
-  return sql`case when ${answeredOrClosed(open.taskId)} or not (${open.current}) then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${open.taskId}), ${until})) end`;
+  return sql`case when ${answeredOrClosed(open.taskId)} or not coalesce((${open.current}), 0) then ${now} else min(${until}, coalesce((select ${aiTasks.deadline} from ${aiTasks} where ${aiTasks.id} = ${open.taskId}), ${until})) end`;
 }
 
 export async function queueLater(
