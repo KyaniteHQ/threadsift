@@ -23,6 +23,13 @@
         "files": ["design/system/components.css"],
         "createdAt": "2026-11-04T13:28:56.233Z",
         "reason": "The hit is the .md blockquote rule, the usual quote mark in rendered Markdown, not a coloured card stripe"
+      },
+      {
+        "rule": "cream-palette",
+        "value": "*",
+        "files": ["http://127.0.0.1:*/**"],
+        "createdAt": "2026-11-27T22:12:17.000Z",
+        "reason": "Sepia is the one warm Theme (DESIGN.md, Colors): its page colour is a reading choice the owner kept on 2026-11-28. An ignore names a rule, a value and files, never a Theme, and this rule reports no value, so the entry waives the rule only on running-app scans at the local loopback address, where the page colour is computed; a Light or Dark scan there reports no cream-palette, and a source file or another host is never waived"
       }
     ]
   }

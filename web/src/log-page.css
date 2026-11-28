@@ -2,8 +2,11 @@
   font-size: var(--t-title);
 }
 .lg-date {
-  font-variant-numeric: tabular-nums;
+  color: var(--muted);
   white-space: nowrap;
+}
+.lg-sep {
+  color: var(--muted);
 }
 .lg-link {
   color: var(--text);
@@ -35,8 +38,6 @@
 }
 .app[data-bp~="phone"] .lg-date {
   flex-basis: 100%;
-  color: var(--muted);
-  font-size: var(--t-meta);
 }
 .app[data-bp~="phone"] .lg-sep {
   display: none;
