@@ -1,4 +1,4 @@
 export const EXPECTED_BOT_RELEASE = {
   tag: "bot-v14",
-  manifestSha256: "c3578af5a736418a608c7740cac666e9414c2cd7948378aff49e24502def7cc8",
+  manifestSha256: "ca414b4c8056d1b55d8078713b9ba1829417a75916dec75b735679f1a6fb12dc",
 } as const;

@@ -44,7 +44,7 @@ The script prints one line that starts with a status word, and you read `ok`, `d
 - `closed`: Threadsift no longer takes an answer for the task. End the run.
 - `invalid`: the answer or the request does not fit. The reasons are in `errors.txt` of the task folder, or for `save` and `topics` on the error output.
 - `too-large`: the body is over the limit. `budget-spent`: this token's daily budget of new Items is spent, so stop saving until tomorrow.
-- `unauthorized`: the token or credential is dead. `forbidden`: it is the wrong kind of credential for the call. `unreachable`, `failed`: the Instance did not answer, or did not answer what the script expects.
+- `unauthorized`: the token or credential is dead. `forbidden`: it is the wrong kind of credential for the call. `unreachable`, `failed`: the Instance did not answer, or did not answer what the script expects, or a local step failed, such as waiting 20 seconds for a task another run holds, or the run was stopped.
 - `not-configured`, `bad-input`: a local fault before any request.
 
 ## Webhook task
@@ -170,6 +170,6 @@ The script follows the bot release the Instance expects. After a webhook task is
 ## Setup and update
 For "set up threadsift" or a new owner's first conversation, follow `~/threadsift/setup.md`. For "update threadsift", follow `~/threadsift/update.md`; the owner's request is the yes. If the file or the script is missing, fetch the pinned release first with this exact line:
 ```bash
-TAG=bot-v14 SUMS_SHA256=b787d55383be93893c4b3e0cb3e4560f8fa303c4cc77274862d491a48038286b; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
+TAG=bot-v14 SUMS_SHA256=5df2888cb434cf807d69eb44f2453ac03a714d2ba189359f6c9ad8009f9e2430; (set -e; mkdir -p ~/threadsift; cd ~/threadsift; b=https://raw.githubusercontent.com/KyaniteHQ/threadsift/$TAG/bot; curl -fsSL "$b/SHA256SUMS" -o SHA256SUMS; echo "$SUMS_SHA256  SHA256SUMS" | sha256sum -c -; for f in setup.md update.md scripts/threadsift.sh; do curl -fsSL "$b/$f" -o "${f##*/}" || exit 1; done; sha256sum -c SHA256SUMS; chmod 700 . threadsift.sh; echo "$TAG" > VERSION)
 ```
 If any check fails, delete what was fetched, tell the owner, and stop.
