@@ -1,15 +1,16 @@
 import type { Link } from "../../../core/contract/links.ts";
 import type { SuppliedPage } from "../../../core/contract/supplied-page.ts";
-import { guards } from "../../../core/kernel/guards.ts";
 import { closeItemJobs } from "../../../core/kernel/job-close.ts";
 import { enqueueItemJobs } from "../../../core/kernel/job-rows.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
+import { heldBatch } from "../../../core/kernel/restore-hold.ts";
 import {
   type Around,
   type Existing,
   type Paste,
   type Saved,
   guardedItemWrite,
+  insertResults,
   holdsNoItem,
   itemAt,
   knownItem,
@@ -56,21 +57,20 @@ export async function savePaged(
 ): Promise<Saved | null> {
   const { db } = ports;
   const { normalizedUrl } = link;
-  const { heldGuard, insert, rest } = queuedRows(db, paste, link, JSON.stringify(page));
+  const { insert, rest } = queuedRows(db, paste, link, JSON.stringify(page));
   const writes = [...closeItemJobs(db, ownerOf(normalizedUrl).id), ...rest];
 
   if (link.source === "reddit") {
-    const inserted = await guardedItemWrite(
-      db,
-      hasNoThread(normalizedUrl),
-      { heldGuard, insert },
-      writes,
-    );
+    const inserted = await guardedItemWrite(db, hasNoThread(normalizedUrl), insert, writes);
 
     return inserted === null ? null : savedItem(ports, normalizedUrl, inserted.length > 0);
   }
 
-  const [, inserted] = await db.batch([heldGuard, insert, ...writes, db.delete(guards)]);
+  const written = await heldBatch(db, [...insert, ...writes] as const);
 
-  return savedItem(ports, normalizedUrl, inserted.length > 0);
+  return savedItem(
+    ports,
+    normalizedUrl,
+    written !== null && insertResults(written).inserted.length > 0,
+  );
 }

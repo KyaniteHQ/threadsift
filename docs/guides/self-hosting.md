@@ -14,8 +14,11 @@ Start a container Instance with the [README's container instructions](../../READ
 
 ## Pick an image tag
 
-The image is published at `ghcr.io/kyanitehq/threadsift`. The `main` and `sha-<commit sha>` tags are `amd64` only. A release tag is `amd64` and `arm64`.
+The image is published at `ghcr.io/kyanitehq/threadsift`. The `main` and `sha-<commit sha>` tags are `amd64` only. A release's tags are `amd64` and `arm64`.
 
+- `latest` is the newest stable release.
+- `1` follows the newest stable release of major version 1, and `1.4` the newest patch release of 1.4, which holds fixes only.
+- `1.4.2` is one release and never moves. A release candidate, such as `1.5.0-rc.1`, gets only a tag like this and moves no other tag.
 - `main` is the latest build that started and answered.
 - `sha-<commit sha>` is one build and never moves.
 

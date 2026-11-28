@@ -1,6 +1,6 @@
-import { sql } from "drizzle-orm";
+import { and, lt, notInArray, sql } from "drizzle-orm";
 
-import { itemFileOf } from "../../../core/contract/file-keys.ts";
+import { ITEM_FILES_ROOT, itemFileOf } from "../../../core/contract/file-keys.ts";
 import { IMAGE_MAX_BYTES, ITEM_REQUEST_BYTES } from "../../../core/contract/limits.ts";
 import {
   FilesCursorSchema,
@@ -8,12 +8,14 @@ import {
   RESTORED_FILES,
   RESTORE_FILE_BYTES,
   RESTORE_FILE_ENTRIES,
+  RESTORE_SETTLE_MS,
   entering,
 } from "../../../core/contract/restore-contract.ts";
 import type { Database } from "../../../core/kernel/database.ts";
+import { removeUnder } from "../../../core/kernel/file-pages.ts";
 import type { FileStore } from "../../../core/kernel/file-store.ts";
 import type { JobOutcome, JobPorts } from "../../../core/kernel/job-outcome.ts";
-import type { RestoreRow } from "../../../core/kernel/schema.ts";
+import { type RestoreRow, restoreRuns } from "../../../core/kernel/schema.ts";
 import {
   type ReadEntry,
   type ReadExtent,
@@ -99,12 +101,32 @@ function putEach(
   store: FileStore,
   directory: Readonly<ZipDirectory>,
   read: readonly Readonly<ReadEntry>[],
+  deadline: number,
 ): Promise<void> {
   return read.reduce(
     (previous, { entry, bytes }) =>
-      previous.then(() => store.put(entry.name.slice(directory.root.length + 1), bytes)),
+      previous.then(() => {
+        if (Date.now() >= deadline) {
+          throw new Error(`The files unit reached its deadline before ${entry.name}`);
+        }
+
+        return store.put(entry.name.slice(directory.root.length + 1), bytes);
+      }),
     Promise.resolve(),
   );
+}
+
+async function olderPutsEnd(db: Database, run: Readonly<RestoreRow>): Promise<number | null> {
+  const [older] = await db
+    .select({ at: sql<number | null>`max(${restoreRuns.updatedAt})` })
+    .from(restoreRuns)
+    .where(
+      and(lt(restoreRuns.id, run.id), notInArray(restoreRuns.phase, ["upload", "check", "tables"])),
+    );
+
+  return older === undefined || older.at === null
+    ? null
+    : Math.min(older.at, Date.now()) + RESTORE_SETTLE_MS;
 }
 
 export async function filesUnit(
@@ -112,8 +134,17 @@ export async function filesUnit(
   run: Readonly<RestoreRow>,
   source: Readonly<ZipSource>,
   { directory }: Readonly<Release>,
+  deadline: number,
 ): Promise<JobOutcome> {
+  const fence = await olderPutsEnd(db, run);
+
+  if (fence !== null && Date.now() < fence) {
+    return { deferredUntil: fence, wait: null, countsAttempt: false };
+  }
+
   const after = FilesCursorSchema.parse(JSON.parse(run.cursor));
+
+  if (after.owner === 0 && after.key === "") await removeUnder(files, ITEM_FILES_ROOT);
   const rows = await namedAfter(db, after);
   const window = windowOf(directory, rows);
 
@@ -121,7 +152,7 @@ export async function filesUnit(
     return steppedUnit(db, run, entering("search"));
   }
 
-  await putEach(files, directory, await entriesBytes(source, directory, window.stored));
+  await putEach(files, directory, await entriesBytes(source, directory, window.stored), deadline);
 
   return steppedUnit(db, run, {
     cursor: JSON.stringify(window.last),

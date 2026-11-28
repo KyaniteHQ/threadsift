@@ -78,14 +78,24 @@ interface Resets {
   readonly setChoice: (choice: CliChoice | undefined) => void;
   readonly clearError: () => void;
   readonly clearKey: () => void;
+  readonly stayOnPage: () => void;
 }
 
 function useChangeProvider(
   { provider, model, effort, choice }: Readonly<Saved>,
-  { setProvider, setModel, setEffort, setChoice, clearError, clearKey }: Readonly<Resets>,
+  {
+    setProvider,
+    setModel,
+    setEffort,
+    setChoice,
+    clearError,
+    clearKey,
+    stayOnPage,
+  }: Readonly<Resets>,
 ) {
   return useCallback(
     (event: ChangeEvent<HTMLSelectElement>) => {
+      stayOnPage();
       const next = ProviderSchema.parse(event.target.value);
       const saved = next === provider;
       setProvider(next);
@@ -106,11 +116,12 @@ function useChangeProvider(
       setChoice,
       clearError,
       clearKey,
+      stayOnPage,
     ],
   );
 }
 
-export function useAiFields(view: AiView) {
+export function useAiFields(view: AiView, stayOnPage: () => void) {
   const { settings, providers, recommendations } = view;
   const offered = settings !== null && providers.includes(settings.provider) ? settings : null;
 
@@ -139,6 +150,7 @@ export function useAiFields(view: AiView) {
       setChoice,
       clearError,
       clearKey: key.clear,
+      stayOnPage,
     },
   );
 

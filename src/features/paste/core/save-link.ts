@@ -1,6 +1,7 @@
 import type { Digest } from "../../../core/contract/digest-schema.ts";
-import { aliasAnswers, needsResolving, parseLink } from "../../../core/contract/links.ts";
+import { aliasAnswers, parseLink } from "../../../core/contract/links.ts";
 import { FETCH_DEADLINE_MS } from "../../../core/contract/request-waits.ts";
+import { aliasedItem, namingOf } from "../../../core/kernel/link-naming.ts";
 import type { Refused } from "../../../core/kernel/paste-outcome.ts";
 import type { Ports } from "../../../core/kernel/ports.ts";
 import { type Caller, tokenIdOf } from "../../access/core/caller.ts";
@@ -13,13 +14,16 @@ import {
   saveLinked,
   saveResolution,
 } from "./item-save.ts";
-import { aliasedItem } from "./short-link-aliases.ts";
 
 export type SaveResult = Saved | Refused;
 
-async function saveShortLink(ports: Ports, paste: Readonly<ShortLinkPaste>): Promise<Saved> {
+async function saveShortLink(
+  ports: Ports,
+  paste: Readonly<ShortLinkPaste>,
+  shortLink: string,
+): Promise<Saved> {
   const { pasted, digest, existing, addedByToken } = paste;
-  const known = await aliasedItem(ports.db, parseLink(pasted).normalizedUrl);
+  const known = await aliasedItem(ports.db, shortLink);
 
   if (known !== undefined && aliasAnswers(known.address)) {
     return (
@@ -28,7 +32,7 @@ async function saveShortLink(ports: Ports, paste: Readonly<ShortLinkPaste>): Pro
         { originalUrl: pasted, address: known.address, digest, addedByToken },
         known,
         existing,
-      )) ?? saveShortLink(ports, paste)
+      )) ?? saveShortLink(ports, paste, shortLink)
     );
   }
 
@@ -38,7 +42,10 @@ async function saveShortLink(ports: Ports, paste: Readonly<ShortLinkPaste>): Pro
     AbortSignal.timeout(FETCH_DEADLINE_MS),
   );
 
-  return (await saveResolution(ports, paste, resolution, known)) ?? saveShortLink(ports, paste);
+  return (
+    (await saveResolution(ports, paste, resolution, known)) ??
+    saveShortLink(ports, paste, shortLink)
+  );
 }
 
 export async function saveItem(
@@ -54,8 +61,14 @@ export async function saveItem(
 
   const addedByToken = tokenIdOf(caller);
 
-  if (needsResolving(absoluteUrl)) {
-    return saveShortLink(ports, { pasted: absoluteUrl, digest, existing, addedByToken });
+  const naming = namingOf(absoluteUrl);
+
+  if (naming.kind === "alias") {
+    return saveShortLink(
+      ports,
+      { pasted: absoluteUrl, digest, existing, addedByToken },
+      naming.shortLink,
+    );
   }
 
   return (

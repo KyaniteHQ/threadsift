@@ -40,9 +40,16 @@ export async function selectGrokBot(instance: Instance): Promise<void> {
   assert.equal(chosen.status, 200, chosen.body);
 }
 
-export async function relatedLibrary(instance: Instance): Promise<BotLibrary> {
+export async function relatedLibrary(
+  instance: Instance,
+  secondCandidate: Readonly<Partial<Parameters<typeof paste>[2]>> = {},
+): Promise<BotLibrary> {
   const first = await paste(instance, "near-one", { title: "Quasar lattice", tags: ["quasar"] });
-  const second = await paste(instance, "near-two", { title: "Quasar notes", tags: ["quasar"] });
+  const second = await paste(instance, "near-two", {
+    title: "Quasar notes",
+    tags: ["quasar"],
+    ...secondCandidate,
+  });
 
   const source = await paste(instance, "source", {
     title: "Quasar lattice decoder",

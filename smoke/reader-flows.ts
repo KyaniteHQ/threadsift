@@ -1,8 +1,9 @@
-import { type Page, expect } from "@playwright/test";
-import { z } from "zod";
+import { type Page, type Route, expect } from "@playwright/test";
 
 import { STORAGE_KEY } from "../design/system/settings.ts";
+import { ReadStateRequestSchema } from "../src/core/contract/item-route-wire.ts";
 import { OP_LABEL, RELATED } from "../web/src/reader-text.ts";
+import { MOTION_ITEM, motionOf, watchMotion } from "./reader-motion-flow.ts";
 import { itemDetail, savedItem, savedTopicItem } from "./saved-item.ts";
 
 const THREAD_ID = "3000000000000000001";
@@ -141,92 +142,6 @@ export async function readXThread(page: Page): Promise<void> {
   await expectStoredAuthor(page, STATUS_TITLE);
 }
 
-const MotionsSchema = z.array(
-  z.object({ done: z.boolean(), moved: z.array(z.string()), changing: z.number() }),
-);
-
-const MOTION_ITEM = {
-  url: "https://example.com/guides/reader-motion",
-  page: { markdown: "A page the Reader opens from its card.", title: "Opening from a card" },
-  digest: {
-    title: "Opening from a card",
-    topic: "Reading",
-    tags: ["motion"],
-    summary: "The card grows into the Reader.\nClosing runs it back.",
-    keyPoints: ["One shared name per Item"],
-  },
-};
-
-function watchMotion(): void {
-  const start = document.startViewTransition.bind(document);
-  const runs: { done: boolean; moved: readonly string[]; changing: number }[] = [];
-  const write = (): void => {
-    document.documentElement.dataset["motion"] = JSON.stringify(runs);
-  };
-
-  document.startViewTransition = (update) => {
-    const transition = start(update);
-    const moved: readonly string[] = [];
-    const run = { done: false, moved, changing: 0 };
-    runs.push(run);
-    write();
-
-    const end = (): void => {
-      run.done = true;
-      write();
-    };
-    const measure = (): void => {
-      const changing = document.documentElement
-        .getAnimations({ subtree: true })
-        .map((each) => each.effect)
-        .filter((each) => each instanceof KeyframeEffect)
-        .filter((each) => (each.pseudoElement ?? "").startsWith("::view-transition"))
-        .filter((each) => {
-          const frames = each.getKeyframes();
-
-          return ["opacity", "transform", "width", "height"].some(
-            (key) => String(frames.at(0)?.[key]) !== String(frames.at(-1)?.[key]),
-          );
-        });
-
-      run.changing = changing.length;
-      run.moved = changing
-        .map((each) => /^::view-transition-group\((.+)\)$/u.exec(each.pseudoElement ?? "")?.[1])
-        .filter((name): name is string => name !== undefined && name !== "root");
-      write();
-    };
-
-    transition.ready.then(measure, write);
-    transition.finished.then(end, end);
-
-    return transition;
-  };
-}
-
-const motions = async (page: Page) =>
-  MotionsSchema.parse(
-    JSON.parse(await page.evaluate(() => document.documentElement.dataset["motion"] ?? "[]")),
-  );
-
-async function motionOf(page: Page, act: () => Promise<void>, readers: number) {
-  const since = (await motions(page)).length;
-
-  await act();
-  await expect(page.locator(".reader-slot")).toHaveCount(readers);
-  await expect
-    .poll(
-      async () => {
-        const runs = (await motions(page)).slice(since);
-
-        return runs.length > 0 && runs.every((run) => run.done);
-      },
-      { message: "a view transition starts and finishes" },
-    )
-    .toBe(true);
-
-  return (await motions(page)).slice(since);
-}
-
 export async function readerMotion(page: Page): Promise<void> {
   const id = await savedItem(page.request, MOTION_ITEM);
   const card = page.locator(`.it[data-key="${String(id)}"] .it-open`);
@@ -284,4 +199,56 @@ export async function readerMotion(page: Page): Promise<void> {
     },
     [STORAGE_KEY, stored] as const,
   );
+}
+
+const LIST_READ_HOLD_MS = 1500;
+
+const listReads = (url: URL) => url.pathname === "/api/items";
+
+async function holdListRead(route: Route): Promise<void> {
+  if (route.request().method() === "GET") {
+    await new Promise<void>((wait) => {
+      setTimeout(wait, LIST_READ_HOLD_MS);
+    });
+  }
+
+  await route.fallback();
+}
+
+export async function markReadTwice(page: Page): Promise<void> {
+  const row = page.locator("article.it").filter({ hasText: THREAD_TITLE });
+  const id = Number(await row.getAttribute("data-key"));
+  const path = `/api/items/${String(id)}/read-state`;
+
+  await row.getByRole("link").first().click();
+  await expect(page.locator(".reader .rd-title")).toContainText(THREAD_TITLE);
+
+  expect((await itemDetail(page.request, id)).readState).toBe("unread");
+
+  await page.route(listReads, holdListRead);
+
+  const sent: string[] = [];
+  const answered = () =>
+    page.waitForResponse(
+      (response) =>
+        response.request().method() === "PUT" && new URL(response.url()).pathname === path,
+    );
+
+  page.on("request", (request) => {
+    if (request.method() === "PUT" && new URL(request.url()).pathname === path) {
+      sent.push(ReadStateRequestSchema.parse(request.postDataJSON()).readState);
+    }
+  });
+
+  const first = answered();
+  await page.keyboard.press("m");
+  await first;
+  const second = answered();
+  await page.keyboard.press("m");
+  await second;
+
+  expect(sent).toStrictEqual(["read", "unread"]);
+  expect((await itemDetail(page.request, id)).readState).toBe("unread");
+
+  await page.unroute(listReads, holdListRead);
 }

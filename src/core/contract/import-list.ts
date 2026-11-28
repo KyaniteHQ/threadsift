@@ -4,6 +4,7 @@ import { webUrlOf } from "./addresses.ts";
 import type { BatchRequestSchema } from "./batch-wire.ts";
 import { hex, utf8Length } from "./encoding.ts";
 import { splitLines } from "./format.ts";
+import type { ImportSchema, ImportState } from "./import-contract.ts";
 import { BODY_LIMIT_BYTES } from "./limits.ts";
 import { linkIn } from "./shared-link.ts";
 
@@ -51,9 +52,12 @@ type BatchRequest = z.input<typeof BatchRequestSchema>;
 export type ImportRequest = Readonly<{
   links: BatchRequest["links"];
   import: Readonly<
-    Omit<NonNullable<BatchRequest["import"]>, "previous"> & { previous: string | null }
+    z.input<typeof ImportSchema> &
+      ({ previous: null } | { previous: string; previousUpdatedAt: number })
   >;
 }>;
+
+export type SavedCursor = Readonly<Pick<ImportState, "cursor" | "updatedAt">>;
 
 export type Resume =
   | { readonly kind: "fresh" }
@@ -81,21 +85,24 @@ function importRequest(
   links: readonly string[],
   name: string,
   cursor: number,
-  previous: string | null,
+  previous: SavedCursor | null,
 ): ImportRequest {
+  const moving = { name, cursor: String(cursor) };
+
   return {
     links: links.map((url) => ({ url })),
-    import: { name, cursor: String(cursor), previous },
+    import:
+      previous === null
+        ? { ...moving, previous: null }
+        : { ...moving, previous: previous.cursor, previousUpdatedAt: previous.updatedAt },
   };
 }
 
 const ENVELOPE_BYTES = bytesOf(
-  importRequest(
-    [],
-    `${NAME_PREFIX}${"0".repeat(NAME_DIGITS)}`,
-    Number.MAX_SAFE_INTEGER,
-    String(Number.MAX_SAFE_INTEGER),
-  ),
+  importRequest([], `${NAME_PREFIX}${"0".repeat(NAME_DIGITS)}`, Number.MAX_SAFE_INTEGER, {
+    cursor: String(Number.MAX_SAFE_INTEGER),
+    updatedAt: Number.MAX_SAFE_INTEGER,
+  }),
 );
 
 function entryBytes(link: string): number {
@@ -261,7 +268,7 @@ export function nextBatch(
   links: readonly string[],
   from: number,
   name: string,
-  previous: string | null,
+  previous: SavedCursor | null,
   limit: number,
 ): ImportRequest {
   let end = from;
